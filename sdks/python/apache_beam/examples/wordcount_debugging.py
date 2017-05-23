@@ -118,35 +118,32 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # Read the text file[pattern] into a PCollection, count the occurrences of
-  # each word and filter by a list of words.
-  filtered_words = (
-      p | 'read' >> ReadFromText(known_args.input)
-      | CountWords()
-      | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
+    # Read the text file[pattern] into a PCollection, count the occurrences of
+    # each word and filter by a list of words.
+    filtered_words = (
+        p | 'read' >> ReadFromText(known_args.input)
+        | CountWords()
+        | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
-  # assert_that is a convenient PTransform that checks a PCollection has an
-  # expected value. Asserts are best used in unit tests with small data sets but
-  # is demonstrated here as a teaching tool.
-  #
-  # Note assert_that does not provide any output and that successful completion
-  # of the Pipeline implies that the expectations were  met. Learn more at
-  # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
-  # test your pipeline.
-  assert_that(
-      filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
+    # assert_that is a convenient PTransform that checks a PCollection has an
+    # expected value. Asserts are best used in unit tests with small data sets
+    # but is demonstrated here as a teaching tool.
+    #
+    # Note assert_that does not provide any output and that successful
+    # completion of the Pipeline implies that the expectations were  met. Learn
+    # more at https://cloud.google.com/dataflow/pipelines/testing-your-pipeline
+    # on how to best test your pipeline.
+    assert_that(
+        filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
 
-  # Format the counts into a PCollection of strings and write the output using a
-  # "Write" transform that has side effects.
-  # pylint: disable=unused-variable
-  output = (filtered_words
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | 'write' >> WriteToText(known_args.output))
-
-  # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+    # Format the counts into a PCollection of strings and write the output using
+    # a "Write" transform that has side effects.
+    # pylint: disable=unused-variable
+    output = (filtered_words
+              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'write' >> WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

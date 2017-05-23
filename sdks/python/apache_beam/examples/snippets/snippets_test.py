@@ -119,7 +119,6 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'A', 'C'}, set(all_capitals))
 
   def test_pardo_with_label(self):
-    # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
     result = words | 'CountUniqueLetters' >> beam.Map(
@@ -129,41 +128,41 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = TestPipeline()
-    words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
+    # pylint: disable=line-too-long
+    with TestPipeline() as p:
+      words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
-    # [START model_pardo_side_input]
-    # Callable takes additional arguments.
-    def filter_using_length(word, lower_bound, upper_bound=float('inf')):
-      if lower_bound <= len(word) <= upper_bound:
-        yield word
+      # [START model_pardo_side_input]
+      # Callable takes additional arguments.
+      def filter_using_length(word, lower_bound, upper_bound=float('inf')):
+        if lower_bound <= len(word) <= upper_bound:
+          yield word
 
-    # Construct a deferred side input.
-    avg_word_len = (words
-                    | beam.Map(len)
-                    | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
+      # Construct a deferred side input.
+      avg_word_len = (words
+                      | beam.Map(len)
+                      | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
-    # Call with explicit side inputs.
-    small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
+      # Call with explicit side inputs.
+      small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
 
-    # A single deferred side input.
-    larger_than_average = (words | 'large' >> beam.FlatMap(
-        filter_using_length,
-        lower_bound=pvalue.AsSingleton(avg_word_len)))
+      # A single deferred side input.
+      larger_than_average = (words | 'large' >> beam.FlatMap(
+          filter_using_length,
+          lower_bound=pvalue.AsSingleton(avg_word_len)))
 
-    # Mix and match.
-    small_but_nontrivial = words | beam.FlatMap(filter_using_length,
-                                                lower_bound=2,
-                                                upper_bound=pvalue.AsSingleton(
-                                                    avg_word_len))
-    # [END model_pardo_side_input]
+      # Mix and match.
+      small_but_nontrivial = words | beam.FlatMap(
+          filter_using_length,
+          lower_bound=2,
+          upper_bound=pvalue.AsSingleton(avg_word_len))
+      # [END model_pardo_side_input]
 
-    assert_that(small_words, equal_to(['a', 'bb', 'ccc']))
-    assert_that(larger_than_average, equal_to(['ccc', 'dddd']),
-                label='larger_than_average')
-    assert_that(small_but_nontrivial, equal_to(['bb']),
-                label='small_but_not_trivial')
-    p.run()
+      assert_that(small_words, equal_to(['a', 'bb', 'ccc']))
+      assert_that(larger_than_average, equal_to(['ccc', 'dddd']),
+                  label='larger_than_average')
+      assert_that(small_but_nontrivial, equal_to(['bb']),
+                  label='small_but_not_trivial')
 
   def test_pardo_side_input_dofn(self):
     words = ['a', 'bb', 'ccc', 'dddd']
@@ -307,10 +306,9 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_off(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
-    # [START type_hints_runtime_off]
-    p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-    p.run()
+    with TestPipeline() as p:
+      # [START type_hints_runtime_off]
+      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
@@ -323,47 +321,45 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = TestPipeline()
-    lines = (p | beam.Create(
-        ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
+    with TestPipeline() as p:
+      lines = (p | beam.Create(
+          ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
-    # For pickling
-    global Player  # pylint: disable=global-variable-not-assigned
+      # For pickling
+      global Player  # pylint: disable=global-variable-not-assigned
 
-    # [START type_hints_deterministic_key]
-    class Player(object):
-      def __init__(self, team, name):
-        self.team = team
-        self.name = name
+      # [START type_hints_deterministic_key]
+      class Player(object):
+        def __init__(self, team, name):
+          self.team = team
+          self.name = name
 
-    class PlayerCoder(beam.coders.Coder):
-      def encode(self, player):
-        return '%s:%s' % (player.team, player.name)
+      class PlayerCoder(beam.coders.Coder):
+        def encode(self, player):
+          return '%s:%s' % (player.team, player.name)
 
-      def decode(self, s):
-        return Player(*s.split(':'))
+        def decode(self, s):
+          return Player(*s.split(':'))
 
-      def is_deterministic(self):
-        return True
+        def is_deterministic(self):
+          return True
 
-    beam.coders.registry.register_coder(Player, PlayerCoder)
+      beam.coders.registry.register_coder(Player, PlayerCoder)
 
-    def parse_player_and_score(csv):
-      name, team, score = csv.split(',')
-      return Player(team, name), int(score)
+      def parse_player_and_score(csv):
+        name, team, score = csv.split(',')
+        return Player(team, name), int(score)
 
-    totals = (
-        lines
-        | beam.Map(parse_player_and_score)
-        | beam.CombinePerKey(sum).with_input_types(
-            beam.typehints.Tuple[Player, int]))
-    # [END type_hints_deterministic_key]
+      totals = (
+          lines
+          | beam.Map(parse_player_and_score)
+          | beam.CombinePerKey(sum).with_input_types(
+              beam.typehints.Tuple[Player, int]))
+      # [END type_hints_deterministic_key]
 
-    assert_that(
-        totals | beam.Map(lambda (k, v): (k.name, v)),
-        equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
-
-    p.run()
+      assert_that(
+          totals | beam.Map(lambda (k, v): (k.name, v)),
+          equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
 class SnippetsTest(unittest.TestCase):
@@ -802,109 +798,104 @@ class CombineTest(unittest.TestCase):
     self.assertEqual({('cat', 3), ('dog', 2)}, set(perkey_counts))
 
   def test_setting_fixed_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([22, 33, 55, 100, 115, 120])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_fixed_windows]
-    from apache_beam import window
-    fixed_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
-    # [END setting_fixed_windows]
-    summed = (fixed_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    assert_that(unkeyed, equal_to([110, 215, 120]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([22, 33, 55, 100, 115, 120])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_fixed_windows]
+      from apache_beam import window
+      fixed_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
+      # [END setting_fixed_windows]
+      summed = (fixed_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([110, 215, 120]))
 
   def test_setting_sliding_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 16, 23])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_sliding_windows]
-    from apache_beam import window
-    sliding_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.SlidingWindows(30, 5)))
-    # [END setting_sliding_windows]
-    summed = (sliding_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    assert_that(unkeyed,
-                equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 16, 23])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_sliding_windows]
+      from apache_beam import window
+      sliding_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.SlidingWindows(30, 5)))
+      # [END setting_sliding_windows]
+      summed = (sliding_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed,
+                  equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
 
   def test_setting_session_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 11, 16, 27])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_session_windows]
-    from apache_beam import window
-    session_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.Sessions(10)))
-    # [END setting_session_windows]
-    summed = (session_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    assert_that(unkeyed,
-                equal_to([29, 27]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 11, 16, 27])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_session_windows]
+      from apache_beam import window
+      session_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.Sessions(10)))
+      # [END setting_session_windows]
+      summed = (session_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed,
+                  equal_to([29, 27]))
 
   def test_setting_global_window(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 11, 16, 27])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_global_window]
-    from apache_beam import window
-    session_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.GlobalWindows()))
-    # [END setting_global_window]
-    summed = (session_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    assert_that(unkeyed, equal_to([56]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 11, 16, 27])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_global_window]
+      from apache_beam import window
+      session_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.GlobalWindows()))
+      # [END setting_global_window]
+      summed = (session_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([56]))
 
   def test_setting_timestamp(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([12, 30, 60, 61, 66])
-    items = (unkeyed_items | 'key' >> beam.Map(lambda x: ('k', x)))
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([12, 30, 60, 61, 66])
+      items = (unkeyed_items | 'key' >> beam.Map(lambda x: ('k', x)))
 
-    def extract_timestamp_from_log_entry(entry):
-      return entry[1]
+      def extract_timestamp_from_log_entry(entry):
+        return entry[1]
 
-    # [START setting_timestamp]
-    class AddTimestampDoFn(beam.DoFn):
+      # [START setting_timestamp]
+      class AddTimestampDoFn(beam.DoFn):
 
-      def process(self, element):
-        # Extract the numeric Unix seconds-since-epoch timestamp to be
-        # associated with the current log entry.
-        unix_timestamp = extract_timestamp_from_log_entry(element)
-        # Wrap and emit the current entry and new timestamp in a
-        # TimestampedValue.
-        yield beam.window.TimestampedValue(element, unix_timestamp)
+        def process(self, element):
+          # Extract the numeric Unix seconds-since-epoch timestamp to be
+          # associated with the current log entry.
+          unix_timestamp = extract_timestamp_from_log_entry(element)
+          # Wrap and emit the current entry and new timestamp in a
+          # TimestampedValue.
+          yield beam.window.TimestampedValue(element, unix_timestamp)
 
-    timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
-    # [END setting_timestamp]
-    fixed_windowed_items = (
-        timestamped_items | 'window' >> beam.WindowInto(
-            beam.window.FixedWindows(60)))
-    summed = (fixed_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    assert_that(unkeyed, equal_to([42, 187]))
-    p.run()
+      timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
+      # [END setting_timestamp]
+      fixed_windowed_items = (
+          timestamped_items | 'window' >> beam.WindowInto(
+              beam.window.FixedWindows(60)))
+      summed = (fixed_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([42, 187]))
 
 
 class PTransformTest(unittest.TestCase):
@@ -919,10 +910,9 @@ class PTransformTest(unittest.TestCase):
         return pcoll | beam.Map(lambda x: len(x))
     # [END model_composite_transform]
 
-    p = TestPipeline()
-    lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
-    assert_that(lengths, equal_to([1, 2, 3]))
-    p.run()
+    with TestPipeline() as p:
+      lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
+      assert_that(lengths, equal_to([1, 2, 3]))
 
 
 if __name__ == '__main__':

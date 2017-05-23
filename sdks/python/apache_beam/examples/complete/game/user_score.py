@@ -201,16 +201,13 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   pipeline_options = PipelineOptions(pipeline_args)
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | ReadFromText(known_args.input) # Read events from a file and parse them.
-   | UserScore()
-   | WriteToBigQuery(
-       known_args.table_name, known_args.dataset, configure_bigquery_write()))
-
-  result = p.run()
-  result.wait_until_finish()
+    (p  # pylint: disable=expression-not-assigned
+     | ReadFromText(known_args.input) # Read events from a file and parse them.
+     | UserScore()
+     | WriteToBigQuery(
+         known_args.table_name, known_args.dataset, configure_bigquery_write()))
 
 
 if __name__ == '__main__':
