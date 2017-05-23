@@ -47,9 +47,9 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/** Utilities for working with {@link Triggers Triggers}. */
+/** Utilities for working with {@link TriggerTranslation Triggers}. */
 @Experimental(Experimental.Kind.TRIGGER)
-public class Triggers implements Serializable {
+public class TriggerTranslation implements Serializable {
 
   @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
 
@@ -332,5 +332,5 @@ public class Triggers implements Serializable {
   }
 
   // Do not instantiate
-  private Triggers() {}
+  private TriggerTranslation() {}
 }
