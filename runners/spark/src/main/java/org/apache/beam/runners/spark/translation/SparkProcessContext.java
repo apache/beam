@@ -95,15 +95,6 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   }
 
   static class NoOpStepContext implements StepContext {
-    @Override
-    public String getStepName() {
-      return null;
-    }
-
-    @Override
-    public String getTransformName() {
-      return null;
-    }
 
     @Override
     public StateInternals stateInternals() {

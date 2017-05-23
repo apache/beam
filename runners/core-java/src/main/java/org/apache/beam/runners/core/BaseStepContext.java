@@ -33,16 +33,6 @@ public abstract class BaseStepContext implements StepContext {
   }
 
   @Override
-  public String getStepName() {
-    return stepName;
-  }
-
-  @Override
-  public String getTransformName() {
-    return transformName;
-  }
-
-  @Override
   public abstract StateInternals stateInternals();
 
   @Override
