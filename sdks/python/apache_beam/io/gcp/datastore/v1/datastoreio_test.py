@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import math
 import unittest
 
 from mock import MagicMock, call, patch
