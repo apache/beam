@@ -141,7 +141,7 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 			var target *graph.Target
 			for key, _ := range transform.GetInputs() {
-				target = &graph.Target{transform.GetId(), key}
+				target = &graph.Target{ID: transform.GetId(), Name: key}
 			}
 
 			edge := g.NewEdge(g.Root())
@@ -166,7 +166,7 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 			var target *graph.Target
 			for key, _ := range transform.GetOutputs() {
-				target = &graph.Target{transform.GetId(), key}
+				target = &graph.Target{ID: transform.GetId(), Name: key}
 			}
 
 			edge := g.NewEdge(g.Root())
