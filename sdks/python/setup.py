@@ -19,12 +19,18 @@
 
 from distutils.version import StrictVersion
 
+import glob
 import os
+import pkg_resources
 import platform
 import shutil
+import sys
 import warnings
 
 import setuptools
+
+from distutils.command.build_py import build_py as original_build_py
+from distutils.command.sdist import sdist as original_sdist
 
 from pkg_resources import get_distribution, DistributionNotFound
 
@@ -111,6 +117,58 @@ GCP_REQUIREMENTS = [
 ]
 
 
+def generate_proto_files():
+  from grpc_tools import protoc
+
+  py_sdk_root = os.path.dirname(os.path.abspath(__file__))
+  common = os.path.join(os.path.dirname(py_sdk_root), 'common')
+  proto_dirs = [os.path.join(common, '%s-api' % t, 'src', 'main', 'proto')
+                for t in ('runner', 'fn')]
+  proto_files = sum(
+      [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
+  out_dir = os.path.join(py_sdk_root, 'apache_beam', 'runners', 'api')
+  out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
+
+  if not out_files and not proto_files:
+    if not common:
+      raise RuntimeError(
+          'Not in apache git tree; unable to find proto definitions.')
+    else:
+      raise RuntimeError(
+          'Proto files not found at %s.' % proto_dirs)
+
+  elif (not out_files
+      or len(out_files) < len(proto_files)
+      or min(os.path.getmtime(path) for path in out_files)
+      <= max(os.path.getmtime(path) for path in proto_files)):
+    print 'Regenerating out-of-date Python proto definitions.'
+    proto_include = pkg_resources.resource_filename('grpc_tools', '_proto')
+    args = (
+      [sys.executable] +  # expecting to be called from command line
+      ['--proto_path=%s' % proto_include] +
+      ['--proto_path=%s' % d for d in proto_dirs] +
+      ['--python_out=%s' % out_dir] +
+      ['--grpc_python_out=%s' % out_dir] +
+      proto_files)
+    ret_code = protoc.main(args)
+    if ret_code:
+      raise RuntimeError(
+          'Protoc returned non-zero status (see logs for details): '
+          '%s' % ret_code)
+
+
+class proto_build_py(original_build_py, object):
+  def run(self):
+    generate_proto_files()
+    super(proto_build_py, self).run()
+
+
+class proto_sdist(original_sdist, object):
+  def run(self):
+    generate_proto_files()
+    super(proto_sdist, self).run()
+
+
 setuptools.setup(
     name=PACKAGE_NAME,
     version=PACKAGE_VERSION,
@@ -135,7 +193,7 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
-    setup_requires=['nose>=1.0'],
+    setup_requires=['nose>=1.0', 'grpcio-tools'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
@@ -159,5 +217,6 @@ setuptools.setup(
     entry_points={
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin'
-            ]}
-    )
+            ]},
+    cmdclass={'build_py': proto_build_py, 'sdist': proto_sdist},
+)
