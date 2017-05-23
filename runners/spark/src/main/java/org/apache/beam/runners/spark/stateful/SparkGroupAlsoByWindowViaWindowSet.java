@@ -31,7 +31,7 @@ import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -260,7 +260,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                               windowingStrategy,
                               ExecutableTriggerStateMachine.create(
                                   TriggerStateMachines.stateMachineForTrigger(
-                                      Triggers.toProto(windowingStrategy.getTrigger()))),
+                                      TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
                               stateInternals,
                               timerInternals,
                               outputHolder,
