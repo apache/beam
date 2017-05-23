@@ -136,6 +136,9 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
       return value instanceof BigDecimal;
     case INTERVAL_MINUTE:
       return value instanceof BigDecimal;
+    case SYMBOL:
+      // for SYMBOL, it supports anything...
+      return true;
     default:
       throw new BeamSqlUnsupportedException(outputType.name());
     }

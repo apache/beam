@@ -20,8 +20,6 @@ package org.apache.beam.dsls.sql.interpreter.operator.date;
 
 import java.util.Collections;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
@@ -29,11 +27,14 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * CURRENT_TIME.
+ * {@code BeamSqlExpression} for CURRENT_TIME.
+ *
+ * <p>Returns the current time in the session time zone, in a value of datatype
+ * TIMESTAMP WITH TIME ZONE.
  */
 public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
   public BeamSqlCurrentTimeExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIME);
+    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
   }
   @Override public boolean accept() {
     // CURRENT_TIME has no param.
@@ -41,8 +42,6 @@ public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    GregorianCalendar ret = new GregorianCalendar(TimeZone.getDefault());
-    ret.setTime(new Date());
-    return BeamSqlPrimitive.of(SqlTypeName.TIME, ret);
+    return BeamSqlPrimitive.of(outputType, new Date());
   }
 }

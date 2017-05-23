@@ -18,22 +18,18 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
+import static org.junit.Assert.assertEquals;
 
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 /**
  * Test for BeamSqlCurrentTimeExpression.
  */
-public class BeamSqlCurrentTimeExpressionTest {
+public class BeamSqlCurrentTimeExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
-    GregorianCalendar ret = new GregorianCalendar(TimeZone.getDefault());
-    ret.setTime(new Date());
-    ret.set(0, 0, 0);
-    System.out.println(ret);
-    System.out.println(ret.getTimeZone());
+    assertEquals(SqlTypeName.TIMESTAMP,
+        new BeamSqlCurrentTimeExpression().evaluate(record).getOutputType());
   }
 }

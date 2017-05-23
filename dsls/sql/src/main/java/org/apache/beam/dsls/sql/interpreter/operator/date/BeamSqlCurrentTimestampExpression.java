@@ -28,10 +28,13 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * {@code BeamSqlExpression} for CURRENT_TIMESTAMP and LOCALTIMESTAMP.
+ *
+ * <p>Returns the current date and time in the session time zone, in a value of datatype
+ * TIMESTAMP WITH TIME ZONE.
  */
 public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
   public BeamSqlCurrentTimestampExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIME);
+    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.TIMESTAMP);
   }
   @Override public boolean accept() {
     // CURRENT_TIMESTAMP has no param.
@@ -39,6 +42,6 @@ public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, new Date());
+    return BeamSqlPrimitive.of(outputType, new Date());
   }
 }

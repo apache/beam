@@ -18,28 +18,35 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
-import java.util.Collections;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_DATE and LOCALTIME.
- *
- * <p>Returns the current date in the session time zone, in a value of datatype DATE.
+ * Base class for all date related expression test.
  */
-public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
-  public BeamSqlCurrentDateExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.DATE);
-  }
-  @Override public boolean accept() {
-    return getOperands().size() == 0;
+public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
+  protected long str2LongTime(String dateStr) {
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    try {
+      Date date = format.parse(dateStr);
+      return date.getTime();
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+  protected Date str2DateTime(String dateStr) {
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    try {
+      format.setTimeZone(TimeZone.getTimeZone("GMT"));
+      Date date = format.parse(dateStr);
+      return date;
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
