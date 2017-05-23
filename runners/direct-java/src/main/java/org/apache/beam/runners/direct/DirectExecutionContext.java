@@ -48,19 +48,17 @@ class DirectExecutionContext {
     this.watermarks = watermarks;
   }
 
-  private DirectStepContext createStepContext(String stepName, String transformName) {
-    return new DirectStepContext(stepName, transformName);
+  private DirectStepContext createStepContext() {
+    return new DirectStepContext();
   }
 
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  public DirectStepContext getStepContext(String stepName, String transformName) {
-    final String finalStepName = stepName;
-    final String finalTransformName = transformName;
+  public DirectStepContext getStepContext(String stepName) {
     DirectStepContext context = cachedStepContexts.get(stepName);
     if (context == null) {
-      context = createStepContext(finalStepName, finalTransformName);
+      context = createStepContext();
       cachedStepContexts.put(stepName, context);
     }
     return context;
@@ -72,14 +70,8 @@ class DirectExecutionContext {
   public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
-    private final String stepName;
-    private final String transformName;
 
-    public DirectStepContext(
-        String stepName, String transformName) {
-      this.stepName = stepName;
-      this.transformName = transformName;
-    }
+    public DirectStepContext() { }
 
     @Override
     public CopyOnAccessInMemoryStateInternals<?> stateInternals() {
