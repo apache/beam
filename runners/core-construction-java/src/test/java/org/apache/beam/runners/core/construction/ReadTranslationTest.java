@@ -51,10 +51,10 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Tests for {@link ReadTranslator}.
+ * Tests for {@link ReadTranslation}.
  */
 @RunWith(Parameterized.class)
-public class ReadTranslatorTest {
+public class ReadTranslationTest {
 
   @Parameters(name = "{index}: {0}")
   public static Iterable<Source<?>> data() {
@@ -74,9 +74,9 @@ public class ReadTranslatorTest {
     assumeThat(source, instanceOf(BoundedSource.class));
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
     Read.Bounded<?> boundedRead = Read.from(boundedSource);
-    ReadPayload payload = ReadTranslator.toProto(boundedRead);
+    ReadPayload payload = ReadTranslation.toProto(boundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.BOUNDED));
-    BoundedSource<?> deserializedSource = ReadTranslator.boundedSourceFromProto(payload);
+    BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
   }
 
@@ -85,9 +85,9 @@ public class ReadTranslatorTest {
     assumeThat(source, instanceOf(UnboundedSource.class));
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
-    ReadPayload payload = ReadTranslator.toProto(unboundedRead);
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.UNBOUNDED));
-    UnboundedSource<?, ?> deserializedSource = ReadTranslator.unboundedSourceFromProto(payload);
+    UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
   }
 
