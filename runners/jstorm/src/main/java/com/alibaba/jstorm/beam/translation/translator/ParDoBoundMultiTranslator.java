@@ -21,6 +21,7 @@ import avro.shaded.com.google.common.collect.Lists;
 import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.runtime.DoFnExecutor;
+import com.alibaba.jstorm.beam.translation.runtime.MultiOutputDoFnExecutor;
 import com.google.common.collect.ImmutableList;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.*;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -44,8 +46,15 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
         final TupleTag<InputT> inputTag = (TupleTag<InputT>) userGraphContext.getInputTag();
         PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
 
-        TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
-        List<TupleTag<?>> sideOutputTags = Lists.newArrayList(transform.getAdditionalOutputTags().getAll());
+        Map<TupleTag<?>, PValue> allOutputs = Maps.newHashMap(userGraphContext.getOutputs());
+        Map<TupleTag<?>, TupleTag<?>> localToExternalTupleTagMap = Maps.newHashMap();
+        for (Map.Entry<TupleTag<?>, PValue> entry : allOutputs.entrySet()) {
+            Iterator<TupleTag<?>> itr = ((PValueBase) entry.getValue()).expand().keySet().iterator();
+            localToExternalTupleTagMap.put(entry.getKey(), itr.next());
+        }
+
+        TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
+        List<TupleTag<?>> sideOutputTags = userGraphContext.getOutputTags();
         sideOutputTags.remove(mainOutputTag);
 
         Map<TupleTag<?>, PValue> allInputs = Maps.newHashMap(userGraphContext.getInputs());
@@ -55,14 +64,14 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
         String description = describeTransform(
                 transform,
                 allInputs,
-                userGraphContext.getOutputs());
+                allOutputs);
 
         ImmutableMap.Builder<TupleTag, PCollectionView<?>> sideInputTagToView = ImmutableMap.builder();
         for (PCollectionView pCollectionView : transform.getSideInputs()) {
             sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
         }
 
-        DoFnExecutor<InputT, OutputT> executor = new DoFnExecutor<>(
+        DoFnExecutor<InputT, OutputT> executor = new MultiOutputDoFnExecutor<>(
                 userGraphContext.getStepName(),
                 description,
                 userGraphContext.getOptions(),
@@ -73,7 +82,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
                 transform.getSideInputs(),
                 sideInputTagToView.build(),
                 mainOutputTag,
-                sideOutputTags);
+                sideOutputTags,
+                localToExternalTupleTagMap);
 
         context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
     }
