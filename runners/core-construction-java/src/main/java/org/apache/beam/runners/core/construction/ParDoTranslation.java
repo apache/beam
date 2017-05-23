@@ -269,7 +269,8 @@ public class ParDoTranslation {
             components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
             components);
     Coder<?> elemCoder =
-        Coders.fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+        CoderTranslation
+            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(
