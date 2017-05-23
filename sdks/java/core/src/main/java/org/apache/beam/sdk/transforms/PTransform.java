@@ -179,8 +179,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Override this method to specify how this {@code PTransform} should be expanded
    * on the given {@code InputT}.
    *
-   * <p>NOTE: This method should never be called. Instead, the {@code PTransform}
-   * should be passed to {@link PInput#apply} on the input collection.
+   * <p>NOTE: This method should not be called directly. Instead apply the
+   * {@code PTransform} should be applied to the {@code InputT} using the {@code apply}
+   * method.
    *
    * <p>Composite transforms, which are defined in terms of other transforms,
    * should return the output of one of the composed transforms.  Non-composite
