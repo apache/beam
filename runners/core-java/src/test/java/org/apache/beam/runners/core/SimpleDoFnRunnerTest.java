@@ -63,7 +63,7 @@ public class SimpleDoFnRunnerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock
-  BaseStepContext mockStepContext;
+  StepContext mockStepContext;
 
   @Mock TimerInternals mockTimerInternals;
 

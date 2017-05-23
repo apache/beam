@@ -69,7 +69,7 @@ public class StatefulDoFnRunnerTest {
       new IntervalWindow(new Instant(10), new Instant(20));
 
   @Mock
-  BaseStepContext mockStepContext;
+  StepContext mockStepContext;
 
   private InMemoryStateInternals<String> stateInternals;
   private InMemoryTimerInternals timerInternals;
