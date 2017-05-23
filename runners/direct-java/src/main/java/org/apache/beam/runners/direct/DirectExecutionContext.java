@@ -121,16 +121,6 @@ class DirectExecutionContext {
       return null;
     }
 
-    @Override
-    public String getStepName() {
-      return stepName;
-    }
-
-    @Override
-    public String getTransformName() {
-      return transformName;
-    }
-
     /**
      * Gets the timer update of the {@link TimerInternals} of this {@link DirectStepContext},
      * which is empty if the {@link TimerInternals} were never accessed.

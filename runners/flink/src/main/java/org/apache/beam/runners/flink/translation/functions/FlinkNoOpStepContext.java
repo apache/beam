@@ -27,16 +27,6 @@ import org.apache.beam.runners.core.TimerInternals;
 public class FlinkNoOpStepContext implements StepContext {
 
   @Override
-  public String getStepName() {
-    return null;
-  }
-
-  @Override
-  public String getTransformName() {
-    return null;
-  }
-
-  @Override
   public StateInternals stateInternals() {
     return null;
   }

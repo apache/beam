@@ -29,16 +29,6 @@ public class NoOpStepContext implements StepContext, Serializable {
   private static final long serialVersionUID = 1L;
 
   @Override
-  public String getStepName() {
-    return null;
-  }
-
-  @Override
-  public String getTransformName() {
-    return null;
-  }
-
-  @Override
   public StateInternals stateInternals() {
     return null;
   }

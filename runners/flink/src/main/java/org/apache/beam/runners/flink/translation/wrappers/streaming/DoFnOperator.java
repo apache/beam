@@ -677,16 +677,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   protected class StepContext implements org.apache.beam.runners.core.StepContext {
 
     @Override
-    public String getStepName() {
-      return null;
-    }
-
-    @Override
-    public String getTransformName() {
-      return null;
-    }
-
-    @Override
     public StateInternals stateInternals() {
       return stateInternals;
     }

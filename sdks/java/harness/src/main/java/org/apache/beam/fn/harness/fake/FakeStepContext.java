@@ -26,15 +26,6 @@ import org.apache.beam.runners.core.TimerInternals;
  * A fake {@link StepContext} factory that performs no-ops.
  */
 public class FakeStepContext implements StepContext {
-  @Override
-  public String getStepName() {
-    return "TODO";
-  }
-
-  @Override
-  public String getTransformName() {
-    return "TODO";
-  }
 
   @Override
   public StateInternals stateInternals() {
