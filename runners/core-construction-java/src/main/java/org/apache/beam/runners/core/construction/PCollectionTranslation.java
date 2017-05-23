@@ -53,7 +53,8 @@ public class PCollectionTranslation {
 
   public static Coder<?> getCoder(
       RunnerApi.PCollection pCollection, RunnerApi.Components components) throws IOException {
-    return Coders.fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
+    return CoderTranslation
+        .fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
   }
 
   public static WindowingStrategy<?, ?> getWindowingStrategy(

@@ -56,9 +56,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/** Tests for {@link Coders}. */
+/** Tests for {@link CoderTranslation}. */
 @RunWith(Enclosed.class)
-public class CodersTest {
+public class CoderTranslationTest {
   private static final Set<StructuredCoder<?>> KNOWN_CODERS =
       ImmutableSet.<StructuredCoder<?>>builder()
           .add(ByteArrayCoder.of())
@@ -84,7 +84,8 @@ public class CodersTest {
       // Validates that every known coder in the Coders class is represented in a "Known Coder"
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
-      Set<Class<? extends StructuredCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
+      Set<Class<? extends StructuredCoder>> knownCoderClasses =
+          CoderTranslation.KNOWN_CODER_URNS.keySet();
       Set<Class<? extends StructuredCoder>> knownCoderTests = new HashSet<>();
       for (StructuredCoder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
@@ -94,7 +95,7 @@ public class CodersTest {
       assertThat(
           String.format(
               "Missing validation of known coder %s in %s",
-              missingKnownCoders, CodersTest.class.getSimpleName()),
+              missingKnownCoders, CoderTranslationTest.class.getSimpleName()),
           missingKnownCoders,
           Matchers.empty());
     }
@@ -103,8 +104,8 @@ public class CodersTest {
     public void validateCoderTranslators() {
       assertThat(
           "Every Known Coder must have a Known Translator",
-          Coders.KNOWN_CODER_URNS.keySet(),
-          equalTo(Coders.KNOWN_TRANSLATORS.keySet()));
+          CoderTranslation.KNOWN_CODER_URNS.keySet(),
+          equalTo(CoderTranslation.KNOWN_TRANSLATORS.keySet()));
     }
   }
 
@@ -132,17 +133,17 @@ public class CodersTest {
     @Test
     public void toAndFromProto() throws Exception {
       SdkComponents componentsBuilder = SdkComponents.create();
-      RunnerApi.Coder coderProto = Coders.toProto(coder, componentsBuilder);
+      RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, componentsBuilder);
 
       Components encodedComponents = componentsBuilder.toComponents();
-      Coder<?> decodedCoder = Coders.fromProto(coderProto, encodedComponents);
+      Coder<?> decodedCoder = CoderTranslation.fromProto(coderProto, encodedComponents);
       assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
               encodedCoder.getSpec().getSpec().getUrn(),
-              not(equalTo(Coders.JAVA_SERIALIZED_CODER_URN)));
+              not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }
     }
