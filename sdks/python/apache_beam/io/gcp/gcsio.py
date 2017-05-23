@@ -392,7 +392,7 @@ class GcsIO(object):
         if fnmatch.fnmatch(item.name, name_pattern):
           file_name = 'gs://%s/%s' % (item.bucket, item.name)
           file_sizes[file_name] = item.size
-        counter += 1
+          counter += 1
         if limit is not None and counter >= limit:
           break
         if counter % 10000 == 0:
