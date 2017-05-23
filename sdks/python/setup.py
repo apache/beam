@@ -149,7 +149,7 @@ def generate_proto_files():
       from grpc_tools import protoc
     except ImportError:
       raise RuntimeError(
-          "grpcio-tools must be installed to generate proto stubs")
+          'grpcio-tools must be installed to generate proto stubs')
 
     print 'Regenerating out-of-date Python proto definitions.'
     proto_include = pkg_resources.resource_filename('grpc_tools', '_proto')
