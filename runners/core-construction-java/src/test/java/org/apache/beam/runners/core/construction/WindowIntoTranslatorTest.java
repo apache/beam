@@ -84,7 +84,8 @@ public class WindowIntoTranslatorTest {
           public void visitPrimitiveTransform(Node node) {
             if (node.getTransform() instanceof Window.Assign) {
               checkState(assign.get() == null);
-              assign.set((AppliedPTransform<?, ?, Assign<?>>) node.toAppliedPTransform());
+              assign.set(
+                  (AppliedPTransform<?, ?, Assign<?>>) node.toAppliedPTransform(getPipeline()));
             }
           }
         });
