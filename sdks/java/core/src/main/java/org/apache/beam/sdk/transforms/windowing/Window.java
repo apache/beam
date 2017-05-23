@@ -38,8 +38,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@link Window} logically divides up or groups the elements of a
@@ -146,8 +144,6 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>>  {
-
-  private static final Logger LOG = LoggerFactory.getLogger(Window.class);
 
   /**
    * Specifies the conditions under which a final pane will be created when a window is permanently
