@@ -32,7 +32,7 @@ func (p *Pipeline) Composite(name string) *Pipeline {
 
 // Build validates the Pipeline and returns a lower-level representation for
 // execution. It is called by runners only.
-func (p *Pipeline) Build() ([]*graph.MultiEdge, error) {
+func (p *Pipeline) Build() ([]*graph.MultiEdge, []*graph.Node, error) {
 	return p.real.Build()
 }
 

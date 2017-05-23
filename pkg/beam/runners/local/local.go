@@ -3,10 +3,11 @@ package local
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
-	"log"
 )
 
 // Execute runs the pipeline in-process.
@@ -14,7 +15,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Print("Pipeline:")
 	log.Print(p)
 
-	list, err := p.Build()
+	list, _, err := p.Build()
 	if err != nil {
 		return fmt.Errorf("invalid pipeline: %v", err)
 	}
@@ -24,6 +25,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 // TODO(herohde) 4/29/2017: Cleaner separation of local (vs other runners) and core exec.
 // How to bind in data manager (and state later).
 
+// ExecuteInternal executes the instructions using the supplied contexts and manager. It's exported to
+// support being called from in a remote worker configuration.
 func ExecuteInternal(ctx context.Context, mgr exec.DataManager, instID string, list []*graph.MultiEdge) error {
 	units, err := build(mgr, instID, list)
 	if err != nil {
@@ -150,7 +153,7 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 					done = false
 					continue
 				}
-				for i, _ := range edge.Input {
+				for i := range edge.Input {
 					next[linkID{edge.ID(), i}] = unit
 				}
 			}

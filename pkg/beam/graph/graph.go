@@ -65,10 +65,10 @@ func (g *Graph) NewNode(t typex.FullType) *Node {
 // Build performs finalization on the graph. It verifies the correctness of the
 // graph structure, typechecks the plan and returns a slice of the edges in
 // the graph.
-func (g *Graph) Build() ([]*MultiEdge, error) {
-	// TODO: cycles, typecheck, connectedness, etc.
+func (g *Graph) Build() ([]*MultiEdge, []*Node, error) {
+	// TODO: typecheck, connectedness, etc.
 
-	return g.edges, nil
+	return g.edges, g.nodes, nil
 }
 
 func (g *Graph) String() string {

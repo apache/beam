@@ -9,6 +9,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/harness"
 )
@@ -54,6 +55,7 @@ func Init() {
 var runners = map[string]func(context.Context, *beam.Pipeline) error{
 	"local":    local.Execute,
 	"dataflow": dataflow.Execute,
+	"dot":      dot.Execute,
 }
 
 // Register associates the name with the supplied runner, making it available
