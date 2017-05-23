@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
  * Utility methods for translating a {@link Window.Assign} to and from {@link RunnerApi}
  * representations.
  */
-public class WindowIntoTranslator {
+public class WindowIntoTranslation {
 
   static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
     @Override
@@ -42,7 +42,7 @@ public class WindowIntoTranslator {
       return FunctionSpec.newBuilder()
           .setUrn("urn:beam:transform:window:v1")
           .setParameter(
-              Any.pack(WindowIntoTranslator.toProto(transform.getTransform(), components)))
+              Any.pack(WindowIntoTranslation.toProto(transform.getTransform(), components)))
           .build();
     }
   }

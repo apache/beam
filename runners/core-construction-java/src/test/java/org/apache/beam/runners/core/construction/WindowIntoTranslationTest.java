@@ -51,10 +51,10 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Tests for {@link WindowIntoTranslator}.
+ * Tests for {@link WindowIntoTranslation}.
  */
 @RunWith(Parameterized.class)
-public class WindowIntoTranslatorTest {
+public class WindowIntoTranslationTest {
   @Parameters(name = "{index}: {0}")
   public static Iterable<WindowFn<?, ?>> data() {
     // This pipeline exists for construction, not to run any test.
@@ -93,9 +93,9 @@ public class WindowIntoTranslatorTest {
 
     SdkComponents components = SdkComponents.create();
     WindowIntoPayload payload =
-        WindowIntoTranslator.toProto(assign.get().getTransform(), components);
+        WindowIntoTranslation.toProto(assign.get().getTransform(), components);
 
-    assertEquals(windowFn, WindowIntoTranslator.getWindowFn(payload));
+    assertEquals(windowFn, WindowIntoTranslation.getWindowFn(payload));
   }
 
   private static class CustomWindows extends PartitioningWindowFn<String, BoundedWindow> {
