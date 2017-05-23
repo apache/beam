@@ -19,7 +19,10 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Ordering;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -141,6 +144,7 @@ import org.joda.time.Duration;
  */
 @AutoValue
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>>  {
+
   /**
    * Specifies the conditions under which a final pane will be created when a window is permanently
    * closed.
@@ -313,7 +317,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       result = result.withMode(getAccumulationMode());
     }
     if (getAllowedLateness() != null) {
-      result = result.withAllowedLateness(getAllowedLateness());
+      result = result.withAllowedLateness(Ordering.natural().max(getAllowedLateness(),
+          inputStrategy.getAllowedLateness()));
     }
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
@@ -347,6 +352,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
               + " mode be specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
               + " See Javadoc for more details.");
     }
+
   }
 
   private boolean canProduceMultiplePanes(WindowingStrategy<?, ?> strategy) {
@@ -366,6 +372,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
+
     if (getWindowFn() == null) {
       // A new PCollection must be created in case input is reused in a different location as the
       // two PCollections will, in general, have a different windowing strategy.
