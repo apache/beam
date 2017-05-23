@@ -131,7 +131,8 @@ class SdkComponents {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
+    componentsBuilder.putTransforms(name, PTransformTranslation
+        .toProto(appliedPTransform, children, this));
     return name;
   }
 
