@@ -26,12 +26,12 @@ import java.util.Objects;
 class UnaryFunctorWrapper<WID extends Window, IN, OUT>
         implements FlatMapFunction<SparkElement<WID, IN>, SparkElement<WID, OUT>> {
 
-  private final FunctionContextMem<OUT> context;
+  private final FunctionCollectorMem<OUT> context;
   private final UnaryFunctor<IN, OUT> functor;
 
   public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor) {
     this.functor = Objects.requireNonNull(functor);
-    this.context = new FunctionContextMem<>();
+    this.context = new FunctionCollectorMem<>();
   }
 
   @Override

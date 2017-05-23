@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -86,7 +86,7 @@ public class WindowingTest extends AbstractOperatorTest {
 
         // extract window timestamp
         return FlatMap.of(reduced)
-                .using((Pair<Type, Long> p, Context<Triple<Instant, Type, Long>> ctx) -> {
+                .using((Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
                   long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
                   ctx.collect(Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
                 })
@@ -166,7 +166,7 @@ public class WindowingTest extends AbstractOperatorTest {
 
         // extract window timestamp
         return FlatMap.of(reduced)
-                .using((Pair<Type, Long> p, Context<Triple<Instant, Type, Long>> ctx) -> {
+                .using((Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
                   long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
                   ctx.collect(Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
                 })
@@ -220,7 +220,7 @@ public class WindowingTest extends AbstractOperatorTest {
 
     private final ValueStorage<Object> storage;
 
-    DistinctState(StorageProvider storageProvider, Context<Object> context) {
+    DistinctState(StorageProvider storageProvider, Collector<Object> context) {
       this.storage = storageProvider.getValueStorage(
               ValueStorageDescriptor.of("element", Object.class, null));
     }
@@ -231,7 +231,7 @@ public class WindowingTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush(Context<Object> context) {
+    public void flush(Collector<Object> context) {
       context.collect(storage.get());
     }
 
@@ -402,7 +402,7 @@ public class WindowingTest extends AbstractOperatorTest {
 
         // extract window timestamp
         return FlatMap.of(pairs)
-                .using((Pair<String, Integer> in, Context<Triple<Instant, Instant, Integer>> out) -> {
+                .using((Pair<String, Integer> in, Collector<Triple<Instant, Instant, Integer>> out) -> {
                   long windowBegin = ((TimeInterval) out.getWindow()).getStartMillis();
                   long windowEnd = ((TimeInterval) out.getWindow()).getEndMillis();
                   out.collect(Triple.of(

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -58,6 +59,11 @@ public class SparkExecutor implements Executor {
     LOG.info("Shutting down spark executor.");
     sparkContext.close(); // works with spark.yarn.maxAppAttempts=1 otherwise yarn will restart the appmaster
     submitExecutor.shutdownNow();
+  }
+
+  @Override
+  public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
+    // TODO accumulators
   }
 
   private Result execute(Flow flow) {

@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
@@ -74,7 +74,7 @@ public class JoinTest extends AbstractOperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Context<String> c) -> c.collect(l + "+" + r))
+            .using((Integer l, Long r, Collector<String> c) -> c.collect(l + "+" + r))
             .setPartitioner(e -> e % 2)
             .outer()
             .output();
@@ -126,7 +126,7 @@ public class JoinTest extends AbstractOperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Context<String> c) -> {
+            .using((Integer l, Long r, Collector<String> c) -> {
                 c.collect(l + "+" + r);
             })
             .setPartitioner(e -> e % 2)
@@ -204,7 +204,7 @@ public class JoinTest extends AbstractOperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Context<String> c) -> {
+            .using((Integer l, Long r, Collector<String> c) -> {
               c.collect(l + "+" + r);
             })
             .setNumPartitions(2)
@@ -281,7 +281,7 @@ public class JoinTest extends AbstractOperatorTest {
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
             Join.of(left, right)
                 .by(p -> "", p -> "")
-                .using((Pair<String, Long> l, Pair<String, Long> r, Context<Triple<TimeInterval, String, String>> c) ->
+                .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Session.of(Duration.ofMillis(10)))
                 .setNumPartitions(1)

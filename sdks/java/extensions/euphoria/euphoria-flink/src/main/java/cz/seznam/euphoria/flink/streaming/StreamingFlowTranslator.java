@@ -28,6 +28,7 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -51,22 +52,27 @@ public class StreamingFlowTranslator extends FlowTranslator {
 
   // ~ ------------------------------------------------------------------------------
 
+  private final Settings settings;
   private final StreamExecutionEnvironment env;
+  private final FlinkAccumulatorFactory accumulatorFactory;
   private final Duration allowedLateness;
   private final Duration autoWatermarkInterval;
 
   public StreamingFlowTranslator(Settings settings,
                                  StreamExecutionEnvironment env,
+                                 FlinkAccumulatorFactory accumulatorFactory,
                                  Duration allowedLateness,
                                  Duration autoWatermarkInterval) {
+    this.settings = settings;
     this.env = Objects.requireNonNull(env);
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
     this.allowedLateness = Objects.requireNonNull(allowedLateness);
     this.autoWatermarkInterval = Objects.requireNonNull(autoWatermarkInterval);
 
     translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
     translators.put(FlatMap.class, new FlatMapTranslator());
     translators.put(Repartition.class, new RepartitionTranslator());
-    translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings));
+    translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     translators.put(Union.class, new UnionTranslator());
   }
 
@@ -91,6 +97,8 @@ public class StreamingFlowTranslator extends FlowTranslator {
     StreamingExecutorContext executorContext =
         new StreamingExecutorContext(env,
                 (DAG) dag,
+                accumulatorFactory,
+                settings,
                 allowedLateness,
                 env instanceof LocalStreamEnvironment);
 

@@ -16,8 +16,10 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.ExecutorContext;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -34,9 +36,11 @@ public class StreamingExecutorContext
 
   public StreamingExecutorContext(StreamExecutionEnvironment env,
                                   DAG<FlinkOperator<?>> dag,
+                                  FlinkAccumulatorFactory accumulatorFactory,
+                                  Settings settings,
                                   Duration allowedLateness,
                                   boolean localMode) {
-    super(env, dag);
+    super(env, dag, accumulatorFactory, settings);
     this.allowedLateness = allowedLateness;
     this.localMode = localMode;
   }

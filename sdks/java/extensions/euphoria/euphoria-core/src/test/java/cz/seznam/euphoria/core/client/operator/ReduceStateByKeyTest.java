@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
@@ -150,7 +150,7 @@ public class ReduceStateByKeyTest {
   private static class WordCountState implements State<Long, Long> {
     private final ValueStorage<Long> sum;
 
-    protected WordCountState(StorageProvider storageProvider, Context<Long> ctx) {
+    protected WordCountState(StorageProvider storageProvider, Collector<Long> ctx) {
       sum = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("sum", Long.class, 0L));
     }
@@ -161,7 +161,7 @@ public class ReduceStateByKeyTest {
     }
 
     @Override
-    public void flush(Context<Long> ctx) {
+    public void flush(Collector<Long> ctx) {
       ctx.collect(sum.get());
     }
 

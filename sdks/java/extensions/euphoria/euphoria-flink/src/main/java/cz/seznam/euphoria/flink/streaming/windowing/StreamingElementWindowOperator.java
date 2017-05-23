@@ -20,6 +20,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -42,9 +44,12 @@ public class StreamingElementWindowOperator<KEY, WID extends Window>
           StateMerger<?, ?, State<?, ?>> stateCombiner,
           boolean localMode,
           int descriptorsCacheMaxSize,
-          boolean allowEarlyEmitting) {
+          boolean allowEarlyEmitting,
+          FlinkAccumulatorFactory accumulatorFactory,
+          Settings settings) {
     super(windowing, stateFactory, stateCombiner, localMode,
-        descriptorsCacheMaxSize, allowEarlyEmitting);
+            descriptorsCacheMaxSize, allowEarlyEmitting,
+            accumulatorFactory, settings);
     this.windowAssigner = Objects.requireNonNull(windowAssigner);
   }
 

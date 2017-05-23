@@ -16,7 +16,10 @@
 
 package cz.seznam.euphoria.core.executor.util;
 
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.accumulators.Counter;
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
+import cz.seznam.euphoria.core.client.io.Collector;
 
 /**
  * A {@code Context} that holds only single value.
@@ -25,7 +28,7 @@ import cz.seznam.euphoria.core.client.io.Context;
  * This context will free the value as soon as {@code getAndResetValue()}
  * is called.
  */
-public class SingleValueContext<T> implements Context<T> {
+public class SingleValueContext<T> implements Collector<T> {
 
   T value;
 
@@ -47,6 +50,26 @@ public class SingleValueContext<T> implements Context<T> {
         "The window is unknown in this context");
   }
 
+  @Override
+  public Counter getCounter(String name) {
+    throw new UnsupportedOperationException(
+            "Accumulators not supported in this context");
+  }
+
+  @Override
+  public Histogram getHistogram(String name) {
+    throw new UnsupportedOperationException(
+            "Accumulators not supported in this context");
+
+  }
+
+  @Override
+  public Timer getTimer(String name) {
+    throw new UnsupportedOperationException(
+            "Accumulators not supported in this context");
+
+  }
+
   /**
    * Retrieve and reset the stored value to null.
    * @return the stored value
@@ -57,5 +80,5 @@ public class SingleValueContext<T> implements Context<T> {
     return ret;
   }
 
-};
+}
 

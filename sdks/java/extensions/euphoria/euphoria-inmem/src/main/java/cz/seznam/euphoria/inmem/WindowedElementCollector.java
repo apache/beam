@@ -17,18 +17,19 @@ package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 
 import java.util.Objects;
 import java.util.function.Supplier;
 
-class WindowedElementCollector<T> implements Context<T> {
-  private final Collector<Datum> wrap;
+class WindowedElementCollector<T> implements Collector<T> {
+  private final cz.seznam.euphoria.inmem.Collector<Datum> wrap;
   private final Supplier<Long> stampSupplier;
 
   protected Window window;
 
-  WindowedElementCollector(Collector<Datum> wrap, Supplier<Long> stampSupplier) {
+  WindowedElementCollector(cz.seznam.euphoria.inmem.Collector<Datum> wrap,
+                           Supplier<Long> stampSupplier) {
     this.wrap = Objects.requireNonNull(wrap);
     this.stampSupplier = stampSupplier;
   }

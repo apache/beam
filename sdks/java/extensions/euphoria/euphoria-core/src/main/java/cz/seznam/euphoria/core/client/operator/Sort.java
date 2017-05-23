@@ -27,7 +27,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -115,7 +115,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     }
     
     @Override
-    public void flush(Context<V> ctx) {
+    public void flush(Collector<V> ctx) {
       List<V> toSort = Lists.newArrayList(curr.get());
       Collections.sort(toSort, cmp);
       toSort.forEach(ctx::collect);
