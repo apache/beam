@@ -51,7 +51,7 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOHiveIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOHCatalogIT
  *  -DintegrationTestPipelineOptions='[
  *  "--hiveMetastoreUri=thrift://metastoreIp:port"]'
  * </pre>
@@ -62,7 +62,7 @@ import org.junit.runners.JUnit4;
  */
 
 @RunWith(JUnit4.class)
-public class HIFIOHiveIT implements Serializable {
+public class HIFIOHCatalogIT implements Serializable {
 
   private static final String HIVE_DATABASE = "default";
   private static final String HIVE_TABLE = "employee";
