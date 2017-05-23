@@ -200,7 +200,7 @@ public class SdkComponents {
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
     RunnerApi.WindowingStrategy windowingStrategyProto =
-        WindowingStrategies.toProto(windowingStrategy, this);
+        WindowingStrategyTranslation.toProto(windowingStrategy, this);
     componentsBuilder.putWindowingStrategies(name, windowingStrategyProto);
     return name;
   }

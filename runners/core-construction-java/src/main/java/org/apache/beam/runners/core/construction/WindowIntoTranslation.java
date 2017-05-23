@@ -49,13 +49,13 @@ public class WindowIntoTranslation {
 
   public static WindowIntoPayload toProto(Window.Assign<?> transform, SdkComponents components) {
     return WindowIntoPayload.newBuilder()
-        .setWindowFn(WindowingStrategies.toProto(transform.getWindowFn(), components))
+        .setWindowFn(WindowingStrategyTranslation.toProto(transform.getWindowFn(), components))
         .build();
   }
 
   public static WindowFn<?, ?> getWindowFn(WindowIntoPayload payload)
       throws InvalidProtocolBufferException {
     SdkFunctionSpec spec = payload.getWindowFn();
-    return WindowingStrategies.windowFnFromProto(spec);
+    return WindowingStrategyTranslation.windowFnFromProto(spec);
   }
 }
