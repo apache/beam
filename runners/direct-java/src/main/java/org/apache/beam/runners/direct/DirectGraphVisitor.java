@@ -21,10 +21,12 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -34,6 +36,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.values.PValue;
  * input after the upstream transform has produced and committed output.
  */
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
+  private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
 
   private Map<POutput, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
 
@@ -83,7 +88,15 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (PValue value : node.getInputs().values()) {
+      Collection<PValue> mainInputs =
+          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform(getPipeline()));
+      if (!mainInputs.containsAll(node.getInputs().values())) {
+        LOG.debug(
+            "Inputs reduced to {} from {} by removing additional inputs",
+            mainInputs,
+            node.getInputs().values());
+      }
+      for (PValue value : mainInputs) {
         primitiveConsumers.put(value, appliedTransform);
       }
     }
