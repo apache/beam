@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.inmem;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
@@ -333,6 +334,11 @@ public class InMemExecutor implements Executor {
   public void shutdown() {
     LOG.info("Shutting down inmem executor.");
     executor.shutdownNow();
+  }
+
+  @Override
+  public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
+    // TODO accumulators
   }
 
   private Executor.Result execute(Flow flow) {

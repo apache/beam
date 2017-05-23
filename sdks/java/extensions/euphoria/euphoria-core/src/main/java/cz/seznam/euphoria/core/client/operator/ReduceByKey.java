@@ -27,7 +27,7 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -116,7 +116,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      */
     default <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
-      return reduceBy((Iterable<VALUE> in, Context<OUT> ctx) -> {
+      return reduceBy((Iterable<VALUE> in, Collector<OUT> ctx) -> {
         ctx.collect(reducer.apply(in));
       });
     }
@@ -344,7 +344,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               @Nullable Windowing<IN, W> windowing,
               ReduceFunctor<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning) {
-    
+
     super(name, flow, input, keyExtractor, windowing, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
@@ -389,7 +389,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       }
 
       @Override
-      public void apply(Iterable<VALUE> elem, Context<VALUE> context) {
+      public void apply(Iterable<VALUE> elem, Collector<VALUE> context) {
         context.collect(reducer1.apply(elem));
       }
     };
@@ -408,7 +408,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
       @Override
       public State<E, E> createState(
-          StorageProvider storageProvider, Context<E> context) {
+          StorageProvider storageProvider, Collector<E> context) {
         return new CombiningReduceState<>(storageProvider, r);
       }
     }
@@ -442,7 +442,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public void flush(Context<E> context) {
+    public void flush(Collector<E> context) {
       context.collect(storage.get());
     }
 
@@ -470,7 +470,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
       @Override
       public NonCombiningReduceState<IN, OUT>
-      createState(StorageProvider storageProvider, Context<OUT> context) {
+      createState(StorageProvider storageProvider, Collector<OUT> context) {
         return new NonCombiningReduceState<>(storageProvider, r);
       }
     }
@@ -497,7 +497,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public void flush(Context<OUT> ctx) {
+    public void flush(Collector<OUT> ctx) {
       reducer.apply(reducibleValues.get(), ctx);
     }
 

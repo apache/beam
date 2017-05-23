@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -26,10 +26,10 @@ import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
 /**
- * Implementation of {@link Context} using asynchronous {@link TransferQueue}
+ * Implementation of {@link Collector} using asynchronous {@link TransferQueue}
  * as a workaround to lower the memory footprint
  */
-class FunctionContextAsync<T> extends FunctionContext<T> {
+class FunctionCollectorAsync<T> extends FunctionCollector<T> {
 
   private TransferQueue<Object> queue = new LinkedTransferQueue<>();
   private boolean consumed = false;

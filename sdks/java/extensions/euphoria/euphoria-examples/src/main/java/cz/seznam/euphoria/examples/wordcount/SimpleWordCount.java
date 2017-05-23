@@ -17,7 +17,7 @@ package cz.seznam.euphoria.examples.wordcount;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -161,7 +161,7 @@ public class SimpleWordCount {
     // string into individual words and emit each individually instead.
     Dataset<String> words = FlatMap.named("TOKENIZER")
             .of(lines)
-            .using((String line, Context<String> c) ->
+            .using((String line, Collector<String> c) ->
                 SPLIT_RE.splitAsStream(line).forEachOrdered(c::collect))
             .output();
 

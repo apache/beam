@@ -16,27 +16,8 @@
 package cz.seznam.euphoria.core.client.io;
 
 /**
- * A collector of elements. Used in functors.
- *
- * @param <T> the type of elements collected through this context
+ * Used in user defined functions to access environment methods.
  */
-public interface Context<T> {
-
-  /**
-   * Collects the given element to the output of this context.
-   *
-   * @param elem the element to collect
-   */
-  void collect(T elem);
-
-  /**
-   * Retrieves the window - if any - underlying the current
-   * execution of this context.
-   *
-   * @return {@code null} if this context is not executed within a
-   *          windowing strategy, otherwise the current window of
-   *          this context
-   */
-  Object getWindow();
+public interface Context extends Environment {
 
 }

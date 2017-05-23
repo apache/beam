@@ -24,7 +24,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
@@ -241,7 +241,7 @@ public class InMemExecutorTest {
 
     // repeat each element N N count
     Dataset<Integer> output = FlatMap.of(ints)
-        .using((Integer e, Context<Integer> c) -> {
+        .using((Integer e, Collector<Integer> c) -> {
           for (int i = 0; i < e; i++) {
             c.collect(e);
           }
@@ -273,7 +273,7 @@ public class InMemExecutorTest {
 
     final ListStorage<Integer> data;
 
-    SortState(StorageProvider storageProvider, Context<Integer> c) {
+    SortState(StorageProvider storageProvider, Collector<Integer> c) {
       data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -285,7 +285,7 @@ public class InMemExecutorTest {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void flush(Context<Integer> context) {
+    public void flush(Collector<Integer> context) {
       List<Integer> toSort = Lists.newArrayList(data.get());
       Collections.sort(toSort);
       for (Integer i : toSort) {
@@ -682,7 +682,7 @@ public class InMemExecutorTest {
     // and store it as the original input, process it further in
     // the same way as in `testWithWatermarkAndEventTime'
     input = FlatMap.of(reduced)
-        .using((Set<Integer> grp, Context<Integer> c) -> {
+        .using((Set<Integer> grp, Collector<Integer> c) -> {
           for (Integer i : grp) {
             c.collect(i);
           }

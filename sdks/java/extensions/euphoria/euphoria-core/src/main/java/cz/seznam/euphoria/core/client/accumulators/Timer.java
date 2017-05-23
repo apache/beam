@@ -13,24 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
+package cz.seznam.euphoria.core.client.accumulators;
 
-import cz.seznam.euphoria.core.client.io.Collector;
-import java.io.Serializable;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Functor of single argument.
- * Functor can produce zero or more elements in return to a call, for which it
- * uses a collector.
+ * Timer provides convenience API very similar to {@link Histogram}
+ * but extended by time unit support.
  */
-@FunctionalInterface
-public interface UnaryFunctor<IN, OUT> extends Serializable {
+public interface Timer extends Accumulator {
 
   /**
-   * Applies function to given element.
-   *
-   * @param elem      Input element.
-   * @param collector Collector to emit results.
+   * Add specific duration.
+   * @param duration Duration to be added.
    */
-  void apply(IN elem, Collector<OUT> collector);
+  void add(Duration duration);
+
+  /**
+   * Add specific duration with given time unit
+   * @param duration Duration to be added.
+   * @param unit Time unit.
+   */
+  default void add(long duration, TimeUnit unit) {
+    add(Duration.ofMillis(unit.toMillis(duration)));
+  }
 }

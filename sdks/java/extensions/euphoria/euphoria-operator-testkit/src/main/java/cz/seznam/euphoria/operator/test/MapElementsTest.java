@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
@@ -39,7 +40,7 @@ public class MapElementsTest extends AbstractOperatorTest {
       @Override
       protected Dataset<String> getOutput(Dataset<Integer> input) {
         return MapElements.of(input)
-            .using(String::valueOf)
+            .using((UnaryFunction<Integer, String>) String::valueOf)
             .output();
       }
 

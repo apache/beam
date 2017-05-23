@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -179,7 +180,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     @SuppressWarnings("unchecked")
     public Iterator<SparkElement> call(Iterator<Tuple2<KeyedWindow, Object>> iterator) {
       activeReducers = new HashMap<>();
-      FunctionContextAsync<SparkElement<?, Pair<?, ?>>> context = new FunctionContextAsync<>();
+      FunctionCollectorAsync<SparkElement<?, Pair<?, ?>>> context = new FunctionCollectorAsync<>();
 
       // reduce states in separate thread
       context.runAsynchronously(() -> {
@@ -206,6 +207,8 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
                     windowing,
                     trigger,
                     el -> context.collect((SparkElement) el),
+                    // TODO accumulators
+                    VoidAccumulatorProvider.getFactory().create(null),
                     false);
 
             activeReducers.put(kw.key(), reducer);

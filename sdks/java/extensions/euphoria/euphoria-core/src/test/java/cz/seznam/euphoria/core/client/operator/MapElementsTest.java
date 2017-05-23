@@ -17,9 +17,11 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.io.Context;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class MapElementsTest {
 
@@ -39,7 +41,32 @@ public class MapElementsTest {
     MapElements map = (MapElements) flow.operators().iterator().next();
     assertEquals(flow, map.getFlow());
     assertEquals("Map1", map.getName());
-    assertNotNull(map.mapper);
+    assertNotNull(map.getMapper());
+    assertEquals(mapped, map.output());
+  }
+
+  @Test
+  public void testBuild_WithCounters() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
+
+    Dataset<String> mapped = MapElements.named("Map1")
+            .of(dataset)
+            .using((String input, Context context) -> {
+              // use simple counter
+              context.getCounter("my-counter").increment();
+
+              return input.toLowerCase();
+            })
+            .output();
+
+    assertEquals(flow, mapped.getFlow());
+    assertEquals(1, flow.size());
+
+    MapElements map = (MapElements) flow.operators().iterator().next();
+    assertEquals(flow, map.getFlow());
+    assertEquals("Map1", map.getName());
+    assertNotNull(map.getMapper());
     assertEquals(mapped, map.output());
   }
 

@@ -15,10 +15,13 @@
  */
 package cz.seznam.euphoria.flink;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -51,6 +54,8 @@ public class FlinkExecutor implements Executor {
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
   private Duration latencyTracking = Duration.ofSeconds(2);
+  private FlinkAccumulatorFactory accumulatorFactory =
+          new FlinkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
   private final Set<Class<?>> registeredClasses = new HashSet<>();
   @Nullable
   private Duration checkpointInterval;
@@ -90,7 +95,24 @@ public class FlinkExecutor implements Executor {
     LOG.info("Shutting down flink executor.");
     submitExecutor.shutdownNow();
   }
-  
+
+  @Override
+  public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
+    this.accumulatorFactory = new FlinkAccumulatorFactory.Adapter(
+            Objects.requireNonNull(factory));
+  }
+
+  /**
+   * Set accumulator provider that will be used to collect metrics and counters.
+   * When no provider is set a default instance of {@link VoidAccumulatorProvider}
+   * will be used.
+   *
+   * @param factory Factory to create an instance of accumulator provider.
+   */
+  public void setAccumulatorProvider(FlinkAccumulatorFactory factory) {
+    this.accumulatorFactory = Objects.requireNonNull(factory);
+  }
+
   private Executor.Result execute(Flow flow) {
     try {
       ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
@@ -116,9 +138,9 @@ public class FlinkExecutor implements Executor {
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
-        translator = createBatchTranslator(settings, environment);
+        translator = createBatchTranslator(settings, environment, accumulatorFactory);
       } else {
-        translator = createStreamTranslator(settings, environment, allowedLateness, autoWatermarkInterval);
+        translator = createStreamTranslator(settings, environment, accumulatorFactory, allowedLateness, autoWatermarkInterval);
       }
 
       List<DataSink<?>> sinks = translator.translateInto(flow);
@@ -178,16 +200,20 @@ public class FlinkExecutor implements Executor {
     }
   }
   
-  protected FlowTranslator createBatchTranslator(Settings settings, ExecutionEnvironment environment) {
-    return new BatchFlowTranslator(settings, environment.getBatchEnv());
+  protected FlowTranslator createBatchTranslator(Settings settings,
+                                                 ExecutionEnvironment environment,
+                                                 FlinkAccumulatorFactory accumulatorFactory) {
+    return new BatchFlowTranslator(settings, environment.getBatchEnv(), accumulatorFactory);
   }
   
   protected FlowTranslator createStreamTranslator(Settings settings, 
                                                   ExecutionEnvironment environment,
+                                                  FlinkAccumulatorFactory accumulatorFactory,
                                                   Duration allowedLateness, 
                                                   Duration autoWatermarkInterval) {
     return new StreamingFlowTranslator(
-            settings, environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
+            settings, environment.getStreamEnv(), accumulatorFactory,
+            allowedLateness, autoWatermarkInterval);
   }
 
   /**

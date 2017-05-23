@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -301,7 +301,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     void flushUnjoinedElems(
-        Context<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
+            Collector<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
       boolean leftEmpty = !lefts.iterator().hasNext();
       boolean rightEmpty = !rights.iterator().hasNext();
       // if just a one collection is empty
@@ -344,7 +344,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     @Override
-    public void flush(Context<OUT> context) {
+    public void flush(Collector<OUT> context) {
       Iterable<LEFT> lefts = leftElements.get();
       Iterable<RIGHT> rights = rightElements.get();
       for (LEFT l : lefts) {
@@ -390,10 +390,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       extends AbstractJoinState
       implements State<Either<LEFT, RIGHT>, OUT>,
                  StateSupport.MergeFrom<EarlyEmittingJoinState> {
-    private final Context<OUT> context;
+    private final Collector<OUT> context;
 
     @SuppressWarnings("unchecked")
-    public EarlyEmittingJoinState(StorageProvider storageProvider, Context<OUT> context) {
+    public EarlyEmittingJoinState(StorageProvider storageProvider, Collector<OUT> context) {
       super(storageProvider);
       this.context = Objects.requireNonNull(context);
     }
@@ -424,7 +424,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     @Override
-    public void flush(Context<OUT> context) {
+    public void flush(Collector<OUT> context) {
       // ~ no-op; we do all the work already on the fly
       // and flush any "pending" state _only_ when closing
       // this state
@@ -500,7 +500,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         keyExtractor,
         e -> e,
         getWindowing(),
-        (StorageProvider storages, Context ctx) ->
+        (StorageProvider storages, Collector ctx) ->
             ctx == null
                 ? new StableJoinState(storages)
                 : new EarlyEmittingJoinState(storages, ctx),

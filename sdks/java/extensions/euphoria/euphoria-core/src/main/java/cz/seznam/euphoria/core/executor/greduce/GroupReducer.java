@@ -15,13 +15,16 @@
  */
 package cz.seznam.euphoria.core.executor.greduce;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.Counter;
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
@@ -85,6 +88,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
+  private final AccumulatorProvider accumulators;
 
   // ~ temporary store for trigger states
   final TriggerStorage triggerStorage;
@@ -99,14 +103,16 @@ public class GroupReducer<WID extends Window, KEY, I> {
                       Windowing windowing,
                       Trigger trigger,
                       Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
+                      AccumulatorProvider accumulators,
                       boolean allowEarlyEmitting) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.stateStorageProvider = Objects.requireNonNull(stateStorageProvider);
+    this.collector = Objects.requireNonNull(collector);
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = Objects.requireNonNull(trigger);
-    this.collector = Objects.requireNonNull(collector);
+    this.accumulators = Objects.requireNonNull(accumulators);
     this.allowEarlyEmitting = allowEarlyEmitting;
 
     this.triggerStorage = new TriggerStorage(stateStorageProvider);
@@ -146,8 +152,8 @@ public class GroupReducer<WID extends Window, KEY, I> {
   @SuppressWarnings("unchecked")
   private State getStateForUpdate(WID window) {
     return states.computeIfAbsent(window, w -> {
-      ElementCollectContext col = allowEarlyEmitting
-          ? new ElementCollectContext(collector, w)
+      ElementCollector col = allowEarlyEmitting
+          ? new ElementCollector(collector, w)
           : null;
       return stateFactory.createState(stateStorageProvider, col);
     });
@@ -263,7 +269,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       // ~ close the window
       State state = states.remove(window);
       if (state != null) {
-        state.flush(new ElementCollectContext(collector, window));
+        state.flush(new ElementCollector(collector, window));
         state.close();
       }
       // ~ clean up trigger states
@@ -271,11 +277,11 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
-  class ElementCollectContext<T> implements Context<T> {
+  class ElementCollector<T> implements cz.seznam.euphoria.core.client.io.Collector<T> {
     final Collector<WindowedElement<WID, Pair<KEY, T>>> out;
     WID window;
 
-    ElementCollectContext(Collector<WindowedElement<WID, Pair<KEY, T>>> out, WID window) {
+    ElementCollector(Collector<WindowedElement<WID, Pair<KEY, T>>> out, WID window) {
       this.out = out;
       this.window = window;
     }
@@ -293,6 +299,23 @@ public class GroupReducer<WID extends Window, KEY, I> {
     public Object getWindow() {
       return window;
     }
+
+    @Override
+    public Counter getCounter(String name) {
+      return accumulators.getCounter(name);
+    }
+
+    @Override
+    public Histogram getHistogram(String name) {
+      return accumulators.getHistogram(name);
+    }
+
+    @Override
+    public Timer getTimer(String name) {
+      return accumulators.getTimer(name);
+    }
+
+
   }
 
   class ElementTriggerContext implements TriggerContext {

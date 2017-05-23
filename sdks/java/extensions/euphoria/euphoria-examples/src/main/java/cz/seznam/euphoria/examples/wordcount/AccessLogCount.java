@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
@@ -195,7 +195,7 @@ public class AccessLogCount {
     // parameter as demonstrated below.
     FlatMap.named("FORMAT-OUTPUT")
             .of(aggregated)
-            .using(((Pair<String, Long> elem, Context<String> context) -> {
+            .using(((Pair<String, Long> elem, Collector<String> context) -> {
               Date d = new Date(((TimeInterval) context.getWindow()).getStartMillis());
 
               SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy", Locale.ENGLISH);

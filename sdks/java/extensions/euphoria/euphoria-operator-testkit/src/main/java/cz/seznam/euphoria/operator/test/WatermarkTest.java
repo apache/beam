@@ -18,7 +18,7 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
@@ -68,7 +68,7 @@ public class WatermarkTest extends AbstractOperatorTest {
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
             Join.of(left, right)
                 .by(p -> "", p -> "")
-                .using((Pair<String, Long> l, Pair<String, Long> r, Context<Triple<TimeInterval, String, String>> c) ->
+                .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Time.of(Duration.ofMillis(10)))
                 .setNumPartitions(1)
