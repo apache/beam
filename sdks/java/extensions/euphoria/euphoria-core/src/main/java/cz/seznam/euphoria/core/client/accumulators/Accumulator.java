@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
-
-import cz.seznam.euphoria.core.client.io.Collector;
-import java.io.Serializable;
+package cz.seznam.euphoria.core.client.accumulators;
 
 /**
- * Functor of two arguments.
+ * Accumulators collect values from user functions.
+ * Accumulators allow user to calculate statistics during the flow execution.
+ * <p>
+ * Accumulators are inspired by the Hadoop/MapReduce counters.
  */
-@FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
-
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
+public interface Accumulator {
 
 }

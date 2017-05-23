@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
@@ -84,21 +85,30 @@ public class BatchFlowTranslator extends FlowTranslator {
   }
 
   private final Map<Class, Translation> translations = new IdentityHashMap<>();
-  private final ExecutionEnvironment env;
 
-  public BatchFlowTranslator(Settings settings, ExecutionEnvironment env) {
-    this(settings, env, DEFAULT_SPLIT_ASSIGNER_FACTORY);
+  private final Settings settings;
+  private final ExecutionEnvironment env;
+  private final FlinkAccumulatorFactory accumulatorFactory;
+
+  public BatchFlowTranslator(Settings settings,
+                             ExecutionEnvironment env,
+                             FlinkAccumulatorFactory accumulatorFactory) {
+    this(settings, env, accumulatorFactory, DEFAULT_SPLIT_ASSIGNER_FACTORY);
   }
 
-  public BatchFlowTranslator(Settings settings, ExecutionEnvironment env, 
+  public BatchFlowTranslator(Settings settings,
+                             ExecutionEnvironment env,
+                             FlinkAccumulatorFactory accumulatorFactory,
                              SplitAssignerFactory splitAssignerFactory) {
+    this.settings = Objects.requireNonNull(settings);
     this.env = Objects.requireNonNull(env);
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
 
     // basic operators
     Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator(splitAssignerFactory));
     Translation.set(translations, FlatMap.class, new FlatMapTranslator());
     Translation.set(translations, Repartition.class, new RepartitionTranslator());
-    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));
+    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     Translation.set(translations, Union.class, new UnionTranslator());
 
     // derived operators
@@ -129,7 +139,8 @@ public class BatchFlowTranslator extends FlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<Operator<?, ?>>> dag = flowToDag(flow);
 
-    BatchExecutorContext executorContext = new BatchExecutorContext(env, (DAG) dag);
+    BatchExecutorContext executorContext = new BatchExecutorContext(env, (DAG) dag,
+            accumulatorFactory, settings);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {

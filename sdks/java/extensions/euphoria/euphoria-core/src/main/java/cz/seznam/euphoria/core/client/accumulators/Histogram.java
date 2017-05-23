@@ -13,17 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
-
-import cz.seznam.euphoria.core.client.io.Collector;
-import java.io.Serializable;
+package cz.seznam.euphoria.core.client.accumulators;
 
 /**
- * Functor of two arguments.
+ * Histogram is a type of accumulator recording a distribution of different values.
  */
-@FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
+public interface Histogram extends Accumulator {
 
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
+  /**
+   * Add specified value.
+   * @param value Value to be added.
+   */
+  void add(long value);
 
+  /**
+   * Add specified value multiple times.
+   * @param value Value to be added.
+   * @param times Number of occurrences to add.
+   */
+  void add(long value, long times);
 }

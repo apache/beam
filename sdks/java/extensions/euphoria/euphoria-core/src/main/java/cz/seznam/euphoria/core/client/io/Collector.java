@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
-
-import cz.seznam.euphoria.core.client.io.Collector;
-import java.io.Serializable;
+package cz.seznam.euphoria.core.client.io;
 
 /**
- * Functor of two arguments.
+ * Extends {@link Environment} with write capability. Used in
+ * user defined functors.
+ *
+ * @param <T> the type of elements collected through this context
  */
-@FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
+public interface Collector<T> extends Environment {
 
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
-
+  /**
+   * Collects the given element to the output of this context.
+   *
+   * @param elem the element to collect
+   */
+  void collect(T elem);
 }

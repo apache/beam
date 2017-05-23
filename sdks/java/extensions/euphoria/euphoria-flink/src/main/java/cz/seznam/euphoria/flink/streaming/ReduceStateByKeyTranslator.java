@@ -57,7 +57,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   private boolean allowEarlyEmitting;
   private int descriptorsCacheMaxSize;
 
-  public ReduceStateByKeyTranslator(Settings settings) {
+  private void loadSettings(Settings settings) {
     this.valueOfAfterShuffle =
             settings.getBoolean(CFG_VALUE_OF_AFTER_SHUFFLE_KEY, CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT);
     this.descriptorsCacheMaxSize =
@@ -71,6 +71,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   public DataStream<?> translate(FlinkOperator<ReduceStateByKey> operator,
                                  StreamingExecutorContext context)
   {
+    loadSettings(context.getSettings());
+
     DataStream input =
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
@@ -97,7 +99,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
                                 new StreamingElementWindowOperator(
                                         elMapper, windowing, stateFactory, stateCombiner,
                                         context.isLocalMode(), descriptorsCacheMaxSize,
-                                        allowEarlyEmitting))
+                                        allowEarlyEmitting,
+                                        context.getAccumulatorFactory(), context.getSettings()))
                      .setParallelism(operator.getParallelism());
     } else {
       // assign windows
@@ -113,7 +116,9 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
                       new KeyedMultiWindowedElementWindowOperator(
                               windowing, stateFactory, stateCombiner,
                               context.isLocalMode(), descriptorsCacheMaxSize,
-                              allowEarlyEmitting))
+                              allowEarlyEmitting,
+                              context.getAccumulatorFactory(),
+                              context.getSettings()))
               .setParallelism(operator.getParallelism());
     }
 

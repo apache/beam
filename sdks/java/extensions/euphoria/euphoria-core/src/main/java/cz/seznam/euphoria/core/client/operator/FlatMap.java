@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Collector;
 
 import javax.annotation.Nullable;
 import java.util.Objects;
@@ -52,7 +53,7 @@ import java.util.Objects;
  *
  * The above example tries to parse incoming strings as integers, silently
  * skipping those which cannot be successfully converted. While
- * {@link cz.seznam.euphoria.core.client.io.Context#collect(Object)} has
+ * {@link Collector#collect(Object)} has
  * been used only once here, a {@link FlatMap} operator is free
  * to invoke it multiple times or not at all to generate that many elements
  * to the output dataset.

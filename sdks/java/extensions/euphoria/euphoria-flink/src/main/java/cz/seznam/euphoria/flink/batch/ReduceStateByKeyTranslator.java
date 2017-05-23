@@ -29,9 +29,10 @@ import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -44,9 +45,9 @@ import java.util.Map;
 
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
 
-  final StorageProvider stateStorageProvider;
+  private StorageProvider stateStorageProvider;
 
-  public ReduceStateByKeyTranslator(Settings settings, ExecutionEnvironment env) {
+  private void loadConfig(Settings settings, ExecutionEnvironment env) {
     int maxMemoryElements = settings.getInt(CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY, CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
     this.stateStorageProvider = new BatchStateStorageProvider(maxMemoryElements, env);
   }
@@ -55,6 +56,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   @SuppressWarnings("unchecked")
   public DataSet translate(FlinkOperator<ReduceStateByKey> operator,
                            BatchExecutorContext context) {
+    loadConfig(context.getSettings(), context.getExecutionEnvironment());
 
     int inputParallelism = Iterables.getOnlyElement(context.getInputOperators(operator)).getParallelism();
     DataSet input = Iterables.getOnlyElement(context.getInputStreams(operator));
@@ -101,7 +103,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                 (KeySelector<BatchElement<?, ?>, Long>)
                         BatchElement::getTimestamp, Long.class),
                 Order.ASCENDING)
-            .reduceGroup(new RSBKReducer(origOperator, stateStorageProvider, windowing))
+            .reduceGroup(new RSBKReducer(origOperator, stateStorageProvider, windowing,
+                    context.getAccumulatorFactory(), context.getSettings()))
             .setParallelism(operator.getParallelism())
             .name(operator.getName() + "::reduce");
 
@@ -121,13 +124,16 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   static class RSBKReducer
-          implements GroupReduceFunction<BatchElement<?, Pair>, BatchElement<?, Pair>>,
-          ResultTypeQueryable<BatchElement<?, Pair>> {
+          extends RichGroupReduceFunction<BatchElement<?, Pair>, BatchElement<?, Pair>>
+          implements  ResultTypeQueryable<BatchElement<?, Pair>> {
+
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
     private final StateMerger<?, ?, State<?, ?>> stateCombiner;
     private final StorageProvider stateStorageProvider;
     private final Windowing windowing;
     private final Trigger trigger;
+    private final FlinkAccumulatorFactory accumulatorFactory;
+    private final Settings settings;
 
     // mapping of [Key -> GroupReducer]
     private transient Map<Object, GroupReducer> activeReducers;
@@ -136,13 +142,17 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     RSBKReducer(
         ReduceStateByKey operator,
         StorageProvider stateStorageProvider,
-        Windowing windowing) {
+        Windowing windowing,
+        FlinkAccumulatorFactory accumulatorFactory,
+        Settings settings) {
 
       this.stateFactory = operator.getStateFactory();
       this.stateCombiner = operator.getStateMerger();
       this.stateStorageProvider = stateStorageProvider;
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
+      this.accumulatorFactory = accumulatorFactory;
+      this.settings = settings;
     }
 
     @Override
@@ -164,6 +174,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                   windowing,
                   trigger,
                   elem -> out.collect((BatchElement) elem),
+                  accumulatorFactory.create(settings, getRuntimeContext()),
                   false);
           activeReducers.put(key, reducer);
         }

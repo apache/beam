@@ -17,10 +17,16 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
+import cz.seznam.euphoria.core.client.accumulators.Counter;
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctionEnv;
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Objects;
 
@@ -59,13 +65,26 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
     /**
      * The mapping function that takes input element and outputs the OUT type element.
-     * 
+     * If you want use aggregators use rather {@link #using(UnaryFunctionEnv)}.
+     *
      * @param <OUT> type of output elements
      * @param mapper the mapping function
      * @return the next builder to complete the setup of the
      *         {@link MapElements} operator
      */
     public <OUT> OutputBuilder<IN, OUT> using(UnaryFunction<IN, OUT> mapper) {
+      return new OutputBuilder<>(name, input, ((el, ctx) -> mapper.apply(el)));
+    }
+
+    /**
+     * The mapping function that takes input element and outputs the OUT type element.
+     *
+     * @param <OUT> type of output elements
+     * @param mapper the mapping function
+     * @return the next builder to complete the setup of the
+     *         {@link MapElements} operator
+     */
+    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctionEnv<IN, OUT> mapper) {
       return new OutputBuilder<>(name, input, mapper);
     }
   }
@@ -73,9 +92,9 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   public static class OutputBuilder<IN, OUT> implements Builders.Output<OUT> {
     private final String name;
     private final Dataset<IN> input;
-    private final UnaryFunction<IN, OUT> mapper;
+    private final UnaryFunctionEnv<IN, OUT> mapper;
 
-    OutputBuilder(String name, Dataset<IN> input, UnaryFunction<IN, OUT> mapper) {
+    OutputBuilder(String name, Dataset<IN> input, UnaryFunctionEnv<IN, OUT> mapper) {
       this.name = name;
       this.input = input;
       this.mapper = mapper;
@@ -119,9 +138,19 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     return new OfBuilder(name);
   }
 
-  final UnaryFunction<IN, OUT> mapper;
+  final UnaryFunctionEnv<IN, OUT> mapper;
 
-  MapElements(String name, Flow flow, Dataset<IN> input, UnaryFunction<IN, OUT> mapper) {
+  MapElements(String name,
+              Flow flow,
+              Dataset<IN> input,
+              UnaryFunction<IN, OUT> mapper) {
+    this(name, flow, input, (el, ctx) -> mapper.apply(el));
+  }
+
+  MapElements(String name,
+              Flow flow,
+              Dataset<IN> input,
+              UnaryFunctionEnv<IN, OUT> mapper) {
     super(name, flow, input);
     this.mapper = mapper;
   }
@@ -136,6 +165,41 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     return DAG.of(
         // do not use the client API here, because it modifies the Flow!
         new FlatMap<IN, OUT>(getName(), getFlow(), input,
-            (i, c) -> c.collect(mapper.apply(i)), null));
+            (i, c) -> c.collect(mapper.apply(i, new CollectorAdapter(c))), null));
+  }
+
+  public UnaryFunctionEnv<IN, OUT> getMapper() {
+    return mapper;
+  }
+
+  /**
+   * Adapts Collector to be used as Context in UnaryFunctionEnv.
+   */
+  private static class CollectorAdapter implements Context {
+    private final Collector collector;
+
+    public CollectorAdapter(Collector collector) {
+      this.collector = collector;
+    }
+
+    @Override
+    public Object getWindow() {
+      return collector.getWindow();
+    }
+
+    @Override
+    public Counter getCounter(String name) {
+      return collector.getCounter(name);
+    }
+
+    @Override
+    public Histogram getHistogram(String name) {
+      return collector.getHistogram(name);
+    }
+
+    @Override
+    public Timer getTimer(String name) {
+      return collector.getTimer(name);
+    }
   }
 }

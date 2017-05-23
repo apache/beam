@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.operator.state;
 
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
@@ -38,6 +38,6 @@ public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Ser
    */
   STATE createState(StorageProvider storageProvider,
                     @Experimental("https://github.com/seznam/euphoria/issues/118")
-                    @Nullable Context<OUT> context);
+                    @Nullable Collector<OUT> context);
 
 }

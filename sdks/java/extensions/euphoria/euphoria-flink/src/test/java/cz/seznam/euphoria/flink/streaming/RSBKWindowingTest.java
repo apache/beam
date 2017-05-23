@@ -20,12 +20,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -60,7 +58,7 @@ public class RSBKWindowingTest {
     }
 
     @Override
-    public void flush(Context<VALUE> context) {
+    public void flush(Collector<VALUE> context) {
       for (VALUE value : reducableValues.get()) {
         context.collect(value);
       }
@@ -106,7 +104,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
+        .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(1)
@@ -155,7 +153,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source, Pair::getSecond))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
-            .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
+            .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
             .mergeStatesBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5)))
             .setNumPartitions(1)
@@ -172,7 +170,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(secondStep)
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
+        .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(1)
