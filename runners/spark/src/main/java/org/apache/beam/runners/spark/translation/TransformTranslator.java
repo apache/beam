@@ -407,6 +407,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<T>> input = new SourceRDD.Bounded<>(
             jsc.sc(), transform.getSource(), runtimeContext, stepName).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
+        System.out.println("Evaluating Bounded Read " + transform);
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
       }
 
