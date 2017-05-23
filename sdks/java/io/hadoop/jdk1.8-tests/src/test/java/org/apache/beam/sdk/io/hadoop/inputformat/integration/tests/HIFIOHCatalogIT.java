@@ -51,7 +51,7 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOHiveIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOHCatalogIT
  *  -DintegrationTestPipelineOptions='[
  *  "--hiveMetastoreUri=thrift://metastoreIp:port"]'
  * </pre>
@@ -62,7 +62,7 @@ import org.junit.runners.JUnit4;
  */
 
 @RunWith(JUnit4.class)
-public class HIFIOHiveIT implements Serializable {
+public class HIFIOHCatalogIT implements Serializable {
 
   private static final String HIVE_DATABASE = "default";
   private static final String HIVE_TABLE = "employee";
@@ -78,11 +78,12 @@ public class HIFIOHiveIT implements Serializable {
   }
 
   /**
-   * This test reads data from the Hive instance and verifies if data is read successfully.
+   * This test reads data from the Hive instance using HCatalog
+   * and verifies if data is read successfully.
    * @throws IOException
    */
   @Test
-  public void testHIFReadForHive() throws IOException {
+  public void testHIFReadForHCatalog() throws IOException {
     Long expectedRecordsCount = 200000L;
     Configuration conf = getConfiguration(options);
     PCollection<KV<Long, String>> hiveData = pipeline.apply(HadoopInputFormatIO
@@ -101,26 +102,27 @@ public class HIFIOHiveIT implements Serializable {
   };
 
   /**
-   * Returns Hadoop configuration for reading data from Hive. To read data from Hive using
+   * Returns Hadoop configuration for reading data from Hive using HCatalog.
+   * To read data from Hive using
    * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
    * class, InputFormat value class, Metastore URI, database(optional,
    * assumes 'default' if none specified), table, filter(optional)
    * @throws IOException
    */
   private static Configuration getConfiguration(HIFTestOptions options) throws IOException {
-    Configuration hiveConf = new Configuration();
-    hiveConf.setClass("mapreduce.job.inputformat.class",
+    Configuration hcatConf = new Configuration();
+    hcatConf.setClass("mapreduce.job.inputformat.class",
         HCatInputFormat.class, InputFormat.class);
-    hiveConf.setClass("key.class", LongWritable.class, WritableComparable.class);
-    hiveConf.setClass("value.class", DefaultHCatRecord.class, Writable.class);
-    hiveConf.set("hive.metastore.uris", options.getHiveMetastoreUri());
+    hcatConf.setClass("key.class", LongWritable.class, WritableComparable.class);
+    hcatConf.setClass("value.class", DefaultHCatRecord.class, Writable.class);
+    hcatConf.set("hive.metastore.uris", options.getHiveMetastoreUri());
 
     //explicitly specifying database, table & filter
-    HCatInputFormat.setInput(hiveConf, HIVE_DATABASE, HIVE_TABLE, HIVE_FILTER);
+    HCatInputFormat.setInput(hcatConf, HIVE_DATABASE, HIVE_TABLE, HIVE_FILTER);
 
     //specifying table only, assumes 'default' database in this case and no filter
     //HCatInputFormat.setInput(hiveConf, null, HIVE_TABLE, null);
 
-    return hiveConf;
+    return hcatConf;
   }
 }
