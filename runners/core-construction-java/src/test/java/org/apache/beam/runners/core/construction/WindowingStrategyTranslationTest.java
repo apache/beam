@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Unit tests for {@link WindowingStrategy}. */
 @RunWith(Parameterized.class)
-public class WindowingStrategiesTest {
+public class WindowingStrategyTranslationTest {
 
   // Each spec activates tests of all subsets of its fields
   @AutoValue
@@ -50,7 +50,7 @@ public class WindowingStrategiesTest {
   }
 
   private static ToProtoAndBackSpec toProtoAndBackSpec(WindowingStrategy windowingStrategy) {
-    return new AutoValue_WindowingStrategiesTest_ToProtoAndBackSpec(windowingStrategy);
+    return new AutoValue_WindowingStrategyTranslationTest_ToProtoAndBackSpec(windowingStrategy);
   }
 
   private static final WindowFn<?, ?> REPRESENTATIVE_WINDOW_FN =
@@ -85,7 +85,8 @@ public class WindowingStrategiesTest {
   public void testToProtoAndBack() throws Exception {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
-        WindowingStrategies.fromProto(WindowingStrategies.toProto(windowingStrategy));
+        WindowingStrategyTranslation.fromProto(
+            WindowingStrategyTranslation.toProto(windowingStrategy));
 
     assertThat(
         toProtoAndBackWindowingStrategy,
@@ -97,11 +98,11 @@ public class WindowingStrategiesTest {
     WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
     SdkComponents components = SdkComponents.create();
     RunnerApi.WindowingStrategy proto =
-        WindowingStrategies.toProto(windowingStrategy, components);
+        WindowingStrategyTranslation.toProto(windowingStrategy, components);
     RunnerApi.Components protoComponents = components.toComponents();
 
     assertThat(
-        WindowingStrategies.fromProto(proto, protoComponents).fixDefaults(),
+        WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
         Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy.fixDefaults()));
 
     protoComponents.getCodersOrThrow(

@@ -60,7 +60,7 @@ public class PCollectionTranslation {
   public static WindowingStrategy<?, ?> getWindowingStrategy(
       RunnerApi.PCollection pCollection, RunnerApi.Components components)
       throws InvalidProtocolBufferException {
-    return WindowingStrategies.fromProto(
+    return WindowingStrategyTranslation.fromProto(
         components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()), components);
   }
 

@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
-public class WindowingStrategies implements Serializable {
+public class WindowingStrategyTranslation implements Serializable {
 
   public static AccumulationMode fromProto(RunnerApi.AccumulationMode proto) {
     switch (proto) {

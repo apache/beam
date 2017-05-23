@@ -265,7 +265,7 @@ public class ParDoTranslation {
     RunnerApi.PCollection inputCollection =
         components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id));
     WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategies.fromProto(
+        WindowingStrategyTranslation.fromProto(
             components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
             components);
     Coder<?> elemCoder =
