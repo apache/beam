@@ -176,7 +176,8 @@ class SdkComponents {
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
-    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
+    componentsBuilder.putPcollections(
+        uniqueName, PCollectionTranslation.toProto(pCollection, this));
     return uniqueName;
   }
 

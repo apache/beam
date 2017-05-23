@@ -29,8 +29,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Utility methods for translating {@link PCollection PCollections} to and from Runner API protos.
  */
-public class PCollections {
-  private PCollections() {}
+public class PCollectionTranslation {
+  private PCollectionTranslation() {}
 
   public static RunnerApi.PCollection toProto(PCollection<?> pCollection, SdkComponents components)
       throws IOException {
