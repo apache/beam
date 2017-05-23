@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
-
-import cz.seznam.euphoria.core.client.io.Collector;
-import java.io.Serializable;
+package cz.seznam.euphoria.core.client.accumulators;
 
 /**
- * Functor of two arguments.
+ * Counter is a type of accumulator making a sum from integral numbers.
  */
-@FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
+public interface Counter extends Accumulator {
 
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
+  /**
+   * Increment counter by given value.
+   * @param value Value to be added to the counter.
+   */
+  void increment(long value);
 
+  /**
+   * Increment counter by one.
+   */
+  void increment();
 }

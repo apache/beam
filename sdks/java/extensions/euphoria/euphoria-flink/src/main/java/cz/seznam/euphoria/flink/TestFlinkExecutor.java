@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator.SplitAssignerFactory;
 
@@ -37,10 +38,12 @@ public class TestFlinkExecutor extends FlinkExecutor {
     super(true);
     this.splitAssignerFactory = splitAssignerFactory;
   }
-  
+
   @Override
   protected FlowTranslator createBatchTranslator(Settings settings,
-      ExecutionEnvironment environment) {
-    return new BatchFlowTranslator(settings, environment.getBatchEnv(), splitAssignerFactory);
+                                                 ExecutionEnvironment environment,
+                                                 FlinkAccumulatorFactory accumulatorFactory) {
+    return new BatchFlowTranslator(settings, environment.getBatchEnv(),
+            accumulatorFactory, splitAssignerFactory);
   }
 }

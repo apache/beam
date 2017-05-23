@@ -20,7 +20,7 @@ import cz.seznam.euphoria.benchmarks.datamodel.SearchEventsParser;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -46,7 +46,7 @@ class Util {
             .using(new UnaryFunctor<Pair<byte[], byte[]>, Pair<Long, String>>() {
               private final SearchEventsParser parser = new SearchEventsParser();
               @Override
-              public void apply(Pair<byte[], byte[]> pair, Context<Pair<Long, String>> context) {
+              public void apply(Pair<byte[], byte[]> pair, Collector<Pair<Long, String>> context) {
                 try {
                   SearchEventsParser.Query q = parser.parse(pair.getSecond());
                   if (q != null && q.query != null && !q.query.isEmpty()) {
@@ -69,7 +69,7 @@ class Util {
             .using(new UnaryFunctor<String, Pair<Long, String>>() {
               SearchEventsParser parser = new SearchEventsParser();
               @Override
-              public void apply(String line, Context<Pair<Long, String>> context) {
+              public void apply(String line, Collector<Pair<Long, String>> context) {
                 try {
                   SearchEventsParser.Query q = parser.parse(line);
                   if (q != null && q.query != null && !q.query.isEmpty()) {

@@ -17,7 +17,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -35,7 +35,7 @@ public class FlatMapTest {
 
     Dataset<String> mapped = FlatMap.named("FlatMap1")
        .of(dataset)
-       .using((String s, Context<String> c) -> c.collect(s))
+       .using((String s, Collector<String> c) -> c.collect(s))
        .output();
 
     assertEquals(flow, mapped.getFlow());
@@ -56,7 +56,7 @@ public class FlatMapTest {
 
     Dataset<BigDecimal> mapped = FlatMap.named("FlatMap2")
         .of(dataset)
-        .using((String s, Context<BigDecimal> c) -> c.collect(null))
+        .using((String s, Collector<BigDecimal> c) -> c.collect(null))
         .eventTimeBy(Long::parseLong) // ~ consuming the original input elements
         .output();
 
@@ -72,12 +72,35 @@ public class FlatMapTest {
   }
 
   @Test
+  public void testBuild_WithCounters() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
+
+    Dataset<String> mapped = FlatMap.named("FlatMap1")
+            .of(dataset)
+            .using((String s, Collector<String> c) -> {
+              c.getCounter("my-counter").increment();
+              c.collect(s);
+            })
+            .output();
+
+    assertEquals(flow, mapped.getFlow());
+    assertEquals(1, flow.size());
+
+    FlatMap map = (FlatMap) flow.operators().iterator().next();
+    assertEquals(flow, map.getFlow());
+    assertEquals("FlatMap1", map.getName());
+    assertNotNull(map.getFunctor());
+    assertEquals(mapped, map.output());
+  }
+
+  @Test
   public void testBuild_ImplicitName() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
     Dataset<String> mapped = FlatMap.of(dataset)
-            .using((String s, Context<String> c) -> c.collect(s))
+            .using((String s, Collector<String> c) -> c.collect(s))
             .output();
 
     FlatMap map = (FlatMap) flow.operators().iterator().next();
@@ -97,7 +120,7 @@ public class FlatMapTest {
     assertEquals(N_PARTITIONS, input.getNumPartitions());
 
     Dataset<Object> output = FlatMap.of(input)
-        .using((Object o, Context<Object> c) -> c.collect(o))
+        .using((Object o, Collector<Object> c) -> c.collect(o))
         .output();
     assertEquals(N_PARTITIONS, output.getNumPartitions());
   }

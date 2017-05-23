@@ -23,7 +23,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.VoidSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -148,7 +148,7 @@ public class EuphoriaTrends {
             .by(Pair::getFirst, Pair::getFirst)
             .using((Pair<String, Integer> left,
                     Pair<String, Integer> right,
-                    Context<Double> context) -> {
+                    Collector<Double> context) -> {
               double score = rank(
                   longIntervalMillis, left.getSecond(),
                   shortItervalMillis, right.getSecond(),
@@ -170,7 +170,7 @@ public class EuphoriaTrends {
             .output();
 
     FlatMap.of(output)
-        .using((Triple<Byte, Pair<String, Double>, Double> e, Context<String> c) -> {
+        .using((Triple<Byte, Pair<String, Double>, Double> e, Collector<String> c) -> {
           Date now = new Date();
           Date stamp = new Date(TimeSliding.getLabel(c).getEndMillis());
           c.collect(now + ": " + stamp + ", " + e.getSecond().getFirst() + ", " + e.getSecond().getSecond());

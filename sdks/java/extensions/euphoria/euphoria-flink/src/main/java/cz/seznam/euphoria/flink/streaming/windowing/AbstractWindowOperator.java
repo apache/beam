@@ -15,11 +15,12 @@
  */
 package cz.seznam.euphoria.flink.streaming.windowing;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.AbstractCollector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
@@ -32,6 +33,8 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.storage.Descriptors;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
@@ -83,13 +86,16 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   // see {@link WindowedStorageProvider}
   private final int descriptorsCacheMaxSize;
 
+  private final FlinkAccumulatorFactory accumulatorFactory;
+  private final Settings settings;
+
   private transient InternalTimerService<WID> timerService;
 
   // tracks existing windows to flush them in case of end of stream is reached
   private transient InternalTimerService<WID> endOfStreamTimerService;
 
   private transient TriggerContextAdapter triggerContext;
-  private transient OutputContext outputContext;
+  private transient OutputCollector outputContext;
   private transient WindowedStorageProvider storageProvider;
 
   private transient ListStateDescriptor<Tuple2<WID, WID>> mergingWindowsDescriptor;
@@ -101,7 +107,9 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                                 StateMerger<?, ?, State<?, ?>> stateCombiner,
                                 boolean localMode,
                                 int descriptorsCacheMaxSize,
-                                boolean allowEarlyEmitting) {
+                                boolean allowEarlyEmitting,
+                                FlinkAccumulatorFactory accumulatorFactory,
+                                Settings settings) {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = windowing.getTrigger();
     this.stateFactory = Objects.requireNonNull(stateFactory);
@@ -109,6 +117,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.localMode = localMode;
     this.descriptorsCacheMaxSize = descriptorsCacheMaxSize;
     this.allowEarlyEmitting = allowEarlyEmitting;
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
+    this.settings = Objects.requireNonNull(settings);
   }
 
   @Override
@@ -125,7 +135,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.endOfStreamTimerService =
             getInternalTimerService("end-of-stream-timers", windowSerializer, this);
     this.triggerContext = new TriggerContextAdapter();
-    this.outputContext = new OutputContext();
+    this.outputContext = new OutputCollector(
+            accumulatorFactory.create(settings, getRuntimeContext()));
     this.storageProvider = new WindowedStorageProvider<>(
             getKeyedStateBackend(), windowSerializer, descriptorsCacheMaxSize);
 
@@ -428,12 +439,16 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     }
   }
 
-  private class OutputContext implements Context {
+  private class OutputCollector extends AbstractCollector {
 
     private Object key;
     private Window window;
 
     private final StreamRecord reuse = new StreamRecord<>(null);
+
+    public OutputCollector(AccumulatorProvider accumulators) {
+      super(accumulators);
+    }
 
     @Override
     @SuppressWarnings("unchecked")
