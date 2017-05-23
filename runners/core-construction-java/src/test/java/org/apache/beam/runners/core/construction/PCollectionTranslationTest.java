@@ -64,10 +64,10 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Tests for {@link PCollections}.
+ * Tests for {@link PCollectionTranslation}.
  */
 @RunWith(Parameterized.class)
-public class PCollectionsTest {
+public class PCollectionTranslationTest {
   // Each spec activates tests of all subsets of its fields
   @Parameters(name = "{index}: {0}")
   public static Iterable<PCollection<?>> data() {
@@ -91,7 +91,8 @@ public class PCollectionsTest {
         pipeline
             .apply(
                 "intsWithCustomCoder",
-                Create.of(1, 2).withCoder(new AutoValue_PCollectionsTest_CustomIntCoder()))
+                Create.of(1, 2)
+                    .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
             .apply(
                 "into custom windows",
                 Window.<Integer>into(new CustomWindows())
@@ -113,12 +114,13 @@ public class PCollectionsTest {
   @Test
   public void testEncodeDecodeCycle() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PCollection protoCollection = PCollections.toProto(testCollection, sdkComponents);
+    RunnerApi.PCollection protoCollection = PCollectionTranslation
+        .toProto(testCollection, sdkComponents);
     RunnerApi.Components protoComponents = sdkComponents.toComponents();
-    Coder<?> decodedCoder = PCollections.getCoder(protoCollection, protoComponents);
+    Coder<?> decodedCoder = PCollectionTranslation.getCoder(protoCollection, protoComponents);
     WindowingStrategy<?, ?> decodedStrategy =
-        PCollections.getWindowingStrategy(protoCollection, protoComponents);
-    IsBounded decodedIsBounded = PCollections.isBounded(protoCollection);
+        PCollectionTranslation.getWindowingStrategy(protoCollection, protoComponents);
+    IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
     assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
     assertThat(
