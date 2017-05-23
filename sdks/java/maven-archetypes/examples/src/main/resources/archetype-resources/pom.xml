@@ -113,6 +113,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
