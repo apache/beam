@@ -545,7 +545,7 @@ class DataflowRunner(PipelineRunner):
 
     # Only add the additional portion if this is a PubSubSource
     if not isinstance(transform.source, PubSubSource):
-      return pvalue.PCollection(pcoll.pipeline)
+      return self.apply_PTransform(transform, pcoll)
 
     class PubSubMessagePayloadTransformer(object):
       """Converts from a payload of bytes encoded in the nested context to
@@ -563,7 +563,7 @@ class DataflowRunner(PipelineRunner):
         coders.BytesCoder(),
         coders.coders.GlobalWindowCoder())
 
-    pcoll = pcoll | 'parse fn' >> Map(
+    pcoll = self.apply_PTransform(transform, pcoll) | 'parse fn' >> Map(
         PubSubMessagePayloadTransformer(transform.source.coder).transform_value)
     pcoll.element_type = coders.WindowedValueCoder(
         transform.source.coder,
