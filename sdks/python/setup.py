@@ -181,6 +181,7 @@ def generate_protos_first(original_cmd):
 # compiled from scratch (which is expensive as it compiles the full
 # protoc compiler).  Instead, we attempt to install a wheel in a temporary
 # directory and add it to the path.
+# See https://github.com/pypa/setuptools/issues/377
 try:
   import grpc_tools
 except ImportError:
@@ -190,8 +191,9 @@ except ImportError:
     install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-virtualenv')
     warnings.warn(
         'Installing grpcio-tools is recommended for development; '
-        'Installing a local copy at %s'.format(install_path))
-    subprocess.check_call(['pip', 'install', '-t', install_path, grpcio_tools])
+        'installing a local copy at %s' % install_path)
+    subprocess.check_call(
+        ['pip', 'install', '-t', install_path, '--upgrade', grpcio_tools])
     sys.path.append(install_path)
   except:
     REQUIRED_SETUP_PACKAGES.append(grpcio_tools)
