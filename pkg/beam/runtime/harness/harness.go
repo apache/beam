@@ -136,7 +136,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		// TODO: Async execution. The below assumes serial bundle execution.
 
-		edges, err := g.Build()
+		edges, _, err := g.Build()
 		if err != nil {
 			return fail(id, "Build failed: %v", err)
 		}

@@ -5,10 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
-	"golang.org/x/oauth2/google"
-	df "google.golang.org/api/dataflow/v1b3"
 	"log"
 	"os"
 	"os/exec"
@@ -18,6 +14,11 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
+	"golang.org/x/oauth2/google"
+	df "google.golang.org/api/dataflow/v1b3"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -43,7 +44,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
 	}
 
-	edges, err := p.Build()
+	edges, _, err := p.Build()
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			return nil
 
 		case "JOB_STATE_FAILED":
-			return fmt.Errorf("job %s failed.", upd.Id)
+			return fmt.Errorf("job %s failed", upd.Id)
 
 		case "JOB_STATE_RUNNING":
 			log.Print("Job still running ...")
