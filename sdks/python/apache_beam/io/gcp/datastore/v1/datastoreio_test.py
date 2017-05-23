@@ -193,10 +193,10 @@ class DatastoreioTest(unittest.TestCase):
                        self._mock_datastore.commit.call_count)
 
   def test_DatastoreWriteLargeEntities(self):
-    """60*100kB entities gets split over two Commit RPCs."""
+    """100*100kB entities gets split over two Commit RPCs."""
     with patch.object(helper, 'get_datastore',
                       return_value=self._mock_datastore):
-      entities = [e.entity for e in fake_datastore.create_entities(60)]
+      entities = [e.entity for e in fake_datastore.create_entities(100)]
 
       datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
       datastore_write_fn.start_bundle()

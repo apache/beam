@@ -315,10 +315,10 @@ class _Mutate(PTransform):
 
   # Max allowed Datastore writes per batch, and max bytes per batch.
   # Note that the max bytes per batch set here is lower than the 10MB limit
-  # actually enforced by the API, to allow space for the CommitRequest wrapper
-  # around it.
+  # actually enforced by the API, to leave space for the CommitRequest wrapper
+  # around the mutations.
   _WRITE_BATCH_SIZE = 500
-  _WRITE_BATCH_BYTES_SIZE = 5000000
+  _WRITE_BATCH_BYTES_SIZE = 9000000
 
   def __init__(self, project, mutation_fn):
     """Initializes a Mutate transform.
