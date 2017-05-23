@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Ordering;
+
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -319,7 +321,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       result = result.withMode(getAccumulationMode());
     }
     if (getAllowedLateness() != null) {
-      result = result.withAllowedLateness(getAllowedLateness());
+      result = result.withAllowedLateness(Ordering.natural().max(getAllowedLateness(),
+          inputStrategy.getAllowedLateness()));
     }
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
@@ -356,20 +359,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   }
 
-  private boolean allowedLatenessShorterThanUpstream(PCollection<?> input){
-    if (getAllowedLateness() != null
-        && getAllowedLateness().isShorterThan(input.getWindowingStrategy().getAllowedLateness())) {
-      LOG.warn(
-          "allowedLateness of {} set on {} is shorter than allowedLateness of {} set "
-              + "upstream on {}. This might cause data loss. "
-              + "Assigning allowedLateness {} to {}",
-          getAllowedLateness(), getName(), input.getWindowingStrategy().getAllowedLateness(),
-          input.getName(), input.getWindowingStrategy().getAllowedLateness(), getName());
-     return true;
-    }
-    return false;
-  }
-
   private boolean canProduceMultiplePanes(WindowingStrategy<?, ?> strategy) {
     // The default trigger is Repeatedly.forever(AfterWatermark.pastEndOfWindow()); This fires
     // for every late-arriving element if allowed lateness is nonzero, and thus we must have
@@ -387,12 +376,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
-
-    boolean latenessShorter = allowedLatenessShorterThanUpstream(input);
-    if (latenessShorter){
-      outputStrategy = outputStrategy.withAllowedLateness(input.getWindowingStrategy()
-          .getAllowedLateness());
-    }
 
     if (getWindowFn() == null) {
       // A new PCollection must be created in case input is reused in a different location as the
