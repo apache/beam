@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.state.CombiningState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code Distinct<T>} takes a {@code PCollection<T>} and
@@ -64,6 +62,8 @@ import org.joda.time.Duration;
  */
 public class Distinct<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
+  private static final Logger LOG = LoggerFactory.getLogger(Distinct.class);
+
   /**
    * Returns a {@code Distinct<T>} {@code PTransform}.
    *
@@ -71,7 +71,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    * {@code PCollection}s
    */
   public static <T> Distinct<T> create() {
-    return new Distinct<T>();
+    return new Distinct<>();
   }
 
   /**
@@ -83,53 +83,41 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    */
   public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
       SerializableFunction<T, IdT> fn) {
-    return new WithRepresentativeValues<T, IdT>(fn, null);
+    return new WithRepresentativeValues<>(fn, null);
   }
 
-  private static <T> boolean distinctAcrossPanes(PCollection<T> in) {
-    return in.getWindowingStrategy().getAllowedLateness().isLongerThan(Duration.ZERO)
-        || !(in.getWindowingStrategy().getTrigger() instanceof DefaultTrigger);
-
-  }
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    boolean acrossPanes = distinctAcrossPanes(in);
-
-    PCollection<KV<T, Void>> combined = in
-        .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
-          @Override
-          public KV<T, Void> apply(T element) {
-            return KV.of(element, (Void) null);
-          }
-        }))
-        .apply(Combine.<T, Void>perKey(
-            new SerializableFunction<Iterable<Void>, Void>() {
-              @Override
-              public Void apply(Iterable<Void> iter) {
-                return null; // ignore input
-                }
-            }));
-    if (!acrossPanes) {
-      return combined.apply("SinglePaneDistinct", Keys.<T>create());
-    } else {
-      return combined.apply("StatefulDistinct", ParDo.of(new DoFn<KV<T, Void>, T>() {
-        // Keep track of whether we've seen a given key yet.
-        @StateId("exists")
-        private final StateSpec<CombiningState<Integer, int[], Integer>> stateSpec =
-            StateSpecs.combining(Sum.ofIntegers());
-
-        @ProcessElement
-        public void processElement(
-            ProcessContext c,
-            @StateId("exists") CombiningState<Integer, int[], Integer> state) {
-          if (state.read() == null || state.read() == 0) {
-            // Only output the key if it's the first time it's been seen.
-            c.output(c.element().getKey());
-            state.add(1);
-          }
-        }
-      }));
+    if (!(in.getWindowingStrategy().getWindowFn() instanceof NonMergingWindowFn)) {
+      LOG.warn("Distinct is not currently guaranteed to remove all duplicates when using merging"
+      + "window functions.");
     }
+
+    PCollection<KV<T, Void>> combined =
+        in.apply("CreateIndex", MapElements.via(
+            new SimpleFunction<T, KV<T, Void>>() {
+              @Override
+              public KV<T, Void> apply(T element) {
+                return KV.of(element, (Void) null);
+              }
+            }))
+            .apply("ApplyCombiner",
+                Combine.<T, Void>perKey(
+                    new SerializableFunction<Iterable<Void>, Void>() {
+                      @Override
+                      public Void apply(Iterable<Void> iter) {
+                        return null; // ignore input
+                      }
+                    }));
+    return combined.apply("ExtractKeys", ParDo.of(new DoFn<KV<T, Void>, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        if (c.pane().isFirst()) {
+          // Only output the key if it's the first time it's been seen.
+          c.output(c.element().getKey());
+        }
+      }
+    }));
   }
 
   /**
@@ -155,7 +143,10 @@ public class Distinct<T> extends PTransform<PCollection<T>,
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      boolean acrossPanes = distinctAcrossPanes(in);
+      if (!(in.getWindowingStrategy().getWindowFn() instanceof NonMergingWindowFn)) {
+        LOG.warn("Distinct is not currently guaranteed to remove all duplicates when using merging"
+            + "window functions.");
+      }
 
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
@@ -170,27 +161,15 @@ public class Distinct<T> extends PTransform<PCollection<T>,
                   return left;
                 }
               }));
-      if (!acrossPanes) {
-        return combined.apply(Values.<T>create());
-      } else {
         return combined.apply(ParDo.of(new DoFn<KV<IdT, T>, T>() {
-          // Keep track of whether we've seen a given key yet.
-          @StateId("exists")
-          private final StateSpec<CombiningState<Integer, int[], Integer>> stateSpec =
-              StateSpecs.combining(Sum.ofIntegers());
-
           @ProcessElement
-          public void processElement(
-              ProcessContext c,
-              @StateId("exists") CombiningState<Integer, int[], Integer> state) {
+          public void processElement(ProcessContext c) {
             // Only output the value if it's the first time it's been seen.
-            if (state.read() == null || state.read() == 0) {
+            if (c.pane().isFirst()) {
               c.output(c.element().getValue());
-              state.add(1);
             }
           }
         }));
-      }
     }
 
     /**
