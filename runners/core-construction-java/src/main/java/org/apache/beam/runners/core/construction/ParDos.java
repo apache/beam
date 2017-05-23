@@ -34,7 +34,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -96,7 +96,7 @@ public class ParDos {
    * A {@link TransformPayloadTranslator} for {@link ParDo}.
    */
   public static class ParDoPayloadTranslator
-      implements PTransforms.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
     public static TransformPayloadTranslator create() {
       return new ParDoPayloadTranslator();
     }
