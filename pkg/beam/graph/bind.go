@@ -2,9 +2,10 @@ package graph
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"reflect"
 )
 
 // TODO(herohde) 4/21/2017: Bind is where most user mistakes will likely show
@@ -231,10 +232,9 @@ func inboundArity(t typex.FullType, isMain bool) int {
 		case typex.KVType:
 			if isMain {
 				return 2
-			} else {
-				// A KV side input must be a single iterator/map.
-				return 1
 			}
+			// A KV side input must be a single iterator/map.
+			return 1
 		case typex.GBKType:
 			return 2
 		case typex.WindowedValueType:

@@ -2,8 +2,9 @@ package graph
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"log"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
 // Opcode represents a primitive Fn API instruction kind.

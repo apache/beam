@@ -1,6 +1,6 @@
 package graph
 
-// Scope is a syntactic Scope, such as arising from a composite PTransform. It
+// Scope is a syntactic Scope, such as arising from a composite Transform. It
 // has no semantic meaning at execution time. Used by monitoring.
 type Scope struct {
 	id int
