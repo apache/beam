@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.BaseStepContext;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -34,7 +33,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
-class DirectExecutionContext implements ExecutionContext {
+class DirectExecutionContext {
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals existingState;
