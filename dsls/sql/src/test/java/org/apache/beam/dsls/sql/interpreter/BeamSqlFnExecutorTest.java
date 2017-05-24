@@ -25,7 +25,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
@@ -44,6 +43,9 @@ import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateFloorExpres
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimestampExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlNotExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -128,6 +130,37 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     assertTrue(executor.exps.get(3) instanceof BeamSqlInputRefExpression);
   }
 
+
+  @Test
+  public void testBuildExpression_logical() {
+    RexNode rexNode;
+    BeamSqlExpression exp;
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.AND,
+        Arrays.asList(
+            rexBuilder.makeLiteral(true),
+            rexBuilder.makeLiteral(false)
+        )
+    );
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlAndExpression);
+
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.OR,
+        Arrays.asList(
+            rexBuilder.makeLiteral(true),
+            rexBuilder.makeLiteral(false)
+        )
+    );
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlOrExpression);
+
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
+        Arrays.asList(
+            rexBuilder.makeLiteral(true)
+        )
+    );
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlNotExpression);
+  }
 
   @Test
   public void testBuildExpression_arithmetic() {
