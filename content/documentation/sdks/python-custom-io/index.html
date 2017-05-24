@@ -368,8 +368,8 @@
 
 <p>To read data from the source in your pipeline, use the <code class="highlighter-rouge">Read</code> transform:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
-numbers = p | 'ProduceNumbers' &gt;&gt; beam.io.Read(CountingSource(count))
+<div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+  numbers = p | 'ProduceNumbers' &gt;&gt; beam.io.Read(CountingSource(count))
 </code></pre>
 </div>
 
@@ -512,11 +512,11 @@ numbers = p | 'ProduceNumbers' &gt;&gt; beam.io.Read(CountingSource(count))
 
 <p>The following code demonstrates how to write to the sink using the <code class="highlighter-rouge">Write</code> transform.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
-kvs = p | 'CreateKVs' &gt;&gt; beam.Create(KVs)
+<div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+  kvs = p | 'CreateKVs' &gt;&gt; beam.Create(KVs)
 
-kvs | 'WriteToSimpleKV' &gt;&gt; beam.io.Write(
-    SimpleKVSink('http://url_to_simple_kv/', final_table_name))
+  kvs | 'WriteToSimpleKV' &gt;&gt; beam.io.Write(
+      SimpleKVSink('http://url_to_simple_kv/', final_table_name))
 </code></pre>
 </div>
 
@@ -569,10 +569,10 @@ numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
 
 <p>Finally, write to the sink:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
-kvs = p | 'CreateKVs' &gt;&gt; beam.core.Create(KVs)
-kvs | 'WriteToSimpleKV' &gt;&gt; WriteToKVSink(
-    'http://url_to_simple_kv/', final_table_name)
+<div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+  kvs = p | 'CreateKVs' &gt;&gt; beam.core.Create(KVs)
+  kvs | 'WriteToSimpleKV' &gt;&gt; WriteToKVSink(
+      'http://url_to_simple_kv/', final_table_name)
 </code></pre>
 </div>
 

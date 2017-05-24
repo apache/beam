@@ -491,7 +491,7 @@ Figure 1: The pipeline data flow.</p>
                         <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
 </code></pre>
 </div>
 

@@ -402,14 +402,14 @@
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
 
-<span class="n">lines</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-         <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-             <span class="s">'To be, or not to be: that is the question: '</span><span class="p">,</span>
-             <span class="s">'Whether </span><span class="se">\'</span><span class="s">tis nobler in the mind to suffer '</span><span class="p">,</span>
-             <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
-             <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">]))</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+           <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+               <span class="s">'To be, or not to be: that is the question: '</span><span class="p">,</span>
+               <span class="s">'Whether </span><span class="se">\'</span><span class="s">tis nobler in the mind to suffer '</span><span class="p">,</span>
+               <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
+               <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">]))</span>
 
 </code></pre>
 </div>
@@ -1128,10 +1128,10 @@ guest, [[], [order4]]
     <span class="n">lower_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">avg_word_len</span><span class="p">)))</span>
 
 <span class="c"># Mix and match.</span>
-<span class="n">small_but_nontrivial</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">filter_using_length</span><span class="p">,</span>
-                                            <span class="n">lower_bound</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-                                            <span class="n">upper_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span>
-                                                <span class="n">avg_word_len</span><span class="p">))</span>
+<span class="n">small_but_nontrivial</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+    <span class="n">filter_using_length</span><span class="p">,</span>
+    <span class="n">lower_bound</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">upper_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">avg_word_len</span><span class="p">))</span>
 
 
 <span class="c"># We can also pass side inputs to a ParDo transform, which will get passed to its process method.</span>
