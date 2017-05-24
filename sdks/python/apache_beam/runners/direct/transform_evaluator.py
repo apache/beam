@@ -25,6 +25,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 import apache_beam.io as io
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
@@ -32,13 +33,48 @@ from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
+from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
-from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.utils.test_stream import ElementEvent
+from apache_beam.utils.test_stream import WatermarkEvent
+from apache_beam.utils.test_stream import ProcessingTimeEvent
+
+class RootBundleProvider(object):
+  """Provides bundles for the initial execution of a root transform."""
+  def __init__(self, evaluation_context, applied_ptransform):
+    self._evaluation_context = evaluation_context
+    self._applied_ptransform = applied_ptransform
+
+  def get_root_bundles(self):
+    raise NotImplementedError
+
+class DefaultRootBundleProvider(RootBundleProvider):
+  """Provides an empty bundle by default for root transforms."""
+
+  def get_root_bundles(self, ):
+    empty_bundle = (
+        self._evaluation_context.create_empty_committed_bundle(
+            self._applied_ptransform.inputs[0]))
+    return [empty_bundle]
+
+class _TestStreamRootBundleProvider(RootBundleProvider):
+
+  def get_root_bundles(self):
+    test_stream = self._applied_ptransform.transform
+    bundles = []
+    if len(test_stream.events) > 0:
+      bundle = self._evaluation_context.create_bundle(
+          self._applied_ptransform.inputs[0])
+      # Explicitly set timestamp to MIN_TIMESTAMP to ensure that we hold the watermark.
+      bundle.add(GlobalWindows.windowed_value(0, timestamp=MIN_TIMESTAMP))
+      bundle.commit(None)
+      bundles.append(bundle)
+    return bundles
 
 
 class TransformEvaluatorRegistry(object):
@@ -57,6 +93,10 @@ class TransformEvaluatorRegistry(object):
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
         TestStream: _TestStreamEvaluator,
+    }
+    self._root_bundle_providers = {
+        core.PTransform: DefaultRootBundleProvider,
+        TestStream: _TestStreamRootBundleProvider,
     }
 
   def for_application(
@@ -80,6 +120,18 @@ class TransformEvaluatorRegistry(object):
     return evaluator(self._evaluation_context, applied_ptransform,
                      input_committed_bundle, side_inputs,
                      scoped_metrics_container)
+
+  def get_root_bundle_provider(self, applied_ptransform):
+    provider_cls = None
+    for cls in applied_ptransform.transform.__class__.mro():
+      provider_cls = self._root_bundle_providers.get(cls)
+      if provider_cls:
+        break
+    if not provider_cls:
+      raise NotImplementedError(
+          'Root provider for [%s] not implemented in runner %s' % (
+              type(applied_ptransform.transform), self))
+    return provider_cls(self._evaluation_context, applied_ptransform)
 
   def should_execute_serially(self, applied_ptransform):
     """Returns True if this applied_ptransform should run one bundle at a time.
@@ -217,17 +269,65 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not input_committed_bundle
+    # TODO: figure out why timers fire
+    # assert not input_committed_bundle, input_committed_bundle
     assert not side_inputs
+    self.test_stream = applied_ptransform.transform
     super(_TestStreamEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
+
+  def start_bundle(self):
+    # TODO: currently, for the first pass through the TestStream, no elements
+    # are passed through--we can therefore assume that the current index is 0
+    # in this case; otherwise, the index will be stored on the process_element
+    # call.
+    self.current_index = -1
+    self.watermark = MIN_TIMESTAMP
+
+  def process_element(self, element):
+    index = element.value
+    self.watermark = element.timestamp
+    assert isinstance(index, int)
+    assert 0 <= index <= len(self.test_stream.events)
+    self.current_index = index
   
   def finish_bundle(self):
     assert len(self._outputs) == 1
     output_pcollection = list(self._outputs)[0]
 
-    pass
+    # TODO: move to process_element once we provide a root bundle.
+    bundles = []
+    event = self.test_stream.events[self.current_index]
+    watermark = self.watermark
+    if isinstance(event, ElementEvent):
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      for tv in event.timestamped_values:
+        bundle.output(
+            GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
+      bundles.append(bundle)
+    elif isinstance(event, WatermarkEvent):
+      assert event.new_watermark >= self.watermark
+      watermark = event.new_watermark
+    elif isinstance(event, ProcessingTimeEvent):
+      # TODO: advance processing time in the context's mock clock. 
+      pass
+    else:
+      raise ValueError('Invalid TestStream event: %s.' % event)
+
+    unprocessed_bundle = None
+    if self.current_index < len(self.test_stream.events) - 1:
+      unprocessed_bundle = self._evaluation_context.create_bundle(
+          self._applied_ptransform.inputs[0])
+      unprocessed_bundle.add(GlobalWindows.windowed_value(self.current_index + 1, timestamp=watermark))
+
+
+
+    print 'FINISH_BUNDLE', self.current_index, event, unprocessed_bundle
+
+    return TransformResult(
+        self._applied_ptransform, bundles, unprocessed_bundle, None, None,
+            None, None)
 
 
 class _FlattenEvaluator(_TransformEvaluator):

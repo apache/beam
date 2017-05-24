@@ -108,12 +108,16 @@ class _Bundle(object):
                             self._initial_windowed_value.windows)
 
   def __init__(self, pcollection, stacked=True):
-    assert isinstance(pcollection, pvalue.PCollection)
+    # assert isinstance(pcollection, pvalue.PCollection)
+    print 'INIT PCOLLECTION', pcollection
     self._pcollection = pcollection
     self._elements = []
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
+
+  def __repr__(self):
+    return '<Bundle %s %s>' % (self._pcollection, self._elements)
 
   def get_elements_iterable(self, make_copy=False):
     """Returns iterable elements.
@@ -183,6 +187,7 @@ class _Bundle(object):
       self._elements.append(element)
 
   def output(self, element):
+    assert isinstance(element, WindowedValue)
     self.add(element)
 
   def commit(self, synchronized_processing_time):

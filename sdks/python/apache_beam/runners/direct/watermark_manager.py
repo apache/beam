@@ -88,16 +88,19 @@ class WatermarkManager(object):
 
     return self._transform_to_watermarks[applied_ptransform]
 
-  def update_watermarks(self, completed_committed_bundle, applied_ptransform,
+  def update_watermarks(self, completed_committed_bundle, unprocessed_bundle,
+                        applied_ptransform,
                         timer_update, outputs, earliest_hold):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
-        completed_committed_bundle, applied_ptransform, timer_update, outputs)
+        completed_committed_bundle, unprocessed_bundle, applied_ptransform,
+        timer_update, outputs)
     tw = self.get_watermarks(applied_ptransform)
     tw.hold(earliest_hold)
     self._refresh_watermarks(applied_ptransform)
 
-  def _update_pending(self, input_committed_bundle, applied_ptransform,
+  def _update_pending(self, input_committed_bundle, unprocessed_bundle,
+                      applied_ptransform,
                       timer_update, output_committed_bundles):
     """Updated list of pending bundles for the given AppliedPTransform."""
 
@@ -113,6 +116,11 @@ class WatermarkManager(object):
 
     completed_tw = self._transform_to_watermarks[applied_ptransform]
     completed_tw.update_timers(timer_update)
+
+    if unprocessed_bundle:
+      print 'DOING completed_tw.add_pending(unprocessed_bundle)', completed_tw, unprocessed_bundle
+      print completed_tw._input_watermark
+      completed_tw.add_pending(unprocessed_bundle)
 
     assert input_committed_bundle or applied_ptransform in self._root_transforms
     if input_committed_bundle and input_committed_bundle.has_elements():
@@ -193,9 +201,17 @@ class _TransformWatermarks(object):
 
   def refresh(self):
     with self._lock:
+      # TODO(ccy): fix for streaming
       pending_holder = (WatermarkManager.WATERMARK_NEG_INF
                         if self._pending else
                         WatermarkManager.WATERMARK_POS_INF)
+      # pending_holder = WatermarkManager.WATERMARK_NEG_INF
+      # for input_bundle in self._pending:
+      #   # TODO: Perhaps we can have the Bundle class keep track of the minimum
+      #   # timestamp so we don't have to do an iteration here.
+      #   bundle_min_timestamp = min(wv.timestamp for wv in input_bundle.get_elements_iterable())
+      #   if bundle_min_timestamp < pending_holder:
+      #     pending_holder = bundle_min_timestamp
 
       input_watermarks = [
           tw.output_watermark for tw in self._input_transform_watermarks]
@@ -207,6 +223,8 @@ class _TransformWatermarks(object):
       new_output_watermark = min(self._input_watermark, self._earliest_hold)
 
       advanced = new_output_watermark > self._output_watermark
+      if advanced:
+        print 'ADVANCED', new_output_watermark, 'from', self._output_watermark
       self._output_watermark = new_output_watermark
       return advanced
 
