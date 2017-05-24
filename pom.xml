@@ -1277,7 +1277,7 @@
               <exclude>**/.settings/**/*</exclude>
 
               <!-- Proto/grpc generated wrappers -->
-              <exclude>sdks/python/apache_beam/runners/api/*_pb2*.py</exclude>
+              <exclude>**/apache_beam/runners/api/*_pb2*.py</exclude>
             </excludes>
           </configuration>
         </plugin>
