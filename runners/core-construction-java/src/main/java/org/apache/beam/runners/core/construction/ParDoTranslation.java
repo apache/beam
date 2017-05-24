@@ -34,7 +34,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -73,7 +73,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos.
  */
-public class ParDos {
+public class ParDoTranslation {
   /**
    * The URN for a {@link ParDoPayload}.
    */
@@ -96,7 +96,7 @@ public class ParDos {
    * A {@link TransformPayloadTranslator} for {@link ParDo}.
    */
   public static class ParDoPayloadTranslator
-      implements PTransforms.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
     public static TransformPayloadTranslator create() {
       return new ParDoPayloadTranslator();
     }
@@ -191,7 +191,7 @@ public class ParDos {
   abstract static class DoFnAndMainOutput implements Serializable {
     public static DoFnAndMainOutput of(
         DoFn<?, ?> fn, TupleTag<?> tag) {
-      return new AutoValue_ParDos_DoFnAndMainOutput(fn, tag);
+      return new AutoValue_ParDoTranslation_DoFnAndMainOutput(fn, tag);
     }
 
     abstract DoFn<?, ?> getDoFn();
@@ -265,11 +265,12 @@ public class ParDos {
     RunnerApi.PCollection inputCollection =
         components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id));
     WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategies.fromProto(
+        WindowingStrategyTranslation.fromProto(
             components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
             components);
     Coder<?> elemCoder =
-        Coders.fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+        CoderTranslation
+            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(

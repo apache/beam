@@ -131,7 +131,8 @@ class SdkComponents {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
+    componentsBuilder.putTransforms(name, PTransformTranslation
+        .toProto(appliedPTransform, children, this));
     return name;
   }
 
@@ -176,7 +177,8 @@ class SdkComponents {
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
-    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
+    componentsBuilder.putPcollections(
+        uniqueName, PCollectionTranslation.toProto(pCollection, this));
     return uniqueName;
   }
 
@@ -198,7 +200,7 @@ class SdkComponents {
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
     RunnerApi.WindowingStrategy windowingStrategyProto =
-        WindowingStrategies.toProto(windowingStrategy, this);
+        WindowingStrategyTranslation.toProto(windowingStrategy, this);
     componentsBuilder.putWindowingStrategies(name, windowingStrategyProto);
     return name;
   }
@@ -220,7 +222,7 @@ class SdkComponents {
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(Equivalence.identity().wrap(coder), name);
-    RunnerApi.Coder coderProto = Coders.toProto(coder, this);
+    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
     return name;
   }

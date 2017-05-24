@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * Utilities for converting {@link PTransform PTransforms} to and from {@link RunnerApi Runner API
  * protocol buffers}.
  */
-public class PTransforms {
+public class PTransformTranslation {
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
@@ -52,7 +52,7 @@ public class PTransforms {
     return builder.build();
   }
 
-  private PTransforms() {}
+  private PTransformTranslation() {}
 
   /**
    * Translates an {@link AppliedPTransform} into a runner API proto.

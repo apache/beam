@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -122,7 +122,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
                 TriggerStateMachines.stateMachineForTrigger(
-                    Triggers.toProto(windowingStrategy.getTrigger()))),
+                    TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
             stateInternals,
             timerInternals,
             outputWindowedValue(),

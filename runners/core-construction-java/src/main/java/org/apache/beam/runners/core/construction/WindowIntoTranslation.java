@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
  * Utility methods for translating a {@link Window.Assign} to and from {@link RunnerApi}
  * representations.
  */
-public class WindowIntoTranslator {
+public class WindowIntoTranslation {
 
   static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
     @Override
@@ -42,20 +42,20 @@ public class WindowIntoTranslator {
       return FunctionSpec.newBuilder()
           .setUrn("urn:beam:transform:window:v1")
           .setParameter(
-              Any.pack(WindowIntoTranslator.toProto(transform.getTransform(), components)))
+              Any.pack(WindowIntoTranslation.toProto(transform.getTransform(), components)))
           .build();
     }
   }
 
   public static WindowIntoPayload toProto(Window.Assign<?> transform, SdkComponents components) {
     return WindowIntoPayload.newBuilder()
-        .setWindowFn(WindowingStrategies.toProto(transform.getWindowFn(), components))
+        .setWindowFn(WindowingStrategyTranslation.toProto(transform.getWindowFn(), components))
         .build();
   }
 
   public static WindowFn<?, ?> getWindowFn(WindowIntoPayload payload)
       throws InvalidProtocolBufferException {
     SdkFunctionSpec spec = payload.getWindowFn();
-    return WindowingStrategies.windowFnFromProto(spec);
+    return WindowingStrategyTranslation.windowFnFromProto(spec);
   }
 }

@@ -39,7 +39,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded}
  * {@link PTransform PTransforms} into {@link ReadPayload} protos.
  */
-public class ReadTranslator {
+public class ReadTranslation {
   private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "urn:beam:java:boundedsource:v1";
   private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "urn:beam:java:unboundedsource:v1";
 

@@ -66,9 +66,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/** Tests for {@link ParDos}. */
+/** Tests for {@link ParDoTranslation}. */
 @RunWith(Parameterized.class)
-public class ParDosTest {
+public class ParDoTranslationTest {
   public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   private static PCollectionView<Long> singletonSideInput =
@@ -106,11 +106,12 @@ public class ParDosTest {
   @Test
   public void testToAndFromProto() throws Exception {
     SdkComponents components = SdkComponents.create();
-    ParDoPayload payload = ParDos.toProto(parDo, components);
+    ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
 
-    assertThat(ParDos.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
+    assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
     assertThat(
-        ParDos.getMainOutputTag(payload), Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
+        ParDoTranslation.getMainOutputTag(payload),
+        Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
     for (PCollectionView<?> view : parDo.getSideInputs()) {
       payload.getSideInputsOrThrow(view.getTagInternal().getId());
     }
@@ -137,7 +138,7 @@ public class ParDosTest {
     for (PCollectionView<?> view : parDo.getSideInputs()) {
       SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
       PCollectionView<?> restoredView =
-          ParDos.fromProto(
+          ParDoTranslation.fromProto(
               sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
       assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
       assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
@@ -151,7 +152,7 @@ public class ParDosTest {
     }
     String mainInputId = components.registerPCollection(mainInput);
     assertThat(
-        ParDos.getMainInput(protoTransform, protoComponents),
+        ParDoTranslation.getMainInput(protoTransform, protoComponents),
         equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
   }
 

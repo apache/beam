@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
-public class WindowingStrategies implements Serializable {
+public class WindowingStrategyTranslation implements Serializable {
 
   public static AccumulationMode fromProto(RunnerApi.AccumulationMode proto) {
     switch (proto) {
@@ -210,7 +210,7 @@ public class WindowingStrategies implements Serializable {
             .setAccumulationMode(toProto(windowingStrategy.getMode()))
             .setClosingBehavior(toProto(windowingStrategy.getClosingBehavior()))
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
-            .setTrigger(Triggers.toProto(windowingStrategy.getTrigger()))
+            .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
             .setWindowCoderId(
                 components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
@@ -247,7 +247,7 @@ public class WindowingStrategies implements Serializable {
     WindowFn<?, ?> windowFn = windowFnFromProto(windowFnSpec);
     TimestampCombiner timestampCombiner = timestampCombinerFromProto(proto.getOutputTime());
     AccumulationMode accumulationMode = fromProto(proto.getAccumulationMode());
-    Trigger trigger = Triggers.fromProto(proto.getTrigger());
+    Trigger trigger = TriggerTranslation.fromProto(proto.getTrigger());
     ClosingBehavior closingBehavior = fromProto(proto.getClosingBehavior());
     Duration allowedLateness = Duration.millis(proto.getAllowedLateness());
 
