@@ -128,4 +128,8 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td>TikaIO</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2328">BEAM-2328</a></td>
   </tr>
+  <tr>
+    <td>Cloud Spanner</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1542">BEAM-1542</a></td>
+  </tr>
 </table>
