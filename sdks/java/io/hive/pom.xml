@@ -30,65 +30,19 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hive</name>
   <description>IO to read and write on Hive.</description>
 
-   <properties>
+  <properties>
     <hive.version>2.1.1</hive.version>
-	<junit.version>4.12</junit.version>
-	<thrift.version>0.9.3</thrift.version>
   </properties>
-<dependencies>
 
-  <dependency>
-	<groupId>org.apache.hive</groupId>
-	<artifactId>hive-exec</artifactId>
-	<version>${hive.version}</version>
-	<classifier>core</classifier>
-	<exclusions>
-		<exclusion>
-			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-avatica</artifactId>
-		</exclusion>
-	</exclusions>
-</dependency>
-
-	<dependency>
-		<groupId>org.apache.hadoop</groupId>
-		<artifactId>hadoop-common</artifactId>
-		<exclusions>
-			<exclusion>
-				<groupId>com.google.protobuf</groupId>
-				<artifactId>protobuf-java</artifactId>
-			</exclusion>
-		</exclusions>
-	</dependency>
-
-	<dependency>
-		<groupId>org.apache.hive</groupId>
-		<artifactId>hive-metastore</artifactId>
-		<version>${hive.version}</version>
-	</dependency>
-
-	<dependency>
-		<groupId>org.apache.hive</groupId>
-		<artifactId>hive-common</artifactId>
-		<version>${hive.version}</version>		
-	</dependency>
-
-	<dependency>
-		<groupId>org.apache.hive</groupId>
-		<artifactId>hive-serde</artifactId>
-		<version>${hive.version}</version>
-		<scope>runtime</scope>		
-	</dependency>
-
-	<dependency>
-		<groupId>org.apache.thrift</groupId>
-		<artifactId>libthrift</artifactId>
-		<version>${thrift.version}</version>		
-	</dependency>
-	
+  <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
     </dependency>
 
     <dependency>
@@ -112,27 +66,26 @@
       <scope>provided</scope>
     </dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.apache.hive.hcatalog/hive-hcatalog-core -->
-		<dependency>
-			<groupId>org.apache.hive.hcatalog</groupId>
-			<artifactId>hive-hcatalog-core</artifactId>
-			<version>${hive.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.hive</groupId>
-					<artifactId>hive-exec</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-<!-- https://mvnrepository.com/artifact/junit/junit -->
-<dependency>
-    <groupId>junit</groupId>
-    <artifactId>junit</artifactId>
-</dependency>
-		
+	<dependency>
+	  <groupId>org.apache.hive.hcatalog</groupId>
+	  <artifactId>hive-hcatalog-core</artifactId>
+      <version>${hive.version}</version>
+	  <exclusions>
+	    <exclusion>
+		  <groupId>org.apache.hive</groupId>
+		  <artifactId>hive-exec</artifactId>
+		</exclusion>
+		<exclusion>
+		  <groupId>com.google.protobuf</groupId>
+		  <artifactId>protobuf-java</artifactId>
+		</exclusion>
+	  </exclusions>
+	</dependency>
+
+	<dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+	</dependency>
   </dependencies>
 </project>

@@ -22,18 +22,19 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -42,15 +43,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.hadoop.hive.ql.stats.StatsUtils;
 import org.apache.hive.hcatalog.common.HCatConstants;
 import org.apache.hive.hcatalog.common.HCatException;
-import org.apache.hive.hcatalog.common.HCatUtil;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
 import org.apache.hive.hcatalog.data.transfer.HCatReader;
@@ -59,7 +53,6 @@ import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,14 +65,14 @@ import org.slf4j.LoggerFactory;
  * <p>Hive source supports reading of HCatRecord from a Hive instance.</p>
  *
  * <p>To configure a Hive source, you must specify a metastoreUri and a table name.
- * Other optional parameters are database & filter
+ * Other optional parameters are database &amp; filter
  * For instance:</p>
  *
  * <pre>{@code
  *
  * pipeline
  *
- *   .apply(HiveIO.write()
+ *   .apply(HiveIO.read()
  *       .withMetastoreUri("thrift://hadoop-clust-0118-m:9083") //mandatory
  *       .withTable("employee") //mandatory
  *       .withDatabase("default") //optional, assumes default if none specified
@@ -94,7 +87,9 @@ import org.slf4j.LoggerFactory;
  * <p>Hive sink supports writing of HCatRecord to a Hive instance.</p>
  *
  * <p>To configure a Hive sink, you must specify a metastoreUri and a table name.
- * Other optional parameters are database, partition & batchsize
+ * Other optional parameters are database, partition &amp; batchsize
+ * The destination table should exist beforehand, the transform does not create a
+ * new table if it does not exist
  * For instance:</p>
  *
  * <pre>{@code
@@ -160,28 +155,53 @@ public class HiveIO {
       abstract Read build();
     }
 
+    /**
+     * Sets the metastore URI.
+     * This is mandatory
+     * Format of the string should be thrift://metastore-host:port
+     * @param metastoreUri
+     * @return
+     */
     public Read withMetastoreUri(String metastoreUri) {
       return toBuilder().setMetastoreUri(metastoreUri).build();
     }
 
+    /**
+     * Sets the database name.
+     * This is optional, assumes 'default' database if none specified
+     * @param database
+     * @return
+     */
     public Read withDatabase(String database) {
       return toBuilder().setDatabase(database).build();
     }
 
+    /**
+     * Sets the table name to read from.
+     * This is mandatory
+     * @param table
+     * @return
+     */
     public Read withTable(String table) {
       return toBuilder().setTable(table).build();
     }
 
+    /**
+     * Sets the filter (partition) details.
+     * This is optional, assumes none if not specified
+     * @param filter
+     * @return
+     */
     public Read withFilter(String filter) {
       return toBuilder().setFilter(filter).build();
     }
 
-    protected Read withSplitId(Integer splitId) {
-      checkArgument(splitId >= 0);
+    private Read withSplitId(int splitId) {
+      checkArgument(splitId >= 0, "Invalid split id-" + splitId);
       return toBuilder().setSplitId(splitId).build();
     }
 
-    protected Read withContext(ReaderContext context) {
+    private Read withContext(ReaderContext context) {
       return toBuilder().setContext(context).build();
     }
 
@@ -219,7 +239,7 @@ public class HiveIO {
 
     @Override
     public Coder<HCatRecord> getDefaultOutputCoder() {
-      return HCatRecordSimpleCoder.of(spec.getMetastoreUri());
+      return WritableCoder.of(HCatRecord.class);
     }
 
     @Override
@@ -237,53 +257,43 @@ public class HiveIO {
       return new BoundedHiveReader(this);
     }
 
+    /**
+     * This implementation simply returns 0L as this is not used in calculating the splits.
+     */
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws
-    IOException, NoSuchObjectException, TException {
-      //TODO: This is not really used, should be removed
-      Configuration conf = new Configuration();
-      conf.set(HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
-      HiveConf hiveConf = HCatUtil.getHiveConf(conf);
-      IMetaStoreClient client = HCatUtil.getHiveMetastoreClient(hiveConf);
-      Table table = HCatUtil.getTable(client, spec.getDatabase(),
-        spec.getTable());
-      client.close();
-      return StatsUtils.getFileSizeForTable(hiveConf, table);
+    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
+      return 0L;
     }
 
+    /**
+     * This implementation does not take into consideration desiredBundleSizeBytes
+     * or getEstimatedSizeBytes().
+     * Number of splits returned by the native API is used instead.
+     * @throws HCatException
+     */
     @Override
     public List<BoundedSource<HCatRecord>> split(long desiredBundleSizeBytes,
-                                                PipelineOptions options) {
-      //TODO: We are really not using the bundle size at run time
-      //to make the split
-      //just going with the default splits returned by Hive
-      //unable to explicitly control the splits returned by Hive
+                                                PipelineOptions options) throws HCatException {
       List<BoundedSource<HCatRecord>> sources = new ArrayList<>();
-      ReaderContext cntxt = getReaderContext();
-      for (int i = 0; i < cntxt.numSplits(); i++) {
-        //create an instance of BoundedHiveSource for each of the split
-        //to be read in parallel
-        sources.add(new BoundedHiveSource(spec.withSplitId(i).withContext(cntxt)));
+      ReaderContext readerContext = getReaderContext();
+      for (int i = 0; i < readerContext.numSplits(); i++) {
+        sources.add(new BoundedHiveSource(spec.withSplitId(i).withContext(readerContext)));
       }
       return sources;
     }
 
-    private ReaderContext getReaderContext() {
+    private ReaderContext getReaderContext() throws HCatException {
       ReadEntity entity = new ReadEntity.Builder().withDatabase(spec.getDatabase())
           .withTable(spec.getTable()).withFilter(spec.getFilter()).build();
-      Map<String, String> hiveConfig = new HashMap<String, String>();
-      hiveConfig.put(HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
+      Map<String, String> hiveConfig = ImmutableMap.<String, String>of(
+          HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
       HCatReader masterReader = DataTransferFactory.getHCatReader(entity, hiveConfig);
-      ReaderContext cntxt = null;
-      try {
-        cntxt = masterReader.prepareRead();
-        } catch (HCatException e) {
-        LOG.error("Exception while preparing for read", e);
-      }
-      return cntxt;
+      ReaderContext readerContext = null;
+      readerContext = masterReader.prepareRead();
+      return readerContext;
     }
 
-    private static class BoundedHiveReader extends BoundedSource.BoundedReader<HCatRecord> {
+    static class BoundedHiveReader extends BoundedSource.BoundedReader<HCatRecord> {
       private final BoundedHiveSource source;
       private HCatRecord current;
       Iterator<HCatRecord> hcatIterator;
@@ -293,15 +303,10 @@ public class HiveIO {
       }
 
       @Override
-      public boolean start() {
-        try {
-          HCatReader reader = DataTransferFactory.getHCatReader(source.spec.getContext(),
-              source.spec.getSplitId());
-          hcatIterator = reader.read();
-        } catch (HCatException e) {
-          LOG.error("Exception while reading", e);
-          return false;
-        }
+      public boolean start() throws HCatException {
+        HCatReader reader = DataTransferFactory.getHCatReader(source.spec.getContext(),
+            source.spec.getSplitId());
+        hcatIterator = reader.read();
         return advance();
       }
 
@@ -311,6 +316,7 @@ public class HiveIO {
           current = hcatIterator.next();
           return true;
         } else {
+          current = null;
           return false;
         }
       }
@@ -322,6 +328,9 @@ public class HiveIO {
 
       @Override
       public HCatRecord getCurrent() {
+        if (current == null) {
+          throw new NoSuchElementException ("Current element is null");
+        }
         return current;
       }
 
@@ -355,22 +364,53 @@ public class HiveIO {
       abstract Write build();
     }
 
+    /**
+     * Sets the metastore URI.
+     * This is mandatory
+     * Format of the string should be thrift://metastore-host:port
+     * @param metastoreUri
+     * @return
+     */
     public Write withMetastoreUri(String metastoreUri) {
       return toBuilder().setMetastoreUri(metastoreUri).build();
     }
 
+    /**
+     * Sets the database name.
+     * This is optional, assumes 'default' database if none specified
+     * @param database
+     * @return
+     */
     public Write withDatabase(String database) {
       return toBuilder().setDatabase(database).build();
     }
 
+    /**
+     * Sets the table name to write to, the table should exist beforehand.
+     * This is mandatory
+     * @param table
+     * @return
+     */
     public Write withTable(String table) {
       return toBuilder().setTable(table).build();
     }
 
+    /**
+     * Sets the filter (partition) details.
+     * This is required if the table is partitioned
+     * @param filter
+     * @return
+     */
     public Write withFilter(Map filter) {
       return toBuilder().setFilter(filter).build();
     }
 
+    /**
+     * Sets batch size for the write operation.
+     * This is optional, assumes a default batch size of 1024 if not set
+     * @param batchSize
+     * @return
+     */
     public Write withBatchSize(long batchSize) {
       return toBuilder().setBatchSize(batchSize).build();
     }
@@ -399,28 +439,19 @@ public class HiveIO {
       }
 
       @Override
-      public void populateDisplayData(
-          org.apache.beam.sdk.transforms.display.DisplayData.Builder builder) {
+      public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        builder.add(DisplayData.item("database", spec.getDatabase()));
+        builder.addIfNotNull(DisplayData.item("database", spec.getDatabase()));
         builder.add(DisplayData.item("table", spec.getTable()));
-        builder.add(DisplayData.item("filter", (spec.getFilter() != null
-            ? spec.getFilter().toString() : "NULL")));
+        builder.addIfNotNull(DisplayData.item("filter", String.valueOf(spec.getFilter())));
         builder.add(DisplayData.item("metastoreUri", spec.getMetastoreUri()));
         builder.add(DisplayData.item("batchSize", spec.getBatchSize()));
       }
 
       @Setup
       public void initiateWrite() throws HCatException {
-        try {
-          //initiate writerContext, masterWriter & slaveWriter
-          //to be used for writing into Hive
-          writerContext = getWriterContext();
-          slaveWriter = DataTransferFactory.getHCatWriter(writerContext);
-        } catch (HCatException e) {
-          LOG.error("Exception in initiateWriterContext", e);
-          throw e;
-        }
+        writerContext = getWriterContext();
+        slaveWriter = DataTransferFactory.getHCatWriter(writerContext);
       }
 
       @StartBundle
@@ -431,7 +462,6 @@ public class HiveIO {
       @ProcessElement
       public void processElement(ProcessContext ctx) throws HCatException {
         hCatRecordsBatch.add(ctx.element());
-        //apply batch
         if (hCatRecordsBatch.size() >= spec.getBatchSize()) {
           flush();
         }
@@ -444,9 +474,7 @@ public class HiveIO {
 
       private void flush() throws HCatException {
         try {
-          //write data using slaveWriter
           slaveWriter.write(hCatRecordsBatch.iterator());
-          //commit using masterWriter
           masterWriter.commit(writerContext);
         } catch (HCatException e) {
           LOG.error("Exception in flush - write/commit data to Hive", e);
@@ -459,15 +487,14 @@ public class HiveIO {
       }
 
       private WriterContext getWriterContext() throws HCatException {
-        Map<String, String> configMap = new HashMap<String, String>();
-        //this is the thrift metastore URI
-        configMap.put(HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
+        Map<String, String> hiveConfig = ImmutableMap.<String, String>of(
+            HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
         WriteEntity.Builder builder = new WriteEntity.Builder();
         WriteEntity entity = builder.withDatabase(spec.getDatabase()).withTable(spec.getTable())
             .withPartition(spec.getFilter()).build();
-        masterWriter = DataTransferFactory.getHCatWriter(entity, configMap);
-        WriterContext context = masterWriter.prepareWrite();
-        return context;
+        masterWriter = DataTransferFactory.getHCatWriter(entity, hiveConfig);
+        WriterContext writerContext = masterWriter.prepareWrite();
+        return writerContext;
       }
     }
   }
