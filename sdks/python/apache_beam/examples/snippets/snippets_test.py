@@ -32,6 +32,8 @@ from apache_beam import typehints
 from apache_beam.coders.coders import ToStringCoder
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils.windowed_value import WindowedValue
@@ -688,6 +690,67 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
     expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
     self.assertEqual(expect, self.get_output(result_path))
+
+  def test_model_use_and_query_metrics(self):
+    """DebuggingWordCount example snippets."""
+
+    import re
+
+    p = TestPipeline()  # Use TestPipeline for testing.
+    words = p | beam.Create(['albert', 'sam', 'mark', 'sarah',
+                             'swati', 'daniel', 'andrea'])
+
+    # pylint: disable=unused-variable
+    # [START metrics_usage_example]
+    class FilterTextFn(beam.DoFn):
+      """A DoFn that filters for a specific key based on a regex."""
+
+      def __init__(self, pattern):
+        self.pattern = pattern
+        # A custom metric can track values in your pipeline as it runs. Create
+        # custom metrics to count unmatched words, and know the distribution of
+        # word lengths in the input PCollection.
+        self.word_len_dist = Metrics.distribution(self.__class__,
+                                                  'word_len_dist')
+        self.unmatched_words = Metrics.counter(self.__class__,
+                                               'unmatched_words')
+
+      def process(self, element):
+        word = element
+        self.word_len_dist.update(len(word))
+        if re.match(self.pattern, word):
+          yield element
+        else:
+          self.unmatched_words.inc()
+
+    filtered_words = (
+        words | 'FilterText' >> beam.ParDo(FilterTextFn('s.*')))
+    # [END metrics_usage_example]
+    # pylint: enable=unused-variable
+
+    # [START metrics_check_values_example]
+    result = p.run()
+    result.wait_until_finish()
+
+    custom_distribution = result.metrics().query(
+        MetricsFilter().with_name('word_len_dist'))['distributions']
+    custom_counter = result.metrics().query(
+        MetricsFilter().with_name('unmatched_words'))['counters']
+
+    if custom_distribution:
+      logging.info('The average word length was %d',
+                   custom_distribution[0].committed.mean)
+    if custom_counter:
+      logging.info('There were %d words that did not match the filter.',
+                   custom_counter[0].committed)
+    # [END metrics_check_values_example]
+
+    # There should be 4 words that did not match
+    self.assertEqual(custom_counter[0].committed, 4)
+    # The shortest word is 3 characters, the longest is 6
+    self.assertEqual(custom_distribution[0].committed.min, 3)
+    self.assertEqual(custom_distribution[0].committed.max, 6)
+
 
   def test_model_join_using_side_inputs(self):
     name_list = ['a', 'b']
