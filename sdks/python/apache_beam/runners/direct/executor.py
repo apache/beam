@@ -388,6 +388,7 @@ class _ExecutorServiceParallelExecutor(object):
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
+        print '[!] schedule_consumers', applied_ptransform, committed_bundle
         self.schedule_consumption(applied_ptransform, committed_bundle,
                                   self.default_completion_callback)
 
@@ -415,6 +416,8 @@ class _ExecutorServiceParallelExecutor(object):
         committed_bundle, consumer_applied_ptransform, on_complete,
         transform_executor_service)
     print 'NEW TRANSFORMEXECUTOR', transform_executor, consumer_applied_ptransform, committed_bundle
+    # import traceback
+    # print '[!!!]', ''.join('    ' + x for x in traceback.format_stack())
     transform_executor_service.schedule(transform_executor)
 
   class _TypedUpdateQueue(object):
@@ -457,6 +460,14 @@ class _ExecutorServiceParallelExecutor(object):
         # Not the right exception.
         self.exc_info = (exception, None, None)
 
+    def __repr__(self):
+      return '<_ExecutorUpdate transform_executor: %s, committed_bundle: %s, unprocessed_bundle: %s, exception: %s>' % (
+          self.transform_executor,
+          self.committed_bundle,
+          self.unprocessed_bundle,
+          self.exception,
+          )
+
   class _VisibleExecutorUpdate(object):
     """An update of interest to the user.
 
@@ -483,7 +494,7 @@ class _ExecutorServiceParallelExecutor(object):
       try:
         update = self._executor.all_updates.poll()
         while update:
-          # print 'UPDATEE', update
+          # print '[!] UPDATE', update
           if update.committed_bundle:
             self._executor.schedule_consumers(update.committed_bundle)
           elif update.unprocessed_bundle:
@@ -556,6 +567,7 @@ class _ExecutorServiceParallelExecutor(object):
       """
       fired_timers = self._executor.evaluation_context.extract_fired_timers()
       for applied_ptransform in fired_timers:
+        print '[!] fired timer', applied_ptransform
         # Use an empty committed bundle. just to trigger.
         empty_bundle = (
             self._executor.evaluation_context.create_empty_committed_bundle(
@@ -566,6 +578,7 @@ class _ExecutorServiceParallelExecutor(object):
 
         self._executor.schedule_consumption(
             applied_ptransform, empty_bundle, timer_completion_callback)
+      # print '[!] fired_timers', bool(fired_timers)
       return bool(fired_timers)
 
     def _is_executing(self):
@@ -608,6 +621,7 @@ class _ExecutorServiceParallelExecutor(object):
           if not self._executor.root_nodes_to_pending_bundles[applied_ptransform]:
             logging.warning('Root node %s not completed, but has no pending bundles.', applied_ptransform)
           for bundle in self._executor.root_nodes_to_pending_bundles[applied_ptransform]:
+            print '[!!] adding uncompleted bundle', applied_ptransform, bundle
             self._executor.schedule_consumption(
                 applied_ptransform, bundle,
                 self._executor.default_completion_callback)

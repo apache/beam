@@ -472,7 +472,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
 
   def process_element(self, element):
-    print '[!] GBK process_element', element
+    # print '[!] GBK process_element', element
     if (isinstance(element, WindowedValue)
         and isinstance(element.value, collections.Iterable)
         and len(element.value) == 2):
@@ -484,18 +484,20 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
                            % element)
 
   def finish_bundle(self):
-    gbk_result = (
-        map(GlobalWindows.windowed_value, (
-            (self.key_coder.decode(k), v)
-            for k, v in self.gbk_items.iteritems())))
+    bundles = []
+    if self.gbk_items:
+      gbk_result = (
+          map(GlobalWindows.windowed_value, (
+              (self.key_coder.decode(k), v)
+              for k, v in self.gbk_items.iteritems())))
 
-    def len_element_fn(element):
-      _, v = element.value
-      return len(v)
+      def len_element_fn(element):
+        _, v = element.value
+        return len(v)
 
-    bundles = self._split_list_into_bundles(
-        self.output_pcollection, gbk_result,
-        _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
+      bundles = self._split_list_into_bundles(
+          self.output_pcollection, gbk_result,
+          _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
 
     return TransformResult(
         self._applied_ptransform, bundles, [], None, None, None, None)
@@ -518,7 +520,6 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     super(_GroupAlsoByWindowEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
-    self.state = InMemoryUnmergedState()
 
   #   self.driver = create_trigger_driver(self.windowing)
   #   self.state_type = InMemoryUnmergedState
@@ -538,16 +539,38 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   def start_bundle(self):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
+    
+    self.keyed_states = (self._execution_context.existing_state
+                  if self._execution_context.existing_state else collections.defaultdict(InMemoryUnmergedState))
 
     self.driver = create_trigger_driver(self._applied_ptransform.transform.windowing)
 
     self.gabw_items = []
 
+    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    kv_type_hint = (
+        self._applied_ptransform.transform.get_type_hints().input_types[0])
+    self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+    # print 'GABW KEY_CODER', self.key_coder
+
   def process_element(self, element):
     print '[!] GABW process_element', element
     k, vs = element.value
+    encoded_k = self.key_coder.encode(k)
+    state = self.keyed_states[encoded_k]
+
+    print '[!] GABW current input watermark:', self._execution_context.watermarks.input_watermark
+    fired = state.get_and_clear_timers(
+      self._execution_context.watermarks.input_watermark)
+    print '[!!!] fired', fired
+    for timer_window, (name, time_domain, fire_time) in fired:
+      for wvalue in self.driver.process_timer(
+          timer_window, name, time_domain, fire_time, state):
+        # print '[!!] wvalue.value', wvalue.value
+        self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+
     # TODO(robertwb): Conditionally process in smaller chunks.
-    for wvalue in self.driver.process_elements(self.state, vs, MIN_TIMESTAMP):
+    for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
       self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
     # while state.timers:
     #   fired = state.get_and_clear_timers()
@@ -558,8 +581,15 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     print '[!] GABW_OUTPUT', self.gabw_items
+    bundle = self._evaluation_context.create_bundle(
+        self._applied_ptransform.inputs[0])
+    for item in self.gabw_items:  # TODO
+      bundle.add(item)
+    bundles = []
+    if self.gabw_items:
+      qbundles = [bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, None, None, None)
+        self._applied_ptransform, bundles, [], self.keyed_states, None, None, None)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):

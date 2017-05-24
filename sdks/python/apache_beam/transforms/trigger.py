@@ -1062,6 +1062,7 @@ class InMemoryUnmergedState(UnmergedState):
     return self.global_state.get(tag.tag, default)
 
   def set_timer(self, window, name, time_domain, timestamp):
+    print '[!!] set_timer', window, name, time_domain, timestamp
     self.timers[window][(name, time_domain)] = timestamp
 
   def clear_timer(self, window, name, time_domain):
@@ -1105,6 +1106,7 @@ class InMemoryUnmergedState(UnmergedState):
   def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
     expired = []
     for window, timers in list(self.timers.items()):
+      print '[IIII] window, timers:', window, timers
       for (name, time_domain), timestamp in list(timers.items()):
         if timestamp <= watermark:
           expired.append((window, (name, time_domain, timestamp)))
