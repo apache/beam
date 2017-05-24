@@ -551,7 +551,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         TupleTag<FileResult> writtenRecordsTag =
             new TupleTag<FileResult>("writtenRecordsTag") {};
         TupleTag<KV<Integer, T>> unwrittedRecordsTag =
-            new TupleTag<KV<Integer, T>>("writtenRecordsTag") {};
+            new TupleTag<KV<Integer, T>>("unwrittenRecordsTag") {};
         PCollectionTuple writeTuple = input.apply("WriteWindowedBundles", ParDo.of(
             new WriteWindowedBundles(unwrittedRecordsTag))
             .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
