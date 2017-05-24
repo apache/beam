@@ -276,8 +276,8 @@
       <artifactId>joda-time</artifactId>
     </dependency>
 
-      <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly
-        declare this dependency to include org.tukaani:xz on the classpath at runtime. -->
+    <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly
+      declare this dependency to include org.tukaani:xz on the classpath at runtime. -->
     <dependency>
       <groupId>org.tukaani</groupId>
       <artifactId>xz</artifactId>
