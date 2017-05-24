@@ -34,7 +34,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hive.hcatalog.data.DefaultHCatRecord;
+import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.mapreduce.HCatInputFormat;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -48,17 +48,6 @@ import org.junit.runners.JUnit4;
  *
  * <p>This test requires a running instance of Hive, and the test dataset must exist in
  * the database.
- *
- * <p>You can run this test by doing the following:
- * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOHCatalogIT
- *  -DintegrationTestPipelineOptions='[
- *  "--hiveMetastoreUri=thrift://metastoreIp:port"]'
- * </pre>
- *
- * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdk1.8-tests pom. You'll want to activate those in addition to the normal test
- * runner invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
@@ -86,26 +75,24 @@ public class HIFIOHCatalogIT implements Serializable {
   public void testHIFReadForHCatalog() throws IOException {
     Long expectedRecordsCount = 200000L;
     Configuration conf = getConfiguration(options);
-    PCollection<KV<Long, String>> hiveData = pipeline.apply(HadoopInputFormatIO
+    PCollection<KV<Long, String>> hcatData = pipeline.apply(HadoopInputFormatIO
         .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
-    PAssert.thatSingleton(hiveData.apply("Count", Count.<KV<Long, String>>globally()))
+    PAssert.thatSingleton(hcatData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedRecordsCount);
     pipeline.run().waitUntilFinish();
   }
 
-  static SimpleFunction<DefaultHCatRecord, String> myValueTranslate =
-      new SimpleFunction<DefaultHCatRecord, String>() {
+  static SimpleFunction<HCatRecord, String> myValueTranslate =
+      new SimpleFunction<HCatRecord, String>() {
     @Override
-    public String apply(DefaultHCatRecord input) {
+    public String apply(HCatRecord input) {
       return input.getAll().toString();
     }
   };
 
   /**
-   * Returns Hadoop configuration for reading data from Hive using HCatalog.
-   * To read data from Hive using
-   * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
-   * class, InputFormat value class, Metastore URI, database(optional,
+   * Returns Hadoop configuration for HCatalog. Properties to be set: InputFormat class,
+   * InputFormat key class, InputFormat value class, Metastore URI, database(optional,
    * assumes 'default' if none specified), table, filter(optional)
    * @throws IOException
    */
@@ -114,14 +101,10 @@ public class HIFIOHCatalogIT implements Serializable {
     hcatConf.setClass("mapreduce.job.inputformat.class",
         HCatInputFormat.class, InputFormat.class);
     hcatConf.setClass("key.class", LongWritable.class, WritableComparable.class);
-    hcatConf.setClass("value.class", DefaultHCatRecord.class, Writable.class);
+    hcatConf.setClass("value.class", HCatRecord.class, Writable.class);
     hcatConf.set("hive.metastore.uris", options.getHiveMetastoreUri());
-
-    //explicitly specifying database, table & filter
-    HCatInputFormat.setInput(hcatConf, HIVE_DATABASE, HIVE_TABLE, HIVE_FILTER);
-
-    //specifying table only, assumes 'default' database in this case and no filter
-    //HCatInputFormat.setInput(hiveConf, null, HIVE_TABLE, null);
+    org.apache.hive.hcatalog.mapreduce.HCatInputFormat.setInput(hcatConf,
+        HIVE_DATABASE, HIVE_TABLE, HIVE_FILTER);
 
     return hcatConf;
   }
