@@ -26,6 +26,8 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -40,6 +42,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded}
@@ -102,6 +106,29 @@ public class ReadTranslation {
         "BoundedSource");
   }
 
+  public static <T> BoundedSource<T> boundedSourceFromTransform(
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+      throws IOException {
+    return (BoundedSource<T>) boundedSourceFromProto(getReadPayload(transform));
+  }
+
+  public static <T, CheckpointT extends UnboundedSource.CheckpointMark>
+      UnboundedSource<T, CheckpointT> unboundedSourceFromTransform(
+          AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+          throws IOException {
+    return (UnboundedSource<T, CheckpointT>) unboundedSourceFromProto(getReadPayload(transform));
+  }
+
+  private static <T> ReadPayload getReadPayload(
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+      throws IOException {
+    return PTransformTranslation.toProto(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
+        .getSpec()
+        .getParameter()
+        .unpack(ReadPayload.class);
+  }
+
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
@@ -128,6 +155,22 @@ public class ReadTranslation {
             .getValue()
             .toByteArray(),
         "BoundedSource");
+  }
+
+  public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
+    try {
+      return PCollectionTranslation.fromProto(
+          PTransformTranslation.toProto(
+                  transform,
+                  Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+                  SdkComponents.create())
+              .getSpec()
+              .getParameter()
+              .unpack(ReadPayload.class)
+              .getIsBounded());
+    } catch (IOException e) {
+      throw new RuntimeException("Internal error determining boundedness of Read", e);
+    }
   }
 
   /**
