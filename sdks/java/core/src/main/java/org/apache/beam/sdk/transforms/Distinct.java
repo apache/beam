@@ -94,8 +94,9 @@ public class Distinct<T> extends PTransform<PCollection<T>,
     if (!strategy.getWindowFn().isNonMerging()
         && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
         || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
-        throw new UnsupportedOperationException("Dinstinct does not support non-merging windowing"
-            + " strategies, except when using the default trigger and zero allowed lateness.");
+        throw new UnsupportedOperationException(String.format(
+            "% does not support non-merging windowing strategies, except when using the default "
+                + "trigger and zero allowed lateness.", Distinct.class.getSimpleName()));
     }
   }
 
