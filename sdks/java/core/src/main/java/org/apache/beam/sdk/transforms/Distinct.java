@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -90,18 +89,19 @@ public class Distinct<T> extends PTransform<PCollection<T>,
     return new WithRepresentativeValues<>(fn, null);
   }
 
-  private static <T> void validateWindowFn(PCollection<T> in) {
-    WindowingStrategy strategy = in.getWindowingStrategy();
-    checkArgument(strategy.getWindowFn().isNonMerging()
-      || (strategy.getTrigger().getClass().equals(DefaultTrigger.class)
-        && strategy.getAllowedLateness().isEqual(Duration.ZERO)),
-        "Dinstinct does not support non-merging windowing strategies, except when"
-        + " using the default trigger and zero allowed lateness.");
+  private static <T, W extends BoundedWindow> void validateWindowStrategy(
+      WindowingStrategy<T, W> strategy) {
+    if (!strategy.getWindowFn().isNonMerging()
+        && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
+        || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
+        throw new UnsupportedOperationException("Dinstinct does not support non-merging windowing"
+            + " strategies, except when using the default trigger and zero allowed lateness.");
+    }
   }
 
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    validateWindowFn(in);
+    validateWindowStrategy(in.getWindowingStrategy());
     PCollection<KV<T, Void>> combined =
         in.apply("KeyByElement", MapElements.via(
             new SimpleFunction<T, KV<T, Void>>() {
@@ -152,7 +152,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      validateWindowFn(in);
+      validateWindowStrategy(in.getWindowingStrategy());
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
