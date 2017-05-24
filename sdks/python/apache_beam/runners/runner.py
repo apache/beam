@@ -145,8 +145,11 @@ class PipelineRunner(object):
     signature.
     """
     for cls in transform.__class__.mro():
+      print 'N', cls.__name__
       m = getattr(self, 'apply_%s' % cls.__name__, None)
       if m:
+        if cls.__name__ != 'PTransform':
+          raise Exception('This is m: %s' % ((m(transform, input), cls),))
         return m(transform, input)
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (transform, self))

@@ -1078,40 +1078,6 @@ class GroupByKey(PTransform):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
 
-  class GroupAlsoByWindow(DoFn):
-    # TODO(robertwb): Support combiner lifting.
-
-    def __init__(self, windowing):
-      super(GroupByKey.GroupAlsoByWindow, self).__init__()
-      self.windowing = windowing
-
-    def infer_output_type(self, input_type):
-      key_type, windowed_value_iter_type = trivial_inference.key_value_types(
-          input_type)
-      value_type = windowed_value_iter_type.inner_type.inner_type
-      return Iterable[KV[key_type, Iterable[value_type]]]
-
-    def start_bundle(self):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.transforms.trigger import InMemoryUnmergedState
-      from apache_beam.transforms.trigger import create_trigger_driver
-      # pylint: enable=wrong-import-order, wrong-import-position
-      self.driver = create_trigger_driver(self.windowing, True)
-      self.state_type = InMemoryUnmergedState
-
-    def process(self, element):
-      k, vs = element
-      state = self.state_type()
-      # TODO(robertwb): Conditionally process in smaller chunks.
-      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
-        yield wvalue.with_value((k, wvalue.value))
-      while state.timers:
-        fired = state.get_and_clear_timers()
-        for timer_window, (name, time_domain, fire_time) in fired:
-          for wvalue in self.driver.process_timer(
-              timer_window, name, time_domain, fire_time, state):
-            yield wvalue.with_value((k, wvalue.value))
-
   def expand(self, pcoll):
     # This code path is only used in the local direct runner.  For Dataflow
     # runner execution, the GroupByKey transform is expanded on the service.
@@ -1136,17 +1102,14 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> (_GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | ('GroupByWindow' >> ParDo(
-                     self.GroupAlsoByWindow(pcoll.windowing))
+              | 'GroupByWindow' >> (GroupAlsoByWindow(pcoll.windowing)
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
-    else:
-      # The input_type is None, run the default
-      return (pcoll
-              | 'ReifyWindows' >> ParDo(self.ReifyWindows())
-              | 'GroupByKey' >> _GroupByKeyOnly()
-              | 'GroupByWindow' >> ParDo(
-                    self.GroupAlsoByWindow(pcoll.windowing)))
+    # If the input_type is None, run the default
+    return (pcoll
+            | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+            | 'GroupByKey' >> _GroupByKeyOnly()
+            | 'GroupByWindow' >> GroupAlsoByWindow(pcoll.windowing))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1160,6 +1123,50 @@ class _GroupByKeyOnly(PTransform):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
+
+
+class GroupAlsoByWindow(ParDo):
+  """The GroupAlsoByWindow transform."""
+
+  def __init__(self, windowing):
+    super(GroupAlsoByWindow, self).__init__(
+        GroupAlsoByWindowDoFn(windowing))
+
+
+class GroupAlsoByWindowDoFn(DoFn):
+  # TODO(robertwb): Support combiner lifting.
+
+  def __init__(self, windowing):
+    super(GroupAlsoByWindowDoFn, self).__init__()
+    self.windowing = windowing
+
+  def infer_output_type(self, input_type):
+    key_type, windowed_value_iter_type = trivial_inference.key_value_types(
+        input_type)
+    value_type = windowed_value_iter_type.inner_type.inner_type
+    return Iterable[KV[key_type, Iterable[value_type]]]
+
+  def start_bundle(self):
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.transforms.trigger import InMemoryUnmergedState
+    from apache_beam.transforms.trigger import create_trigger_driver
+    # pylint: enable=wrong-import-order, wrong-import-position
+    self.driver = create_trigger_driver(self.windowing)
+    self.state_type = InMemoryUnmergedState
+
+  def process(self, element):
+    k, vs = element
+    state = self.state_type()
+    # TODO(robertwb): Conditionally process in smaller chunks.
+    for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+      yield wvalue.with_value((k, wvalue.value))
+    while state.timers:
+      fired = state.get_and_clear_timers()
+      for timer_window, (name, time_domain, fire_time) in fired:
+        for wvalue in self.driver.process_timer(
+            timer_window, name, time_domain, fire_time, state):
+          yield wvalue.with_value((k, wvalue.value))
+
 
 
 class Partition(PTransformWithSideInputs):

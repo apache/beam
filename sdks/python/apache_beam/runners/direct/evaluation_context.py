@@ -147,7 +147,7 @@ class EvaluationContext(object):
       self._pcollection_to_views[view.pvalue].append(view)
 
     # AppliedPTransform -> Evaluator specific state objects
-    self._application_state_interals = {}
+    self._application_state_internals = {}
     self._watermark_manager = WatermarkManager(
         Clock(), root_transforms, value_to_consumers)
     self._side_inputs_container = _SideInputsContainer(views)
@@ -232,7 +232,7 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
-      self._application_state_interals[result.transform] = result.state
+      self._application_state_internals[result.transform] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -259,7 +259,7 @@ class EvaluationContext(object):
   def get_execution_context(self, applied_ptransform):
     return _ExecutionContext(
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_interals.get(applied_ptransform))
+        self._application_state_internals.get(applied_ptransform))
 
   def create_bundle(self, output_pcollection):
     """Create an uncommitted bundle for the specified PCollection."""
