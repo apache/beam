@@ -171,7 +171,7 @@ class _TransformEvaluator(object):
     self._side_inputs = side_inputs
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
-        applied_ptransform)
+        applied_ptransform, input_committed_bundle.key)
     self.scoped_metrics_container = scoped_metrics_container
     with scoped_metrics_container:
       self.start_bundle()
@@ -447,6 +447,12 @@ class _ParDoEvaluator(_TransformEvaluator):
         self._applied_ptransform, bundles, [], None, None, result_counters,
         None, self._tagged_receivers.undeclared_in_memory_tag_values)
 
+class KeyedWorkItem(object):
+  def __init__(self, key, timers=None, elements=None):
+    self.key = key
+    self.timers = timers
+    self.elements = elements
+
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   """TransformEvaluator for _GroupByKeyOnly transform."""
@@ -485,19 +491,13 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     bundles = []
-    if self.gbk_items:
-      gbk_result = (
-          map(GlobalWindows.windowed_value, (
-              (self.key_coder.decode(k), v)
-              for k, v in self.gbk_items.iteritems())))
+    for encoded_k, vs in self.gbk_items.iteritems():
+      k = self.key_coder.decode(encoded_k)
+      bundle = self._evaluation_context.create_keyed_bundle(self.output_pcollection, k)
+      kwi = KeyedWorkItem(k, elements=vs)
+      bundle.add(GlobalWindows.windowed_value(kwi))
+      bundles.append(bundle)
 
-      def len_element_fn(element):
-        _, v = element.value
-        return len(v)
-
-      bundles = self._split_list_into_bundles(
-          self.output_pcollection, gbk_result,
-          _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
 
     return TransformResult(
         self._applied_ptransform, bundles, [], None, None, None, None)
@@ -539,7 +539,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   def start_bundle(self):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
-    
+
     self.keyed_states = (self._execution_context.existing_state
                   if self._execution_context.existing_state else collections.defaultdict(InMemoryUnmergedState))
 
@@ -554,8 +554,9 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     # print 'GABW KEY_CODER', self.key_coder
 
   def process_element(self, element):
-    print '[!] GABW process_element', element
-    k, vs = element.value
+    kwi = element.value
+    print '[!] GABW process_element', element, kwi
+    k, vs = kwi.key, kwi.elements
     encoded_k = self.key_coder.encode(k)
     state = self.keyed_states[encoded_k]
 

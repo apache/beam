@@ -32,17 +32,11 @@ from apache_beam.utils import counters
 
 class _ExecutionContext(object):
 
-  def __init__(self, watermarks, existing_state):
-    self._watermarks = watermarks
-    self._existing_state = existing_state
-
-  @property
-  def watermarks(self):
-    return self._watermarks
-
-  @property
-  def existing_state(self):
-    return self._existing_state
+  def __init__(self, watermarks, existing_state, key):
+    self.watermarks = watermarks
+    self.existing_state = existing_state
+    self.key = key
+    # TODO(ccy): key, clock as first arguments for consistency with Java.
 
 
 class _SideInputView(object):
@@ -220,7 +214,7 @@ class EvaluationContext(object):
             self._side_inputs_container.add_values(
                 view,
                 committed_bundle.get_elements_iterable(make_copy=True))
-          if (self.get_execution_context(result.transform)
+          if (self.get_execution_context(result.transform, None)  # TODO(ccy): what is the key here?
               .watermarks.input_watermark
               == WatermarkManager.WATERMARK_POS_INF):
             self._pending_unblocked_tasks.extend(
@@ -256,14 +250,19 @@ class EvaluationContext(object):
       unprocessed_bundle.commit(None)
     return tuple(uncommitted_output_bundles), unprocessed_bundle
 
-  def get_execution_context(self, applied_ptransform):
+  def get_execution_context(self, applied_ptransform, key):
     return _ExecutionContext(
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_internals.get(applied_ptransform))
+        self._application_state_internals.get(applied_ptransform),
+        key)
 
   def create_bundle(self, output_pcollection):
     """Create an uncommitted bundle for the specified PCollection."""
     return self._bundle_factory.create_bundle(output_pcollection)
+
+  def create_keyed_bundle(self, output_pcollection, key):
+    """Create an uncommitted bundle for the specified PCollection."""
+    return self._bundle_factory.create_keyed_bundle(output_pcollection, key)
 
   def create_empty_committed_bundle(self, output_pcollection):
     """Create empty bundle useful for triggering evaluation."""
