@@ -59,10 +59,10 @@ public class DefaultFilenamePolicyTest {
 
   @Test
   public void testIsWindowedTemplate(){
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-PPP-W"));
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-PPP-W"));
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-L"));
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-firstPane=F"));
+    assertTrue(isWindowedTemplate("-SSS-of-NNN-P-W"));
+    assertTrue(isWindowedTemplate("-SSS-of-NNN-W"));
+    assertTrue(isWindowedTemplate("-SSS-of-NNN-P"));
+    assertTrue(isWindowedTemplate("W-SSS-of-NNN"));
 
     assertFalse(isWindowedTemplate("-SSS-of-NNN"));
     assertFalse(isWindowedTemplate("-SSS-of-lp"));
@@ -71,43 +71,42 @@ public class DefaultFilenamePolicyTest {
   @Test
   public void testConstructWindowedName() {
     assertEquals("output-001-of-123.txt",
-        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, -1, false, false, null));
+        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, null, null));
 
     assertEquals("output-001-of-123-PPP-W.txt",
-        constructName("output", "-SSS-of-NNN-PPP-W", ".txt", 1, 123, -1, false, false, null));
+        constructName("output", "-SSS-of-NNN-PPP-W", ".txt", 1, 123, null, null));
 
-    assertEquals("out.txt/part-00042-003-myWindowStr",
-        constructName("out.txt", "/part-SSSSS-PPP-W", "", 42, 100, 3, false, false,
+    assertEquals("out.txt/part-00042-myPaneStr-myWindowStr",
+        constructName("out.txt", "/part-SSSSS-P-W", "", 42, 100, "myPaneStr",
             "myWindowStr"));
 
-    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, 2, false, false,
+    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, "myPaneStr2",
         "anotherWindowStr"));
 
-    assertEquals("out0102shard-oneMoreWindowStr-0013.txt",
-        constructName("out", "SSNNshard-W-PPPP", ".txt", 1, 2, 13, false, false,
+    assertEquals("out0102shard-oneMoreWindowStr-anotherPaneStr.txt",
+        constructName("out", "SSNNshard-W-P", ".txt", 1, 2, "anotherPaneStr",
             "oneMoreWindowStr"));
 
-    assertEquals("out-2/1.part-1-of-2-slidingWindow1-33-windowslidingWindow1-pane033.txt",
-        constructName("out",
-        "-N/S.part-S-of-N-W-PP-windowW-panePPP", ".txt", 1, 2, 33, false, false,
+    assertEquals("out-2/1.part-1-of-2-slidingWindow1-myPaneStr3-windowslidingWindow1-"
+        + "panemyPaneStr3.txt",
+        constructName("out", "-N/S.part-S-of-N-W-P-windowW-paneP", ".txt", 1, 2, "myPaneStr3",
         "slidingWindow1"));
 
     // test first/last pane
-    assertEquals("out.txt/part-00042-003-myWindowStr-last=false-first=false",
-        constructName("out.txt", "/part-SSSSS-PPP-W-last=L-first=F", "", 42, 100, 3, false,
-            false, "myWindowStr"));
+    assertEquals("out.txt/part-00042-myWindowStr-pane-11-true-false",
+        constructName("out.txt", "/part-SSSSS-W-P", "", 42, 100, "pane-11-true-false",
+            "myWindowStr"));
 
-    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, 2, true, true,
+    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, "pane",
         "anotherWindowStr"));
 
-    assertEquals("out0102shard-oneMoreWindowStr-first_true13-0013.txt",
-        constructName("out", "SSNNshard-W-first_FP-PPPP", ".txt", 1, 2, 13, true, false,
+    assertEquals("out0102shard-oneMoreWindowStr-pane--1-false-false-pane--1-false-false.txt",
+        constructName("out", "SSNNshard-W-P-P", ".txt", 1, 2, "pane--1-false-false",
             "oneMoreWindowStr"));
 
-    assertEquals("out-2/1.part-1-of-2-sWindow1-winsWindow1-p033-lastpane=true-firstpane=true.txt",
+    assertEquals("out-2/1.part-1-of-2-sWindow1-winsWindow1-ppaneL.txt",
         constructName("out",
-        "-N/S.part-S-of-N-W-winW-pPPP-lastpane=L-firstpane=F", ".txt", 1, 2, 33,
-        true, true, "sWindow1"));
+        "-N/S.part-S-of-N-W-winW-pP", ".txt", 1, 2, "paneL", "sWindow1"));
   }
 
 }

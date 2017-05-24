@@ -57,11 +57,13 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   public static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
   /** The default windowed sharding name template used when writing windowed files.
-   *  Currently this is automatically appended to provided sharding name template
-   *  when there is a need to write windowed files.
+   *  This is used as default in cases when user did not specify shard template to
+   *  be used and there is a need to write windowed files. In cases when user does
+   *  specify shard template to be used then provided template will be used for both
+   *  windowed and non-windowed file names.
    */
-  private static final String DEFAULT_WINDOWED_SHARED_TEMPLATE_SUFFIX =
-      "-PPP-firstpane-F-lastpane-L-W";
+  private static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
+      "P-W" + DEFAULT_SHARD_TEMPLATE;
 
   /*
    * pattern for only non-windowed file names
@@ -71,7 +73,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /*
    * pattern for only windowed file names
    */
-  private static final String WINDOWED_ONLY_PATTERN = "P+|L|F|W";
+  private static final String WINDOWED_ONLY_PATTERN = "P|W";
 
   /*
    * pattern for both windowed and non-windowed file names
@@ -93,11 +95,6 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     this.prefix = prefix;
     this.shardTemplate = shardTemplate;
     this.suffix = suffix;
-    boolean isWindowed = isWindowedTemplate(this.shardTemplate);
-    if (!isWindowed){
-      LOG.info("Template {} does not have enough information to create windowed file names."
-          + "Will use default template for windowed file names if needed.", this.shardTemplate);
-    }
   }
 
   /**
@@ -108,11 +105,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * <p>Any filename component of the provided resource will be used as the filename prefix.
    *
    * <p>If provided, the shard name template will be used; otherwise {@link #DEFAULT_SHARD_TEMPLATE}
-   * will be used.
-   *
-   * <p>Shard name template will automatically be expanded in case when there is
-   * need to write windowed files and user did not provide enough information in the
-   * template to deal with windowed file names.
+   * will be used for non-windowed file names and {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE} will
+   * be used for windowed file names.
    *
    * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
    */
@@ -131,7 +125,9 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   private final String suffix;
 
   /*
-   * Checks whether given template contains enough information to form windowed file names
+   * Checks whether given template contains enough information to form
+   * meaningful windowed file names - ie whether it uses pane and window
+   * info.
    */
   static boolean isWindowedTemplate(String template){
     if (template != null){
@@ -150,9 +146,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    *
    * <p>Within a shard template, repeating sequences of the letters "S" or "N"
    * are replaced with the shard number, or number of shards respectively.
-   * Repeating sequence of "P" is replaced with the index of the window pane.
-   * "L" is replaced with "true" in case of last pane or "false" otherwise.
-   * "F" is replaced with "true" in case of first pane or "false" otherwise.
+   * "P" is replaced with by stringification of current pane.
    * "W" is replaced by stringification of current window.
    *
    * <p>The numbers are formatted with leading zeros to match the length of the
@@ -164,7 +158,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    */
   static String constructName(
       String prefix, String shardTemplate, String suffix, int shardNum, int numShards,
-      long currentPaneIndex, boolean firstPane, boolean lastPane, String windowStr) {
+      String paneStr, String windowStr) {
     // Matcher API works with StringBuffer, rather than StringBuilder.
     StringBuffer sb = new StringBuffer();
     sb.append(prefix);
@@ -173,10 +167,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     while (m.find()) {
       boolean isCurrentShardNum = (m.group(1).charAt(0) == 'S');
       boolean isNumberOfShards = (m.group(1).charAt(0) == 'N');
-      boolean isCurrentPaneIndex = (m.group(1).charAt(0) == 'P') && currentPaneIndex > -1;
+      boolean isPane = (m.group(1).charAt(0) == 'P') && paneStr != null;
       boolean isWindow = (m.group(1).charAt(0) == 'W') && windowStr != null;
-      boolean isLastPane = (m.group(1).charAt(0) == 'L');
-      boolean isFirstPane = (m.group(1).charAt(0) == 'F');
 
       char[] zeros = new char[m.end() - m.start()];
       Arrays.fill(zeros, '0');
@@ -187,15 +179,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       } else if (isNumberOfShards) {
         String formatted = df.format(numShards);
         m.appendReplacement(sb, formatted);
-      } else if (isCurrentPaneIndex) {
-        String formatted = df.format(currentPaneIndex);
-        m.appendReplacement(sb, formatted);
+      } else if (isPane) {
+        m.appendReplacement(sb, paneStr);
       } else if (isWindow) {
         m.appendReplacement(sb, windowStr);
-      } else if (isFirstPane){
-        m.appendReplacement(sb, String.valueOf(firstPane));
-      } else if (isLastPane){
-        m.appendReplacement(sb, String.valueOf(lastPane));
       }
     }
     m.appendTail(sb);
@@ -206,8 +193,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   static String constructName(String prefix, String shardTemplate, String suffix, int shardNum,
       int numShards) {
-    return constructName(prefix, shardTemplate, suffix, shardNum, numShards, -1L, false,
-        false, null);
+    return constructName(prefix, shardTemplate, suffix, shardNum, numShards, null, null);
   }
 
   @Override
@@ -225,21 +211,30 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   public ResourceId windowedFilename(ResourceId outputDirectory,
       WindowedContext context, String extension) {
 
+    boolean shardTemplateProvidedByUser = !this.shardTemplate.equals(DEFAULT_SHARD_TEMPLATE);
+
+    if (shardTemplateProvidedByUser){
+      boolean isWindowed = isWindowedTemplate(this.shardTemplate);
+      if (!isWindowed){
+        LOG.info("Template you provided {} does not have enough information to create"
+            + "meaningful windowed file names. Consider using P and W in your template",
+            this.shardTemplate);
+      }
+    }
+
     final PaneInfo paneInfo = context.getPaneInfo();
-    long currentPaneIndex = (paneInfo == null ? -1L
-        : paneInfo.getIndex());
-    boolean firstPane = (paneInfo == null ? false : paneInfo.isFirst());
-    boolean lastPane = (paneInfo == null ? false : paneInfo.isLast());
+    String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(context.getWindow());
 
     String templateToUse = shardTemplate;
-    if (!isWindowedTemplate(shardTemplate)){
-      templateToUse = shardTemplate + DEFAULT_WINDOWED_SHARED_TEMPLATE_SUFFIX;
+    if (!shardTemplateProvidedByUser){
+      LOG.info("User did not provide shard template. For creating windowed file names "
+          + "default template {} will be used", DEFAULT_WINDOWED_SHARD_TEMPLATE);
+      templateToUse = DEFAULT_WINDOWED_SHARD_TEMPLATE;
     }
 
     String filename = constructName(prefix.get(), templateToUse, suffix,
-        context.getShardNumber(),
-        context.getNumShards(), currentPaneIndex, firstPane, lastPane, windowStr)
+        context.getShardNumber(), context.getNumShards(), paneStr, windowStr)
         + extension;
     return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
   }
@@ -253,10 +248,18 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
     if (window instanceof IntervalWindow) {
       IntervalWindow iw = (IntervalWindow) window;
-      return String.format("IntervalWindow-from-%s-to-%s", iw.start().toString(),
+      return String.format("IntervalWindow-%s-%s", iw.start().toString(),
           iw.end().toString());
     }
     return window.toString();
+  }
+
+  private String paneInfoToString(PaneInfo paneInfo){
+    long currentPaneIndex = (paneInfo == null ? -1L
+        : paneInfo.getIndex());
+    boolean firstPane = (paneInfo == null ? false : paneInfo.isFirst());
+    boolean lastPane = (paneInfo == null ? false : paneInfo.isLast());
+    return String.format("pane-%s-%b-%b", currentPaneIndex, firstPane, lastPane);
   }
 
   @Override
