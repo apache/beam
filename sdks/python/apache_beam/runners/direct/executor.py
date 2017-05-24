@@ -237,7 +237,7 @@ class _CompletionCallback(object):
               committed_bundle=output_committed_bundle))
     if transform_result.unprocessed_bundle:
       self._all_updates.offer(
-          _ExecutorServiceParallelExecutor.ExecutorUpdate(
+          _ExecutorServiceParallelExecutor._ExecutorUpdate(
               transform_executor=transform_executor,
               unprocessed_bundle=transform_result.unprocessed_bundle))
     return output_committed_bundles
@@ -323,6 +323,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
       self._completion_callback.handle_result(self, self._input_bundle, result)
       return result  # TODO: not necessary?
     except Exception as e:  # pylint: disable=broad-except
+      import traceback
       logging.warning('Task failed: %s', traceback.format_exc(), exc_info=True)
       self._completion_callback.handle_exception(self, e)
     finally:

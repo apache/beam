@@ -18,9 +18,9 @@
 import unittest
 
 import apache_beam as beam
-from apache_beam.utils.test_stream import *  # TODO
 from apache_beam.runners.direct.direct_runner import EagerRunner
 from apache_beam.runners.direct import DirectRunner
+from apache_beam.testing.test_stream import *  # TODO
 from apache_beam.transforms import window
 
 

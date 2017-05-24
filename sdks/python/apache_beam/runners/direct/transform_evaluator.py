@@ -33,7 +33,7 @@ from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
@@ -41,9 +41,9 @@ from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
-from apache_beam.utils.test_stream import ElementEvent
-from apache_beam.utils.test_stream import WatermarkEvent
-from apache_beam.utils.test_stream import ProcessingTimeEvent
+from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.test_stream import ProcessingTimeEvent
 
 class RootBundleProvider(object):
   """Provides bundles for the initial execution of a root transform."""
