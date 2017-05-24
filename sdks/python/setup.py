@@ -36,6 +36,8 @@ from setuptools.command.test import test
 
 from pkg_resources import get_distribution, DistributionNotFound
 
+import gen_protos
+
 
 def get_version():
   global_names = {}
@@ -123,80 +125,13 @@ GCP_REQUIREMENTS = [
 ]
 
 
-def generate_proto_files():
-  py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-  common = os.path.join(os.path.dirname(py_sdk_root), 'common')
-  proto_dirs = [os.path.join(common, '%s-api' % t, 'src', 'main', 'proto')
-                for t in ('runner', 'fn')]
-  proto_files = sum(
-      [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
-  out_dir = os.path.join(py_sdk_root, 'apache_beam', 'runners', 'api')
-  out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
-
-  if not out_files and not proto_files:
-    if not common:
-      raise RuntimeError(
-          'Not in apache git tree; unable to find proto definitions.')
-    else:
-      raise RuntimeError(
-          'No proto files found at %s.' % proto_dirs)
-
-  elif not out_files or len(out_files) < len(proto_files) or (
-      proto_files
-      and min(os.path.getmtime(path) for path in out_files)
-      <= max(os.path.getmtime(path) for path in proto_files)):
-    try:
-      from grpc_tools import protoc
-    except ImportError:
-      raise RuntimeError(
-          'grpcio-tools must be installed to generate proto stubs')
-
-    print 'Regenerating out-of-date Python proto definitions.'
-    proto_include = pkg_resources.resource_filename('grpc_tools', '_proto')
-    args = (
-      [sys.executable] +  # expecting to be called from command line
-      ['--proto_path=%s' % proto_include] +
-      ['--proto_path=%s' % d for d in proto_dirs] +
-      ['--python_out=%s' % out_dir] +
-      ['--grpc_python_out=%s' % out_dir] +
-      proto_files)
-    ret_code = protoc.main(args)
-    if ret_code:
-      raise RuntimeError(
-          'Protoc returned non-zero status (see logs for details): '
-          '%s' % ret_code)
-
-
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
   class cmd(original_cmd, object):
     def run(self):
-      generate_proto_files()
+      gen_protos.generate_proto_files()
       super(cmd, self).run()
   return cmd
-
-
-# Though wheels are available for grpcio-tools, setup_requires uses
-# easy_install which doesn't understand them.  This means that it is
-# compiled from scratch (which is expensive as it compiles the full
-# protoc compiler).  Instead, we attempt to install a wheel in a temporary
-# directory and add it to the path.
-# See https://github.com/pypa/setuptools/issues/377
-try:
-  import grpc_tools
-except ImportError:
-  grpcio_tools = 'grpcio-tools>=1.3.5'
-  try:
-    py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-    install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-virtualenv')
-    warnings.warn(
-        'Installing grpcio-tools is recommended for development; '
-        'installing a local copy at %s' % install_path)
-    subprocess.check_call(
-        ['pip', 'install', '-t', install_path, '--upgrade', grpcio_tools])
-    sys.path.append(install_path)
-  except:
-    REQUIRED_SETUP_PACKAGES.append(grpcio_tools)
 
 
 setuptools.setup(
@@ -241,13 +176,13 @@ setuptools.setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        ],
+    ],
     license='Apache License, Version 2.0',
     keywords=PACKAGE_KEYWORDS,
     entry_points={
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin'
-            ]},
+    ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
         'sdist': generate_protos_first(sdist),
