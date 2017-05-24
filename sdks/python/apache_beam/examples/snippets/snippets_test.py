@@ -699,12 +699,12 @@ class SnippetsTest(unittest.TestCase):
     """DebuggingWordCount example snippets."""
 
     import re
-    import apache_beam as beam
 
     p = TestPipeline()  # Use TestPipeline for testing.
     words = p | beam.Create(['albert', 'sam', 'mark', 'sarah',
                              'swati', 'daniel', 'andrea'])
 
+    # pylint: disable=unused-variable
     # [START metrics_usage_example]
     class FilterTextFn(beam.DoFn):
       """A DoFn that filters for a specific key based on a regex."""
@@ -730,6 +730,7 @@ class SnippetsTest(unittest.TestCase):
     filtered_words = (
         words | 'FilterText' >> beam.ParDo(FilterTextFn('s.*')))
     # [END metrics_usage_example]
+    # pylint: enable=unused-variable
 
     # [START metrics_check_values_example]
     result = p.run()
