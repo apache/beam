@@ -34,7 +34,6 @@ import org.apache.calcite.util.NlsString;
  *
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression{
-  private SqlTypeName outputType;
   private T value;
 
   private BeamSqlPrimitive() {
