@@ -63,7 +63,9 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.calcite.util.NlsString;
 
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
@@ -99,8 +101,14 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
   static BeamSqlExpression buildExpression(RexNode rexNode) {
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
-
-      return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
+      // NlsString is not serializable, we need to convert
+      // it to string explicitly.
+      if (SqlTypeName.CHAR_TYPES.contains(node.getTypeName())
+          && node.getValue() instanceof NlsString) {
+        return BeamSqlPrimitive.of(node.getTypeName(), ((NlsString) node.getValue()).getValue());
+      } else {
+        return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
+      }
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
       return new BeamSqlInputRefExpression(node.getType().getSqlTypeName(), node.getIndex());
