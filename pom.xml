@@ -928,7 +928,17 @@
                 <artifactId>protobuf-java</artifactId>
                 <version>${protobuf.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-common-protos</artifactId>
+                <version>${grpc-google-common-protos.version}</version>
+            </dependency>
 
+            <dependency>
+                <groupId>com.google.api.grpc</groupId>
+                <artifactId>proto-google-cloud-spanner-admin-database-v1</artifactId>
+                <version>${grpc-google-common-protos.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.google.api.grpc</groupId>
                 <artifactId>grpc-google-common-protos</artifactId>
