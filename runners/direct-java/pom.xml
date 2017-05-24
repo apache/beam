@@ -40,6 +40,92 @@
       </resource>
     </resources>
 
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>bundle-and-repackage</id>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <shadeTestJar>true</shadeTestJar>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava</include>
+                    <include>com.google.protobuf:protobuf-java</include>
+                    <include>org.apache.beam:beam-runners-core-construction-java</include>
+                    <include>org.apache.beam:beam-runners-core-java</include>
+                    <include>org.apache.beam:beam-sdks-common-runner-api</include>
+                    <include>com.google.code.findbugs:jsr305</include>
+                  </includes>
+                </artifactSet>
+                <filters>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>META-INF/*.SF</exclude>
+                      <exclude>META-INF/*.DSA</exclude>
+                      <exclude>META-INF/*.RSA</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+                <relocations>
+                  <relocation>
+                    <pattern>org.apache.beam.runners.core</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.runners.core
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.beam.sdk.common</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.sdk.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <excludes>
+                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                      <exclude>com.google.common.**.testing.*</exclude>
+                    </excludes>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.protobuf
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.com.google.thirdparty
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>javax.annotation</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.javax.annotation
+                    </shadedPattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -58,11 +144,13 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.NeedsRunner</groups>
+              <!-- 100MB keys work on the direct runner, but make the test too slow. --> 
+              <excludedGroups>org.apache.beam.sdk.testing.LargeKeys$Above100MB</excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                <dependency>org.apache.beam:beam-runners-core-java</dependency>
+                <dependency>org.apache.beam:beam-runners-java-core</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
@@ -72,95 +160,6 @@
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
               <threadCount>4</threadCount>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Ensure that the Maven jar plugin runs before the Maven
-        shade plugin by listing the plugin higher within the file. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>bundle-and-repackage</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <artifactSet>
-                <includes>
-                  <include>com.google.guava:guava</include>
-                  <include>com.google.protobuf:protobuf-java</include>
-                  <include>org.apache.beam:beam-runners-core-construction-java</include>
-                  <include>org.apache.beam:beam-runners-core-java</include>
-                  <include>org.apache.beam:beam-sdks-common-runner-api</include>
-                  <include>com.google.code.findbugs:jsr305</include>
-                </includes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-              <relocations>
-                <relocation>
-                  <pattern>org.apache.beam.runners.core</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.runners.core
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.beam.sdk.common</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.sdk.common
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.common</pattern>
-                  <excludes>
-                    <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                    <exclude>com.google.common.**.testing.*</exclude>
-                  </excludes>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.com.google.common
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.protobuf</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.com.google.protobuf
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.com.google.thirdparty
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.annotation</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.direct.repackaged.javax.annotation
-                  </shadedPattern>
-                </relocation>
-              </relocations>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
             </configuration>
           </execution>
         </executions>

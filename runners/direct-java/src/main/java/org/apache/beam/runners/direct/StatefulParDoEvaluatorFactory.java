@@ -163,7 +163,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
           evaluationContext
               .getExecutionContext(
                   transformOutputWindow.getTransform(), transformOutputWindow.getKey())
-              .getOrCreateStepContext(stepName, stepName);
+              .getStepContext(stepName);
 
       final StateNamespace namespace =
           StateNamespaces.window(

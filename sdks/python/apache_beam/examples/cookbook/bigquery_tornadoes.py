@@ -75,23 +75,22 @@ def run(argv=None):
        'or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = beam.Pipeline(argv=pipeline_args)
+  with beam.Pipeline(argv=pipeline_args) as p:
 
-  # Read the table rows into a PCollection.
-  rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
-  counts = count_tornadoes(rows)
+    # Read the table rows into a PCollection.
+    rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    counts = count_tornadoes(rows)
 
-  # Write the output using a "Write" transform that has side effects.
-  # pylint: disable=expression-not-assigned
-  counts | 'write' >> beam.io.Write(
-      beam.io.BigQuerySink(
-          known_args.output,
-          schema='month:INTEGER, tornado_count:INTEGER',
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
+    # Write the output using a "Write" transform that has side effects.
+    # pylint: disable=expression-not-assigned
+    counts | 'write' >> beam.io.Write(
+        beam.io.BigQuerySink(
+            known_args.output,
+            schema='month:INTEGER, tornado_count:INTEGER',
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
 
-  # Run the pipeline (all operations are deferred until run() is called).
-  p.run().wait_until_finish()
+    # Run the pipeline (all operations are deferred until run() is called).
 
 
 if __name__ == '__main__':

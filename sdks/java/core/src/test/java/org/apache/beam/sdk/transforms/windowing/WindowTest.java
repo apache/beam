@@ -165,6 +165,42 @@ public class WindowTest implements Serializable {
     assertEquals(fixed25, strategy.getWindowFn());
   }
 
+  @Test
+  public void testWindowIntoAssignesLongerAllowedLateness() {
+
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
+
+    PCollection<String> notChanged = pipeline
+        .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+        .apply("WindowInto25", Window.<String>into(fixed25)
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+            .accumulatingFiredPanes())
+        .apply("WindowInto10", Window.<String>into(fixed10)
+            .withAllowedLateness(Duration.standardDays(2)));
+
+    assertEquals(Duration.standardDays(2), notChanged.getWindowingStrategy()
+        .getAllowedLateness());
+
+    PCollection<String> data = pipeline
+        .apply("createChanged", Create.of("hello", "world").withCoder(StringUtf8Coder.of()));
+
+    PCollection<String> longWindow = data.apply("WindowInto25c", Window.<String>into(fixed25)
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+            .accumulatingFiredPanes());
+
+    assertEquals(Duration.standardDays(1), longWindow.getWindowingStrategy()
+        .getAllowedLateness());
+
+    PCollection<String> autoCorrectedWindow = longWindow.apply("WindowInto10c",
+        Window.<String>into(fixed10).withAllowedLateness(Duration.standardHours(1)));
+
+    assertEquals(Duration.standardDays(1), autoCorrectedWindow.getWindowingStrategy()
+        .getAllowedLateness());
+  }
+
   /**
    * With {@link #testWindowIntoNullWindowFnNoAssign()}, demonstrates that the expansions of the
    * {@link Window} transform depends on if it actually assigns elements to windows.
@@ -298,6 +334,14 @@ public class WindowTest implements Serializable {
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
       return other instanceof WindowOddEvenBuckets;
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other, "WindowOddEvenBuckets is only compatible with WindowOddEvenBuckets.");
+      }
     }
 
     @Override

@@ -26,7 +26,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Rule;
 import org.junit.Test;
@@ -168,7 +168,7 @@ public class GcsResourceIdTest {
 
   @Test
   public void testResourceIdTester() throws Exception {
-    FileSystems.setDefaultPipelineOptions(TestPipeline.testingPipelineOptions());
+    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("gs://bucket/foo/"));
   }
 

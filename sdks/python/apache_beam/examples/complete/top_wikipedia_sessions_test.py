@@ -52,12 +52,11 @@ class ComputeTopSessionsTest(unittest.TestCase):
   ]
 
   def test_compute_top_sessions(self):
-    p = TestPipeline()
-    edits = p | beam.Create(self.EDITS)
-    result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
+    with TestPipeline() as p:
+      edits = p | beam.Create(self.EDITS)
+      result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
-    assert_that(result, equal_to(self.EXPECTED))
-    p.run()
+      assert_that(result, equal_to(self.EXPECTED))
 
 
 if __name__ == '__main__':

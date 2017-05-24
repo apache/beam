@@ -340,7 +340,7 @@ public class ProcessBundleHandlerTest {
         new TestDoFn(),
         WindowingStrategy.globalDefault(),
         ImmutableList.of(),
-        STRING_CODER,
+        StringUtf8Coder.of(),
         mainOutputId,
         ImmutableMap.of(
             mainOutputId, TestDoFn.mainOutput,

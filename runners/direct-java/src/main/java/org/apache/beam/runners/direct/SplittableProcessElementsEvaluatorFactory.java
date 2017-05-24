@@ -24,18 +24,18 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
-import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -88,12 +88,11 @@ class SplittableProcessElementsEvaluatorFactory<
       createEvaluator(
           AppliedPTransform<
                   PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
-                  PCollectionTuple,
-                  SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
+                  PCollectionTuple, ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
               application,
           CommittedBundle<InputT> inputBundle)
           throws Exception {
-    final SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
     ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
@@ -110,7 +109,7 @@ class SplittableProcessElementsEvaluatorFactory<
     final DirectExecutionContext.DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundle.getKey())
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
     final ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
         parDoEvaluator =

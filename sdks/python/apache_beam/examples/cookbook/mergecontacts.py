@@ -70,64 +70,63 @@ def run(argv=None, assert_results=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # Helper: read a tab-separated key-value mapping from a text file, escape all
-  # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
-  def read_kv_textfile(label, textfile):
-    return (p
-            | 'Read: %s' % label >> ReadFromText(textfile)
-            | 'Backslash: %s' % label >> beam.Map(
-                lambda x: re.sub(r'\\', r'\\\\', x))
-            | 'EscapeQuotes: %s' % label >> beam.Map(
-                lambda x: re.sub(r'"', r'\"', x))
-            | 'Split: %s' % label >> beam.Map(
-                lambda x: re.split(r'\t+', x, 1)))
+    # Helper: read a tab-separated key-value mapping from a text file,
+    # escape all quotes/backslashes, and convert it a PCollection of
+    # (key, value) pairs.
+    def read_kv_textfile(label, textfile):
+      return (p
+              | 'Read: %s' % label >> ReadFromText(textfile)
+              | 'Backslash: %s' % label >> beam.Map(
+                  lambda x: re.sub(r'\\', r'\\\\', x))
+              | 'EscapeQuotes: %s' % label >> beam.Map(
+                  lambda x: re.sub(r'"', r'\"', x))
+              | 'Split: %s' % label >> beam.Map(
+                  lambda x: re.split(r'\t+', x, 1)))
 
-  # Read input databases.
-  email = read_kv_textfile('email', known_args.input_email)
-  phone = read_kv_textfile('phone', known_args.input_phone)
-  snailmail = read_kv_textfile('snailmail', known_args.input_snailmail)
+    # Read input databases.
+    email = read_kv_textfile('email', known_args.input_email)
+    phone = read_kv_textfile('phone', known_args.input_phone)
+    snailmail = read_kv_textfile('snailmail', known_args.input_snailmail)
 
-  # Group together all entries under the same name.
-  grouped = (email, phone, snailmail) | 'group_by_name' >> beam.CoGroupByKey()
+    # Group together all entries under the same name.
+    grouped = (email, phone, snailmail) | 'group_by_name' >> beam.CoGroupByKey()
 
-  # Prepare tab-delimited output; something like this:
-  # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
-  tsv_lines = grouped | beam.Map(
-      lambda (name, (email, phone, snailmail)): '\t'.join(
-          ['"%s"' % name,
-           '"%s"' % ','.join(email),
-           '"%s"' % ','.join(phone),
-           '"%s"' % next(iter(snailmail), '')]))
+    # Prepare tab-delimited output; something like this:
+    # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
+    tsv_lines = grouped | beam.Map(
+        lambda (name, (email, phone, snailmail)): '\t'.join(
+            ['"%s"' % name,
+             '"%s"' % ','.join(email),
+             '"%s"' % ','.join(phone),
+             '"%s"' % next(iter(snailmail), '')]))
 
-  # Compute some stats about our database of people.
-  luddites = grouped | beam.Filter(  # People without email.
-      lambda (name, (email, phone, snailmail)): not next(iter(email), None))
-  writers = grouped | beam.Filter(   # People without phones.
-      lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
-  nomads = grouped | beam.Filter(    # People without addresses.
-      lambda (name, (email, phone, snailmail)): not next(iter(snailmail), None))
+    # Compute some stats about our database of people.
+    luddites = grouped | beam.Filter(  # People without email.
+        lambda (name, (email, phone, snailmail)): not next(iter(email), None))
+    writers = grouped | beam.Filter(   # People without phones.
+        lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
+    nomads = grouped | beam.Filter(    # People without addresses.
+        lambda (name, (e, p, snailmail)): not next(iter(snailmail), None))
 
-  num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
-  num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
-  num_nomads = nomads | 'Nomads' >> beam.combiners.Count.Globally()
+    num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
+    num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
+    num_nomads = nomads | 'Nomads' >> beam.combiners.Count.Globally()
 
-  # Write tab-delimited output.
-  # pylint: disable=expression-not-assigned
-  tsv_lines | 'WriteTsv' >> WriteToText(known_args.output_tsv)
+    # Write tab-delimited output.
+    # pylint: disable=expression-not-assigned
+    tsv_lines | 'WriteTsv' >> WriteToText(known_args.output_tsv)
 
-  # TODO(silviuc): Move the assert_results logic to the unit test.
-  if assert_results is not None:
-    expected_luddites, expected_writers, expected_nomads = assert_results
-    assert_that(num_luddites, equal_to([expected_luddites]),
-                label='assert:luddites')
-    assert_that(num_writers, equal_to([expected_writers]),
-                label='assert:writers')
-    assert_that(num_nomads, equal_to([expected_nomads]),
-                label='assert:nomads')
-  # Execute pipeline.
-  return p.run()
+    # TODO(silviuc): Move the assert_results logic to the unit test.
+    if assert_results is not None:
+      expected_luddites, expected_writers, expected_nomads = assert_results
+      assert_that(num_luddites, equal_to([expected_luddites]),
+                  label='assert:luddites')
+      assert_that(num_writers, equal_to([expected_writers]),
+                  label='assert:writers')
+      assert_that(num_nomads, equal_to([expected_nomads]),
+                  label='assert:nomads')
 
 
 if __name__ == '__main__':

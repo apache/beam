@@ -56,7 +56,6 @@ import org.slf4j.LoggerFactory;
 public class TransformHierarchy {
   private static final Logger LOG = LoggerFactory.getLogger(TransformHierarchy.class);
 
-  private final Pipeline pipeline;
   private final Node root;
   private final Map<Node, PInput> unexpandedInputs;
   private final Map<POutput, Node> producers;
@@ -65,8 +64,7 @@ public class TransformHierarchy {
   // Maintain a stack based on the enclosing nodes
   private Node current;
 
-  public TransformHierarchy(Pipeline pipeline) {
-    this.pipeline = pipeline;
+  public TransformHierarchy() {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
@@ -453,7 +451,7 @@ public class TransformHierarchy {
     /**
      * Returns the {@link AppliedPTransform} representing this {@link Node}.
      */
-    public AppliedPTransform<?, ?, ?> toAppliedPTransform() {
+    public AppliedPTransform<?, ?, ?> toAppliedPTransform(Pipeline pipeline) {
       return AppliedPTransform.of(
           getFullName(), inputs, outputs, (PTransform) getTransform(), pipeline);
     }

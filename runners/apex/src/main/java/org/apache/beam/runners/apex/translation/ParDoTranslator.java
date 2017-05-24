@@ -30,11 +30,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
@@ -83,7 +85,7 @@ class ParDoTranslator<InputT, OutputT>
     }
 
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
-    PCollection<InputT> input = (PCollection<InputT>) context.getInput();
+    PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =
@@ -129,6 +131,69 @@ class ParDoTranslator<InputT, OutputT>
       addSideInputs(operator.sideInput1, sideInputs, context);
     }
   }
+
+  static class SplittableProcessElementsTranslator<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
+
+    @Override
+    public void translate(
+        ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
+        TranslationContext context) {
+
+      Map<TupleTag<?>, PValue> outputs = context.getOutputs();
+      PCollection<InputT> input = context.getInput();
+      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+      Coder<InputT> inputCoder = input.getCoder();
+      WindowedValueCoder<InputT> wvInputCoder =
+          FullWindowedValueCoder.of(
+              inputCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
+
+      @SuppressWarnings({ "rawtypes", "unchecked" })
+      DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
+      ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+              context.getPipelineOptions(),
+              doFn,
+              transform.getMainOutputTag(),
+              transform.getAdditionalOutputTags().getAll(),
+              input.getWindowingStrategy(),
+              sideInputs,
+              wvInputCoder,
+              context.getStateBackend());
+
+      Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
+      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+        checkArgument(
+            output.getValue() instanceof PCollection,
+            "%s %s outputs non-PCollection %s of type %s",
+            ParDo.MultiOutput.class.getSimpleName(),
+            context.getFullName(),
+            output.getValue(),
+            output.getValue().getClass().getSimpleName());
+        PCollection<?> pc = (PCollection<?>) output.getValue();
+        if (output.getKey().equals(transform.getMainOutputTag())) {
+          ports.put(pc, operator.output);
+        } else {
+          int portIndex = 0;
+          for (TupleTag<?> tag : transform.getAdditionalOutputTags().getAll()) {
+            if (tag.equals(output.getKey())) {
+              ports.put(pc, operator.additionalOutputPorts[portIndex]);
+              break;
+            }
+            portIndex++;
+          }
+        }
+      }
+
+      context.addOperator(operator, ports);
+      context.addStream(context.getInput(), operator.input);
+      if (!sideInputs.isEmpty()) {
+        addSideInputs(operator.sideInput1, sideInputs, context);
+      }
+
+    }
+  }
+
 
   static void addSideInputs(
       Operator.InputPort<?> sideInputPort,

@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
@@ -116,7 +116,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
         TriggerStateMachines.stateMachineForTrigger(
-            Triggers.toProto(windowingStrategy.getTrigger())),
+            TriggerTranslation.toProto(windowingStrategy.getTrigger())),
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
@@ -179,7 +179,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder);
   }
@@ -227,7 +228,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder,
         options,

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * A general {@link GroupAlsoByWindowsDoFn}. This delegates all of the logic to the
+ * A general {@link GroupAlsoByWindowsAggregators}. This delegates all of the logic to the
  * {@link ReduceFnRunner}.
  */
 @SystemDoFnInternal
@@ -122,7 +122,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
                 TriggerStateMachines.stateMachineForTrigger(
-                    Triggers.toProto(windowingStrategy.getTrigger()))),
+                    TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
             stateInternals,
             timerInternals,
             outputWindowedValue(),
@@ -133,9 +133,5 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     reduceFnRunner.processElements(keyedWorkItem.elementsIterable());
     reduceFnRunner.onTimers(keyedWorkItem.timersIterable());
     reduceFnRunner.persist();
-  }
-
-  public OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn() {
-    throw new RuntimeException("Not implement!");
   }
 }

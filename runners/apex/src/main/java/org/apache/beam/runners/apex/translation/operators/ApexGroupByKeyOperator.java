@@ -41,7 +41,7 @@ import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
@@ -163,7 +163,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowingStrategy,
         ExecutableTriggerStateMachine.create(
             TriggerStateMachines.stateMachineForTrigger(
-                Triggers.toProto(windowingStrategy.getTrigger()))),
+                TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
         stateInternalsFactory.stateInternalsForKey(key),
         timerInternals,
         new OutputWindowedValue<KV<K, Iterable<V>>>() {
@@ -202,7 +202,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPane());
-    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark);
+    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
         newReduceFnRunner(kv.getKey());
     reduceFnRunner.processElements(Collections.singletonList(updatedWindowedValue));
@@ -211,7 +211,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
 
   @Override
   public void fireTimer(K key, Collection<TimerData> timerData) {
-    timerInternals.setContext(key, keyCoder, inputWatermark);
+    timerInternals.setContext(key, keyCoder, inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
     try {
       reduceFnRunner.onTimers(timerData);

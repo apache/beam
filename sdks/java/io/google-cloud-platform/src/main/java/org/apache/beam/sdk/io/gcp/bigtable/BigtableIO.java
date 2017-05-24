@@ -139,6 +139,30 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Bigtable you should use:
+ *
+ * <pre>{@code
+ * BigtableOptions.Builder optionsBuilder =
+ *     new BigtableOptions.Builder()
+ *         .setProjectId("project")
+ *         .setInstanceId("instance")
+ *         .setUsePlaintextNegotiation(true)
+ *         .setCredentialOptions(CredentialOptions.nullCredential())
+ *         .setDataHost("127.0.0.1") // network interface where Bigtable emulator is bound
+ *         .setInstanceAdminHost("127.0.0.1")
+ *         .setTableAdminHost("127.0.0.1")
+ *         .setPort(LOCAL_EMULATOR_PORT))
+ *
+ * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
+ *
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withBigtableOptions(optionsBuilder)
+ *         .withTableId("table");
+ * }</pre>
+ *
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
@@ -204,7 +228,6 @@ public class BigtableIO {
 
     @Nullable
     abstract BigtableService getBigtableService();
-
 
     /** Returns the Google Cloud Bigtable instance being read from, and other parameters. */
     @Nullable
@@ -429,7 +452,6 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withBigtableOptions(BigtableOptions options) {
-      checkNotNull(options, "options");
       return withBigtableOptions(options.toBuilder());
     }
 

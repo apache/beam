@@ -863,7 +863,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
       }
 
-      LOG.info("Pubsub {} has "
+      LOG.debug("Pubsub {} has "
                + "{} received messages, "
                + "{} current unread messages, "
                + "{} current unread bytes, "

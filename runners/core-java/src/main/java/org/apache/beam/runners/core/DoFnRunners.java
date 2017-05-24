@@ -19,8 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.runners.core.ExecutionContext.StepContext;
-import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StatefulDoFnRunner.CleanupTimer;
 import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,34 +73,9 @@ public class DoFnRunners {
   }
 
   /**
-   * Returns a basic implementation of {@link DoFnRunner} that works for most {@link OldDoFn DoFns}.
-   *
-   * <p>It invokes {@link OldDoFn#processElement} for each input.
-   */
-  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
-      PipelineOptions options,
-      OldDoFn<InputT, OutputT> fn,
-      SideInputReader sideInputReader,
-      OutputManager outputManager,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> additionalOutputTags,
-      StepContext stepContext,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    return new SimpleOldDoFnRunner<>(
-        options,
-        fn,
-        sideInputReader,
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        stepContext,
-        windowingStrategy);
-  }
-
-  /**
    * Returns an implementation of {@link DoFnRunner} that handles late data dropping.
    *
-   * <p>It drops elements from expired windows before they reach the underlying {@link OldDoFn}.
+   * <p>It drops elements from expired windows before they reach the underlying {@link DoFn}.
    */
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(

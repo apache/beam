@@ -24,17 +24,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
-import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
+import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -57,7 +55,7 @@ import org.joda.time.Instant;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link GroupByKeyOnly} {@link PTransform}.
+ * {@link DirectGroupAlsoByWindow} {@link PTransform}.
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -92,8 +90,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   /**
-   * A transform evaluator for the pseudo-primitive {@link GroupAlsoByWindow}. Windowing is ignored;
-   * all input should be in the global window since all output will be as well.
+   * A transform evaluator for the pseudo-primitive {@link DirectGroupAlsoByWindow}. The window of
+   * the input {@link KeyedWorkItem} is ignored; it should be in the global window, as element
+   * windows are reified in the {@link KeyedWorkItem#elementsIterable()}.
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
@@ -130,8 +129,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       structuralKey = inputBundle.getKey();
       stepContext = evaluationContext
           .getExecutionContext(application, inputBundle.getKey())
-          .getOrCreateStepContext(
-              evaluationContext.getStepName(application), application.getTransform().getName());
+          .getStepContext(
+              evaluationContext.getStepName(application));
       windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>)
               application.getTransform().getInputWindowingStrategy();
@@ -143,9 +142,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToClosedWindow = Metrics.counter(GroupAlsoByWindowEvaluator.class,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
       droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER);
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
 
     @Override
@@ -163,7 +162,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           (CopyOnAccessInMemoryStateInternals) stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
       RunnerApi.Trigger runnerApiTrigger =
-          Triggers.toProto(windowingStrategy.getTrigger());
+          TriggerTranslation.toProto(windowingStrategy.getTrigger());
       ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
           new ReduceFnRunner<>(
               key,
@@ -173,7 +172,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
-              new UnsupportedSideInputReader("GroupAlsoByWindow"),
+              new UnsupportedSideInputReader(DirectGroupAlsoByWindow.class.getSimpleName()),
               reduceFn,
               evaluationContext.getPipelineOptions());
 
@@ -226,8 +225,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                     // The element is too late for this window.
                     droppedDueToLateness.inc();
                     WindowTracing.debug(
-                        "GroupAlsoByWindow: Dropping element at {} for key: {}; "
+                        "{}: Dropping element at {} for key: {}; "
                             + "window: {} since it is too far behind inputWatermark: {}",
+                        DirectGroupAlsoByWindow.class.getSimpleName(),
                         input.getTimestamp(),
                         key,
                         window,
@@ -264,7 +264,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs");
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s should not use tagged outputs", DirectGroupAlsoByWindow.class.getSimpleName()));
     }
   }
 }

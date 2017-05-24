@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,16 +45,28 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is only compatible with %s.",
+              GlobalWindows.class.getSimpleName(), GlobalWindows.class.getSimpleName()));
+    }
+  }
+
+  @Override
   public Coder<GlobalWindow> windowCoder() {
     return GlobalWindow.Coder.INSTANCE;
   }
 
   @Override
   public WindowMappingFn<GlobalWindow> getDefaultWindowMappingFn() {
-    return new GlobalWindowMappingFn();
+    return new AutoValue_GlobalWindows_GlobalWindowMappingFn();
   }
 
-  static class GlobalWindowMappingFn extends WindowMappingFn<GlobalWindow> {
+  @AutoValue
+  abstract static class GlobalWindowMappingFn extends WindowMappingFn<GlobalWindow> {
     @Override
     public GlobalWindow getSideInputWindow(BoundedWindow mainWindow) {
       return GlobalWindow.INSTANCE;

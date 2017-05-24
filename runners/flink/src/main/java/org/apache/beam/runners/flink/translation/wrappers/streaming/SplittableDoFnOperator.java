@@ -26,16 +26,16 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -94,7 +94,7 @@ public class SplittableDoFnOperator<
   public void open() throws Exception {
     super.open();
 
-    checkState(doFn instanceof SplittableParDo.ProcessFn);
+    checkState(doFn instanceof ProcessFn);
 
     StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
       @Override
@@ -114,9 +114,9 @@ public class SplittableDoFnOperator<
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
-    ((SplittableParDo.ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
-    ((SplittableParDo.ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
-    ((SplittableParDo.ProcessFn) doFn).setProcessElementInvoker(
+    ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
+    ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
+    ((ProcessFn) doFn).setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             doFn,
             serializedOptions.getPipelineOptions(),

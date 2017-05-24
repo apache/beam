@@ -50,7 +50,7 @@ class GroupWithCoderTest(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_RECORDS)
     group_with_coder.run([
         '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path]).wait_until_finish()
+        '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
     with open(temp_path + '.result-00000-of-00001') as result_file:
@@ -71,7 +71,7 @@ class GroupWithCoderTest(unittest.TestCase):
     group_with_coder.run([
         '--no_pipeline_type_check',
         '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path]).wait_until_finish()
+        '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
     with open(temp_path + '.result-00000-of-00001') as result_file:

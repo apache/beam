@@ -102,7 +102,6 @@ def run(argv=None):
   # pylint: disable=expression-not-assigned
   output | 'write' >> WriteToText(known_args.output)
 
-  # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
 
