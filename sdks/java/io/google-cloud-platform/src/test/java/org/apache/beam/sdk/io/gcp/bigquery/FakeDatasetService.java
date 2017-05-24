@@ -200,6 +200,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       return tableContainer.getTable();
     }
   }
+  public void
 
   void throwNotFound(String format, Object... args) throws IOException {
     throw new IOException(
