@@ -151,6 +151,7 @@
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
+    <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
     <maven-exec-plugin.version>1.4.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
@@ -1633,7 +1634,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>${maven-dependency-plugin.version}</version>
         <executions>
           <execution>
             <goals><goal>analyze-only</goal></goals>
