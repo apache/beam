@@ -40,6 +40,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded}
@@ -100,6 +102,22 @@ public class ReadTranslation {
             .getValue()
             .toByteArray(),
         "BoundedSource");
+  }
+
+  public static <T> BoundedSource<T> boundedSourceFromTransform(
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+      throws InvalidProtocolBufferException {
+
+    ReadPayload payload = (ReadPayload) PTransformTranslation.payloadForTransform(transform);
+    return (BoundedSource<T>) boundedSourceFromProto(payload);
+  }
+
+  public static <T, CheckpointT extends UnboundedSource.CheckpointMark>
+      UnboundedSource<T, CheckpointT> unboundedSourceFromTransform(
+          AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
+          throws InvalidProtocolBufferException {
+    ReadPayload payload = (ReadPayload) PTransformTranslation.payloadForTransform(transform);
+    return (UnboundedSource<T, CheckpointT>) unboundedSourceFromProto(payload);
   }
 
   private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source) {
