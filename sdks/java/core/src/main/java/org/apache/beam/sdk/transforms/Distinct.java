@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,22 +90,27 @@ public class Distinct<T> extends PTransform<PCollection<T>,
     return new WithRepresentativeValues<>(fn, null);
   }
 
+  private static <T> void validateWindowFn(PCollection<T> in) {
+    WindowingStrategy strategy = in.getWindowingStrategy();
+    checkArgument(strategy.getWindowFn().isNonMerging()
+      || (strategy.getTrigger().getClass().equals(DefaultTrigger.class)
+        && strategy.getAllowedLateness().isEqual(Duration.ZERO)),
+        "Dinstinct does not support non-merging windowing strategies, except when"
+        + " using the default trigger and zero allowed lateness.");
+  }
+
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    if (!(in.getWindowingStrategy().getWindowFn() instanceof NonMergingWindowFn)) {
-      LOG.warn("Distinct is not currently guaranteed to remove all duplicates when using merging"
-      + "window functions.");
-    }
-
+    validateWindowFn(in);
     PCollection<KV<T, Void>> combined =
-        in.apply("CreateIndex", MapElements.via(
+        in.apply("KeyByElement", MapElements.via(
             new SimpleFunction<T, KV<T, Void>>() {
               @Override
               public KV<T, Void> apply(T element) {
                 return KV.of(element, (Void) null);
               }
             }))
-            .apply("ApplyCombiner",
+            .apply("DropValues",
                 Combine.<T, Void>perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
@@ -109,7 +118,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
                         return null; // ignore input
                       }
                     }));
-    return combined.apply("ExtractKeys", ParDo.of(new DoFn<KV<T, Void>, T>() {
+    return combined.apply("ExtractFirstKey", ParDo.of(new DoFn<KV<T, Void>, T>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
         if (c.pane().isFirst()) {
@@ -143,11 +152,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      if (!(in.getWindowingStrategy().getWindowFn() instanceof NonMergingWindowFn)) {
-        LOG.warn("Distinct is not currently guaranteed to remove all duplicates when using merging"
-            + "window functions.");
-      }
-
+      validateWindowFn(in);
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
