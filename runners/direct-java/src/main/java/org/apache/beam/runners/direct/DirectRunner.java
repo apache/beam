@@ -43,6 +43,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -220,9 +221,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
    */
   @SuppressWarnings("rawtypes")
   private List<PTransformOverride> defaultTransformOverrides() {
+    TestPipelineOptions testOptions = options.as(TestPipelineOptions.class);
     ImmutableList.Builder<PTransformOverride> builder =
      ImmutableList.<PTransformOverride>builder();
-    if (!options.isUnitTest()) {
+    if (!testOptions.isUnitTest()) {
       builder.add(
           PTransformOverride.of(
               PTransformMatchers.writeWithRunnerDeterminedSharding(),

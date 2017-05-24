@@ -61,12 +61,6 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   int getTargetParallelism();
   void setTargetParallelism(int target);
 
-  @Default.Boolean(false)
-  @Description(
-      "Indicates whether this is an automatically-run unit test.")
-  boolean isUnitTest();
-  void setUnitTest(boolean unitTest);
-
   /**
    * A {@link DefaultValueFactory} that returns the result of {@link Runtime#availableProcessors()}
    * from the {@link #create(PipelineOptions)} method. Uses {@link Runtime#getRuntime()} to obtain
