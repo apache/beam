@@ -30,6 +30,7 @@ from apache_beam.runners.common import DoFnState
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
@@ -55,6 +56,7 @@ class TransformEvaluatorRegistry(object):
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
+        TestStream: _TestStreamEvaluator,
     }
 
   def for_application(
@@ -207,7 +209,25 @@ class _BoundedReadEvaluator(_TransformEvaluator):
         bundles = _read_values_to_bundles(reader)
 
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None)
+
+
+class _TestStreamEvaluator(_TransformEvaluator):
+  """TransformEvaluator for the TestStream transform."""
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container):
+    assert not input_committed_bundle
+    assert not side_inputs
+    super(_TestStreamEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+  
+  def finish_bundle(self):
+    assert len(self._outputs) == 1
+    output_pcollection = list(self._outputs)[0]
+
+    pass
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -231,7 +251,7 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None)
 
 
 class _TaggedReceivers(dict):
@@ -320,8 +340,8 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, result_counters, None,
-        self._tagged_receivers.undeclared_in_memory_tag_values)
+        self._applied_ptransform, bundles, [], None, None, result_counters,
+        None, self._tagged_receivers.undeclared_in_memory_tag_values)
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
@@ -402,7 +422,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, bundles, state, None, None, hold)
+        self._applied_ptransform, bundles, [], state, None, None, hold)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
@@ -459,4 +479,4 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, [], state, None, None, hold)
+        self._applied_ptransform, [], [], state, None, None, hold)

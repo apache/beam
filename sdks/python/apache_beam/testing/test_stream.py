@@ -25,7 +25,9 @@ from abc import abstractmethod
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.transforms import core
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -103,6 +105,9 @@ class TestStream(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     return pvalue.PCollection(self.pipeline)
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     return self.coder

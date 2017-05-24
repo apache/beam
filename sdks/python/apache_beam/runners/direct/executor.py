@@ -230,13 +230,16 @@ class _CompletionCallback(object):
     output_committed_bundles = self._evaluation_context.handle_result(
         input_committed_bundle, self._timers, transform_result)
     for output_committed_bundle in output_committed_bundles:
-      self._all_updates.offer(_ExecutorServiceParallelExecutor._ExecutorUpdate(
-          output_committed_bundle, None))
+      self._all_updates.offer(
+          _ExecutorServiceParallelExecutor._ExecutorUpdate(
+              unprocessed_elements=transform_result.unprocessed_elements,
+              committed_bundle=output_committed_bundle))
     return output_committed_bundles
 
   def handle_exception(self, exception):
     self._all_updates.offer(
-        _ExecutorServiceParallelExecutor._ExecutorUpdate(None, exception))
+        _ExecutorServiceParallelExecutor._ExecutorUpdate(
+            exception=exception))
 
 
 class TransformExecutor(_ExecutorService.CallableTask):
@@ -418,10 +421,11 @@ class _ExecutorServiceParallelExecutor(object):
   class _ExecutorUpdate(object):
     """An internal status update on the state of the executor."""
 
-    def __init__(self, produced_bundle=None, exception=None):
+    def __init__(self, unprocessed_elements=None, committed_bundle=None, exception=None):
       # Exactly one of them should be not-None
       assert bool(produced_bundle) != bool(exception)
-      self.committed_bundle = produced_bundle
+      self.unprocessed_elements = unprocessed_elements or []
+      self.committed_bundle = committed_bundle
       self.exception = exception
       self.exc_info = sys.exc_info()
       if self.exc_info[1] is not exception:
