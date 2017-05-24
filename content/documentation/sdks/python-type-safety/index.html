@@ -264,7 +264,6 @@ words_with_lens = words | MyTransform()
 <p>For example, the following code would pass at both pipeline construction and runtime.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-p.run()
 </code></pre>
 </div>
 
