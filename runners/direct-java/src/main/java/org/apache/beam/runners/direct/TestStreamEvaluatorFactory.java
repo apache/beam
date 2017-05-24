@@ -39,6 +39,7 @@ import org.apache.beam.sdk.testing.TestStream.Event;
 import org.apache.beam.sdk.testing.TestStream.EventType;
 import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
@@ -209,9 +210,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class InputProvider<T>
-      implements RootInputProvider<
-          T, TestStreamIndex<T>, PBegin, DirectTestStreamFactory.DirectTestStream<T>> {
+  static class InputProvider<T> implements RootInputProvider<T, TestStreamIndex<T>, PBegin> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -220,15 +219,17 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public Collection<CommittedBundle<TestStreamIndex<T>>> getInitialInputs(
-        AppliedPTransform<PBegin, PCollection<T>, DirectTestStreamFactory.DirectTestStream<T>>
-            transform,
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform,
         int targetParallelism) {
+
+      // This will always be run on an execution-time transform, so it can be downcast
+      DirectTestStreamFactory.DirectTestStream<T> testStream =
+          (DirectTestStreamFactory.DirectTestStream<T>) transform.getTransform();
+
       CommittedBundle<TestStreamIndex<T>> initialBundle =
           evaluationContext
               .<TestStreamIndex<T>>createRootBundle()
-              .add(
-                  WindowedValue.valueInGlobalWindow(
-                      TestStreamIndex.of(transform.getTransform().original)))
+              .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(testStream.original)))
               .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
       return Collections.singleton(initialBundle);
     }

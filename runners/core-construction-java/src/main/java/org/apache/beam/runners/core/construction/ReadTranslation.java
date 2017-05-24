@@ -108,7 +108,8 @@ public class ReadTranslation {
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws InvalidProtocolBufferException {
 
-    ReadPayload payload = (ReadPayload) PTransformTranslation.payloadForTransform(transform);
+    ReadPayload payload =
+        PTransformTranslation.payloadForTransform(transform).unpack(ReadPayload.class);
     return (BoundedSource<T>) boundedSourceFromProto(payload);
   }
 
@@ -116,7 +117,8 @@ public class ReadTranslation {
       UnboundedSource<T, CheckpointT> unboundedSourceFromTransform(
           AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
           throws InvalidProtocolBufferException {
-    ReadPayload payload = (ReadPayload) PTransformTranslation.payloadForTransform(transform);
+    ReadPayload payload =
+        PTransformTranslation.payloadForTransform(transform).unpack(ReadPayload.class);
     return (UnboundedSource<T, CheckpointT>) unboundedSourceFromProto(payload);
   }
 

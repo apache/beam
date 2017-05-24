@@ -18,9 +18,12 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
+import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -58,5 +61,42 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() throws Exception {
     boundedFactory.cleanup();
     unboundedFactory.cleanup();
+  }
+
+  static <T> InputProvider<T> inputProvider(EvaluationContext context) {
+    return new InputProvider(context);
+  }
+
+  private static class InputProvider<T> implements RootInputProvider<T, SourceShard<T>, PBegin> {
+
+    private final UnboundedReadEvaluatorFactory.InputProvider<T> unboundedInputProvider;
+    private final BoundedReadEvaluatorFactory.InputProvider<T> boundedInputProvider;
+
+    InputProvider(EvaluationContext context) {
+      this.unboundedInputProvider = new UnboundedReadEvaluatorFactory.InputProvider<T>(context);
+      this.boundedInputProvider = new BoundedReadEvaluatorFactory.InputProvider<T>(context);
+    }
+
+    @Override
+    public Collection<CommittedBundle<SourceShard<T>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> appliedTransform,
+        int targetParallelism)
+        throws Exception {
+
+      PCollection<?> output =
+          (PCollection) Iterables.getOnlyElement(appliedTransform.getOutputs().values());
+      switch (output.isBounded()) {
+        case BOUNDED:
+          // This cast could be made unnecessary, but too much bounded polymorphism
+          return (Collection)
+              boundedInputProvider.getInitialInputs(appliedTransform, targetParallelism);
+        case UNBOUNDED:
+          // This cast could be made unnecessary, but too much bounded polymorphism
+          return (Collection)
+              unboundedInputProvider.getInitialInputs(appliedTransform, targetParallelism);
+        default:
+          throw new IllegalArgumentException("PCollection is neither bounded nor unbounded?!?");
+      }
+    }
   }
 }

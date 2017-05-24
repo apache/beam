@@ -132,6 +132,21 @@ public class PTransformTranslation {
     return translator.getUrn(transform);
   }
 
+  public static Any payloadForTransform(AppliedPTransform<?, ?, ?> transform) {
+    TransformPayloadTranslator translator =
+        KNOWN_PAYLOAD_TRANSLATORS.get(transform.getTransform().getClass());
+    if (translator == null) {
+      throw new IllegalStateException(
+          String.format("No translator known for %s", transform.getClass().getName()));
+    }
+
+    return translator
+        .translate(
+            transform,
+            null /* TODO: get SdkComponents from the pipeline in a reasonable and deterministic way */)
+        .getParameter();
+  }
+
   /**
    * A translator consumes a {@link PTransform} application and produces the appropriate
    * FunctionSpec for a distinguished or primitive transform within the Beam runner API.
