@@ -77,19 +77,22 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>The default size of the batch is set to 1MB, to override this use {@link
- * Write#withBatchSize(long)}. Setting batch size to a small value or zero practically disables
+ * Write#withBatchSizeBytes(long)}. Setting batch size to a small value or zero practically disables
  * batching.
  *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
- * <li>Mutations are not submitted atomically;
- * <li>A mutation is applied at least once;
- * <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
- *     rolled back.
+ *
+ * <ul>
+ *   <li>Mutations are not submitted atomically;
+ *   <li>A mutation is applied at least once;
+ *   <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
+ *       rolled back.
+ * </ul>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
 
-  private static final long DEFAULT_BATCH_SIZE = 1024 * 1024; // 1 MB
+  private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
 
   /**
    * Creates an uninitialized instance of {@link Write}. Before use, the {@link Write} must be
@@ -98,7 +101,9 @@ public class SpannerIO {
    */
   @Experimental
   public static Write write() {
-    return new AutoValue_SpannerIO_Write.Builder().setBatchSize(DEFAULT_BATCH_SIZE).build();
+    return new AutoValue_SpannerIO_Write.Builder()
+        .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+        .build();
   }
 
   /**
@@ -119,7 +124,7 @@ public class SpannerIO {
     @Nullable
     abstract String getDatabaseId();
 
-    abstract long getBatchSize();
+    abstract long getBatchSizeBytes();
 
     @Nullable
     @VisibleForTesting
@@ -136,7 +141,7 @@ public class SpannerIO {
 
       abstract Builder setDatabaseId(String databaseId);
 
-      abstract Builder setBatchSize(long batchSize);
+      abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       @VisibleForTesting
       abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
@@ -176,8 +181,8 @@ public class SpannerIO {
      *
      * <p>Does not modify this object.
      */
-    public Write withBatchSize(long batchSize) {
-      return toBuilder().setBatchSize(batchSize).build();
+    public Write withBatchSizeBytes(long batchSizeBytes) {
+      return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
 
     /**
@@ -215,10 +220,18 @@ public class SpannerIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
+          .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("Output Project"))
           .addIfNotNull(
               DisplayData.item("instanceId", getInstanceId()).withLabel("Output Instance"))
           .addIfNotNull(
-              DisplayData.item("databaseId", getDatabaseId()).withLabel("Output Database"));
+              DisplayData.item("databaseId", getDatabaseId()).withLabel("Output Database"))
+          .add(DisplayData.item("batchSizeBytes", getBatchSizeBytes())
+              .withLabel("Batch Size in Bytes"));
+      if (getServiceFactory() != null) {
+        builder.addIfNotNull(
+            DisplayData.item("serviceFactory", getServiceFactory().getClass().getName())
+                .withLabel("Service Factory"));
+      }
     }
   }
 
@@ -231,7 +244,7 @@ public class SpannerIO {
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
     private List<Mutation> mutations;
-    private long batchSize = 0;
+    private long batchSizeBytes = 0;
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -251,15 +264,15 @@ public class SpannerIO {
           spanner.getDatabaseClient(
               DatabaseId.of(projectId(), spec.getInstanceId(), spec.getDatabaseId()));
       mutations = new ArrayList<>();
-      batchSize = 0;
+      batchSizeBytes = 0;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Mutation m = c.element();
       mutations.add(m);
-      batchSize += MutationSizeEstimator.sizeOf(m);
-      if (batchSize >= spec.getBatchSize()) {
+      batchSizeBytes += MutationSizeEstimator.sizeOf(m);
+      if (batchSizeBytes >= spec.getBatchSizeBytes()) {
         flushBatch();
       }
     }
@@ -283,6 +296,7 @@ public class SpannerIO {
         return;
       }
       spanner.closeAsync().get();
+      spanner = null;
     }
 
     /**
@@ -319,15 +333,13 @@ public class SpannerIO {
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
       mutations = new ArrayList<>();
-      batchSize = 0;
+      batchSizeBytes = 0;
     }
 
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("instanceId", spec.getInstanceId()).withLabel("Instance"))
-          .addIfNotNull(DisplayData.item("databaseId", spec.getDatabaseId()).withLabel("Database"));
+      spec.populateDisplayData(builder);
     }
   }
 
