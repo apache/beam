@@ -25,9 +25,11 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -39,6 +41,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 class FakeDatasetService implements DatasetService, Serializable {
+  Map<String, String> insertErrors = Maps.newHashMap();
+
   @Override
   public Table getTable(TableReference tableRef)
       throws InterruptedException, IOException {
@@ -169,6 +173,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
       throws IOException, InterruptedException {
+    Map<TableRow, TableDataInsertAllResponse.InsertErrors> insertErrors = getInsertErrors();
     synchronized (BigQueryIOTest.tables) {
       if (insertIdList != null) {
         assertEquals(rowList.size(), insertIdList.size());
@@ -183,7 +188,13 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableContainer tableContainer = getTableContainer(
           ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
       for (int i = 0; i < rowList.size(); ++i) {
-        dataSize += tableContainer.addRow(rowList.get(i), insertIdList.get(i));
+        TableRow row = rowList.get(i);
+        TableDataInsertAllResponse.InsertErrors errors = insertErrors.get(row);
+        if (errors != null) {
+
+        } else {
+          dataSize += tableContainer.addRow(row, insertIdList.get(i));
+        }
       }
       return dataSize;
     }
@@ -200,7 +211,28 @@ class FakeDatasetService implements DatasetService, Serializable {
       return tableContainer.getTable();
     }
   }
-  public void
+  public void failOnInsert(Map<TableRow, TableDataInsertAllResponse.InsertErrors> insertErrors) {
+    synchronized (BigQueryIOTest.tables) {
+      Map<String, String> mappedInsertErrors = Maps.newHashMap();
+      for (Map.Entry<TableRow, TableDataInsertAllResponse.InsertErrors> entry
+          : insertErrors.entrySet()) {
+        this.insertErrors.put(BigQueryHelpers.toJsonString(entry.getKey()),
+            BigQueryHelpers.toJsonString(entry.getValue()));
+      }
+    }
+  }
+
+  Map<TableRow, TableDataInsertAllResponse.InsertErrors> getInsertErrors() {
+    Map<TableRow, TableDataInsertAllResponse.InsertErrors> parsedInsertErrors = Maps.newHashMap();
+    synchronized (BigQueryIOTest.tables) {
+      for (Map.Entry<String, String> entry : this.insertErrors.entrySet()) {
+        parsedInsertErrors.put(BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class),
+            BigQueryHelpers.fromJsonString(entry.getValue(),
+                TableDataInsertAllResponse.InsertErrors.class));
+      }
+    }
+    return parsedInsertErrors;
+  }
 
   void throwNotFound(String format, Object... args) throws IOException {
     throw new IOException(
