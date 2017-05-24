@@ -15,29 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
-
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * An primitive operation for direct field extraction.
+ * Logical operators.
  */
-public class BeamSqlInputRefExpression extends BeamSqlExpression {
-  private int inputRef;
-
-  public BeamSqlInputRefExpression(SqlTypeName sqlTypeName, int inputRef) {
-    super(null, sqlTypeName);
-    this.inputRef = inputRef;
-  }
-
-  @Override
-  public boolean accept() {
-    return true;
-  }
-
-  @Override
-  public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
-  }
-}
+package org.apache.beam.dsls.sql.interpreter.operator.logical;

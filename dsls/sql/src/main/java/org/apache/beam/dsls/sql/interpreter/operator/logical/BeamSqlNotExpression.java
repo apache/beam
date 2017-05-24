@@ -15,46 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+
+package org.apache.beam.dsls.sql.interpreter.operator.logical;
 
 import java.util.List;
+
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for 'AND' operation.
+ * {@code BeamSqlExpression} for logical operator: NOT.
+ *
+ * <p>Whether boolean is not TRUE; returns UNKNOWN if boolean is UNKNOWN.
  */
-public class BeamSqlAndExpression extends BeamSqlExpression {
-
-  private BeamSqlAndExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
-    super(operands, outputType);
-  }
-  public BeamSqlAndExpression(List<BeamSqlExpression> operands) {
-    this(operands, SqlTypeName.BOOLEAN);
+public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
+  public BeamSqlNotExpression(List<BeamSqlExpression> operands) {
+    super(operands);
   }
 
   @Override
   public boolean accept() {
-    for (BeamSqlExpression exp : operands) {
-      // only accept BOOLEAN expression as operand
-      if (!exp.outputType.equals(SqlTypeName.BOOLEAN)) {
-        return false;
-      }
+    if (numberOfOperands() != 1) {
+      return false;
     }
-    return true;
+
+    return super.accept();
   }
 
-  @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
-    boolean result = true;
-    for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);
-      result = result && expOut.getValue();
-      if (!result) {
-        break;
-      }
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+    Boolean value = opValueEvaluated(0, inputRecord);
+    if (value == null) {
+      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null);
+    } else {
+      return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, !value);
     }
-    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
-
 }

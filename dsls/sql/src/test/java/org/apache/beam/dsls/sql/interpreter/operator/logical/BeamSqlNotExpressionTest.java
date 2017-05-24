@@ -15,48 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+
+package org.apache.beam.dsls.sql.interpreter.operator.logical;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
-import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Test cases for {@link BeamSqlAndExpression}, {@link BeamSqlOrExpression}.
+ * Test for {@code BeamSqlNotExpression}.
  */
-public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
-
-  @Test
-  public void testAnd() {
-    List<BeamSqlExpression> operands = new ArrayList<>();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
-
-    Assert.assertTrue(new BeamSqlAndExpression(operands).evaluate(record).getValue());
-
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
-
-    Assert.assertFalse(new BeamSqlAndExpression(operands).evaluate(record).getValue());
-  }
-
-  @Test
-  public void testOr() {
+public class BeamSqlNotExpressionTest extends BeamSqlFnExecutorTestBase {
+  @Test public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
+    Assert.assertTrue(new BeamSqlNotExpression(operands).evaluate(record).getBoolean());
 
-    Assert.assertFalse(new BeamSqlOrExpression(operands).evaluate(record).getValue());
-
+    operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
+    Assert.assertFalse(new BeamSqlNotExpression(operands).evaluate(record).getBoolean());
 
-    Assert.assertTrue(new BeamSqlOrExpression(operands).evaluate(record).getValue());
-
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null));
+    Assert.assertNull(new BeamSqlNotExpression(operands).evaluate(record).getValue());
   }
-
 }
