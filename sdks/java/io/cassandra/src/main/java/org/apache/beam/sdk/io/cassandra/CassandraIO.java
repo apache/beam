@@ -128,7 +128,7 @@ public class CassandraIO {
      */
     public Read<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "CassandraIO.read().withHosts(hosts) called with null hosts");
-      checkArgument(hosts.isEmpty(), "CassandraIO.read().withHosts(hosts) called with empty "
+      checkArgument(!hosts.isEmpty(), "CassandraIO.read().withHosts(hosts) called with empty "
           + "hosts list");
       return builder().setHosts(hosts).build();
     }

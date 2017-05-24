@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.cassandra;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -32,10 +31,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -44,6 +45,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,17 +68,24 @@ import org.junit.runners.JUnit4;
  * }</pre>
  */
 @RunWith(JUnit4.class)
-public class CassandraIOIT {
+public class CassandraIOIT implements Serializable {
 
   private static IOTestPipelineOptions options;
+  private static String writeTableName;
 
-  @Rule public TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    // cleanup the write table
+    CassandraTestDataSet.cleanUpDataTable(options, writeTableName);
   }
 
   @Test
@@ -101,7 +112,7 @@ public class CassandraIOIT {
                 }
             )
         );
-    PAssert.that(mapped.apply("Count occurences per scientist", Count.<String, Integer>perKey()))
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
               @Override
@@ -119,7 +130,10 @@ public class CassandraIOIT {
 
   @Test
   public void testWrite() throws Exception {
-    String tableName = CassandraTestDataSet.createWriteDataTable(options);
+    writeTableName = CassandraTestDataSet.createWriteDataTable(options);
+
+    options.setOnSuccessMatcher(
+        new CassandraMatcher(CassandraTestDataSet.getCluster(options), writeTableName));
 
     ArrayList<Scientist> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
@@ -138,15 +152,43 @@ public class CassandraIOIT {
             .withEntity(Scientist.class));
 
     pipeline.run().waitUntilFinish();
+  }
 
-    Cluster cluster = CassandraTestDataSet.getCluster(options);
-    Session session = cluster.connect();
-    ResultSet result = session.execute("select id,name from " + CassandraTestDataSet.KEYSPACE
-        + "." + tableName);
-    List<Row> rows = result.all();
-    assertEquals(1000, rows.size());
-    for (Row row : rows) {
-      assertTrue(row.getString("name").matches("Name.*"));
+  /**
+   * Simple matcher.
+   */
+  public class CassandraMatcher extends TypeSafeMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
+
+    private String tableName;
+    private Cluster cluster;
+
+    public CassandraMatcher(Cluster cluster, String tableName) {
+      this.cluster = cluster;
+      this.tableName = tableName;
+    }
+
+    @Override
+    protected boolean matchesSafely(PipelineResult pipelineResult) {
+      pipelineResult.waitUntilFinish();
+      Session session = cluster.connect();
+      ResultSet result = session.execute("select id,name from " + CassandraTestDataSet.KEYSPACE
+          + "." + tableName);
+      List<Row> rows = result.all();
+      if (rows.size() != 1000) {
+        return false;
+      }
+      for (Row row : rows) {
+        if (!row.getString("name").matches("Name.*")) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("Expected Cassandra record pattern is (Name.*)");
     }
   }
 
