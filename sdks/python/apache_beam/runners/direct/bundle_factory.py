@@ -108,8 +108,7 @@ class _Bundle(object):
                             self._initial_windowed_value.windows)
 
   def __init__(self, pcollection, stacked=True):
-    # assert isinstance(pcollection, pvalue.PCollection)
-    print 'INIT PCOLLECTION', pcollection
+    assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
     self._elements = []
     self._stacked = stacked

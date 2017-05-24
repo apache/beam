@@ -19,7 +19,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.utils.test_stream import *  # TODO
+from apache_beam.runners.direct.direct_runner import EagerRunner
 from apache_beam.runners.direct import DirectRunner
+from apache_beam.transforms import window
 
 
 class StreamingTest(unittest.TestCase):
@@ -30,10 +32,17 @@ class StreamingTest(unittest.TestCase):
         .add_elements(['a', 'b', 'c'])
         .advance_watermark_to(20)
         .add_elements(['d'])
-        .advance_processing_time(10))
+        .advance_processing_time(10)
+        .advance_watermark_to(300)
+        .add_elements([window.TimestampedValue('late', 12)]))
     p = beam.Pipeline(runner=DirectRunner())
     elements = p | test_stream
-    groups = elements | beam.Map(lambda x: ('k', x)) | beam.GroupByKey()
+    groups = elements  | beam.Map(lambda x: ('k', x))| beam.WindowInto(window.FixedWindows(15)) | beam.GroupByKey()
+    import sys
+    class PrintFn(beam.DoFn):
+      def process(self, element=beam.DoFn.ElementParam, timestamp=beam.DoFn.TimestampParam):
+        sys.stderr.write('!!!!!%s [ts=%s\n' % (element, timestamp))
+    groups | beam.ParDo(PrintFn())
     p.run(test_runner_api=False)
 
 

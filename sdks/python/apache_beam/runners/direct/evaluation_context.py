@@ -202,7 +202,6 @@ class EvaluationContext(object):
       committed_bundles, unprocessed_bundle = self._commit_bundles(
           result.uncommitted_output_bundles,
           result.unprocessed_bundle)
-      print 'UNP', unprocessed_bundle
       self._watermark_manager.update_watermarks(
           completed_bundle, unprocessed_bundle, result.transform, completed_timers,
           committed_bundles, result.watermark_hold)
