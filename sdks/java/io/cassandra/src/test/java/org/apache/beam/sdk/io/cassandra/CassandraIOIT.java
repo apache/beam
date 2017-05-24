@@ -64,7 +64,7 @@ import org.junit.runners.JUnit4;
  * <pre>{@code
  * mvn -e -Pio-it verify -pl sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
  * "--cassandraHost=1.2.3.4",
- * "--cassandraPort=7001"]'
+ * "--cassandraPort=9042"]'
  * }</pre>
  */
 @RunWith(JUnit4.class)
@@ -85,7 +85,7 @@ public class CassandraIOIT implements Serializable {
   @AfterClass
   public static void tearDown() {
     // cleanup the write table
-    CassandraTestDataSet.cleanUpDataTable(options, writeTableName);
+    CassandraTestDataSet.cleanUpDataTable(options);
   }
 
   @Test
@@ -94,7 +94,7 @@ public class CassandraIOIT implements Serializable {
         .withHosts(Collections.singletonList(options.getCassandraHost()))
         .withPort(options.getCassandraPort())
         .withKeyspace(CassandraTestDataSet.KEYSPACE)
-        .withTable(CassandraTestDataSet.READ_TABLE_NAME)
+        .withTable(CassandraTestDataSet.TABLE_READ_NAME)
         .withEntity(Scientist.class)
         .withCoder(SerializableCoder.of(Scientist.class)));
 
@@ -130,14 +130,12 @@ public class CassandraIOIT implements Serializable {
 
   @Test
   public void testWrite() throws Exception {
-    writeTableName = CassandraTestDataSet.createWriteDataTable(options);
-
     options.setOnSuccessMatcher(
         new CassandraMatcher(CassandraTestDataSet.getCluster(options), writeTableName));
 
-    ArrayList<Scientist> data = new ArrayList<>();
+    ArrayList<ScientistForWrite> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      Scientist scientist = new Scientist();
+      ScientistForWrite scientist = new ScientistForWrite();
       scientist.id = i;
       scientist.name = "Name " + i;
       data.add(scientist);
@@ -145,11 +143,11 @@ public class CassandraIOIT implements Serializable {
 
     pipeline
         .apply(Create.of(data))
-        .apply(CassandraIO.<Scientist>write()
+        .apply(CassandraIO.<ScientistForWrite>write()
             .withHosts(Collections.singletonList(options.getCassandraHost()))
             .withPort(options.getCassandraPort())
             .withKeyspace(CassandraTestDataSet.KEYSPACE)
-            .withEntity(Scientist.class));
+            .withEntity(ScientistForWrite.class));
 
     pipeline.run().waitUntilFinish();
   }
@@ -193,10 +191,43 @@ public class CassandraIOIT implements Serializable {
   }
 
   /**
-   * Simple Cassandra entity representing a scientist.
+   * Simple Cassandra entity representing a scientist. Used for read test.
    */
-  @Table(name = CassandraTestDataSet.READ_TABLE_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
+  @Table(name = CassandraTestDataSet.TABLE_READ_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
   public class Scientist implements Serializable {
+
+    @Column(name = "id")
+    int id;
+
+    @Column(name = "name")
+    String name;
+
+    public Scientist() {
+      // nothing to do
+    }
+
+    public int getId() {
+      return id;
+    }
+
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+  }
+
+  /**
+   * Simple Cassandra entity representing a scientist, used for write test.
+   */
+  @Table(name = CassandraTestDataSet.TABLE_WRITE_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
+  public class ScientistForWrite implements Serializable {
 
     @Column(name = "id")
     public Integer id;

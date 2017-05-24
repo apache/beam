@@ -42,7 +42,7 @@ public class CassandraTestDataSet {
    * (run from the cassandra root directory)
    * mvn test-compile exec:java -Dexec.mainClass=org.apache.beam.sdk.io.cassandra
    * .CassandraTestDataSet \
-   *   -Dexec.args="--cassandraHost=127.0.0.1 --cassandraPort=7001 \
+   *   -Dexec.args="--cassandraHost=localhost --cassandraPort=9042 \
    *   -Dexec.classpathScope=test
    * @param args Please pass options from IOTestPipelineOptions used for connection to Cassandra as
    * shown above.
@@ -52,20 +52,17 @@ public class CassandraTestDataSet {
     IOTestPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
 
-    createReadDataTable(options);
+    createDataTable(options);
   }
 
   public static final String KEYSPACE = "BEAM";
-  public static final String READ_TABLE_NAME = "BEAM_TEST_READ";
+  public static final String TABLE_READ_NAME = "BEAM_READ_TEST";
+  public static final String TABLE_WRITE_NAME = "BEAM_WRITE_TEST";
 
-  public static void createReadDataTable(IOTestPipelineOptions options) {
-    createDataTable(options, READ_TABLE_NAME);
-  }
-
-  public static String createWriteDataTable(IOTestPipelineOptions options) {
-    String tableName = "BEAMTEST" + org.joda.time.Instant.now().getMillis();
-    createDataTable(options, tableName);
-    return tableName;
+  public static void createDataTable(IOTestPipelineOptions options) {
+    createTable(options, TABLE_READ_NAME);
+    insertTestData(options, TABLE_READ_NAME);
+    createTable(options, TABLE_WRITE_NAME);
   }
 
   public static Cluster getCluster(IOTestPipelineOptions options) {
@@ -75,7 +72,7 @@ public class CassandraTestDataSet {
         .build();
   }
 
-  private static void createDataTable(IOTestPipelineOptions options, String tableName) {
+  private static void createTable(IOTestPipelineOptions options, String tableName) {
     Cluster cluster = null;
     Session session = null;
     try {
@@ -83,12 +80,30 @@ public class CassandraTestDataSet {
       session = cluster.connect();
 
       LOG.info("Create {} keyspace if not exists", KEYSPACE);
-      session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION "
-          + "{'class':'SimpleStrategy', 'replication_factory':3};");
+      session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = "
+          + "{'class':'SimpleStrategy', 'replication_factor':3};");
+
+      session.execute("USE " + KEYSPACE);
 
       LOG.info("Create {} table if not exists", tableName);
       session.execute("CREATE TABLE IF NOT EXISTS " + tableName + "(id int, name text, PRIMARY "
           + "KEY(id))");
+    } finally {
+      if (session != null) {
+        session.close();
+      }
+      if (cluster != null) {
+        cluster.close();
+      }
+    }
+  }
+
+  private static void insertTestData(IOTestPipelineOptions options, String tableName) {
+    Cluster cluster = null;
+    Session session = null;
+    try {
+      cluster = getCluster(options);
+      session = cluster.connect();
 
       LOG.info("Insert test dataset");
       String[] scientists = {
@@ -118,14 +133,13 @@ public class CassandraTestDataSet {
     }
   }
 
-  public static void cleanUpDataTable(IOTestPipelineOptions options, String tableName) {
-    if (tableName != null) {
+  public static void cleanUpDataTable(IOTestPipelineOptions options) {
       Cluster cluster = null;
       Session session = null;
       try {
         cluster = getCluster(options);
         session = cluster.connect();
-        session.execute("TRUNCATE TABLE " + KEYSPACE + "." + tableName);
+        session.execute("TRUNCATE TABLE " + KEYSPACE + "." + TABLE_WRITE_NAME);
       } finally {
         if (session != null) {
           session.close();
@@ -133,7 +147,6 @@ public class CassandraTestDataSet {
         if (cluster != null) {
           cluster.close();
         }
-      }
     }
   }
 

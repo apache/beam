@@ -355,7 +355,7 @@ public class CassandraIO {
      */
     public Write<T> withHosts(List<String> hosts) {
       checkArgument(hosts != null, "CassandraIO.write().withHosts(hosts) called with null hosts");
-      checkArgument(hosts.isEmpty(), "CassandraIO.write().withHosts(hosts) called with empty "
+      checkArgument(!hosts.isEmpty(), "CassandraIO.write().withHosts(hosts) called with empty "
           + "hosts list");
       return builder().setHosts(hosts).build();
     }
