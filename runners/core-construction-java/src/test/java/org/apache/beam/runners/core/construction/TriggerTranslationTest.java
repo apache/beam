@@ -41,9 +41,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/** Tests for utilities in {@link Triggers}. */
+/** Tests for utilities in {@link TriggerTranslation}. */
 @RunWith(Parameterized.class)
-public class TriggersTest {
+public class TriggerTranslationTest {
 
   @AutoValue
   abstract static class ToProtoAndBackSpec {
@@ -51,7 +51,7 @@ public class TriggersTest {
   }
 
   private static ToProtoAndBackSpec toProtoAndBackSpec(Trigger trigger) {
-    return new AutoValue_TriggersTest_ToProtoAndBackSpec(trigger);
+    return new AutoValue_TriggerTranslationTest_ToProtoAndBackSpec(trigger);
   }
 
   @Parameters(name = "{index}: {0}")
@@ -104,7 +104,8 @@ public class TriggersTest {
   @Test
   public void testToProtoAndBack() throws Exception {
     Trigger trigger = toProtoAndBackSpec.getTrigger();
-    Trigger toProtoAndBackTrigger = Triggers.fromProto(Triggers.toProto(trigger));
+    Trigger toProtoAndBackTrigger =
+        TriggerTranslation.fromProto(TriggerTranslation.toProto(trigger));
 
     assertThat(toProtoAndBackTrigger, equalTo(trigger));
   }

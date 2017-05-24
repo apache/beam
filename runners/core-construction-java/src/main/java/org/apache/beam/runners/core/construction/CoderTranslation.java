@@ -49,7 +49,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
-public class Coders {
+public class CoderTranslation {
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "urn:beam:coders:javasdk:0.1";

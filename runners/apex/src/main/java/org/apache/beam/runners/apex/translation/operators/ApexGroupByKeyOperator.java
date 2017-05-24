@@ -41,7 +41,7 @@ import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
@@ -163,7 +163,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowingStrategy,
         ExecutableTriggerStateMachine.create(
             TriggerStateMachines.stateMachineForTrigger(
-                Triggers.toProto(windowingStrategy.getTrigger()))),
+                TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
         stateInternalsFactory.stateInternalsForKey(key),
         timerInternals,
         new OutputWindowedValue<KV<K, Iterable<V>>>() {

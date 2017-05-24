@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -34,7 +35,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.PTransforms.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -73,11 +74,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos.
  */
-public class ParDos {
-  /**
-   * The URN for a {@link ParDoPayload}.
-   */
-  public static final String PAR_DO_PAYLOAD_URN = "urn:beam:pardo:v1";
+public class ParDoTranslation {
   /**
    * The URN for an unknown Java {@link DoFn}.
    */
@@ -96,7 +93,7 @@ public class ParDos {
    * A {@link TransformPayloadTranslator} for {@link ParDo}.
    */
   public static class ParDoPayloadTranslator
-      implements PTransforms.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<ParDo.MultiOutput<?, ?>> {
     public static TransformPayloadTranslator create() {
       return new ParDoPayloadTranslator();
     }
@@ -104,11 +101,16 @@ public class ParDos {
     private ParDoPayloadTranslator() {}
 
     @Override
+    public String getUrn(ParDo.MultiOutput<?, ?> transform) {
+      return PAR_DO_TRANSFORM_URN;
+    }
+
+    @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, MultiOutput<?, ?>> transform, SdkComponents components) {
       ParDoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PAR_DO_PAYLOAD_URN)
+          .setUrn(PAR_DO_TRANSFORM_URN)
           .setParameter(Any.pack(payload))
           .build();
     }
@@ -166,7 +168,7 @@ public class ParDos {
   public static RunnerApi.PCollection getMainInput(
       RunnerApi.PTransform ptransform, Components components) throws IOException {
     checkArgument(
-        ptransform.getSpec().getUrn().equals(PAR_DO_PAYLOAD_URN),
+        ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
@@ -191,7 +193,7 @@ public class ParDos {
   abstract static class DoFnAndMainOutput implements Serializable {
     public static DoFnAndMainOutput of(
         DoFn<?, ?> fn, TupleTag<?> tag) {
-      return new AutoValue_ParDos_DoFnAndMainOutput(fn, tag);
+      return new AutoValue_ParDoTranslation_DoFnAndMainOutput(fn, tag);
     }
 
     abstract DoFn<?, ?> getDoFn();
@@ -265,11 +267,12 @@ public class ParDos {
     RunnerApi.PCollection inputCollection =
         components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(id));
     WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategies.fromProto(
+        WindowingStrategyTranslation.fromProto(
             components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
             components);
     Coder<?> elemCoder =
-        Coders.fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+        CoderTranslation
+            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(

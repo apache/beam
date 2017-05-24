@@ -29,8 +29,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Utility methods for translating {@link PCollection PCollections} to and from Runner API protos.
  */
-public class PCollections {
-  private PCollections() {}
+public class PCollectionTranslation {
+  private PCollectionTranslation() {}
 
   public static RunnerApi.PCollection toProto(PCollection<?> pCollection, SdkComponents components)
       throws IOException {
@@ -53,13 +53,14 @@ public class PCollections {
 
   public static Coder<?> getCoder(
       RunnerApi.PCollection pCollection, RunnerApi.Components components) throws IOException {
-    return Coders.fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
+    return CoderTranslation
+        .fromProto(components.getCodersOrThrow(pCollection.getCoderId()), components);
   }
 
   public static WindowingStrategy<?, ?> getWindowingStrategy(
       RunnerApi.PCollection pCollection, RunnerApi.Components components)
       throws InvalidProtocolBufferException {
-    return WindowingStrategies.fromProto(
+    return WindowingStrategyTranslation.fromProto(
         components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()), components);
   }
 

@@ -15,15 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.direct;
 
-package org.apache.beam.runners.core.construction;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.UnboundedSource;
 
-import java.util.Map;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.transforms.PTransform;
-
-/** A registrar of TransformPayloadTranslator. */
-public interface TransformPayloadTranslatorRegistrar {
-  Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-      getTransformPayloadTranslators();
+/**
+ * A shard for a source in the {@link Read} transform.
+ *
+ * <p>Since {@link UnboundedSource} and {@link BoundedSource} have radically different needs, this
+ * is a mostly-empty interface.
+ */
+interface SourceShard<T> {
+  Source<T> getSource();
 }

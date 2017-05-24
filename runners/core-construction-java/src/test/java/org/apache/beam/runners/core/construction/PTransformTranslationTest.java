@@ -59,10 +59,10 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Tests for {@link PTransforms}.
+ * Tests for {@link PTransformTranslation}.
  */
 @RunWith(Parameterized.class)
-public class PTransformsTest {
+public class PTransformTranslationTest {
 
   @Parameters(name = "{index}: {0}")
   public static Iterable<ToAndFromProtoSpec> data() {
@@ -88,7 +88,7 @@ public class PTransformsTest {
   @AutoValue
   abstract static class ToAndFromProtoSpec {
     public static ToAndFromProtoSpec leaf(AppliedPTransform<?, ?, ?> transform) {
-      return new AutoValue_PTransformsTest_ToAndFromProtoSpec(
+      return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(
           transform, Collections.<ToAndFromProtoSpec>emptyList());
     }
 
@@ -97,7 +97,7 @@ public class PTransformsTest {
       List<ToAndFromProtoSpec> childSpecs = new ArrayList<>();
       childSpecs.add(spec);
       childSpecs.addAll(Arrays.asList(specs));
-      return new AutoValue_PTransformsTest_ToAndFromProtoSpec(topLevel, childSpecs);
+      return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(topLevel, childSpecs);
     }
 
     abstract AppliedPTransform<?, ?, ?> getTransform();
@@ -139,7 +139,8 @@ public class PTransformsTest {
       // Sanity call
       components.getExistingPTransformId(child.getTransform());
     }
-    PTransform convert = PTransforms.toProto(spec.getTransform(), childTransforms, components);
+    PTransform convert = PTransformTranslation
+        .toProto(spec.getTransform(), childTransforms, components);
     // Make sure the converted transform is registered. Convert it independently, but if this is a
     // child spec, the child must be in the components.
     components.registerPTransform(spec.getTransform(), childTransforms);
