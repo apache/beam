@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
@@ -44,8 +45,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  */
 public class MockedBeamSqlTable extends BaseBeamTable {
-
-  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
+  public static final AtomicInteger COUNTER = new AtomicInteger();
+  public static final ConcurrentLinkedQueue<BeamSQLRow> CONTENT = new ConcurrentLinkedQueue<>();
 
   private List<BeamSqlRow> inputRecords;
 
@@ -124,8 +125,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
   @Override
   public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply(
-        UUID.randomUUID().toString() + "_MockedBeamSQLTable_buildIOReader",
-        Create.of(inputRecords));
+        "MockedBeamSQLTable_Reader_" + COUNTER.incrementAndGet(), Create.of(inputRecords));
   }
 
   @Override
