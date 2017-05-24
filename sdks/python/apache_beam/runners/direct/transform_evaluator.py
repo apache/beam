@@ -34,6 +34,8 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.transforms.trigger import InMemoryUnmergedState
+from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
@@ -91,6 +93,7 @@ class TransformEvaluatorRegistry(object):
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        core._GroupAlsoByWindow: _GroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
         TestStream: _TestStreamEvaluator,
     }
@@ -494,6 +497,67 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         self.output_pcollection, gbk_result,
         _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
 
+    return TransformResult(
+        self._applied_ptransform, bundles, [], None, None, None, None)
+
+
+class StateInternals(object):
+  pass
+
+class DirectStateInternals(StateInternals):
+  pass
+
+class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
+  """TransformEvaluator for GroupByKeyOnly transform."""
+
+  MAX_ELEMENT_PER_BUNDLE = None
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container):
+    assert not side_inputs
+    super(_GroupAlsoByWindowEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+    self.state = InMemoryUnmergedState()
+
+  #   self.driver = create_trigger_driver(self.windowing)
+  #   self.state_type = InMemoryUnmergedState
+
+  # def process(self, element):
+  #   k, vs = element
+  #   state = self.state_type()
+  #   # TODO(robertwb): Conditionally process in smaller chunks.
+  #   for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+  #     yield wvalue.with_value((k, wvalue.value))
+  #   while state.timers:
+  #     fired = state.get_and_clear_timers()
+  #     for timer_window, (name, time_domain, fire_time) in fired:
+  #       for wvalue in self.driver.process_timer(
+  #           timer_window, name, time_domain, fire_time, state):
+  #         yield wvalue.with_value((k, wvalue.value))
+  def start_bundle(self):
+    assert len(self._outputs) == 1
+    self.output_pcollection = list(self._outputs)[0]
+
+    self.driver = create_trigger_driver(self._applied_ptransform.transform.windowing)
+
+    self.gabw_items = []
+
+  def process_element(self, element):
+    print '[!] GABW process_element', element
+    k, vs = element.value
+    # TODO(robertwb): Conditionally process in smaller chunks.
+    for wvalue in self.driver.process_elements(self.state, vs, MIN_TIMESTAMP):
+      self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+    # while state.timers:
+    #   fired = state.get_and_clear_timers()
+    #   for timer_window, (name, time_domain, fire_time) in fired:
+    #     for wvalue in self.driver.process_timer(
+    #         timer_window, name, time_domain, fire_time, state):
+    #       yield wvalue.with_value((k, wvalue.value))
+
+  def finish_bundle(self):
+    print '[!] GABW_OUTPUT', self.gabw_items
     return TransformResult(
         self._applied_ptransform, bundles, [], None, None, None, None)
 

@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import collections
 import logging
 
+from apache_beam import pvalue
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
@@ -56,8 +57,9 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
-  def apply_GroupByKeya(self, transform, pcoll):
-    raise Exception('GABW!!!')
+  def apply_GroupAlsoByWindow(self, transform, pcoll):
+    transform._check_pcollection(pcoll)
+    return pvalue.PCollection(pcoll.pipeline)
 
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

@@ -1102,14 +1102,14 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> (_GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | 'GroupByWindow' >> (GroupAlsoByWindow(pcoll.windowing)
+              | 'GroupByWindow' >> (_GroupAlsoByWindow(pcoll.windowing)
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
     # If the input_type is None, run the default
     return (pcoll
             | 'ReifyWindows' >> ParDo(self.ReifyWindows())
             | 'GroupByKey' >> _GroupByKeyOnly()
-            | 'GroupByWindow' >> GroupAlsoByWindow(pcoll.windowing))
+            | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1125,19 +1125,20 @@ class _GroupByKeyOnly(PTransform):
     return pvalue.PCollection(pcoll.pipeline)
 
 
-class GroupAlsoByWindow(ParDo):
+class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
 
   def __init__(self, windowing):
-    super(GroupAlsoByWindow, self).__init__(
-        GroupAlsoByWindowDoFn(windowing))
+    super(_GroupAlsoByWindow, self).__init__(
+        _GroupAlsoByWindowDoFn(windowing))
+    self.windowing = windowing
 
 
-class GroupAlsoByWindowDoFn(DoFn):
+class _GroupAlsoByWindowDoFn(DoFn):
   # TODO(robertwb): Support combiner lifting.
 
   def __init__(self, windowing):
-    super(GroupAlsoByWindowDoFn, self).__init__()
+    super(_GroupAlsoByWindowDoFn, self).__init__()
     self.windowing = windowing
 
   def infer_output_type(self, input_type):

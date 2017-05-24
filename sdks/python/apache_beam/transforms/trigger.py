@@ -1043,7 +1043,7 @@ class GeneralTriggerDriver(TriggerDriver):
 class InMemoryUnmergedState(UnmergedState):
   """In-memory implementation of UnmergedState.
 
-  Used for batch and testing.
+  Used for the DirectRunner and testing.
   """
   def __init__(self, defensive_copy=True):
     # TODO(robertwb): Skip defensive_copy in production if it's too expensive.
