@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -42,12 +43,9 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -230,33 +228,33 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
                 new WriteWithShardingFactory())) /* Uses a view internally. */
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(CreatePCollectionView.class),
+                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                 new ViewOverrideFactory())) /* Uses pardos and GBKs */
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(TestStream.class),
+                PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
                 new DirectTestStreamFactory(this))) /* primitive */
         // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
         // primitives
         .add(
             PTransformOverride.of(
-                PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory()))
+                PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory()))
         // state and timer pardos are implemented in terms of simple ParDos and extra primitives
         .add(
             PTransformOverride.of(
-                PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory()))
+                PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
+                PTransformMatchers.urnEqualTo(
+                    SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
                 new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(
-                    SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class),
+                PTransformMatchers.urnEqualTo(SplittableParDo.SPLITTABLE_GBKIKWI_URN),
                 new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(GroupByKey.class),
+                PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
                 new DirectGroupByKeyOverrideFactory())) /* returns two chained primitives. */
         .build();
   }
