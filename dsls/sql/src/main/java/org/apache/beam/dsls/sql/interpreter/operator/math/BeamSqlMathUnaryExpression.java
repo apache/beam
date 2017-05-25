@@ -47,25 +47,12 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
 
   @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSQLRow inputRecord) {
     BeamSqlExpression operand = op(0);
-    if (SqlTypeName.INT_TYPES.contains(operand.getOutputType())) {
-      Long result = calculate(Long.valueOf(operand.evaluate(inputRecord).getValue().toString()));
-      return BeamSqlPrimitive.of(SqlTypeName.BIGINT, result);
-    } else {
-      Double result = calculate(
-          Double.valueOf(operand.evaluate(inputRecord).getValue().toString()));
-      return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, result);
-    }
+    return calculate(operand.evaluate(inputRecord));
   }
 
   /**
-   * For the operands of type {@link SqlTypeName#INT_TYPES}.
-   *
-   * @param op*/
-  public abstract Long calculate(Long op);
-
-  /**
    * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}.
-   *
-   * @param op*/
-  public abstract Double calculate(Double op);
+   * */
+
+  public abstract BeamSqlPrimitive calculate(BeamSqlPrimitive op);
 }

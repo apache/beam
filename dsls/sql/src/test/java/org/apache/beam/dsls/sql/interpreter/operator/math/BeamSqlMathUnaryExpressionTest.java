@@ -25,6 +25,7 @@ import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -45,6 +46,21 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSQLFnExecutorTestBase {
 
     // varchar operand not allowed
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2"));
+  }
+
+  @Test public void testForUnaryExpressions() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for sqrt function
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(1.4142135623730951,
+        new BeamSqlSqrtExpression(operands).evaluate(record).getValue());
+
+    // test for abs function
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, -28965734597L));
+    Assert
+        .assertEquals(28965734597L, new BeamSqlAbsExpression(operands).evaluate(record).getValue());
   }
 
 }
