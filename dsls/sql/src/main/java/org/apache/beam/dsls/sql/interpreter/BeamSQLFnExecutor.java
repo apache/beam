@@ -44,7 +44,9 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -176,6 +178,10 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         // function operators
         case "POWER":
           return new BeamSqlPowerExpression(subExps);
+        case "ABS":
+          return new BeamSqlAbsExpression(subExps);
+        case "SQRT":
+          return new BeamSqlSqrtExpression(subExps);
 
         case "CASE":
           return new BeamSqlCaseExpression(subExps);

@@ -39,6 +39,8 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSQLFnExecutorTestBase {
     // operands more than 1 not allowed
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
+    Assert.assertFalse(new BeamSqlAbsExpression(operands).accept());
+    Assert.assertFalse(new BeamSqlSqrtExpression(operands).accept());
   }
 
   @Test public void testForOperandsType() {
@@ -46,6 +48,8 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSQLFnExecutorTestBase {
 
     // varchar operand not allowed
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2"));
+    Assert.assertFalse(new BeamSqlAbsExpression(operands).accept());
+    Assert.assertFalse(new BeamSqlSqrtExpression(operands).accept());
   }
 
   @Test public void testForUnaryExpressions() {
