@@ -27,8 +27,6 @@ Each WordCount example introduces different concepts in the Beam programming mod
 * **Debugging WordCount** introduces logging and debugging practices.
 * **Windowed WordCount** demonstrates how you can use Beam's programming model to handle both bounded and unbounded datasets.
 
-> Note: The instructions on this page, for how to run the WordCount examples, have not yet been verified for all runners. (See the Jira issues for the [direct](https://issues.apache.org/jira/browse/BEAM-2348), [Apex](https://issues.apache.org/jira/browse/BEAM-2349), [Spark](https://issues.apache.org/jira/browse/BEAM-2350), and [Dataflow](https://issues.apache.org/jira/browse/BEAM-2351) runners).
-
 ## MinimalWordCount
 
 Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn't perform any error checking; it is intended to only show you the "bare bones" of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline's input and output sources and show other best practices.
