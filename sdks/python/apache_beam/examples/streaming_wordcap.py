@@ -44,8 +44,7 @@ def run(argv=None):
   with beam.Pipeline(argv=pipeline_args) as p:
 
     # Read the text file[pattern] into a PCollection.
-    lines = p | beam.io.Read(
-        beam.io.PubSubSource(known_args.input_topic))
+    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
     transformed = (lines
