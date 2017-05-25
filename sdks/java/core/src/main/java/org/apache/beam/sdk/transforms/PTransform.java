@@ -176,8 +176,12 @@ import org.apache.beam.sdk.values.TupleTag;
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */, HasDisplayData {
   /**
-   * Applies this {@code PTransform} on the given {@code InputT}, and returns its
-   * {@code Output}.
+   * Override this method to specify how this {@code PTransform} should be expanded
+   * on the given {@code InputT}.
+   *
+   * <p>NOTE: This method should not be called directly. Instead apply the
+   * {@code PTransform} should be applied to the {@code InputT} using the {@code apply}
+   * method.
    *
    * <p>Composite transforms, which are defined in terms of other transforms,
    * should return the output of one of the composed transforms.  Non-composite
