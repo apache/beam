@@ -186,10 +186,10 @@ class EvaluationContext(object):
 
     # AppliedPTransform -> Evaluator specific state objects
     self._legacy_existing_state = {}
-    # (AppliedPTransform, key) -> DirectUnmergedState objects
-    self._application_state_internals = {}
+    # AppliedPTransform -> {key -> DirectUnmergedState objects}; todo: rename
+    self._transform_keyed_states = self._initialize_transform_states(root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
-        Clock(), root_transforms, value_to_consumers)
+        Clock(), root_transforms, value_to_consumers, self._transform_keyed_states)
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
@@ -197,6 +197,15 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+  
+  def _initialize_transform_states(self, root_transforms, value_to_consumers):
+    transform_keyed_states = {}
+    for transform in root_transforms:
+      transform_keyed_states[transform] = {}
+    for consumers in value_to_consumers.values():
+      for consumer in consumers:
+        transform_keyed_states[consumer] = {}
+    return transform_keyed_states
 
   def use_pvalue_cache(self, cache):
     assert not self._cache
@@ -273,7 +282,7 @@ class EvaluationContext(object):
           merged_counter.accumulator.merge([counter.accumulator])
 
       self._legacy_existing_state[result.transform] = result.legacy_state
-      self._application_state_internals[(result.transform, completed_bundle.key)] = result.state
+      self._transform_keyed_states[result.transform][completed_bundle.key] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -301,7 +310,7 @@ class EvaluationContext(object):
     return _ExecutionContext(
         applied_ptransform,
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_internals.get((applied_ptransform, key)),
+        self._transform_keyed_states[applied_ptransform].get(key),
         self._legacy_existing_state.get(applied_ptransform),
         key)
 

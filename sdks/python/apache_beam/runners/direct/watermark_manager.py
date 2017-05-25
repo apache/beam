@@ -35,10 +35,11 @@ class WatermarkManager(object):
   WATERMARK_POS_INF = MAX_TIMESTAMP
   WATERMARK_NEG_INF = MIN_TIMESTAMP
 
-  def __init__(self, clock, root_transforms, value_to_consumers):
+  def __init__(self, clock, root_transforms, value_to_consumers, transform_keyed_states):
     self._clock = clock  # processing time clock
     self._value_to_consumers = value_to_consumers
     self._root_transforms = root_transforms
+    self._transform_keyed_states = transform_keyed_states
     # AppliedPTransform -> TransformWatermarks
     self._transform_to_watermarks = {}
 
