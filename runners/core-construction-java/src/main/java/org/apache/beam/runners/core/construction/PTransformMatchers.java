@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.common.base.MoreObjects;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -48,6 +49,34 @@ import org.apache.beam.sdk.values.PValue;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public class PTransformMatchers {
   private PTransformMatchers() {}
+
+  /**
+   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the URN of the
+   * {@link PTransform} is equal to the URN provided ot this matcher.
+   */
+  public static PTransformMatcher urnEqualTo(String urn) {
+    return new EqualUrnPTransformMatcher(urn);
+  }
+
+  private static class EqualUrnPTransformMatcher implements PTransformMatcher {
+    private final String urn;
+
+    private EqualUrnPTransformMatcher(String urn) {
+      this.urn = urn;
+    }
+
+    @Override
+    public boolean matches(AppliedPTransform<?, ?, ?> application) {
+      return urn.equals(PTransformTranslation.urnForTransformOrNull(application.getTransform()));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("urn", urn)
+          .toString();
+    }
+  }
 
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
@@ -146,6 +175,68 @@ public class PTransformMatchers {
       @Override
       public String toString() {
         return MoreObjects.toStringHelper("SplittableParDoMultiMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo} by URN if it has a splittable {@link
+   * DoFn}.
+   */
+  public static PTransformMatcher splittableParDo() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(
+            PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
+
+          try {
+            return ParDoTranslation.isSplittable(application);
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Transform with URN %s could not be translated",
+                    PTransformTranslation.PAR_DO_TRANSFORM_URN),
+                e);
+          }
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableParDoMultiMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo} transform by URN
+   * and whether it contains state or timers as specified by {@link ParDoTranslation}.
+   */
+  public static PTransformMatcher stateOrTimerParDo() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(
+            PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
+
+          try {
+            return ParDoTranslation.usesStateOrTimers(application);
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format(
+                    "Transform with URN %s could not be translated",
+                    PTransformTranslation.PAR_DO_TRANSFORM_URN),
+                e);
+          }
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoMatcher").toString();
       }
     };
   }
@@ -268,7 +359,8 @@ public class PTransformMatchers {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (application.getTransform() instanceof WriteFiles) {
+        if (PTransformTranslation.WRITE_FILES_TRANSFORM_URN.equals(
+            PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
           WriteFiles write = (WriteFiles) application.getTransform();
           return write.getSharding() == null && write.getNumShards() == null;
         }
