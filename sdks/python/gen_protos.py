@@ -110,9 +110,9 @@ def _install_grpcio_tools_and_generate_proto_files():
   build_path = install_path + '-build'
   if os.path.exists(build_path):
     shutil.rmtree(build_path)
-  logging.warning('Downloading a grpcio-tools to %s' % install_path)
+  logging.warning('Installing grpcio-tools into %s' % install_path)
   subprocess.check_call(
-      ['pip', 'install', '-t', install_path, '-b', build_path,
+      ['pip', 'install', '--target', install_path, '--build', build_path,
        '--upgrade', GRPC_TOOLS])
   sys.path.append(install_path)
   generate_proto_files()
