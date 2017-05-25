@@ -36,8 +36,6 @@ from setuptools.command.test import test
 
 from pkg_resources import get_distribution, DistributionNotFound
 
-import gen_protos
-
 
 def get_version():
   global_names = {}
@@ -127,6 +125,9 @@ GCP_REQUIREMENTS = [
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
+  # See https://issues.apache.org/jira/browse/BEAM-2366
+  # pylint: disable=wrong-import-position
+  import gen_protos
   class cmd(original_cmd, object):
     def run(self):
       gen_protos.generate_proto_files()
