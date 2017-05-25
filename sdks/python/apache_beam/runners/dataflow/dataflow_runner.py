@@ -25,6 +25,7 @@ import logging
 import threading
 import time
 import traceback
+import urllib
 
 from apache_beam import error
 from apache_beam import coders
@@ -416,7 +417,9 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     windowing = transform_node.transform.get_windowing(
         transform_node.inputs)
-    step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(windowing))
+    step.add_property(
+        PropertyNames.SERIALIZED_FN,
+        self.serialize_windowing_strategy(windowing))
 
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
@@ -696,6 +699,40 @@ class DataflowRunner(PipelineRunner):
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+
+  @classmethod
+  def serialize_windowing_strategy(cls, windowing):
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    context = pipeline_context.PipelineContext()
+    windowing_proto = windowing.to_runner_api(context)
+    return cls.byte_array_to_json_string(
+        beam_runner_api_pb2.MessageWithComponents(
+            components=context.to_runner_api(),
+            windowing_strategy=windowing_proto).SerializeToString())
+
+  @classmethod
+  def deserialize_windowing_strategy(cls, serialized_data):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.transforms.core import Windowing
+    proto = beam_runner_api_pb2.MessageWithComponents()
+    proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
+    return Windowing.from_runner_api(
+        proto.windowing_strategy,
+        pipeline_context.PipelineContext(proto.components))
+
+  @staticmethod
+  def byte_array_to_json_string(raw_bytes):
+    """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
+    return urllib.quote(raw_bytes)
+
+  @staticmethod
+  def json_string_to_byte_array(encoded_string):
+    """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
+    return urllib.unquote(encoded_string)
 
 
 class DataflowPipelineResult(PipelineResult):
