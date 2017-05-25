@@ -27,11 +27,95 @@ Each WordCount example introduces different concepts in the Beam programming mod
 * **Debugging WordCount** introduces logging and debugging practices.
 * **Windowed WordCount** demonstrates how you can use Beam's programming model to handle both bounded and unbounded datasets.
 
+> Note: The instructions on this page, for how to run the WordCount examples, have not yet been verified for all runners. (See the Jira issues for the [direct](https://issues.apache.org/jira/browse/BEAM-2348), [Apex](https://issues.apache.org/jira/browse/BEAM-2349), [Spark](https://issues.apache.org/jira/browse/BEAM-2350), and [Dataflow](https://issues.apache.org/jira/browse/BEAM-2351) runners).
+
 ## MinimalWordCount
 
 Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn't perform any error checking; it is intended to only show you the "bare bones" of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline's input and output sources and show other best practices.
 
-To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
+**To run this example in Java:**
+
+{:.runner-direct}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
+```
+
+{:.runner-apex}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+```
+
+{:.runner-flink-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+```
+
+{:.runner-flink-cluster}
+```
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+```
+
+{:.runner-spark}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+```
+
+{:.runner-dataflow}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+     -Pdataflow-runner
+```
+
+To view the full code in Java, see **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
+
+**To run this example in Python:**
+
+{:.runner-direct}
+```
+python -m apache_beam.examples.wordcount_minimal --input README.md --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                                 --output gs://<your-gcs-bucket>/counts \
+                                                 --runner DataflowRunner \
+                                                 --project your-gcp-project \
+                                                 --temp_location gs://<your-gcs-bucket>/tmp/
+```
+
+To view the full code in Python, see **[wordcount_minimal.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py).**
 
 **Key Concepts:**
 
@@ -186,7 +270,90 @@ This WordCount example introduces a few recommended programming practices that c
 
 This section assumes that you have a good understanding of the basic concepts in building a pipeline. If you feel that you aren't at that point yet, read the above section, [Minimal WordCount](#minimalwordcount).
 
-To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
+**To run this example in Java:**
+
+{:.runner-direct}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+```
+
+{:.runner-apex}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+```
+
+{:.runner-flink-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+```
+
+{:.runner-flink-cluster}
+```
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+```
+
+{:.runner-spark}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+```
+
+{:.runner-dataflow}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+     -Pdataflow-runner
+```
+
+To view the full code in Java, see **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
+
+**To run this example in Python:**
+
+{:.runner-direct}
+```
+python -m apache_beam.examples.wordcount --input README.md --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://<your-gcs-bucket>/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://<your-gcs-bucket>/tmp/
+```
+
+To view the full code in Python, see **[wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).**
 
 **New Concepts:**
 
@@ -289,7 +456,90 @@ public static void main(String[] args) {
 
 The Debugging WordCount example demonstrates some best practices for instrumenting your pipeline code.
 
-To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).**
+**To run this example in Java:**
+
+{:.runner-direct}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+```
+
+{:.runner-apex}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+```
+
+{:.runner-flink-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+```
+
+{:.runner-flink-cluster}
+```
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+```
+
+{:.runner-spark}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+```
+
+{:.runner-dataflow}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+     -Pdataflow-runner
+```
+
+To view the full code in Java, see [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
+
+**To run this example in Python:**
+
+{:.runner-direct}
+```
+python -m apache_beam.examples.wordcount_debugging --input README.md --output counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://<your-gcs-bucket>/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://<your-gcs-bucket>/tmp/
+```
+
+To view the full code in Python, see **[wordcount_debugging.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py).**
 
 **New Concepts:**
 
@@ -386,11 +636,58 @@ This example, `WindowedWordCount`, counts words in text just as the previous exa
 
 The following sections explain these key concepts in detail, and break down the pipeline code into smaller sections.
 
+**To run this example in Java:**
+
+{:.runner-direct}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+```
+
+{:.runner-apex}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+```
+
+{:.runner-flink-local}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+```
+
+{:.runner-flink-cluster}
+```
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+```
+
+{:.runner-spark}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+```
+
+{:.runner-dataflow}
+```
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+     -Pdataflow-runner
+```
+
+To view the full code in Java, see **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
+
+> **Note:** WindowedWordCount is not yet available for the Python SDK.
+
 ### Unbounded and bounded pipeline input modes
 
 Beam allows you to create a single pipeline that can handle both bounded and unbounded types of input. If the input is unbounded, then all PCollections of the pipeline will be unbounded as well. The same goes for bounded input. If your input has a fixed number of elements, it's considered a 'bounded' data set. If your input is continuously updating, then it's considered 'unbounded'.
 
-Recall that the input for this example is a a set of Shakespeare's texts, finite data. Therefore, this example reads bounded data from a text file:
+Recall that the input for this example is a set of Shakespeare's texts, finite data. Therefore, this example reads bounded data from a text file:
 
 ```java
 public static void main(String[] args) throws IOException {
