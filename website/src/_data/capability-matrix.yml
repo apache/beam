@@ -202,24 +202,24 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-      - name: Aggregators
+      - name: Metrics
         values:
           - class: model
             l1: 'Partially'
             l2: user-provided metrics
-            l3: Allow transforms to aggregate simple metrics across bundles in a <tt>DoFn</tt>. Semantically equivalent to using an additional output, but support partial results as the transform executes. Will likely want to augment <tt>Aggregators</tt> to be more useful for processing unbounded data by making them windowed.
+            l3: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           - class: dataflow
             l1: 'Partially'
-            l2: may miscount in streaming mode
-            l3: Current model is fully supported in batch mode. In streaming mode, <tt>Aggregators</tt> may under or overcount when bundles are retried.
+            l2: Batch supports committed Counters and Distributions. No streamming support.
+            l3: Gauge metrics are not supported.
           - class: flink
             l1: 'Partially'
-            l2: may undercount in streaming
-            l3: Current model is fully supported in batch. In streaming mode, <tt>Aggregators</tt> may undercount.
+            l2: All metrics types are supported.
+            l3: Only attempted values are supported. No committed values for metrics.
           - class: spark
             l1: 'Partially'
-            l2: may overcount when tasks are retried in transformations.
-            l3: 'supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.'
+            l2: All metric types are supported.
+            l3: Only attempted values are supported. No committed values for metrics.
           - class: apex
             l1: 'No'
             l2: Not implemented in runner.
