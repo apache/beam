@@ -365,7 +365,7 @@ def maybe_dill_dumps(o):
   # We need to use the dill pickler for objects of certain custom classes,
   # including, for example, ones that contain lambdas.
   try:
-    return pickle.dumps(o)
+    return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
     return dill.dumps(o)
 
@@ -426,7 +426,10 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
 
   def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
+    dumps = pickle.dumps
+    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    return coder_impl.CallbackCoderImpl(
+        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
 
 
 class DillCoder(_PickleCoderBase):
@@ -515,7 +518,7 @@ class Base64PickleCoder(Coder):
   # than via a special Coder.
 
   def encode(self, value):
-    return base64.b64encode(pickle.dumps(value))
+    return base64.b64encode(pickle.dumps(value, pickle.HIGHEST_PROTOCOL))
 
   def decode(self, encoded):
     return pickle.loads(base64.b64decode(encoded))
