@@ -22,15 +22,68 @@ pipelines, during remote execution.
 
 from __future__ import absolute_import
 
-from apache_beam import coders
+from apache_beam.io.iobase import Read
+from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import PTransform
+from apache_beam.transforms import ParDo
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['PubSubSink', 'PubSubSource']
+
+__all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 
 
-class PubSubSource(dataflow_io.NativeSource):
-  """Source for reading from a given Cloud Pub/Sub topic.
+class ReadStringsFromPubSub(PTransform):
+  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub."""
+
+  def __init__(self, topic, subscription=None, id_label=None):
+    """Initializes ``ReadStringsFromPubSub``.
+
+    Attributes:
+      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
+      subscription: Optional existing Cloud Pub/Sub subscription to use in the
+        form "projects/<project>/subscriptions/<subscription>".
+      id_label: The attribute on incoming Pub/Sub messages to use as a unique
+        record identifier.  When specified, the value of this attribute (which
+        can be any string that uniquely identifies the record) will be used for
+        deduplication of messages.  If not provided, we cannot guarantee
+        that no duplicate data will be delivered on the Pub/Sub stream. In this
+        case, deduplication of the stream will be strictly best effort.
+    """
+    super(ReadStringsFromPubSub, self).__init__()
+    self._source = _PubSubPayloadSource(
+        topic,
+        subscription=subscription,
+        id_label=id_label)
+
+  def expand(self, pvalue):
+    pcoll = pvalue.pipeline | Read(self._source)
+    pcoll.element_type = bytes
+    pcoll = pcoll | 'decode string' >> ParDo(_decodeUtf8String)
+    pcoll.element_type = unicode
+    return pcoll
+
+
+class WriteStringsToPubSub(PTransform):
+  """A ``PTransform`` for writing utf-8 string payloads to Cloud Pub/Sub."""
+
+  def __init__(self, topic):
+    """Initializes ``WriteStringsToPubSub``.
+
+    Attributes:
+      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
+    """
+    super(WriteStringsToPubSub, self).__init__()
+    self._sink = _PubSubPayloadSink(topic)
+
+  def expand(self, pcoll):
+    pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
+    pcoll.element_type = bytes
+    return pcoll | Write(self._sink)
+
+
+class _PubSubPayloadSource(dataflow_io.NativeSource):
+  """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
   Attributes:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
@@ -42,15 +95,12 @@ class PubSubSource(dataflow_io.NativeSource):
       deduplication of messages.  If not provided, Dataflow cannot guarantee
       that no duplicate data will be delivered on the Pub/Sub stream. In this
       case, deduplication of the stream will be strictly best effort.
-    coder: The Coder to use for decoding incoming Pub/Sub messages.
   """
 
-  def __init__(self, topic, subscription=None, id_label=None,
-               coder=coders.StrUtf8Coder()):
+  def __init__(self, topic, subscription=None, id_label=None):
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
-    self.coder = coder
 
   @property
   def format(self):
@@ -70,15 +120,14 @@ class PubSubSource(dataflow_io.NativeSource):
 
   def reader(self):
     raise NotImplementedError(
-        'PubSubSource is not supported in local execution.')
+        'PubSubPayloadSource is not supported in local execution.')
 
 
-class PubSubSink(dataflow_io.NativeSink):
-  """Sink for writing to a given Cloud Pub/Sub topic."""
+class _PubSubPayloadSink(dataflow_io.NativeSink):
+  """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
 
-  def __init__(self, topic, coder=coders.StrUtf8Coder()):
+  def __init__(self, topic):
     self.topic = topic
-    self.coder = coder
 
   @property
   def format(self):
@@ -90,4 +139,14 @@ class PubSubSink(dataflow_io.NativeSink):
 
   def writer(self):
     raise NotImplementedError(
-        'PubSubSink is not supported in local execution.')
+        'PubSubPayloadSink is not supported in local execution.')
+
+
+def _decodeUtf8String(encoded_value):
+  """Decodes a string in utf-8 format from bytes"""
+  return encoded_value.decode('utf-8')
+
+
+def _encodeUtf8String(value):
+  """Encodes a string in utf-8 format to bytes"""
+  return value.encode('utf-8')
