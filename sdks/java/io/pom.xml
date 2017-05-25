@@ -57,6 +57,7 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>solr</module>
+    <module>tika</module>
     <module>xml</module>
   </modules>
 
