@@ -278,6 +278,11 @@ public class StateSpecs {
       return visitor.bindValue(id, this, coder);
     }
 
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchValue(coder);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
@@ -340,6 +345,11 @@ public class StateSpecs {
     public CombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder visitor) {
       return visitor.bindCombining(id, this, accumCoder, combineFn);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchCombining(combineFn, accumCoder);
     }
 
     @SuppressWarnings("unchecked")
@@ -413,6 +423,14 @@ public class StateSpecs {
       return visitor.bindCombiningWithContext(id, this, accumCoder, combineFn);
     }
 
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is for internal use only and does not support case dispatch",
+              getClass().getSimpleName()));
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
@@ -480,6 +498,11 @@ public class StateSpecs {
       return visitor.bindBag(id, this, elemCoder);
     }
 
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchBag(elemCoder);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
@@ -534,6 +557,11 @@ public class StateSpecs {
     @Override
     public MapState<K, V> bind(String id, StateBinder visitor) {
       return visitor.bindMap(id, this, keyCoder, valueCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchMap(keyCoder, valueCoder);
     }
 
     @SuppressWarnings("unchecked")
@@ -600,6 +628,11 @@ public class StateSpecs {
       return visitor.bindSet(id, this, elemCoder);
     }
 
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchSet(elemCoder);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
@@ -661,6 +694,14 @@ public class StateSpecs {
     @Override
     public WatermarkHoldState bind(String id, StateBinder visitor) {
       return visitor.bindWatermark(id, this, timestampCombiner);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is for internal use only and does not support case dispatch",
+              getClass().getSimpleName()));
     }
 
     @Override
