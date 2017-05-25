@@ -24,6 +24,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
@@ -130,8 +131,15 @@ public class CassandraIOIT implements Serializable {
 
   @Test
   public void testWrite() throws Exception {
+    IOTestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
+
     options.setOnSuccessMatcher(
-        new CassandraMatcher(CassandraTestDataSet.getCluster(options), writeTableName));
+        new CassandraMatcher(
+            CassandraTestDataSet.getCluster(options),
+            CassandraTestDataSet.TABLE_WRITE_NAME));
+
+    TestPipeline.convertToArgs(options);
 
     ArrayList<ScientistForWrite> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
@@ -194,32 +202,34 @@ public class CassandraIOIT implements Serializable {
    * Simple Cassandra entity representing a scientist. Used for read test.
    */
   @Table(name = CassandraTestDataSet.TABLE_READ_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
-  public class Scientist implements Serializable {
+  public static class Scientist implements Serializable {
 
+    @PartitionKey
     @Column(name = "id")
-    int id;
+    private final int id;
 
     @Column(name = "name")
-    String name;
+    private final String name;
 
     public Scientist() {
-      // nothing to do
+      this(0, "");
+    }
+
+    public Scientist(int id) {
+      this(0, "");
+    }
+
+    public Scientist(int id, String name) {
+      this.id = id;
+      this.name = name;
     }
 
     public int getId() {
       return id;
     }
 
-    public void setId(int id) {
-      this.id = id;
-    }
-
     public String getName() {
       return name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
     }
   }
 
@@ -229,6 +239,7 @@ public class CassandraIOIT implements Serializable {
   @Table(name = CassandraTestDataSet.TABLE_WRITE_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
   public class ScientistForWrite implements Serializable {
 
+    @PartitionKey
     @Column(name = "id")
     public Integer id;
 
