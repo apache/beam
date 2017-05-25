@@ -365,7 +365,7 @@ def maybe_dill_dumps(o):
   # We need to use the dill pickler for objects of certain custom classes,
   # including, for example, ones that contain lambdas.
   try:
-    return pickle.dumps(o)
+    return pickle.dumps(o, -1)
   except Exception:  # pylint: disable=broad-except
     return dill.dumps(o)
 
@@ -426,7 +426,8 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
 
   def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
+    dumps = pickle.dumps
+    return coder_impl.CallbackCoderImpl(lambda x: dumps(x, -1), pickle.loads)
 
 
 class DillCoder(_PickleCoderBase):
