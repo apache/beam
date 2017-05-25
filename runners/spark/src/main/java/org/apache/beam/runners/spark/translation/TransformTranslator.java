@@ -369,6 +369,7 @@ public final class TransformTranslator {
                     doFn,
                     context.getRuntimeContext(),
                     transform.getMainOutputTag(),
+                    transform.getAdditionalOutputTags().getAll(),
                     TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                     windowingStrategy));
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
