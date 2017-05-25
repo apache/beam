@@ -86,7 +86,7 @@ public class CombineTranslation {
         .getAccumulatorCoder();
   }
 
-  private static SdkFunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn) {
+  public static SdkFunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn) {
     return SdkFunctionSpec.newBuilder()
         // TODO: Set Java SDK Environment URN
         .setSpec(

@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -62,98 +63,159 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Parameterized.class)
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+  ParDoTranslationTest.TestParDoPayloadTranslation.class,
+  ParDoTranslationTest.TestStateAndTimerTranslation.class
+})
 public class ParDoTranslationTest {
-  public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  private static PCollectionView<Long> singletonSideInput =
-      p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L))
-          .apply(View.<Long>asSingleton());
-  private static PCollectionView<Map<Long, Iterable<String>>> multimapSideInput =
-      p.apply("CreateMultimap", Create.of(KV.of(1L, "foo"), KV.of(1L, "bar"), KV.of(2L, "spam")))
-          .setCoder(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
-          .apply(View.<Long, String>asMultimap());
+  /**
+   * Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos.
+   */
+  @RunWith(Parameterized.class)
+  public static class TestParDoPayloadTranslation {
+    public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  private static PCollection<KV<Long, String>> mainInput =
-      p.apply("CreateMainInput", Create.empty(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of())));
+    private static PCollectionView<Long> singletonSideInput =
+        p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L))
+            .apply(View.<Long>asSingleton());
+    private static PCollectionView<Map<Long, Iterable<String>>> multimapSideInput =
+        p.apply("CreateMultimap", Create.of(KV.of(1L, "foo"), KV.of(1L, "bar"), KV.of(2L, "spam")))
+            .setCoder(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
+            .apply(View.<Long, String>asMultimap());
 
-  @Parameters(name = "{index}: {0}")
-  public static Iterable<ParDo.MultiOutput<?, ?>> data() {
-    return ImmutableList.<ParDo.MultiOutput<?, ?>>of(
-        ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
-        ParDo.of(new DropElementsFn())
-            .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
-            .withSideInputs(singletonSideInput, multimapSideInput),
-        ParDo.of(new DropElementsFn())
-            .withOutputTags(
-                new TupleTag<Void>(),
-                TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {}))
-            .withSideInputs(singletonSideInput, multimapSideInput),
-        ParDo.of(new DropElementsFn())
-            .withOutputTags(
-                new TupleTag<Void>(),
-                TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})));
-  }
+    private static PCollection<KV<Long, String>> mainInput =
+        p.apply(
+            "CreateMainInput", Create.empty(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of())));
 
-  @Parameter(0)
-  public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<ParDo.MultiOutput<?, ?>> data() {
+      return ImmutableList.<ParDo.MultiOutput<?, ?>>of(
+          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
+          ParDo.of(new DropElementsFn())
+              .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
+              .withSideInputs(singletonSideInput, multimapSideInput),
+          ParDo.of(new DropElementsFn())
+              .withOutputTags(
+                  new TupleTag<Void>(),
+                  TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {}))
+              .withSideInputs(singletonSideInput, multimapSideInput),
+          ParDo.of(new DropElementsFn())
+              .withOutputTags(
+                  new TupleTag<Void>(),
+                  TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})));
+    }
 
-  @Test
-  public void testToAndFromProto() throws Exception {
-    SdkComponents components = SdkComponents.create();
-    ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
+    @Parameter(0)
+    public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
 
-    assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
-    assertThat(
-        ParDoTranslation.getMainOutputTag(payload),
-        Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
-    for (PCollectionView<?> view : parDo.getSideInputs()) {
-      payload.getSideInputsOrThrow(view.getTagInternal().getId());
+    @Test
+    public void testToAndFromProto() throws Exception {
+      SdkComponents components = SdkComponents.create();
+      ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
+
+      assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
+      assertThat(
+          ParDoTranslation.getMainOutputTag(payload),
+          Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
+      for (PCollectionView<?> view : parDo.getSideInputs()) {
+        payload.getSideInputsOrThrow(view.getTagInternal().getId());
+      }
+    }
+
+    @Test
+    public void toAndFromTransformProto() throws Exception {
+      Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+      inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
+      inputs.putAll(parDo.getAdditionalInputs());
+      PCollectionTuple output = mainInput.apply(parDo);
+
+      SdkComponents components = SdkComponents.create();
+      String transformId =
+          components.registerPTransform(
+              AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
+                  "foo", inputs, output.expand(), parDo, p),
+              Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+
+      Components protoComponents = components.toComponents();
+      RunnerApi.PTransform protoTransform = protoComponents.getTransformsOrThrow(transformId);
+      ParDoPayload parDoPayload =
+          protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
+      for (PCollectionView<?> view : parDo.getSideInputs()) {
+        SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
+        PCollectionView<?> restoredView =
+            ParDoTranslation.fromProto(
+                sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
+        assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
+        assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
+        assertThat(
+            restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
+        assertThat(
+            restoredView.getWindowingStrategyInternal(),
+            Matchers.<WindowingStrategy<?, ?>>equalTo(
+                view.getWindowingStrategyInternal().fixDefaults()));
+        assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
+      }
+      String mainInputId = components.registerPCollection(mainInput);
+      assertThat(
+          ParDoTranslation.getMainInput(protoTransform, protoComponents),
+          equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
     }
   }
 
-  @Test
-  public void toAndFromTransformProto() throws Exception {
-    Map<TupleTag<?>, PValue> inputs = new HashMap<>();
-    inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
-    inputs.putAll(parDo.getAdditionalInputs());
-    PCollectionTuple output = mainInput.apply(parDo);
+  /**
+   * Tests for translating state and timer bits to/from protos.
+   */
+  @RunWith(JUnit4.class)
+  public static class TestStateAndTimerTranslation {
 
-    SdkComponents components = SdkComponents.create();
-    String transformId =
-        components.registerPTransform(
-            AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                "foo", inputs, output.expand(), parDo, p),
-            Collections.<AppliedPTransform<?, ?, ?>>emptyList());
-
-    Components protoComponents = components.toComponents();
-    RunnerApi.PTransform protoTransform =
-        protoComponents.getTransformsOrThrow(transformId);
-    ParDoPayload parDoPayload = protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
-    for (PCollectionView<?> view : parDo.getSideInputs()) {
-      SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
-      PCollectionView<?> restoredView =
+    @Test
+    public void testValueStateSpecToFromProto() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      StateSpec<?> stateSpec = StateSpecs.value(VarIntCoder.of());
+      StateSpec<?> deserializedStateSpec =
           ParDoTranslation.fromProto(
-              sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
-      assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
-      assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
-      assertThat(
-          restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
-      assertThat(
-          restoredView.getWindowingStrategyInternal(),
-          Matchers.<WindowingStrategy<?, ?>>equalTo(
-              view.getWindowingStrategyInternal().fixDefaults()));
-      assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
+              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
+      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
     }
-    String mainInputId = components.registerPCollection(mainInput);
-    assertThat(
-        ParDoTranslation.getMainInput(protoTransform, protoComponents),
-        equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
+
+    @Test
+    public void testBagStateSpecToFromProto() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      StateSpec<?> stateSpec = StateSpecs.bag(VarIntCoder.of());
+      StateSpec<?> deserializedStateSpec =
+          ParDoTranslation.fromProto(
+              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
+      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+    }
+
+    @Test
+    public void testSetStateSpecToFromProto() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      StateSpec<?> stateSpec = StateSpecs.set(VarIntCoder.of());
+      StateSpec<?> deserializedStateSpec =
+          ParDoTranslation.fromProto(
+              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
+      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+    }
+
+    @Test
+    public void testMapStateSpecToFromProto() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      StateSpec<?> stateSpec = StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
+      StateSpec<?> deserializedStateSpec =
+          ParDoTranslation.fromProto(
+              ParDoTranslation.toProto(stateSpec, sdkComponents), sdkComponents.toComponents());
+      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+    }
   }
 
   private static class DropElementsFn extends DoFn<KV<Long, String>, Void> {
