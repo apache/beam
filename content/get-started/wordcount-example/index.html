@@ -196,7 +196,77 @@
 
 <p>Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn’t perform any error checking; it is intended to only show you the “bare bones” of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline’s input and output sources and show other best practices.</p>
 
-<p>To run this example, follow the instructions in the Quickstart for <a href="/get-started/quickstart-java">Java</a> or <a href="/get-started/quickstart-py">Python</a>. To view the full code, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">MinimalWordCount</a>.</strong></p>
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">MinimalWordCount</a>.</strong></p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount_minimal --input README.md --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                                 --output gs://&lt;your-gcs-bucket&gt;/counts \
+                                                 --runner DataflowRunner \
+                                                 --project your-gcp-project \
+                                                 --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py">wordcount_minimal.py</a>.</strong></p>
 
 <p><strong>Key Concepts:</strong></p>
 
@@ -368,7 +438,78 @@ Figure 1: The pipeline data flow.</p>
 
 <p>This section assumes that you have a good understanding of the basic concepts in building a pipeline. If you feel that you aren’t at that point yet, read the above section, <a href="#minimalwordcount">Minimal WordCount</a>.</p>
 
-<p>To run this example, follow the instructions in the Quickstart for <a href="/get-started/quickstart-java">Java</a> or <a href="/get-started/quickstart-py">Python</a>. To view the full code, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input README.md --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://&lt;your-gcs-bucket&gt;/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py</a>.</strong></p>
 
 <p><strong>New Concepts:</strong></p>
 
@@ -499,7 +640,78 @@ Figure 1: The pipeline data flow.</p>
 
 <p>The Debugging WordCount example demonstrates some best practices for instrumenting your pipeline code.</p>
 
-<p>To run this example, follow the instructions in the Quickstart for <a href="/get-started/quickstart-java">Java</a> or <a href="/get-started/quickstart-py">Python</a>. To view the full code, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</strong></p>
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</p>
+
+<p><strong>To run this example in Python:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount_debugging --input README.md --output counts
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://&lt;your-gcs-bucket&gt;/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
+</code></pre>
+</div>
+
+<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">wordcount_debugging.py</a>.</strong></p>
 
 <p><strong>New Concepts:</strong></p>
 
@@ -638,11 +850,54 @@ Figure 1: The pipeline data flow.</p>
 
 <p>The following sections explain these key concepts in detail, and break down the pipeline code into smaller sections.</p>
 
+<p><strong>To run this example in Java:</strong></p>
+
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+</code></pre>
+</div>
+
+<div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+</code></pre>
+</div>
+
+<div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+
+You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
+</code></pre>
+</div>
+
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
+</code></pre>
+</div>
+
+<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">WindowedWordCount</a>.</strong></p>
+
+<blockquote>
+  <p><strong>Note:</strong> WindowedWordCount is not yet available for the Python SDK.</p>
+</blockquote>
+
 <h3 id="unbounded-and-bounded-pipeline-input-modes">Unbounded and bounded pipeline input modes</h3>
 
 <p>Beam allows you to create a single pipeline that can handle both bounded and unbounded types of input. If the input is unbounded, then all PCollections of the pipeline will be unbounded as well. The same goes for bounded input. If your input has a fixed number of elements, it’s considered a ‘bounded’ data set. If your input is continuously updating, then it’s considered ‘unbounded’.</p>
 
-<p>Recall that the input for this example is a a set of Shakespeare’s texts, finite data. Therefore, this example reads bounded data from a text file:</p>
+<p>Recall that the input for this example is a set of Shakespeare’s texts, finite data. Therefore, this example reads bounded data from a text file:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
     <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="o">...</span>
