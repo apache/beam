@@ -30,7 +30,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.OutputTime;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApiPayloads;
+import org.apache.beam.sdk.common.runner.v1.StandardWindowFns;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -165,6 +165,9 @@ public class WindowingStrategyTranslation implements Serializable {
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";
+  public static final String OLD_SERIALIZED_JAVA_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
+  // Remove this once the dataflow worker understands all the above formats.
+  private static final boolean USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN = true;
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
@@ -173,19 +176,80 @@ public class WindowingStrategyTranslation implements Serializable {
    */
   public static SdkFunctionSpec toProto(
       WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
-    return SdkFunctionSpec.newBuilder()
-        // TODO: Set environment ID
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(windowFn)))
-                            .build())))
-        .build();
+    // TODO: Set environment IDs
+    if (USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(OLD_SERIALIZED_JAVA_WINDOWFN_URN)
+                  .setParameter(
+                      Any.pack(
+                          BytesValue.newBuilder()
+                              .setValue(
+                                  ByteString.copyFrom(
+                                      SerializableUtils.serializeToByteArray(windowFn)))
+                              .build())))
+          .build();
+    } else if (windowFn instanceof GlobalWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
+          .build();
+    } else if (windowFn instanceof FixedWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(FIXED_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          StandardWindowFns.FixedWindowsPayload.newBuilder()
+                              .setSize(Durations.fromMillis(
+                                  ((FixedWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(
+                                  ((FixedWindows) windowFn).getOffset().getMillis()))
+                              .build())))
+          .build();
+    } else if (windowFn instanceof SlidingWindows) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SLIDING_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          StandardWindowFns.SlidingWindowsPayload.newBuilder()
+                              .setSize(Durations.fromMillis(
+                                  ((SlidingWindows) windowFn).getSize().getMillis()))
+                              .setOffset(Timestamps.fromMillis(
+                                  ((SlidingWindows) windowFn).getOffset().getMillis()))
+                              .setPeriod(Durations.fromMillis(
+                                  ((SlidingWindows) windowFn).getPeriod().getMillis()))
+                              .build())))
+          .build();
+    } else if (windowFn instanceof Sessions) {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SESSION_WINDOWS_FN)
+                  .setParameter(
+                      Any.pack(
+                          StandardWindowFns.SessionsPayload.newBuilder()
+                              .setGapSize(Durations.fromMillis(
+                                  ((Sessions) windowFn).getGapDuration().getMillis()))
+                              .build())))
+          .build();
+    } else {
+      return SdkFunctionSpec.newBuilder()
+          .setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
+                  .setParameter(
+                      Any.pack(
+                          BytesValue.newBuilder()
+                              .setValue(
+                                  ByteString.copyFrom(
+                                      SerializableUtils.serializeToByteArray(windowFn)))
+                              .build())))
+          .build();
+    }
   }
 
   /**
@@ -274,27 +338,28 @@ public class WindowingStrategyTranslation implements Serializable {
       case GLOBAL_WINDOWS_FN:
         return new GlobalWindows();
       case FIXED_WINDOWS_FN:
-        RunnerApiPayloads.FixedWindowsPayload fixedParams =
+        StandardWindowFns.FixedWindowsPayload fixedParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.FixedWindowsPayload.class);
+                StandardWindowFns.FixedWindowsPayload.class);
         return FixedWindows.of(
             Duration.millis(Durations.toMillis(fixedParams.getSize())))
             .withOffset(Duration.millis(Timestamps.toMillis(fixedParams.getOffset())));
       case SLIDING_WINDOWS_FN:
-        RunnerApiPayloads.SlidingWindowsPayload slidingParams =
+        StandardWindowFns.SlidingWindowsPayload slidingParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.SlidingWindowsPayload.class);
+                StandardWindowFns.SlidingWindowsPayload.class);
         return SlidingWindows.of(
             Duration.millis(Durations.toMillis(slidingParams.getSize())))
             .every(Duration.millis(Durations.toMillis(slidingParams.getPeriod())))
             .withOffset(Duration.millis(Timestamps.toMillis(slidingParams.getOffset())));
       case SESSION_WINDOWS_FN:
-        RunnerApiPayloads.SessionsPayload sessionParams =
+        StandardWindowFns.SessionsPayload sessionParams =
             windowFnSpec.getSpec().getParameter().unpack(
-                RunnerApiPayloads.SessionsPayload.class);
+                StandardWindowFns.SessionsPayload.class);
         return Sessions.withGapDuration(
             Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
       case SERIALIZED_JAVA_WINDOWFN_URN:
+      case OLD_SERIALIZED_JAVA_WINDOWFN_URN:
         return (WindowFn<?, ?>) SerializableUtils.deserializeFromByteArray(
             windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
             "WindowFn");

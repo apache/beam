@@ -26,7 +26,7 @@ syntax = "proto3";
 package org.apache.beam.runner_api.v1;
 
 option java_package = "org.apache.beam.sdk.common.runner.v1";
-option java_outer_classname = "RunnerApiPayloads";
+option java_outer_classname = "StandardWindowFns";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
