@@ -22,6 +22,7 @@ import logging
 import multiprocessing
 import os
 import pkg_resources
+import shutil
 import subprocess
 import sys
 import warnings
@@ -55,10 +56,11 @@ def generate_proto_files():
   if out_files and not proto_files:
     # We have out_files but no protos; assume they're up to date.
     # This is actually the common case (e.g. installation from an sdist).
+    logging.info('No proto files; using existing generated files.')
     return
 
   elif not out_files and not proto_files:
-    if not common:
+    if not os.path.exists(common):
       raise RuntimeError(
           'Not in apache git tree; unable to find proto definitions.')
     else:
@@ -105,9 +107,13 @@ def generate_proto_files():
 def _install_grpcio_tools_and_generate_proto_files():
   install_path = os.path.join(
       os.path.dirname(os.path.abspath(__file__)), '.eggs', 'grpcio-wheels')
+  build_path = install_path + '-build'
+  if os.path.exists(build_path):
+    shutil.rmtree(build_path)
   logging.warning('Downloading a grpcio-tools to %s' % install_path)
   subprocess.check_call(
-      ['pip', 'install', '-t', install_path, '--upgrade', GRPC_TOOLS])
+      ['pip', 'install', '-t', install_path, '-b', build_path,
+       '--upgrade', GRPC_TOOLS])
   sys.path.append(install_path)
   generate_proto_files()
 
