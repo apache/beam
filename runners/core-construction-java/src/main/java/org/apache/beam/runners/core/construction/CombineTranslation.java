@@ -105,7 +105,7 @@ public class CombineTranslation {
   public static Coder<?> getAccumulatorCoder(
       CombinePayload payload, RunnerApi.Components components) throws IOException {
     String id = payload.getAccumulatorCoderId();
-    return Coders.fromProto(components.getCodersOrThrow(id), components);
+    return CoderTranslation.fromProto(components.getCodersOrThrow(id), components);
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload)
