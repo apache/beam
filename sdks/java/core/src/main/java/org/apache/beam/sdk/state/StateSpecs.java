@@ -76,7 +76,9 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link CombiningState} which uses a {@link
+   * <b>For internal use only; no backwards compatibility guarantees</b>
+   *
+   * <p>Create a {@link StateSpec} for a {@link CombiningState} which uses a {@link
    * CombineFnWithContext} to automatically merge multiple values of type {@code InputT} into a
    * single resulting {@code OutputT}.
    *
@@ -84,6 +86,7 @@ public class StateSpecs {
    *
    * @see #combining(Coder, CombineFnWithContext)
    */
+  @Internal
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
@@ -105,11 +108,14 @@ public class StateSpecs {
   }
 
   /**
-   * Identical to {@link #combining(CombineFnWithContext)}, but with an accumulator coder explicitly
-   * supplied.
+   * <b>For internal use only; no backwards compatibility guarantees</b>
+   *
+   * <p>Identical to {@link #combining(CombineFnWithContext)}, but with an accumulator coder
+   * explicitly supplied.
    *
    * <p>If automatic coder inference fails, use this method.
    */
+  @Internal
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
