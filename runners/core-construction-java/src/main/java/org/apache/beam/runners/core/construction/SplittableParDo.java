@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -66,6 +67,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   public static final String SPLITTABLE_PROCESS_URN =
       "urn:beam:runners_core:transforms:splittable_process:v1";
+
+  public static final String SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN =
+      "urn:beam:runners_core:transforms:splittable_process_keyed_elements:v1";
+
+  public static final String SPLITTABLE_GBKIKWI_URN =
+      "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
 
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
@@ -133,11 +140,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   /**
    * Runner-specific primitive {@link PTransform} that invokes the {@link DoFn.ProcessElement}
-   * method for a splittable {@link DoFn} on each {@link ElementAndRestriction} of the input
-   * {@link PCollection} of {@link KV KVs} keyed with arbitrary but globally unique keys.
+   * method for a splittable {@link DoFn} on each {@link ElementAndRestriction} of the input {@link
+   * PCollection} of {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends PTransform<
+      extends RawPTransform<
           PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
@@ -226,6 +233,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
+    }
+
+    @Override
+    public String getUrn() {
+      return SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN;
     }
   }
 
