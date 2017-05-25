@@ -438,7 +438,7 @@
   </tr>
   
   <tr class="cap-summary">
-    <th class="cap-summary color-capability format-capability" style="color:#ec3">Aggregators</th>
+    <th class="cap-summary color-capability format-capability" style="color:#ec3">Metrics</th>
     
     
 
@@ -1493,26 +1493,26 @@
   </tr>
   
   <tr class="cap">
-    <th class="cap color-capability format-capability" style="color:#ec3">Aggregators</th>
+    <th class="cap color-capability format-capability" style="color:#ec3">Metrics</th>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: user-provided metrics</b></center><br />Allow transforms to aggregate simple metrics across bundles in a <tt>DoFn</tt>. Semantically equivalent to using an additional output, but support partial results as the transform executes. Will likely want to augment <tt>Aggregators</tt> to be more useful for processing unbounded data by making them windowed.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: user-provided metrics</b></center><br />Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: may miscount in streaming mode</b></center><br />Current model is fully supported in batch mode. In streaming mode, <tt>Aggregators</tt> may under or overcount when bundles are retried.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: In batch mode, Dataflow supports committed and attempted Counters and Distributions.</b></center><br />Gauge metrics are not supported in batch mode. Metrics are not yet supported at all in streaming mode, but this support is coming soon ([BEAM-2059](https://issues.apache.org/jira/browse/BEAM-2059)).
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: may undercount in streaming</b></center><br />Current model is fully supported in batch. In streaming mode, <tt>Aggregators</tt> may undercount.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: All metrics types are supported.</b></center><br />Only attempted values are supported. No committed values for metrics.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: may overcount when tasks are retried in transformations.</b></center><br />supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: All metric types are supported.</b></center><br />Only attempted values are supported. No committed values for metrics.
 </td>
     
     
