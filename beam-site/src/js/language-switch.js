@@ -5,7 +5,7 @@ $(document).ready(function() {
         var prefix = id + "-";
         return {
             "id": id,
-            "selector": "[class^=" + prefix + "]",
+            "selector": "[class^=" + prefix + "]:not(.no-toggle)",
             "wrapper": prefix + "switcher", // Parent wrapper-class.
             "default": prefix + def, // Default type to display.
             "dbKey": id, // Local Storage Key
