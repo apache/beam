@@ -40,7 +40,6 @@ public class FlinkNativeAccumulators implements AccumulatorProvider {
 
   @Override
   public Counter getCounter(String name) {
-    System.out.println("Getting counter: " + name);
     return getByNameAndClass(name, FlinkCounter.class);
   }
 
@@ -56,12 +55,11 @@ public class FlinkNativeAccumulators implements AccumulatorProvider {
 
   @SuppressWarnings("unchecked")
   private <ACC extends Accumulator> ACC getByNameAndClass(String name,
-                                                                  Class<ACC> clz) {
-    Accumulator acc = (Accumulator) context.getAllAccumulators().get(name);
+                                                          Class<ACC> clz) {
+    Accumulator acc = (Accumulator) context.getAccumulator(name);
 
     if (acc == null) {
       try {
-        System.out.println("Creating counter: " + name);
         // register a new instance
         acc = clz.getConstructor().newInstance();
         context.addAccumulator(name, (org.apache.flink.api.common.accumulators.Accumulator) acc);
@@ -70,7 +68,7 @@ public class FlinkNativeAccumulators implements AccumulatorProvider {
       }
     }
 
-    if (!clz.isAssignableFrom(acc.getClass())) {
+    if (!clz.equals(acc.getClass())) {
       throw new IllegalStateException(
               "Accumulator named '" + name + "' is type of " + acc.getClass().getSimpleName());
     }

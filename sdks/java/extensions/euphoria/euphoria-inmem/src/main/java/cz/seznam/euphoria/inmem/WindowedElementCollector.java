@@ -18,11 +18,12 @@ package cz.seznam.euphoria.inmem;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Objects;
 import java.util.function.Supplier;
 
-class WindowedElementCollector<T> implements Collector<T> {
+class WindowedElementCollector<T> implements Context, Collector<T> {
   private final cz.seznam.euphoria.inmem.Collector<Datum> wrap;
   private final Supplier<Long> stampSupplier;
 
@@ -46,6 +47,11 @@ class WindowedElementCollector<T> implements Collector<T> {
             : stampSupplier.get();
 
     wrap.collect(Datum.of(window, elem, stamp));
+  }
+
+  @Override
+  public Context asContext() {
+    return this;
   }
 
   void setWindow(Window window) {

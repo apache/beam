@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 /**
  * A {@code Context} that holds only single value.
@@ -28,7 +29,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
  * This context will free the value as soon as {@code getAndResetValue()}
  * is called.
  */
-public class SingleValueContext<T> implements Collector<T> {
+public class SingleValueContext<T> implements Context, Collector<T> {
 
   T value;
 
@@ -39,6 +40,11 @@ public class SingleValueContext<T> implements Collector<T> {
   @Override
   public void collect(T elem) {
     value = elem;
+  }
+
+  @Override
+  public Context asContext() {
+    return this;
   }
 
   /**
