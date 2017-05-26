@@ -15,11 +15,10 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.AbstractCollector;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,21 +49,19 @@ public class BatchUnaryFunctorWrapper<WID extends Window, IN, OUT>
                       org.apache.flink.util.Collector<BatchElement<WID, OUT>> out)
           throws Exception {
 
-    AccumulatorProvider accumulators =
-            accumulatorFactory.create(settings, getRuntimeContext());
+    f.apply(value.getElement(),
+            new AbstractCollector<OUT>(accumulatorFactory, settings, getRuntimeContext()) {
+              @Override
+              public void collect(OUT elem) {
+                out.collect(new BatchElement<>(
+                        value.getWindow(), value.getTimestamp(), elem));
+              }
 
-    f.apply(value.getElement(), new AbstractCollector<OUT>(accumulators) {
-      @Override
-      public void collect(OUT elem) {
-        out.collect(new BatchElement<>(
-                value.getWindow(), value.getTimestamp(), elem));
-      }
-
-      @Override
-      public Object getWindow() {
-        return value.getWindow();
-      }
-    });
+              @Override
+              public Object getWindow() {
+                return value.getWindow();
+              }
+            });
   }
 
   @SuppressWarnings("unchecked")

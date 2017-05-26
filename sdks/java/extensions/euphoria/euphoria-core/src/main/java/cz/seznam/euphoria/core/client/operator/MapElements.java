@@ -165,41 +165,10 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     return DAG.of(
         // do not use the client API here, because it modifies the Flow!
         new FlatMap<IN, OUT>(getName(), getFlow(), input,
-            (i, c) -> c.collect(mapper.apply(i, new CollectorAdapter(c))), null));
+            (i, c) -> c.collect(mapper.apply(i, c.asContext())), null));
   }
 
   public UnaryFunctionEnv<IN, OUT> getMapper() {
     return mapper;
-  }
-
-  /**
-   * Adapts Collector to be used as Context in UnaryFunctionEnv.
-   */
-  private static class CollectorAdapter implements Context {
-    private final Collector collector;
-
-    public CollectorAdapter(Collector collector) {
-      this.collector = collector;
-    }
-
-    @Override
-    public Object getWindow() {
-      return collector.getWindow();
-    }
-
-    @Override
-    public Counter getCounter(String name) {
-      return collector.getCounter(name);
-    }
-
-    @Override
-    public Histogram getHistogram(String name) {
-      return collector.getHistogram(name);
-    }
-
-    @Override
-    public Timer getTimer(String name) {
-      return collector.getTimer(name);
-    }
   }
 }

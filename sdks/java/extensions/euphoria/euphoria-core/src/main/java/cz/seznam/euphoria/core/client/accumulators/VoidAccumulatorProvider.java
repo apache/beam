@@ -31,38 +31,25 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(VoidAccumulatorProvider.class);
 
-  private final Map<String, Accumulator> accumulators = new HashMap<>();
-
   private VoidAccumulatorProvider() {}
 
   @Override
   public Counter getCounter(String name) {
-    return getAccumulator(name, VoidCounter.class);
+    return VoidCounter.INSTANCE;
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return getAccumulator(name, VoidHistogram.class);
+    return VoidHistogram.INSTANCE;
   }
 
   @Override
   public Timer getTimer(String name) {
-    return getAccumulator(name, VoidTimer.class);
-  }
-
-  private <ACC extends Accumulator> ACC getAccumulator(String name, Class<ACC> clz) {
-    try {
-      ACC acc = clz.getConstructor().newInstance();
-      if (accumulators.putIfAbsent(name, acc) == null) {
-        LOG.warn("Using accumulators with VoidAccumulatorProvider will have no effect");
-      }
-      return acc;
-    } catch (Exception e) {
-      throw new RuntimeException("Exception during accumulator initialization: " + clz, e);
-    }
+    return VoidTimer.INSTANCE;
   }
 
   public static Factory getFactory() {
+    LOG.warn("Using accumulators with VoidAccumulatorProvider will have no effect");
     return Factory.get();
   }
 
@@ -77,19 +64,23 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
     private Factory() {}
 
+    public static Factory get() {
+      return INSTANCE;
+    }
+
     @Override
     public AccumulatorProvider create(Settings settings) {
       return PROVIDER;
-    }
-
-    public static Factory get() {
-      return INSTANCE;
     }
   }
 
   // ------------------------
 
-  public static class VoidCounter implements Counter {
+  private static class VoidCounter implements Counter {
+
+    private static final VoidCounter INSTANCE = new VoidCounter();
+
+    private VoidCounter() {}
 
     @Override
     public void increment(long value) {
@@ -104,6 +95,10 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   public static class VoidHistogram implements Histogram {
 
+    private static final VoidHistogram INSTANCE = new VoidHistogram();
+
+    private VoidHistogram() {}
+
     @Override
     public void add(long value) {
       // NOOP
@@ -116,6 +111,10 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
   }
 
   public static class VoidTimer implements Timer {
+
+    private static final VoidTimer INSTANCE = new VoidTimer();
+
+    private VoidTimer() {}
 
     @Override
     public void add(Duration duration) {
