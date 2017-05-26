@@ -24,7 +24,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-
 /**
  * Base class for all unary functions such as
  * ABS, SQRT, LN, LOG10, EXP, CEIL, FLOOR, RAND, ACOS,
