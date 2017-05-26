@@ -28,6 +28,7 @@ from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.transforms.window import GlobalWindows
 
 
 class _ExecutorService(object):
@@ -566,19 +567,34 @@ class _ExecutorServiceParallelExecutor(object):
       Returns:
         True if timers fired.
       """
+      # TODO: refactor this out
+      from apache_beam.runners.direct.transform_evaluator import KeyedWorkItem
       fired_timers = self._executor.evaluation_context.extract_fired_timers()
-      for applied_ptransform in fired_timers:
+      for applied_ptransform, timer_firings in fired_timers:
         print '[!] fired timer', applied_ptransform
-        # Use an empty committed bundle. just to trigger.
-        empty_bundle = (
-            self._executor.evaluation_context.create_empty_committed_bundle(
-                applied_ptransform.inputs[0]))
+        bundles = []
+        for timer_firing in timer_firings:
+          if timer_firing is None:
+            # Use an empty committed bundle. just to trigger.
+            # TODO: are there still timer-using things that don't take keyed work items?
+            empty_bundle = (
+                self._executor.evaluation_context.create_empty_committed_bundle(
+                    applied_ptransform.inputs[0]))
+            bundles.append(empty_bundle)
+          else:
+            # TODO: we can potentially consolidate bundles if there are multiple timers firing for a single key.
+            bundle = self._executor.evaluation_context.create_keyed_bundle(applied_ptransform.inputs[0], timer_firing.key)
+            bundle.add(GlobalWindows.windowed_value(KeyedWorkItem(timer_firing.key, timers=[timer_firing])))
+            bundle.commit(None)  # TODO: synchronized processing time?
+            bundles.append(bundle)
+
         timer_completion_callback = _CompletionCallback(
             self._executor.evaluation_context, self._executor.all_updates,
             applied_ptransform)
 
-        self._executor.schedule_consumption(
-            applied_ptransform, empty_bundle, timer_completion_callback)
+        for bundle in bundles:
+          self._executor.schedule_consumption(
+              applied_ptransform, bundle, timer_completion_callback)
       # print '[!] fired_timers', bool(fired_timers)
       return bool(fired_timers)
 

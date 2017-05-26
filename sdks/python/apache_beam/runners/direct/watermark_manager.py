@@ -44,13 +44,15 @@ class WatermarkManager(object):
     self._transform_to_watermarks = {}
 
     for root_transform in root_transforms:
+      keyed_states = self._transform_keyed_states[root_transform]
       self._transform_to_watermarks[root_transform] = _TransformWatermarks(
-          self._clock, label=str(root_transform))
+          self._clock, keyed_states, label=str(root_transform))
 
     for consumers in value_to_consumers.values():
       for consumer in consumers:
+        keyed_states = self._transform_keyed_states[consumer]
         self._transform_to_watermarks[consumer] = _TransformWatermarks(
-            self._clock, label=str(consumer))
+            self._clock, keyed_states, label=str(consumer))
 
     for consumers in value_to_consumers.values():
       for consumer in consumers:
@@ -143,16 +145,18 @@ class WatermarkManager(object):
   def extract_fired_timers(self):
     all_timers = []
     for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
-      if tw.extract_fired_timers():
-        all_timers.append(applied_ptransform)
+      fired_timers = tw.extract_fired_timers()
+      if fired_timers:
+        all_timers.append((applied_ptransform, fired_timers))
     return all_timers
 
 
 class _TransformWatermarks(object):
   """Tracks input and output watermarks for aan AppliedPTransform."""
 
-  def __init__(self, clock, label=None):
+  def __init__(self, clock, keyed_states, label=None):
     self._clock = clock
+    self._keyed_states = keyed_states
     self._input_transform_watermarks = []
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
@@ -202,6 +206,8 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    # TODO: remove this and the below assert
+    from apache_beam.runners.direct.evaluation_context import DirectUnmergedState
     with self._lock:
       pending_holder = WatermarkManager.WATERMARK_POS_INF
       for input_bundle in self._pending:
@@ -211,13 +217,21 @@ class _TransformWatermarks(object):
         if bundle_min_timestamp < pending_holder:
           pending_holder = bundle_min_timestamp
 
+      earliest_watermark_hold = WatermarkManager.WATERMARK_POS_INF
+      for unused_key, state in self._keyed_states.iteritems():
+        assert isinstance(state, DirectUnmergedState), state
+        print '~~~~~~~~WHSTATE [key=', unused_key, ']', state
+        earliest_watermark_hold = state.get_earliest_hold()
+        print 'holds [current watermark =', self._input_watermark, ']:', state.get_earliest_hold()
+
+
       input_watermarks = [
           tw.output_watermark for tw in self._input_transform_watermarks]
       input_watermarks.append(WatermarkManager.WATERMARK_POS_INF)
       producer_watermark = min(input_watermarks)
 
       self._input_watermark = max(self._input_watermark,
-                                  min(pending_holder, producer_watermark))
+                                  min(pending_holder, producer_watermark, earliest_watermark_hold))
       new_output_watermark = min(self._input_watermark, self._earliest_hold)
 
       advanced = new_output_watermark > self._output_watermark
@@ -231,12 +245,39 @@ class _TransformWatermarks(object):
     return self._clock.time()
 
   def extract_fired_timers(self):
+    # TODO: remove this and the below assert
+    from apache_beam.runners.direct.evaluation_context import DirectUnmergedState
     with self._lock:
       if self._fired_timers:
-        return False
+        print 'FIRED_TIMERS? FALSE', self
+        # Wait until fired timers have been processed.
+        # return False
 
+      fired_timers = []
+
+      for key, state in self._keyed_states.iteritems():
+        assert isinstance(state, DirectUnmergedState), state
+        print '~~~~~~~~STATE [key=', key, ']', state
+        timers = state.get_timers(watermark=self._input_watermark)
+        print 'timers:', timers
+        for expired in timers:
+          _, (name, time_domain, timestamp) = expired
+          fired_timers.append(TimerFiring(key, time_domain, timestamp))
+
+
+      # TODO: check if this hack is still necessary.
       should_fire = (
           self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and
           self._input_watermark == WatermarkManager.WATERMARK_POS_INF)
-      self._fired_timers = should_fire
-      return should_fire
+      if should_fire:
+        fired_timers.append(None)  # Sentinel representing legacy timer firing.
+      self._fired_timers = fired_timers
+      return fired_timers
+
+class TimerFiring(object):
+  def __init__(self, key, time_domain, timestamp):
+    # TODO: add time domain.
+    self.key = key
+    self.time_domain = time_domain
+    self.timestamp = timestamp
+

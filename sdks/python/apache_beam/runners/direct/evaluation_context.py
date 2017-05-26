@@ -282,7 +282,11 @@ class EvaluationContext(object):
           merged_counter.accumulator.merge([counter.accumulator])
 
       self._legacy_existing_state[result.transform] = result.legacy_state
-      self._transform_keyed_states[result.transform][completed_bundle.key] = result.state
+      if not result.state:
+        if completed_bundle.key in self._transform_keyed_states[result.transform]:
+          del self._transform_keyed_states[result.transform][completed_bundle.key]
+      else:
+        self._transform_keyed_states[result.transform][completed_bundle.key] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):

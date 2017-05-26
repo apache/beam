@@ -1169,7 +1169,6 @@ class _GroupAlsoByWindowDoFn(DoFn):
           yield wvalue.with_value((k, wvalue.value))
 
 
-
 class Partition(PTransformWithSideInputs):
   """Split a PCollection into several partitions.
 

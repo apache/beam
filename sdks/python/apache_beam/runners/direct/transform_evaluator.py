@@ -550,7 +550,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   def process_element(self, element):
     kwi = element.value
     print '[!] GABW process_element', element, kwi
-    k, vs = kwi.key, kwi.elements
+    k, timers, vs = kwi.key, kwi.timers, kwi.elements
     encoded_k = self.key_coder.encode(k)
     state = self.state
 
@@ -565,8 +565,9 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
         self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
 
     # TODO(robertwb): Conditionally process in smaller chunks.
-    for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
-      self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+    if vs:
+      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+        self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
     # while state.timers:
     #   fired = state.get_and_clear_timers()
     #   for timer_window, (name, time_domain, fire_time) in fired:

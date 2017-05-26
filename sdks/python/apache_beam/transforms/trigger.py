@@ -1104,17 +1104,30 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP):
     expired = []
     for window, timers in list(self.timers.items()):
-      print '[IIII] window, timers:', window, timers
+      # print '[IIII] window, timers:', window, timers
       for (name, time_domain), timestamp in list(timers.items()):
         if timestamp <= watermark:
           expired.append((window, (name, time_domain, timestamp)))
-          del timers[(name, time_domain)]
-      if not timers:
+          if clear:
+            del timers[(name, time_domain)]
+      if not timers and clear:
         del self.timers[window]
     return expired
+
+  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+    return self.get_timers(clear=True, watermark=watermark)
+
+  def get_earliest_hold(self):
+    earliest_hold = MAX_TIMESTAMP
+    for window, tagged_states in self.state.iteritems():
+      # TODO: is this general enough?
+      if 'watermark' in tagged_states:
+        hold = min(tagged_states['watermark'])
+        earliest_hold = min(earliest_hold, hold)
+    return earliest_hold
 
   def __repr__(self):
     state_str = '\n'.join('%s: %s' % (key, dict(state))
