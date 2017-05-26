@@ -74,7 +74,7 @@ public class TranslatorUtils {
 
     for (Map.Entry<String, PCollectionView<?>> tagToSideInput: tagsToSideInputs.entrySet()) {
       // actually JavaStream<WindowedValue<List<?>>>
-      // check CreatePCollectionViewTranslator
+      // check CreateGearpumpPCollectionViewTranslator
       JavaStream<WindowedValue<Object>> sideInputStream = context.getInputStream(
           tagToSideInput.getValue());
       mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(
