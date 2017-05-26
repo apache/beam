@@ -52,8 +52,7 @@ def run(argv=None):
 
     # Write to PubSub.
     # pylint: disable=expression-not-assigned
-    transformed | beam.io.Write(
-        beam.io.PubSubSink(known_args.output_topic))
+    transformed | beam.io.WriteStringsToPubSub(known_args.output_topic)
 
 
 if __name__ == '__main__':

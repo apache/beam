@@ -51,7 +51,7 @@ class ReadStringsFromPubSub(PTransform):
         case, deduplication of the stream will be strictly best effort.
     """
     super(ReadStringsFromPubSub, self).__init__()
-    self._source = _PubSubSource(
+    self._source = _PubSubPayloadSource(
         topic,
         subscription=subscription,
         id_label=id_label)
@@ -74,7 +74,7 @@ class WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(WriteStringsToPubSub, self).__init__()
-    self._sink = _PubSubSink(topic)
+    self._sink = _PubSubPayloadSink(topic)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
@@ -82,8 +82,8 @@ class WriteStringsToPubSub(PTransform):
     return pcoll | Write(self._sink)
 
 
-class _PubSubSource(dataflow_io.NativeSource):
-  """Source for reading from a given Cloud Pub/Sub topic.
+class _PubSubPayloadSource(dataflow_io.NativeSource):
+  """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
   Attributes:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
@@ -120,11 +120,11 @@ class _PubSubSource(dataflow_io.NativeSource):
 
   def reader(self):
     raise NotImplementedError(
-        'PubSubSource is not supported in local execution.')
+        'PubSubPayloadSource is not supported in local execution.')
 
 
-class _PubSubSink(dataflow_io.NativeSink):
-  """Sink for writing to a given Cloud Pub/Sub topic."""
+class _PubSubPayloadSink(dataflow_io.NativeSink):
+  """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
 
   def __init__(self, topic):
     self.topic = topic
@@ -139,7 +139,7 @@ class _PubSubSink(dataflow_io.NativeSink):
 
   def writer(self):
     raise NotImplementedError(
-        'PubSubSink is not supported in local execution.')
+        'PubSubPayloadSink is not supported in local execution.')
 
 
 def _decodeUtf8String(encoded_value):

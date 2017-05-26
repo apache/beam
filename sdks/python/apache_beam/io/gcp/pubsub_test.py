@@ -24,8 +24,8 @@ import hamcrest as hc
 
 from apache_beam.io.gcp.pubsub import _decodeUtf8String
 from apache_beam.io.gcp.pubsub import _encodeUtf8String
-from apache_beam.io.gcp.pubsub import _PubSubSink
-from apache_beam.io.gcp.pubsub import _PubSubSource
+from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
+from apache_beam.io.gcp.pubsub import _PubSubPayloadSource
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -68,7 +68,7 @@ class TestWriteStringsToPubSub(unittest.TestCase):
 
 class TestPubSubSource(unittest.TestCase):
   def test_display_data(self):
-    source = _PubSubSource('a_topic', 'a_subscription', 'a_label')
+    source = _PubSubPayloadSource('a_topic', 'a_subscription', 'a_label')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic'),
@@ -78,7 +78,7 @@ class TestPubSubSource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_display_data_no_subscription(self):
-    source = _PubSubSource('a_topic')
+    source = _PubSubPayloadSource('a_topic')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic')]
@@ -88,7 +88,7 @@ class TestPubSubSource(unittest.TestCase):
 
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
-    sink = _PubSubSink('a_topic')
+    sink = _PubSubPayloadSink('a_topic')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic')]
