@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
@@ -277,7 +278,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
-  class ElementCollector<T> implements cz.seznam.euphoria.core.client.io.Collector<T> {
+  class ElementCollector<T> implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
     final Collector<WindowedElement<WID, Pair<KEY, T>>> out;
     WID window;
 
@@ -293,6 +294,11 @@ public class GroupReducer<WID extends Window, KEY, I> {
           ? ((TimedWindow) window).maxTimestamp()
           : clock.getStamp();
       out.collect((WindowedElement) elementFactory.create(window, stamp, Pair.of(key, elem)));
+    }
+
+    @Override
+    public Context asContext() {
+      return this;
     }
 
     @Override

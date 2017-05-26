@@ -15,12 +15,11 @@
  */
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.io.AbstractCollector;
+import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
@@ -38,6 +37,7 @@ import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.flink.storage.Descriptors;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -135,8 +135,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.endOfStreamTimerService =
             getInternalTimerService("end-of-stream-timers", windowSerializer, this);
     this.triggerContext = new TriggerContextAdapter();
-    this.outputContext = new OutputCollector(
-            accumulatorFactory.create(settings, getRuntimeContext()));
+    this.outputContext = new OutputCollector(accumulatorFactory, settings, getRuntimeContext());
     this.storageProvider = new WindowedStorageProvider<>(
             getKeyedStateBackend(), windowSerializer, descriptorsCacheMaxSize);
 
@@ -446,8 +445,10 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
     private final StreamRecord reuse = new StreamRecord<>(null);
 
-    public OutputCollector(AccumulatorProvider accumulators) {
-      super(accumulators);
+    public OutputCollector(FlinkAccumulatorFactory accumulatorFactory,
+                           Settings settings,
+                           RuntimeContext flinkContext) {
+      super(accumulatorFactory, settings, flinkContext);
     }
 
     @Override
