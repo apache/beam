@@ -22,6 +22,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -31,6 +32,7 @@ import java.util.Set;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -156,7 +158,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   @Override
-  public DirectPipelineResult run(Pipeline pipeline) {
+  public DirectPipelineResult run(Pipeline originalPipeline) {
+    Pipeline pipeline;
+    try {
+      pipeline = PipelineTranslation.fromProto(
+          PipelineTranslation.toProto(originalPipeline));
+    } catch (IOException exception) {
+      throw new RuntimeException("Error preparing pipeline for direct execution.", exception);
+    }
     pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
