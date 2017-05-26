@@ -502,6 +502,51 @@ def examples_wordcount_wordcount(renames):
     p.visit(SnippetUtils.RenameFiles(renames))
 
 
+def examples_wordcount_templated(renames):
+  """Templated WordCount example snippet."""
+  import re
+
+  import apache_beam as beam
+  from apache_beam.io import ReadFromText
+  from apache_beam.io import WriteToText
+  from apache_beam.options.pipeline_options import PipelineOptions
+
+  # [START example_wordcount_templated]
+  class WordcountTemplatedOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      # Use add_value_provider_argument for arguments to be templatable
+      # Use add_argument as usual for non-templatable arguments
+      parser.add_value_provider_argument(
+          '--input',
+          help='Path of the file to read from')
+      parser.add_argument(
+          '--output',
+          required=True,
+          help='Output file to write results to.')
+  pipeline_options = PipelineOptions(['--output', 'some/output_path'])
+  p = beam.Pipeline(options=pipeline_options)
+
+  wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
+  lines = p | 'Read' >> ReadFromText(wordcount_options.input)
+  # [END example_wordcount_templated]
+
+  (
+      lines
+      | 'ExtractWords' >> beam.FlatMap(
+          lambda x: re.findall(r'[A-Za-z\']+', x))
+      | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+      | 'Group' >> beam.GroupByKey()
+      | 'Sum' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+      | 'Format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+      | 'Write' >> WriteToText(wordcount_options.output)
+  )
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+  result = p.run()
+  result.wait_until_finish()
+
+
 def examples_wordcount_debugging(renames):
   """DebuggingWordCount example snippets."""
   import re
@@ -567,6 +612,47 @@ def examples_wordcount_debugging(renames):
               | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
     p.visit(SnippetUtils.RenameFiles(renames))
+
+
+def examples_ptransforms_templated(renames):
+  # [START examples_ptransforms_templated]
+  import apache_beam as beam
+  from apache_beam.io import WriteToText
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.value_provider import StaticValueProvider
+
+  class TemplatedUserOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_value_provider_argument('--templated_int', type=int)
+
+  class MySumFn(beam.DoFn):
+    def __init__(self, templated_int):
+      self.templated_int = templated_int
+
+    def process(self, an_int):
+      yield self.templated_int.get() + an_int
+
+  pipeline_options = PipelineOptions()
+  p = beam.Pipeline(options=pipeline_options)
+
+  user_options = pipeline_options.view_as(TemplatedUserOptions)
+  my_sum_fn = MySumFn(user_options.templated_int)
+  sum = (p
+         | 'ReadCollection' >> beam.io.ReadFromText(
+             'gs://some/integer_collection')
+         | 'StringToInt' >> beam.Map(lambda w: int(w))
+         | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
+         | 'WriteResultingCollection' >> WriteToText('some/output_path'))
+  # [END examples_ptransforms_templated]
+
+  # Templates are not supported by DirectRunner (only by DataflowRunner)
+  # so a value must be provided at graph-construction time
+  my_sum_fn.templated_int = StaticValueProvider(int, 10)
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+  result = p.run()
+  result.wait_until_finish()
 
 
 import apache_beam as beam

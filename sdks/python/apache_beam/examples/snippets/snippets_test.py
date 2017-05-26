@@ -636,7 +636,8 @@ class SnippetsTest(unittest.TestCase):
   def test_examples_wordcount(self):
     pipelines = [snippets.examples_wordcount_minimal,
                  snippets.examples_wordcount_wordcount,
-                 snippets.pipeline_monitoring]
+                 snippets.pipeline_monitoring,
+                 snippets.examples_wordcount_templated]
 
     for pipeline in pipelines:
       temp_path = self.create_temp_file(
@@ -646,6 +647,17 @@ class SnippetsTest(unittest.TestCase):
       self.assertEqual(
           self.get_output(result_path),
           ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
+
+  def test_examples_ptransforms_templated(self):
+    pipelines = [snippets.examples_ptransforms_templated]
+
+    for pipeline in pipelines:
+      temp_path = self.create_temp_file('1\n 2\n 3')
+      result_path = self.create_temp_file()
+      pipeline({'read': temp_path, 'write': result_path})
+      self.assertEqual(
+          self.get_output(result_path),
+          ['11', '12', '13'])
 
   def test_examples_wordcount_debugging(self):
     temp_path = self.create_temp_file(
