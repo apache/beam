@@ -595,8 +595,8 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSource is currently available for use only in '
-                         'streaming pipelines.')
+        raise ValueError('PubSubPayloadSource is currently available for use '
+                         'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.source.topic)
       if transform.source.subscription:
         step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION,
@@ -677,8 +677,8 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSink is currently available for use only in '
-                         'streaming pipelines.')
+        raise ValueError('PubSubPayloadSink is currently available for use '
+                         'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.topic)
     else:
       raise ValueError(
