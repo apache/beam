@@ -138,7 +138,8 @@ public class PTransformTranslation {
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
-    FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components);
+    FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
+        throws IOException;
   }
 
   /**

@@ -49,7 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
  * RunnerApi.CombinePayload} protos.
  */
 public class CombineTranslation {
-  private static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:java:combinefn:v1";
+  public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:java:combinefn:v1";
 
   public static CombinePayload toProto(
       AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>> combine, SdkComponents sdkComponents)
@@ -86,7 +86,7 @@ public class CombineTranslation {
         .getAccumulatorCoder();
   }
 
-  private static SdkFunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn) {
+  public static SdkFunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn) {
     return SdkFunctionSpec.newBuilder()
         // TODO: Set Java SDK Environment URN
         .setSpec(
