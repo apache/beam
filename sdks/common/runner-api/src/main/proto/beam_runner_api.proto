@@ -325,6 +325,17 @@ message CombinePayload {
   map<string, SideInput> side_inputs = 4;
 }
 
+// The payload for the special-but-not-primitive WriteFiles transform.
+message WriteFilesPayload {
+
+  // (Required) The SdkFunctionSpec of the FileBasedSink.
+  SdkFunctionSpec sink = 1;
+
+  bool windowed_writes = 2;
+
+  bool runner_determined_sharding = 3;
+}
+
 // A coder, the binary format for serialization and deserialization of data in
 // a pipeline.
 message Coder {
