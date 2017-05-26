@@ -36,13 +36,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 class DirectGroupByKey<K, V>
     extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
-  private final GroupByKey<K, V> original;
+  private final PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> original;
 
   static final String DIRECT_GBKO_URN = "urn:beam:directrunner:transforms:gbko:v1";
   static final String DIRECT_GABW_URN = "urn:beam:directrunner:transforms:gabw:v1";
+  private final WindowingStrategy<?, ?> outputWindowingStrategy;
 
-  DirectGroupByKey(GroupByKey<K, V> from) {
-    this.original = from;
+  DirectGroupByKey(
+      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> original,
+      WindowingStrategy<?, ?> outputWindowingStrategy) {
+    this.original = original;
+    this.outputWindowingStrategy = outputWindowingStrategy;
   }
 
   @Override
@@ -57,9 +61,6 @@ class DirectGroupByKey<K, V>
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
     WindowingStrategy<?, ?> inputWindowingStrategy = input.getWindowingStrategy();
-    // Update the windowing strategy as appropriate.
-    WindowingStrategy<?, ?> outputWindowingStrategy =
-        original.updateWindowingStrategy(inputWindowingStrategy);
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
