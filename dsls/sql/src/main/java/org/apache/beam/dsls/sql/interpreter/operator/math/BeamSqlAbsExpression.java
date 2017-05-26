@@ -18,12 +18,13 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
+import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
+
 
 /**
  * {@code BeamSqlMathUnaryExpression} for 'ABS' function.
@@ -34,21 +35,32 @@ public class BeamSqlAbsExpression extends BeamSqlMathUnaryExpression {
     super(operands);
   }
 
-  @Override
-  public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+  @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
+    BeamSqlPrimitive result = null;
     switch (op.getOutputType()) {
       case INTEGER:
-        return BeamSqlPrimitive.of(SqlTypeName.INTEGER, SqlFunctions.abs(op.getInteger()));
+        result = BeamSqlPrimitive.of(SqlTypeName.INTEGER, SqlFunctions.abs(op.getInteger()));
+        break;
       case BIGINT:
-        return BeamSqlPrimitive.of(SqlTypeName.BIGINT, SqlFunctions.abs(op.getLong()));
+        result = BeamSqlPrimitive.of(SqlTypeName.BIGINT, SqlFunctions.abs(op.getLong()));
+        break;
       case TINYINT:
-        return BeamSqlPrimitive.of(SqlTypeName.TINYINT, SqlFunctions.abs(op.getByte()));
+        result = BeamSqlPrimitive.of(SqlTypeName.TINYINT, SqlFunctions.abs(op.getByte()));
+        break;
       case SMALLINT:
-        return BeamSqlPrimitive.of(SqlTypeName.SMALLINT, SqlFunctions.abs(op.getShort()));
+        result = BeamSqlPrimitive.of(SqlTypeName.SMALLINT, SqlFunctions.abs(op.getShort()));
+        break;
       case FLOAT:
-        return BeamSqlPrimitive.of(SqlTypeName.FLOAT, SqlFunctions.abs(op.getFloat()));
-      default:
-        return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions.abs(op.getDouble()));
+        result = BeamSqlPrimitive.of(SqlTypeName.FLOAT, SqlFunctions.abs(op.getFloat()));
+        break;
+      case DECIMAL:
+        result = BeamSqlPrimitive
+            .of(SqlTypeName.DECIMAL, SqlFunctions.abs(new BigDecimal(op.getString())));
+        break;
+      case DOUBLE:
+        result = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions.abs(op.getDouble()));
+        break;
     }
+    return result;
   }
 }
