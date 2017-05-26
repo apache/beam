@@ -93,7 +93,8 @@ public class RehydratedComponents {
                       PCollection.class.getSimpleName(),
                       Pipeline.class.getSimpleName());
                   return PCollectionTranslation.fromProto(
-                      components.getPcollectionsOrThrow(id), pipeline, RehydratedComponents.this);
+                      components.getPcollectionsOrThrow(id), pipeline, RehydratedComponents.this)
+                      .setName(id);
                 }
               });
 

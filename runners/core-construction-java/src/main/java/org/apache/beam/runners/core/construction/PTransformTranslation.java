@@ -92,6 +92,7 @@ public class PTransformTranslation {
       List<AppliedPTransform<?, ?, ?>> subtransforms,
       SdkComponents components)
       throws IOException {
+    // TODO include DisplayData https://issues.apache.org/jira/browse/BEAM-2645
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
     for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
       checkArgument(
@@ -136,6 +137,7 @@ public class PTransformTranslation {
         }
         transformBuilder.setSpec(payload);
       }
+      rawPTransform.registerComponents(components);
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
@@ -225,6 +227,8 @@ public class PTransformTranslation {
     public Any getPayload() {
       return null;
     }
+
+    public void registerComponents(SdkComponents components) {}
   }
 
   /**
@@ -254,6 +258,10 @@ public class PTransformTranslation {
       if (payload != null) {
         transformSpec.setParameter(payload);
       }
+
+      // Transforms like Combine may have Coders that need to be added but do not
+      // occur in a black-box traversal
+      transform.getTransform().registerComponents(components);
 
       return transformSpec.build();
     }
