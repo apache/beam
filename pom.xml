@@ -243,6 +243,8 @@
           <plugin>
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
+            <!-- Apache RAT checks all files in the project, only run once. -->
+            <inherited>false</inherited>
           </plugin>
 
           <plugin>
