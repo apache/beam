@@ -15,11 +15,10 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.core.client.io.AbstractCollector;
+import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,20 +49,18 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
                       org.apache.flink.util.Collector<StreamingElement<WID, OUT>> out)
           throws Exception {
 
-    AccumulatorProvider accumulators =
-            accumulatorFactory.create(settings, getRuntimeContext());
+    f.apply(element.getElement(),
+            new AbstractCollector<OUT>(accumulatorFactory, settings, getRuntimeContext()) {
+              @Override
+              public void collect(OUT elem) {
+                out.collect(new StreamingElement<>(element.getWindow(), elem));
+              }
 
-    f.apply(element.getElement(), new AbstractCollector<OUT>(accumulators) {
-      @Override
-      public void collect(OUT elem) {
-        out.collect(new StreamingElement<>(element.getWindow(), elem));
-      }
-
-      @Override
-      public Object getWindow() {
-        return element.getWindow();
-      }
-    });
+              @Override
+              public Object getWindow() {
+                return element.getWindow();
+              }
+            });
   }
 
   @SuppressWarnings("unchecked")

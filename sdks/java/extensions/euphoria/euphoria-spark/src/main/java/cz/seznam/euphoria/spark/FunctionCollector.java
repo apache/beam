@@ -16,8 +16,9 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
-abstract class FunctionCollector<T> implements Collector<T> {
+abstract class FunctionCollector<T> implements Context, Collector<T> {
 
   protected KeyedWindow window;
 
@@ -31,5 +32,10 @@ abstract class FunctionCollector<T> implements Collector<T> {
 
   public void setWindow(KeyedWindow window) {
     this.window = window;
+  }
+
+  @Override
+  public Context asContext() {
+    return this;
   }
 }

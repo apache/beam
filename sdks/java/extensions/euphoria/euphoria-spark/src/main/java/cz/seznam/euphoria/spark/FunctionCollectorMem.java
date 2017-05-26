@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.List;
  * Implementation of {@link Collector} that holds all the
  * data in memory.
  */
-class FunctionCollectorMem<T> implements Collector<T>, Serializable {
+class FunctionCollectorMem<T> implements Context, Collector<T>, Serializable {
 
   private final List<T> elements = new ArrayList<>(1);
   private Object window;
@@ -34,6 +35,11 @@ class FunctionCollectorMem<T> implements Collector<T>, Serializable {
   @Override
   public void collect(T elem) {
     elements.add(elem);
+  }
+
+  @Override
+  public Context asContext() {
+    return this;
   }
 
   @Override

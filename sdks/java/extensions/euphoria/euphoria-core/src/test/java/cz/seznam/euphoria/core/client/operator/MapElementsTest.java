@@ -52,7 +52,7 @@ public class MapElementsTest {
 
     Dataset<String> mapped = MapElements.named("Map1")
             .of(dataset)
-            .using((String input, Context context) -> {
+            .using((input, context) -> {
               // use simple counter
               context.getCounter("my-counter").increment();
 
