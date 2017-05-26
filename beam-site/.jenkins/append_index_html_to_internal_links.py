@@ -66,7 +66,7 @@ for match in matches:
           a['href'] = hr + '/index.html'
         mf.close()
 
-        html = soup.prettify("utf-8")
+        html = unicode(soup).encode('utf-8')
         # Write back to the file.
         with open(match, "wb") as f:
           print 'Replacing ' + hr + ' with: ' + a['href']
