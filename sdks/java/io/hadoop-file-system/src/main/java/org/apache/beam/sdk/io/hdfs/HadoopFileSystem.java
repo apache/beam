@@ -28,6 +28,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -78,6 +79,12 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     for (String spec : specs) {
       try {
         FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
+        if (fileStatuses == null) {
+          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND,
+                  Collections.<Metadata>emptyList()));
+          continue;
+        }
+
         List<Metadata> metadata = new ArrayList<>();
         for (FileStatus fileStatus : fileStatuses) {
           if (fileStatus.isFile()) {

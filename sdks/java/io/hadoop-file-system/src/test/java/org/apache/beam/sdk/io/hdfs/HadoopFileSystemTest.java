@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.hdfs;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -155,6 +157,37 @@ public class HadoopFileSystemTest {
             .setIsReadSeekEfficient(true)
             .setSizeBytes("testDataA".getBytes().length)
             .build()));
+  }
+
+  @Test
+  public void testMatchForNonExistentFile() throws Exception {
+    create("testFileAA", "testDataAA".getBytes());
+    create("testFileBB", "testDataBB".getBytes());
+
+    // ensure files exist
+    assertArrayEquals("testDataAA".getBytes(), read("testFileAA"));
+    assertArrayEquals("testDataBB".getBytes(), read("testFileBB"));
+
+    List<MatchResult> matchResults = fileSystem.match(ImmutableList.of(
+        testPath("testFileAA").toString(),
+        testPath("testFileA").toString(),
+        testPath("testFileBB").toString()));
+
+    assertThat(matchResults, hasSize(3));
+
+    final List<MatchResult> expected = ImmutableList.of(
+        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
+            .setResourceId(testPath("testFileAA"))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes("testDataAA".getBytes().length)
+            .build())),
+        MatchResult.create(Status.NOT_FOUND, ImmutableList.<Metadata>of()),
+        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
+            .setResourceId(testPath("testFileBB"))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes("testDataBB".getBytes().length)
+            .build())));
+    assertThat(matchResults, equalTo(expected));
   }
 
   @Test
