@@ -67,34 +67,34 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
   }
 
   public long getLong() {
-    return Long.valueOf(getString());
+    return (Long) getValue();
   }
 
   public double getDouble() {
-    return Double.valueOf(getString());
+    return (Double) getValue();
   }
 
   public float getFloat() {
-    return Float.valueOf(getString());
+    return (Float) getValue();
   }
 
   public int getInteger() {
-    return Integer.valueOf(getString());
+    return (Integer) getValue();
   }
 
   public short getShort() {
-    return Short.valueOf(getString());
+    return (Short) getValue();
   }
 
   public byte getByte() {
-    return Byte.valueOf(getString());
+    return (Byte) getValue();
   }
   public boolean getBoolean() {
-    return Boolean.valueOf(getString());
+    return (Boolean) getValue();
   }
 
   public String getString() {
-    return String.valueOf(getValue());
+    return (String) getValue();
   }
 
   public Date getDate() {
