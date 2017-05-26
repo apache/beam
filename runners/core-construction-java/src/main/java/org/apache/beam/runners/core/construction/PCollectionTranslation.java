@@ -64,7 +64,7 @@ public class PCollectionTranslation {
         components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()), components);
   }
 
-  private static RunnerApi.IsBounded toProto(IsBounded bounded) {
+  static RunnerApi.IsBounded toProto(IsBounded bounded) {
     switch (bounded) {
       case BOUNDED:
         return RunnerApi.IsBounded.BOUNDED;
@@ -76,7 +76,7 @@ public class PCollectionTranslation {
     }
   }
 
-  private static IsBounded fromProto(RunnerApi.IsBounded isBounded) {
+  static IsBounded fromProto(RunnerApi.IsBounded isBounded) {
     switch (isBounded) {
       case BOUNDED:
         return IsBounded.BOUNDED;

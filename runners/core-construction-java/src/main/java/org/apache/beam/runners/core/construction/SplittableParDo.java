@@ -64,6 +64,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
   private final ParDo.MultiOutput<InputT, OutputT> parDo;
 
+  public static final String SPLITTABLE_PROCESS_URN =
+      "urn:beam:runners_core:transforms:splittable_process:v1";
+
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
    *

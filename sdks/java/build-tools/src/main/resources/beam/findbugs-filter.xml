@@ -405,4 +405,11 @@
     <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
     <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
   </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.direct.ParDoMultiOverrideFactory$StatefulParDo"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!-- PTransforms do not actually support serialization. -->
+  </Match>
+
 </FindBugsFilter>

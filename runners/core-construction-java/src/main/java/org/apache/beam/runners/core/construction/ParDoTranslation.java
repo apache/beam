@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -75,10 +76,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 public class ParDoTranslation {
   /**
-   * The URN for a {@link ParDoPayload}.
-   */
-  public static final String PAR_DO_PAYLOAD_URN = "urn:beam:pardo:v1";
-  /**
    * The URN for an unknown Java {@link DoFn}.
    */
   public static final String CUSTOM_JAVA_DO_FN_URN = "urn:beam:dofn:javasdk:0.1";
@@ -104,11 +101,16 @@ public class ParDoTranslation {
     private ParDoPayloadTranslator() {}
 
     @Override
+    public String getUrn(ParDo.MultiOutput<?, ?> transform) {
+      return PAR_DO_TRANSFORM_URN;
+    }
+
+    @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, MultiOutput<?, ?>> transform, SdkComponents components) {
       ParDoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PAR_DO_PAYLOAD_URN)
+          .setUrn(PAR_DO_TRANSFORM_URN)
           .setParameter(Any.pack(payload))
           .build();
     }
@@ -166,7 +168,7 @@ public class ParDoTranslation {
   public static RunnerApi.PCollection getMainInput(
       RunnerApi.PTransform ptransform, Components components) throws IOException {
     checkArgument(
-        ptransform.getSpec().getUrn().equals(PAR_DO_PAYLOAD_URN),
+        ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
