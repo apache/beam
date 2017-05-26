@@ -175,7 +175,8 @@ class _TransformWatermarks(object):
   def update_timers(self, timer_update):
     with self._lock:
       if timer_update:
-        assert self._fired_timers
+        # TODO: fix hack--we currently are able to produce several timer bundles, but the first one will clear
+        # assert self._fired_timers
         self._fired_timers = False
 
   @property
