@@ -160,12 +160,6 @@ class PBegin(PValue):
   pass
 
 
-class PDone(PValue):
-  """PDone is the output of a transform that has a trivial result such as Write.
-  """
-  pass
-
-
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
 

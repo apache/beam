@@ -22,7 +22,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 import logging
 
-from apache_beam import pvalue
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
 
@@ -303,8 +302,6 @@ class _NativeWrite(ptransform.PTransform):
   These are sinks that are implemented natively by the Dataflow service
   and hence should not be updated by users. These sinks are processed
   using a Dataflow native write transform.
-
-  Applying this transform results in a ``pvalue.PDone``.
   """
 
   def __init__(self, sink):
@@ -318,4 +315,4 @@ class _NativeWrite(ptransform.PTransform):
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PDone(pcoll.pipeline)
+    return None
