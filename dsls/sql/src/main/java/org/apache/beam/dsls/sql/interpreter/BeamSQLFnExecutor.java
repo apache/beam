@@ -44,6 +44,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -74,6 +75,7 @@ import org.apache.calcite.util.NlsString;
  *
  */
 public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
+
   protected List<BeamSqlExpression> exps;
 
   public BeamSQLFnExecutor(BeamRelNode relNode) {
@@ -121,7 +123,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
       }
       switch (opName) {
         case "AND":
-        return new BeamSqlAndExpression(subExps);
+          return new BeamSqlAndExpression(subExps);
         case "OR":
           return new BeamSqlOrExpression(subExps);
 
@@ -171,36 +173,40 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "INITCAP":
           return new BeamSqlInitCapExpression(subExps);
 
+        // function operators
+        case "POWER":
+          return new BeamSqlPowerExpression(subExps);
+
         case "CASE":
           return new BeamSqlCaseExpression(subExps);
 
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
-      case "IS NOT NULL":
-        return new BeamSqlIsNotNullExpression(subExps.get(0));
+        case "IS NOT NULL":
+          return new BeamSqlIsNotNullExpression(subExps.get(0));
 
-      case "HOP":
-      case "TUMBLE":
-      case "SESSION":
-        return new BeamSqlWindowExpression(subExps, node.type.getSqlTypeName());
-      case "HOP_START":
-      case "TUMBLE_START":
-      case "SESSION_START":
-        return new BeamSqlWindowStartExpression();
-      case "HOP_END":
-      case "TUMBLE_END":
-      case "SESSION_END":
-        return new BeamSqlWindowEndExpression();
-      default:
-        //handle UDF
-        if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
-          SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
-          ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
-          return new BeamSqlUdfExpression(fn.method, subExps,
-              ((RexCall) rexNode).type.getSqlTypeName());
-        } else {
-          throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
-        }
+        case "HOP":
+        case "TUMBLE":
+        case "SESSION":
+          return new BeamSqlWindowExpression(subExps, node.type.getSqlTypeName());
+        case "HOP_START":
+        case "TUMBLE_START":
+        case "SESSION_START":
+          return new BeamSqlWindowStartExpression();
+        case "HOP_END":
+        case "TUMBLE_END":
+        case "SESSION_END":
+          return new BeamSqlWindowEndExpression();
+        default:
+          //handle UDF
+          if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
+            SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
+            ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
+            return new BeamSqlUdfExpression(fn.method, subExps,
+                ((RexCall) rexNode).type.getSqlTypeName());
+          } else {
+            throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
+          }
       }
     } else {
       throw new BeamSqlUnsupportedException(
@@ -208,12 +214,10 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
     }
   }
 
-  @Override
-  public void prepare() {
+  @Override public void prepare() {
   }
 
-  @Override
-  public List<Object> execute(BeamSQLRow inputRecord) {
+  @Override public List<Object> execute(BeamSQLRow inputRecord) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
       results.add(exp.evaluate(inputRecord).getValue());
@@ -221,8 +225,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
     return results;
   }
 
-  @Override
-  public void close() {
+  @Override public void close() {
   }
 
 }
