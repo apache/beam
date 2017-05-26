@@ -130,7 +130,8 @@ public class WriteWithShardingFactoryTest {
   public void withNoShardingSpecifiedReturnsNewTransform() {
     ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
     FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
-        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
+        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy
+            .DEFAULT_UNWINDOWED_SHARD_TEMPLATE, "", false);
     WriteFiles<Object> original = WriteFiles.to(
         new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
           @Override
