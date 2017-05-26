@@ -479,7 +479,8 @@ public class AvroIOTest {
     p.run();
 
     String shardNameTemplate =
-        firstNonNull(write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE);
+        firstNonNull(write.getShardTemplate(),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
 
     assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
   }
@@ -493,7 +494,13 @@ public class AvroIOTest {
       expectedFiles.add(
           new File(
               DefaultFilenamePolicy.constructName(
-                  outputFilePrefix, shardNameTemplate, "" /* no suffix */, i, numShards)));
+                  outputFilePrefix,
+                  shardNameTemplate,
+                  "" /* no suffix */,
+                  i,
+                  numShards,
+                  null,
+                  null)));
     }
 
     List<String> actualElements = new ArrayList<>();

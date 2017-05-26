@@ -451,7 +451,7 @@ public class AvroIO {
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
         usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
 
       WriteFiles<T> write = WriteFiles.to(

@@ -504,8 +504,12 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void writeWithRunnerDeterminedSharding() {
     ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
-    FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
-        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
+    FilenamePolicy policy =
+        DefaultFilenamePolicy.constructUsingStandardParameters(
+            StaticValueProvider.of(outputDirectory),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
+            "",
+            false);
     WriteFiles<Integer> write =
         WriteFiles.to(
             new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
