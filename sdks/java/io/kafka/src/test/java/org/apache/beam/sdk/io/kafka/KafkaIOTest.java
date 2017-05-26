@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -186,6 +187,13 @@ public class KafkaIOTest {
               updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
             }
           }
+          // Override offsetsForTimes() in order to look up the offsets by timestamp.
+          // Remove keyword '@Override' here, Kafka client 0.10.1.0 previous versions does not have
+          // this method.
+          // Should return Map<TopicPartition, OffsetAndTimestamp>, but 0.10.1.0 previous versions
+          // does not have the OffsetAndTimestamp class. So return a raw type and use reflection
+          // here.
+          @SuppressWarnings("unchecked")
           public Map offsetsForTimes(Map<TopicPartition, Long> timestampsToSearch) {
             HashMap<TopicPartition, Object> result = new HashMap<>();
             try {
@@ -792,20 +800,22 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTime() {
 
-    if (new ConsumerSpEL().hasOffsetsForTimes()) {
-      int numElements = 1000;
-      int startTime = numElements / 20 / 2; // half elements
-      int maxNumRecords = numElements / 2;
+    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
 
-      PCollection<Long> input = p
-          .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
-              .withStartReadTime(new Instant(startTime))
-              .withoutMetadata())
-          .apply(Values.<Long>create());
+    int numElements = 1000;
+    // In this MockConsumer, we let the elements of the time and offset equal and there are 20
+    // partitions. So set this startTime can read half elements.
+    int startTime = numElements / 20 / 2;
+    int maxNumRecords = numElements / 2;
 
-      addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
-      p.run();
-    }
+    PCollection<Long> input = p
+        .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+            .withStartReadTime(new Instant(startTime))
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
+    p.run();
 
   }
 
@@ -814,20 +824,21 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTimeException() {
 
-    if (new ConsumerSpEL().hasOffsetsForTimes()) {
+    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
 
-      noMessagesException.expect(RuntimeException.class);
+    noMessagesException.expect(RuntimeException.class);
 
-      int numElements = 1000;
-      int startTime = 1000 / 20;
+    int numElements = 1000;
+    // In this MockConsumer, we let the elements of the time and offset equal and there are 20
+    // partitions. So set this startTime can not read any element.
+    int startTime = numElements / 20;
 
-      p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
-              .withStartReadTime(new Instant(startTime))
-              .withoutMetadata())
-          .apply(Values.<Long>create());
+    p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+            .withStartReadTime(new Instant(startTime))
+            .withoutMetadata())
+        .apply(Values.<Long>create());
 
-      p.run();
-    }
+    p.run();
 
   }
 

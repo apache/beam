@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -63,6 +63,7 @@ class ConsumerSpEL {
 
   public ConsumerSpEL() {
     try {
+      // It is supported by Kafka Client 0.10.0.0 onwards.
       timestampMethod = ConsumerRecord.class.getMethod("timestamp", (Class<?>[]) null);
       hasRecordTimestamp = timestampMethod.getReturnType().equals(Long.TYPE);
     } catch (NoSuchMethodException | SecurityException e) {
@@ -70,6 +71,7 @@ class ConsumerSpEL {
     }
 
     try {
+      // It is supported by Kafka Client 0.10.1.0 onwards.
       offsetGetterMethod = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp")
           .getMethod("offset", (Class<?>[]) null);
       offsetsForTimesMethod = Consumer.class.getMethod("offsetsForTimes", Map.class);
@@ -120,10 +122,11 @@ class ConsumerSpEL {
   @SuppressWarnings("unchecked")
   public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
 
-    checkArgument(hasOffsetsForTimes);
+    checkArgument(hasOffsetsForTimes,
+        "This Kafka Client must support Consumer.OffsetsForTimes().");
 
-    Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
-    timestampsToSearch.put(topicPartition, time.getMillis());
+    Map<TopicPartition, Long> timestampsToSearch =
+        ImmutableMap.of(topicPartition, time.getMillis());
     try {
       Map offsetsByTimes = (Map) offsetsForTimesMethod.invoke(consumer, timestampsToSearch);
       Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
