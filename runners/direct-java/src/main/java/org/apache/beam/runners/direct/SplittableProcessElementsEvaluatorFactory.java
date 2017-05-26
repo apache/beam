@@ -116,8 +116,6 @@ class SplittableProcessElementsEvaluatorFactory<
             delegateFactory.createParDoEvaluator(
                 application,
                 inputBundle.getKey(),
-                (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
-                    inputBundle.getPCollection(),
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
