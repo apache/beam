@@ -21,11 +21,13 @@ package org.apache.beam.runners.direct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -43,23 +45,33 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles}
- * {@link PTransform PTransforms} with an unspecified number of shards with a write with a
- * specified number of shards. The number of shards is the log base 10 of the number of input
- * records, with up to 2 additional shards.
+ * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles} {@link PTransform
+ * PTransforms} with an unspecified number of shards with a write with a specified number of shards.
+ * The number of shards is the log base 10 of the number of input records, with up to 2 additional
+ * shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
+    implements PTransformOverrideFactory<
+        PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
   public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
+      AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
+          transform) {
 
-    return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
+    try {
+      WriteFiles<InputT> replacement = WriteFiles.to(WriteFilesTranslation.getSink(transform));
+      if (WriteFilesTranslation.isWindowedWrites(transform)) {
+        replacement = replacement.withWindowedWrites();
+      }
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          replacement.withSharding(new LogElementShardsWithDrift<InputT>()));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

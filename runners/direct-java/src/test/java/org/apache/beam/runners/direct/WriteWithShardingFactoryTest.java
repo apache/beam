@@ -30,6 +30,7 @@ import static org.junit.Assert.assertThat;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
+import java.io.Serializable;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,6 +54,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -71,11 +73,17 @@ import org.junit.runners.JUnit4;
  * Tests for {@link WriteWithShardingFactory}.
  */
 @RunWith(JUnit4.class)
-public class WriteWithShardingFactoryTest {
+public class WriteWithShardingFactoryTest implements Serializable {
+
   private static final int INPUT_SIZE = 10000;
-  @Rule public TemporaryFolder tmp = new TemporaryFolder();
-  private WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
-  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
+  @Rule public transient TemporaryFolder tmp = new TemporaryFolder();
+
+  private transient WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
+
+  @Rule
+  public final transient TestPipeline p =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void dynamicallyReshardedWrite() throws Exception {
@@ -135,7 +143,8 @@ public class WriteWithShardingFactoryTest {
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",
             false);
-    WriteFiles<Object> original =
+
+    PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
             new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
               @Override
@@ -146,9 +155,10 @@ public class WriteWithShardingFactoryTest {
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
-    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
-        AppliedPTransform.of(
-            "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+    AppliedPTransform<PCollection<Object>, PDone, PTransform<PCollection<Object>, PDone>>
+        originalApplication =
+            AppliedPTransform.of(
+                "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),
