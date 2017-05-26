@@ -71,4 +71,8 @@ public abstract class BeamSqlExpression implements Serializable{
   public SqlTypeName getOutputType() {
     return outputType;
   }
+
+  public int numberOfOperands() {
+    return operands.size();
+  }
 }
