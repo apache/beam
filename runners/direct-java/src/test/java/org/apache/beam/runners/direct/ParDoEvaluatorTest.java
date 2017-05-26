@@ -98,7 +98,7 @@ public class ParDoEvaluatorTest {
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
     ParDoEvaluator<Integer> evaluator =
-        createEvaluator(singletonView, fn, inputPc, output);
+        createEvaluator(singletonView, fn, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
     WindowedValue<Integer> first = WindowedValue.valueInGlobalWindow(3);
@@ -132,7 +132,6 @@ public class ParDoEvaluatorTest {
   private ParDoEvaluator<Integer> createEvaluator(
       PCollectionView<Integer> singletonView,
       RecorderFn fn,
-      PCollection<Integer> input,
       PCollection<Integer> output) {
     when(
             evaluationContext.createSideInputReader(
@@ -157,7 +156,8 @@ public class ParDoEvaluatorTest {
         evaluationContext,
         stepContext,
         transform,
-        input.getWindowingStrategy(),
+        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs().values()))
+            .getWindowingStrategy(),
         fn,
         null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
