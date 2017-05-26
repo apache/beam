@@ -125,7 +125,7 @@
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>20.0</guava.version>
     <grpc.version>1.2.0</grpc.version>
-    <grpc-google-common-protos.version>0.1.0</grpc-google-common-protos.version>
+    <grpc-google-common-protos.version>0.1.9</grpc-google-common-protos.version>
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.8.8</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
@@ -177,8 +177,8 @@
   </modules>
 
   <profiles>
-    <!-- A global profile defined for all modules for release-level verification. 
-      Optional processes such as building source and javadoc should be limited 
+    <!-- A global profile defined for all modules for release-level verification.
+      Optional processes such as building source and javadoc should be limited
       to this profile. -->
     <profile>
       <id>release</id>
@@ -495,7 +495,7 @@
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
 	    <version>${project.version}</version>
       </dependency>
-	
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-construction-java</artifactId>
@@ -739,13 +739,13 @@
         <artifactId>google-auth-library-credentials</artifactId>
         <version>${google-auth.version}</version>
       </dependency>
-  
+
       <dependency>
         <groupId>com.google.auth</groupId>
         <artifactId>google-auth-library-oauth2-http</artifactId>
         <version>${google-auth.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -811,11 +811,23 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-spanner-admin-database-v1</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-common-protos</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
         <version>${storage.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -902,7 +914,7 @@
         <artifactId>google-api-services-dataflow</artifactId>
         <version>${dataflow.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -916,7 +928,7 @@
         <artifactId>google-api-services-clouddebugger</artifactId>
         <version>${clouddebugger.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -1017,7 +1029,7 @@
         <artifactId>byte-buddy</artifactId>
         <version>1.6.8</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-expression</artifactId>
@@ -1124,7 +1136,7 @@
           <artifactId>maven-antrun-plugin</artifactId>
           <version>1.8</version>
         </plugin>
-        
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
@@ -1395,7 +1407,7 @@
           </configuration>
         </plugin>
 
-        <!-- This plugin's configuration tells the m2e plugin how to import this 
+        <!-- This plugin's configuration tells the m2e plugin how to import this
           Maven project into the Eclipse environment. -->
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
@@ -1732,7 +1744,7 @@
             </goals>
             <configuration>
               <outputDirectory>${basedir}/sdks/python</outputDirectory>
-              <resources>          
+              <resources>
                 <resource>
                   <directory>${basedir}</directory>
                   <includes>
@@ -1741,8 +1753,8 @@
                     <include>README.md</include>
                   </includes>
                 </resource>
-              </resources>              
-            </configuration>            
+              </resources>
+            </configuration>
           </execution>
         </executions>
       </plugin>
