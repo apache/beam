@@ -24,6 +24,7 @@ This API is currently under development and is subject to change.
 
 from __future__ import absolute_import
 
+from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
