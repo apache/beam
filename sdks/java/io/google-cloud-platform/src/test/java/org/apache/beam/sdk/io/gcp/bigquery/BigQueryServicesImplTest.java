@@ -58,6 +58,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -548,7 +549,6 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
-    expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
   /**
@@ -637,6 +637,55 @@ public class BigQueryServicesImplTest {
       verify(response, times(1)).getContentType();
       throw e.getCause();
     }
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link InsertRetryPolicy},
+   * and returns the list of rows not retried.
+   */
+  @Test
+  public void testInsertRetryPolicy() throws InterruptedException, IOException {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<TableRow> rows = ImmutableList.of(new TableRow(), new TableRow());
+
+    // First time row0 fails with a retryable error, and row1 fails with a persistent error.
+    final TableDataInsertAllResponse firstFailure = new TableDataInsertAllResponse()
+        .setInsertErrors(ImmutableList.of(
+            new InsertErrors().setIndex(0L).setErrors(
+                ImmutableList.of(new ErrorProto().setReason("timeout"))),
+            new InsertErrors().setIndex(1L).setErrors(
+            ImmutableList.of(new ErrorProto().setReason("invalid")))));
+
+    // Second time there is only one row, which fails with a retryable error.
+    final TableDataInsertAllResponse secondFialure = new TableDataInsertAllResponse()
+        .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(0L).setErrors(
+            ImmutableList.of(new ErrorProto().setReason("timeout")))));
+
+    // On the final attempt, no failures are returned.
+    final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    // Always return 200.
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200).thenReturn(200);
+
+    // First fail
+    when(response.getContent())
+        .thenReturn(toStream(firstFailure))
+        .thenReturn(toStream(secondFialure))
+        .thenReturn(toStream(allRowsSucceeded));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    List<TableRow> failedInserts = Lists.newArrayList();
+    dataService.insertAll(ref, rows, null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.dontRetryPersistentErrors(), failedInserts);
+    assertEquals(1, failedInserts.size());
+    expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */

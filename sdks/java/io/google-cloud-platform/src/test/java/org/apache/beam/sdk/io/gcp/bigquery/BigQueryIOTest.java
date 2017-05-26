@@ -35,12 +35,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatistics4;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -125,6 +127,7 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
@@ -614,6 +617,45 @@ public class BigQueryIOTest implements Serializable {
         .withDatasetService(datasetService);
 
     datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+    TableRow row3 = new TableRow().set("name", "c").set("number", "3");
+
+    TableDataInsertAllResponse.InsertErrors ephemeralError =
+        new TableDataInsertAllResponse.InsertErrors().setErrors(
+            ImmutableList.of(new ErrorProto().setReason("timeout")));
+    TableDataInsertAllResponse.InsertErrors persistentError =
+        new TableDataInsertAllResponse.InsertErrors().setErrors(
+            ImmutableList.of(new ErrorProto().setReason("invalidQuery")));
+
+    datasetService.failOnInsert(
+        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        row1, ImmutableList.of(ephemeralError, ephemeralError),
+        row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    PCollection<TableRow> failedRows =
+        p.apply(Create.of(row1, row2, row3))
+            .setIsBoundedInternal(IsBounded.UNBOUNDED)
+            .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(new TableSchema().setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withFailedInsertRetryPolicy(InsertRetryPolicy.dontRetryPersistentErrors())
+            .withTestServices(fakeBqServices)
+            .withoutValidation()).getFailedInserts();
+    // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
+    // failed rows.
+    PAssert.that(failedRows).containsInAnyOrder(row2);
+    p.run();
+
+    // Only row1 and row3 were successfully inserted.
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row3));
+
   }
 
   @Test

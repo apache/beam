@@ -38,10 +38,11 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 class FakeDatasetService implements DatasetService, Serializable {
-  Map<String, String> insertErrors = Maps.newHashMap();
+  Map<String, List<String>> insertErrors = Maps.newHashMap();
 
   @Override
   public Table getTable(TableReference tableRef)
@@ -173,7 +174,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
       throws IOException, InterruptedException {
-    Map<TableRow, TableDataInsertAllResponse.InsertErrors> insertErrors = getInsertErrors();
+    Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (BigQueryIOTest.tables) {
       if (insertIdList != null) {
         assertEquals(rowList.size(), insertIdList.size());
@@ -189,11 +190,19 @@ class FakeDatasetService implements DatasetService, Serializable {
           ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
       for (int i = 0; i < rowList.size(); ++i) {
         TableRow row = rowList.get(i);
-        TableDataInsertAllResponse.InsertErrors errors = insertErrors.get(row);
-        if (errors != null) {
-
-        } else {
+        List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);
+        boolean shouldInsert = true;
+        if (allErrors != null) {
+          for (TableDataInsertAllResponse.InsertErrors errors : allErrors) {
+            if (!retryPolicy.shouldRetry(new Context(errors))) {
+              shouldInsert = false;
+            }
+          }
+        }
+        if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
+        } else {
+          failedInserts.add(row);
         }
       }
       return dataSize;
@@ -211,24 +220,37 @@ class FakeDatasetService implements DatasetService, Serializable {
       return tableContainer.getTable();
     }
   }
-  public void failOnInsert(Map<TableRow, TableDataInsertAllResponse.InsertErrors> insertErrors) {
+
+  /**
+   * Cause a given {@link TableRow} object to fail when it's inserted. The errors link the list
+   * will be returned on subsequent retries, and the insert will succeed when the errors run out.
+   */
+  public void failOnInsert(
+      Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors) {
     synchronized (BigQueryIOTest.tables) {
-      Map<String, String> mappedInsertErrors = Maps.newHashMap();
-      for (Map.Entry<TableRow, TableDataInsertAllResponse.InsertErrors> entry
+      for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry
           : insertErrors.entrySet()) {
-        this.insertErrors.put(BigQueryHelpers.toJsonString(entry.getKey()),
-            BigQueryHelpers.toJsonString(entry.getValue()));
+        List<String> errorStrings = Lists.newArrayList();
+        for (TableDataInsertAllResponse.InsertErrors errors : entry.getValue()) {
+          errorStrings.add(BigQueryHelpers.toJsonString(errors));
+        }
+        this.insertErrors.put(BigQueryHelpers.toJsonString(entry.getKey()), errorStrings);
       }
     }
   }
 
-  Map<TableRow, TableDataInsertAllResponse.InsertErrors> getInsertErrors() {
-    Map<TableRow, TableDataInsertAllResponse.InsertErrors> parsedInsertErrors = Maps.newHashMap();
+  Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> getInsertErrors() {
+    Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> parsedInsertErrors =
+        Maps.newHashMap();
     synchronized (BigQueryIOTest.tables) {
-      for (Map.Entry<String, String> entry : this.insertErrors.entrySet()) {
-        parsedInsertErrors.put(BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class),
-            BigQueryHelpers.fromJsonString(entry.getValue(),
-                TableDataInsertAllResponse.InsertErrors.class));
+      for (Map.Entry<String, List<String>> entry : this.insertErrors.entrySet()) {
+        TableRow tableRow = BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class);
+        List<TableDataInsertAllResponse.InsertErrors> allErrors = Lists.newArrayList();
+        for (String errorsString : entry.getValue()) {
+          allErrors.add(BigQueryHelpers.fromJsonString(
+              errorsString, TableDataInsertAllResponse.InsertErrors.class));
+        }
+        parsedInsertErrors.put(tableRow, allErrors);
       }
     }
     return parsedInsertErrors;
