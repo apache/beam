@@ -39,6 +39,9 @@ class WatermarkManager(object):
     self._clock = clock  # processing time clock
     self._value_to_consumers = value_to_consumers
     self._root_transforms = root_transforms
+    import pprint
+    print '1!!!!!!!!!!!!!!!!!!!!!!! VALUE_TO_CONSUMERS'
+    pprint.pprint(value_to_consumers)
     self._transform_keyed_states = transform_keyed_states
     # AppliedPTransform -> TransformWatermarks
     self._transform_to_watermarks = {}
@@ -94,6 +97,7 @@ class WatermarkManager(object):
   def update_watermarks(self, completed_committed_bundle, unprocessed_bundle,
                         applied_ptransform,
                         timer_update, outputs, earliest_hold):
+    print '*******UPDATE_WATERMARKS'
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, unprocessed_bundle, applied_ptransform,
@@ -128,6 +132,7 @@ class WatermarkManager(object):
       completed_tw.remove_pending(input_committed_bundle)
 
   def _refresh_watermarks(self, applied_ptransform):
+    print 'RW_RECURSIVE', applied_ptransform
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     tw = self.get_watermarks(applied_ptransform)
     if tw.refresh():
@@ -143,11 +148,15 @@ class WatermarkManager(object):
               self._refresh_watermarks(consumer)
 
   def extract_fired_timers(self):
+    print 'EXTRACT TIMERS!!!'
     all_timers = []
     for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
+      print '[!] ET', applied_ptransform, tw._output_watermark, tw._input_watermark
+      print '    CHILDREN: ', applied_ptransform.outputs
       fired_timers = tw.extract_fired_timers()
       if fired_timers:
         all_timers.append((applied_ptransform, fired_timers))
+    print 'EXTRACT TIMERS END!!!', all_timers
     return all_timers
 
 
@@ -207,6 +216,7 @@ class _TransformWatermarks(object):
         self._pending.remove(completed)
 
   def refresh(self):
+    print '[!] WATERMARK REFRESH', self._label, '(existing watermark', self._output_watermark
     # TODO: remove this and the below assert
     from apache_beam.runners.direct.evaluation_context import DirectUnmergedState
     with self._lock:
@@ -234,6 +244,7 @@ class _TransformWatermarks(object):
       self._input_watermark = max(self._input_watermark,
                                   min(pending_holder, producer_watermark, earliest_watermark_hold))
       new_output_watermark = min(self._input_watermark, self._earliest_hold)
+      print '[!] ', self._label, 'INPUT', self._input_watermark, 'OUTPUT', new_output_watermark
 
       advanced = new_output_watermark > self._output_watermark
       if advanced:

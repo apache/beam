@@ -577,6 +577,7 @@ class _ExecutorServiceParallelExecutor(object):
           if timer_firing is None:
             # Use an empty committed bundle. just to trigger.
             # TODO: are there still timer-using things that don't take keyed work items?
+            print '%%%%%%%%%%% EMPTY BUNDLE', applied_ptransform
             empty_bundle = (
                 self._executor.evaluation_context.create_empty_committed_bundle(
                     applied_ptransform.inputs[0]))
