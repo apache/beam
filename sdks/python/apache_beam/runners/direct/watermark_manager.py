@@ -243,8 +243,12 @@ class _TransformWatermarks(object):
 
       self._input_watermark = max(self._input_watermark,
                                   min(pending_holder, producer_watermark, earliest_watermark_hold))
-      new_output_watermark = min(self._input_watermark, self._earliest_hold)
+      # TODO: clean this up.
+      middle_watermark_thing = max(self._input_watermark,
+                                  min(producer_watermark, earliest_watermark_hold))
+      new_output_watermark = min(middle_watermark_thing, self._earliest_hold)
       print '[!] ', self._label, 'INPUT', self._input_watermark, 'OUTPUT', new_output_watermark
+      print '    input watermark details: pending_holder', pending_holder, 'producer_watermark', producer_watermark, 'earliest_watermark_hold', earliest_watermark_hold
 
       advanced = new_output_watermark > self._output_watermark
       if advanced:
