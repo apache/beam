@@ -97,7 +97,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   // when a pipeline is updated.
   @Nullable
   private final ValueProvider<Integer> numShardsProvider;
-  private boolean windowedWrites;
+  private final boolean windowedWrites;
 
   /**
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
@@ -164,6 +164,13 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    */
   public FileBasedSink<T> getSink() {
     return sink;
+  }
+
+  /**
+   * Returns whether or not to perform windowed writes.
+   */
+  public boolean isWindowedWrites() {
+    return windowedWrites;
   }
 
   /**
