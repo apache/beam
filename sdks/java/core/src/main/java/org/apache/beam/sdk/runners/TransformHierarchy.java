@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
@@ -68,7 +67,7 @@ public class TransformHierarchy {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
-    root = new Node(null, null, "", null);
+    root = new Node();
     current = root;
   }
 
@@ -202,10 +201,12 @@ public class TransformHierarchy {
     return producers.get(produced);
   }
 
+  int traversed = 0;
   public Set<PValue> visit(PipelineVisitor visitor) {
     finishSpecifying();
     Set<PValue> visitedValues = new HashSet<>();
-    root.visit(visitor, visitedValues);
+    traversed++;
+    root.visit(visitor, visitedValues, new HashSet<Node>(), new HashSet<Node>());
     return visitedValues;
   }
 
@@ -253,10 +254,18 @@ public class TransformHierarchy {
     boolean finishedSpecifying = false;
 
     /**
+     * Creates the root-level node. The root level node has a null enclosing node, a null transform,
+     * an empty map of inputs, and a name equal to the empty string.
+     */
+    private Node() {
+      this.enclosingNode = null;
+      this.transform = null;
+      this.fullName = "";
+      this.inputs = Collections.emptyMap();
+    }
+
+    /**
      * Creates a new Node with the given parent and transform.
-     *
-     * <p>EnclosingNode and transform may both be null for a root-level node, which holds all other
-     * nodes.
      *
      * @param enclosingNode the composite node containing this node
      * @param transform the PTransform tracked by this node
@@ -264,14 +273,17 @@ public class TransformHierarchy {
      * @param input the unexpanded input to the transform
      */
     private Node(
-        @Nullable Node enclosingNode,
-        @Nullable PTransform<?, ?> transform,
+        Node enclosingNode,
+        PTransform<?, ?> transform,
         String fullName,
-        @Nullable PInput input) {
+        PInput input) {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
-      this.inputs = input == null ? Collections.<TupleTag<?>, PValue>emptyMap() : input.expand();
+      ImmutableMap.Builder<TupleTag<?>, PValue> inputs = ImmutableMap.builder();
+      inputs.putAll(input.expand());
+      inputs.putAll(transform.getAdditionalInputs());
+      this.inputs = inputs.build();
     }
 
     /**
@@ -462,7 +474,22 @@ public class TransformHierarchy {
      * <p>Provides an ordered visit of the input values, the primitive transform (or child nodes for
      * composite transforms), then the output values.
      */
-    private void visit(PipelineVisitor visitor, Set<PValue> visitedValues) {
+    private void visit(
+        PipelineVisitor visitor,
+        Set<PValue> visitedValues,
+        Set<Node> visitedNodes,
+        Set<Node> passedComposites) {
+      if (getEnclosingNode() != null && !visitedNodes.contains(getEnclosingNode())) {
+        getEnclosingNode().visit(visitor, visitedValues, visitedNodes, passedComposites);
+      }
+      if (!visitedNodes.add(this)) {
+        LOG.debug("Not revisiting previously visited node {}", this);
+        return;
+      } else if (childNodeOf(passedComposites)) {
+        LOG.debug("Not revisiting Node {} which is a child of a previously passed composite", this);
+        return;
+      }
+
       if (!finishedSpecifying) {
         finishSpecifying();
       }
@@ -470,22 +497,31 @@ public class TransformHierarchy {
       if (!isRootNode()) {
         // Visit inputs.
         for (PValue inputValue : inputs.values()) {
+          Node valueProducer = getProducer(inputValue);
+          if (!visitedNodes.contains(valueProducer)) {
+            valueProducer.visit(visitor, visitedValues, visitedNodes, passedComposites);
+          }
           if (visitedValues.add(inputValue)) {
-            visitor.visitValue(inputValue, getProducer(inputValue));
+            LOG.debug("Visiting input value {}", inputValue);
+            visitor.visitValue(inputValue, valueProducer);
           }
         }
       }
 
       if (isCompositeNode()) {
+        LOG.debug("Visiting composite node {}", this);
         PipelineVisitor.CompositeBehavior recurse = visitor.enterCompositeTransform(this);
 
         if (recurse.equals(CompositeBehavior.ENTER_TRANSFORM)) {
           for (Node child : parts) {
-            child.visit(visitor, visitedValues);
+            child.visit(visitor, visitedValues, visitedNodes, passedComposites);
           }
+        } else {
+          passedComposites.add(this);
         }
         visitor.leaveCompositeTransform(this);
       } else {
+        LOG.debug("Visiting primitive node {}", this);
         visitor.visitPrimitiveTransform(this);
       }
 
@@ -494,10 +530,22 @@ public class TransformHierarchy {
         // Visit outputs.
         for (PValue pValue : outputs.values()) {
           if (visitedValues.add(pValue)) {
+            LOG.debug("Visiting output value {}", pValue);
             visitor.visitValue(pValue, this);
           }
         }
       }
+    }
+
+    private boolean childNodeOf(Set<Node> nodes) {
+      if (isRootNode()) {
+        return false;
+      }
+      Node parent = this.getEnclosingNode();
+      while (!parent.isRootNode() && !nodes.contains(parent)) {
+        parent = parent.getEnclosingNode();
+      }
+      return nodes.contains(parent);
     }
 
     /**

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -32,6 +33,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
@@ -491,5 +494,88 @@ public class TransformHierarchyTest implements Serializable {
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(upstreamNode, replacementParNode));
     assertThat(visitedValues, Matchers.<PValue>containsInAnyOrder(upstream, output));
+  }
+
+  @Test
+  public void visitIsTopologicallyOrdered() {
+    PCollection<String> one =
+        PCollection.<String>createPrimitiveOutputInternal(
+                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+            .setCoder(StringUtf8Coder.of());
+    final PCollection<Integer> two =
+        PCollection.<Integer>createPrimitiveOutputInternal(
+                pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
+            .setCoder(VarIntCoder.of());
+    final PDone done = PDone.in(pipeline);
+    final TupleTag<String> oneTag = new TupleTag<String>() {};
+    final TupleTag<Integer> twoTag = new TupleTag<Integer>() {};
+    final PCollectionTuple oneAndTwo = PCollectionTuple.of(oneTag, one).and(twoTag, two);
+
+    hierarchy.pushNode("consumes_both", one, new PTransform<PCollection<String>, PDone>() {
+      @Override
+      public PDone expand(PCollection<String> input) {
+        return done;
+      }
+
+      @Override
+      public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+        return Collections.<TupleTag<?>, PValue>singletonMap(twoTag, two);
+      }
+    });
+    hierarchy.setOutput(done);
+    hierarchy.popNode();
+
+    final PTransform<PBegin, PCollectionTuple> producer =
+        new PTransform<PBegin, PCollectionTuple>() {
+          @Override
+          public PCollectionTuple expand(PBegin input) {
+            return oneAndTwo;
+          }
+        };
+    hierarchy.pushNode(
+        "encloses_producer",
+        PBegin.in(pipeline),
+        new PTransform<PBegin, PCollectionTuple>() {
+          @Override
+          public PCollectionTuple expand(PBegin input) {
+            return input.apply(producer);
+          }
+        });
+    hierarchy.pushNode(
+        "creates_one_and_two",
+        PBegin.in(pipeline), producer);
+    hierarchy.setOutput(oneAndTwo);
+    hierarchy.popNode();
+    hierarchy.setOutput(oneAndTwo);
+    hierarchy.popNode();
+
+    hierarchy.visit(new PipelineVisitor.Defaults() {
+      private final Set<Node> visitedNodes = new HashSet<>();
+      private final Set<PValue> visitedValues = new HashSet<>();
+      @Override
+      public CompositeBehavior enterCompositeTransform(Node node) {
+        for (PValue input : node.getInputs().values()) {
+          assertThat(visitedValues, hasItem(input));
+        }
+        visitedNodes.add(node);
+        return CompositeBehavior.ENTER_TRANSFORM;
+      }
+
+      @Override
+      public void visitPrimitiveTransform(Node node) {
+        assertThat(visitedNodes, hasItem(node.getEnclosingNode()));
+        for (PValue input : node.getInputs().values()) {
+          assertThat(visitedValues, hasItem(input));
+        }
+        visitedNodes.add(node);
+      }
+
+      @Override
+      public void visitValue(PValue value, Node producer) {
+        assertThat(visitedNodes, hasItem(producer));
+        assertThat(visitedValues, not(hasItem(value)));
+        visitedValues.add(value);
+      }
+    });
   }
 }

@@ -21,8 +21,10 @@ package org.apache.beam.runners.spark;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -49,6 +51,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -336,6 +339,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     protected final EvaluationContext ctxt;
     protected final SparkPipelineTranslator translator;
 
+    private final Set<Node> shouldIgnoreChildren = new HashSet<>();
+
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
       this.ctxt = ctxt;
@@ -351,6 +356,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
           LOG.debug("Composite transform class: '{}'", transformClass);
           doVisitTransform(node);
+          shouldIgnoreChildren.add(node);
           return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
         }
       }
@@ -392,6 +398,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      Node parent = node.getEnclosingNode();
+      while (!parent.isRootNode()) {
+        if (shouldIgnoreChildren.contains(parent)) {
+          return;
+        }
+        parent = parent.getEnclosingNode();
+      }
       doVisitTransform(node);
     }
 

@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -97,8 +98,13 @@ public class BoundedDataset<T> implements Dataset {
     return windowedValues;
   }
 
+  int timesCached = 0;
   @Override
   public void cache(String storageLevel) {
+    System.out.printf(
+        "Persisting Dataset %s for RDD %s (id %s) at level %s. %s times before%n",
+        this, getRDD(), getRDD().toDebugString(), storageLevel, timesCached++);
+    System.out.println(Joiner.on("\n\t").join(new Throwable().getStackTrace()));
     // populate the rdd if needed
     getRDD().persist(StorageLevel.fromString(storageLevel));
   }
