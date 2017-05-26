@@ -18,8 +18,9 @@
 
 package org.apache.beam.runners.direct;
 
+import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ForwardingPTransform;
+import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -43,16 +44,30 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
-        PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>> {
+    PCollection<ElemT>, PCollection<ElemT>,
+        PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
 
   @Override
   public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
       AppliedPTransform<
-              PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>>
+              PCollection<ElemT>, PCollection<ElemT>,
+              PTransform<PCollection<ElemT>, PCollection<ElemT>>>
           transform) {
-    return PTransformReplacement.of(
+
+    PCollectionView<ViewT> view;
+    try {
+      view = CreatePCollectionViewTranslation.getView(transform);
+    } catch (IOException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Could not extract %s from transform %s",
+              PCollectionView.class.getSimpleName(), transform),
+          exc);
+    }
+
+      return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new GroupAndWriteView<>(transform.getTransform()));
+        new GroupAndWriteView<ElemT, ViewT>(view));
   }
 
   @Override
@@ -63,11 +78,11 @@ class ViewOverrideFactory<ElemT, ViewT>
 
   /** The {@link DirectRunner} composite override for {@link CreatePCollectionView}. */
   static class GroupAndWriteView<ElemT, ViewT>
-      extends ForwardingPTransform<PCollection<ElemT>, PCollection<ElemT>> {
-    private final CreatePCollectionView<ElemT, ViewT> og;
+      extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
+    private final PCollectionView<ViewT> view;
 
-    private GroupAndWriteView(CreatePCollectionView<ElemT, ViewT> og) {
-      this.og = og;
+    private GroupAndWriteView(PCollectionView<ViewT> view) {
+      this.view = view;
     }
 
     @Override
@@ -77,13 +92,8 @@ class ViewOverrideFactory<ElemT, ViewT>
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
           .apply(GroupByKey.<Void, ElemT>create())
           .apply(Values.<Iterable<ElemT>>create())
-          .apply(new WriteView<ElemT, ViewT>(og));
+          .apply(new WriteView<ElemT, ViewT>(view));
       return input;
-    }
-
-    @Override
-    protected PTransform<PCollection<ElemT>, PCollection<ElemT>> delegate() {
-      return og;
     }
   }
 
@@ -96,10 +106,10 @@ class ViewOverrideFactory<ElemT, ViewT>
    */
   static final class WriteView<ElemT, ViewT>
       extends RawPTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
-    private final CreatePCollectionView<ElemT, ViewT> og;
+    private final PCollectionView<ViewT> view;
 
-    WriteView(CreatePCollectionView<ElemT, ViewT> og) {
-      this.og = og;
+    WriteView(PCollectionView<ViewT> view) {
+      this.view = view;
     }
 
     @Override
@@ -112,7 +122,7 @@ class ViewOverrideFactory<ElemT, ViewT>
 
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
-      return og.getView();
+      return view;
     }
 
     @Override
