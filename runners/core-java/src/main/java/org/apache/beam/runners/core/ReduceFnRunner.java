@@ -952,11 +952,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       boolean isFinished, boolean isEndOfWindow)
           throws Exception {
-    Instant inputWM = timerInternals.currentInputWatermarkTime();
-
-    // Calculate the pane info.
-    final PaneInfo pane = paneInfoTracker.getNextPaneInfo(directContext, isFinished).read();
-
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
         watermarkHold.extractAndRelease(renamedContext, isFinished).read();
@@ -965,7 +960,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     @Nullable Instant newHold = pair.newHold;
 
     final boolean isEmpty = nonEmptyPanes.isEmpty(renamedContext.state()).read();
+    if (isEmpty
+        && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_IF_NON_EMPTY
+        && windowingStrategy.getOnTimeBehavior() == Window.OnTimeBehavior.FIRE_IF_NON_EMPTY) {
+      return newHold;
+    }
 
+    Instant inputWM = timerInternals.currentInputWatermarkTime();
     if (newHold != null) {
       // We can't be finished yet.
       checkState(
@@ -996,6 +997,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           directContext.window());
       }
     }
+
+    // Calculate the pane info.
+    final PaneInfo pane = paneInfoTracker.getNextPaneInfo(directContext, isFinished).read();
 
     // Only emit a pane if it has data or empty panes are observable.
     if (needToEmit(isEmpty, isFinished, pane.getTiming())) {
