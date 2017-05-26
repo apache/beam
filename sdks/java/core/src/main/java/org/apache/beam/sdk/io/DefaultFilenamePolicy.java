@@ -92,7 +92,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    *
    * <p>If provided, the shard name template will be used; otherwise
    * {@link #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} will be used for non-windowed file names and
-   * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE} willbe used for windowed file names.
+   * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE} will be used for windowed file names.
    *
    * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
    */
