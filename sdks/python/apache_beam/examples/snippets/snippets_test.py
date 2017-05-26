@@ -652,8 +652,7 @@ class SnippetsTest(unittest.TestCase):
     pipelines = [snippets.examples_ptransforms_templated]
 
     for pipeline in pipelines:
-      temp_path = self.create_temp_file(
-          '1\n 2\n 3')
+      temp_path = self.create_temp_file('1\n 2\n 3')
       result_path = self.create_temp_file()
       pipeline({'read': temp_path, 'write': result_path})
       self.assertEqual(

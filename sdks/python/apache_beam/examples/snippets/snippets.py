@@ -512,14 +512,13 @@ def examples_wordcount_templated(renames):
   from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START example_wordcount_templated]
-  class WordcountOptions(PipelineOptions):
+  class WordcountTemplatedOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
       # Use add_value_provider_argument for arguments to be templatable
       # Use add_argument as usual for non-templatable arguments
       parser.add_value_provider_argument(
           '--input',
-          # default = 'gs://dataflow-samples/shakespeare/kinglear.txt',
           help='Path of the file to read from')
       parser.add_argument(
           '--output',
@@ -528,7 +527,7 @@ def examples_wordcount_templated(renames):
   pipeline_options = PipelineOptions(['--output', 'some/output_path'])
   p = beam.Pipeline(options=pipeline_options)
 
-  wordcount_options = pipeline_options.view_as(WordcountOptions)
+  wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
   lines = p | 'read' >> ReadFromText(wordcount_options.input)
   # [END example_wordcount_templated]
 
@@ -618,11 +617,11 @@ def examples_wordcount_debugging(renames):
 def examples_ptransforms_templated(renames):
   # [START examples_ptransforms_templated]
   import apache_beam as beam
+  from apache_beam.io import WriteToText
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.value_provider import StaticValueProvider
-  from apache_beam.io import WriteToText
 
-  class UserOptions(PipelineOptions):
+  class TemplatedUserOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_value_provider_argument('--templated_int', type=int)
@@ -637,7 +636,7 @@ def examples_ptransforms_templated(renames):
   pipeline_options = PipelineOptions()
   p = beam.Pipeline(options=pipeline_options)
 
-  user_options = pipeline_options.view_as(UserOptions)
+  user_options = pipeline_options.view_as(TemplatedUserOptions)
   my_sum_fn = MySumFn(user_options.templated_int)
   sum = (p
          | 'ReadCollection' >> beam.io.ReadFromText(
@@ -647,6 +646,8 @@ def examples_ptransforms_templated(renames):
          | 'WriteResultingCollection' >> WriteToText('some/output_path'))
   # [END examples_ptransforms_templated]
 
+  # Templates are not supported by DirectRunner (only by DataflowRunner)
+  # so a value must be provided at graph-construction time
   my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
   p.visit(SnippetUtils.RenameFiles(renames))
