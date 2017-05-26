@@ -18,12 +18,12 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
+import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.util.List;
 
 /**
  * Base class for all unary functions such as
