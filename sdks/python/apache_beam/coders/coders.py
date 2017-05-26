@@ -516,7 +516,7 @@ class Base64PickleCoder(Coder):
   # than via a special Coder.
 
   def encode(self, value):
-    return base64.b64encode(pickle.dumps(value))
+    return base64.b64encode(pickle.dumps(value, -1))
 
   def decode(self, encoded):
     return pickle.loads(base64.b64decode(encoded))
