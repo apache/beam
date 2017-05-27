@@ -34,7 +34,9 @@ import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -43,6 +45,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SlidingWindowsTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSimple() throws Exception {
@@ -150,6 +154,13 @@ public class SlidingWindowsTest {
         SlidingWindows.of(new Duration(20))));
     assertFalse(SlidingWindows.of(new Duration(10)).isCompatible(
         SlidingWindows.of(new Duration(20))));
+  }
+
+  @Test
+  public void testVerifyCompatibility() throws IncompatibleWindowException {
+    SlidingWindows.of(new Duration(10)).verifyCompatibility(SlidingWindows.of(new Duration(10)));
+    thrown.expect(IncompatibleWindowException.class);
+    SlidingWindows.of(new Duration(10)).verifyCompatibility(SlidingWindows.of(new Duration(20)));
   }
 
   @Test

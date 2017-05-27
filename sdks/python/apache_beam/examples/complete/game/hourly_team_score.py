@@ -59,9 +59,9 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class ParseEventFn(beam.DoFn):
@@ -276,18 +276,15 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   pipeline_options = PipelineOptions(pipeline_args)
-  p = beam.Pipeline(options=pipeline_options)
   pipeline_options.view_as(SetupOptions).save_main_session = True
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | ReadFromText(known_args.input)
-   | HourlyTeamScore(
-       known_args.start_min, known_args.stop_min, known_args.window_duration)
-   | WriteWindowedToBigQuery(
-       known_args.table_name, known_args.dataset, configure_bigquery_write()))
-
-  result = p.run()
-  result.wait_until_finish()
+    (p  # pylint: disable=expression-not-assigned
+     | ReadFromText(known_args.input)
+     | HourlyTeamScore(
+         known_args.start_min, known_args.stop_min, known_args.window_duration)
+     | WriteWindowedToBigQuery(
+         known_args.table_name, known_args.dataset, configure_bigquery_write()))
 
 
 if __name__ == '__main__':

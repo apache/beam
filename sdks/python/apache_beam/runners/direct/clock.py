@@ -23,6 +23,7 @@ import time
 
 
 class Clock(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def time(self):
     """Returns the number of milliseconds since epoch."""
@@ -30,7 +31,9 @@ class Clock(object):
 
 
 class MockClock(Clock):
-  """Mock clock implementation for testing."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Mock clock implementation for testing."""
 
   def __init__(self, now_in_ms):
     self._now_in_ms = now_in_ms

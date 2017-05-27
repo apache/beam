@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -63,32 +66,48 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   /**
-   * A {@link CoderProvider} that constructs a {@link SerializableCoder}
-   * for any class that implements serializable.
+   * Returns a {@link CoderProvider} which uses the {@link SerializableCoder} if possible for
+   * all types.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static final CoderProvider PROVIDER = new CoderProvider() {
-    @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor)
-        throws CannotProvideCoderException {
-      Class<?> clazz = typeDescriptor.getRawType();
-      if (Serializable.class.isAssignableFrom(clazz)) {
-        @SuppressWarnings("unchecked")
-        Class<? extends Serializable> serializableClazz =
-            (Class<? extends Serializable>) clazz;
-        @SuppressWarnings("unchecked")
-        Coder<T> coder = (Coder<T>) SerializableCoder.of(serializableClazz);
-        return coder;
-      } else {
-        throw new CannotProvideCoderException(
-            "Cannot provide SerializableCoder because " + typeDescriptor
-            + " does not implement Serializable");
-      }
-    }
-  };
+  @SuppressWarnings("unused")
+  public static CoderProvider getCoderProvider() {
+    return new SerializableCoderProvider();
+  }
 
+  /**
+   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
+   * serializable types.
+   */
+  @AutoService(CoderProviderRegistrar.class)
+  public static class SerializableCoderProviderRegistrar implements CoderProviderRegistrar {
+
+    @Override
+    public List<CoderProvider> getCoderProviders() {
+      return ImmutableList.of(getCoderProvider());
+    }
+  }
+
+  /**
+   * A {@link CoderProvider} that constructs a {@link SerializableCoder} for any class that
+   * implements serializable.
+   */
+  static class SerializableCoderProvider extends CoderProvider {
+    @Override
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (Serializable.class.isAssignableFrom(typeDescriptor.getRawType())) {
+        return SerializableCoder.of((TypeDescriptor) typeDescriptor);
+      }
+      throw new CannotProvideCoderException(
+          "Cannot provide SerializableCoder because " + typeDescriptor
+              + " does not implement Serializable");
+    }
+  }
 
   private final Class<T> type;
-  private final TypeDescriptor<T> typeDescriptor;
+  private transient TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;
@@ -100,7 +119,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
+  public void encode(T value, OutputStream outStream)
       throws IOException, CoderException {
     try {
       ObjectOutputStream oos = new ObjectOutputStream(outStream);
@@ -112,7 +131,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream, Context context)
+  public T decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       ObjectInputStream ois = new ObjectInputStream(inStream);
@@ -147,6 +166,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    if (typeDescriptor == null) {
+      typeDescriptor = TypeDescriptor.of(type);
+    }
     return typeDescriptor;
   }
 

@@ -34,7 +34,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

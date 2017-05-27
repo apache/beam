@@ -34,27 +34,27 @@ import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,7 +163,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowingStrategy,
         ExecutableTriggerStateMachine.create(
             TriggerStateMachines.stateMachineForTrigger(
-                Triggers.toProto(windowingStrategy.getTrigger()))),
+                TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
         stateInternalsFactory.stateInternalsForKey(key),
         timerInternals,
         new OutputWindowedValue<KV<K, Iterable<V>>>() {
@@ -202,7 +202,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPane());
-    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark);
+    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
         newReduceFnRunner(kv.getKey());
     reduceFnRunner.processElements(Collections.singletonList(updatedWindowedValue));
@@ -211,7 +211,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
 
   @Override
   public void fireTimer(K key, Collection<TimerData> timerData) {
-    timerInternals.setContext(key, keyCoder, inputWatermark);
+    timerInternals.setContext(key, keyCoder, inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
     try {
       reduceFnRunner.onTimers(timerData);

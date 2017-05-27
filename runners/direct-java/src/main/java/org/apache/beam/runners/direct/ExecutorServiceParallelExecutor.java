@@ -28,6 +28,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,7 +52,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -132,7 +134,15 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
-    this.executorService = Executors.newFixedThreadPool(targetParallelism);
+    // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
+    // are no other active threads (for example, because waitUntilFinish was not called)
+    this.executorService =
+        Executors.newFixedThreadPool(
+            targetParallelism,
+            new ThreadFactoryBuilder()
+                .setThreadFactory(MoreExecutors.platformThreadFactory())
+                .setNameFormat("direct-runner-worker")
+                .build());
     this.graph = graph;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
@@ -275,8 +285,15 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
         return pipelineState.get();
-      } else if (update != null && update.exception.isPresent()) {
-        throw update.exception.get();
+      } else if (update != null && update.thrown.isPresent()) {
+        Throwable thrown = update.thrown.get();
+        if (thrown instanceof Exception) {
+          throw (Exception) thrown;
+        } else if (thrown instanceof Error) {
+          throw (Error) thrown;
+        } else {
+          throw new Exception("Unknown Type of Throwable", thrown);
+        }
       }
     }
     return pipelineState.get();
@@ -370,6 +387,11 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       allUpdates.offer(ExecutorUpdate.fromException(e));
       outstandingWork.decrementAndGet();
     }
+
+    @Override
+    public void handleError(Error err) {
+      visibleUpdates.add(VisibleExecutorUpdate.fromError(err));
+    }
   }
 
   /**
@@ -414,12 +436,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
-    private final Optional<? extends Exception> exception;
+    private final Optional<? extends Throwable> thrown;
     @Nullable
     private final State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(null, e);
+    }
+
+    public static VisibleExecutorUpdate fromError(Error err) {
+      return new VisibleExecutorUpdate(State.FAILED, err);
     }
 
     public static VisibleExecutorUpdate finished() {
@@ -430,15 +456,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new VisibleExecutorUpdate(State.CANCELLED, null);
     }
 
-    private VisibleExecutorUpdate(State newState, @Nullable Exception exception) {
-      this.exception = Optional.fromNullable(exception);
+    private VisibleExecutorUpdate(State newState, @Nullable Throwable exception) {
+      this.thrown = Optional.fromNullable(exception);
       this.newState = newState;
     }
 
     public State getNewState() {
       return newState;
     }
-
   }
 
   private class MonitorRunnable implements Runnable {

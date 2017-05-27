@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -112,7 +112,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundleKey)
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
     DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
 

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.values.PCollectionView;
 
 

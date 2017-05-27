@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -171,27 +171,36 @@ public class JAXBCoderTest {
   /**
    * A coder that surrounds the value with two values, to demonstrate nesting.
    */
-  private static class TestCoder extends CustomCoder<TestType> {
+  private static class TestCoder extends StructuredCoder<TestType> {
     private final JAXBCoder<TestType> jaxbCoder;
     public TestCoder(JAXBCoder<TestType> jaxbCoder) {
       this.jaxbCoder = jaxbCoder;
     }
 
     @Override
+    public void encode(TestType value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(TestType value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
-      VarIntCoder.of().encode(3, outStream, nestedContext);
-      jaxbCoder.encode(value, outStream, nestedContext);
+      VarIntCoder.of().encode(3, outStream);
+      jaxbCoder.encode(value, outStream);
       VarLongCoder.of().encode(22L, outStream, context);
+    }
+
+    @Override
+    public TestType decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
     public TestType decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
-      VarIntCoder.of().decode(inStream, nestedContext);
-      TestType result = jaxbCoder.decode(inStream, nestedContext);
+      VarIntCoder.of().decode(inStream);
+      TestType result = jaxbCoder.decode(inStream);
       VarLongCoder.of().decode(inStream, context);
       return result;
     }

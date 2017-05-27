@@ -18,9 +18,7 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import java.io.IOException;
-
 import org.apache.beam.sdk.coders.Coder;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;

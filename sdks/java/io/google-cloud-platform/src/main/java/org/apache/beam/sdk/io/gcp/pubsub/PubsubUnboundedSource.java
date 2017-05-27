@@ -46,8 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -118,7 +118,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /**
    * Coder for checkpoints.
    */
-  private static final PubsubCheckpointCoder CHECKPOINT_CODER = new PubsubCheckpointCoder();
+  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
   /**
    * Maximum number of messages per pull.
@@ -357,25 +357,30 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** The coder for our checkpoints. */
-  private static class PubsubCheckpointCoder extends CustomCoder<PubsubCheckpoint> {
+  private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint> {
     private static final Coder<String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
+    public static <T> PubsubCheckpointCoder<T> of() {
+      return new PubsubCheckpointCoder<>();
+    }
+
+    private PubsubCheckpointCoder() {}
+
     @Override
-    public void encode(PubsubCheckpoint value, OutputStream outStream, Context context)
+    public void encode(PubsubCheckpoint value, OutputStream outStream)
         throws IOException {
       SUBSCRIPTION_PATH_CODER.encode(
           value.subscriptionPath,
-          outStream,
-          context.nested());
-      LIST_CODER.encode(value.notYetReadIds, outStream, context);
+          outStream);
+      LIST_CODER.encode(value.notYetReadIds, outStream);
     }
 
     @Override
-    public PubsubCheckpoint decode(InputStream inStream, Context context) throws IOException {
-      String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
-      List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
+    public PubsubCheckpoint decode(InputStream inStream) throws IOException {
+      String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
+      List<String> notYetReadIds = LIST_CODER.decode(inStream);
       return new PubsubCheckpoint(path, null, null, notYetReadIds);
     }
   }
@@ -858,7 +863,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
       }
 
-      LOG.info("Pubsub {} has "
+      LOG.debug("Pubsub {} has "
                + "{} received messages, "
                + "{} current unread messages, "
                + "{} current unread bytes, "
@@ -1155,14 +1160,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Nullable
     @Override
     public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
-      @SuppressWarnings("unchecked") PubsubCheckpointCoder typedCoder =
-          (PubsubCheckpointCoder) CHECKPOINT_CODER;
-      return typedCoder;
+      return CHECKPOINT_CODER;
     }
 
     @Override
     public Coder<PubsubMessage> getDefaultOutputCoder() {
-      return new PubsubMessageWithAttributesCoder();
+      return outer.getNeedsAttributes()
+          ? PubsubMessageWithAttributesCoder.of()
+          : PubsubMessagePayloadOnlyCoder.of();
     }
 
     @Override

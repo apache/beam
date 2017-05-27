@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
 
 /**
  * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type
@@ -82,9 +82,9 @@ public class PCollection<T> extends PValueBase implements PValue {
 
   @Override
   public void finishSpecifyingOutput(
-      PInput input, PTransform<?, ?> transform) {
+      String transformName, PInput input, PTransform<?, ?> transform) {
     this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
-    super.finishSpecifyingOutput(input, transform);
+    super.finishSpecifyingOutput(transformName, input, transform);
   }
 
   /**
@@ -142,7 +142,7 @@ public class PCollection<T> extends PValueBase implements PValue {
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
       try {
-        return new CoderOrFailure<>(registry.getDefaultCoder(token), null);
+        return new CoderOrFailure<>(registry.getCoder(token), null);
       } catch (CannotProvideCoderException exc) {
         inferFromTokenException = exc;
         // Attempt to detect when the token came from a TupleTag used for a ParDo output,
@@ -330,30 +330,27 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the {@link WindowingStrategy} of this {@link PCollection}.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setWindowingStrategyInternal(WindowingStrategy<?, ?> windowingStrategy) {
      this.windowingStrategy = windowingStrategy;
      return this;
   }
 
   /**
-   * Sets the {@link PCollection.IsBounded} of this {@link PCollection}.
-   *
-   * <p>For use by internal transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
     this.isBounded = isBounded;
     return this;
   }
 
   /**
-   * Creates and returns a new {@link PCollection} for a primitive output.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy,

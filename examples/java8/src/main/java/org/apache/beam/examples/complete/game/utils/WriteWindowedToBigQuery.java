@@ -19,7 +19,6 @@ package org.apache.beam.examples.complete.game.utils;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
-
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -37,9 +36,9 @@ import org.apache.beam.sdk.values.PDone;
 public class WriteWindowedToBigQuery<T>
     extends WriteToBigQuery<T> {
 
-  public WriteWindowedToBigQuery(String tableName,
-      Map<String, FieldInfo<T>> fieldInfo) {
-    super(tableName, fieldInfo);
+  public WriteWindowedToBigQuery(
+      String projectId, String datasetId, String tableName, Map<String, FieldInfo<T>> fieldInfo) {
+    super(projectId, datasetId, tableName, fieldInfo);
   }
 
   /** Convert each key/score pair into a BigQuery TableRow. */
@@ -62,7 +61,7 @@ public class WriteWindowedToBigQuery<T>
     teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.writeTableRows()
-                .to(getTable(teamAndScore.getPipeline(), tableName))
+                .to(getTable(projectId, datasetId, tableName))
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(WriteDisposition.WRITE_APPEND));

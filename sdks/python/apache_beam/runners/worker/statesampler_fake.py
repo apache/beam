@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class StateSampler(object):
 

@@ -281,7 +281,7 @@ class DoOperation(Operation):
 
       # Backwards compatibility for pre BEAM-733 SDKs.
       if isinstance(view_options, tuple):
-        if view_class == pvalue.SingletonPCollectionView:
+        if view_class == pvalue.AsSingleton:
           has_default, default = view_options
           view_options = {'default': default} if has_default else {}
         else:

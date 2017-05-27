@@ -29,10 +29,17 @@ from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 
+__all__ = ['LocalFileSystem']
+
 
 class LocalFileSystem(FileSystem):
   """A Local ``FileSystem`` implementation for accessing files on disk.
   """
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    return None
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem

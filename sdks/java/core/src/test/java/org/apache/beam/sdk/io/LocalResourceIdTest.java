@@ -31,6 +31,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -257,6 +258,11 @@ public class LocalResourceIdTest {
         "tmp");
     assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
         "xyz.txt");
+  }
+
+  @Test
+  public void testResourceIdTester() throws Exception {
+    ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }
 
   private LocalResourceId toResourceIdentifier(String str) throws Exception {

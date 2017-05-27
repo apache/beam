@@ -40,8 +40,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileReader;
@@ -53,7 +53,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -61,12 +60,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
-
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
@@ -76,9 +77,9 @@ import org.joda.time.Duration;
  */
 class FakeJobService implements JobService, Serializable {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
-  // Whenever a job is started, the first 5 calls to GetJob will report the job as pending,
-  // the next 5 will return the job as running, and only then will the job report as done.
-  private static final int GET_JOBS_TRANSITION_INTERVAL = 5;
+  // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,
+  // the next 2 will return the job as running, and only then will the job report as done.
+  private static final int GET_JOBS_TRANSITION_INTERVAL = 2;
 
   private FakeDatasetService datasetService;
 
@@ -95,7 +96,7 @@ class FakeJobService implements JobService, Serializable {
       HashBasedTable.create();
   private static int numExtractJobCalls = 0;
 
-  private static final com.google.common.collect.Table<String, String, List<String>>
+  private static final com.google.common.collect.Table<String, String, List<ResourceId>>
       filesForLoadJobs = HashBasedTable.create();
   private static final com.google.common.collect.Table<String, String, JobStatistics>
       dryRunQueryResults = HashBasedTable.create();
@@ -117,12 +118,17 @@ class FakeJobService implements JobService, Serializable {
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
       if (loadConfig.getSourceUris().size() > 0) {
-        List<String> loadFiles = Lists.newArrayList();
+        ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
+        ImmutableList.Builder<ResourceId> loadFiles = ImmutableList.builder();
         for (String filename : loadConfig.getSourceUris()) {
-          loadFiles.add(filename + ThreadLocalRandom.current().nextInt());
+          sourceFiles.add(FileSystems.matchNewResource(filename, false /* isDirectory */));
+          loadFiles.add(FileSystems.matchNewResource(
+              filename + ThreadLocalRandom.current().nextInt(), false /* isDirectory */));
         }
-        IOChannelUtils.getFactory(loadFiles.get(0)).copy(loadConfig.getSourceUris(), loadFiles);
-        filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles);
+
+        FileSystems.copy(sourceFiles.build(), loadFiles.build(),
+            MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+        filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
 
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
@@ -182,11 +188,12 @@ class FakeJobService implements JobService, Serializable {
   public Job pollJob(JobReference jobRef, int maxAttempts)
       throws InterruptedException {
     BackOff backoff =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(maxAttempts)
-            .withInitialBackoff(Duration.millis(10))
-            .withMaxBackoff(Duration.standardSeconds(1))
-            .backoff();
+        BackOffAdapter.toGcpBackOff(
+            FluentBackoff.DEFAULT
+                .withMaxRetries(maxAttempts)
+                .withInitialBackoff(Duration.millis(10))
+                .withMaxBackoff(Duration.standardSeconds(1))
+                .backoff());
     Sleeper sleeper = Sleeper.DEFAULT;
     try {
       do {
@@ -286,7 +293,7 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     TableReference destination = load.getDestinationTable();
     TableSchema schema = load.getSchema();
-    List<String> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
+    List<ResourceId> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
     WriteDisposition writeDisposition = WriteDisposition.valueOf(load.getWriteDisposition());
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
     checkArgument(load.getSourceFormat().equals("NEWLINE_DELIMITED_JSON"));
@@ -298,8 +305,8 @@ class FakeJobService implements JobService, Serializable {
     datasetService.createTable(new Table().setTableReference(destination).setSchema(schema));
 
     List<TableRow> rows = Lists.newArrayList();
-    for (String filename : sourceFiles) {
-      rows.addAll(readRows(filename));
+    for (ResourceId filename : sourceFiles) {
+      rows.addAll(readRows(filename.toString()));
     }
     datasetService.insertAll(destination, rows, null);
     return new JobStatus().setState("DONE");
@@ -385,7 +392,8 @@ class FakeJobService implements JobService, Serializable {
   private void writeRowsHelper(List<TableRow> rows, Schema avroSchema,
                                String destinationPattern, int shard) throws IOException {
     String filename = destinationPattern.replace("*", String.format("%012d", shard));
-    try (WritableByteChannel channel = IOChannelUtils.create(filename, MimeTypes.BINARY);
+    try (WritableByteChannel channel = FileSystems.create(
+        FileSystems.matchNewResource(filename, false /* isDirectory */), MimeTypes.BINARY);
          DataFileWriter<GenericRecord> tableRowWriter =
              new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(avroSchema))
                  .create(avroSchema, Channels.newOutputStream(channel))) {

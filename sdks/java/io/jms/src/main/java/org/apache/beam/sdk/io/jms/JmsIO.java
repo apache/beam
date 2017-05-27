@@ -673,8 +673,8 @@ public class JmsIO {
         this.spec = spec;
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
+      @Setup
+      public void setup() throws Exception {
         if (producer == null) {
           if (spec.getUsername() != null) {
             this.connection =
@@ -699,17 +699,12 @@ public class JmsIO {
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
-        try {
-          TextMessage message = session.createTextMessage(value);
-          producer.send(message);
-        } catch (Exception t) {
-          finishBundle(null);
-          throw t;
-        }
+        TextMessage message = session.createTextMessage(value);
+        producer.send(message);
       }
 
-      @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      @Teardown
+      public void teardown() throws Exception {
         producer.close();
         producer = null;
         session.close();

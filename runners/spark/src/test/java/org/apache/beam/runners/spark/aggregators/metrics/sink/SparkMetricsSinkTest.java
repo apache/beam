@@ -26,11 +26,10 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.examples.WordCount;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
@@ -48,12 +47,7 @@ public class SparkMetricsSinkTest {
   public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
 
   @Rule
-  public final PipelineRule pipelineRule = PipelineRule.batch();
-
-  private Pipeline createSparkPipeline() {
-    pipelineRule.getOptions().setEnableSparkMetricSinks(true);
-    return pipelineRule.createPipeline();
-  }
+  public final TestPipeline pipeline = TestPipeline.create();
 
   private void runPipeline() {
     final List<String> words =
@@ -61,8 +55,6 @@ public class SparkMetricsSinkTest {
 
     final Set<String> expectedCounts =
         ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
-
-    final Pipeline pipeline = createSparkPipeline();
 
     final PCollection<String> output =
         pipeline

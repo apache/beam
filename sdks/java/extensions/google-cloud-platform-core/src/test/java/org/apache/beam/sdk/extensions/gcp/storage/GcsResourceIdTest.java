@@ -22,8 +22,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdTester;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Rule;
 import org.junit.Test;
@@ -161,6 +164,12 @@ public class GcsResourceIdTest {
         "abc");
     assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
         "xyz.txt");
+  }
+
+  @Test
+  public void testResourceIdTester() throws Exception {
+    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    ResourceIdTester.runResourceIdBattery(toResourceIdentifier("gs://bucket/foo/"));
   }
 
   private GcsResourceId toResourceIdentifier(String str) throws Exception {

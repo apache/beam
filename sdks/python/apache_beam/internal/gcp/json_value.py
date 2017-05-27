@@ -25,7 +25,7 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.utils.value_provider import ValueProvider
+from apache_beam.options.value_provider import ValueProvider
 
 
 _MAXINT64 = (1 << 63) - 1
@@ -33,7 +33,9 @@ _MININT64 = - (1 << 63)
 
 
 def get_typed_value_descriptor(obj):
-  """Converts a basic type into a @type/value dictionary.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts a basic type into a @type/value dictionary.
 
   Args:
     obj: A basestring, bool, int, or float to be converted.
@@ -59,7 +61,9 @@ def get_typed_value_descriptor(obj):
 
 
 def to_json_value(obj, with_type=False):
-  """Converts Python objects into extra_types.JsonValue objects.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts Python objects into extra_types.JsonValue objects.
 
   Args:
     obj: Python object to be converted. Can be 'None'.
@@ -115,7 +119,9 @@ def to_json_value(obj, with_type=False):
 
 
 def from_json_value(v):
-  """Converts extra_types.JsonValue objects into Python objects.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts extra_types.JsonValue objects into Python objects.
 
   Args:
     v: JsonValue object to be converted.

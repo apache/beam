@@ -23,11 +23,11 @@ import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -36,12 +36,12 @@ import org.junit.Test;
  */
 public class CacheTest {
 
-  @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.batch();
-
   @Test
   public void cacheCandidatesUpdaterTest() throws Exception {
-    Pipeline pipeline = pipelineRule.createPipeline();
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setRunner(TestSparkRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
     pCollection.apply(Count.<String>globally());
@@ -50,8 +50,8 @@ public class CacheTest {
     // will cache the RDD representing this PCollection
     pCollection.apply(Count.<String>globally());
 
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineRule.getOptions());
-    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
     SparkRunner.CacheVisitor cacheVisitor =
         new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
     pipeline.traverseTopologically(cacheVisitor);

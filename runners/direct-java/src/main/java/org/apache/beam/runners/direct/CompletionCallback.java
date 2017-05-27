@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
  * A callback for completing a bundle of input.
@@ -40,4 +40,10 @@ interface CompletionCallback {
    * Handle a result that terminated abnormally due to the provided {@link Exception}.
    */
   void handleException(CommittedBundle<?> inputBundle, Exception t);
+
+  /**
+   * Handle a result that terminated abnormally due to the provided {@link Error}. The pipeline
+   * should be shut down, and the Error propagated.
+  */
+  void handleError(Error err);
 }

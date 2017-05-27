@@ -16,10 +16,8 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
 /**

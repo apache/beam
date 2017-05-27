@@ -27,17 +27,25 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CollectionCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.OffsetBasedSource;
@@ -317,7 +325,7 @@ public class Create<T> {
       if (coder.isPresent()) {
         return coder.get();
       } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
+        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
       } else {
         return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), elems);
       }
@@ -566,7 +574,7 @@ public class Create<T> {
       if (elementCoder.isPresent()) {
         return elementCoder.get();
       } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
+        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
       } else {
         Iterable<T> rawElements =
             Iterables.transform(
@@ -611,7 +619,7 @@ public class Create<T> {
     if (elementClazz.getTypeParameters().length == 0) {
       try {
         @SuppressWarnings("unchecked") // elementClazz is a wildcard type
-        Coder<T> coder = (Coder<T>) registry.getDefaultCoder(TypeDescriptor.of(elementClazz));
+        Coder<T> coder = (Coder<T>) registry.getCoder(TypeDescriptor.of(elementClazz));
         return coder;
       } catch (CannotProvideCoderException exc) {
         // Can't get a coder from the class of the elements, try with the elements next
@@ -619,11 +627,20 @@ public class Create<T> {
     }
 
     // If that fails, try to deduce a coder using the elements themselves
-    Optional<Coder<T>> coder = Optional.absent();
-    for (T elem : elems) {
-      Coder<T> c = registry.getDefaultCoder(elem);
+    return (Coder<T>) inferCoderFromObjects(registry, elems);
+  }
+
+  /**
+   * Attempts to infer the {@link Coder} of the elements ensuring that the returned coder is
+   * equivalent for all elements.
+   */
+  private static Coder<?> inferCoderFromObjects(
+      CoderRegistry registry, Iterable<?> elems) throws CannotProvideCoderException {
+    Optional<Coder<?>> coder = Optional.absent();
+    for (Object elem : elems) {
+      Coder<?> c = inferCoderFromObject(registry, elem);
       if (!coder.isPresent()) {
-        coder = Optional.of(c);
+        coder = (Optional) Optional.of(c);
       } else if (!Objects.equals(c, coder.get())) {
         throw new CannotProvideCoderException(
             "Cannot provide coder for elements of "
@@ -633,11 +650,48 @@ public class Create<T> {
                 + " Based on their values, they do not all default to the same Coder.");
       }
     }
-
-    if (!coder.isPresent()) {
-      throw new CannotProvideCoderException(
-          "Unable to infer a coder. Please register " + "a coder for ");
+    if (coder.isPresent()) {
+      return coder.get();
     }
-    return coder.get();
+
+    throw new CannotProvideCoderException("Cannot provide coder for elements of "
+        + Create.class.getSimpleName()
+        + ":"
+        + " For their common class, no coder could be provided."
+        + " Based on their values, no coder could be inferred.");
+  }
+
+  /**
+   * Attempt to infer the type for some very common Apache Beam parameterized types.
+   *
+   * <p>TODO: Instead, build a TypeDescriptor so that the {@link CoderRegistry} is invoked
+   * for the type instead of hard coding the coders for common types.
+   */
+  private static Coder<?> inferCoderFromObject(CoderRegistry registry, Object o)
+      throws CannotProvideCoderException {
+    if (o == null) {
+      return VoidCoder.of();
+    } else if (o instanceof TimestampedValue) {
+      return TimestampedValueCoder.of(
+          inferCoderFromObject(registry, ((TimestampedValue) o).getValue()));
+    } else if (o instanceof List) {
+      return ListCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+    } else if (o instanceof Set) {
+      return SetCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+    } else if (o instanceof Collection) {
+      return CollectionCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+    } else if (o instanceof Iterable) {
+      return IterableCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+    } else if (o instanceof Map) {
+      return MapCoder.of(
+          inferCoderFromObjects(registry, ((Map) o).keySet()),
+          inferCoderFromObjects(registry, ((Map) o).entrySet()));
+    } else if (o instanceof KV) {
+      return KvCoder.of(
+          inferCoderFromObject(registry, ((KV) o).getKey()),
+          inferCoderFromObject(registry, ((KV) o).getValue()));
+    } else {
+      return registry.getCoder(o.getClass());
+    }
   }
 }

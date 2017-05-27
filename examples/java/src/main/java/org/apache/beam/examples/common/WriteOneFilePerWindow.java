@@ -19,6 +19,7 @@ package org.apache.beam.examples.common;
 
 import static com.google.common.base.Verify.verifyNotNull;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
@@ -40,12 +41,14 @@ import org.joda.time.format.ISODateTimeFormat;
  * lessons.
  */
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
-
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
-  private final String filenamePrefix;
+  private String filenamePrefix;
+  @Nullable
+  private Integer numShards;
 
-  public WriteOneFilePerWindow(String filenamePrefix) {
+  public WriteOneFilePerWindow(String filenamePrefix, Integer numShards) {
     this.filenamePrefix = filenamePrefix;
+    this.numShards = numShards;
   }
 
   @Override
@@ -61,12 +64,15 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
           resource);
     }
 
-    return input.apply(
-        TextIO.write()
-            .to(resource.getCurrentDirectory())
-            .withFilenamePolicy(new PerWindowFiles(prefix))
-            .withWindowedWrites()
-            .withNumShards(3));
+
+    TextIO.Write write = TextIO.write()
+        .to(resource.getCurrentDirectory())
+        .withFilenamePolicy(new PerWindowFiles(prefix))
+        .withWindowedWrites();
+    if (numShards != null) {
+      write = write.withNumShards(numShards);
+    }
+    return input.apply(write);
   }
 
   /**

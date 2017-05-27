@@ -36,8 +36,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -433,6 +433,11 @@ public class TransformExecutorTest {
     public void handleException(CommittedBundle<?> inputBundle, Exception e) {
       handledException = e;
       onMethod.countDown();
+    }
+
+    @Override
+    public void handleError(Error err) {
+      throw err;
     }
   }
 

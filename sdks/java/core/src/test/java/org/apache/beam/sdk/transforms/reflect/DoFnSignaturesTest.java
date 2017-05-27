@@ -29,6 +29,14 @@ import static org.junit.Assert.fail;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
@@ -37,14 +45,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.TimerSpecs;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matcher;
@@ -76,13 +76,14 @@ public class DoFnSignaturesTest {
   @Test
   public void testBadExtraContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take a single argument of type DoFn<Integer, String>.Context");
+    thrown.expectMessage(
+        "Must take a single argument of type DoFn<Integer, String>.StartBundleContext");
 
-    DoFnSignatures.analyzeBundleMethod(
+    DoFnSignatures.analyzeStartBundleMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new DoFnSignaturesTestUtils.AnonymousMethod() {
-          void method(DoFn<Integer, String>.Context c, int n) {}
+          void method(DoFn<Integer, String>.StartBundleContext c, int n) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class));
@@ -112,8 +113,8 @@ public class DoFnSignaturesTest {
   public void testMultipleFinishBundleMethods() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Found multiple methods annotated with @FinishBundle");
-    thrown.expectMessage("bar(Context)");
-    thrown.expectMessage("baz(Context)");
+    thrown.expectMessage("bar(FinishBundleContext)");
+    thrown.expectMessage("baz(FinishBundleContext)");
     thrown.expectMessage(getClass().getName() + "$");
     DoFnSignatures.getSignature(
         new DoFn<String, String>() {
@@ -121,10 +122,10 @@ public class DoFnSignaturesTest {
           public void foo(ProcessContext context) {}
 
           @FinishBundle
-          public void bar(Context context) {}
+          public void bar(FinishBundleContext context) {}
 
           @FinishBundle
-          public void baz(Context context) {}
+          public void baz(FinishBundleContext context) {}
         }.getClass());
   }
 
@@ -384,7 +385,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("my-id");
     thrown.expectMessage("myfield1");
     thrown.expectMessage("myfield2");
-    thrown.expectMessage(not(mentionsState()));
+    thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -406,7 +407,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("Timer declarations must be final");
     thrown.expectMessage("Non-final field");
     thrown.expectMessage("myfield");
-    thrown.expectMessage(not(mentionsState()));
+    thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
     DoFnSignature sig =
         DoFnSignatures.getSignature(

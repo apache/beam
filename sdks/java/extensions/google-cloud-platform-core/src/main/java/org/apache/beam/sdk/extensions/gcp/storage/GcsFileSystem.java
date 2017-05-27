@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -72,7 +73,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     List<Boolean> isGlobBooleans = Lists.newArrayList();
 
     for (GcsPath path : gcsPaths) {
-      if (GcsUtil.isGlob(path)) {
+      if (GcsUtil.isWildcard(path)) {
         globs.add(path);
         isGlobBooleans.add(true);
       } else {
@@ -177,8 +178,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
    */
   @VisibleForTesting
   MatchResult expand(GcsPath gcsPattern) throws IOException {
-    String prefix = GcsUtil.getGlobPrefix(gcsPattern.getObject());
-    Pattern p = Pattern.compile(GcsUtil.globToRegexp(gcsPattern.getObject()));
+    String prefix = GcsUtil.getNonWildcardPrefix(gcsPattern.getObject());
+    Pattern p = Pattern.compile(GcsUtil.wildcardToRegexp(gcsPattern.getObject()));
 
     LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
         prefix, p.toString());
@@ -241,10 +242,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     Metadata.Builder ret = Metadata.builder()
         .setIsReadSeekEfficient(true)
         .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
-    BigInteger size = storageObject.getSize();
-    if (size != null) {
-      ret.setSizeBytes(size.longValue());
-    }
+    BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
+    ret.setSizeBytes(size.longValue());
     return ret.build();
   }
 
