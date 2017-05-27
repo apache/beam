@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
 /**
  * Options which can be used to configure a Flink PipelineRunner.
@@ -69,6 +70,11 @@ public interface FlinkPipelineOptions
   @Default.Long(-1L)
   Long getCheckpointingInterval();
   void setCheckpointingInterval(Long interval);
+
+  @Description("The checkpointing mode that defines consistency guarantee.")
+  @Default.Enum("AT_LEAST_ONCE")
+  CheckpointingMode getCheckpointingMode();
+  void setCheckpointingMode(CheckpointingMode mode);
 
   @Description("Sets the number of times that failed tasks are re-executed. "
       + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
