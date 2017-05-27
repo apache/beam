@@ -32,11 +32,13 @@ from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.value_provider import ValueProvider
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import check_accessible
+from apache_beam.options.value_provider import ValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import check_accessible
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
+
+__all__ = ['FileBasedSource']
 
 
 class FileBasedSource(iobase.BoundedSource):

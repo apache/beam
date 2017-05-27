@@ -19,14 +19,17 @@
 package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
@@ -47,6 +50,7 @@ import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.collection.JavaConversions;
 
 /**
  * Classes implementing Beam {@link Source} {@link RDD}s.
@@ -65,7 +69,7 @@ public class SourceRDD {
     private final SparkRuntimeContext runtimeContext;
     private final int numPartitions;
     private final String stepName;
-    private final Accumulator<SparkMetricsContainer> metricsAccum;
+    private final Accumulator<MetricsContainerStepMap> metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
@@ -118,73 +122,6 @@ public class SourceRDD {
       }
     }
 
-    @Override
-    public scala.collection.Iterator<WindowedValue<T>> compute(final Partition split,
-                                                               TaskContext context) {
-      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
-
-      final Iterator<WindowedValue<T>> iter = new Iterator<WindowedValue<T>>() {
-        @SuppressWarnings("unchecked")
-        SourcePartition<T> partition = (SourcePartition<T>) split;
-        BoundedSource.BoundedReader<T> reader = createReader(partition);
-
-        private boolean finished = false;
-        private boolean started = false;
-        private boolean closed = false;
-
-        @Override
-        public boolean hasNext() {
-          // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
-          // since they may report metrics.
-          try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
-            try {
-              if (!started) {
-                started = true;
-                finished = !reader.start();
-              } else {
-                finished = !reader.advance();
-              }
-              if (finished) {
-                // safely close the reader if there are no more elements left to read.
-                closeIfNotClosed();
-              }
-              return !finished;
-            } catch (IOException e) {
-              closeIfNotClosed();
-              throw new RuntimeException("Failed to read from reader.", e);
-            }
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }
-
-        @Override
-        public WindowedValue<T> next() {
-          return WindowedValue.timestampedValueInGlobalWindow(reader.getCurrent(),
-              reader.getCurrentTimestamp());
-        }
-
-        @Override
-        public void remove() {
-          throw new UnsupportedOperationException("Remove from partition iterator is not allowed.");
-        }
-
-        private void closeIfNotClosed() {
-          if (!closed) {
-            closed = true;
-            try {
-              reader.close();
-            } catch (IOException e) {
-              throw new RuntimeException("Failed to close Reader.", e);
-            }
-          }
-        }
-      };
-
-      return new InterruptibleIterator<>(context,
-          scala.collection.JavaConversions.asScalaIterator(iter));
-    }
-
     private BoundedSource.BoundedReader<T> createReader(SourcePartition<T> partition) {
       try {
         return ((BoundedSource<T>) partition.source).createReader(
@@ -192,6 +129,126 @@ public class SourceRDD {
       } catch (IOException e) {
         throw new RuntimeException("Failed to create reader from a BoundedSource.", e);
       }
+    }
+
+    @Override
+    public scala.collection.Iterator<WindowedValue<T>> compute(final Partition split,
+                                                               final TaskContext context) {
+      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+
+      @SuppressWarnings("unchecked")
+      final BoundedSource.BoundedReader<T> reader = createReader((SourcePartition<T>) split);
+
+      final Iterator<WindowedValue<T>> readerIterator =
+          new ReaderToIteratorAdapter<>(metricsContainer, reader);
+
+      return new InterruptibleIterator<>(context, JavaConversions.asScalaIterator(readerIterator));
+    }
+
+    /**
+     * Exposes an <code>Iterator</code>&lt;{@link WindowedValue}&gt; interface on top of a
+     * {@link Source.Reader}.
+     * <p>
+     *   <code>hasNext</code> is idempotent and returns <code>true</code> iff further items are
+     *   available for reading using the underlying reader.
+     *   Consequently, when the reader is closed, or when the reader has no further elements
+     *   available (i.e, {@link Source.Reader#advance()} returned <code>false</code>),
+     *   <code>hasNext</code> returns <code>false</code>.
+     * </p>
+     * <p>
+     *   Since this is a read-only iterator, an attempt to call <code>remove</code> will throw an
+     *   <code>UnsupportedOperationException</code>.
+     * </p>
+     */
+    @VisibleForTesting
+    static class ReaderToIteratorAdapter<T> implements Iterator<WindowedValue<T>> {
+
+      private static final boolean FAILED_TO_OBTAIN_NEXT = false;
+      private static final boolean SUCCESSFULLY_OBTAINED_NEXT = true;
+
+      private final MetricsContainer metricsContainer;
+      private final Source.Reader<T> reader;
+
+      private boolean started = false;
+      private boolean closed = false;
+      private WindowedValue<T> next = null;
+
+      ReaderToIteratorAdapter(final MetricsContainer metricsContainer,
+                              final Source.Reader<T> reader) {
+        this.metricsContainer = metricsContainer;
+        this.reader = reader;
+      }
+
+      private boolean tryProduceNext() {
+        try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+          if (closed) {
+            return FAILED_TO_OBTAIN_NEXT;
+          } else {
+            checkState(next == null, "unexpected non-null value for next");
+            if (seekNext()) {
+              next = WindowedValue.timestampedValueInGlobalWindow(reader.getCurrent(),
+                                                                  reader.getCurrentTimestamp());
+              return SUCCESSFULLY_OBTAINED_NEXT;
+            } else {
+              close();
+              return FAILED_TO_OBTAIN_NEXT;
+            }
+          }
+        } catch (final Exception e) {
+          throw new RuntimeException("Failed to read data.", e);
+        }
+      }
+
+      private void close() {
+        closed = true;
+        try {
+          reader.close();
+        } catch (final IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      private boolean seekNext() throws IOException {
+        if (!started) {
+          started = true;
+          return reader.start();
+        } else {
+          return !closed && reader.advance();
+        }
+      }
+
+      private WindowedValue<T> consumeCurrent() {
+        if (next == null) {
+          throw new NoSuchElementException();
+        } else {
+          final WindowedValue<T> current = next;
+          next = null;
+          return current;
+        }
+      }
+
+      private WindowedValue<T> consumeNext() {
+        if (next == null) {
+          tryProduceNext();
+        }
+        return consumeCurrent();
+      }
+
+      @Override
+      public boolean hasNext() {
+        return next != null || tryProduceNext();
+      }
+
+      @Override
+      public WindowedValue<T> next() {
+        return consumeNext();
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+
     }
   }
 

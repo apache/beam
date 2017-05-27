@@ -171,12 +171,12 @@ public class CloudObjectsTest {
 
   private static class ObjectCoder extends CustomCoder<Object> {
     @Override
-    public void encode(Object value, OutputStream outStream, Context context)
+    public void encode(Object value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public Object decode(InputStream inStream, Context context)
+    public Object decode(InputStream inStream)
         throws CoderException, IOException {
       return new Object();
     }
@@ -197,11 +197,11 @@ public class CloudObjectsTest {
    */
   private static class ArbitraryCoder extends StructuredCoder<Record> {
     @Override
-    public void encode(Record value, OutputStream outStream, Context context)
+    public void encode(Record value, OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
-    public Record decode(InputStream inStream, Context context) throws CoderException, IOException {
+    public Record decode(InputStream inStream) throws CoderException, IOException {
       return new Record();
     }
 

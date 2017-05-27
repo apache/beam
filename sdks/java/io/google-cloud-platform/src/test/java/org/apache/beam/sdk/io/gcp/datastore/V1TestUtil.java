@@ -26,9 +26,6 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
@@ -57,8 +54,11 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.Sleeper;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,8 +92,10 @@ class V1TestUtil {
 
   /**
    * Build an entity for the given ancestorKey, kind, namespace and value.
+   * @param largePropertySize if greater than 0, add an unindexed property of the given size.
    */
-  static Entity makeEntity(Long value, Key ancestorKey, String kind, @Nullable String namespace) {
+  static Entity makeEntity(Long value, Key ancestorKey, String kind, @Nullable String namespace,
+      int largePropertySize) {
     Entity.Builder entityBuilder = Entity.newBuilder();
     Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
@@ -105,6 +107,10 @@ class V1TestUtil {
 
     entityBuilder.setKey(keyBuilder.build());
     entityBuilder.putProperties("value", makeValue(value).build());
+    if (largePropertySize > 0) {
+      entityBuilder.putProperties("unindexed_value", makeValue(new String(
+          new char[largePropertySize]).replace("\0", "A")).setExcludeFromIndexes(true).build());
+    }
     return entityBuilder.build();
   }
 
@@ -115,18 +121,21 @@ class V1TestUtil {
     private final String kind;
     @Nullable
     private final String namespace;
+    private final int largePropertySize;
     private Key ancestorKey;
 
-    CreateEntityFn(String kind, @Nullable String namespace, String ancestor) {
+    CreateEntityFn(String kind, @Nullable String namespace, String ancestor,
+        int largePropertySize) {
       this.kind = kind;
       this.namespace = namespace;
+      this.largePropertySize = largePropertySize;
       // Build the ancestor key for all created entities once, including the namespace.
       ancestorKey = makeAncestorKey(namespace, kind, ancestor);
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      c.output(makeEntity(c.element(), ancestorKey, kind, namespace));
+      c.output(makeEntity(c.element(), ancestorKey, kind, namespace, largePropertySize));
     }
   }
 

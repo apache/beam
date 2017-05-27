@@ -30,6 +30,8 @@ Available classes:
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
+__all__ = ['Metric', 'Counter', 'Distribution', 'MetricName']
+
 
 class MetricName(object):
   """The name of a metric.

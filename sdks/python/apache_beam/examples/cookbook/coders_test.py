@@ -22,9 +22,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import coders
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class CodersTest(unittest.TestCase):
@@ -35,13 +35,13 @@ class CodersTest(unittest.TestCase):
       {'host': ['Brasil', 1], 'guest': ['Italy', 0]}]
 
   def test_compute_points(self):
-    p = TestPipeline()
-    records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
-    result = (records
-              | 'points' >> beam.FlatMap(coders.compute_points)
-              | beam.CombinePerKey(sum))
-    assert_that(result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
-    p.run()
+    with TestPipeline() as p:
+      records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
+      result = (records
+                | 'points' >> beam.FlatMap(coders.compute_points)
+                | beam.CombinePerKey(sum))
+      assert_that(result,
+                  equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
 
 
 if __name__ == '__main__':

@@ -38,6 +38,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -90,7 +91,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
 
       String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
-      List<String> tempFiles = executeExtract(
+      List<ResourceId> tempFiles = executeExtract(
           extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
@@ -116,7 +117,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return TableRowJsonCoder.of();
   }
 
-  private List<String> executeExtract(
+  private List<ResourceId> executeExtract(
       String jobId, TableReference table, JobService jobService, String executingProject,
       String extractDestinationDir)
           throws InterruptedException, IOException {
@@ -141,12 +142,13 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           BigQueryHelpers.statusToPrettyString(extractJob.getStatus())));
     }
 
-    List<String> tempFiles = BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
-    return ImmutableList.copyOf(tempFiles);
+    LOG.info("BigQuery extract job completed: {}", jobId);
+
+    return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
   private List<BoundedSource<TableRow>> createSources(
-      List<String> files, TableSchema tableSchema) throws IOException, InterruptedException {
+      List<ResourceId> files, TableSchema tableSchema) throws IOException, InterruptedException {
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
 
     SerializableFunction<GenericRecord, TableRow> function =
@@ -158,9 +160,9 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           }};
 
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
-    for (String fileName : files) {
+    for (ResourceId file : files) {
       avroSources.add(new TransformingSource<>(
-          AvroSource.from(fileName), function, getDefaultOutputCoder()));
+          AvroSource.from(file.toString()), function, getDefaultOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
   }

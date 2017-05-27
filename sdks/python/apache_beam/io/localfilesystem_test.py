@@ -61,6 +61,10 @@ class LocalFileSystemTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
+  def test_scheme(self):
+    self.assertIsNone(self.fs.scheme())
+    self.assertIsNone(localfilesystem.LocalFileSystem.scheme())
+
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_unix_path_join(self, *unused_mocks):
     # Test joining of Unix paths.

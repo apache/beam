@@ -145,6 +145,18 @@ public class CalendarWindows {
     }
 
     @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other,
+            String.format(
+                "Only %s objects with the same number of days, start date "
+                    + "and time zone are compatible.",
+                DaysWindows.class.getSimpleName()));
+      }
+    }
+
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
@@ -242,6 +254,18 @@ public class CalendarWindows {
           && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other,
+            String.format(
+                "Only %s objects with the same number of months, "
+                    + "day of month, start date and time zone are compatible.",
+                MonthsWindows.class.getSimpleName()));
+      }
     }
 
     @Override
@@ -351,6 +375,18 @@ public class CalendarWindows {
           && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other,
+            String.format(
+                "Only %s objects with the same number of years, month of year, "
+                    + "day of month, start date and time zone are compatible.",
+                YearsWindows.class.getSimpleName()));
+      }
     }
 
     @Override

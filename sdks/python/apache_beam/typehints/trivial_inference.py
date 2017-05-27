@@ -16,6 +16,8 @@
 #
 
 """Trivial type inference for simple functions.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 import __builtin__
 import collections

@@ -405,13 +405,13 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       state = State.INSIDE_BUNDLE;
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       assertEquals(State.INSIDE_BUNDLE, state);
       state = State.OUTSIDE_BUNDLE;
     }

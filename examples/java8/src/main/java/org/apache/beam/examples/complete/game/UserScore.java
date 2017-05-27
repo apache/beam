@@ -20,7 +20,7 @@ package org.apache.beam.examples.complete.game;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.reflect.Nullable;
-import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
+import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -45,8 +45,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This class is the first in a series of four pipelines that tell a story in a 'gaming' domain.
- * Concepts: batch processing; reading input from Google Cloud Storage and writing output to
- * BigQuery; using standalone DoFns; use of the sum by key transform; examples of
+ * Concepts: batch processing, reading input from text files, writing output to
+ * text files, using standalone DoFns, use of the sum per key transform, and use of
  * Java 8 lambda syntax.
  *
  * <p>In this gaming scenario, many users play, as members of different teams, over the course of a
@@ -57,16 +57,14 @@ import org.slf4j.LoggerFactory;
  * sum of scores per user, over an entire batch of gaming data (collected, say, for each day). The
  * batch processing will not include any late data that arrives after the day's cutoff point.
  *
- * <p>To execute this pipeline using the Dataflow service and static example input data, specify
- * the pipeline configuration like this:
+ * <p>To execute this pipeline, specify the pipeline configuration like this:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- *   --dataset=YOUR-DATASET
+ *   --tempLocation=YOUR_TEMP_DIRECTORY
+ *   --runner=YOUR_RUNNER
+ *   --output=YOUR_OUTPUT_DIRECTORY
+ *   (possibly options specific to your runner or permissions for your temp/output locations)
  * }
  * </pre>
- * where the BigQuery dataset you specify must already exist.
  *
  * <p>Optionally include the --input argument to specify a batch input file.
  * See the --input default value for example batch data file, or use {@code injector.Injector} to
@@ -185,36 +183,25 @@ public class UserScore {
     String getInput();
     void setInput(String value);
 
-    @Description("BigQuery Dataset to write tables to. Must already exist.")
+    // Set this required option to specify where to write the output.
+    @Description("Path of the file to write to.")
     @Validation.Required
-    String getDataset();
-    void setDataset(String value);
-
-    @Description("The BigQuery table name. Should not already exist.")
-    @Default.String("user_score")
-    String getUserScoreTableName();
-    void setUserScoreTableName(String value);
+    String getOutput();
+    void setOutput(String value);
   }
 
   /**
-   * Create a map of information that describes how to write pipeline output to BigQuery. This map
-   * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   * Create a map of information that describes how to write pipeline output to text. This map
+   * is passed to the {@link WriteToText} constructor to write user score sums.
    */
-  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
-      configureBigQueryWrite() {
-    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put(
-        "user",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> c.element().getKey()));
-    tableConfigure.put(
-        "total_score",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
-            "INTEGER", (c, w) -> c.element().getValue()));
-    return tableConfigure;
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
+      configureOutput() {
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
+        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+    config.put("user", (c, w) -> c.element().getKey());
+    config.put("total_score", (c, w) -> c.element().getValue());
+    return config;
   }
-
 
   /**
    * Run a batch pipeline.
@@ -226,17 +213,20 @@ public class UserScore {
     Pipeline pipeline = Pipeline.create(options);
 
     // Read events from a text file and parse them.
-    pipeline.apply(TextIO.read().from(options.getInput()))
-      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-      // Extract and sum username/score pairs from the event data.
-      .apply("ExtractUserScore", new ExtractAndSumScore("user"))
-      .apply("WriteUserScoreSums",
-          new WriteToBigQuery<KV<String, Integer>>(options.getUserScoreTableName(),
-                                                   configureBigQueryWrite()));
+    pipeline
+        .apply(TextIO.read().from(options.getInput()))
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
+        // Extract and sum username/score pairs from the event data.
+        .apply("ExtractUserScore", new ExtractAndSumScore("user"))
+        .apply(
+            "WriteUserScoreSums",
+            new WriteToText<KV<String, Integer>>(
+                options.getOutput(),
+                configureOutput(),
+                false));
 
     // Run the batch pipeline.
     pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
-
 }

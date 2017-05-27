@@ -19,7 +19,7 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
  * A (Step, Key) pair. This is useful as a map key or cache key for things that are available

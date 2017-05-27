@@ -20,12 +20,16 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * Utility methods for constructing known {@link Materialization materializations} for a
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Utility methods for constructing known {@link Materialization materializations} for a
  * {@link ViewFn}.
  */
+@Internal
 public class Materializations {
   /**
    * The URN for a {@link Materialization} where the primitive view type is an iterable of fully
@@ -36,9 +40,12 @@ public class Materializations {
       "urn:beam:sideinput:materialization:iterable:0.1";
 
   /**
-   * A {@link Materialization} where the primitive view type is an iterable of fully specified
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>A {@link Materialization} where the primitive view type is an iterable of fully specified
    * windowed values.
    */
+  @Internal
   public static <T> Materialization<Iterable<WindowedValue<T>>> iterable() {
     return new IterableMaterialization<>();
   }

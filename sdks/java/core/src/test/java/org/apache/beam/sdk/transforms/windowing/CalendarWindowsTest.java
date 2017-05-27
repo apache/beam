@@ -91,6 +91,14 @@ public class CalendarWindowsTest {
   }
 
   @Test
+  public void testDaysCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.DaysWindows daysWindows = CalendarWindows.days(10);
+    daysWindows.verifyCompatibility(CalendarWindows.days(10));
+    thrown.expect(IncompatibleWindowException.class);
+    daysWindows.verifyCompatibility(CalendarWindows.days(9));
+  }
+
+  @Test
   public void testWeeks() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
 
@@ -165,6 +173,14 @@ public class CalendarWindowsTest {
   }
 
   @Test
+  public void testMonthsCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.MonthsWindows monthsWindows = CalendarWindows.months(10).beginningOnDay(15);
+    monthsWindows.verifyCompatibility(CalendarWindows.months(10).beginningOnDay(15));
+    thrown.expect(IncompatibleWindowException.class);
+    monthsWindows.verifyCompatibility(CalendarWindows.months(10).beginningOnDay(30));
+  }
+
+  @Test
   public void testMultiMonths() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
 
@@ -236,6 +252,14 @@ public class CalendarWindowsTest {
 
     assertEquals(expected, runWindowFn(
         CalendarWindows.years(10).withStartingYear(2000).beginningOnDay(5, 5), timestamps));
+  }
+
+  @Test
+  public void testYearsCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.YearsWindows yearsWindows = CalendarWindows.years(2017).beginningOnDay(1, 1);
+    yearsWindows.verifyCompatibility(CalendarWindows.years(2017).beginningOnDay(1, 1));
+    thrown.expect(IncompatibleWindowException.class);
+    yearsWindows.verifyCompatibility(CalendarWindows.years(2017).beginningOnDay(1, 2));
   }
 
   @Test

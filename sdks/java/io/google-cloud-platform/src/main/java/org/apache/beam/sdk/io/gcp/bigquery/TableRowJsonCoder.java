@@ -23,18 +23,24 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes BigQuery {@link TableRow} objects in their native JSON format.
  */
-public class TableRowJsonCoder extends CustomCoder<TableRow> {
+public class TableRowJsonCoder extends AtomicCoder<TableRow> {
 
   public static TableRowJsonCoder of() {
     return INSTANCE;
+  }
+
+  @Override
+  public void encode(TableRow value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
@@ -45,6 +51,11 @@ public class TableRowJsonCoder extends CustomCoder<TableRow> {
   }
 
   @Override
+  public TableRow decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public TableRow decode(InputStream inStream, Context context)
       throws IOException {
     String strValue = StringUtf8Coder.of().decode(inStream, context);
@@ -52,10 +63,10 @@ public class TableRowJsonCoder extends CustomCoder<TableRow> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(TableRow value, Context context)
+  protected long getEncodedElementByteSize(TableRow value)
       throws Exception {
     String strValue = MAPPER.writeValueAsString(value);
-    return StringUtf8Coder.of().getEncodedElementByteSize(strValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(strValue);
   }
 
   /////////////////////////////////////////////////////////////////////////////

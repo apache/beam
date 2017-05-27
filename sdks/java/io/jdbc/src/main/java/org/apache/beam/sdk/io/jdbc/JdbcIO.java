@@ -25,11 +25,10 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Random;
-
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -480,7 +479,7 @@ public class JdbcIO {
       }
 
       @StartBundle
-      public void startBundle(Context context) {
+      public void startBundle() {
         batchCount = 0;
       }
 
@@ -495,12 +494,16 @@ public class JdbcIO {
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
-          finishBundle(context);
+          executeBatch();
         }
       }
 
       @FinishBundle
-      public void finishBundle(Context context) throws Exception {
+      public void finishBundle() throws Exception {
+        executeBatch();
+      }
+
+      private void executeBatch() throws SQLException {
         if (batchCount > 0) {
           preparedStatement.executeBatch();
           connection.commit();

@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
 
@@ -27,8 +28,8 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -66,29 +67,25 @@ class WordExtractingDoFn(beam.DoFn):
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
-  class WordcountOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_value_provider_argument(
-          '--input',
-          dest='input',
-          default='gs://dataflow-samples/shakespeare/kinglear.txt',
-          help='Input file to process.')
-      parser.add_value_provider_argument(
-          '--output',
-          dest='output',
-          required=True,
-          help='Output file to write results to.')
-  pipeline_options = PipelineOptions(argv)
-  wordcount_options = pipeline_options.view_as(WordcountOptions)
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      dest='input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      dest='output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromText(wordcount_options.input)
+  lines = p | 'read' >> ReadFromText(known_args.input)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -103,9 +100,8 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(wordcount_options.output)
+  output | 'write' >> WriteToText(known_args.output)
 
-  # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
 
@@ -117,7 +113,12 @@ def run(argv=None):
     if query_result['counters']:
       empty_lines_counter = query_result['counters'][0]
       logging.info('number of empty lines: %d', empty_lines_counter.committed)
-    # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
+
+    word_lengths_filter = MetricsFilter().with_name('word_len_dist')
+    query_result = result.metrics().query(word_lengths_filter)
+    if query_result['distributions']:
+      word_lengths_dist = query_result['distributions'][0]
+      logging.info('average word length: %d', word_lengths_dist.committed.mean)
 
 
 if __name__ == '__main__':

@@ -26,9 +26,11 @@ import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options import pipeline_options
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners.dataflow.internal.dependency import _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -39,9 +41,10 @@ try:
 except ImportError:
   from apache_beam.runners.worker import statesampler_fake as statesampler
 from apache_beam.typehints import typehints
-from apache_beam.utils import pipeline_options
 from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory
+
+# This module is experimental. No backwards-compatibility guarantees.
 
 
 class MapTaskExecutorRunner(PipelineRunner):
@@ -144,7 +147,7 @@ class MapTaskExecutorRunner(PipelineRunner):
 
   def _run_read_from(self, transform_node, source):
     """Used when this operation is the result of reading source."""
-    if not isinstance(source, iobase.NativeSource):
+    if not isinstance(source, NativeSource):
       source = iobase.SourceBundle(1.0, source, None, None)
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
@@ -240,7 +243,7 @@ class MapTaskExecutorRunner(PipelineRunner):
         (label, write_sideinput_op))
     return output_buffer
 
-  def run_GroupByKeyOnly(self, transform_node):
+  def run__GroupByKeyOnly(self, transform_node):
     map_task_index, producer_index, output_index = self.outputs[
         transform_node.inputs[0]]
     grouped_element_coder = self._get_coder(transform_node.outputs[None],

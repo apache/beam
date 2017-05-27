@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.hdfs;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -63,14 +65,13 @@ public class HadoopFileSystemTest {
   @Rule public TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private Configuration configuration;
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
   private HadoopFileSystem fileSystem;
 
   @Before
   public void setUp() throws Exception {
-    configuration = new Configuration();
+    Configuration configuration = new Configuration();
     configuration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpFolder.getRoot().getAbsolutePath());
     MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(configuration);
     hdfsCluster = builder.build();
@@ -159,6 +160,37 @@ public class HadoopFileSystemTest {
   }
 
   @Test
+  public void testMatchForNonExistentFile() throws Exception {
+    create("testFileAA", "testDataAA".getBytes());
+    create("testFileBB", "testDataBB".getBytes());
+
+    // ensure files exist
+    assertArrayEquals("testDataAA".getBytes(), read("testFileAA"));
+    assertArrayEquals("testDataBB".getBytes(), read("testFileBB"));
+
+    List<MatchResult> matchResults = fileSystem.match(ImmutableList.of(
+        testPath("testFileAA").toString(),
+        testPath("testFileA").toString(),
+        testPath("testFileBB").toString()));
+
+    assertThat(matchResults, hasSize(3));
+
+    final List<MatchResult> expected = ImmutableList.of(
+        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
+            .setResourceId(testPath("testFileAA"))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes("testDataAA".getBytes().length)
+            .build())),
+        MatchResult.create(Status.NOT_FOUND, ImmutableList.<Metadata>of()),
+        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
+            .setResourceId(testPath("testFileBB"))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes("testDataBB".getBytes().length)
+            .build())));
+    assertThat(matchResults, equalTo(expected));
+  }
+
+  @Test
   public void testRename() throws Exception {
     create("testFileA", "testDataA".getBytes());
     create("testFileB", "testDataB".getBytes());
@@ -220,7 +252,7 @@ public class HadoopFileSystemTest {
     HadoopFileSystemOptions options = TestPipeline.testingPipelineOptions()
         .as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
     PCollection<String> pc = p.apply(
         TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");

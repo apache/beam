@@ -19,12 +19,20 @@
 
 from distutils.version import StrictVersion
 
+import glob
 import os
+import pkg_resources
 import platform
 import shutil
+import subprocess
+import sys
 import warnings
 
 import setuptools
+
+from setuptools.command.build_py import build_py
+from setuptools.command.sdist import sdist
+from setuptools.command.test import test
 
 from pkg_resources import get_distribution, DistributionNotFound
 
@@ -94,21 +102,37 @@ REQUIRED_PACKAGES = [
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
-    'protobuf==3.2.0',
+    'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
     ]
 
+REQUIRED_SETUP_PACKAGES = [
+    'nose>=1.0',
+    ]
+
 REQUIRED_TEST_PACKAGES = [
-    'pyhamcrest>=1.9,<2.0'
+    'pyhamcrest>=1.9,<2.0',
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools==0.5.10',
-  'proto-google-cloud-datastore-v1==0.90.0',
+  'google-apitools>=0.5.10,<=0.5.11',
+  'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
   'googledatastore==7.0.1',
   # GCP packages required by tests
-  'google-cloud-bigquery>=0.23.0,<0.24.0',
+  'google-cloud-bigquery>=0.23.0,<0.25.0',
 ]
+
+
+# We must generate protos after setup_requires are installed.
+def generate_protos_first(original_cmd):
+  # See https://issues.apache.org/jira/browse/BEAM-2366
+  # pylint: disable=wrong-import-position
+  import gen_protos
+  class cmd(original_cmd, object):
+    def run(self):
+      gen_protos.generate_proto_files()
+      super(cmd, self).run()
+  return cmd
 
 
 setuptools.setup(
@@ -122,9 +146,9 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'tests/data/*']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*']},
     ext_modules=cythonize([
-        '**/*.pyx',
+        'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/metrics/execution.py',
         'apache_beam/runners/common.py',
@@ -135,7 +159,7 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
-    setup_requires=['nose>=1.0'],
+    setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
@@ -153,11 +177,16 @@ setuptools.setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        ],
+    ],
     license='Apache License, Version 2.0',
     keywords=PACKAGE_KEYWORDS,
     entry_points={
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin'
-            ]}
-    )
+    ]},
+    cmdclass={
+        'build_py': generate_protos_first(build_py),
+        'sdist': generate_protos_first(sdist),
+        'test': generate_protos_first(test),
+    },
+)

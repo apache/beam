@@ -86,20 +86,17 @@ def run(argv=None):
                       help='Numeric value of month to filter on.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = beam.Pipeline(argv=pipeline_args)
+  with beam.Pipeline(argv=pipeline_args) as p:
 
-  input_data = p | beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    input_data = p | beam.io.Read(beam.io.BigQuerySource(known_args.input))
 
-  # pylint: disable=expression-not-assigned
-  (filter_cold_days(input_data, known_args.month_filter)
-   | 'SaveToBQ' >> beam.io.Write(beam.io.BigQuerySink(
-       known_args.output,
-       schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
-       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
-
-  # Actually run the pipeline (all operations above are deferred).
-  p.run()
+    # pylint: disable=expression-not-assigned
+    (filter_cold_days(input_data, known_args.month_filter)
+     | 'SaveToBQ' >> beam.io.Write(beam.io.BigQuerySink(
+         known_args.output,
+         schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
+         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 
 
 if __name__ == '__main__':

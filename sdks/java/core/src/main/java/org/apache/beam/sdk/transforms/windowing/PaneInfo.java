@@ -26,10 +26,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
 
@@ -70,7 +70,7 @@ public final class PaneInfo {
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link DoFn.Context#outputWithTimestamp} in
+   * {@link WindowedContext#outputWithTimestamp} in
    * any {@link DoFn}, and it uses the same
    * {@link org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
@@ -306,7 +306,7 @@ public final class PaneInfo {
   /**
    * A Coder for encoding PaneInfo instances.
    */
-  public static class PaneInfoCoder extends CustomCoder<PaneInfo> {
+  public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
     private enum Encoding {
       FIRST,
       ONE_INDEX,
@@ -339,8 +339,14 @@ public final class PaneInfo {
 
     public static final PaneInfoCoder INSTANCE = new PaneInfoCoder();
 
+    public static PaneInfoCoder of() {
+      return INSTANCE;
+    }
+
+    private PaneInfoCoder() {}
+
     @Override
-    public void encode(PaneInfo value, final OutputStream outStream, Coder.Context context)
+    public void encode(PaneInfo value, final OutputStream outStream)
         throws CoderException, IOException {
       Encoding encoding = chooseEncoding(value);
       switch (chooseEncoding(value)) {
@@ -362,7 +368,7 @@ public final class PaneInfo {
     }
 
     @Override
-    public PaneInfo decode(final InputStream inStream, Coder.Context context)
+    public PaneInfo decode(final InputStream inStream)
         throws CoderException, IOException {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));

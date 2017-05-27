@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
  * integers that are known to often be large or negative.
  */
-public class VarIntCoder extends CustomCoder<Integer> {
+public class VarIntCoder extends AtomicCoder<Integer> {
 
   public static VarIntCoder of() {
     return INSTANCE;
@@ -44,7 +44,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   private VarIntCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream, Context context)
+  public void encode(Integer value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
@@ -53,7 +53,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   }
 
   @Override
-  public Integer decode(InputStream inStream, Context context)
+  public Integer decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return VarInt.decodeInt(inStream);
@@ -83,7 +83,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
    * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Integer value) {
     return true;
   }
 
@@ -93,7 +93,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  protected long getEncodedElementByteSize(Integer value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

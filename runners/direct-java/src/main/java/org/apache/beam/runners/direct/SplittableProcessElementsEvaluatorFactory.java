@@ -17,35 +17,37 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -86,12 +88,11 @@ class SplittableProcessElementsEvaluatorFactory<
       createEvaluator(
           AppliedPTransform<
                   PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
-                  PCollectionTuple,
-                  SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
+                  PCollectionTuple, ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
               application,
           CommittedBundle<InputT> inputBundle)
           throws Exception {
-    final SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
     ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
@@ -108,7 +109,7 @@ class SplittableProcessElementsEvaluatorFactory<
     final DirectExecutionContext.DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundle.getKey())
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
     final ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
         parDoEvaluator =
@@ -171,7 +172,14 @@ class SplittableProcessElementsEvaluatorFactory<
             outputWindowedValue,
             evaluationContext.createSideInputReader(transform.getSideInputs()),
             // TODO: For better performance, use a higher-level executor?
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the
+            // DirectRunner.
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder()
+                    .setThreadFactory(MoreExecutors.platformThreadFactory())
+                    .setDaemon(true)
+                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
+                    .build()),
             10000,
             Duration.standardSeconds(10)));
 

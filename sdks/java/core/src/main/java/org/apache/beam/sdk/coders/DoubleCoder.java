@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link DoubleCoder} encodes {@link Double} values in 8 bytes using Java serialization.
  */
-public class DoubleCoder extends CustomCoder<Double> {
+public class DoubleCoder extends AtomicCoder<Double> {
 
   public static DoubleCoder of() {
     return INSTANCE;
@@ -43,7 +43,7 @@ public class DoubleCoder extends CustomCoder<Double> {
   private DoubleCoder() {}
 
   @Override
-  public void encode(Double value, OutputStream outStream, Context context)
+  public void encode(Double value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Double");
@@ -52,7 +52,7 @@ public class DoubleCoder extends CustomCoder<Double> {
   }
 
   @Override
-  public Double decode(InputStream inStream, Context context)
+  public Double decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readDouble();
@@ -93,7 +93,7 @@ public class DoubleCoder extends CustomCoder<Double> {
    * @return {@code true}. {@link DoubleCoder#getEncodedElementByteSize} returns a constant.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Double value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Double value) {
     return true;
   }
 
@@ -108,7 +108,7 @@ public class DoubleCoder extends CustomCoder<Double> {
    * @return {@code 8}, the byte size of a {@link Double} encoded using Java serialization.
    */
   @Override
-  protected long getEncodedElementByteSize(Double value, Context context)
+  protected long getEncodedElementByteSize(Double value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Double");

@@ -26,10 +26,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
-import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 
@@ -42,22 +40,9 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
     translateReadHelper(transform.getSource(), transform, context);
   }
 
-  public static <T> void translateReadHelper(Source<T> source,
-      PTransform<?, ? extends PValue> transform,
-      TranslationContext context) {
+  public static <T> void translateReadHelper(
+      Source<T> source, PTransform<?, ? extends PValue> transform, TranslationContext context) {
     try {
-      // TODO: Move this validation out of translation once IOChannelUtils is portable
-      // and can be reconstructed on the worker.
-      if (source instanceof FileBasedSource) {
-        ValueProvider<String> filePatternOrSpec =
-            ((FileBasedSource<?>) source).getFileOrPatternSpecProvider();
-        if (filePatternOrSpec.isAccessible()) {
-          context.getPipelineOptions()
-              .getPathValidator()
-              .validateInputFilePatternSupported(filePatternOrSpec.get());
-        }
-      }
-
       StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
       stepContext.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
       stepContext.addInput(

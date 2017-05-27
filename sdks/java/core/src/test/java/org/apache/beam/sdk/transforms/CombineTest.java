@@ -41,12 +41,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -874,19 +874,19 @@ public class CombineTest implements Serializable {
     /**
      * A {@link Coder} for {@link CountSum}.
      */
-    private class CountSumCoder extends CustomCoder<CountSum> {
+    private class CountSumCoder extends AtomicCoder<CountSum> {
       @Override
-      public void encode(CountSum value, OutputStream outStream,
-          Context context) throws CoderException, IOException {
-        LONG_CODER.encode(value.count, outStream, context.nested());
-        DOUBLE_CODER.encode(value.sum, outStream, context);
+      public void encode(CountSum value, OutputStream outStream)
+          throws CoderException, IOException {
+        LONG_CODER.encode(value.count, outStream);
+        DOUBLE_CODER.encode(value.sum, outStream);
       }
 
       @Override
-      public CountSum decode(InputStream inStream, Coder.Context context)
+      public CountSum decode(InputStream inStream)
           throws CoderException, IOException {
-        long count = LONG_CODER.decode(inStream, context.nested());
-        double sum = DOUBLE_CODER.decode(inStream, context);
+        long count = LONG_CODER.decode(inStream);
+        double sum = DOUBLE_CODER.decode(inStream);
         return new CountSum(count, sum);
       }
 
@@ -895,16 +895,16 @@ public class CombineTest implements Serializable {
 
       @Override
       public boolean isRegisterByteSizeObserverCheap(
-          CountSum value, Context context) {
+          CountSum value) {
         return true;
       }
 
       @Override
       public void registerByteSizeObserver(
-          CountSum value, ElementByteSizeObserver observer, Context context)
+          CountSum value, ElementByteSizeObserver observer)
           throws Exception {
-        LONG_CODER.registerByteSizeObserver(value.count, observer, context.nested());
-        DOUBLE_CODER.registerByteSizeObserver(value.sum, observer, context);
+        LONG_CODER.registerByteSizeObserver(value.count, observer);
+        DOUBLE_CODER.registerByteSizeObserver(value.sum, observer);
       }
     }
   }
@@ -923,11 +923,22 @@ public class CombineTest implements Serializable {
       }
 
       public static Coder<Accumulator> getCoder() {
-        return new CustomCoder<Accumulator>() {
+        return new AtomicCoder<Accumulator>() {
+          @Override
+          public void encode(Accumulator accumulator, OutputStream outStream)
+              throws CoderException, IOException {
+            encode(accumulator, outStream, Coder.Context.NESTED);
+          }
+
           @Override
           public void encode(Accumulator accumulator, OutputStream outStream, Coder.Context context)
               throws CoderException, IOException {
             StringUtf8Coder.of().encode(accumulator.value, outStream, context);
+          }
+
+          @Override
+          public Accumulator decode(InputStream inStream) throws CoderException, IOException {
+            return decode(inStream, Coder.Context.NESTED);
           }
 
           @Override

@@ -17,9 +17,13 @@
 
 # cython: profile=True
 
-"""Worker operations executor."""
+"""Worker operations executor.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import sys
+import traceback
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -32,6 +36,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class LoggingContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def enter(self):
     pass
@@ -41,7 +46,9 @@ class LoggingContext(object):
 
 
 class Receiver(object):
-  """An object that consumes a WindowedValue.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An object that consumes a WindowedValue.
 
   This class can be efficiently used to pass values between the
   sdk and worker harnesses.
@@ -52,7 +59,9 @@ class Receiver(object):
 
 
 class DoFnMethodWrapper(object):
-  """Represents a method of a DoFn object."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Represents a method of a DoFn object."""
 
   def __init__(self, do_fn, method_name):
     """
@@ -95,17 +104,20 @@ class DoFnSignature(object):
     self._validate()
 
   def _validate(self):
+    self._validate_process()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
 
-  def _validate_bundle_method(self, method_wrapper):
-    # Here we use the fact that every DoFn parameter defined in core.DoFn has
-    # the value that is the same as the name of the parameter and ends with
-    # string 'Param'.
-    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if
-                               i.endswith('Param')]
+  def _validate_process(self):
+    """Validate that none of the DoFnParameters are repeated in the function
+    """
+    for param in core.DoFn.DoFnParams:
+      assert self.process_method.defaults.count(param) <= 1
 
-    for param in unsupported_dofn_params:
+  def _validate_bundle_method(self, method_wrapper):
+    """Validate that none of the DoFnParameters are used in the function
+    """
+    for param in core.DoFn.DoFnParams:
       assert param not in method_wrapper.defaults
 
 
@@ -156,18 +168,14 @@ class DoFnInvoker(object):
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
-    args_for_start_bundle = self.signature.start_bundle_method.defaults
     self.output_processor.start_bundle_outputs(
-        self.signature.start_bundle_method.method_value(
-            *args_for_start_bundle))
+        self.signature.start_bundle_method.method_value())
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
     """
-    args_for_finish_bundle = self.signature.finish_bundle_method.defaults
     self.output_processor.finish_bundle_outputs(
-        self.signature.finish_bundle_method.method_value(
-            *args_for_finish_bundle))
+        self.signature.finish_bundle_method.method_value())
 
 
 class SimpleInvoker(DoFnInvoker):
@@ -300,7 +308,9 @@ class PerWindowInvoker(DoFnInvoker):
 
 
 class DoFnRunner(Receiver):
-  """A helper class for executing ParDo operations.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A helper class for executing ParDo operations.
   """
 
   def __init__(self,
@@ -362,7 +372,7 @@ class DoFnRunner(Receiver):
 
     # Optimize for the common case.
     main_receivers = as_receiver(tagged_receivers[None])
-    output_processor = OutputProcessor(
+    output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
@@ -403,20 +413,29 @@ class DoFnRunner(Receiver):
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
       raise
-    args = exn.args
-    if args and isinstance(args[0], str):
-      args = (args[0] + " [while running '%s']" % self.step_name,) + args[1:]
-      # Poor man's exception chaining.
-      raise type(exn), args, sys.exc_info()[2]
-    else:
-      raise
+    step_annotation = " [while running '%s']" % self.step_name
+    # To emulate exception chaining (not available in Python 2).
+    original_traceback = sys.exc_info()[2]
+    try:
+      # Attempt to construct the same kind of exception
+      # with an augmented message.
+      new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
+      new_exn._tagged_with_step = True  # Could raise attribute error.
+    except:  # pylint: disable=bare-except
+      # If anything goes wrong, construct a RuntimeError whose message
+      # records the original exception's type and message.
+      new_exn = RuntimeError(
+          traceback.format_exception_only(type(exn), exn)[-1].strip()
+          + step_annotation)
+      new_exn._tagged_with_step = True
+    raise new_exn, None, original_traceback
 
 
-class OutputProcessor(object):
+class _OutputProcessor(object):
   """Processes output produced by DoFn method invocations."""
 
   def __init__(self, window_fn, main_receivers, tagged_receivers):
-    """Initializes ``OutputProcessor``.
+    """Initializes ``_OutputProcessor``.
 
     Args:
       window_fn: a windowing function (WindowFn).
@@ -488,18 +507,9 @@ class OutputProcessor(object):
 
       if isinstance(result, WindowedValue):
         windowed_value = result
-      elif isinstance(result, TimestampedValue):
-        value = result.value
-        timestamp = result.timestamp
-        assign_context = NoContext(value, timestamp)
-        windowed_value = WindowedValue(
-            value, timestamp, self.window_fn.assign(assign_context))
       else:
-        value = result
-        timestamp = -1
-        assign_context = NoContext(value)
-        windowed_value = WindowedValue(
-            value, timestamp, self.window_fn.assign(assign_context))
+        raise RuntimeError('Finish Bundle should only output WindowedValue ' +\
+                           'type but got %s' % type(result))
 
       if tag is None:
         self.main_receivers.receive(windowed_value)
@@ -507,7 +517,7 @@ class OutputProcessor(object):
         self.tagged_receivers[tag].output(windowed_value)
 
 
-class NoContext(WindowFn.AssignContext):
+class _NoContext(WindowFn.AssignContext):
   """An uninspectable WindowFn.AssignContext."""
   NO_VALUE = object()
 
@@ -528,7 +538,9 @@ class NoContext(WindowFn.AssignContext):
 
 
 class DoFnState(object):
-  """Keeps track of state that DoFns want, currently, user counters.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Keeps track of state that DoFns want, currently, user counters.
   """
 
   def __init__(self, counter_factory):
@@ -543,6 +555,7 @@ class DoFnState(object):
 
 # TODO(robertwb): Replace core.DoFnContext with this.
 class DoFnContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, label, element=None, state=None):
     self.label = label
@@ -607,6 +620,8 @@ class _ReceiverAdapter(Receiver):
 
 
 def as_receiver(maybe_receiver):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   if isinstance(maybe_receiver, Receiver):
     return maybe_receiver
   return _ReceiverAdapter(maybe_receiver)

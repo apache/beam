@@ -18,14 +18,16 @@
 
 package org.apache.beam.runners.direct;
 
+import com.google.protobuf.Message;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
@@ -93,7 +95,7 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends PTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {
+      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>, Message> {
     private final CreatePCollectionView<ElemT, ViewT> og;
 
     WriteView(CreatePCollectionView<ElemT, ViewT> og) {
@@ -110,5 +112,13 @@ class ViewOverrideFactory<ElemT, ViewT>
     public PCollectionView<ViewT> getView() {
       return og.getView();
     }
+
+    @Override
+    public String getUrn() {
+      return DIRECT_WRITE_VIEW_URN;
+    }
   }
+
+  public static final String DIRECT_WRITE_VIEW_URN =
+      "urn:beam:directrunner:transforms:write_view:v1";
 }

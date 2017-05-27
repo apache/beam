@@ -33,8 +33,8 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -135,7 +135,7 @@ public class TrackStreamingSourcesTest {
         Pipeline pipeline,
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
-      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc);
+      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, options, jssc);
       this.evaluator = new SparkRunner.Evaluator(
           new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
       this.transformClassToAssert = transformClassToAssert;
@@ -148,6 +148,12 @@ public class TrackStreamingSourcesTest {
     }
 
     @Override
+    public void enterPipeline(Pipeline p) {
+      super.enterPipeline(p);
+      evaluator.enterPipeline(p);
+    }
+
+    @Override
     public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
       return evaluator.enterCompositeTransform(node);
     }
@@ -156,7 +162,7 @@ public class TrackStreamingSourcesTest {
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform transform = node.getTransform();
       if (transform.getClass() == transformClassToAssert) {
-        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
+        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
         ctxt.setCurrentTransform(appliedTransform);
         //noinspection unchecked
         Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform);
@@ -165,6 +171,12 @@ public class TrackStreamingSourcesTest {
       } else {
         evaluator.visitPrimitiveTransform(node);
       }
+    }
+
+    @Override
+    public void leavePipeline(Pipeline p) {
+      super.leavePipeline(p);
+      evaluator.leavePipeline(p);
     }
   }
 

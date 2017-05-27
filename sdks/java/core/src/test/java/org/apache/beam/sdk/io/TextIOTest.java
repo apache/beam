@@ -107,7 +107,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
-
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
   private static final String[] EMPTY = new String[] {};
@@ -1103,5 +1102,6 @@ public class TextIOTest {
     assertThat(splits, hasSize(equalTo(1)));
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
+
 }
 

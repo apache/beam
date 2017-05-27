@@ -23,10 +23,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.util.Iterator;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.VarInt;
@@ -167,15 +167,15 @@ public class Count {
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry,
                                              Coder<T> inputCoder) {
-      return new CustomCoder<long[]>() {
+      return new AtomicCoder<long[]>() {
         @Override
-        public void encode(long[] value, OutputStream outStream, Context context)
+        public void encode(long[] value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value[0], outStream);
         }
 
         @Override
-        public long[] decode(InputStream inStream, Context context)
+        public long[] decode(InputStream inStream)
             throws IOException, CoderException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
@@ -185,15 +185,25 @@ public class Count {
         }
 
         @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        public boolean isRegisterByteSizeObserverCheap(long[] value) {
           return true;
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
         }
       };
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null && getClass().equals(other.getClass());
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
     }
   }
 }

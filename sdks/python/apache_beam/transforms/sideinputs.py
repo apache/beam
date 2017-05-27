@@ -17,6 +17,8 @@
 
 """Internal side input transforms and implementations.
 
+For internal use only; no backwards-compatibility guarantees.
+
 Important: this module is an implementation detail and should not be used
 directly by pipeline writers. Instead, users should use the helper methods
 AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.

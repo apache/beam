@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,20 +27,20 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
@@ -218,7 +219,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   static class BundleOutputManager implements OutputManager {
     private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
-    private final Map<TupleTag<?>, List<?>> undeclaredOutputs;
 
     public static BundleOutputManager create(Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
       return new BundleOutputManager(outputBundles);
@@ -226,23 +226,13 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
     private BundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
       this.bundles = bundles;
-      undeclaredOutputs = new HashMap<>();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      UncommittedBundle bundle = bundles.get(tag);
-      if (bundle == null) {
-        List<WindowedValue<T>> undeclaredContents = (List) undeclaredOutputs.get(tag);
-        if (undeclaredContents == null) {
-          undeclaredContents = new ArrayList<>();
-          undeclaredOutputs.put(tag, undeclaredContents);
-        }
-        undeclaredContents.add(output);
-      } else {
-        bundle.add(output);
-      }
+      checkArgument(bundles.containsKey(tag), "Unknown output tag %s", tag);
+      ((UncommittedBundle) bundles.get(tag)).add(output);
     }
   }
 }

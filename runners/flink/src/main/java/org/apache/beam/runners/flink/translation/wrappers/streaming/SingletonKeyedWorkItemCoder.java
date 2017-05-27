@@ -26,7 +26,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  * Singleton keyed work item coder.
  */
 public class SingletonKeyedWorkItemCoder<K, ElemT>
-    extends CustomCoder<SingletonKeyedWorkItem<K, ElemT>> {
+    extends StructuredCoder<SingletonKeyedWorkItem<K, ElemT>> {
   /**
    * Create a new {@link KeyedWorkItemCoder} with the provided key coder, element coder, and window
    * coder.
@@ -66,18 +66,30 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   }
 
   @Override
+  public void encode(SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(SingletonKeyedWorkItem<K, ElemT> value,
                      OutputStream outStream,
                      Context context)
       throws CoderException, IOException {
-    keyCoder.encode(value.key(), outStream, context.nested());
+    keyCoder.encode(value.key(), outStream);
     valueCoder.encode(value.value, outStream, context);
+  }
+
+  @Override
+  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream)
+      throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
   public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream, Context context)
       throws CoderException, IOException {
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     WindowedValue<ElemT> value = valueCoder.decode(inStream, context);
     return new SingletonKeyedWorkItem<>(key, value);
   }

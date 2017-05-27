@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 
 import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -47,19 +46,8 @@ import org.slf4j.LoggerFactory;
 public class CustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
-  /**
-   * The current limit on the size of a ReportWorkItemStatus RPC to Google Cloud Dataflow, which
-   * includes the initial splits, is 20 MB.
-   */
-  public static final long DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES = 20 * (1 << 20);
 
   private static final Logger LOG = LoggerFactory.getLogger(CustomSources.class);
-
-  private static final ByteString firstSplitKey = ByteString.copyFromUtf8("0000000000000001");
-
-  public static boolean isFirstUnboundedSourceSplit(ByteString splitKey) {
-    return splitKey.equals(firstSplitKey);
-  }
 
   private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
     int cores = 4; //TODO: decide at runtime?

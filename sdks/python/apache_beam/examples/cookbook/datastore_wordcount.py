@@ -76,9 +76,9 @@ from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -88,6 +88,7 @@ class WordExtractingDoFn(beam.DoFn):
     self.empty_line_counter = Metrics.counter('main', 'empty_lines')
     self.word_length_counter = Metrics.counter('main', 'word_lengths')
     self.word_counter = Metrics.counter('main', 'total_words')
+    self.word_lengths_dist = Metrics.distribution('main', 'word_len_dist')
 
   def process(self, element):
     """Returns an iterator over words in contents of Cloud Datastore entity.
@@ -107,6 +108,7 @@ class WordExtractingDoFn(beam.DoFn):
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
       self.word_length_counter.inc(len(w))
+      self.word_lengths_dist.update(len(w))
       self.word_counter.inc()
     return words
 
@@ -133,18 +135,15 @@ class EntityWrapper(object):
 
 def write_to_datastore(project, user_options, pipeline_options):
   """Creates a pipeline that writes entities to Cloud Datastore."""
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # pylint: disable=expression-not-assigned
-  (p
-   | 'read' >> ReadFromText(user_options.input)
-   | 'create entity' >> beam.Map(
-       EntityWrapper(user_options.namespace, user_options.kind,
-                     user_options.ancestor).make_entity)
-   | 'write to datastore' >> WriteToDatastore(project))
-
-  # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+    # pylint: disable=expression-not-assigned
+    (p
+     | 'read' >> ReadFromText(user_options.input)
+     | 'create entity' >> beam.Map(
+         EntityWrapper(user_options.namespace, user_options.kind,
+                       user_options.ancestor).make_entity)
+     | 'write to datastore' >> WriteToDatastore(project))
 
 
 def make_ancestor_query(kind, namespace, ancestor):
@@ -194,7 +193,6 @@ def read_from_datastore(project, user_options, pipeline_options):
   output | 'write' >> beam.io.WriteToText(file_path_prefix=user_options.output,
                                           num_shards=user_options.num_shards)
 
-  # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   # Wait until completion, main thread would access post-completion job results.
   result.wait_until_finish()
@@ -254,7 +252,16 @@ def run(argv=None):
   if query_result['counters']:
     empty_lines_counter = query_result['counters'][0]
     logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
+  else:
+    logging.warn('unable to retrieve counter metrics from runner')
+
+  word_lengths_filter = MetricsFilter().with_name('word_len_dist')
+  query_result = result.metrics().query(word_lengths_filter)
+  if query_result['distributions']:
+    word_lengths_dist = query_result['distributions'][0]
+    logging.info('average word length: %d', word_lengths_dist.committed.mean)
+  else:
+    logging.warn('unable to retrieve distribution metrics from runner')
 
 
 if __name__ == '__main__':

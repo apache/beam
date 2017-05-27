@@ -231,17 +231,17 @@ public class TopTest {
   @Test
   public void testTopGetNames() {
     assertEquals("Combine.globally(Top(OrderByLength))", Top.of(1, new OrderByLength()).getName());
-    assertEquals("Combine.globally(Top(Smallest))", Top.smallest(1).getName());
-    assertEquals("Combine.globally(Top(Largest))", Top.largest(2).getName());
+    assertEquals("Combine.globally(Top(Reversed))", Top.smallest(1).getName());
+    assertEquals("Combine.globally(Top(Natural))", Top.largest(2).getName());
     assertEquals("Combine.perKey(Top(IntegerComparator))",
         Top.perKey(1, new IntegerComparator()).getName());
-    assertEquals("Combine.perKey(Top(Smallest))", Top.<String, Integer>smallestPerKey(1).getName());
-    assertEquals("Combine.perKey(Top(Largest))", Top.<String, Integer>largestPerKey(2).getName());
+    assertEquals("Combine.perKey(Top(Reversed))", Top.<String, Integer>smallestPerKey(1).getName());
+    assertEquals("Combine.perKey(Top(Natural))", Top.<String, Integer>largestPerKey(2).getName());
   }
 
   @Test
   public void testDisplayData() {
-    Top.Largest<Integer> comparer = new Top.Largest<Integer>();
+    Top.Natural<Integer> comparer = new Top.Natural<Integer>();
     Combine.Globally<Integer, List<Integer>> top = Top.of(1234, comparer);
     DisplayData displayData = DisplayData.from(top);
 

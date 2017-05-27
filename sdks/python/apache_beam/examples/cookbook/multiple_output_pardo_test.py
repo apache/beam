@@ -52,7 +52,7 @@ class MultipleOutputParDo(unittest.TestCase):
 
     multiple_output_pardo.run([
         '--input=%s*' % temp_path,
-        '--output=%s' % result_prefix]).wait_until_finish()
+        '--output=%s' % result_prefix])
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
     with open(result_prefix + '-chars-00000-of-00001') as f:
