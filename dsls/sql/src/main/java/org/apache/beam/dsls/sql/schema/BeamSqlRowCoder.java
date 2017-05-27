@@ -29,17 +29,17 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
  * A {@link Coder} encodes {@link BeamSQLRow}.
  *
  */
-public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
+public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
   private static final BeamSQLRecordTypeCoder recordTypeCoder = BeamSQLRecordTypeCoder.of();
 
   private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
@@ -170,11 +170,6 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
     record.setWindowEnd(instantCoder.decode(inStream, context));
 
     return record;
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
   }
 
   @Override

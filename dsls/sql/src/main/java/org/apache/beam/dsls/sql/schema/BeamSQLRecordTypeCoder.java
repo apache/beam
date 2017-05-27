@@ -20,10 +20,10 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -32,7 +32,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * A {@link Coder} for {@link BeamSQLRecordType}.
  *
  */
-public class BeamSQLRecordTypeCoder extends StandardCoder<BeamSQLRecordType> {
+public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSQLRecordType> {
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final VarIntCoder intCoder = VarIntCoder.of();
 
@@ -72,11 +72,6 @@ public class BeamSQLRecordTypeCoder extends StandardCoder<BeamSQLRecordType> {
     }
     intCoder.decode(inStream, context);
     return typeRecord;
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
   }
 
   @Override
