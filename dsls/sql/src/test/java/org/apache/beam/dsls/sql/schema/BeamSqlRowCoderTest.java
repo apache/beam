@@ -74,7 +74,7 @@ public class BeamSqlRowCoderTest {
     row.addField("col_timestamp", new Date());
 
 
-    BeamSqlRowCoder coder = BeamSqlRowCoder.of();
+    BeamSqlRowCoder coder = new BeamSqlRowCoder(beamSQLRecordType);
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }
