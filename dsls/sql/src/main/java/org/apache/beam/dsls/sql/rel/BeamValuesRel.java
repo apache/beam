@@ -23,13 +23,14 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Values;
@@ -56,8 +57,8 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   }
 
-  @Override public PCollection<BeamSQLRow> buildBeamPipeline(
-      BeamPipelineCreator planCreator) throws Exception {
+  @Override public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+      throws Exception {
     List<BeamSQLRow> rows = new ArrayList<>(tuples.size());
     String stageName = BeamSQLRelUtils.getStageName(this);
     if (tuples.isEmpty()) {
@@ -73,6 +74,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       rows.add(row);
     }
 
-    return planCreator.getPipeline().apply(stageName, Create.of(rows));
+    return inputPCollections.getPipeline().apply(stageName, Create.of(rows))
+        .setCoder(new BeamSqlRowCoder(beamSQLRecordType));
   }
 }

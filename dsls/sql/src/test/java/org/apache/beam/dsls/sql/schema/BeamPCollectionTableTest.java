@@ -17,6 +17,8 @@
  */
 package org.apache.beam.dsls.sql.schema;
 
+import org.apache.beam.dsls.sql.BeamSqlCli;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BasePlanner;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -27,17 +29,19 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * Test case for BeamPCollectionTable.
  */
 public class BeamPCollectionTableTest extends BasePlanner{
-  public static TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
 
-  @BeforeClass
-  public static void prepareTable(){
+  @Before
+  public void prepareTable(){
     RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
@@ -51,14 +55,16 @@ public class BeamPCollectionTableTest extends BasePlanner{
     row.addField(0, 1);
     row.addField(1, "hello world.");
     PCollection<BeamSQLRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
-    runner.addTableMetadata("COLLECTION_TABLE",
+    BeamSqlEnv.registerTable("COLLECTION_TABLE",
         new BeamPCollectionTable(inputStream, protoRowType));
   }
 
   @Test
   public void testSelectFromPCollectionTable() throws Exception{
     String sql = "select c1, c2 from COLLECTION_TABLE";
-    runner.executionPlan(sql);
+    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+
+    pipeline.run().waitUntilFinish();
   }
 
 }
