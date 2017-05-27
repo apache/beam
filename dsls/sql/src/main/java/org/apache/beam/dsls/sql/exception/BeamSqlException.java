@@ -15,26 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.rel;
-
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.calcite.rel.RelNode;
+package org.apache.beam.dsls.sql.exception;
 
 /**
- * A new method {@link #buildBeamPipeline(PCollectionTuple)} is added, it's
- * called by {@link BeamPipelineCreator}.
+ * Generic exception in BeamSQL.
  *
  */
-public interface BeamRelNode extends RelNode {
-
+public class BeamSqlException extends RuntimeException {
   /**
-   * A {@link BeamRelNode} is a recursive structure, the
-   * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
-   * algorithm.
    *
    */
-  PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections) throws Exception;
+  private static final long serialVersionUID = 3445015747629217342L;
+
+  public BeamSqlException(String string) {
+    super(string);
+  }
+
+  public BeamSqlException() {
+    super();
+  }
+
+  public BeamSqlException(Throwable e) {
+    super(e);
+  }
+
 }
