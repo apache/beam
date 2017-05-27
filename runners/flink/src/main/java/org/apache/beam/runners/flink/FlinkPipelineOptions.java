@@ -76,6 +76,11 @@ public interface FlinkPipelineOptions
   CheckpointingMode getCheckpointingMode();
   void setCheckpointingMode(CheckpointingMode mode);
 
+  @Description("The maximum time that a checkpoint may take before being discarded.")
+  @Default.Long(20 * 60 * 1000)
+  Long getCheckpointTimeoutMillis();
+  void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
+
   @Description("Sets the number of times that failed tasks are re-executed. "
       + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
       + "that the system default value (as defined in the configuration) should be used.")
