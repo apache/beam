@@ -23,24 +23,22 @@ import java.io.OutputStream;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- * A {@link Coder} encodes {@link BeamSQLRow}.
- *
+ *  A {@link Coder} encodes {@link BeamSQLRow}.
  */
-public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
-  private static final BeamSQLRecordTypeCoder recordTypeCoder = BeamSQLRecordTypeCoder.of();
+public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
+  private BeamSQLRecordType tableSchema;
 
   private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
 
@@ -51,17 +49,13 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   private static final InstantCoder instantCoder = InstantCoder.of();
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
 
-  private static final BeamSqlRowCoder INSTANCE = new BeamSqlRowCoder();
-  private BeamSqlRowCoder(){}
-
-  public static BeamSqlRowCoder of() {
-    return INSTANCE;
+  public BeamSqlRowCoder(BeamSQLRecordType tableSchema) {
+    this.tableSchema = tableSchema;
   }
 
   @Override
   public void encode(BeamSQLRow value, OutputStream outStream,
       org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
-    recordTypeCoder.encode(value.getDataType(), outStream, context.nested());
     listCoder.encode(value.getNullFields(), outStream, context.nested());
 
     for (int idx = 0; idx < value.size(); ++idx) {
@@ -115,18 +109,17 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   @Override
   public BeamSQLRow decode(InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
       throws CoderException, IOException {
-    BeamSQLRecordType type = recordTypeCoder.decode(inStream, context.nested());
     List<Integer> nullFields = listCoder.decode(inStream, context.nested());
 
-    BeamSQLRow record = new BeamSQLRow(type);
+    BeamSQLRow record = new BeamSQLRow(tableSchema);
     record.setNullFields(nullFields);
 
-    for (int idx = 0; idx < type.size(); ++idx) {
+    for (int idx = 0; idx < tableSchema.size(); ++idx) {
       if (nullFields.contains(idx)) {
         continue;
       }
 
-      switch (type.getFieldsType().get(idx)) {
+      switch (tableSchema.getFieldsType().get(idx)) {
         case INTEGER:
           record.addField(idx, intCoder.decode(inStream, context.nested()));
           break;
@@ -162,7 +155,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           break;
 
         default:
-          throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
+          throw new UnsupportedDataTypeException(tableSchema.getFieldsType().get(idx));
       }
     }
 
@@ -172,15 +165,12 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
     return record;
   }
 
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+  public BeamSQLRecordType getTableSchema() {
+    return tableSchema;
   }
 
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-
   }
-
 }

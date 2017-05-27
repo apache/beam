@@ -21,7 +21,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -33,6 +36,9 @@ public class BeamSQLRecordType implements Serializable {
   private List<String> fieldsName = new ArrayList<>();
   private List<SqlTypeName> fieldsType = new ArrayList<>();
 
+  /**
+   * Generate from {@link RelDataType} which is used to create table.
+   */
   public static BeamSQLRecordType from(RelDataType tableInfo) {
     BeamSQLRecordType record = new BeamSQLRecordType();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
@@ -45,6 +51,22 @@ public class BeamSQLRecordType implements Serializable {
   public void addField(String fieldName, SqlTypeName fieldType) {
     fieldsName.add(fieldName);
     fieldsType.add(fieldType);
+  }
+
+  /**
+   * Create an instance of {@link RelDataType} so it can be used to create a table.
+   */
+  public RelProtoDataType toRelDataType() {
+    return new RelProtoDataType() {
+      @Override
+      public RelDataType apply(RelDataTypeFactory a) {
+        FieldInfoBuilder builder = a.builder();
+        for (int idx = 0; idx < fieldsName.size(); ++idx) {
+          builder.add(fieldsName.get(idx), fieldsType.get(idx));
+        }
+        return builder.build();
+      }
+    };
   }
 
   public int size() {

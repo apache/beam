@@ -17,93 +17,61 @@
  */
 package org.apache.beam.dsls.sql.example;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.dsls.sql.BeamSQLEnvironment;
-import org.apache.beam.dsls.sql.schema.BaseBeamTable;
+import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * This is one quick example.
+ * This is a quick example, which uses Beam SQL DSL to create a data pipeline.
  *
- * <p>Before start, follow https://kafka.apache.org/quickstart to setup a Kafka
- * cluster locally, and run below commands to create required Kafka topics:
- * <pre>
- * <code>
- * bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 \
- *   --partitions 1 --topic orders
- * bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 \
- *   --partitions 1 --topic sub_orders
- * </code>
- * </pre>
- * After run the application, produce several test records:
- * <pre>
- * <code>
- * bin/kafka-console-producer.sh --broker-list localhost:9092 --topic orders
- * invalid,record
- * 123445,0,100,3413423
- * 234123,3,232,3451231234
- * 234234,0,5,1234123
- * 345234,0,345234.345,3423
- * </code>
- * </pre>
- * Meanwhile, open another console to see the output:
- * <pre>
- * <code>
- * bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic sub_orders
- * **Expected :
- * 123445,0,100.0
- * 345234,0,345234.345
- * </code>
- * </pre>
  */
-public class BeamSqlExample implements Serializable {
+public class BeamSqlExample {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlExample.class);
 
   public static void main(String[] args) throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class); // FlinkPipelineOptions.class
-    options.setJobName("BeamSqlExample");
-    Pipeline pipeline = Pipeline.create(options);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
 
-    BeamSQLEnvironment runner = BeamSQLEnvironment.create();
-    runner.addTableMetadata("ORDER_DETAILS", getTable("127.0.0.1:9092", "orders"));
-    runner.addTableMetadata("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    //define the input row format
+    BeamSQLRecordType type = new BeamSQLRecordType();
+    type.addField("c1", SqlTypeName.INTEGER);
+    type.addField("c2", SqlTypeName.VARCHAR);
+    type.addField("c3", SqlTypeName.DOUBLE);
+    BeamSQLRow row = new BeamSQLRow(type);
+    row.addField(0, 1);
+    row.addField(1, "row");
+    row.addField(2, 1.0);
 
-    // case 2: insert into <table>(<fields>) select STREAM <fields> from
-    // <table> from <clause>
-    String sql = "INSERT INTO SUB_ORDER(order_id, site_id, price) " + "SELECT "
-        + " order_id, site_id, price " + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
+    //create a source PCollection with Create.of();
+    PCollection<BeamSQLRow> inputTable = PBegin.in(p).apply(Create.of(row)
+        .withCoder(new BeamSqlRowCoder(type)));
 
-    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
+    //run a simple SQL query over input PCollection;
+    String sql = "select c2, c3 from TABLE_A where c1=1";
+    PCollection<BeamSQLRow> outputStream = inputTable.apply(BeamSql.simpleQuery(sql));
 
-    pipeline.run().waitUntilFinish();
-  }
-
-  public static BaseBeamTable getTable(String bootstrapServer, String topic) {
-    final RelProtoDataType protoRowType = new RelProtoDataType() {
+    //log out the output record;
+    outputStream.apply("log_result",
+        MapElements.<BeamSQLRow, Void>via(new SimpleFunction<BeamSQLRow, Void>() {
       @Override
-      public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("order_id", SqlTypeName.BIGINT).add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE).add("order_time", SqlTypeName.TIMESTAMP).build();
+      public Void apply(BeamSQLRow input) {
+        LOG.info(input.valueInString());
+        return null;
       }
-    };
+    }));
 
-    Map<String, Object> consumerPara = new HashMap<String, Object>();
-    consumerPara.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-
-    return new BeamKafkaCSVTable(protoRowType, bootstrapServer, Arrays.asList(topic))
-        .updateConsumerProperties(consumerPara);
+    p.run().waitUntilFinish();
   }
 }
