@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.mqtt;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,9 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;

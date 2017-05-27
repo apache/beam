@@ -27,8 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Instant;
 
 /**
- * Create a composite {@link Trigger} that fires once after at least one of its sub-triggers have
- * fired.
+ * A composite {@link Trigger} that fires once after at least one of its sub-triggers have fired.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterFirst extends OnceTrigger {
@@ -66,7 +65,7 @@ public class AfterFirst extends OnceTrigger {
   }
 
   @Override
-  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new AfterFirst(continuationTriggers);
   }
 

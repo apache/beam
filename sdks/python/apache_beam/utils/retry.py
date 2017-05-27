@@ -17,6 +17,8 @@
 
 """Retry decorators for calls raising exceptions.
 
+For internal use only; no backwards-compatibility guarantees.
+
 This module is used mostly to decorate all integration points where the code
 makes calls to remote services. Searching through the code base for @retry
 should find all such places. For this reason even places where retry is not

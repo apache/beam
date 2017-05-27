@@ -29,9 +29,13 @@ import threading
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 
+__all__ = ['DistributionResult']
+
 
 class CellCommitState(object):
-  """Atomically tracks a cell's dirty/clean commit status.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Atomically tracks a cell's dirty/clean commit status.
 
   Reporting a metric update works in a two-step process: First, updates to the
   metric are received, and the metric is marked as 'dirty'. Later, updates are
@@ -102,7 +106,9 @@ class CellCommitState(object):
 
 
 class MetricCell(object):
-  """Accumulates in-memory changes to a metric.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Accumulates in-memory changes to a metric.
 
   A MetricCell represents a specific metric in a single context and bundle.
   All subclasses must be thread safe, as these are used in the pipeline runners,
@@ -118,7 +124,9 @@ class MetricCell(object):
 
 
 class CounterCell(Counter, MetricCell):
-  """Tracks the current value and delta of a counter metric.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta of a counter metric.
 
   Each cell tracks the state of a metric independently per context per bundle.
   Therefore, each metric has a different cell in each bundle, cells are
@@ -146,7 +154,9 @@ class CounterCell(Counter, MetricCell):
 
 
 class DistributionCell(Distribution, MetricCell):
-  """Tracks the current value and delta for a distribution metric.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta for a distribution metric.
 
   Each cell tracks the state of a metric independently per context per bundle.
   Therefore, each metric has a different cell in each bundle, that is later
@@ -193,6 +203,13 @@ class DistributionResult(object):
   def __eq__(self, other):
     return self.data == other.data
 
+  def __repr__(self):
+    return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
+        self.sum,
+        self.count,
+        self.min,
+        self.max)
+
   @property
   def max(self):
     return self.data.max
@@ -221,7 +238,9 @@ class DistributionResult(object):
 
 
 class DistributionData(object):
-  """The data structure that holds data about a distribution metric.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The data structure that holds data about a distribution metric.
 
   Distribution metrics are restricted to distributions of integers only.
 
@@ -244,10 +263,11 @@ class DistributionData(object):
     return not self.__eq__(other)
 
   def __repr__(self):
-    return '<DistributionData({}, {}, {}, {})>'.format(self.sum,
-                                                       self.count,
-                                                       self.min,
-                                                       self.max)
+    return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
+        self.sum,
+        self.count,
+        self.min,
+        self.max)
 
   def get_cumulative(self):
     return DistributionData(self.sum, self.count, self.min, self.max)
@@ -272,7 +292,9 @@ class DistributionData(object):
 
 
 class MetricAggregator(object):
-  """Base interface for aggregating metric data during pipeline execution."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Base interface for aggregating metric data during pipeline execution."""
   def zero(self):
     raise NotImplementedError
 
@@ -284,7 +306,9 @@ class MetricAggregator(object):
 
 
 class CounterAggregator(MetricAggregator):
-  """Aggregator for Counter metric data during pipeline execution.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Aggregator for Counter metric data during pipeline execution.
 
   Values aggregated should be ``int`` objects.
   """
@@ -299,7 +323,9 @@ class CounterAggregator(MetricAggregator):
 
 
 class DistributionAggregator(MetricAggregator):
-  """Aggregator for Distribution metric data during pipeline execution.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Aggregator for Distribution metric data during pipeline execution.
 
   Values aggregated should be ``DistributionData`` objects.
   """

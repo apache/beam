@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 /**
- * Defines different data processing backends (aka, runners) for executing Beam Pipelines.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
 
- * <p>The runner is specified as part of the {@link org.apache.beam.sdk.options.PipelineOptions}.
+ * <p>Internals for use by runners.
  */
 package org.apache.beam.sdk.runners;

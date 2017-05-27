@@ -53,21 +53,36 @@ import abc
 
 from google.protobuf import struct_pb2
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import timeutil
-from apache_beam.transforms.timeutil import Duration
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
-from apache_beam.transforms.timeutil import Timestamp
-from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
+
+
+__all__ = [
+    'TimestampCombiner',
+    'WindowFn',
+    'BoundedWindow',
+    'IntervalWindow',
+    'TimestampedValue',
+    'GlobalWindow',
+    'NonMergingWindowFn',
+    'GlobalWindows',
+    'FixedWindows',
+    'SlidingWindows',
+    'Sessions',
+    ]
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
 # behavior.
-class OutputTimeFn(object):
+class TimestampCombiner(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
   OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
@@ -77,17 +92,17 @@ class OutputTimeFn(object):
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
-  def get_impl(output_time_fn, window_fn):
-    if output_time_fn == OutputTimeFn.OUTPUT_AT_EOW:
+  def get_impl(timestamp_combiner, window_fn):
+    if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW:
       return timeutil.OutputAtEndOfWindowImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST:
       return timeutil.OutputAtEarliestInputTimestampImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_LATEST:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_LATEST:
       return timeutil.OutputAtLatestInputTimestampImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED:
       return timeutil.OutputAtEarliestTransformedInputTimestampImpl(window_fn)
     else:
-      raise ValueError('Invalid OutputTimeFn: %s.' % output_time_fn)
+      raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
 class WindowFn(urns.RunnerApiFn):
@@ -132,10 +147,10 @@ class WindowFn(urns.RunnerApiFn):
   def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
 
-    If OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the Windowing,
-    the output timestamp for the given window will be the earliest of the
-    timestamps returned by get_transformed_output_time() for elements of the
-    window.
+    If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
+    Windowing, the output timestamp for the given window will be the earliest
+    of the timestamps returned by get_transformed_output_time() for elements
+    of the window.
 
     Arguments:
       window: Output window of element.
@@ -414,7 +429,7 @@ class Sessions(WindowFn):
 
   def merge(self, merge_context):
     to_merge = []
-    end = timeutil.MIN_TIMESTAMP
+    end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:
         if end > w.start:

@@ -40,9 +40,10 @@ class DynamicDestinationsHelpers {
    */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
+    @Nullable
     private final String tableDescription;
 
-    ConstantTableDestinations(ValueProvider<String> tableSpec, String tableDescription) {
+    ConstantTableDestinations(ValueProvider<String> tableSpec, @Nullable String tableDescription) {
       this.tableSpec = tableSpec;
       this.tableDescription = tableDescription;
     }

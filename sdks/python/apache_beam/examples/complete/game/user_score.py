@@ -49,8 +49,8 @@ from apache_beam.io import ReadFromText
 from apache_beam.metrics import Metrics
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class ParseEventFn(beam.DoFn):
@@ -201,16 +201,13 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   pipeline_options = PipelineOptions(pipeline_args)
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | ReadFromText(known_args.input) # Read events from a file and parse them.
-   | UserScore()
-   | WriteToBigQuery(
-       known_args.table_name, known_args.dataset, configure_bigquery_write()))
-
-  result = p.run()
-  result.wait_until_finish()
+    (p  # pylint: disable=expression-not-assigned
+     | ReadFromText(known_args.input) # Read events from a file and parse them.
+     | UserScore()
+     | WriteToBigQuery(
+         known_args.table_name, known_args.dataset, configure_bigquery_write()))
 
 
 if __name__ == '__main__':

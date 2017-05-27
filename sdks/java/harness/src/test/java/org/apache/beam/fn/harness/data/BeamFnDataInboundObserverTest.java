@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -108,7 +107,7 @@ public class BeamFnDataInboundObserverTest {
             .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
-      CODER.encode(valueInGlobalWindow(value), output, Context.NESTED);
+      CODER.encode(valueInGlobalWindow(value), output);
     }
     builder.setData(output.toByteString());
     return builder.build();

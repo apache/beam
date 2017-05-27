@@ -31,8 +31,8 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -173,52 +173,49 @@ public class CloningBundleFactoryTest {
   }
 
   static class Record {}
-  static class RecordNoEncodeCoder extends CustomCoder<Record> {
+  static class RecordNoEncodeCoder extends AtomicCoder<Record> {
 
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       return null;
     }
   }
 
-  static class RecordNoDecodeCoder extends CustomCoder<Record> {
+  static class RecordNoDecodeCoder extends AtomicCoder<Record> {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       throw new CoderException("Decode not allowed");
     }
   }
 
-  private static class RecordStructuralValueCoder extends CustomCoder<Record> {
+  private static class RecordStructuralValueCoder extends AtomicCoder<Record> {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override
@@ -240,17 +237,16 @@ public class CloningBundleFactoryTest {
   }
 
   private static class RecordNotConsistentWithEqualsStructuralValueCoder
-      extends CustomCoder<Record> {
+      extends AtomicCoder<Record> {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override

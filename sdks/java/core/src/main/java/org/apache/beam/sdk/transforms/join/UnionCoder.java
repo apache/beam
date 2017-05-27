@@ -20,17 +20,18 @@ package org.apache.beam.sdk.transforms.join;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A UnionCoder encodes RawUnionValues.
  */
-public class UnionCoder extends CustomCoder<RawUnionValue> {
+public class UnionCoder extends StructuredCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
@@ -54,6 +55,12 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
     return index;
   }
 
+  @Override
+  public void encode(RawUnionValue union, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(union, outStream, Context.NESTED);
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void encode(
@@ -74,6 +81,11 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   }
 
   @Override
+  public RawUnionValue decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public RawUnionValue decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     int index = VarInt.decodeInt(inStream);
@@ -83,7 +95,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return Collections.emptyList();
   }
 
   @Override
@@ -100,11 +112,11 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
    * time, we defer the return value to that coder.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union) {
     int index = getIndexForEncoding(union);
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    return coder.isRegisterByteSizeObserverCheap(union.getValue(), context);
+    return coder.isRegisterByteSizeObserverCheap(union.getValue());
   }
 
   /**
@@ -112,7 +124,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
    */
   @Override
   public void registerByteSizeObserver(
-      RawUnionValue union, ElementByteSizeObserver observer, Context context)
+      RawUnionValue union, ElementByteSizeObserver observer)
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -120,7 +132,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
     // Write out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.registerByteSizeObserver(union.getValue(), observer, context);
+    coder.registerByteSizeObserver(union.getValue(), observer);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -134,7 +146,6 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
-        "UnionCoder is only deterministic if all element coders are",
-        elementCoders);
+        this, "UnionCoder is only deterministic if all element coders are", elementCoders);
   }
 }

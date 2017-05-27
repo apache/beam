@@ -20,19 +20,15 @@ package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 
 /**
@@ -99,29 +95,6 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   }
 
   static class NoOpStepContext implements StepContext {
-    @Override
-    public String getStepName() {
-      return null;
-    }
-
-    @Override
-    public String getTransformName() {
-      return null;
-    }
-
-    @Override
-    public void noteOutput(WindowedValue<?> output) { }
-
-    @Override
-    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) { }
-
-    @Override
-    public <T, W extends BoundedWindow> void writePCollectionViewData(
-        TupleTag<?> tag,
-        Iterable<WindowedValue<T>> data,
-        Coder<Iterable<WindowedValue<T>>> dataCoder,
-        W window,
-        Coder<W> windowCoder) throws IOException { }
 
     @Override
     public StateInternals stateInternals() {

@@ -31,7 +31,7 @@ import java.util.Objects;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 
 /**
  * The common interface for all objects transmitted through streams.
@@ -149,7 +149,7 @@ public interface ApexStreamTuple<T> {
   /**
    * Coder for {@link ApexStreamTuple}.
    */
-  class ApexStreamTupleCoder<T> extends CustomCoder<ApexStreamTuple<T>> {
+  class ApexStreamTupleCoder<T> extends StructuredCoder<ApexStreamTuple<T>> {
     private static final long serialVersionUID = 1L;
     final Coder<T> valueCoder;
 
@@ -159,6 +159,12 @@ public interface ApexStreamTuple<T> {
 
     protected ApexStreamTupleCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
+    }
+
+    @Override
+    public void encode(ApexStreamTuple<T> value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
     }
 
     @Override
@@ -172,6 +178,11 @@ public interface ApexStreamTuple<T> {
         outStream.write(((DataTuple<?>) value).unionTag);
         valueCoder.encode(value.getValue(), outStream, context);
       }
+    }
+
+    @Override
+    public ApexStreamTuple<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -194,6 +205,7 @@ public interface ApexStreamTuple<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
+          this,
           this.getClass().getSimpleName() + " requires a deterministic valueCoder",
           valueCoder);
     }

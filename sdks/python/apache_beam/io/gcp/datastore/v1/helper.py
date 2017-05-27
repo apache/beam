@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Cloud Datastore helper functions."""
+"""Cloud Datastore helper functions.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 import sys
 
 # Protect against environments where datastore library is not available.
@@ -77,7 +80,7 @@ def compare_path(p1, p2):
   3. If no `id` is defined for both paths, then their `names` are compared.
   """
 
-  result = str_compare(p1.kind, p2.kind)
+  result = cmp(p1.kind, p2.kind)
   if result != 0:
     return result
 
@@ -85,20 +88,12 @@ def compare_path(p1, p2):
     if not p2.HasField('id'):
       return -1
 
-    return p1.id - p2.id
+    return cmp(p1.id, p2.id)
 
   if p2.HasField('id'):
     return 1
 
-  return str_compare(p1.name, p2.name)
-
-
-def str_compare(s1, s2):
-  if s1 == s2:
-    return 0
-  elif s1 < s2:
-    return -1
-  return 1
+  return cmp(p1.name, p2.name)
 
 
 def get_datastore(project):

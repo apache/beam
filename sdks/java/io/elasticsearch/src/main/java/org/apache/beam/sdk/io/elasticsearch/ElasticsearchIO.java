@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
@@ -40,7 +39,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -757,7 +755,7 @@ public class ElasticsearchIO {
       }
 
       @StartBundle
-      public void startBundle(Context context) throws Exception {
+      public void startBundle(StartBundleContext context) throws Exception {
         batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
       }
@@ -769,12 +767,16 @@ public class ElasticsearchIO {
         currentBatchSizeBytes += document.getBytes().length;
         if (batch.size() >= spec.getMaxBatchSize()
             || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
-          finishBundle(context);
+          flushBatch();
         }
       }
 
       @FinishBundle
-      public void finishBundle(Context context) throws Exception {
+      public void finishBundle(FinishBundleContext context) throws Exception {
+        flushBatch();
+      }
+
+      private void flushBatch() throws IOException {
         if (batch.isEmpty()) {
           return;
         }

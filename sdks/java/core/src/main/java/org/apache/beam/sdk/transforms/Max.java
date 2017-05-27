@@ -158,11 +158,11 @@ public class Max {
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MaxFn<T>(identity, new Top.Largest<T>());
+    return new MaxFn<T>(identity, new Top.Natural<T>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MaxFn<T>(null, new Top.Largest<T>());
+    return new MaxFn<T>(null, new Top.Natural<T>());
   }
 
   /**

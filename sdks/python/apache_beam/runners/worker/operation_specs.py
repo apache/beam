@@ -25,6 +25,8 @@ import collections
 
 from apache_beam import coders
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 def build_worker_instruction(*args):
   """Create an object representing a ParallelInstruction protobuf.
@@ -303,7 +305,8 @@ def get_coder_from_spec(coder_spec):
   assert coder_spec is not None
 
   # Ignore the wrappers in these encodings.
-  # TODO(silviuc): Make sure with all the renamings that names below are ok.
+  ignored_wrappers = (
+      'com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder')
   if coder_spec['@type'] in ignored_wrappers:
     assert len(coder_spec['component_encodings']) == 1
     coder_spec = coder_spec['component_encodings'][0]
@@ -326,20 +329,20 @@ def get_coder_from_spec(coder_spec):
     return coders.WindowedValueCoder(value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:interval_window':
     assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+            or not coder_spec['component_encodings'])
     return coders.IntervalWindowCoder()
   elif coder_spec['@type'] == 'kind:global_window':
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
-    return coders.GlobalWindowCoder()
+    return coders.coders.GlobalWindowCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
-    return coders.LengthPrefixCoder(
+    return coders.coders.LengthPrefixCoder(
         get_coder_from_spec(coder_spec['component_encodings'][0]))
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.
-  return coders.deserialize_coder(coder_spec['@type'])
+  return coders.coders.deserialize_coder(coder_spec['@type'])
 
 
 class MapTask(object):

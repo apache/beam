@@ -28,9 +28,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -44,7 +42,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Copies temporary tables to destination table.
  */
-class WriteRename extends DoFn<String, Void> {
+class WriteRename extends DoFn<Void, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
@@ -124,13 +122,13 @@ class WriteRename extends DoFn<String, Void> {
 
     String projectId = ref.getProjectId();
     Job lastFailedCopyJob = null;
-    for (int i = 0; i < Write.MAX_RETRY_JOBS; ++i) {
+    for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
       JobReference jobRef = new JobReference()
           .setProjectId(projectId)
           .setJobId(jobId);
       jobService.startCopyJob(jobRef, copyConfig);
-      Job copyJob = jobService.pollJob(jobRef, Write.LOAD_JOB_POLL_MAX_RETRIES);
+      Job copyJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(copyJob);
       switch (jobStatus) {
         case SUCCEEDED:
@@ -155,7 +153,7 @@ class WriteRename extends DoFn<String, Void> {
         "Failed to create copy job with id prefix %s, "
             + "reached max retries: %d, last failed copy job: %s.",
         jobIdPrefix,
-        Write.MAX_RETRY_JOBS,
+        BatchLoads.MAX_RETRY_JOBS,
         BigQueryHelpers.jobToPrettyString(lastFailedCopyJob)));
   }
 

@@ -149,6 +149,13 @@ public class FixedWindowsTest {
   }
 
   @Test
+  public void testVerifyCompatibility() throws IncompatibleWindowException {
+    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(10)));
+    thrown.expect(IncompatibleWindowException.class);
+    FixedWindows.of(new Duration(10)).verifyCompatibility(FixedWindows.of(new Duration(20)));
+  }
+
+  @Test
   public void testValidOutputTimes() throws Exception {
     for (long timestamp : Arrays.asList(200, 800, 700)) {
       WindowFnTestUtils.validateGetOutputTimestamp(

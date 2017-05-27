@@ -41,22 +41,18 @@ def run(argv=None):
       help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = beam.Pipeline(argv=pipeline_args)
+  with beam.Pipeline(argv=pipeline_args) as p:
 
-  # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read(
-      beam.io.PubSubSource(known_args.input_topic))
+    # Read the text file[pattern] into a PCollection.
+    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
-  # Capitalize the characters in each line.
-  transformed = (lines
-                 | 'capitalize' >> (beam.Map(lambda x: x.upper())))
+    # Capitalize the characters in each line.
+    transformed = (lines
+                   | 'capitalize' >> (beam.Map(lambda x: x.upper())))
 
-  # Write to PubSub.
-  # pylint: disable=expression-not-assigned
-  transformed | beam.io.Write(
-      beam.io.PubSubSink(known_args.output_topic))
-
-  p.run().wait_until_finish()
+    # Write to PubSub.
+    # pylint: disable=expression-not-assigned
+    transformed | beam.io.WriteStringsToPubSub(known_args.output_topic)
 
 
 if __name__ == '__main__':

@@ -19,10 +19,10 @@ package org.apache.beam.runners.direct;
 
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.metrics.MetricUpdates;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

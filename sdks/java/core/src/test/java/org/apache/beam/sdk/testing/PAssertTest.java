@@ -35,8 +35,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -88,7 +88,7 @@ public class PAssertTest implements Serializable {
     }
   }
 
-  private static class NotSerializableObjectCoder extends CustomCoder<NotSerializableObject> {
+  private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
     private NotSerializableObjectCoder() { }
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
@@ -98,24 +98,24 @@ public class PAssertTest implements Serializable {
     }
 
     @Override
-    public void encode(NotSerializableObject value, OutputStream outStream, Context context)
+    public void encode(NotSerializableObject value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public NotSerializableObject decode(InputStream inStream, Context context)
+    public NotSerializableObject decode(InputStream inStream)
         throws CoderException, IOException {
       return new NotSerializableObject();
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(NotSerializableObject value, Context context) {
+    public boolean isRegisterByteSizeObserverCheap(NotSerializableObject value) {
       return true;
     }
 
     @Override
     public void registerByteSizeObserver(
-        NotSerializableObject value, ElementByteSizeObserver observer, Context context)
+        NotSerializableObject value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }
@@ -554,7 +554,7 @@ public class PAssertTest implements Serializable {
     // is first caught by JUnit and causes a test failure.
     try {
       pipeline.run();
-    } catch (AssertionError exc) {
+    } catch (Throwable exc) {
       return exc;
     }
     fail("assertion should have failed");

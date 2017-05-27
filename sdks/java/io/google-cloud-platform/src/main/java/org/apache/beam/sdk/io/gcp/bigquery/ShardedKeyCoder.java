@@ -25,7 +25,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 
 
@@ -34,10 +34,13 @@ import org.apache.beam.sdk.coders.VarIntCoder;
  */
 @VisibleForTesting
 class ShardedKeyCoder<KeyT>
-    extends CustomCoder<ShardedKey<KeyT>> {
+    extends StructuredCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }
+
+  private final Coder<KeyT> keyCoder;
+  private final VarIntCoder shardNumberCoder;
 
   protected ShardedKeyCoder(Coder<KeyT> keyCoder) {
     this.keyCoder = keyCoder;
@@ -50,25 +53,22 @@ class ShardedKeyCoder<KeyT>
   }
 
   @Override
-  public void encode(ShardedKey<KeyT> key, OutputStream outStream, Context context)
+  public void encode(ShardedKey<KeyT> key, OutputStream outStream)
       throws IOException {
-    keyCoder.encode(key.getKey(), outStream, context.nested());
-    shardNumberCoder.encode(key.getShardNumber(), outStream, context);
+    keyCoder.encode(key.getKey(), outStream);
+    shardNumberCoder.encode(key.getShardNumber(), outStream);
   }
 
   @Override
-  public ShardedKey<KeyT> decode(InputStream inStream, Context context)
+  public ShardedKey<KeyT> decode(InputStream inStream)
       throws IOException {
     return new ShardedKey<>(
-        keyCoder.decode(inStream, context.nested()),
-        shardNumberCoder.decode(inStream, context));
+        keyCoder.decode(inStream),
+        shardNumberCoder.decode(inStream));
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     keyCoder.verifyDeterministic();
   }
-
-  Coder<KeyT> keyCoder;
-  VarIntCoder shardNumberCoder;
 }

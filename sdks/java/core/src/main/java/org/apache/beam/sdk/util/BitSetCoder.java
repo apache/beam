@@ -21,15 +21,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 
 /**
  * Coder for the BitSet used to track child-trigger finished states.
+ *
+ * @deprecated use {@link org.apache.beam.sdk.coders.BitSetCoder} instead
  */
 @Deprecated
-public class BitSetCoder extends CustomCoder<BitSet> {
+public class BitSetCoder extends AtomicCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
@@ -41,9 +43,20 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   }
 
   @Override
+  public void encode(BitSet value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(BitSet value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     BYTE_ARRAY_CODER.encodeAndOwn(value.toByteArray(), outStream, context);
+  }
+
+  @Override
+  public BitSet decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -54,8 +67,6 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(
-        "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
+    BYTE_ARRAY_CODER.verifyDeterministic();
   }
 }
-

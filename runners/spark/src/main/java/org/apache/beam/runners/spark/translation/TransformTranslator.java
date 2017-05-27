@@ -30,12 +30,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,19 +50,19 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -359,7 +359,7 @@ public final class TransformTranslator {
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
-        Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
+        Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all =
             inRDD.mapPartitionsToPair(
                 new MultiDoFnFunction<>(
@@ -369,6 +369,7 @@ public final class TransformTranslator {
                     doFn,
                     context.getRuntimeContext(),
                     transform.getMainOutputTag(),
+                    transform.getAdditionalOutputTags().getAll(),
                     TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                     windowingStrategy));
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

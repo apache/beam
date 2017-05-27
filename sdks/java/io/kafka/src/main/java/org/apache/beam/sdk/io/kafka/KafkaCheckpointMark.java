@@ -18,11 +18,9 @@
 package org.apache.beam.sdk.io.kafka;
 
 import com.google.common.base.Joiner;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;

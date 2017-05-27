@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.hamcrest.Matchers;
@@ -92,5 +93,16 @@ public class StaticWindowsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("may not be empty");
     StaticWindows.of(GlobalWindow.Coder.INSTANCE, ImmutableList.<GlobalWindow>of());
+  }
+
+  @Test
+  public void testCompatibility() throws IncompatibleWindowException {
+    StaticWindows staticWindows =
+        StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
+    staticWindows.verifyCompatibility(
+        StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second)));
+    thrown.expect(IncompatibleWindowException.class);
+    staticWindows.verifyCompatibility(
+        StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first)));
   }
 }

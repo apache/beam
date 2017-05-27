@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -35,10 +36,10 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,18 +58,18 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
-import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
@@ -522,12 +523,18 @@ public class Combine {
   /**
    * A {@link Coder} for a {@link Holder}.
    */
-  private static class HolderCoder<V> extends CustomCoder<Holder<V>> {
+  private static class HolderCoder<V> extends StructuredCoder<Holder<V>> {
 
     private Coder<V> valueCoder;
 
     public HolderCoder(Coder<V> valueCoder) {
       this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public void encode(Holder<V> accumulator, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(accumulator, outStream, Context.NESTED);
     }
 
     @Override
@@ -542,6 +549,11 @@ public class Combine {
     }
 
     @Override
+    public Holder<V> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
+    }
+
+    @Override
     public Holder<V> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       if (inStream.read() == 1) {
@@ -549,6 +561,11 @@ public class Combine {
       } else {
         return new Holder<>();
       }
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.singletonList(valueCoder);
     }
 
     @Override
@@ -1844,9 +1861,8 @@ public class Combine {
           new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
             @StartBundle
-            public void startBundle(Context c) {
-              counter = ThreadLocalRandom.current().nextInt(
-                  Integer.MAX_VALUE);
+            public void startBundle() {
+              counter = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE);
             }
 
             @ProcessElement
@@ -1955,7 +1971,7 @@ public class Combine {
       }
 
       private static class InputOrAccumCoder<InputT, AccumT>
-          extends CustomCoder<InputOrAccum<InputT, AccumT>> {
+          extends StructuredCoder<InputOrAccum<InputT, AccumT>> {
 
         private final Coder<InputT> inputCoder;
         private final Coder<AccumT> accumCoder;
@@ -1963,6 +1979,12 @@ public class Combine {
         public InputOrAccumCoder(Coder<InputT> inputCoder, Coder<AccumT> accumCoder) {
           this.inputCoder = inputCoder;
           this.accumCoder = accumCoder;
+        }
+
+        @Override
+        public void encode(InputOrAccum<InputT, AccumT> value, OutputStream outStream)
+            throws CoderException, IOException {
+          encode(value, outStream, Coder.Context.NESTED);
         }
 
         @Override
@@ -1976,6 +1998,12 @@ public class Combine {
             outStream.write(1);
             accumCoder.encode(value.accum, outStream, context);
           }
+        }
+
+        @Override
+        public InputOrAccum<InputT, AccumT> decode(InputStream inStream)
+            throws CoderException, IOException {
+          return decode(inStream, Coder.Context.NESTED);
         }
 
         @Override

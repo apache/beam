@@ -21,7 +21,7 @@
 # Usage: Invoke with no arguments from any working directory.
 
 # The directory of this script. Assumes root of the maven-archetypes module.
-HERE="$(dirname $0)"
+HERE="$( dirname "$0" )"
 
 # The directory of the examples-java module
 EXAMPLES_ROOT="${HERE}/../../../../examples/java"
@@ -37,11 +37,13 @@ mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 #
 rsync -a --exclude cookbook --exclude complete                  \
     "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/  \
-    "${ARCHETYPE_ROOT}/src/main/java"
+    "${ARCHETYPE_ROOT}/src/main/java"				            \
+    --delete
 
 rsync -a --exclude cookbook --exclude complete --exclude '*IT.java'  \
-    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/        \
-    "${ARCHETYPE_ROOT}/src/test/java"
+    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/       \
+    "${ARCHETYPE_ROOT}/src/test/java"				                 \
+    --delete
 
 #
 # Replace 'package org.apache.beam.examples' with 'package ${package}' in all Java code

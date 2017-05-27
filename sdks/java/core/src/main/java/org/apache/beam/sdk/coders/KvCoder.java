@@ -39,13 +39,6 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
     return new KvCoder<>(keyCoder, valueCoder);
   }
 
-  public static <K, V> List<Object> getInstanceComponents(
-      KV<K, V> exampleValue) {
-    return Arrays.asList(
-        exampleValue.getKey(),
-        exampleValue.getValue());
-  }
-
   public Coder<K> getKeyCoder() {
     return keyCoder;
   }
@@ -65,19 +58,30 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   }
 
   @Override
+  public void encode(KV<K, V> kv, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(kv, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(KV<K, V> kv, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.encode(kv.getKey(), outStream, context.nested());
+    keyCoder.encode(kv.getKey(), outStream);
     valueCoder.encode(kv.getValue(), outStream, context);
+  }
+
+  @Override
+  public KV<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     return KV.of(key, value);
   }
@@ -89,8 +93,8 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic("Key coder must be deterministic", getKeyCoder());
-    verifyDeterministic("Value coder must be deterministic", getValueCoder());
+    verifyDeterministic(this, "Key coder must be deterministic", getKeyCoder());
+    verifyDeterministic(this, "Value coder must be deterministic", getValueCoder());
   }
 
   @Override
@@ -112,9 +116,9 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    * Returns whether both keyCoder and valueCoder are considered not expensive.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv, Context context) {
-    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(), context.nested())
-        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(), context);
+  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv) {
+    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey())
+        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue());
   }
 
   /**
@@ -123,13 +127,13 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    */
   @Override
   public void registerByteSizeObserver(
-      KV<K, V> kv, ElementByteSizeObserver observer, Context context)
+      KV<K, V> kv, ElementByteSizeObserver observer)
       throws Exception {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(kv.getKey(), observer);
+    valueCoder.registerByteSizeObserver(kv.getValue(), observer);
   }
 
   @Override

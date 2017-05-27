@@ -30,17 +30,20 @@ import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.io.iobase import Read
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.options.pipeline_options import TypeOptions
 import apache_beam.pvalue as pvalue
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.transforms import window
+from apache_beam.transforms.core import _GroupByKeyOnly
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.util import assert_that, equal_to
 import apache_beam.typehints as typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
@@ -280,7 +283,7 @@ class PTransformTest(unittest.TestCase):
         pass
 
       def finish_bundle(self):
-        yield 'finish'
+        yield WindowedValue('finish', -1, [window.GlobalWindow()])
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
@@ -303,7 +306,6 @@ class PTransformTest(unittest.TestCase):
 
       def start_bundle(self):
         self.state = 'started'
-        return None
 
       def process(self, element):
         if self.state == 'started':
@@ -578,7 +580,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pcolls | 'D' >> beam.GroupByKeyOnly()
+      pcolls | 'D' >> _GroupByKeyOnly()
       pipeline.run()
 
     expected_error_prefix = ('Input type hint violation at D: expected '
@@ -1086,7 +1088,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'Str' >> beam.Create(['t', 'e', 's', 't']).with_output_types(str)
          | ('Pair' >> beam.Map(lambda x: (x, ord(x)))
             .with_output_types(typehints.KV[str, str]))
-         | beam.GroupByKeyOnly())
+         | _GroupByKeyOnly())
 
     # Output type should correctly be deduced.
     # GBK-only should deduce that KV[A, B] is turned into KV[A, Iterable[B]].
@@ -1110,7 +1112,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create([1, 2, 3]).with_output_types(int)
-       | 'F' >> beam.GroupByKeyOnly())
+       | 'F' >> _GroupByKeyOnly())
 
     self.assertEqual("Input type hint violation at F: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -1153,7 +1155,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (self.p
        | 'Nums' >> beam.Create(range(5)).with_output_types(int)
        | 'ModDup' >> beam.Map(lambda x: (x % 2, x))
-       | beam.GroupByKeyOnly())
+       | _GroupByKeyOnly())
 
     self.assertEqual('Pipeline type checking is enabled, however no output '
                      'type-hint was found for the PTransform '
@@ -1976,7 +1978,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_gbk_type_inference(self):
     self.assertEqual(
         typehints.Tuple[str, typehints.Iterable[int]],
-        beam.core.GroupByKeyOnly().infer_output_type(typehints.KV[str, int]))
+        _GroupByKeyOnly().infer_output_type(typehints.KV[str, int]))
 
   def test_pipeline_inference(self):
     created = self.p | beam.Create(['a', 'b', 'c'])

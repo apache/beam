@@ -487,8 +487,9 @@ public class HBaseIO {
             connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
             Table table = connection.getTable(tableName);
-            Scan scan = source.read.serializableScan.get();
-            scanner = table.getScanner(scan);
+            // [BEAM-2319] We have to clone the Scan because the underlying scanner may mutate it.
+            Scan scanClone = new Scan(source.read.serializableScan.get());
+            scanner = table.getScanner(scanClone);
             iter = scanner.iterator();
             return advance();
         }
@@ -634,11 +635,6 @@ public class HBaseIO {
                 recordsWritten = 0;
             }
 
-            @StartBundle
-            public void startBundle(Context c) throws Exception {
-
-            }
-
             @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
                 KV<byte[], Iterable<Mutation>> record = ctx.element();
@@ -651,7 +647,7 @@ public class HBaseIO {
             }
 
             @FinishBundle
-            public void finishBundle(Context c) throws Exception {
+            public void finishBundle() throws Exception {
                 mutator.flush();
             }
 

@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-""" Deprecated and experimental annotations.
+"""Deprecated and experimental annotations.
+
+For internal use only; no backwards-compatibility guarantees.
 
 Annotations come in two flavors: deprecated and experimental
 
