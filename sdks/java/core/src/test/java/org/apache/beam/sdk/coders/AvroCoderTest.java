@@ -44,7 +44,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import org.apache.avro.AvroTypeException;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -502,7 +502,7 @@ public class AvroCoderTest {
     try {
       ReflectData.get().getSchema(SubclassHidingParent.class);
       fail("Expected AvroTypeException");
-    } catch (AvroTypeException e) {
+    } catch (AvroRuntimeException e) {
       assertThat(e.getMessage(), containsString("mapField"));
       assertThat(e.getMessage(), containsString("two fields named"));
     }
