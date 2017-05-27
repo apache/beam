@@ -135,8 +135,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
    */
   private void regiesterCoder() {
     CoderRegistry cr = p.getCoderRegistry();
-    cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
-    cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
+    cr.registerCoderForClass(BeamSQLRow.class, BeamSqlRowCoder.of());
+    cr.registerCoderForClass(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
   }
 
   /**

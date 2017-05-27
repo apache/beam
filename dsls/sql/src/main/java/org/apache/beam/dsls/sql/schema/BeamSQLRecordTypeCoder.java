@@ -44,33 +44,31 @@ public class BeamSQLRecordTypeCoder extends CustomCoder<BeamSQLRecordType> {
   }
 
   @Override
-  public void encode(BeamSQLRecordType value, OutputStream outStream,
-      org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
-    Context nested = context.nested();
-    intCoder.encode(value.size(), outStream, nested);
+  public void encode(BeamSQLRecordType value, OutputStream outStream)
+      throws CoderException, IOException {
+    intCoder.encode(value.size(), outStream);
     for (String fieldName : value.getFieldsName()) {
-      stringCoder.encode(fieldName, outStream, nested);
+      stringCoder.encode(fieldName, outStream);
     }
     for (SqlTypeName fieldType : value.getFieldsType()) {
-      stringCoder.encode(fieldType.name(), outStream, nested);
+      stringCoder.encode(fieldType.name(), outStream);
     }
     //add a dummy field to indicate the end of record
-    intCoder.encode(value.size(), outStream, context);
+    intCoder.encode(value.size(), outStream);
   }
 
   @Override
-  public BeamSQLRecordType decode(InputStream inStream,
-      org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
+  public BeamSQLRecordType decode(InputStream inStream) throws CoderException, IOException {
     BeamSQLRecordType typeRecord = new BeamSQLRecordType();
-    int size = intCoder.decode(inStream, context.nested());
+    int size = intCoder.decode(inStream);
     for (int idx = 0; idx < size; ++idx) {
-      typeRecord.getFieldsName().add(stringCoder.decode(inStream, context.nested()));
+      typeRecord.getFieldsName().add(stringCoder.decode(inStream));
     }
     for (int idx = 0; idx < size; ++idx) {
       typeRecord.getFieldsType().add(
-          SqlTypeName.valueOf(stringCoder.decode(inStream, context.nested())));
+          SqlTypeName.valueOf(stringCoder.decode(inStream)));
     }
-    intCoder.decode(inStream, context);
+    intCoder.decode(inStream);
     return typeRecord;
   }
 
