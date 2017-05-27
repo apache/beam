@@ -26,16 +26,19 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.UnsupportedDataTypeException;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -120,11 +123,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<BeamSQLRow> buildBeamPipeline(
-      BeamPipelineCreator planCreator) throws Exception {
+  @Override public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+      throws Exception {
     RelNode input = getInput();
     PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
-        .buildBeamPipeline(planCreator);
+        .buildBeamPipeline(inputPCollections);
     Type windowType = upstream.getWindowingStrategy().getWindowFn()
         .getWindowTypeDescriptor().getType();
     if (!windowType.equals(GlobalWindow.class)) {
@@ -137,16 +140,20 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     // first find the top (offset + count)
     PCollection<List<BeamSQLRow>> rawStream =
         upstream.apply("extractTopOffsetAndFetch",
-            Top.of(startIndex + count, comparator).withoutDefaults());
+            Top.of(startIndex + count, comparator).withoutDefaults())
+        .setCoder(ListCoder.<BeamSQLRow>of(upstream.getCoder()));
 
     // strip the `leading offset`
     if (startIndex > 0) {
       rawStream = rawStream.apply("stripLeadingOffset", ParDo.of(
-          new SubListFn<BeamSQLRow>(startIndex, startIndex + count)));
+          new SubListFn<BeamSQLRow>(startIndex, startIndex + count)))
+          .setCoder(ListCoder.<BeamSQLRow>of(upstream.getCoder()));
     }
 
     PCollection<BeamSQLRow> orderedStream = rawStream.apply(
         "flatten", Flatten.<BeamSQLRow>iterables());
+    orderedStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
+
     return orderedStream;
   }
 

@@ -18,16 +18,9 @@
 package org.apache.beam.dsls.sql.planner;
 
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordTypeCoder;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam
@@ -37,19 +30,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class BeamPipelineCreator {
   private Map<String, BaseBeamTable> sourceTables;
 
-  private PipelineOptions options;
-
   private Pipeline pipeline;
 
   private boolean hasPersistent = false;
 
-  public BeamPipelineCreator(Map<String, BaseBeamTable> sourceTables, Pipeline pipeline) {
+  public BeamPipelineCreator(Map<String, BaseBeamTable> sourceTables, Pipeline basePipeline) {
     this.sourceTables = sourceTables;
-    this.pipeline = pipeline;
-
-    CoderRegistry cr = pipeline.getCoderRegistry();
-    cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
-    cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
+    this.pipeline = basePipeline;
   }
 
   public Map<String, BaseBeamTable> getSourceTables() {

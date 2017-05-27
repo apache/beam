@@ -19,12 +19,13 @@ package org.apache.beam.dsls.sql.rel;
 
 import com.google.common.base.Joiner;
 import java.util.List;
-
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -52,22 +53,24 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
   }
 
   /**
-   * Note that {@code BeamIOSinkRel} returns the input PCollection.
+   * Note that {@code BeamIOSinkRel} returns the input PCollection,
+   * which is the persisted PCollection.
    */
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
+
     RelNode input = getInput();
     String stageName = BeamSQLRelUtils.getStageName(this);
 
     PCollection<BeamSQLRow> upstream =
-        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
+        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
-    BaseBeamTable targetTable = planCreator.getSourceTables().get(sourceName);
+    BaseBeamTable targetTable = BeamSqlEnv.findTable(sourceName);
 
-    upstream.apply(stageName, targetTable.buildIOWriter());
+    PDone streamEnd = upstream.apply(stageName, targetTable.buildIOWriter());
 
     return upstream;
   }

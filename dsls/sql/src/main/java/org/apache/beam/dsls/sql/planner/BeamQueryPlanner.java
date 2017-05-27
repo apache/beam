@@ -22,13 +22,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.rel.BeamLogicalConvention;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -95,17 +95,24 @@ public class BeamQueryPlanner {
   }
 
   /**
+   * Parse input SQL query, and return a {@link SqlNode} as grammar tree.
+   */
+  public SqlNode parseQuery(String sqlQuery) throws SqlParseException{
+    return planner.parse(sqlQuery);
+  }
+
+  /**
    * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow,
    * which is linked with the given {@code pipeline}. The final output stream is returned as
    * {@code PCollection} so more operations can be applied.
    */
-  public PCollection<BeamSQLRow> compileBeamPipeline(String sqlStatement, Pipeline pipeline)
+  public PCollection<BeamSQLRow> compileBeamPipeline(String sqlStatement, Pipeline basePipeline)
       throws Exception {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
-    BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables, pipeline);
-
-    return relNode.buildBeamPipeline(planCreator);
+    BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables, basePipeline);
+    // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
+    return relNode.buildBeamPipeline(PCollectionTuple.empty(basePipeline));
   }
 
   /**
@@ -153,6 +160,10 @@ public class BeamQueryPlanner {
 
   public Map<String, BaseBeamTable> getSourceTables() {
     return sourceTables;
+  }
+
+  public Planner getPlanner() {
+    return planner;
   }
 
 }

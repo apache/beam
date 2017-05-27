@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
+import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,7 +37,7 @@ public class BeamInvalidGroupByTest extends BasePlanner {
   public void testTumble2Explain() throws Exception {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
+    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
   }
 
   @Test(expected = ValidationException.class)
@@ -44,7 +45,7 @@ public class BeamInvalidGroupByTest extends BasePlanner {
     String sql = "SELECT order_id, site_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
         + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
         + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
+    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
   }
 
 }

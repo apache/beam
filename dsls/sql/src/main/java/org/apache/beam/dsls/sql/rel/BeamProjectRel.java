@@ -21,13 +21,14 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
 import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutor;
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.transform.BeamSQLProjectFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -60,21 +61,21 @@ public class BeamProjectRel extends Project implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
     RelNode input = getInput();
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
-        .buildBeamPipeline(planCreator);
+    PCollection<BeamSQLRow> upstream =
+        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
 
     BeamSQLExpressionExecutor executor = new BeamSQLFnExecutor(this);
 
     PCollection<BeamSQLRow> projectStream = upstream.apply(stageName, ParDo
         .of(new BeamSQLProjectFn(getRelTypeName(), executor, BeamSQLRecordType.from(rowType))));
+    projectStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
 
     return projectStream;
-
   }
 
 }
