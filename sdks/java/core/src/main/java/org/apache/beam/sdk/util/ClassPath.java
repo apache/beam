@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
 @Beta
 final class ClassPath {
 
-  private static final Logger logger = LoggerFactory.getLogger(ClassPath.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(ClassPath.class.getName());
 
   private static final Predicate<ClassInfo> IS_TOP_LEVEL =
       new Predicate<ClassInfo>() {
@@ -374,7 +374,7 @@ final class ClassPath {
           return;
         }
       } catch (SecurityException e) {
-        logger.warn("Cannot access " + file + ": " + e);
+        LOG.warn("Cannot access " + file + ": " + e);
         return;
       }
       if (file.isDirectory()) {
@@ -429,7 +429,7 @@ final class ClassPath {
             url = getClassPathEntry(jarFile, path);
           } catch (MalformedURLException e) {
             // Ignore bad entry
-            logger.warn("Invalid Class-Path entry: " + path);
+            LOG.warn("Invalid Class-Path entry: " + path);
             continue;
           }
           if (url.getProtocol().equals("file")) {
@@ -509,7 +509,7 @@ final class ClassPath {
         throws IOException {
       File[] files = directory.listFiles();
       if (files == null) {
-        logger.warn("Cannot read directory " + directory);
+        LOG.warn("Cannot read directory " + directory);
         // IO error, just skip the directory
         return;
       }
