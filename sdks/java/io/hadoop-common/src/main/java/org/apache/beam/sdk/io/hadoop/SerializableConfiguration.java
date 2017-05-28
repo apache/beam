@@ -49,21 +49,21 @@ public class SerializableConfiguration implements Externalizable {
     return conf;
   }
 
+
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeInt(conf.size());
-    for (Map.Entry<String, String> entry : conf) {
-      out.writeUTF(entry.getKey());
-      out.writeUTF(entry.getValue());
-    }
+    out.writeUTF(conf.getClass().getCanonicalName());
+    conf.write(out);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    conf = new Configuration(false);
-    int size = in.readInt();
-    for (int i = 0; i < size; i++) {
-      conf.set(in.readUTF(), in.readUTF());
+    String className = in.readUTF();
+    try {
+      conf = (Configuration) Class.forName(className).newInstance();
+      conf.readFields(in);
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new IOException("Unable to create configuration: " + e);
     }
   }
 
