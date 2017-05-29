@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.hive;
+package org.apache.beam.sdk.io.hcatalog;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,9 +18,9 @@ import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
 
 /**
- * Utility class for HiveIOTest.
+ * Utility class for HCatalogIOTest.
  */
-public class HiveIOTestUtils {
+public class HCatalogIOTestUtils {
 
   public static final String TEST_TABLE_NAME = "mytable";
 

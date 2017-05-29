@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hive;
+package org.apache.beam.sdk.io.hcatalog;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -57,23 +57,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * IO to read and write data on Hive.
+ * IO to read and write data using HCatalog.
  *
  *
- * <h3>Reading from Hive</h3>
+ * <h3>Reading using HCatalog</h3>
  *
- * <p>Hive source supports reading of DefaultHCatRecord from a Hive instance.</p>
+ * <p>HCatalog source supports reading of DefaultHCatRecord from a HCatalog managed source,
+ * for eg. Hive.</p>
  *
- * <p>To configure a Hive source, you must specify a metastoreUri and a table name.
+ * <p>To configure a HCatalog source, you must specify a metastore URI and a table name.
  * Other optional parameters are database &amp; filter
  * For instance:</p>
  *
  * <pre>{@code
  *
+ * Map<String, String> configProperties = new HashMap<String, String>();
+ * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
+ *
  * pipeline
  *
- *   .apply(HiveIO.read()
- *       .withMetastoreUri("thrift://hadoop-clust-0118-m:9083") //mandatory
+ *   .apply(HCatalogIO.read()
+ *       .withConfigProperties(configProperties) //mandatory
  *       .withTable("employee") //mandatory
  *       .withDatabase("default") //optional, assumes default if none specified
  *       .withFilter(filterString) //optional,
@@ -82,11 +86,12 @@ import org.slf4j.LoggerFactory;
  *
  *
  *
- * <h3>Writing to Hive</h3>
+ * <h3>Writing using HCatalog</h3>
  *
- * <p>Hive sink supports writing of DefaultHCatRecord to a Hive instance.</p>
+ * <p>HCatalog sink supports writing of DefaultHCatRecord to a HCatalog managed source,
+ * for eg. Hive.</p>
  *
- * <p>To configure a Hive sink, you must specify a metastoreUri and a table name.
+ * <p>To configure a HCatalog sink, you must specify a metastore URI and a table name.
  * Other optional parameters are database, partition &amp; batchsize
  * The destination table should exist beforehand, the transform does not create a
  * new table if it does not exist
@@ -94,11 +99,14 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  *
+ * Map<String, String> configProperties = new HashMap<String, String>();
+ * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
+ *
  * pipeline
 
  *   .apply(...)
  *   .apply(HiveIO.write()
- *       .withMetastoreUri("thrift://hadoop-clust-0118-m:9083") //mandatory
+ *       .withConfigProperties(configProperties) //mandatory
  *       .withTable("employee") //mandatory
  *       .withDatabase("default") //optional, assumes default if none specified
  *       .withFilter(partitionValues) //optional,
@@ -110,26 +118,26 @@ import org.slf4j.LoggerFactory;
 
  */
 @Experimental
-public class HiveIO {
+public class HCatalogIO {
 
-  private static final Logger LOG = LoggerFactory.getLogger(HiveIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HCatalogIO.class);
 
   /** Write data to Hive. */
   public static Write write() {
-    return new AutoValue_HiveIO_Write.Builder().setBatchSize(1024L).build();
+    return new AutoValue_HCatalogIO_Write.Builder().setBatchSize(1024L).build();
   }
 
   /** Read data from Hive. */
   public static Read read() {
-    return new AutoValue_HiveIO_Read.Builder().build();
+    return new AutoValue_HCatalogIO_Read.Builder().build();
   }
 
-  private HiveIO() {
+  private HCatalogIO() {
   }
 
 
   /**
-   * A {@link PTransform} to read data from Hive.
+   * A {@link PTransform} to read data using HCatalog.
    */
   @VisibleForTesting
   @AutoValue
@@ -157,10 +165,9 @@ public class HiveIO {
     }
 
     /**
-     * Sets the metastore URI.
+     * Sets the configuration properties like metastore URI.
      * This is mandatory
-     * Format of the string should be thrift://metastore-host:port
-     * @param metastoreUri
+     * @param configProperties
      * @return
      */
     public Read withConfigProperties(Map<String, String> configProperties) {
@@ -209,7 +216,7 @@ public class HiveIO {
 
     @Override
     public PCollection<DefaultHCatRecord> expand(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHiveSource(this)));
+      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
     }
 
     @Override
@@ -229,13 +236,13 @@ public class HiveIO {
   }
 
   /**
-   * A Hive {@link BoundedSource} reading {@link DefaultHCatRecord} from  a given instance.
+   * A HCatalog {@link BoundedSource} reading {@link DefaultHCatRecord} from  a given instance.
    */
   @VisibleForTesting
-  static class BoundedHiveSource extends BoundedSource<DefaultHCatRecord> {
+  static class BoundedHCatalogSource extends BoundedSource<DefaultHCatRecord> {
     private Read spec;
 
-    BoundedHiveSource(Read spec) {
+    BoundedHCatalogSource(Read spec) {
       this.spec = spec;
     }
 
@@ -256,7 +263,7 @@ public class HiveIO {
 
     @Override
     public BoundedReader<DefaultHCatRecord> createReader(PipelineOptions options) {
-      return new BoundedHiveReader(this);
+      return new BoundedHCatalogReader(this);
     }
 
     /**
@@ -279,7 +286,7 @@ public class HiveIO {
       List<BoundedSource<DefaultHCatRecord>> sources = new ArrayList<>();
       ReaderContext readerContext = getReaderContext();
       for (int i = 0; i < readerContext.numSplits(); i++) {
-        sources.add(new BoundedHiveSource(spec.withSplitId(i).withContext(readerContext)));
+        sources.add(new BoundedHCatalogSource(spec.withSplitId(i).withContext(readerContext)));
       }
       return sources;
     }
@@ -294,12 +301,12 @@ public class HiveIO {
       return readerContext;
     }
 
-    static class BoundedHiveReader extends BoundedSource.BoundedReader<DefaultHCatRecord> {
-      private final BoundedHiveSource source;
+    static class BoundedHCatalogReader extends BoundedSource.BoundedReader<DefaultHCatRecord> {
+      private final BoundedHCatalogSource source;
       private DefaultHCatRecord current;
       Iterator<HCatRecord> hcatIterator;
 
-      public BoundedHiveReader(BoundedHiveSource boundedHiveSource) {
+      public BoundedHCatalogReader(BoundedHCatalogSource boundedHiveSource) {
         this.source = boundedHiveSource;
       }
 
@@ -323,7 +330,7 @@ public class HiveIO {
       }
 
       @Override
-      public BoundedHiveSource getCurrentSource() {
+      public BoundedHCatalogSource getCurrentSource() {
         return source;
       }
 
@@ -343,7 +350,7 @@ public class HiveIO {
   }
 
   /**
-   * A {@link PTransform} to write to a Hive database.
+   * A {@link PTransform} to write to a HCatalog managed source.
    */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<DefaultHCatRecord>, PDone> {
@@ -366,9 +373,8 @@ public class HiveIO {
     }
 
     /**
-     * Sets the metastore URI.
+     * Sets the configuration properties like metastore URI.
      * This is mandatory
-     * Format of the string should be thrift://metastore-host:port
      * @param metastoreUri
      * @return
      */

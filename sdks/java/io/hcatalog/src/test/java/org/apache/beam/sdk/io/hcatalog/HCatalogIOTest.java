@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package org.apache.beam.sdk.io.hive;
+package org.apache.beam.sdk.io.hcatalog;
 
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.TEST_TABLE_NAME;
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.commitRecords;
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.getReaderContext;
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.getWriterContext;
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.toHCatRecord;
-import static org.apache.beam.sdk.io.hive.HiveIOTestUtils.writeRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE_NAME;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.commitRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getWriterContext;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.toHCatRecord;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.writeRecords;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
 
@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.beam.sdk.io.hive.HiveIO.BoundedHiveSource;
+import org.apache.beam.sdk.io.hcatalog.HCatalogIO.BoundedHCatalogSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -63,9 +63,9 @@ import org.junit.rules.ExpectedException;
 
 
 /**
- *Test for HiveIO.
+ *Test for HCatalogIO.
  */
-public class HiveIOTest extends HCatBaseTest implements Serializable {
+public class HCatalogIOTest extends HCatBaseTest implements Serializable {
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -82,9 +82,9 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
 
     Map<String, String> map = insertTestData();
 
-    PCollection<String> output = pipeline.apply(HiveIO.read()
+    PCollection<String> output = pipeline.apply(HCatalogIO.read()
         .withConfigProperties(map)
-        .withTable(HiveIOTestUtils.TEST_TABLE_NAME))
+        .withTable(HCatalogIOTestUtils.TEST_TABLE_NAME))
         .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
@@ -116,11 +116,11 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
             toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
             toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
         )
-        .apply(HiveIO.write()
+        .apply(HCatalogIO.write()
             .withConfigProperties(getConfigProperties())
             .withTable(TEST_TABLE_NAME));
     pipeline.run();
-    Assert.assertTrue(HiveIOTestUtils.getRecordsCount(getConfigProperties()) == 40);
+    Assert.assertTrue(HCatalogIOTestUtils.getRecordsCount(getConfigProperties()) == 40);
   }
 
   /**
@@ -145,7 +145,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
             toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
             toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
         )
-        .apply(HiveIO.write()
+        .apply(HCatalogIO.write()
             .withConfigProperties(getConfigProperties())
             .withTable("myowntable"));
     pipeline.run();
@@ -172,7 +172,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
             toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
             toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
         )
-        .apply(HiveIO.write()
+        .apply(HCatalogIO.write()
             .withConfigProperties(getConfigProperties()));
     pipeline.run();
   }
@@ -198,7 +198,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
             toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
             toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
         )
-        .apply(HiveIO.write()
+        .apply(HCatalogIO.write()
             .withTable("myowntable"));
     pipeline.run();
   }
@@ -213,7 +213,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
 
     Map<String, String> map = insertTestData();
 
-    pipeline.apply(HiveIO.read()
+    pipeline.apply(HCatalogIO.read()
         .withConfigProperties(map)
         .withTable("myowntable"))
         .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
@@ -236,7 +236,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
   IOException, ClassNotFoundException {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("configProperties"));
-    pipeline.apply(HiveIO.read()
+    pipeline.apply(HCatalogIO.read()
         .withTable(TEST_TABLE_NAME))
         .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
           @ProcessElement
@@ -256,7 +256,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
     Map<String, String> map = new HashMap<String, String>();
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("table"));
-    pipeline.apply(HiveIO.read()
+    pipeline.apply(HCatalogIO.read()
         .withConfigProperties(map))
         .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
           @ProcessElement
@@ -273,7 +273,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
   @Test
   public void testReadFromSource() throws CommandNeedRetryException,
   IOException, ClassNotFoundException {
-    List<BoundedHiveSource> sourceList = getSourceList();
+    List<BoundedHCatalogSource> sourceList = getSourceList();
     List<DefaultHCatRecord> recordsList = new ArrayList<DefaultHCatRecord>();
     for (int i = 0; i < sourceList.size(); i++) {
       recordsList.addAll(SourceTestUtils.readFromSource(sourceList.get(i),
@@ -287,7 +287,7 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
    */
   @Test
   public void testSourcesEqualReferenceSource() throws Exception {
-    List<BoundedHiveSource> sourceList = getSourceList();
+    List<BoundedHCatalogSource> sourceList = getSourceList();
     for (int i = 0; i < sourceList.size(); i++) {
       SourceTestUtils.assertSourcesEqualReferenceSource(sourceList.get(i),
           sourceList.get(i).split(-1, PipelineOptionsFactory.create()),
@@ -295,19 +295,19 @@ public class HiveIOTest extends HCatBaseTest implements Serializable {
     }
   }
 
-  private List<BoundedHiveSource> getSourceList() throws CommandNeedRetryException,
+  private List<BoundedHCatalogSource> getSourceList() throws CommandNeedRetryException,
   HCatException, IOException,
       FileNotFoundException, ClassNotFoundException {
-    List<BoundedHiveSource> sourceList = new ArrayList<BoundedHiveSource>();
+    List<BoundedHCatalogSource> sourceList = new ArrayList<BoundedHCatalogSource>();
     Map<String, String> configProperties = insertTestData();
     ReaderContext context = getReaderContext(configProperties);
-    HiveIO.Read spec = HiveIO.read()
+    HCatalogIO.Read spec = HCatalogIO.read()
         .withConfigProperties(configProperties)
         .withContext(context)
         .withTable(TEST_TABLE_NAME);
 
     for (int i = 0; i < context.numSplits(); i++) {
-      BoundedHiveSource source = new BoundedHiveSource(spec.withSplitId(i));
+      BoundedHCatalogSource source = new BoundedHCatalogSource(spec.withSplitId(i));
       sourceList.add(source);
     }
     return sourceList;

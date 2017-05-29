@@ -26,9 +26,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-io-hive</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hive</name>
-  <description>IO to read and write on Hive.</description>
+  <artifactId>beam-sdks-java-io-hcatalog</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: HCatalog</name>
+  <description>IO to read and write for HCatalog source.</description>
 
   <properties>
     <hive.version>2.1.0</hive.version>

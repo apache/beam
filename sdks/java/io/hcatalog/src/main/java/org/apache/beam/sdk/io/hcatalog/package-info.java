@@ -17,6 +17,6 @@
  */
 
 /**
- * Transforms for reading and writing from Hive.
+ * Transforms for reading and writing using HCatalog.
  */
-package org.apache.beam.sdk.io.hive;
+package org.apache.beam.sdk.io.hcatalog;
