@@ -141,7 +141,7 @@ public class HCatalogIO {
    */
   @VisibleForTesting
   @AutoValue
-  abstract static class Read extends PTransform<PBegin, PCollection<DefaultHCatRecord>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<DefaultHCatRecord>> {
     @Nullable abstract Map<String, String> getConfigProperties();
     @Nullable abstract String getDatabase();
     @Nullable abstract String getTable();
