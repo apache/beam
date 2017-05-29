@@ -59,7 +59,7 @@ public class BeamSqlRowCoderTest {
 
     BeamSqlRecordType beamSQLRecordType = CalciteUtils.toBeamRecordType(
         protoRowType.apply(new JavaTypeFactoryImpl(
-        RelDataTypeSystem.DEFAULT)));
+            RelDataTypeSystem.DEFAULT)));
     BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
     row.addField("col_tinyint", Byte.valueOf("1"));
     row.addField("col_smallint", Short.valueOf("1"));

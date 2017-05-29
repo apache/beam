@@ -15,26 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.schema;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import java.util.List;
+package org.apache.beam.dsls.sql.planner;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.dsls.sql.schema.BaseBeamTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 
 /**
- * Field type information in {@link BeamSqlRow}.
- *
+ * Base class for mocked table.
  */
-@AutoValue
-public abstract class BeamSqlRecordType implements Serializable {
-  public abstract List<String> getFieldsName();
-  public abstract List<Integer> getFieldsType();
-
-  public static BeamSqlRecordType create(List<String> fieldNames, List<Integer> fieldTypes) {
-    return new org.apache.beam.dsls.sql.schema.AutoValue_BeamSqlRecordType(fieldNames, fieldTypes);
-  }
-
-  public int size() {
-    return getFieldsName().size();
+public abstract class MockedTable extends BaseBeamTable {
+  public static final AtomicInteger COUNTER = new AtomicInteger();
+  public MockedTable(BeamSqlRecordType beamSqlRecordType) {
+    super(beamSqlRecordType);
   }
 }
