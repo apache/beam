@@ -23,7 +23,6 @@ import java.io.OutputStream;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -58,7 +57,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   @Override
   public void encode(BeamSqlRow value, OutputStream outStream) throws CoderException, IOException {
     listCoder.encode(value.getNullFields(), outStream);
-
+    System.out.println("Encode: nullFields: " + value.getNullFields());
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
         continue;
@@ -113,7 +112,6 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
 
     BeamSqlRow record = new BeamSqlRow(tableSchema);
     record.setNullFields(nullFields);
-
     for (int idx = 0; idx < tableSchema.size(); ++idx) {
       if (nullFields.contains(idx)) {
         continue;

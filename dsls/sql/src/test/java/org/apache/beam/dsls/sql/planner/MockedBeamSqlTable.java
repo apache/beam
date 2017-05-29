@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
@@ -49,6 +48,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
   public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
 
   private List<BeamSqlRow> inputRecords;
+  private PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
 
   public MockedBeamSqlTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);
@@ -119,13 +119,19 @@ public class MockedBeamSqlTable extends BaseBeamTable {
 
   @Override
   public BeamIOType getSourceType() {
-    return BeamIOType.UNBOUNDED;
+    if (isBounded == PCollection.IsBounded.BOUNDED) {
+      return BeamIOType.BOUNDED;
+    } else {
+      return BeamIOType.UNBOUNDED;
+    }
   }
 
   @Override
+
   public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply(
-        "MockedBeamSQLTable_Reader_" + COUNTER.incrementAndGet(), Create.of(inputRecords));
+        "MockedBeamSQLTable_Reader_" + COUNTER.incrementAndGet(), Create.of(inputRecords))
+        .setIsBoundedInternal(isBounded);
   }
 
   @Override
@@ -137,6 +143,10 @@ public class MockedBeamSqlTable extends BaseBeamTable {
     return inputRecords;
   }
 
+  public MockedBeamSqlTable withIsBounded(PCollection.IsBounded isBounded) {
+    this.isBounded = isBounded;
+    return this;
+  }
   /**
    * Keep output in {@code CONTENT} for validation.
    *

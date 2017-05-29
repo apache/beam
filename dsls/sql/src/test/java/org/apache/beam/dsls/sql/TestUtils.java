@@ -15,26 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.schema;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
+package org.apache.beam.dsls.sql;
+
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Field type information in {@link BeamSqlRow}.
- *
- */
-@AutoValue
-public abstract class BeamSqlRecordType implements Serializable {
-  public abstract List<String> getFieldsName();
-  public abstract List<Integer> getFieldsType();
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.transforms.DoFn;
 
-  public static BeamSqlRecordType create(List<String> fieldNames, List<Integer> fieldTypes) {
-    return new org.apache.beam.dsls.sql.schema.AutoValue_BeamSqlRecordType(fieldNames, fieldTypes);
+/**
+ * Test utilities.
+ */
+public class TestUtils {
+
+  /**
+   * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code}.
+   */
+  public static class BeamSqlRow2StringDoFn extends DoFn<BeamSqlRow, String> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      ctx.output(ctx.element().valueInString());
+    }
   }
 
-  public int size() {
-    return getFieldsName().size();
+  /**
+   * Convert list of {@code BeamSqlRow} to list of {@code String}.
+   */
+  public static List<String> beamSqlRows2Strings(List<BeamSqlRow> rows) {
+    List<String> strs = new ArrayList<>();
+    for (BeamSqlRow row : rows) {
+      strs.add(row.valueInString());
+    }
+
+    return strs;
   }
 }
