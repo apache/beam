@@ -48,8 +48,8 @@ public class BeamPipelineCreator {
     this.pipeline = pipeline;
 
     CoderRegistry cr = pipeline.getCoderRegistry();
-    cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
-    cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
+    cr.registerCoderForClass(BeamSQLRow.class, BeamSqlRowCoder.of());
+    cr.registerCoderForClass(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
   }
 
   public Map<String, BaseBeamTable> getSourceTables() {
