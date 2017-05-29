@@ -22,9 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +43,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.hive.hcatalog.common.HCatConstants;
 import org.apache.hive.hcatalog.common.HCatException;
+import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
 import org.apache.hive.hcatalog.data.transfer.HCatReader;
@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Hive</h3>
  *
- * <p>Hive source supports reading of HCatRecord from a Hive instance.</p>
+ * <p>Hive source supports reading of DefaultHCatRecord from a Hive instance.</p>
  *
  * <p>To configure a Hive source, you must specify a metastoreUri and a table name.
  * Other optional parameters are database &amp; filter
@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Hive</h3>
  *
- * <p>Hive sink supports writing of HCatRecord to a Hive instance.</p>
+ * <p>Hive sink supports writing of DefaultHCatRecord to a Hive instance.</p>
  *
  * <p>To configure a Hive sink, you must specify a metastoreUri and a table name.
  * Other optional parameters are database, partition &amp; batchsize
@@ -131,13 +131,14 @@ public class HiveIO {
   /**
    * A {@link PTransform} to read data from Hive.
    */
+  @VisibleForTesting
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
-    @Nullable abstract String getMetastoreUri();
+  abstract static class Read extends PTransform<PBegin, PCollection<DefaultHCatRecord>> {
+    @Nullable abstract Map<String, String> getConfigProperties();
     @Nullable abstract String getDatabase();
     @Nullable abstract String getTable();
     @Nullable abstract String getFilter();
-    @Nullable abstract Coder<HCatRecord> getCoder();
+    @Nullable abstract Coder<DefaultHCatRecord> getCoder();
     @Nullable abstract ReaderContext getContext();
     @Nullable abstract Integer getSplitId();
 
@@ -145,11 +146,11 @@ public class HiveIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setMetastoreUri(String metastoreUri);
+      abstract Builder setConfigProperties(Map<String, String> configProperties);
       abstract Builder setDatabase(String database);
       abstract Builder setTable(String table);
       abstract Builder setFilter(String filter);
-      abstract Builder setCoder(Coder<HCatRecord> coder);
+      abstract Builder setCoder(Coder<DefaultHCatRecord> coder);
       abstract Builder setSplitId(Integer splitId);
       abstract Builder setContext(ReaderContext context);
       abstract Read build();
@@ -162,8 +163,9 @@ public class HiveIO {
      * @param metastoreUri
      * @return
      */
-    public Read withMetastoreUri(String metastoreUri) {
-      return toBuilder().setMetastoreUri(metastoreUri).build();
+    public Read withConfigProperties(Map<String, String> configProperties) {
+      return toBuilder().setConfigProperties(Collections.unmodifiableMap(configProperties))
+          .build();
     }
 
     /**
@@ -196,30 +198,30 @@ public class HiveIO {
       return toBuilder().setFilter(filter).build();
     }
 
-    private Read withSplitId(int splitId) {
+    Read withSplitId(int splitId) {
       checkArgument(splitId >= 0, "Invalid split id-" + splitId);
       return toBuilder().setSplitId(splitId).build();
     }
 
-    private Read withContext(ReaderContext context) {
+    Read withContext(ReaderContext context) {
       return toBuilder().setContext(context).build();
     }
 
     @Override
-    public PCollection<HCatRecord> expand(PBegin input) {
+    public PCollection<DefaultHCatRecord> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHiveSource(this)));
     }
 
     @Override
     public void validate(PipelineOptions options) {
       checkNotNull(getTable(), "table");
-      checkNotNull(getMetastoreUri(), "metastoreUri");
+      checkNotNull(getConfigProperties(), "configProperties");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("metastoreUri", getMetastoreUri()));
+      builder.add(DisplayData.item("configProperties", getConfigProperties().toString()));
       builder.add(DisplayData.item("table", getTable()));
       builder.addIfNotNull(DisplayData.item("database", getDatabase()));
       builder.addIfNotNull(DisplayData.item("filter", getFilter()));
@@ -227,19 +229,19 @@ public class HiveIO {
   }
 
   /**
-   * A Hive {@link BoundedSource} reading {@link HCatRecord} from  a given instance.
+   * A Hive {@link BoundedSource} reading {@link DefaultHCatRecord} from  a given instance.
    */
   @VisibleForTesting
-  static class BoundedHiveSource extends BoundedSource<HCatRecord> {
+  static class BoundedHiveSource extends BoundedSource<DefaultHCatRecord> {
     private Read spec;
 
-    private BoundedHiveSource(Read spec) {
+    BoundedHiveSource(Read spec) {
       this.spec = spec;
     }
 
     @Override
-    public Coder<HCatRecord> getDefaultOutputCoder() {
-      return WritableCoder.of(HCatRecord.class);
+    public Coder<DefaultHCatRecord> getDefaultOutputCoder() {
+      return WritableCoder.of(DefaultHCatRecord.class);
     }
 
     @Override
@@ -253,7 +255,7 @@ public class HiveIO {
     }
 
     @Override
-    public BoundedReader<HCatRecord> createReader(PipelineOptions options) {
+    public BoundedReader<DefaultHCatRecord> createReader(PipelineOptions options) {
       return new BoundedHiveReader(this);
     }
 
@@ -272,9 +274,9 @@ public class HiveIO {
      * @throws HCatException
      */
     @Override
-    public List<BoundedSource<HCatRecord>> split(long desiredBundleSizeBytes,
+    public List<BoundedSource<DefaultHCatRecord>> split(long desiredBundleSizeBytes,
                                                 PipelineOptions options) throws HCatException {
-      List<BoundedSource<HCatRecord>> sources = new ArrayList<>();
+      List<BoundedSource<DefaultHCatRecord>> sources = new ArrayList<>();
       ReaderContext readerContext = getReaderContext();
       for (int i = 0; i < readerContext.numSplits(); i++) {
         sources.add(new BoundedHiveSource(spec.withSplitId(i).withContext(readerContext)));
@@ -285,17 +287,16 @@ public class HiveIO {
     private ReaderContext getReaderContext() throws HCatException {
       ReadEntity entity = new ReadEntity.Builder().withDatabase(spec.getDatabase())
           .withTable(spec.getTable()).withFilter(spec.getFilter()).build();
-      Map<String, String> hiveConfig = ImmutableMap.<String, String>of(
-          HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
-      HCatReader masterReader = DataTransferFactory.getHCatReader(entity, hiveConfig);
+      HCatReader masterReader = DataTransferFactory.getHCatReader(entity,
+          spec.getConfigProperties());
       ReaderContext readerContext = null;
       readerContext = masterReader.prepareRead();
       return readerContext;
     }
 
-    static class BoundedHiveReader extends BoundedSource.BoundedReader<HCatRecord> {
+    static class BoundedHiveReader extends BoundedSource.BoundedReader<DefaultHCatRecord> {
       private final BoundedHiveSource source;
-      private HCatRecord current;
+      private DefaultHCatRecord current;
       Iterator<HCatRecord> hcatIterator;
 
       public BoundedHiveReader(BoundedHiveSource boundedHiveSource) {
@@ -313,7 +314,7 @@ public class HiveIO {
       @Override
       public boolean advance() {
         if (hcatIterator.hasNext()) {
-          current = hcatIterator.next();
+          current = (DefaultHCatRecord) hcatIterator.next();
           return true;
         } else {
           current = null;
@@ -327,7 +328,7 @@ public class HiveIO {
       }
 
       @Override
-      public HCatRecord getCurrent() {
+      public DefaultHCatRecord getCurrent() {
         if (current == null) {
           throw new NoSuchElementException ("Current element is null");
         }
@@ -345,8 +346,8 @@ public class HiveIO {
    * A {@link PTransform} to write to a Hive database.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
-    @Nullable abstract String getMetastoreUri();
+  public abstract static class Write extends PTransform<PCollection<DefaultHCatRecord>, PDone> {
+    @Nullable abstract Map<String, String> getConfigProperties();
     @Nullable abstract String getDatabase();
     @Nullable abstract String getTable();
     @Nullable abstract Map getFilter();
@@ -356,7 +357,7 @@ public class HiveIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setMetastoreUri(String metastoreUri);
+      abstract Builder setConfigProperties(Map<String, String> configProperties);
       abstract Builder setDatabase(String database);
       abstract Builder setTable(String table);
       abstract Builder setFilter(Map partition);
@@ -371,8 +372,9 @@ public class HiveIO {
      * @param metastoreUri
      * @return
      */
-    public Write withMetastoreUri(String metastoreUri) {
-      return toBuilder().setMetastoreUri(metastoreUri).build();
+    public Write withConfigProperties(Map<String, String> configProperties) {
+      return toBuilder().setConfigProperties(Collections.unmodifiableMap(configProperties))
+          .build();
     }
 
     /**
@@ -416,18 +418,18 @@ public class HiveIO {
     }
 
     @Override
-    public PDone expand(PCollection<HCatRecord> input) {
+    public PDone expand(PCollection<DefaultHCatRecord> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      checkNotNull(getMetastoreUri(), "metastoreUri");
-      checkNotNull(getTable(), "database");
+      checkNotNull(getConfigProperties(), "configProperties");
+      checkNotNull(getTable(), "table");
     }
 
-    private static class WriteFn extends DoFn<HCatRecord, Void> {
+    private static class WriteFn extends DoFn<DefaultHCatRecord, Void> {
       private final Write spec;
       private WriterContext writerContext;
       private HCatWriter slaveWriter;
@@ -444,7 +446,7 @@ public class HiveIO {
         builder.addIfNotNull(DisplayData.item("database", spec.getDatabase()));
         builder.add(DisplayData.item("table", spec.getTable()));
         builder.addIfNotNull(DisplayData.item("filter", String.valueOf(spec.getFilter())));
-        builder.add(DisplayData.item("metastoreUri", spec.getMetastoreUri()));
+        builder.add(DisplayData.item("configProperties", spec.getConfigProperties().toString()));
         builder.add(DisplayData.item("batchSize", spec.getBatchSize()));
       }
 
@@ -487,12 +489,10 @@ public class HiveIO {
       }
 
       private WriterContext getWriterContext() throws HCatException {
-        Map<String, String> hiveConfig = ImmutableMap.<String, String>of(
-            HCatConstants.HCAT_METASTORE_URI, spec.getMetastoreUri());
         WriteEntity.Builder builder = new WriteEntity.Builder();
         WriteEntity entity = builder.withDatabase(spec.getDatabase()).withTable(spec.getTable())
             .withPartition(spec.getFilter()).build();
-        masterWriter = DataTransferFactory.getHCatWriter(entity, hiveConfig);
+        masterWriter = DataTransferFactory.getHCatWriter(entity, spec.getConfigProperties());
         WriterContext writerContext = masterWriter.prepareWrite();
         return writerContext;
       }
