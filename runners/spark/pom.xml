@@ -79,7 +79,8 @@
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
-                    org.apache.beam.sdk.testing.UsesTestStream
+                    org.apache.beam.sdk.testing.UsesTestStream,
+                    org.apache.beam.sdk.testing.UsesCustomWindowMerging
                   </excludedGroups>
                   <parallel>none</parallel>
                   <forkCount>1</forkCount>
