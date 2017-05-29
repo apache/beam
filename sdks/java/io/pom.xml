@@ -71,6 +71,7 @@
     <module>hadoop-file-system</module>
     <module>hadoop</module>
     <module>hbase</module>
+	<module>hcatalog</module>
     <module>jdbc</module>
     <module>jms</module>
     <module>kafka</module>
