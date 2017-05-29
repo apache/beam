@@ -74,40 +74,41 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
       , BeamSqlEnv sqlEnv) throws Exception {
     RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this);
+    String stageName = BeamSqlRelUtils.getStageName(this) + "_";
 
     PCollection<BeamSqlRow> upstream =
         BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
     if (windowFieldIdx != -1) {
-      upstream = upstream.apply(stageName + "_assignEventTimestamp", WithTimestamps
-          .<BeamSqlRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
+      upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
+          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
           .setCoder(upstream.getCoder());
     }
 
-    PCollection<BeamSqlRow> windowStream = upstream.apply(stageName + "_window",
-        Window.<BeamSqlRow>into(windowFn)
+    PCollection<BeamSqlRow> windowStream = upstream.apply(stageName + "window",
+        Window.into(windowFn)
         .triggering(trigger)
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
     BeamSqlRowCoder keyCoder = new BeamSqlRowCoder(exKeyFieldsSchema(input.getRowType()));
     PCollection<KV<BeamSqlRow, BeamSqlRow>> exCombineByStream = windowStream.apply(
-        stageName + "_exCombineBy",
+        stageName + "exCombineBy",
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
                 windowFieldIdx, groupSet)))
-        .setCoder(KvCoder.<BeamSqlRow, BeamSqlRow>of(keyCoder, upstream.getCoder()));
+        .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
+
 
     BeamSqlRowCoder aggCoder = new BeamSqlRowCoder(exAggFieldsSchema());
 
     PCollection<KV<BeamSqlRow, BeamSqlRow>> aggregatedStream = exCombineByStream.apply(
-        stageName + "_combineBy",
+        stageName + "combineBy",
         Combine.<BeamSqlRow, BeamSqlRow, BeamSqlRow>perKey(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
                 CalciteUtils.toBeamRecordType(input.getRowType()))))
         .setCoder(KvCoder.of(keyCoder, aggCoder));
 
-    PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply(stageName + "_mergeRecord",
+    PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
             CalciteUtils.toBeamRecordType(getRowType()), getAggCallList())));
     mergedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
