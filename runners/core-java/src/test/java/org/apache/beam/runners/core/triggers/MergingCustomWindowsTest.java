@@ -52,12 +52,12 @@ import org.junit.runners.JUnit4;
  * Tests merging of custom windows.
  */
 @RunWith(JUnit4.class)
-@Category(ValidatesRunner.class)
 public class MergingCustomWindowsTest {
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
+  @Category(ValidatesRunner.class)
   @Test
   public void testMergingCustomWindows() {
     Instant startInstant = new Instant(0L);
