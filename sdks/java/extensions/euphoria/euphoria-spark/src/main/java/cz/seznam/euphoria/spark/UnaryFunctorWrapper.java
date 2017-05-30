@@ -15,8 +15,10 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterators;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -26,12 +28,18 @@ import java.util.Objects;
 class UnaryFunctorWrapper<WID extends Window, IN, OUT>
         implements FlatMapFunction<SparkElement<WID, IN>, SparkElement<WID, OUT>> {
 
-  private final FunctionCollectorMem<OUT> context;
   private final UnaryFunctor<IN, OUT> functor;
+  private final AccumulatorProvider.Factory accumulatorFactory;
+  private final Settings settings;
 
-  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor) {
+  private FunctionCollectorMem<OUT> cachedCollector;
+
+  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor,
+                             AccumulatorProvider.Factory accumulatorFactory,
+                             Settings settings) {
     this.functor = Objects.requireNonNull(functor);
-    this.context = new FunctionCollectorMem<>();
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
+    this.settings = Objects.requireNonNull(settings);
   }
 
   @Override
@@ -39,18 +47,28 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
     final WID window = elem.getWindow();
     final long timestamp = getTimestamp(elem);
 
-    // setup user context
-    context.clear();
-    context.setWindow(window);
+    FunctionCollectorMem<OUT> collector = getContext();
 
-    functor.apply(elem.getElement(), context);
+    // setup user collector
+    collector.clear();
+    collector.setWindow(window);
+
+    functor.apply(elem.getElement(), collector);
 
     // wrap output in WindowedElement
-    return Iterators.transform(context.getOutputIterator(),
+    return Iterators.transform(collector.getOutputIterator(),
             e -> new SparkElement<>(window, timestamp, e));
   }
 
   protected long getTimestamp(SparkElement<WID, IN> elem) {
     return elem.getTimestamp();
+  }
+
+  private FunctionCollectorMem<OUT> getContext() {
+    if (cachedCollector == null) {
+      cachedCollector = new FunctionCollectorMem<>(accumulatorFactory, settings);
+    }
+
+    return cachedCollector;
   }
 }

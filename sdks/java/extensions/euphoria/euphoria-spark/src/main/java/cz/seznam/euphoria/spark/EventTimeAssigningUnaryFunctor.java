@@ -15,9 +15,11 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
+import cz.seznam.euphoria.core.util.Settings;
 
 import java.util.Objects;
 
@@ -27,8 +29,10 @@ class EventTimeAssigningUnaryFunctor<WID extends Window, IN, OUT>
   private final ExtractEventTime<IN> evtTimeFn;
 
   EventTimeAssigningUnaryFunctor(UnaryFunctor<IN, OUT> functor,
-                                 ExtractEventTime<IN> evtTimeFn) {
-    super(functor);
+                                 ExtractEventTime<IN> evtTimeFn,
+                                 AccumulatorProvider.Factory accumulatorFactory,
+                                 Settings settings) {
+    super(functor, accumulatorFactory, settings);
     this.evtTimeFn = Objects.requireNonNull(evtTimeFn);
   }
 

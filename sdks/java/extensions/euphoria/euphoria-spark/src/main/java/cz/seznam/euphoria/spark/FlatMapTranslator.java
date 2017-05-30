@@ -33,9 +33,12 @@ class FlatMapTranslator implements SparkOperatorTranslator<FlatMap> {
     final ExtractEventTime<?> evtTimeFn = operator.getEventTimeExtractor();
 
     if (evtTimeFn != null) {
-      return input.flatMap(new EventTimeAssigningUnaryFunctor(mapper, evtTimeFn));
+      return input.flatMap(
+              new EventTimeAssigningUnaryFunctor(mapper, evtTimeFn,
+                      context.getAccumulatorFactory(), context.getSettings()));
     } else {
-      return input.flatMap(new UnaryFunctorWrapper(mapper));
+      return input.flatMap(new UnaryFunctorWrapper(mapper,
+              context.getAccumulatorFactory(), context.getSettings()));
     }
   }
 }
