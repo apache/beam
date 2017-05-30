@@ -32,7 +32,7 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
   private final AccumulatorProvider.Factory accumulatorFactory;
   private final Settings settings;
 
-  private FunctionCollectorMem<OUT> cachedCollector;
+  private transient FunctionCollectorMem<OUT> cachedCollector;
 
   public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor,
                              AccumulatorProvider.Factory accumulatorFactory,
