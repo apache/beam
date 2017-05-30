@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -81,16 +82,23 @@ public class SparkFlowTranslator {
 
   /* mapping of Euphoria operators to corresponding Flink transformations */
   private final Map<Class, Translation> translations = new IdentityHashMap<>();
-  private final JavaSparkContext sparkEnv;
 
-  public SparkFlowTranslator(JavaSparkContext sparkEnv, Settings flowSettings) {
+  private final JavaSparkContext sparkEnv;
+  private final Settings settings;
+  private final AccumulatorProvider.Factory accumulatorFactory;
+
+  public SparkFlowTranslator(JavaSparkContext sparkEnv,
+                             Settings flowSettings,
+                             AccumulatorProvider.Factory accumulatorFactory) {
     this.sparkEnv = Objects.requireNonNull(sparkEnv);
+    this.settings = Objects.requireNonNull(flowSettings);
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
 
     // basic operators
     Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
     Translation.set(translations, FlatMap.class, new FlatMapTranslator());
     Translation.set(translations, Repartition.class, new RepartitionTranslator());
-    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(flowSettings));
+    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     Translation.set(translations, Union.class, new UnionTranslator());
 
     // derived operators
@@ -105,7 +113,8 @@ public class SparkFlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<Operator<?, ?>> dag = flowToDag(flow);
 
-    SparkExecutorContext executorContext = new SparkExecutorContext(sparkEnv, dag);
+    SparkExecutorContext executorContext =
+            new SparkExecutorContext(sparkEnv, dag, accumulatorFactory, settings);
 
     // translate each operator to proper Spark transformation
     dag.traverse().map(Node::get).forEach(op -> {
