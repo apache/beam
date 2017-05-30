@@ -116,16 +116,17 @@ import org.apache.beam.sdk.values.PCollectionViews;
  * {@code
  * PCollection<Page> pages = ... // pages fit into memory
  * PCollection<UrlVisit> urlVisits = ... // very large collection
- * final PCollectionView<Map<URL, Page>> = urlToPage
+ * final PCollectionView<Map<URL, Page>> urlToPageView = pages
  *     .apply(WithKeys.of( ... )) // extract the URL from the page
  *     .apply(View.<URL, Page>asMap());
  *
  * PCollection PageVisits = urlVisits
- *     .apply(ParDo.withSideInputs(urlToPage)
+ *     .apply(ParDo.withSideInputs(urlToPageView)
  *         .of(new DoFn<UrlVisit, PageVisit>() {
  *             {@literal @}Override
  *             void processElement(ProcessContext context) {
  *               UrlVisit urlVisit = context.element();
+ *               Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
  *               Page page = urlToPage.get(urlVisit.getUrl());
  *               c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
