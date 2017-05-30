@@ -50,6 +50,7 @@ public class PTransformTranslation {
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
   public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
   public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
+  public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
