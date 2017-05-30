@@ -2,13 +2,14 @@ package textio
 
 import (
 	"bufio"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
 func init() {
@@ -16,10 +17,6 @@ func init() {
 	graphx.Register(reflect.TypeOf((*writeFileFn)(nil)).Elem())
 	graphx.Register(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
 }
-
-// TODO(herohde) 5/1/2017: should godoc for deferred execution be written as if
-// it's immediate (as below)? We'll just write "Foo does Bar" instead of "Foo
-// inserts a source/sink/transformation into the pipeline that does Bar", say.
 
 // Read reads a local file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.

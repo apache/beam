@@ -143,11 +143,11 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 
 	case u.Recv != nil:
 		t := reflect.TypeOf(u.Recv)
-		key, ok := Key(reflectx.SkipPtr(t))
+		k, ok := key(reflectx.SkipPtr(t))
 		if !ok {
 			return nil, fmt.Errorf("bad recv: %v", u.Recv)
 		}
-		if _, ok := Lookup(key); !ok {
+		if _, ok := lookup(k); !ok {
 			return nil, fmt.Errorf("recv type must be registered: %v", t)
 		}
 		typ, err := encodeType(t)
@@ -317,12 +317,12 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
 	case reflect.Struct:
-		if key, ok := Key(t); ok {
-			if _, present := Lookup(key); present {
+		if k, ok := key(t); ok {
+			if _, present := lookup(k); present {
 				// External type. Serialize by key and lookup in registry
 				// on decoding side.
 
-				return &v1.Type{Kind: v1.Type_EXTERNAL, ExternalKey: key}, nil
+				return &v1.Type{Kind: v1.Type_EXTERNAL, ExternalKey: k}, nil
 			}
 		}
 
@@ -523,7 +523,7 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		return ret, nil
 
 	case v1.Type_EXTERNAL:
-		ret, ok := Lookup(t.ExternalKey)
+		ret, ok := lookup(t.ExternalKey)
 		if !ok {
 			return nil, fmt.Errorf("external key not found: %v", t.ExternalKey)
 		}
