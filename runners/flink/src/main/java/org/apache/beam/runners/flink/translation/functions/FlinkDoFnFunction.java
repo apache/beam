@@ -90,7 +90,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     RuntimeContext runtimeContext = getRuntimeContext();
 
     DoFnRunners.OutputManager outputManager;
-    if (outputMap == null) {
+    if (outputMap.size() == 1) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional outputs
