@@ -57,7 +57,7 @@ public enum NexmarkSuite {
   private static List<NexmarkConfiguration> smoke() {
     List<NexmarkConfiguration> configurations = new ArrayList<>();
     for (int query = 0; query <= 12; query++) {
-      NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.clone();
+      NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.copy();
       configuration.query = query;
       configuration.numEvents = 100_000;
       if (query == 4 || query == 6 || query == 9) {
@@ -103,7 +103,7 @@ public enum NexmarkSuite {
   public Iterable<NexmarkConfiguration> getConfigurations(NexmarkOptions options) {
     Set<NexmarkConfiguration> results = new LinkedHashSet<>();
     for (NexmarkConfiguration configuration : configurations) {
-      NexmarkConfiguration result = configuration.clone();
+      NexmarkConfiguration result = configuration.copy();
       result.overrideFromOptions(options);
       results.add(result);
     }
