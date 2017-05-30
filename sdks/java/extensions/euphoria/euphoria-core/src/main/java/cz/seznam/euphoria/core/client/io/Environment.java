@@ -36,18 +36,13 @@ public interface Environment {
 
   // ---------------- Aggregator related methods ------------
 
-  // FIXME remove default implementation
-  // it's just temporary to make the whole project compilable
-
   /**
    * Get an existing instance of a counter or create a new one.
    *
    * @param name Unique name of the counter.
    * @return Instance of a counter.
    */
-  default Counter getCounter(String name) {
-    throw new IllegalStateException("Accumulators not supported yet.");
-  }
+  Counter getCounter(String name);
 
   /**
    * Get an existing instance of a histogram or create a new one.
@@ -55,9 +50,7 @@ public interface Environment {
    * @param name Unique name of the histogram.
    * @return Instance of a histogram.
    */
-  default Histogram getHistogram(String name) {
-    throw new IllegalStateException("Accumulators not supported yet.");
-  }
+  Histogram getHistogram(String name);
 
   /**
    * Get an existing instance of a timer or create a new one.
@@ -65,7 +58,5 @@ public interface Environment {
    * @param name Unique name of the timer.
    * @return Instance of a timer.
    */
-  default Timer getTimer(String name) {
-    throw new IllegalStateException("Accumulators not supported yet.");
-  }
+  Timer getTimer(String name);
 }
