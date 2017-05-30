@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -75,4 +77,13 @@ public interface Executor {
     return (Set) Sets.newHashSet(
         FlatMap.class, Repartition.class, ReduceStateByKey.class, Union.class);
   }
+
+  /**
+   * Set accumulator provider that will be used to collect metrics and counters.
+   * When no provider is set a default instance of {@link VoidAccumulatorProvider}
+   * will be used.
+   *
+   * @param factory Factory to create an instance of accumulator provider.
+   */
+  void setAccumulatorProvider(AccumulatorProvider.Factory factory);
 }

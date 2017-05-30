@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
@@ -40,18 +42,34 @@ import static java.util.stream.Collectors.toList;
  */
 public abstract class ExecutorContext<E, D> {
 
+  private final FlinkAccumulatorFactory accumulatorFactory;
+  private final Settings settings;
+
   private final E env;
   private final DAG<FlinkOperator<?>> dag;
   private final Map<FlinkOperator<?>, D> outputs;
 
-  public ExecutorContext(E env, DAG<FlinkOperator<?>> dag) {
+  public ExecutorContext(E env,
+                         DAG<FlinkOperator<?>> dag,
+                         FlinkAccumulatorFactory accumulatorFactory,
+                         Settings settings) {
     this.env = env;
     this.dag = dag;
+    this.accumulatorFactory = accumulatorFactory;
+    this.settings = settings;
     this.outputs = new IdentityHashMap<>();
   }
 
   public E getExecutionEnvironment() {
     return this.env;
+  }
+
+  public FlinkAccumulatorFactory getAccumulatorFactory() {
+    return accumulatorFactory;
+  }
+
+  public Settings getSettings() {
+    return settings;
   }
 
   /**

@@ -17,41 +17,51 @@ package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
-import org.apache.flink.api.common.functions.FlatMapFunction;
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
+import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.util.Collector;
 
 import java.util.Objects;
 
 public class BatchUnaryFunctorWrapper<WID extends Window, IN, OUT>
-        implements FlatMapFunction<BatchElement<WID, IN>,
-        BatchElement<WID, OUT>>,
-        ResultTypeQueryable<BatchElement<WID, OUT>> {
+        extends RichFlatMapFunction<BatchElement<WID, IN>,
+        BatchElement<WID, OUT>>
+        implements ResultTypeQueryable<BatchElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> f;
 
-  public BatchUnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
+  private final FlinkAccumulatorFactory accumulatorFactory;
+  private final Settings settings;
+
+  public BatchUnaryFunctorWrapper(UnaryFunctor<IN, OUT> f,
+                                  FlinkAccumulatorFactory accumulatorFactory,
+                                  Settings settings) {
     this.f = Objects.requireNonNull(f);
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
+    this.settings = Objects.requireNonNull(settings);
   }
 
   @Override
   public void flatMap(BatchElement<WID, IN> value,
-                      Collector<BatchElement<WID, OUT>> out)
-      throws Exception
-  {
-    f.apply(value.getElement(), new Context<OUT>() {
-      @Override
-      public void collect(OUT elem) {
-        out.collect(new BatchElement<>(
-                value.getWindow(), value.getTimestamp(), elem));
-      }
-      @Override
-      public Object getWindow() {
-        return value.getWindow();
-      }
-    });
+                      org.apache.flink.util.Collector<BatchElement<WID, OUT>> out)
+          throws Exception {
+
+    f.apply(value.getElement(),
+            new AbstractCollector<OUT>(accumulatorFactory, settings, getRuntimeContext()) {
+              @Override
+              public void collect(OUT elem) {
+                out.collect(new BatchElement<>(
+                        value.getWindow(), value.getTimestamp(), elem));
+              }
+
+              @Override
+              public Object getWindow() {
+                return value.getWindow();
+              }
+            });
   }
 
   @SuppressWarnings("unchecked")

@@ -27,7 +27,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -141,7 +141,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         return ReduceByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> e)
-            .reduceBy((Iterable<Integer> in, Context<Integer> ctx) -> {
+            .reduceBy((Iterable<Integer> in, Collector<Integer> ctx) -> {
               // start with seed based on window
               int sum = 0;
               for (Integer i : in) {
@@ -598,7 +598,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   static class SumState implements State<Integer, Integer> {
     private final ValueStorage<Integer> sum;
 
-    SumState(StorageProvider storageProvider, Context<Integer> context) {
+    SumState(StorageProvider storageProvider, Collector<Integer> context) {
       sum = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("sum-state", Integer.class, 0));
     }
@@ -609,7 +609,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush(Context<Integer> context) {
+    public void flush(Collector<Integer> context) {
       context.collect(sum.get());
     }
 

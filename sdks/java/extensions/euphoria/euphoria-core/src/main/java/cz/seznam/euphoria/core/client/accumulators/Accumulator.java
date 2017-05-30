@@ -13,23 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.core.client.accumulators;
 
-import cz.seznam.euphoria.core.client.io.Context;
+/**
+ * Accumulators collect values from user functions.
+ * Accumulators allow user to calculate statistics during the flow execution.
+ * <p>
+ * Accumulators are inspired by the Hadoop/MapReduce counters.
+ */
+public interface Accumulator {
 
-abstract class FunctionContext<T> implements Context<T> {
-
-  protected KeyedWindow window;
-
-  @Override
-  public abstract void collect(T elem);
-
-  @Override
-  public Object getWindow() {
-    return this.window.window();
-  }
-
-  public void setWindow(KeyedWindow window) {
-    this.window = window;
-  }
 }

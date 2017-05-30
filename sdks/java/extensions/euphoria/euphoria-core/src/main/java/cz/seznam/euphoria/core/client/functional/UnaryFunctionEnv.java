@@ -15,15 +15,27 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
+
 import java.io.Serializable;
 
 /**
- * Functor of two arguments.
+ * Function of single argument with access to Euphoria environment via context.
+ *
+ * @param <IN> the type of the element processed
+ * @param <OUT> the type of the result applying element to the function
  */
 @FunctionalInterface
-public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
-
-  void apply(LEFT left, RIGHT right, Collector<OUT> context);
+public interface UnaryFunctionEnv<IN, OUT> extends Serializable {
+  
+  /**
+   * Applies function to given element.
+   *
+   * @param what The element applied to the function
+   * @param context Provides access to the environment.
+   *
+   * @return the result of the function application
+   */
+  OUT apply(IN what, Context context);
 
 }
