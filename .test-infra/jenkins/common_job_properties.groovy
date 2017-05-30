@@ -188,7 +188,9 @@ class common_job_properties {
     // Disable archiving the built artifacts by default, as this is slow and flaky.
     // We can usually recreate them easily, and we can also opt-in individual jobs
     // to artifact archiving.
-    context.archivingDisabled(true)
+    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
+      context.archivingDisabled(true)
+    }
   }
 
   // Sets common config for PreCommit jobs.
