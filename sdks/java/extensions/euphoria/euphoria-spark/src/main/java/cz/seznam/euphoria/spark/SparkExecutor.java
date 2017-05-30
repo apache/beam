@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +42,9 @@ public class SparkExecutor implements Executor {
 
   private final JavaSparkContext sparkContext;
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
+
+  private AccumulatorProvider.Factory accumulatorFactory =
+          VoidAccumulatorProvider.getFactory();
 
   public SparkExecutor(SparkConf conf) {
     sparkContext = new JavaSparkContext(conf);
@@ -63,7 +68,7 @@ public class SparkExecutor implements Executor {
 
   @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
-    // TODO accumulators
+    this.accumulatorFactory = Objects.requireNonNull(factory);
   }
 
   private Result execute(Flow flow) {
@@ -74,7 +79,8 @@ public class SparkExecutor implements Executor {
     List<DataSink<?>> sinks = Collections.emptyList();
     try {
       // FIXME blocking operation in Spark
-      SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext, flow.getSettings());
+      SparkFlowTranslator translator =
+              new SparkFlowTranslator(sparkContext, flow.getSettings(), accumulatorFactory);
       sinks = translator.translateInto(flow);
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty

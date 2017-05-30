@@ -15,10 +15,11 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.util.Settings;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -27,10 +28,14 @@ import java.util.List;
  * Implementation of {@link Collector} that holds all the
  * data in memory.
  */
-class FunctionCollectorMem<T> implements Context, Collector<T>, Serializable {
+class FunctionCollectorMem<T> extends FunctionCollector<T> {
 
   private final List<T> elements = new ArrayList<>(1);
-  private Object window;
+
+  public FunctionCollectorMem(AccumulatorProvider.Factory accumulatorFactory,
+                              Settings settings) {
+    super(accumulatorFactory, settings);
+  }
 
   @Override
   public void collect(T elem) {
@@ -40,15 +45,6 @@ class FunctionCollectorMem<T> implements Context, Collector<T>, Serializable {
   @Override
   public Context asContext() {
     return this;
-  }
-
-  @Override
-  public Object getWindow() {
-    return this.window;
-  }
-
-  public void setWindow(Object window) {
-    this.window = window;
   }
 
   /**
