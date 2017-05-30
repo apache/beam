@@ -34,7 +34,10 @@ matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
   }
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
+  common_job_properties.setPostCommit(
+      delegate,
+      '0 */6 * * *',
+      false)
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
