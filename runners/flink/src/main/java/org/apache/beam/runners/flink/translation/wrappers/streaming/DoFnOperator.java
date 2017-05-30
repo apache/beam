@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
@@ -129,6 +130,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient long currentInputWatermark;
 
+  protected transient long currentSideInputWatermark;
+
   protected transient long currentOutputWatermark;
 
   private transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
@@ -197,6 +200,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     super.open();
 
     setCurrentInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    setCurrentSideInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
     setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     sideInputReader = NullSideInputReader.of(sideInputs);
@@ -308,6 +312,21 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public void close() throws Exception {
     super.close();
+
+    // sanity check: these should have been flushed out by +Inf watermarks
+    if (pushbackStateInternals != null) {
+      BagState<WindowedValue<InputT>> pushedBack =
+          pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+      if (pushedBackContents != null) {
+        if (!Iterables.isEmpty(pushedBackContents)) {
+          String pushedBackString = Joiner.on(",").join(pushedBackContents);
+          throw new RuntimeException(
+              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+        }
+      }
+    }
     doFnInvoker.invokeTeardown();
   }
 
@@ -457,36 +476,56 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
       pushbackDoFnRunner.finishBundle();
     }
+
+    // We do the check here because we are guaranteed to at least get the +Inf watermark on the
+    // main input when the job finishes.
+    if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // this means we will never see any more side input
+      // we also do the check here because we might have received the side-input MAX watermark
+      // before receiving any main-input data
+      emitAllPushedBackData();
+    }
   }
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    if (mark.getTimestamp() == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+    setCurrentSideInputWatermark(mark.getTimestamp());
+    if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
       // this means we will never see any more side input
-      pushbackDoFnRunner.startBundle();
-
-      BagState<WindowedValue<InputT>> pushedBack =
-          pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
-
-      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null) {
-        for (WindowedValue<InputT> elem : pushedBackContents) {
-
-          // we need to set the correct key in case the operator is
-          // a (keyed) window operator
-          setKeyContextElement1(new StreamRecord<>(elem));
-
-          doFnRunner.processElement(elem);
-        }
-      }
-
-      setPushedBackWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
-
-      pushbackDoFnRunner.finishBundle();
+      emitAllPushedBackData();
 
       // maybe output a new watermark
       processWatermark1(new Watermark(currentInputWatermark));
     }
+  }
+
+  /**
+   * Emits all pushed-back data. This should be used once we know that there will not be
+   * any future side input, i.e. that there is no point in waiting.
+   */
+  private void emitAllPushedBackData() throws Exception {
+    pushbackDoFnRunner.startBundle();
+
+    BagState<WindowedValue<InputT>> pushedBack =
+        pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+    if (pushedBackContents != null) {
+      for (WindowedValue<InputT> elem : pushedBackContents) {
+
+        // we need to set the correct key in case the operator is
+        // a (keyed) window operator
+        setKeyContextElement1(new StreamRecord<>(elem));
+
+        doFnRunner.processElement(elem);
+      }
+    }
+
+    pushedBack.clear();
+
+    setPushedBackWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+
+    pushbackDoFnRunner.finishBundle();
   }
 
   @Override
@@ -608,6 +647,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private void setCurrentInputWatermark(long currentInputWatermark) {
     this.currentInputWatermark = currentInputWatermark;
+  }
+
+  private void setCurrentSideInputWatermark(long currentInputWatermark) {
+    this.currentSideInputWatermark = currentInputWatermark;
   }
 
   private void setCurrentOutputWatermark(long currentOutputWatermark) {
