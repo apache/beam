@@ -379,7 +379,8 @@ public class JmsIO {
 
   }
 
-  private static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
+  @VisibleForTesting
+  static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
 
     private UnboundedJmsSource source;
     private JmsCheckpointMark checkpointMark;

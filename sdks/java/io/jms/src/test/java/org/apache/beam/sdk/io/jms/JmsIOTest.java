@@ -21,12 +21,16 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -34,6 +38,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
+import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -42,12 +47,14 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -71,6 +78,7 @@ public class JmsIOTest {
 
   private BrokerService broker;
   private ConnectionFactory connectionFactory;
+  private ConnectionFactory connectionFactoryWithoutPrefetch;
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -98,6 +106,8 @@ public class JmsIOTest {
 
     // create JMS connection factory
     connectionFactory = new ActiveMQConnectionFactory(BROKER_URL);
+    connectionFactoryWithoutPrefetch =
+        new ActiveMQConnectionFactory(BROKER_URL + "?jms.prefetchPolicy.all=0");
   }
 
   @After
@@ -234,6 +244,73 @@ public class JmsIOTest {
     // message).
     // So, whatever the desizedNumSplits is, the actual number of splits should be 1.
     assertEquals(1, splits.size());
+  }
+
+  @Test
+  public void testCheckpointMark() throws Exception {
+    Connection connection = connectionFactoryWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 1000; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec = JmsIO.read()
+        .withConnectionFactory(connectionFactoryWithoutPrefetch)
+        .withUsername(USERNAME)
+        .withPassword(PASSWORD)
+        .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 249 messages (as start already consumed the first message)
+    for (int i = 0; i < 249; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(1000, count(QUEUE));
+
+    // we finalize the checkpoint
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(750, count(QUEUE));
+
+    // we read the 750 pending messages
+    for (int i = 0; i < 750; i++) {
+      assertTrue(reader.advance());
+    }
+
+    // still 750 pending messages as we didn't finalize the checkpoint
+    assertEquals(750, count(QUEUE));
+
+    // we finalize the checkpoint: no more message in the queue
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    assertEquals(0, count(QUEUE));
+  }
+
+
+  private int count(String queue) throws Exception {
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    QueueBrowser browser = session.createBrowser(session.createQueue(queue));
+    Enumeration<Message> messages = browser.getEnumeration();
+    int count = 0;
+    while (messages.hasMoreElements()) {
+      messages.nextElement();
+      count++;
+    }
+    return count;
   }
 
 }
