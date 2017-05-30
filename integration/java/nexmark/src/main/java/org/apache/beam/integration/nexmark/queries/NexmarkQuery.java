@@ -253,7 +253,7 @@ public abstract class NexmarkQuery
     if (configuration.diskBusyBytes > 0) {
       // Slow down by forcing bytes to durable store.
       events = events.apply(name + ".DiskBusy",
-              NexmarkUtils.<Event>diskBusy(name, configuration.diskBusyBytes));
+              NexmarkUtils.<Event>diskBusy(configuration.diskBusyBytes));
     }
 
     // Run the query.
