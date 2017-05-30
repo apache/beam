@@ -1361,7 +1361,7 @@
               <id>report</id>
               <phase>prepare-package</phase>
               <goals>
-                <goal>report</goal>
+                <goal>report-aggregate</goal>
               </goals>
             </execution>
           </executions>
@@ -1450,7 +1450,7 @@
                   <pluginExecutionFilter>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <versionRange>[0.7.5,)</versionRange>
+                    <versionRange>[0.7.8,)</versionRange>
                     <goals>
                       <goal>report</goal>
                       <goal>prepare-agent</goal>
