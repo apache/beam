@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import java.util.Collections;
+import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -97,13 +98,14 @@ public class FlinkDoFnFunction<InputT, OutputT>
           new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
 
+    List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
+
     DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(), doFn,
         new FlinkSideInputReader(sideInputs, runtimeContext),
         outputManager,
         mainOutputTag,
-        // see SimpleDoFnRunner, just use it to limit number of additional outputs
-        Collections.<TupleTag<?>>emptyList(),
+        additionalOutputTags,
         new FlinkNoOpStepContext(),
         windowingStrategy);
 
