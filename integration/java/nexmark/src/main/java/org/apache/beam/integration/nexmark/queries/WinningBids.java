@@ -23,12 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
@@ -138,6 +138,24 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     public String toString() {
       return String.format("AuctionOrBidWindow{start:%s; end:%s; auction:%d; isAuctionWindow:%s}",
           start(), end(), auction, isAuctionWindow);
+    }
+
+    @Override public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      if (!super.equals(o)) {
+        return false;
+      }
+      AuctionOrBidWindow that = (AuctionOrBidWindow) o;
+      return (isAuctionWindow == that.isAuctionWindow) && (auction == that.auction);
+    }
+
+    @Override public int hashCode() {
+      return Objects.hash(isAuctionWindow, auction);
     }
   }
 
@@ -373,5 +391,22 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
             }
           }
         ));
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auctionOrBidWindowFn);
+  }
+
+  @Override public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    WinningBids that = (WinningBids) o;
+    return auctionOrBidWindowFn.equals(that.auctionOrBidWindowFn);
   }
 }

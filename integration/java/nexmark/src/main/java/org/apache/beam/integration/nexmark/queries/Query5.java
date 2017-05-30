@@ -63,56 +63,64 @@ public class Query5 extends NexmarkQuery {
         // Only want the bid events.
         .apply(JUST_BIDS)
         // Window the bids into sliding windows.
-        .apply(Window.<Bid>into(
-            SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
-                .every(Duration.standardSeconds(configuration.windowPeriodSec))))
+        .apply(
+            Window.<Bid>into(
+                SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
+                    .every(Duration.standardSeconds(configuration.windowPeriodSec))))
         // Project just the auction id.
         .apply("BidToAuction", BID_TO_AUCTION)
 
         // Count the number of bids per auction id.
         .apply(Count.<Long>perElement())
 
-      // We'll want to keep all auctions with the maximal number of bids.
+        // We'll want to keep all auctions with the maximal number of bids.
         // Start by lifting each into a singleton list.
         // need to do so because bellow combine returns a list of auctions in the key in case of
         // equal number of bids. Combine needs to have same input type and return type.
-        .apply(name + ".ToSingletons",
-            ParDo.of(new DoFn<KV<Long, Long>, KV<List<Long>, Long>>() {
+        .apply(
+            name + ".ToSingletons",
+            ParDo.of(
+                new DoFn<KV<Long, Long>, KV<List<Long>, Long>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    c.output(KV.of(Collections.singletonList(c.element().getKey()), c.element().getValue()));
+                    c.output(
+                        KV.of(
+                            Collections.singletonList(c.element().getKey()),
+                            c.element().getValue()));
                   }
                 }))
 
         // Keep only the auction ids with the most bids.
         .apply(
-            Combine
-                .globally(new Combine.BinaryCombineFn<KV<List<Long>, Long>>() {
-                  @Override
-                  public KV<List<Long>, Long> apply(
-                      KV<List<Long>, Long> left, KV<List<Long>, Long> right) {
-                    List<Long> leftBestAuctions = left.getKey();
-                    long leftCount = left.getValue();
-                    List<Long> rightBestAuctions = right.getKey();
-                    long rightCount = right.getValue();
-                    if (leftCount > rightCount) {
-                      return left;
-                    } else if (leftCount < rightCount) {
-                      return right;
-                    } else {
-                      List<Long> newBestAuctions = new ArrayList<>();
-                      newBestAuctions.addAll(leftBestAuctions);
-                      newBestAuctions.addAll(rightBestAuctions);
-                      return KV.of(newBestAuctions, leftCount);
-                    }
-                  }
-                })
+            Combine.globally(
+                    new Combine.BinaryCombineFn<KV<List<Long>, Long>>() {
+                      @Override
+                      public KV<List<Long>, Long> apply(
+                          KV<List<Long>, Long> left, KV<List<Long>, Long> right) {
+                        List<Long> leftBestAuctions = left.getKey();
+                        long leftCount = left.getValue();
+                        List<Long> rightBestAuctions = right.getKey();
+                        long rightCount = right.getValue();
+                        if (leftCount > rightCount) {
+                          return left;
+                        } else if (leftCount < rightCount) {
+                          return right;
+                        } else {
+                          List<Long> newBestAuctions = new ArrayList<>();
+                          newBestAuctions.addAll(leftBestAuctions);
+                          newBestAuctions.addAll(rightBestAuctions);
+                          return KV.of(newBestAuctions, leftCount);
+                        }
+                      }
+                    })
                 .withoutDefaults()
                 .withFanout(configuration.fanout))
 
         // Project into result.
-        .apply(name + ".Select",
-            ParDo.of(new DoFn<KV<List<Long>, Long>, AuctionCount>() {
+        .apply(
+            name + ".Select",
+            ParDo.of(
+                new DoFn<KV<List<Long>, Long>, AuctionCount>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     long count = c.element().getValue();

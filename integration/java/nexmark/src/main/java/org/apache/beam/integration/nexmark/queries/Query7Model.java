@@ -111,7 +111,6 @@ public class Query7Model extends NexmarkQueryModel implements Serializable {
       }
       // Keep only the highest bids.
       captureBid(event.bid);
-      //TODO test fails because offset of some hundreds of ms between expect and actual
     }
   }
 

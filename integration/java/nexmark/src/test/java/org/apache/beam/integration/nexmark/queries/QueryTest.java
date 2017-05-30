@@ -37,7 +37,7 @@ import org.junit.runners.JUnit4;
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(JUnit4.class)
 public class QueryTest {
-  private static final NexmarkConfiguration CONFIG = NexmarkConfiguration.DEFAULT.clone();
+  private static final NexmarkConfiguration CONFIG = NexmarkConfiguration.DEFAULT.copy();
 
   static {
     // careful, results of tests are linked to numEventGenerators because of timestamp generation
@@ -55,12 +55,8 @@ public class QueryTest {
     if (streamingMode) {
       results =
           p.apply(name + ".ReadUnBounded", NexmarkUtils.streamEventsSource(CONFIG)).apply(query);
-      //TODO Ismael this should not be called explicitly
-      results.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     } else {
       results = p.apply(name + ".ReadBounded", NexmarkUtils.batchEventsSource(CONFIG)).apply(query);
-      //TODO Ismael this should not be called explicitly
-      results.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
     }
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();

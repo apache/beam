@@ -23,55 +23,65 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 
 /**
- * An event in the auction system, either a (new) {@link Person}, a (new) {@link Auction},
- * or a {@link Bid}.
+ * An event in the auction system, either a (new) {@link Person}, a (new) {@link Auction}, or a
+ * {@link Bid}.
  */
 public class Event implements KnownSize, Serializable {
+  private enum Tag {
+    PERSON(0),
+    AUCTION(1),
+    BID(2);
+
+    private int value = -1;
+
+    Tag(int value){
+      this.value = value;
+    }
+  }
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
-  public static final Coder<Event> CODER = new CustomCoder<Event>() {
-    @Override
-    public void encode(Event value, OutputStream outStream)
-        throws CoderException, IOException {
-      if (value.newPerson != null) {
-        INT_CODER.encode(0, outStream);
-        Person.CODER.encode(value.newPerson, outStream);
-      } else if (value.newAuction != null) {
-        INT_CODER.encode(1, outStream);
-        Auction.CODER.encode(value.newAuction, outStream);
-      } else if (value.bid != null) {
-        INT_CODER.encode(2, outStream);
-        Bid.CODER.encode(value.bid, outStream);
-      } else {
-        throw new RuntimeException("invalid event");
-      }
-    }
+  public static final Coder<Event> CODER =
+      new CustomCoder<Event>() {
+        @Override
+        public void encode(Event value, OutputStream outStream) throws IOException {
+          if (value.newPerson != null) {
+            INT_CODER.encode(Tag.PERSON.value, outStream);
+            Person.CODER.encode(value.newPerson, outStream);
+          } else if (value.newAuction != null) {
+            INT_CODER.encode(Tag.AUCTION.value, outStream);
+            Auction.CODER.encode(value.newAuction, outStream);
+          } else if (value.bid != null) {
+            INT_CODER.encode(Tag.BID.value, outStream);
+            Bid.CODER.encode(value.bid, outStream);
+          } else {
+            throw new RuntimeException("invalid event");
+          }
+        }
 
-    @Override
-    public Event decode(
-        InputStream inStream)
-        throws CoderException, IOException {
-      int tag = INT_CODER.decode(inStream);
-      if (tag == 0) {
-        Person person = Person.CODER.decode(inStream);
-        return new Event(person);
-      } else if (tag == 1) {
-        Auction auction = Auction.CODER.decode(inStream);
-        return new Event(auction);
-      } else if (tag == 2) {
-        Bid bid = Bid.CODER.decode(inStream);
-        return new Event(bid);
-      } else {
-        throw new RuntimeException("invalid event encoding");
-      }
-    }
-    @Override public void verifyDeterministic() throws NonDeterministicException {}
-  };
+        @Override
+        public Event decode(InputStream inStream) throws IOException {
+          int tag = INT_CODER.decode(inStream);
+          if (tag == Tag.PERSON.value) {
+            Person person = Person.CODER.decode(inStream);
+            return new Event(person);
+          } else if (tag == Tag.AUCTION.value) {
+            Auction auction = Auction.CODER.decode(inStream);
+            return new Event(auction);
+          } else if (tag == Tag.BID.value) {
+            Bid bid = Bid.CODER.decode(inStream);
+            return new Event(bid);
+          } else {
+            throw new RuntimeException("invalid event encoding");
+          }
+        }
+
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {}
+      };
 
   @Nullable
   @org.apache.avro.reflect.Nullable
@@ -111,10 +121,7 @@ public class Event implements KnownSize, Serializable {
     this.bid = bid;
   }
 
-  /**
-   * Return a copy of event which captures {@code annotation}.
-   * (Used for debugging).
-   */
+  /** Return a copy of event which captures {@code annotation}. (Used for debugging). */
   public Event withAnnotation(String annotation) {
     if (newPerson != null) {
       return new Event(newPerson.withAnnotation(annotation));
@@ -125,9 +132,7 @@ public class Event implements KnownSize, Serializable {
     }
   }
 
-  /**
-   * Does event have {@code annotation}? (Used for debugging.)
-   */
+  /** Does event have {@code annotation}? (Used for debugging.) */
   public boolean hasAnnotation(String annotation) {
     if (newPerson != null) {
       return newPerson.hasAnnotation(annotation);

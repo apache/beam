@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
@@ -167,12 +168,32 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     }
 
     /**
-     * Return a deep clone of next event with delay added to wallclock timestamp and
+     * Return a deep copy of next event with delay added to wallclock timestamp and
      * event annotate as 'LATE'.
      */
     public NextEvent withDelay(long delayMs) {
       return new NextEvent(
           wallclockTimestamp + delayMs, eventTimestamp, event.withAnnotation("LATE"), watermark);
+    }
+
+    @Override public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      NextEvent nextEvent = (NextEvent) o;
+
+      return (wallclockTimestamp == nextEvent.wallclockTimestamp
+          && eventTimestamp == nextEvent.eventTimestamp
+          && watermark == nextEvent.watermark
+          && event.equals(nextEvent.event));
+    }
+
+    @Override public int hashCode() {
+      return Objects.hash(wallclockTimestamp, eventTimestamp, watermark, event);
     }
 
     @Override
@@ -221,11 +242,12 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   }
 
   /**
-   * Return a deep clone of this generator.
+   * Return a deep copy of this generator.
    */
-  @Override
-  public Generator clone() {
-    return new Generator(config.clone(), numEvents, wallclockBaseTime);
+  public Generator copy() {
+    checkNotNull(config);
+    Generator result = new Generator(config, numEvents, wallclockBaseTime);
+    return result;
   }
 
   /**
@@ -243,9 +265,9 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
    */
   public GeneratorConfig splitAtEventId(long eventId) {
     long newMaxEvents = eventId - (config.firstEventId + config.firstEventNumber);
-    GeneratorConfig remainConfig = config.cloneWith(config.firstEventId,
+    GeneratorConfig remainConfig = config.copyWith(config.firstEventId,
         config.maxEvents - newMaxEvents, config.firstEventNumber + newMaxEvents);
-    config = config.cloneWith(config.firstEventId, newMaxEvents, config.firstEventNumber);
+    config = config.copyWith(config.firstEventId, newMaxEvents, config.firstEventNumber);
     return remainConfig;
   }
 

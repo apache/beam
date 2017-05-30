@@ -181,7 +181,6 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
         return;
       }
       addResult(result);
-      //TODO test fails because offset of some hundreds of ms beween expect and actual
       return;
     }
 

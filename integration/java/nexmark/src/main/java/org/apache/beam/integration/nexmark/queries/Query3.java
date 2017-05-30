@@ -29,13 +29,13 @@ import org.apache.beam.integration.nexmark.model.Person;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -243,9 +243,9 @@ public class Query3 extends NexmarkQuery {
           theNewPerson = newPerson;
         } else {
           if (theNewPerson.equals(newPerson)) {
-            LOG.error("**** duplicate person {} ****", theNewPerson);
+            LOG.error("Duplicate person {}", theNewPerson);
           } else {
-            LOG.error("**** conflicting persons {} and {} ****", theNewPerson, newPerson);
+            LOG.error("Conflicting persons {} and {}", theNewPerson, newPerson);
           }
           fatalCounter.inc();
           continue;
