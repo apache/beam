@@ -57,10 +57,12 @@ class RootBundleProvider(object):
 class DefaultRootBundleProvider(RootBundleProvider):
   """Provides an empty bundle by default for root transforms."""
 
-  def get_root_bundles(self, ):
+  def get_root_bundles(self):
+    print 'WTF', self._applied_ptransform, self._applied_ptransform.inputs
+    # TODO: these are root bundles, they don't really need a producer... but apparently some inputs are not defined.
     empty_bundle = (
         self._evaluation_context.create_empty_committed_bundle(
-            self._applied_ptransform.inputs[0]))
+            self._applied_ptransform.inputs[0] if self._applied_ptransform.inputs else pvalue.PBegin(self._applied_ptransform.transform.pipeline)))
     return [empty_bundle]
 
 class _TestStreamRootBundleProvider(RootBundleProvider):
@@ -405,6 +407,7 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
   def start_bundle(self):
     transform = self._applied_ptransform.transform
+    print 'TRANSFORMSI', transform, 'SIDE INPUTS', self._side_inputs
 
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
     for output_tag in self._applied_ptransform.outputs:
@@ -584,8 +587,9 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     bundles = []
     if self.gabw_items:
       qbundles = [bundle]
+    hold = self.state.get_earliest_hold()
     return TransformResult(
-        self._applied_ptransform, bundles, [], self.state, None, None, None, None)
+        self._applied_ptransform, bundles, [], self.state, None, None, None, hold)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):

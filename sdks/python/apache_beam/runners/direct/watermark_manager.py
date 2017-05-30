@@ -154,6 +154,7 @@ class WatermarkManager(object):
       print '[!] ET', applied_ptransform, tw._output_watermark, tw._input_watermark
       print '    CHILDREN: ', applied_ptransform.outputs
       fired_timers = tw.extract_fired_timers()
+      print '   ', fired_timers
       if fired_timers:
         all_timers.append((applied_ptransform, fired_timers))
     print 'EXTRACT TIMERS END!!!', all_timers
@@ -228,12 +229,12 @@ class _TransformWatermarks(object):
         if bundle_min_timestamp < pending_holder:
           pending_holder = bundle_min_timestamp
 
-      earliest_watermark_hold = WatermarkManager.WATERMARK_POS_INF
-      for unused_key, state in self._keyed_states.iteritems():
-        assert isinstance(state, DirectUnmergedState), state
-        print '~~~~~~~~WHSTATE [key=', unused_key, ']', state
-        earliest_watermark_hold = state.get_earliest_hold()
-        print 'holds [current watermark =', self._input_watermark, ']:', state.get_earliest_hold()
+      # earliest_watermark_hold = WatermarkManager.WATERMARK_POS_INF
+      # for unused_key, state in self._keyed_states.iteritems():
+      #   assert isinstance(state, DirectUnmergedState), state
+      #   print '~~~~~~~~WHSTATE [key=', unused_key, ']', state
+      #   earliest_watermark_hold = state.get_earliest_hold()
+      #   print 'holds [current watermark =', self._input_watermark, ']:', state.get_earliest_hold()
 
 
       input_watermarks = [
@@ -242,13 +243,13 @@ class _TransformWatermarks(object):
       producer_watermark = min(input_watermarks)
 
       self._input_watermark = max(self._input_watermark,
-                                  min(pending_holder, producer_watermark, earliest_watermark_hold))
+                                  min(pending_holder, producer_watermark))
       # TODO: clean this up.
       middle_watermark_thing = max(self._input_watermark,
-                                  min(producer_watermark, earliest_watermark_hold))
+                                  min(pending_holder, producer_watermark))
       new_output_watermark = min(middle_watermark_thing, self._earliest_hold)
       print '[!] ', self._label, 'INPUT', self._input_watermark, 'OUTPUT', new_output_watermark
-      print '    input watermark details: pending_holder', pending_holder, 'producer_watermark', producer_watermark, 'earliest_watermark_hold', earliest_watermark_hold
+      print '    input watermark details: pending_holder', pending_holder, 'producer_watermark', producer_watermark
 
       advanced = new_output_watermark > self._output_watermark
       if advanced:
@@ -267,7 +268,7 @@ class _TransformWatermarks(object):
       if self._fired_timers:
         print 'FIRED_TIMERS? FALSE', self
         # Wait until fired timers have been processed.
-        # return False
+        return False
 
       fired_timers = []
 

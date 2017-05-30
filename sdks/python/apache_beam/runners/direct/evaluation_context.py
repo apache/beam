@@ -354,7 +354,7 @@ class EvaluationContext(object):
 
   def _is_transform_done(self, transform):
     tw = self._watermark_manager.get_watermarks(transform)
-    print '[!!] TRANSFORM_DONE?', transform, 'OWM', tw.output_watermark, tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
+    print '[!!] TRANSFORM_DONE?', transform, 'IWM', tw.input_watermark,'OWM', tw.output_watermark, tw.output_watermark == WatermarkManager.WATERMARK_POS_INF, tw._pending
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
   def get_value_or_schedule_after_output(self, side_input, task):
