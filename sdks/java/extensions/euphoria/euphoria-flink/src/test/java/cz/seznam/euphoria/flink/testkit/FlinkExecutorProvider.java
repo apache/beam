@@ -18,7 +18,6 @@ package cz.seznam.euphoria.flink.testkit;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.flink.FlinkExecutor;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.flink.accumulators.FlinkNativeAccumulators;
 import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.commons.io.FileUtils;
@@ -33,9 +32,6 @@ public interface FlinkExecutorProvider extends ExecutorProvider {
     RocksDBStateBackend backend = new RocksDBStateBackend("file://" + path);
     FlinkExecutor executor = new TestFlinkExecutor(ModuloInputSplitAssigner::new)
         .setStateBackend(backend);
-    // TODO should use some local test implementation of counters
-    // that is queryable in assertions
-    executor.setAccumulatorProvider(FlinkNativeAccumulators.getFactory());
     return new ExecutorEnvironment() {
       @Override
       public Executor getExecutor() {
