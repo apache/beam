@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.inmem;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
@@ -36,6 +37,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,9 +64,13 @@ class ReduceStateByKeyReducer implements Runnable {
   static final class KeyedElementCollector extends WindowedElementCollector<Object> {
     private final Object key;
 
-    KeyedElementCollector(Collector<Datum> wrap, Window window, Object key,
-        Supplier<Long> stampSupplier) {
-      super(wrap, stampSupplier);
+    KeyedElementCollector(Collector<Datum> wrap,
+                          Window window,
+                          Object key,
+                          Supplier<Long> stampSupplier,
+                          AccumulatorProvider.Factory accumulatorFactory,
+                          Settings settings) {
+      super(wrap, stampSupplier, accumulatorFactory, settings);
       this.key = key;
       this.window = window;
     }
@@ -501,8 +507,9 @@ class ReduceStateByKeyReducer implements Runnable {
 
     private KeyedElementCollector newCollector(KeyedWindow kw) {
       return new KeyedElementCollector(
-          stateOutput, kw.window(), kw.key(),
-          processing.triggering::getCurrentTimestamp);
+              stateOutput, kw.window(), kw.key(),
+              processing.triggering::getCurrentTimestamp,
+              accumulatorFactory, settings);
     }
 
     // ~ returns a freely modifable collection of windows actively
@@ -606,6 +613,10 @@ class ReduceStateByKeyReducer implements Runnable {
   private final ProcessingState processing;
   private final TriggerScheduler<Window, Object> scheduler;
 
+  // ~ related to accumulators
+  private final AccumulatorProvider.Factory accumulatorFactory;
+  private final Settings settings;
+
   private long currentElementTime;
 
   @SuppressWarnings("unchecked")
@@ -618,6 +629,8 @@ class ReduceStateByKeyReducer implements Runnable {
                           TriggerScheduler scheduler,
                           WatermarkEmitStrategy watermarkStrategy,
                           StorageProvider storageProvider,
+                          AccumulatorProvider.Factory accumulatorFactory,
+                          Settings settings,
                           boolean allowEarlyEmitting) {
 
     this.name = requireNonNull(name);
@@ -631,6 +644,8 @@ class ReduceStateByKeyReducer implements Runnable {
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
     this.trigger = requireNonNull(windowing.getTrigger());
     this.scheduler = requireNonNull(scheduler);
+    this.accumulatorFactory = requireNonNull(accumulatorFactory);
+    this.settings = requireNonNull(settings);
     this.processing = new ProcessingState(
         output, scheduler,
         requireNonNull(operator.getStateFactory()),

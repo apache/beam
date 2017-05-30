@@ -15,10 +15,15 @@
  */
 package cz.seznam.euphoria.inmem;
 
+import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.Counter;
+import cz.seznam.euphoria.core.client.accumulators.Histogram;
+import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.util.Settings;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -26,13 +31,20 @@ import java.util.function.Supplier;
 class WindowedElementCollector<T> implements Context, Collector<T> {
   private final cz.seznam.euphoria.inmem.Collector<Datum> wrap;
   private final Supplier<Long> stampSupplier;
+  private final AccumulatorProvider.Factory accumulatorFactory;
+  private final Settings settings;
 
+  private AccumulatorProvider accumulators;
   protected Window window;
 
   WindowedElementCollector(cz.seznam.euphoria.inmem.Collector<Datum> wrap,
-                           Supplier<Long> stampSupplier) {
+                           Supplier<Long> stampSupplier,
+                           AccumulatorProvider.Factory accumulatorFactory,
+                           Settings settings) {
     this.wrap = Objects.requireNonNull(wrap);
     this.stampSupplier = stampSupplier;
+    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
+    this.settings = Objects.requireNonNull(settings);
   }
 
   @Override
@@ -63,4 +75,26 @@ class WindowedElementCollector<T> implements Context, Collector<T> {
     return window;
   }
 
+  @Override
+  public Counter getCounter(String name) {
+    return getAccumulatorProvider().getCounter(name);
+  }
+
+  @Override
+  public Histogram getHistogram(String name) {
+    return getAccumulatorProvider().getHistogram(name);
+  }
+
+  @Override
+  public Timer getTimer(String name) {
+    return getAccumulatorProvider().getTimer(name);
+  }
+
+  private AccumulatorProvider getAccumulatorProvider() {
+    if (accumulators == null) {
+      accumulators = accumulatorFactory.create(settings);
+    }
+
+    return accumulators;
+  }
 }

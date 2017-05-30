@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
@@ -42,6 +43,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,12 +188,18 @@ public class InMemExecutor implements Executor {
   }
 
   private static final class ExecutionContext {
+    private final Settings settings;
+
     // map of operator inputs to suppliers
-    Map<Pair<Operator<?, ?>, Operator<?, ?>>, InputProvider> materializedOutputs
-        = Collections.synchronizedMap(new HashMap<>());
+    Map<Pair<Operator<?, ?>, Operator<?, ?>>, InputProvider> materializedOutputs;
     // already running operators
-    Set<Operator<?, ?>> runningOperators = Collections.synchronizedSet(
-        new HashSet<>());
+    Set<Operator<?, ?>> runningOperators;
+
+    public ExecutionContext(Settings settings) {
+      this.settings = settings;
+      this.materializedOutputs = Collections.synchronizedMap(new HashMap<>());
+      this.runningOperators = Collections.synchronizedSet(new HashSet<>());
+    }
 
     private boolean containsKey(Pair<Operator<?, ?>, Operator<?, ?>> d) {
       return materializedOutputs.containsKey(d);
@@ -223,6 +231,10 @@ public class InMemExecutor implements Executor {
     boolean isRunning(Operator<?, ?> operator) {
       return runningOperators.contains(operator);
     }
+
+    public Settings getSettings() {
+      return settings;
+    }
   }
 
   private final BlockingQueue<Runnable> queue = new SynchronousQueue<>(false);
@@ -252,6 +264,9 @@ public class InMemExecutor implements Executor {
   private boolean allowEarlyEmitting = false;
 
   private StorageProvider storageProvider = new InMemStorageProvider();
+
+  private AccumulatorProvider.Factory accumulatorFactory =
+          VoidAccumulatorProvider.getFactory();
 
   /**
    * Specifies whether stateful operators are allowed to emit their results
@@ -338,7 +353,7 @@ public class InMemExecutor implements Executor {
 
   @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
-    // TODO accumulators
+    this.accumulatorFactory = Objects.requireNonNull(factory);
   }
 
   private Executor.Result execute(Flow flow) {
@@ -355,7 +370,7 @@ public class InMemExecutor implements Executor {
     }
 
     for (ExecUnit unit : units) {
-      ExecutionContext context = new ExecutionContext();
+      ExecutionContext context = new ExecutionContext(flow.getSettings());
 
       execUnit(unit, context);
     
@@ -570,7 +585,7 @@ public class InMemExecutor implements Executor {
               item.setTimestamp(eventTimeFn.extractTimestamp(item.getElement()));
             }
             WindowedElementCollector outC = new WindowedElementCollector(
-                collector, item::getTimestamp);
+                collector, item::getTimestamp, accumulatorFactory, context.getSettings());
             if (item.isElement()) {
               // transform
               outC.setWindow(item.getWindow());
@@ -661,6 +676,8 @@ public class InMemExecutor implements Executor {
                   : new WatermarkTriggerScheduler(watermarkDuration)),
           watermarkEmitStrategySupplier.get(),
           storageProvider,
+          accumulatorFactory,
+          context.getSettings(),
           allowEarlyEmitting));
     }
     return outputSuppliers;
