@@ -101,9 +101,12 @@ message Type {
     // (Optional) Special type (if SPECIAL)
     Special special = 8;
 
-    // (Optional) Key for external struct types. Resolution of external types
-    // is done via a type registry. The main purpose of external serialization
-    // is preservation of methods.
+    // (Optional) Key for external types.
+    // External types are types that are not directly serialized using
+    // the types above, but rather indirectly serialized.  The wire format
+    // holds a lookup key into a registry to reify the types in a worker from a
+    // registry. The main usage of external serialization is to preserve
+    // methods attached to types.
     string external_key = 9;
 }
 
@@ -154,7 +157,7 @@ message CustomCoder {
 // node information, because runners manipulate the graph structure.
 message MultiEdge {
     Fn dofn = 1;
-    // TODO: scope, maybe opcode?
+    // TODO: maybe opcode, maybe scope?
 
     message Inbound {
         enum InputKind {
