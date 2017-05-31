@@ -80,8 +80,6 @@ If you do not already have a personal GitHub account, sign up [here](https://git
 #### Fork the repository on GitHub
 Go to the [Beam GitHub mirror](https://github.com/apache/beam/) and fork the repository to your own private account. This will be your private workspace for staging changes.
 
-We recommend enabling Travis-CI continuous integration coverage on your private fork in order to easily test your changes before proposing a pull request. Go to [Travis-CI](https://travis-ci.org), log in with your GitHub account, and enable coverage for your repository.
-
 #### Clone the repository locally
 You are now ready to create the development environment on your local machine. Feel free to repeat these steps on all machines that you want to use for development.
 
@@ -97,6 +95,10 @@ Add your forked repository as an additional Git remote, where you’ll push your
 	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 
 You are now ready to start developing!
+
+#### [Python SDK Only] Set up a virtual environemt
+
+We recommend setting up a virtual envioment for developing Python SDK. Please see instructions available in [Quickstart (Python)]({{ site.baseurl }}/get-started/quickstart-py/) for setting up a virtual environment.
 
 #### [Optional] IDE Setup
 
@@ -231,9 +233,30 @@ Then you can push your local, committed changes to your (forked) repository on G
 ### Testing
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
 
-For contributions to the Java code, run unit tests locally via Maven. Alternatively, you can use Travis-CI.
+#### Java SDK
+
+For contributions to the Java code, run unit tests locally via Maven.
 
     $ mvn clean verify
+
+#### Python SDK
+
+For contributions to the Python code, you can use command given below to run unit tests locally. If you update any of the [cythonized](http://cython.org) files in Python SDK, you must install "cython" package before running following command to properly test your code. We recommend setting up a virtual environment before testing your code.
+
+    $ python setup.py test
+
+You can use following command to run a single test method.
+
+    $ python setup.py test -s <module>.<test class>.<test method>
+
+To Check for lint errors locally, install "tox" package and run following command.
+
+    $ pip install tox
+    $ tox -e lint
+
+Beam supports running Python SDK tests using Maven. For this, navigate to root directory of your Apache Beam clone and execute following command. Currently this cannot be run from a virtual environment.
+
+    $ mvn clean verify -pl sdks/python
 
 ## Review
 Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.
@@ -260,7 +283,7 @@ When choosing a reviewer, think about who is the expert on the relevant code, wh
 ### Code Review and Revision
 During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the reviewer. When you make a revision, always push it in a new commit.
 
-Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins and Travis-CI. Please make sure those tests pass; the contribution cannot be merged otherwise.
+Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins. Please make sure those tests pass; the contribution cannot be merged otherwise.
 
 ### LGTM
 Once the reviewer is happy with the change, they’ll respond with an LGTM (“*looks good to me!*”). At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.
@@ -317,7 +340,7 @@ If you are merging a larger contribution, please make sure that the contributor 
 For smaller contributions, however, this is not required. In this case, we rely on [clause five](http://www.apache.org/licenses/LICENSE-2.0#contributions) of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions.
 
 ### Tests
-Before merging, please make sure both Travis-CI and Jenkins tests pass, as visible in the GitHub pull request. Do not merge the pull request otherwise.
+Before merging, please make sure that Jenkins tests pass, as visible in the GitHub pull request. Do not merge the pull request otherwise.
 
 ### Finishing touches
 At some point in the review process, you should take the pull request over and complete any outstanding work that is either minor, stylistic, or otherwise outside the expertise of the contributor.
