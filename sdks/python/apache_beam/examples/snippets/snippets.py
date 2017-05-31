@@ -528,7 +528,7 @@ def examples_wordcount_templated(renames):
   p = beam.Pipeline(options=pipeline_options)
 
   wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
-  lines = p | 'read' >> ReadFromText(wordcount_options.input)
+  lines = p | 'Read' >> ReadFromText(wordcount_options.input)
   # [END example_wordcount_templated]
 
   (
