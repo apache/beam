@@ -146,7 +146,9 @@ public class FlinkDoFnFunction<InputT, OutputT>
     @Override
     @SuppressWarnings("unchecked")
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      collector.collect(output);
+      collector.collect(
+          WindowedValue.of(new RawUnionValue(0 /* single output */, output.getValue()),
+          output.getTimestamp(), output.getWindows(), output.getPane()));
     }
   }
 
