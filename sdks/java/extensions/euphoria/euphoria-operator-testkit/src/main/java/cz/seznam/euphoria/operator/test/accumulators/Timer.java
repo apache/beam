@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 final class Timer implements
-    cz.seznam.euphoria.core.client.accumulators.Timer, GetSnapshot<Map<Duration, Long>> {
+    cz.seznam.euphoria.core.client.accumulators.Timer, Snapshotable<Map<Duration, Long>> {
 
   private final Histogram hist = new Histogram();
 

@@ -70,7 +70,7 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
     accs.clear();
   }
 
-  <V, T extends GetSnapshot<V>> Map<String, V> getSnapshots(Class<T> type) {
+  <V, T extends Snapshotable<V>> Map<String, V> getSnapshots(Class<T> type) {
     HashMap<String, V> m = new HashMap<>();
     accs.forEach((name, accumulator) -> {
       if (type.isAssignableFrom(accumulator.getClass())) {
