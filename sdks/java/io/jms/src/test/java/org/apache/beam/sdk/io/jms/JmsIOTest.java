@@ -21,8 +21,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -47,14 +45,12 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -248,11 +244,17 @@ public class JmsIOTest {
 
   @Test
   public void testCheckpointMark() throws Exception {
+    // we are using no prefetch here
+    // prefetch is an ActiveMQ feature: to make efficient use of network resources the broker
+    // utilizes a 'push' model to dispatch messages to consumers. However, in the case of our
+    // test, it means that we can have some latency between the receiveNoWait() method used by
+    // the consumer and the prefetch buffer populated by the broker. Using a prefetch to 0 means
+    // that the consumer will poll for message, which is exactly what we want for the test.
     Connection connection = connectionFactoryWithoutPrefetch.createConnection(USERNAME, PASSWORD);
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10; i++) {
       producer.send(session.createTextMessage("test " + i));
     }
     producer.close();
@@ -270,34 +272,33 @@ public class JmsIOTest {
     // start the reader and move to the first record
     assertTrue(reader.start());
 
-    // consume 249 messages (as start already consumed the first message)
-    for (int i = 0; i < 249; i++) {
+    // consume 3 messages (NB: start already consumed the first message)
+    for (int i = 0; i < 3; i++) {
       assertTrue(reader.advance());
     }
 
     // the messages are still pending in the queue (no ACK yet)
-    assertEquals(1000, count(QUEUE));
+    assertEquals(10, count(QUEUE));
 
     // we finalize the checkpoint
     reader.getCheckpointMark().finalizeCheckpoint();
 
     // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
-    assertEquals(750, count(QUEUE));
+    assertEquals(6, count(QUEUE));
 
-    // we read the 750 pending messages
-    for (int i = 0; i < 750; i++) {
+    // we read the 6 pending messages
+    for (int i = 0; i < 6; i++) {
       assertTrue(reader.advance());
     }
 
-    // still 750 pending messages as we didn't finalize the checkpoint
-    assertEquals(750, count(QUEUE));
+    // still 6 pending messages as we didn't finalize the checkpoint
+    assertEquals(6, count(QUEUE));
 
     // we finalize the checkpoint: no more message in the queue
     reader.getCheckpointMark().finalizeCheckpoint();
 
     assertEquals(0, count(QUEUE));
   }
-
 
   private int count(String queue) throws Exception {
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
