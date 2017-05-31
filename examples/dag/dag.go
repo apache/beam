@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"reflect"
+	"regexp"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"log"
-	"os"
-	"regexp"
-	"reflect"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
@@ -28,7 +29,7 @@ func init() {
 
 // average computes the average length of a bundle of strings.
 type average struct {
-	size int
+	size  int
 	count int
 }
 
@@ -37,7 +38,7 @@ func (a *average) StartBundle() {
 	a.count = 0
 }
 
-func (a *average) ProcessElement(w string, emit func (int) /* emit needed by signature */) {
+func (a *average) ProcessElement(w string, emit func(int) /* emit needed by signature */) {
 	a.count++
 	a.size += len(w)
 }

@@ -220,7 +220,7 @@ func New(dofn interface{}) (*UserFn, error) {
 			kind = FnEventTime
 		case t == reflectx.Type:
 			kind = FnType
-		case typex.IsConcrete(t), typex.IsUniversal(t):
+		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = FnValue
 		case IsEmit(t):
 			kind = FnEmit
@@ -243,7 +243,7 @@ func New(dofn interface{}) (*UserFn, error) {
 			kind = RetError
 		case t == typex.EventTimeType:
 			kind = RetEventTime
-		case typex.IsConcrete(t), typex.IsUniversal(t):
+		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = RetValue
 		default:
 			return nil, fmt.Errorf("bad return type for %s: %v", name, t)

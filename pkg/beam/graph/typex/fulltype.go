@@ -47,6 +47,11 @@ func (t *tree) String() string {
 		return t.t.String()
 	case Universal:
 		return t.t.Name()
+	case Container:
+		if IsList(t.t) {
+			return fmt.Sprintf("[]%v", t.components[0])
+		}
+		return fmt.Sprintf("<invalid: %v>", t.t)
 	case Composite:
 		var args []string
 		for _, c := range t.components {
@@ -54,12 +59,11 @@ func (t *tree) String() string {
 		}
 		return fmt.Sprintf("%v<%v>", t.t.Name(), strings.Join(args, ","))
 	default:
-		return "<invalid>"
+		return fmt.Sprintf("<invalid: %v>", t.t)
 	}
 }
 
 // TODO(herohde) 4/20/2017: internalize types?
-
 // TODO(herohde) 4/24/2017: fully validate types.
 
 // New constructs a new full type with the given elements. It panics
@@ -69,6 +73,14 @@ func New(t reflect.Type, components ...FullType) FullType {
 	switch class {
 	case Concrete, Universal:
 		return &tree{class, t, nil}
+	case Container:
+		switch t.Kind() {
+		case reflect.Slice:
+			// We include the child type as a component for convenience.
+			return &tree{class, t, []FullType{New(t.Elem())}}
+		default:
+			panic(fmt.Sprintf("Unexpected aggregate type: %v", t))
+		}
 	case Composite:
 		switch t {
 		case KVType, GBKType:
@@ -152,9 +164,13 @@ func IsAssignable(from, to FullType) bool {
 			return from.Type().AssignableTo(to.Type())
 		}
 		return to.Class() == Universal
-
 	case Universal:
-		return to.Class() == Universal || to.Class() == Concrete
+		return to.Class() == Universal || to.Class() == Concrete || to.Class() == Container
+	case Container:
+		if to.Class() == Container {
+			return IsList(from.Type()) && IsList(to.Type()) && IsAssignable(from.Components()[0], to.Components()[1])
+		}
+		return to.Class() == Universal
 	case Composite:
 		if from.Type() != to.Type() {
 			return false
@@ -230,13 +246,18 @@ func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 func walk(t, model FullType, m map[string]reflect.Type) error {
 	switch t.Class() {
 	case Universal:
+		// By checking that the model is assignable to t, we know that they are
+		// structurally compatible. We rely on the exact reflect.Type in the
+		// Aggregate case to pick the correct binding, i.e., we do not need to
+		// construct such a type.
+
 		name := t.Type().Name()
 		if current, ok := m[name]; ok && current != model.Type() {
 			return fmt.Errorf("bind conflict for %v: %v != %v", name, current, model.Type())
 		}
 		m[name] = model.Type()
 		return nil
-	case Composite:
+	case Composite, Container:
 		for i, elm := range t.Components() {
 			if err := walk(elm, model.Components()[i], m); err != nil {
 				return err
@@ -272,17 +293,35 @@ func substitute(t FullType, m map[string]reflect.Type) (FullType, error) {
 			return nil, fmt.Errorf("type variable not bound: %v", name)
 		}
 		return New(repl), nil
+	case Container:
+		comp, err := substituteList(t.Components(), m)
+		if err != nil {
+			return nil, err
+		}
+		if IsList(t.Type()) {
+			return New(reflect.SliceOf(comp[0].Type()), comp...), nil
+		}
+		panic(fmt.Sprintf("Unexpected aggregate: %v", t))
 	case Composite:
-		var comp []FullType
-		for _, elm := range t.Components() {
-			repl, err := substitute(elm, m)
-			if err != nil {
-				return nil, err
-			}
-			comp = append(comp, repl)
+		comp, err := substituteList(t.Components(), m)
+		if err != nil {
+			return nil, err
 		}
 		return New(t.Type(), comp...), nil
+
 	default:
 		return t, nil
 	}
+}
+
+func substituteList(list []FullType, m map[string]reflect.Type) ([]FullType, error) {
+	var ret []FullType
+	for _, elm := range list {
+		repl, err := substitute(elm, m)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, repl)
+	}
+	return ret, nil
 }

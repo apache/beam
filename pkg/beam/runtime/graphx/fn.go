@@ -1,31 +1,30 @@
-package filter
+package graphx
 
 import (
 	"encoding/json"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	"reflect"
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf(DataFnValue{}))
+	Register(reflect.TypeOf((*DataFnValue)(nil)).Elem())
 }
 
 // DataFnValue is a serialization-wrapper of a function reference. Given that the
 // receiving end is only isomorphic and has no methods unless we register it. One
 // benefit is that custom json serialization is possible.
 type DataFnValue struct {
-	Fn interface{}
+	Fn reflect.Value
 }
 
 func (f DataFnValue) MarshalJSON() ([]byte, error) {
-	u, err := userfn.New(f.Fn)
+	u, err := userfn.New(f.Fn.Interface())
 	if err != nil {
 		return nil, err
 	}
-	ref, err := graphx.EncodeUserFn(u)
+	ref, err := EncodeUserFn(u)
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +44,11 @@ func (f *DataFnValue) UnmarshalJSON(buf []byte) error {
 	if err := protox.DecodeBase64(s, &ref); err != nil {
 		return err
 	}
-	fn, err := graphx.DecodeUserFn(&ref)
+	fn, err := DecodeUserFn(&ref)
 	if err != nil {
 		return err
 	}
 
-	f.Fn = fn.Fn.Interface()
+	f.Fn = fn.Fn
 	return nil
 }

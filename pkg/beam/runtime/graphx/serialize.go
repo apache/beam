@@ -29,6 +29,9 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 		}
 		ret.Dofn = ref
 	}
+
+	// TODO(herohde) 5/30/2017: de/serialize CombineFn when Fn API supports it.
+
 	for _, in := range edge.Input {
 		kind := encodeInputKind(in.Kind)
 		t, err := encodeFullType(in.Type)
@@ -245,12 +248,16 @@ func sym2addr(name string) (uintptr, error) {
 
 func encodeFullType(t typex.FullType) (*v1.FullType, error) {
 	var components []*v1.FullType
-	for _, comp := range t.Components() {
-		c, err := encodeFullType(comp)
-		if err != nil {
-			return nil, err
+	if t.Class() == typex.Composite {
+		// Drop the Aggregate convenience component.
+
+		for _, comp := range t.Components() {
+			c, err := encodeFullType(comp)
+			if err != nil {
+				return nil, err
+			}
+			components = append(components, c)
 		}
-		components = append(components, c)
 	}
 
 	prim, err := encodeType(t.Type())

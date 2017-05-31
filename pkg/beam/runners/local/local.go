@@ -89,6 +89,28 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 				next[linkID{edge.ID(), 0}] = unit
 			}
 
+		case graph.Combine:
+			unit := &exec.Combine{UID: idgen.New(), Edge: edge}
+			units = append(units, unit)
+
+			if len(edge.Input) > 1 {
+				// If side inputs are present, we need to buffer them and delay
+				// the main processing until all side input are available.
+
+				w := &Wait{UID: idgen.New(), need: len(edge.Input) - 1, next: unit}
+				aux = append(aux, w)
+				next[linkID{edge.ID(), 0}] = w
+
+				for i := 1; i < len(edge.Input); i++ {
+					b := &Buffer{UID: idgen.New(), next: w.ID(), read: unit.ID(), notify: w.notify}
+					unit.Side = append(unit.Side, b)
+					aux = append(aux, b)
+					next[linkID{edge.ID(), i}] = b
+				}
+			} else {
+				next[linkID{edge.ID(), 0}] = unit
+			}
+
 		case graph.GBK:
 			unit := &GBK{UID: idgen.New(), Edge: edge}
 			units = append(units, unit)
@@ -179,6 +201,8 @@ func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
 		return unit.(*exec.Source).Edge, true
 	case *exec.ParDo:
 		return unit.(*exec.ParDo).Edge, true
+	case *exec.Combine:
+		return unit.(*exec.Combine).Edge, true
 	case *GBK:
 		return unit.(*GBK).Edge, true
 	case *exec.DataSource:
@@ -196,6 +220,8 @@ func setOut(unit exec.Unit, out []exec.Node) {
 		unit.(*exec.Source).Out = out
 	case *exec.ParDo:
 		unit.(*exec.ParDo).Out = out
+	case *exec.Combine:
+		unit.(*exec.Combine).Out = out
 	case *GBK:
 		if len(out) != 1 {
 			panic(fmt.Errorf("bad outputs for GBK: %v", out))

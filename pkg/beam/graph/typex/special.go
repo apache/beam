@@ -39,9 +39,9 @@ type Z interface{}
 // EventTime is a time.Time that Beam understands as attached to an element.
 type EventTime time.Time
 
-// KV, GBK, CoGBK, WindowedValue are composite generic types. They are not used
-// in user code signatures, but only in FullTypes. The fields below are for
-// documentation only.
+// KV, GBK, CoGBK, WindowedValue are composite generic types. They are not
+// used directly in user code signatures, but only in FullTypes. The fields below
+// are for documentation only.
 
 type KV struct {
 	Key   T
