@@ -17,7 +17,6 @@ package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -42,9 +41,8 @@ class FunctionCollectorAsync<T> extends FunctionCollector<T> {
   /** Used as an end-of-message token in the queue */
   private final static Object EOM = new Object();
 
-  public FunctionCollectorAsync(AccumulatorProvider.Factory accumulatorFactory,
-                                Settings settings) {
-    super(accumulatorFactory, settings);
+  public FunctionCollectorAsync(AccumulatorProvider accumulators) {
+    super(accumulators);
   }
 
   /**

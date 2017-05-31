@@ -18,7 +18,6 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.util.Settings;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -32,9 +31,8 @@ class FunctionCollectorMem<T> extends FunctionCollector<T> {
 
   private final List<T> elements = new ArrayList<>(1);
 
-  public FunctionCollectorMem(AccumulatorProvider.Factory accumulatorFactory,
-                              Settings settings) {
-    super(accumulatorFactory, settings);
+  public FunctionCollectorMem(AccumulatorProvider accumulators) {
+    super(accumulators);
   }
 
   @Override
