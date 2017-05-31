@@ -32,14 +32,13 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -80,6 +79,7 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
    * @param sideInputs        Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
+   * @param stateful          Stateful {@link DoFn}.
    */
   public MultiDoFnFunction(
       Accumulator<NamedAggregators> aggAccum,
@@ -90,7 +90,8 @@ public class MultiDoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      boolean stateful) {
     this.aggAccum = aggAccum;
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
@@ -100,8 +101,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    stateful = signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+    this.stateful = stateful;
   }
 
   @Override
@@ -110,8 +110,8 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
-    SparkProcessContext.NoOpStepContext context;
-    InMemoryTimerInternals timerInternals = null;
+    final InMemoryTimerInternals timerInternals;
+    final StepContext context;
     // Now only implements the StatefulParDo in Batch mode.
     if (stateful) {
       Object key = null;
@@ -122,8 +122,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       }
       final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
       timerInternals = new InMemoryTimerInternals();
-      final InMemoryTimerInternals finalTimerInternals = timerInternals;
-      context = new SparkProcessContext.NoOpStepContext(){
+      context = new StepContext(){
         @Override
         public StateInternals stateInternals() {
           return stateInternals;
@@ -131,10 +130,11 @@ public class MultiDoFnFunction<InputT, OutputT>
 
         @Override
         public TimerInternals timerInternals() {
-          return finalTimerInternals;
+          return timerInternals;
         }
       };
     } else {
+      timerInternals = null;
       context = new SparkProcessContext.NoOpStepContext();
     }
 

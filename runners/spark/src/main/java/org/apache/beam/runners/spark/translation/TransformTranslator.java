@@ -363,6 +363,12 @@ public final class TransformTranslator {
         Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
         Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
 
+        JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
+
+        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+        boolean stateful = signature.stateDeclarations().size() > 0
+            || signature.timerDeclarations().size() > 0;
+
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction = new MultiDoFnFunction<>(
             aggAccum,
             metricsAccum,
@@ -372,20 +378,17 @@ public final class TransformTranslator {
             transform.getMainOutputTag(),
             transform.getAdditionalOutputTags().getAll(),
             TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-            windowingStrategy);
+            windowingStrategy,
+            stateful);
 
-        JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
-
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-        if (signature.stateDeclarations().size() > 0
-            || signature.timerDeclarations().size() > 0) {
+        if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures
           // that it is also keyed
-          KvCoder inputCoder =
-              (KvCoder) context.getInput(transform).getCoder();
-
-          all = statefulParDoTransform(inputCoder, windowingStrategy.getWindowFn().windowCoder(),
-              (JavaRDD) inRDD, (MultiDoFnFunction) multiDoFnFunction);
+          all = statefulParDoTransform(
+              (KvCoder) context.getInput(transform).getCoder(),
+              windowingStrategy.getWindowFn().windowCoder(),
+              (JavaRDD) inRDD,
+              (MultiDoFnFunction) multiDoFnFunction);
         } else {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
         }
