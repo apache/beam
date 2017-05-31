@@ -276,11 +276,26 @@ class EvaluationContext {
    * callback will be executed regardless of whether values have been produced.
    */
   public void scheduleAfterOutputWouldBeProduced(
-      PValue value,
+      PCollection<?> value,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
+    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
+
+    fireAvailableCallbacks(producing);
+  }
+
+  /**
+   * Schedule a callback to be executed after output would be produced for the given window if there
+   * had been input.
+   */
+  public void scheduleAfterOutputWouldBeProduced(
+      PCollectionView<?> view,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);

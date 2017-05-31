@@ -60,6 +60,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -790,6 +791,18 @@ class WatermarkManager {
     }
   }
 
+  private TransformWatermarks getValueWatermark(PValue pvalue) {
+    if (pvalue instanceof PCollection) {
+      return getTransformWatermark(graph.getProducer((PCollection<?>) pvalue));
+    } else if (pvalue instanceof PCollectionView<?>) {
+      return getTransformWatermark(graph.getWriter((PCollectionView<?>) pvalue));
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown type of %s %s", PValue.class.getSimpleName(), pvalue.getClass()));
+    }
+  }
+
   private TransformWatermarks getTransformWatermark(AppliedPTransform<?, ?, ?> transform) {
     TransformWatermarks wms = transformToWatermarks.get(transform);
     if (wms == null) {
@@ -824,8 +837,7 @@ class WatermarkManager {
     }
     for (PValue pvalue : inputs.values()) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue))
-              .synchronizedProcessingOutputWatermark;
+          getValueWatermark(pvalue).synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
     }
     return inputWmsBuilder.build();
@@ -838,8 +850,7 @@ class WatermarkManager {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
     for (PValue pvalue : inputs.values()) {
-      Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue)).outputWatermark;
+      Watermark producerOutputWatermark = getValueWatermark(pvalue).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
     List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
