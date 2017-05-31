@@ -69,6 +69,7 @@ import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -656,9 +657,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+    long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+                   @Nullable List<String> insertIdList,
                    BackOff backoff, final Sleeper sleeper, InsertRetryPolicy retryPolicy,
-                   List<TableRow> failedInserts) throws IOException, InterruptedException {
+                   List<ValueInSingleWindow<TableRow>> failedInserts)
+        throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -672,10 +675,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
-      List<TableRow> rowsToPublish = rowList;
+      List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
       List<String> idsToPublish = insertIdList;
       while (true) {
-        List<TableRow> retryRows = new ArrayList<>();
+        List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
 
         int strideIndex = 0;
@@ -687,7 +690,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<Integer> strideIndices = new ArrayList<>();
 
         for (int i = 0; i < rowsToPublish.size(); ++i) {
-          TableRow row = rowsToPublish.get(i);
+          TableRow row = rowsToPublish.get(i).getValue();
           TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
           if (idsToPublish != null) {
             out.setInsertId(idsToPublish.get(i));
@@ -799,8 +802,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-        InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
+        TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+        @Nullable List<String> insertIdList,
+        InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
         throws IOException, InterruptedException {
       return insertAll(
           ref, rowList, insertIdList,

@@ -68,11 +68,14 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceIm
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -486,6 +489,11 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getContentType();
   }
 
+  private ValueInSingleWindow<TableRow> wrapTableRow(TableRow row) {
+    return ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
+        GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+  }
+
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} retries quota rate limited attempts.
    */
@@ -493,8 +501,8 @@ public class BigQueryServicesImplTest {
   public void testInsertRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = new ArrayList<>();
-    rows.add(new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapTableRow(new TableRow()));
 
     // First response is 403 rate limited, second response has valid payload.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
@@ -526,8 +534,9 @@ public class BigQueryServicesImplTest {
   public void testInsertRetrySelectRows() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = ImmutableList.of(
-        new TableRow().set("row", "a"), new TableRow().set("row", "b"));
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow().set("row", "a")),
+        wrapTableRow(new TableRow().set("row", "b")));
     List<String> insertIds = ImmutableList.of("a", "b");
 
     final TableDataInsertAllResponse bFailed = new TableDataInsertAllResponse()
@@ -558,7 +567,8 @@ public class BigQueryServicesImplTest {
   public void testInsertFailsGracefully() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = ImmutableList.of(new TableRow(), new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow()), wrapTableRow(new TableRow()));
 
     final TableDataInsertAllResponse row1Failed = new TableDataInsertAllResponse()
         .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L)));
@@ -609,8 +619,8 @@ public class BigQueryServicesImplTest {
   public void testInsertDoesNotRetry() throws Throwable {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = new ArrayList<>();
-    rows.add(new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapTableRow(new TableRow()));
 
     // First response is 403 not-rate-limited, second response has valid payload but should not
     // be invoked.
@@ -647,7 +657,8 @@ public class BigQueryServicesImplTest {
   public void testInsertRetryPolicy() throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = ImmutableList.of(new TableRow(), new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow()), wrapTableRow(new TableRow()));
 
     // First time row0 fails with a retryable error, and row1 fails with a persistent error.
     final TableDataInsertAllResponse firstFailure = new TableDataInsertAllResponse()
@@ -680,7 +691,7 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-    List<TableRow> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(ref, rows, null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
         InsertRetryPolicy.dontRetryPersistentErrors(), failedInserts);

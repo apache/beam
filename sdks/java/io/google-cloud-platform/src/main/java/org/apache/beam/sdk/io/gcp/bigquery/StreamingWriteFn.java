@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
  * Implementation of DoFn to perform streaming BigQuery write.
@@ -48,15 +49,13 @@ class StreamingWriteFn
 
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
-  private transient Map<String, List<TableRow>> tableRows;
+  private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
 
   /** The list of unique ids for each BigQuery table row. */
   private transient Map<String, List<String>> uniqueIdsForTableRows;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
-
-  private BoundedWindow window;
 
   StreamingWriteFn(BigQueryServices bqServices, InsertRetryPolicy retryPolicy,
                    TupleTag<TableRow> failedOutputTag) {
@@ -75,22 +74,23 @@ class StreamingWriteFn
   /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
   @ProcessElement
   public void processElement(ProcessContext context, BoundedWindow window) {
-    this.window = window;
     String tableSpec = context.element().getKey().getKey();
-    List<TableRow> rows = BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
+    List<ValueInSingleWindow<TableRow>> rows = BigQueryHelpers.getOrCreateMapListValue(tableRows,
+        tableSpec);
     List<String> uniqueIds = BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows,
         tableSpec);
 
-    rows.add(context.element().getValue().tableRow);
+    rows.add(ValueInSingleWindow.of(context.element().getValue().tableRow, context.timestamp(),
+        window, context.pane()));
     uniqueIds.add(context.element().getValue().uniqueId);
   }
 
   /** Writes the accumulated rows into BigQuery with streaming API. */
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
-    List<TableRow> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-    for (Map.Entry<String, List<TableRow>> entry : tableRows.entrySet()) {
+    for (Map.Entry<String, List<ValueInSingleWindow<TableRow>>> entry : tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
       flushRows(tableReference, entry.getValue(),
           uniqueIdsForTableRows.get(entry.getKey()), options, failedInserts);
@@ -98,8 +98,8 @@ class StreamingWriteFn
     tableRows.clear();
     uniqueIdsForTableRows.clear();
 
-    for (TableRow row : failedInserts) {
-      context.output(failedOutputTag, row, window.maxTimestamp(), window);
+    for (ValueInSingleWindow<TableRow> row : failedInserts) {
+      context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
   }
 
@@ -111,9 +111,11 @@ class StreamingWriteFn
   /**
    * Writes the accumulated rows into BigQuery with streaming API.
    */
-  private void flushRows(TableReference tableReference, List<TableRow> tableRows,
+  private void flushRows(TableReference tableReference,
+                         List<ValueInSingleWindow<TableRow>> tableRows,
                          List<String> uniqueIds, BigQueryOptions options,
-                         List<TableRow> failedInserts)  throws InterruptedException {
+                         List<ValueInSingleWindow<TableRow>> failedInserts)
+      throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
         long totalBytes = bqServices.getDatasetService(options).insertAll(

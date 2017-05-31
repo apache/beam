@@ -39,6 +39,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 class FakeDatasetService implements DatasetService, Serializable {
@@ -169,10 +172,22 @@ class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  public long insertAll(TableReference ref, List<TableRow> rowList,
+                        @Nullable List<String> insertIdList)
+      throws IOException, InterruptedException {
+    List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
+    for (TableRow row : rowList) {
+      windowedRows.add(ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
+          GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
+  }
+
   @Override
   public long insertAll(
-      TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-      InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
+      TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+      @Nullable List<String> insertIdList,
+      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (BigQueryIOTest.tables) {
@@ -189,7 +204,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableContainer tableContainer = getTableContainer(
           ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
       for (int i = 0; i < rowList.size(); ++i) {
-        TableRow row = rowList.get(i);
+        TableRow row = rowList.get(i).getValue();
         List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);
         boolean shouldInsert = true;
         if (allErrors != null) {
@@ -202,7 +217,7 @@ class FakeDatasetService implements DatasetService, Serializable {
         if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
         } else {
-          failedInserts.add(row);
+          failedInserts.add(rowList.get(i));
         }
       }
       return dataSize;
