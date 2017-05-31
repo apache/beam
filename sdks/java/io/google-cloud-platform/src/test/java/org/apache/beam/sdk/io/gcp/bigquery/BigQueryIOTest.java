@@ -464,12 +464,12 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteDynamicDestinationsBatch() throws Exception {
     writeDynamicDestinations(false);
   }
-
+  
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
     writeDynamicDestinations(true);
   }
-
+  
   public void writeDynamicDestinations(boolean streaming) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");
@@ -623,6 +623,7 @@ public class BigQueryIOTest implements Serializable {
     .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
         .withTableDescription(null)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+	.withTimePartitioning(null)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
                 new TableFieldSchema().setName("name").setType("STRING"),

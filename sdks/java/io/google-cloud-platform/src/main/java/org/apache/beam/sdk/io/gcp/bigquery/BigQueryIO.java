@@ -31,6 +31,7 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
@@ -665,6 +666,7 @@ public class BigQueryIO {
     @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
     @Nullable abstract PCollectionView<Map<String, String>> getSchemaFromView();
     @Nullable abstract ValueProvider<String> getJsonSchema();
+    @Nullable abstract TimePartitioning getTimePartitioning();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
@@ -686,6 +688,7 @@ public class BigQueryIO {
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
       abstract Builder<T> setSchemaFromView(PCollectionView<Map<String, String>> view);
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T> setTimePartitioning(TimePartitioning partition);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
       abstract Builder<T> setTableDescription(String tableDescription);
@@ -846,6 +849,13 @@ public class BigQueryIO {
       return toBuilder().setSchemaFromView(view).build();
     }
 
+    /**
+     * Allows newly created tables to include a {@link TimePartitioning} class.
+     */
+    public Write<T> withTimePartitioning(TimePartitioning partition) {
+      return toBuilder().setTimePartitioning(partition).build();
+    }
+
     /** Specifies whether the table should be created if it does not exist. */
     public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
@@ -981,7 +991,7 @@ public class BigQueryIO {
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
         StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations);
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, getTimePartitioning());
         streamingInserts.setTestServices(getBigQueryServices());
         return rowsWithDestination.apply(streamingInserts);
       } else {

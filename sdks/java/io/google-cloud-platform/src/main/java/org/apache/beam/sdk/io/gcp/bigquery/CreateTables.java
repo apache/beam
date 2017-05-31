@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -48,6 +49,7 @@ public class CreateTables<DestinationT>
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final TimePartitioning partition;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -59,21 +61,31 @@ public class CreateTables<DestinationT>
 
   public CreateTables(
       CreateDisposition createDisposition,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      TimePartitioning partition) {
+    this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations, partition);
+  }
+  
+  private CreateTables(
+      CreateDisposition createDisposition,
+      BigQueryServices bqServices,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations);
+    this(createDisposition, bqServices, dynamicDestinations, null);
   }
 
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      TimePartitioning partition) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.dynamicDestinations = dynamicDestinations;
+    this.partition = partition;
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
+      return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations, partition);
   }
 
   @Override
@@ -128,6 +140,7 @@ public class CreateTables<DestinationT>
                 new Table()
                     .setTableReference(tableReference)
                     .setSchema(tableSchema)
+		    .setTimePartitioning(partition)
                     .setDescription(tableDescription));
           }
           createdTables.add(tableSpec);
