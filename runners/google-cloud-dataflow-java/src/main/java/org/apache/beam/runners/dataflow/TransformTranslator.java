@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -114,18 +115,18 @@ interface TransformTranslator<TransformT extends PTransform> {
     void addInput(String name, List<? extends Map<String, Object>> elements);
 
     /**
-     * Adds an output to this Dataflow step, producing the specified output {@code PValue},
+     * Adds a primitive output to this Dataflow step, producing the specified output {@code PValue},
      * including its {@code Coder} if a {@code TypedPValue}. If the {@code PValue} is a {@code
      * PCollection}, wraps its coder inside a {@code WindowedValueCoder}. Returns a pipeline level
      * unique id.
      */
-    long addOutput(PValue value);
+    long addOutput(PCollection<?> value);
 
     /**
      * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
      * special treatment for its output encoding. Returns a pipeline level unique id.
      */
-    long addCollectionToSingletonOutput(PValue inputValue, PValue outputValue);
+    long addCollectionToSingletonOutput(PCollection<?> inputValue, PCollectionView<?> outputValue);
   }
 }

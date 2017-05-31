@@ -438,12 +438,9 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
-      producers.put(value, producer.toAppliedPTransform(getPipeline()));
       LOG.debug("Checking translation of {}", value);
-      if (!producer.isCompositeNode()) {
-        // Primitive transforms are the only ones assigned step names.
-        asOutputReference(value, producer.toAppliedPTransform(getPipeline()));
-      }
+      // Primitive transforms are the only ones assigned step names.
+      asOutputReference(value, producer.toAppliedPTransform(getPipeline()));
     }
 
     @Override
@@ -607,26 +604,19 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public long addOutput(PValue value) {
-      Coder<?> coder;
-      if (value instanceof PCollection) {
-        coder = ((PCollection<?>) value).getCoder();
-        if (value instanceof PCollection) {
-          // Wrap the PCollection element Coder inside a WindowedValueCoder.
-          coder = WindowedValue.getFullCoder(
-              coder,
-              ((PCollection<?>) value).getWindowingStrategy().getWindowFn().windowCoder());
-        }
-      } else {
-        // No output coder to encode.
-        coder = null;
-      }
+    public long addOutput(PCollection<?> value) {
+      translator.producers.put(value, translator.currentTransform);
+      // Wrap the PCollection element Coder inside a WindowedValueCoder.
+      Coder<?> coder =
+          WindowedValue.getFullCoder(
+              value.getCoder(), value.getWindowingStrategy().getWindowFn().windowCoder());
       return addOutput(value, coder);
     }
 
     @Override
     public long addCollectionToSingletonOutput(
-        PValue inputValue, PValue outputValue) {
+        PCollection<?> inputValue, PCollectionView<?> outputValue) {
+      translator.producers.put(outputValue, translator.currentTransform);
       Coder<?> inputValueCoder =
           checkNotNull(translator.outputCoders.get(inputValue));
       // The inputValueCoder for the input PCollection should be some
