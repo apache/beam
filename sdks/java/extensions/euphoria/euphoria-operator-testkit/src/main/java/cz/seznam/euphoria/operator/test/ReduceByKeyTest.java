@@ -18,6 +18,7 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -26,6 +27,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
+import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
@@ -43,6 +45,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Joiner;
@@ -752,6 +755,58 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 Pair.of(new Word("euphoria"), 1L), Pair.of(new Word("spark"), 1L),  // second window
                 Pair.of(new Word("flink"), 1L)),
                 data);
+      }
+    });
+  }
+
+  @Test
+  public void testAccumulators() {
+    execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
+      @Override
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(asList(1, 2, 3, 4, 5)).build();
+      }
+
+      @Override
+      protected Dataset<Pair<Integer, Integer>>
+      getOutput(Dataset<Integer> input) {
+        return ReduceByKey.of(input)
+            .keyBy(e -> e % 2)
+            .valueBy(e -> e)
+            .reduceBy((ReduceFunctor<Integer, Integer>) (elems, collector) -> {
+              int sum = 0;
+              for (Integer elem : elems) {
+                sum += elem;
+                if (elem % 2 == 0) {
+                  collector.getCounter("evens").increment();
+                } else {
+                  collector.getCounter("odds").increment();
+                }
+              }
+              collector.collect(sum);
+            })
+            .windowBy(GlobalWindowing.get())
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public void validate(Partitions<Pair<Integer, Integer>> partitions) {
+        assertEquals(
+            Sets.newHashSet(Pair.of(1, 9), Pair.of(0, 6)),
+            new HashSet<>(partitions.get(0)));
+      }
+
+      @Override
+      public void validateAccumulators(SnapshotProvider snapshots) {
+        Map<String, Long> counters = snapshots.getCounterSnapshots();
+        assertEquals(Long.valueOf(2), counters.get("evens"));
+        assertEquals(Long.valueOf(3), counters.get("odds"));
       }
     });
   }
