@@ -152,6 +152,7 @@
           <li><a href="#obtain-a-github-account" id="markdown-toc-obtain-a-github-account">Obtain a GitHub account</a></li>
           <li><a href="#fork-the-repository-on-github" id="markdown-toc-fork-the-repository-on-github">Fork the repository on GitHub</a></li>
           <li><a href="#clone-the-repository-locally" id="markdown-toc-clone-the-repository-locally">Clone the repository locally</a></li>
+          <li><a href="#python-sdk-only-set-up-a-virtual-environemt" id="markdown-toc-python-sdk-only-set-up-a-virtual-environemt">[Python SDK Only] Set up a virtual environemt</a></li>
           <li><a href="#optional-ide-setup" id="markdown-toc-optional-ide-setup">[Optional] IDE Setup</a>            <ul>
               <li><a href="#intellij" id="markdown-toc-intellij">IntelliJ</a>                <ul>
                   <li><a href="#enable-annotation-processing" id="markdown-toc-enable-annotation-processing">Enable Annotation Processing</a></li>
@@ -171,7 +172,11 @@
       </li>
       <li><a href="#create-a-branch-in-your-fork" id="markdown-toc-create-a-branch-in-your-fork">Create a branch in your fork</a></li>
       <li><a href="#syncing-and-pushing-your-branch" id="markdown-toc-syncing-and-pushing-your-branch">Syncing and pushing your branch</a></li>
-      <li><a href="#testing" id="markdown-toc-testing">Testing</a></li>
+      <li><a href="#testing" id="markdown-toc-testing">Testing</a>        <ul>
+          <li><a href="#java-sdk" id="markdown-toc-java-sdk">Java SDK</a></li>
+          <li><a href="#python-sdk" id="markdown-toc-python-sdk">Python SDK</a></li>
+        </ul>
+      </li>
     </ul>
   </li>
   <li><a href="#review" id="markdown-toc-review">Review</a>    <ul>
@@ -280,8 +285,6 @@
 <h4 id="fork-the-repository-on-github">Fork the repository on GitHub</h4>
 <p>Go to the <a href="https://github.com/apache/beam/">Beam GitHub mirror</a> and fork the repository to your own private account. This will be your private workspace for staging changes.</p>
 
-<p>We recommend enabling Travis-CI continuous integration coverage on your private fork in order to easily test your changes before proposing a pull request. Go to <a href="https://travis-ci.org">Travis-CI</a>, log in with your GitHub account, and enable coverage for your repository.</p>
-
 <h4 id="clone-the-repository-locally">Clone the repository locally</h4>
 <p>You are now ready to create the development environment on your local machine. Feel free to repeat these steps on all machines that you want to use for development.</p>
 
@@ -301,6 +304,10 @@ $ cd beam
 </div>
 
 <p>You are now ready to start developing!</p>
+
+<h4 id="python-sdk-only-set-up-a-virtual-environemt">[Python SDK Only] Set up a virtual environemt</h4>
+
+<p>We recommend setting up a virtual envioment for developing Python SDK. Please see instructions available in <a href="/get-started/quickstart-py/">Quickstart (Python)</a> for setting up a virtual environment.</p>
 
 <h4 id="optional-ide-setup">[Optional] IDE Setup</h4>
 
@@ -475,9 +482,38 @@ $ git checkout -b &lt;my-branch&gt; origin/master
 <h3 id="testing">Testing</h3>
 <p>All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.</p>
 
-<p>For contributions to the Java code, run unit tests locally via Maven. Alternatively, you can use Travis-CI.</p>
+<h4 id="java-sdk">Java SDK</h4>
+
+<p>For contributions to the Java code, run unit tests locally via Maven.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>$ mvn clean verify
+</code></pre>
+</div>
+
+<h4 id="python-sdk">Python SDK</h4>
+
+<p>For contributions to the Python code, you can use command given below to run unit tests locally. If you update any of the <a href="http://cython.org">cythonized</a> files in Python SDK, you must install “cython” package before running following command to properly test your code. We recommend setting up a virtual environment before testing your code.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py test
+</code></pre>
+</div>
+
+<p>You can use following command to run a single test method.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py test -s &lt;module&gt;.&lt;test class&gt;.&lt;test method&gt;
+</code></pre>
+</div>
+
+<p>To Check for lint errors locally, install “tox” package and run following command.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ pip install tox
+$ tox -e lint
+</code></pre>
+</div>
+
+<p>Beam supports running Python SDK tests using Maven. For this, navigate to root directory of your Apache Beam clone and execute following command. Currently this cannot be run from a virtual environment.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn clean verify -pl sdks/python
 </code></pre>
 </div>
 
@@ -512,7 +548,7 @@ $ git checkout -b &lt;my-branch&gt; origin/master
 <h3 id="code-review-and-revision">Code Review and Revision</h3>
 <p>During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the reviewer. When you make a revision, always push it in a new commit.</p>
 
-<p>Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins and Travis-CI. Please make sure those tests pass; the contribution cannot be merged otherwise.</p>
+<p>Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins. Please make sure those tests pass; the contribution cannot be merged otherwise.</p>
 
 <h3 id="lgtm">LGTM</h3>
 <p>Once the reviewer is happy with the change, they’ll respond with an LGTM (“<em>looks good to me!</em>”). At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.</p>
@@ -579,7 +615,7 @@ github	https://github.com/apache/beam.git (push)
 <p>For smaller contributions, however, this is not required. In this case, we rely on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions.</p>
 
 <h3 id="tests">Tests</h3>
-<p>Before merging, please make sure both Travis-CI and Jenkins tests pass, as visible in the GitHub pull request. Do not merge the pull request otherwise.</p>
+<p>Before merging, please make sure that Jenkins tests pass, as visible in the GitHub pull request. Do not merge the pull request otherwise.</p>
 
 <h3 id="finishing-touches">Finishing touches</h3>
 <p>At some point in the review process, you should take the pull request over and complete any outstanding work that is either minor, stylistic, or otherwise outside the expertise of the contributor.</p>
