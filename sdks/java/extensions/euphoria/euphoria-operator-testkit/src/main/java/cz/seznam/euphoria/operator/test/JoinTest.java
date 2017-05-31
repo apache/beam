@@ -17,6 +17,7 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -30,6 +31,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
@@ -38,6 +40,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -299,6 +302,74 @@ public class JoinTest extends AbstractOperatorTest {
                 Triple.of(expectedWindow, "fa", "ha"),
                 Triple.of(expectedWindow, "fa", "ho")),
             partitions.get(0));
+      }
+    });
+  }
+
+  @Test
+  public void testJoinAccumulators() {
+    execute(new JoinTestCase<
+        Pair<String, Long>,
+        Pair<String, Long>,
+        Triple<TimeInterval, String, String>>() {
+
+      @Override
+      protected Partitions<Pair<String, Long>> getLeftInput() {
+        return Partitions.add(Pair.of("fi", 1L), Pair.of("fa", 3L)).build();
+      }
+
+      @Override
+      protected Partitions<Pair<String, Long>> getRightInput() {
+        return Partitions.add(Pair.of("ha", 1L), Pair.of("ho", 4L)).build();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      protected Dataset<Triple<TimeInterval, String, String>>
+      getOutput(Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+        left = AssignEventTime.of(left).using(Pair::getSecond).output();
+        right = AssignEventTime.of(right).using(Pair::getSecond).output();
+        Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
+            Join.of(left, right)
+                .by(p -> "", p -> "")
+                .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) -> {
+                  TimeInterval window = (TimeInterval) c.getWindow();
+                  c.getCounter("cntr").increment(10);
+                  c.getHistogram("hist-" + l.getFirst().charAt(1)).add(2345, 8);
+                  c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
+                })
+                .windowBy(Time.of(Duration.ofMillis(3)))
+                .setNumPartitions(1)
+                .output();
+        return MapElements.of(joined).using(Pair::getSecond).output();
+      }
+
+      @Override
+      public void validate(Partitions<Triple<TimeInterval, String, String>> partitions) {
+        assertUnorderedEquals(
+            Arrays.asList(
+                Triple.of(new TimeInterval(0, 3), "fi", "ha"),
+                Triple.of(new TimeInterval(3, 6), "fa", "ho")),
+            partitions.get(0));
+      }
+
+      @Override
+      public void validateAccumulators(SnapshotProvider snapshots) {
+        Map<String, Long> counters = snapshots.getCounterSnapshots();
+        assertEquals(Long.valueOf(20L), counters.get("cntr"));
+
+        Map<String, Map<Long, Long>> histograms = snapshots.getHistogramSnapshots();
+        Map<Long, Long> hist = histograms.get("hist-i");
+        assertEquals(1, hist.size());
+        assertEquals(Long.valueOf(8), hist.get(2345L));
+
+        hist = histograms.get("hist-a");
+        assertEquals(1, hist.size());
+        assertEquals(Long.valueOf(8), hist.get(2345L));
       }
     });
   }

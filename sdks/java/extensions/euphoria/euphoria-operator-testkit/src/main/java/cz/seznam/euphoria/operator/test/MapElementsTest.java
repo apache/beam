@@ -17,13 +17,16 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctionEnv;
 import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -72,4 +75,48 @@ public class MapElementsTest extends AbstractOperatorTest {
     });
   }
 
+  @Test
+  public void testAccumulators() {
+    execute(new AbstractTestCase<Integer, Integer>() {
+
+      @Override
+      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+        return MapElements.of(input)
+            .using((UnaryFunctionEnv<Integer, Integer>) (x, context) -> {
+              context.getHistogram("dist").add(x, 1);
+              return x;
+            })
+            .output();
+      }
+
+      @Override
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(1, 2, 3, 1, 2, 2, 10, 20, 10).build();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public void validate(Partitions<Integer> partitions) {
+        assertEquals(
+            Arrays.asList(1, 2, 3, 1, 2, 2, 10, 20, 10),
+            partitions.get(0));
+      }
+
+      @Override
+      public void validateAccumulators(SnapshotProvider snapshots) {
+        Map<Long, Long> hists = snapshots.getHistogramSnapshots().get("dist");
+        assertEquals(5, hists.size());
+        assertEquals(Long.valueOf(2), hists.get(1L));
+        assertEquals(Long.valueOf(3), hists.get(2L));
+        assertEquals(Long.valueOf(1), hists.get(3L));
+        assertEquals(Long.valueOf(2), hists.get(10L));
+        assertEquals(Long.valueOf(1), hists.get(20L));
+      }
+    });
+  }
 }

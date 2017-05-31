@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -41,6 +42,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
@@ -89,6 +91,15 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
     }
 
+    protected int flush_(Collector<Integer> context) {
+      List<Integer> list = Lists.newArrayList(data.get());
+      Collections.sort(list);
+      for (Integer i : list) {
+        context.collect(i);
+      }
+      return list.size();
+    }
+
     @Override
     public void close() {
       data.clear();
@@ -99,7 +110,59 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         target.data.addAll(other.data.get());
       }
     }
+  }
 
+  static class CountingSortState extends SortState {
+    public CountingSortState(StorageProvider storageProvider, Collector<Integer> c) {
+      super(storageProvider, c);
+    }
+    @Override
+    public void flush(Collector<Integer> context) {
+      int num = flush_(context);
+      context.getCounter("flushed").increment(num);
+    }
+  }
+
+  @Test
+  public void testAccumulators() {
+    execute(new AbstractTestCase<Integer, Pair<String, Integer>>() {
+      @Override
+      protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
+        return ReduceStateByKey.of(input)
+            .keyBy(e -> "")
+            .valueBy(e -> e)
+            .stateFactory(CountingSortState::new)
+            .mergeStatesBy((target, others) -> {})
+            .setNumPartitions(1)
+            .setPartitioner(e -> 0)
+            .output();
+      }
+
+      @Override
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(9, 8, 7, 5, 4).add(1, 2, 6, 3, 5).build();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(Partitions<Pair<String, Integer>> partitions) {
+        List<Pair<String, Integer>> first = partitions.get(0);
+        assertEquals(10, first.size());
+        List<Integer> values = first.stream().map(Pair::getSecond)
+            .collect(Collectors.toList());
+        assertEquals(Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9), values);
+      }
+
+      @Override
+      public void validateAccumulators(SnapshotProvider snapshots) {
+        Map<String, Long> counters = snapshots.getCounterSnapshots();
+        assertEquals(Long.valueOf(10), counters.get("flushed"));
+      }
+    });
   }
 
   @Test
