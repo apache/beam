@@ -15,7 +15,7 @@ func Source(p *Pipeline, dofn interface{}, opts ...Option) PCollection {
 
 // TrySource inserts a Source into the pipeline.
 func TrySource(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) {
-	side, data := parseOpts(opts)
+	side := parseOpts(opts)
 	if len(side) > 0 {
 		return PCollection{}, fmt.Errorf("sources cannot have side input: %v", side)
 	}
@@ -23,13 +23,6 @@ func TrySource(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, erro
 	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid DoFn: %v", err)
-	}
-	if fn.Fn != nil {
-		if err := applyData(fn.Fn, data); err != nil {
-			return PCollection{}, err
-		}
-	} else if len(data) != 0 {
-		return PCollection{}, fmt.Errorf("data can only be passed to functions: %v", data)
 	}
 
 	edge, err := graph.NewSource(p.real, p.parent, fn)

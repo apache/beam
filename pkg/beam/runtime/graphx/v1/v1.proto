@@ -121,8 +121,6 @@ message UserFn {
     string name = 1;
     // (Required) Function type.
     Type type = 2;
-    // (Optional) JSON-serialized data options.
-    repeated string opt = 3;
 }
 
 // Fn represents a serialized function reference or struct.

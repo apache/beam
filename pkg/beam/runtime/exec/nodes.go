@@ -7,7 +7,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"io"
 	"log"
 	"path"
@@ -114,11 +113,6 @@ func (n *Source) invoke(ctx context.Context, fn *userfn.UserFn) error {
 	if index, ok := fn.Context(); ok {
 		args[index] = reflect.ValueOf(ctx)
 	}
-	if index, ok := fn.Options(); ok {
-		arg := reflect.New(fn.Param[index].T).Elem()
-		reflectx.SetTaggedFieldValue(arg, typex.OptTag, reflect.ValueOf(fn.Opt[0]))
-		args[index] = arg
-	}
 
 	// NOTE: sources have no main or side input. We do not allow direct form to
 	// support "single value" sources.
@@ -206,11 +200,6 @@ func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool
 
 	if index, ok := fn.Context(); ok {
 		args[index] = reflect.ValueOf(ctx)
-	}
-	if index, ok := fn.Options(); ok {
-		arg := reflect.New(fn.Param[index].T).Elem()
-		reflectx.SetTaggedFieldValue(arg, typex.OptTag, reflect.ValueOf(fn.Opt[0]))
-		args[index] = arg
 	}
 
 	// (2) Main input from value

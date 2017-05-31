@@ -143,7 +143,7 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 
 	case u.Recv != nil:
 		t := reflect.TypeOf(u.Recv)
-		key, ok := Key(t)
+		key, ok := Key(reflectx.SkipPtr(t))
 		if !ok {
 			return nil, fmt.Errorf("bad recv: %v", u.Recv)
 		}
@@ -194,16 +194,7 @@ func EncodeUserFn(u *userfn.UserFn) (*v1.UserFn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("encode: bad function type: %v", err)
 	}
-
-	var opts []string
-	for _, opt := range u.Opt {
-		data, err := json.Marshal(opt)
-		if err != nil {
-			return nil, fmt.Errorf("encode: failed to marshal data %v: %v", opt, err)
-		}
-		opts = append(opts, string(data))
-	}
-	return &v1.UserFn{Name: symbol, Type: t, Opt: opts}, nil
+	return &v1.UserFn{Name: symbol, Type: t}, nil
 }
 
 // DecodeUserFn receives the wire representation of a Beam user function,
@@ -225,18 +216,6 @@ func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
 	ret, err := userfn.New(v.Interface())
 	if err != nil {
 		return nil, err
-	}
-
-	for _, opt := range ref.Opt {
-		if index, ok := ret.Options(); ok {
-			f, _ := reflectx.FindTaggedField(ret.Param[index].T, typex.OptTag)
-
-			val, err := reflectx.UnmarshalJSON(f.Type, opt)
-			if err != nil {
-				return nil, fmt.Errorf("decode: failed to unmarshal %v as %v: %v", opt, f.Type, err)
-			}
-			ret.Opt = append(ret.Opt, val)
-		}
 	}
 	return ret, nil
 }

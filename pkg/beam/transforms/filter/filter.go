@@ -3,8 +3,13 @@ package filter
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"reflect"
 )
+
+func init() {
+	graphx.Register(reflect.TypeOf((*filterFn)(nil)).Elem())
+}
 
 // NOTE(herohde) 3/24/2017: the filter is an example of the user code being
 // used inside a 'generic' DoFn. The encoded form would here be a poor choice.
@@ -15,16 +20,20 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollec
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
-	return beam.ParDo(p, filterFn, col, beam.Data{Data: DataFnValue{Fn: fn}})
+	return beam.ParDo(p, &filterFn{Filter: DataFnValue{Fn: fn}}, col)
 }
 
-type filterOpt struct {
-	Fn DataFnValue `beam:"opt"`
+type filterFn struct {
+	Filter DataFnValue `json:"filter"`
+	fn     reflect.Value
 }
 
-func filterFn(opt filterOpt, elm typex.T, emit func(typex.T)) {
-	fn := reflect.ValueOf(opt.Fn.Fn)
-	ret := fn.Call([]reflect.Value{reflect.ValueOf(elm)})
+func (f *filterFn) Setup() {
+	f.fn = reflect.ValueOf(f.Filter.Fn)
+}
+
+func (f *filterFn) ProcessElement(elm typex.T, emit func(typex.T)) {
+	ret := f.fn.Call([]reflect.Value{reflect.ValueOf(elm)})
 	if ret[0].Bool() {
 		emit(elm)
 	}

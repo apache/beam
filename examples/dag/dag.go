@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf(average{}))
+	graphx.Register(reflect.TypeOf((*average)(nil)).Elem())
 }
 
 // TODO(herohde) 5/22/2017: maybe make it more convenient to use the side

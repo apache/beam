@@ -12,7 +12,7 @@ func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([
 	if !col.IsValid() {
 		return nil, fmt.Errorf("invalid main pcollection")
 	}
-	side, data := parseOpts(opts)
+	side := parseOpts(opts)
 	for i, in := range side {
 		if !in.Input.IsValid() {
 			return nil, fmt.Errorf("invalid side pcollection: index %v", i)
@@ -22,13 +22,6 @@ func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([
 	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return nil, fmt.Errorf("invalid DoFn: %v", err)
-	}
-	if fn.Fn != nil {
-		if err := applyData(fn.Fn, data); err != nil {
-			return nil, err
-		}
-	} else if len(data) != 0 {
-		return nil, fmt.Errorf("data can only be passed to functions: %v", data)
 	}
 
 	in := []*graph.Node{col.n}
