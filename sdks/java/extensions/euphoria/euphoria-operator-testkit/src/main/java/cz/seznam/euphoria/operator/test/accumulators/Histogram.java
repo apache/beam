@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class Histogram implements
-    cz.seznam.euphoria.core.client.accumulators.Histogram, GetSnapshot<Map<Long, Long>> {
+    cz.seznam.euphoria.core.client.accumulators.Histogram, Snapshotable<Map<Long, Long>> {
 
   final Map<Long, Long> buckets = new ConcurrentHashMap<>();
 

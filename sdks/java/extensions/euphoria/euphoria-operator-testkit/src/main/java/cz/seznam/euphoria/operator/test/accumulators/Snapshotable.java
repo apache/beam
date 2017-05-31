@@ -15,6 +15,6 @@
  */
 package cz.seznam.euphoria.operator.test.accumulators;
 
-interface GetSnapshot<V> {
+interface Snapshotable<V> {
   V getSnapshot();
 }
