@@ -37,6 +37,7 @@ package org.apache.beam.fn.v1;
 option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
+import "beam_runner_api.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -264,19 +265,35 @@ message RegisterRequest {
 message RegisterResponse {
 }
 
-// A descriptor of references used when processing a bundle.
-// Stable
+// Definitions that should be used to construct the bundle processing graph.
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
   string id = 1;
 
-  // (Required) A list of primitive transforms that should
+  // (Deprecated) A list of primitive transforms that should
   // be used to construct the bundle processing graph.
   repeated PrimitiveTransform primitive_transform = 2;
 
-  // (Required) The set of all coders referenced in this bundle.
+  // (Deprecated) The set of all coders referenced in this bundle.
   repeated Coder coders = 4;
+
+  // (Required) A map from pipeline-scoped id to PTransform.
+  map<string, org.apache.beam.runner_api.v1.PTransform> transforms = 5;
+
+  // (Required) A map from pipeline-scoped id to PCollection.
+  map<string, org.apache.beam.runner_api.v1.PCollection> pcollections = 6;
+
+  // (Required) A map from pipeline-scoped id to WindowingStrategy.
+  map<string, org.apache.beam.runner_api.v1.WindowingStrategy> windowing_strategies = 7;
+
+  // (Required) A map from pipeline-scoped id to Coder.
+  // TODO: Rename to "coders" once deprecated coders field is removed. Unique
+  // name is choosen to make it an easy search/replace
+  map<string, org.apache.beam.runner_api.v1.Coder> codersyyy = 8;
+
+  // (Required) A map from pipeline-scoped id to Environment.
+  map<string, org.apache.beam.runner_api.v1.Environment> environments = 9;
 }
 
 // A request to process a given bundle.
