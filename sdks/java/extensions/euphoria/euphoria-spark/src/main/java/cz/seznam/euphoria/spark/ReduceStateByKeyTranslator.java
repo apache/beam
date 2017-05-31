@@ -15,8 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
-import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -101,7 +99,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     return sorted.mapPartitions(
             new StateReducer(windowing, stateFactory, stateCombiner,
                     new SparkStorageProvider(SparkEnv.get().serializer(), listStorageMaxElements),
-                    context.getAccumulatorFactory(), context.getSettings()));
+                    new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings())));
   }
 
   /**
@@ -165,8 +163,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
     private final StateMerger<?, ?, State<?, ?>> stateCombiner;
     private final StorageProvider storageProvider;
-    private final AccumulatorProvider.Factory accumulatorFactory;
-    private final Settings settings;
+    private final LazyAccumulatorProvider accumulators;
 
     // mapping of [Key -> GroupReducer]
     private transient Map<Object, GroupReducer> activeReducers;
@@ -175,15 +172,13 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
                         StateFactory<?, ?, State<?, ?>> stateFactory,
                         StateMerger<?, ?, State<?, ?>> stateCombiner,
                         StorageProvider storageProvider,
-                        AccumulatorProvider.Factory accumulatorFactory,
-                        Settings settings) {
+                        LazyAccumulatorProvider accumulators) {
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
       this.stateFactory = stateFactory;
       this.stateCombiner = stateCombiner;
       this.storageProvider = storageProvider;
-      this.accumulatorFactory = accumulatorFactory;
-      this.settings = settings;
+      this.accumulators = accumulators;
     }
 
     @Override
@@ -191,7 +186,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     public Iterator<SparkElement> call(Iterator<Tuple2<KeyedWindow, Object>> iterator) {
       activeReducers = new HashMap<>();
       FunctionCollectorAsync<SparkElement<?, Pair<?, ?>>> context =
-              new FunctionCollectorAsync<>(accumulatorFactory, settings);
+              new FunctionCollectorAsync<>(accumulators);
 
       // reduce states in separate thread
       context.runAsynchronously(() -> {
@@ -211,16 +206,15 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
           GroupReducer reducer = activeReducers.get(kw.key());
           if (reducer == null) {
             reducer = new GroupReducer(
-                    stateFactory,
-                    stateCombiner,
-                    storageProvider,
-                    SparkElement::new,
-                    windowing,
-                    trigger,
-                    el -> context.collect((SparkElement) el),
-                    // TODO accumulators
-                    VoidAccumulatorProvider.getFactory().create(null),
-                    false);
+                stateFactory,
+                stateCombiner,
+                storageProvider,
+                SparkElement::new,
+                windowing,
+                trigger,
+                el -> context.collect((SparkElement) el),
+                accumulators,
+                false);
 
             activeReducers.put(kw.key(), reducer);
           }
