@@ -18,7 +18,6 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterators;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -29,17 +28,14 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
         implements FlatMapFunction<SparkElement<WID, IN>, SparkElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> functor;
-  private final AccumulatorProvider.Factory accumulatorFactory;
-  private final Settings settings;
+  private final AccumulatorProvider accumulators;
 
   private transient FunctionCollectorMem<OUT> cachedCollector;
 
   public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor,
-                             AccumulatorProvider.Factory accumulatorFactory,
-                             Settings settings) {
+                             AccumulatorProvider accumulators) {
     this.functor = Objects.requireNonNull(functor);
-    this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
-    this.settings = Objects.requireNonNull(settings);
+    this.accumulators = Objects.requireNonNull(accumulators);
   }
 
   @Override
@@ -66,9 +62,8 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
   private FunctionCollectorMem<OUT> getContext() {
     if (cachedCollector == null) {
-      cachedCollector = new FunctionCollectorMem<>(accumulatorFactory, settings);
+      cachedCollector = new FunctionCollectorMem<>(accumulators);
     }
-
     return cachedCollector;
   }
 }
