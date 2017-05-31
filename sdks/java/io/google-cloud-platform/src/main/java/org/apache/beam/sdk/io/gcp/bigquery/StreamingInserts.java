@@ -38,20 +38,39 @@ public class StreamingInserts<DestinationT>
   private InsertRetryPolicy retryPolicy;
 
   /** Constructor. */
-  StreamingInserts(CreateDisposition createDisposition,
+  public StreamingInserts(CreateDisposition createDisposition,
                    DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this(createDisposition, dynamicDestinations, InsertRetryPolicy.alwaysRetry());
+  }
+
+  /** Constructor. */
+  public StreamingInserts(CreateDisposition createDisposition,
+                          DynamicDestinations<?, DestinationT> dynamicDestinations,
+                          InsertRetryPolicy retryPolicy) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = new BigQueryServicesImpl();
-    this.retryPolicy = InsertRetryPolicy.alwaysRetry();
+    this.retryPolicy = retryPolicy;
+  }
+
+  /** Constructor. */
+  private StreamingInserts(CreateDisposition createDisposition,
+                          DynamicDestinations<?, DestinationT> dynamicDestinations,
+                          BigQueryServices bigQueryServices,
+                          InsertRetryPolicy retryPolicy) {
+    this.createDisposition = createDisposition;
+    this.dynamicDestinations = dynamicDestinations;
+    this.bigQueryServices = bigQueryServices;
+    this.retryPolicy = retryPolicy;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
   }
 
-  void setInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
-    this.retryPolicy = retryPolicy;
+  StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+    return new StreamingInserts<>(
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
   }
 
   @Override

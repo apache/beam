@@ -694,7 +694,7 @@ public class BigQueryServicesImplTest {
     List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(ref, rows, null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
-        InsertRetryPolicy.dontRetryPersistentErrors(), failedInserts);
+        InsertRetryPolicy.retryTransientErrors(), failedInserts);
     assertEquals(1, failedInserts.size());
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }

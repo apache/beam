@@ -86,8 +86,8 @@ public class StreamingWriteTables extends PTransform<
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
-    TupleTag<Void> mainOutput = new TupleTag<Void>() {};
-    TupleTag<TableRow> failedOutput = new TupleTag<TableRow>() {};
+    TupleTag<Void> mainOutput = new TupleTag<Void>("mainOutput") {};
+    TupleTag<TableRow> failedOutput = new TupleTag<TableRow>("failedOutput") {};
     PCollectionTuple tuple = tagged
         .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
         .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())

@@ -988,8 +988,8 @@ public class BigQueryIO {
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
         StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations);
-        streamingInserts.setInsertRetryPolicy(getFailedInsertRetryPolicy());
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
+            .withInsertRetryPolicy(getFailedInsertRetryPolicy());
         streamingInserts.setTestServices(getBigQueryServices());
         return rowsWithDestination.apply(streamingInserts);
       } else {

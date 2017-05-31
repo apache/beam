@@ -754,15 +754,14 @@ class BigQueryServicesImpl implements BigQueryServices {
                 }
 
                 int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
-                boolean skipRetry = !retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
-                if (skipRetry) {
-                  failedInserts.add(rowsToPublish.get(errorIndex));
-                } else {
+                if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                   allErrors.add(error);
                   retryRows.add(rowsToPublish.get(errorIndex));
                   if (retryIds != null) {
                     retryIds.add(idsToPublish.get(errorIndex));
                   }
+                } else {
+                  failedInserts.add(rowsToPublish.get(errorIndex));
                 }
               }
             }

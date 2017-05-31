@@ -50,7 +50,7 @@ public class InsertRetryPolicyTest {
 
   @Test
   public void testDontRetryPersistentErrors() {
-    InsertRetryPolicy policy = InsertRetryPolicy.dontRetryPersistentErrors();
+    InsertRetryPolicy policy = InsertRetryPolicy.retryTransientErrors();
     assertTrue(policy.shouldRetry(new Context(generateErrorAmongMany(
         5, "timeout", "unavailable"))));
     assertFalse(policy.shouldRetry(new Context(generateErrorAmongMany(

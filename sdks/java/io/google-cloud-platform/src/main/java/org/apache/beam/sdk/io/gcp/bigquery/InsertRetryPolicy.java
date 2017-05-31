@@ -78,7 +78,7 @@ public abstract class InsertRetryPolicy implements Serializable {
   /**
    * Retry all failures except for known persistent errors.
    */
-  public static InsertRetryPolicy dontRetryPersistentErrors() {
+  public static InsertRetryPolicy retryTransientErrors() {
     return new InsertRetryPolicy() {
       @Override
       public boolean shouldRetry(Context context) {

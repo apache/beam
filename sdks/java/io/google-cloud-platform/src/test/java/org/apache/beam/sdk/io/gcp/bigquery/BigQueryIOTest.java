@@ -642,7 +642,7 @@ public class BigQueryIOTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"))))
-            .withFailedInsertRetryPolicy(InsertRetryPolicy.dontRetryPersistentErrors())
+            .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
             .withTestServices(fakeBqServices)
             .withoutValidation()).getFailedInserts();
     // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
