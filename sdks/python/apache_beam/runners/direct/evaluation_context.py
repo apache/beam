@@ -117,16 +117,20 @@ class _SideInputsContainer(object):
   def add_values(self, side_input, values):
     with self._lock:
       view = self._views[side_input]
+      if view.has_result:
+        print 'ERROR!!! VIEW ALREADY HAS RESULT', side_input, values
       assert not view.has_result
       view.elements.extend(values)
 
   def finalize_value_and_get_tasks(self, side_input):
+    print '***** FINALIZE VIEWWWWW', side_input
     with self._lock:
       view = self._views[side_input]
       assert not view.has_result
       assert view.value is None
       assert view.callable_queue is not None
       view.value = self._pvalue_to_value(side_input, view.elements)
+      print 'result', view.elements, view.value
       view.elements = None
       result = tuple(view.callable_queue)
       for task in result:
@@ -183,6 +187,9 @@ class EvaluationContext(object):
     self._pcollection_to_views = collections.defaultdict(list)
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
+    import pprint
+    print 'PCOLLECTION TO VIEWS'
+    pprint.pprint(self._pcollection_to_views)
 
     # AppliedPTransform -> Evaluator specific state objects
     self._legacy_existing_state = {}
@@ -258,22 +265,38 @@ class EvaluationContext(object):
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
 
+      print 'HANDLE RESULT COMMITED', committed_bundles, result.uncommitted_output_bundles, result.unprocessed_bundle
       # If the result is for a view, update side inputs container.
       if (result.uncommitted_output_bundles
           and result.uncommitted_output_bundles[0].pcollection
           in self._pcollection_to_views):
+        print '***** HI I AM A VIEW', result.uncommitted_output_bundles[0].pcollection, committed_bundles
         for view in self._pcollection_to_views[
             result.uncommitted_output_bundles[0].pcollection]:
           for committed_bundle in committed_bundles:
+            print 'ADD TO VIEW', committed_bundle.get_elements_iterable(make_copy=True)
             # side_input must be materialized.
             self._side_inputs_container.add_values(
                 view,
                 committed_bundle.get_elements_iterable(make_copy=True))
-          if (self.get_execution_context(result.transform, None)  # TODO(ccy): what is the key here?
-              .watermarks.input_watermark
-              == WatermarkManager.WATERMARK_POS_INF):
+          completed = True
+          print 'STUFF', self._transform_keyed_states[result.transform]
+          watermarks = self._watermark_manager.get_watermarks(result.transform)
+          if watermarks._pending:
+            completed = False
+          print 'WATERMARKS', watermarks, watermarks._pending
+          for key in self._transform_keyed_states[result.transform]:
+            if (self.get_execution_context(result.transform, key).watermarks.input_watermark
+                < WatermarkManager.WATERMARK_POS_INF or
+                self.get_execution_context(result.transform, key).watermarks._pending):
+              print '&&& COMPLETED FALSE', result.transform, key, self.get_execution_context(result.transform, key).watermarks._pending
+              completed = False
+          if completed:
+            print '***** HI I AM COMPLETED', result.uncommitted_output_bundles[0].pcollection
             self._pending_unblocked_tasks.extend(
                 self._side_inputs_container.finalize_value_and_get_tasks(view))
+          else:
+            print '***** HI I AM *NOT* COMPLETED', result.uncommitted_output_bundles[0].pcollection
 
       if result.counters:
         for counter in result.counters:

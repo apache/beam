@@ -222,12 +222,17 @@ class _TransformWatermarks(object):
     from apache_beam.runners.direct.evaluation_context import DirectUnmergedState
     with self._lock:
       pending_holder = WatermarkManager.WATERMARK_POS_INF
+      has_pending = False
+      print '[!!] PENDING ELEMENTS:', self._pending
       for input_bundle in self._pending:
         # TODO: Perhaps we can have the Bundle class keep track of the minimum
         # timestamp so we don't have to do an iteration here.
         bundle_min_timestamp = min(wv.timestamp for wv in input_bundle.get_elements_iterable())
         if bundle_min_timestamp < pending_holder:
           pending_holder = bundle_min_timestamp
+        has_pending = True
+      if self._pending:
+        pending_holder = WatermarkManager.WATERMARK_NEG_INF
 
       # earliest_watermark_hold = WatermarkManager.WATERMARK_POS_INF
       # for unused_key, state in self._keyed_states.iteritems():
@@ -244,10 +249,10 @@ class _TransformWatermarks(object):
 
       self._input_watermark = max(self._input_watermark,
                                   min(pending_holder, producer_watermark))
-      # TODO: clean this up.
-      middle_watermark_thing = max(self._input_watermark,
-                                  min(pending_holder, producer_watermark))
-      new_output_watermark = min(middle_watermark_thing, self._earliest_hold)
+      # # TODO: clean this up.
+      # middle_watermark_thing = max(self._input_watermark,
+      #                             min(pending_holder, producer_watermark))
+      new_output_watermark = min(self._input_watermark, self._earliest_hold)
       print '[!] ', self._label, 'INPUT', self._input_watermark, 'OUTPUT', new_output_watermark
       print '    input watermark details: pending_holder', pending_holder, 'producer_watermark', producer_watermark
 
@@ -282,12 +287,12 @@ class _TransformWatermarks(object):
           fired_timers.append(TimerFiring(key, time_domain, timestamp))
 
 
-      # TODO: check if this hack is still necessary.
-      should_fire = (
-          self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and
-          self._input_watermark == WatermarkManager.WATERMARK_POS_INF)
-      if should_fire:
-        fired_timers.append(None)  # Sentinel representing legacy timer firing.
+      # # TODO: check if this hack is still necessary.
+      # should_fire = (
+      #     self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and
+      #     self._input_watermark == WatermarkManager.WATERMARK_POS_INF)
+      # if should_fire:
+      #   fired_timers.append(None)  # Sentinel representing legacy timer firing.
       self._fired_timers = fired_timers
       return fired_timers
 

@@ -231,6 +231,7 @@ class _CompletionCallback(object):
   def handle_result(self, transform_executor, input_committed_bundle, transform_result):
     output_committed_bundles = self._evaluation_context.handle_result(
         input_committed_bundle, self._timers, transform_result)
+    print 'COMPLETIONCALLBACK HANDLE RESULT', output_committed_bundles
     for output_committed_bundle in output_committed_bundles:
       self._all_updates.offer(
           _ExecutorServiceParallelExecutor._ExecutorUpdate(
@@ -285,6 +286,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
             self._evaluation_context.get_value_or_schedule_after_output(
                 side_input, self))
         if not has_result:
+          print '$$$$$$ CALL TO', self, 'DELAYED BASED ON UNAVAILABLE SIDE INPUT', side_input
           # Monitor task will reschedule this executor once the side input is
           # available.
           return

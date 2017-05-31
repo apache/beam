@@ -553,6 +553,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   def process_element(self, element):
     kwi = element.value
     print '[!] GABW process_element', element, kwi
+    assert isinstance(kwi, KeyedWorkItem), (element, kwi)
     k, timers, vs = kwi.key, kwi.timers, kwi.elements
     encoded_k = self.key_coder.encode(k)
     state = self.state
@@ -581,12 +582,12 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     print '[!] GABW_OUTPUT', self.gabw_items
     bundle = self._evaluation_context.create_bundle(
-        self._applied_ptransform.inputs[0])
+        self.output_pcollection)
     for item in self.gabw_items:  # TODO
       bundle.add(item)
     bundles = []
     if self.gabw_items:
-      qbundles = [bundle]
+      bundles = [bundle]
     hold = self.state.get_earliest_hold()
     return TransformResult(
         self._applied_ptransform, bundles, [], self.state, None, None, None, hold)

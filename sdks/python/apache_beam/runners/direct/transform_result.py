@@ -29,6 +29,7 @@ class TransformResult(object):
                unprocessed_bundle, state, legacy_state,
                timer_update, counters, watermark_hold,
                undeclared_tag_values=None):
+    print '^^^ NEW TR', applied_ptransform, uncommitted_output_bundles, unprocessed_bundle
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundle = unprocessed_bundle

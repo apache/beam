@@ -1125,7 +1125,7 @@ class InMemoryUnmergedState(UnmergedState):
     for window, tagged_states in self.state.iteritems():
       # TODO: is this general enough?
       if 'watermark' in tagged_states:
-        hold = min(tagged_states['watermark'])
+        hold = min(tagged_states['watermark']) - 1  # TODO: THIS SHOULD ACTUALLY BE 1 MICRO IF POSSIBLE
         earliest_hold = min(earliest_hold, hold)
     return earliest_hold
 
