@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 final class Timer implements
-    cz.seznam.euphoria.core.client.accumulators.Timer, GetSnapshot<Map<Duration, Integer>> {
+    cz.seznam.euphoria.core.client.accumulators.Timer, GetSnapshot<Map<Duration, Long>> {
 
   private final Histogram hist = new Histogram();
 
@@ -38,8 +38,8 @@ final class Timer implements
     add(duration.toNanos(), TimeUnit.NANOSECONDS);
   }
 
-  public Map<Duration, Integer> getSnapshot() {
-    Map<Duration, Integer> m = Maps.newHashMapWithExpectedSize(hist.buckets.size());
+  public Map<Duration, Long> getSnapshot() {
+    Map<Duration, Long> m = Maps.newHashMapWithExpectedSize(hist.buckets.size());
     hist.buckets.forEach((key, count) -> m.put(Duration.ofNanos(key), count));
     return m;
   }

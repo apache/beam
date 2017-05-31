@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * An accumulator provider gathering accumulators in-memory.<p>
  *
- * Safe for use only for unit testing purposes.
+ * Safe for use for unit testing purposes.
  */
 public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
 
@@ -105,18 +105,18 @@ public class SingleJvmAccumulatorProvider implements AccumulatorProvider {
     }
 
     @Override
-    public Map<String, Map<Long, Integer>> getHistogramSnapshots() {
+    public Map<String, Map<Long, Long>> getHistogramSnapshots() {
       return providerInstance().getSnapshots(Histogram.class);
     }
 
     @Override
-    public Map<String, Map<Duration, Integer>> getTimerSnapshots() {
+    public Map<String, Map<Duration, Long>> getTimerSnapshots() {
       return providerInstance().getSnapshots(Timer.class);
     }
 
     @Override
     public AccumulatorProvider create(Settings settings) {
-      return SingleJvmAccumulatorProvider.INSTANCE;
+      return providerInstance();
     }
 
     private SingleJvmAccumulatorProvider providerInstance() {

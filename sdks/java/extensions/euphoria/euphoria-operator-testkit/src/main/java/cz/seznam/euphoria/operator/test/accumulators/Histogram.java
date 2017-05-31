@@ -20,15 +20,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class Histogram implements
-    cz.seznam.euphoria.core.client.accumulators.Histogram, GetSnapshot<Map<Long, Integer>> {
+    cz.seznam.euphoria.core.client.accumulators.Histogram, GetSnapshot<Map<Long, Long>> {
 
-  final Map<Long, Integer> buckets = new ConcurrentHashMap<>();
+  final Map<Long, Long> buckets = new ConcurrentHashMap<>();
 
   Histogram() {}
 
   @Override
   public void add(long value, long times) {
-    buckets.compute(value, (key, count) -> count == null ? 1 : (count + 1));
+    buckets.compute(value, (key, count) -> count == null ? times : (count + times));
   }
 
   @Override
@@ -36,7 +36,7 @@ final class Histogram implements
     add(value, 1);
   }
 
-  public Map<Long, Integer> getSnapshot() {
+  public Map<Long, Long> getSnapshot() {
     return new HashMap<>(buckets);
   }
 }
