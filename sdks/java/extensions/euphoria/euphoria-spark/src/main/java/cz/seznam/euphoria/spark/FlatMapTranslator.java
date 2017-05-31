@@ -32,13 +32,13 @@ class FlatMapTranslator implements SparkOperatorTranslator<FlatMap> {
     final UnaryFunctor<?, ?> mapper = operator.getFunctor();
     final ExtractEventTime<?> evtTimeFn = operator.getEventTimeExtractor();
 
+    LazyAccumulatorProvider accumulators =
+        new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings());
     if (evtTimeFn != null) {
       return input.flatMap(
-              new EventTimeAssigningUnaryFunctor(mapper, evtTimeFn,
-                      context.getAccumulatorFactory(), context.getSettings()));
+              new EventTimeAssigningUnaryFunctor(mapper, evtTimeFn, accumulators));
     } else {
-      return input.flatMap(new UnaryFunctorWrapper(mapper,
-              context.getAccumulatorFactory(), context.getSettings()));
+      return input.flatMap(new UnaryFunctorWrapper(mapper, accumulators));
     }
   }
 }

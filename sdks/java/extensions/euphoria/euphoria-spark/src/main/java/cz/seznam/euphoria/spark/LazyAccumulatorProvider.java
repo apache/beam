@@ -19,49 +19,42 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
-import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.util.Settings;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-abstract class FunctionCollector<T> implements Context, Collector<T> {
+class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
+  private final Factory factory;
+  private final Settings settings;
 
-  private final AccumulatorProvider accumulators;
-  private Object window;
+  private transient AccumulatorProvider accumulators;
 
-  public FunctionCollector(AccumulatorProvider accumulators) {
-    this.accumulators = Objects.requireNonNull(accumulators);
-  }
-
-  @Override
-  public abstract void collect(T elem);
-
-  @Override
-  public Object getWindow() {
-    return this.window;
-  }
-
-  public void setWindow(Object window) {
-    this.window = window;
-  }
-
-  @Override
-  public Context asContext() {
-    return this;
+  LazyAccumulatorProvider(Factory factory, Settings settings) {
+    this.factory = Objects.requireNonNull(factory);
+    this.settings = Objects.requireNonNull(settings);
   }
 
   @Override
   public Counter getCounter(String name) {
-    return accumulators.getCounter(name);
+    return getAccumulatorProvider().getCounter(name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    return accumulators.getHistogram(name);
+    return getAccumulatorProvider().getHistogram(name);
   }
 
   @Override
   public Timer getTimer(String name) {
-    return accumulators.getTimer(name);
+    return getAccumulatorProvider().getTimer(name);
+  }
+
+  AccumulatorProvider getAccumulatorProvider() {
+    if (accumulators == null) {
+      accumulators = factory.create(settings);
+    }
+
+    return accumulators;
   }
 }
