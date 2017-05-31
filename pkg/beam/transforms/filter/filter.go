@@ -1,10 +1,11 @@
 package filter
 
 import (
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
-	"reflect"
 )
 
 func init() {
@@ -20,11 +21,11 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollec
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
-	return beam.ParDo(p, &filterFn{Filter: DataFnValue{Fn: fn}}, col)
+	return beam.ParDo(p, &filterFn{Filter: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}}, col)
 }
 
 type filterFn struct {
-	Filter DataFnValue `json:"filter"`
+	Filter graphx.DataFnValue `json:"filter"`
 	fn     reflect.Value
 }
 

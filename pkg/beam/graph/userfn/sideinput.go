@@ -48,5 +48,5 @@ func isOutParam(t reflect.Type) bool {
 	if t.Kind() != reflect.Ptr {
 		return false
 	}
-	return typex.IsConcrete(t.Elem()) || typex.IsUniversal(t.Elem())
+	return typex.IsConcrete(t.Elem()) || typex.IsUniversal(t.Elem()) || typex.IsContainer(t.Elem())
 }

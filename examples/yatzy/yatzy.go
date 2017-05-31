@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"log"
 	"math/rand"
+	"reflect"
 	"sort"
 	"time"
-	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 )
 
 var (

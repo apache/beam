@@ -70,7 +70,7 @@ func (s *FixedStream) Read() (FullValue, error) {
 }
 
 // Convert converts type of the runtime value to the desired one. It is needed
-// to drop the universal type.
+// to drop the universal type and convert Aggregate types.
 func Convert(value reflect.Value, to reflect.Type) reflect.Value {
 	from := value.Type()
 	switch {
@@ -83,6 +83,15 @@ func Convert(value reflect.Value, to reflect.Type) reflect.Value {
 		var untyped interface{}
 		untyped = value.Interface()
 		return reflect.ValueOf(untyped) // Convert(reflect.ValueOf(untyped), to)
+
+	case typex.IsList(from) && typex.IsList(to):
+		// Convert []A to []B.
+
+		ret := reflect.New(to).Elem()
+		for i := 0; i < value.Len(); i++ {
+			ret = reflect.Append(ret, Convert(value.Index(i), to.Elem()))
+		}
+		return ret
 
 	default:
 		return value

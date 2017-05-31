@@ -161,6 +161,23 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			SerializedFn: fn,
 		}, nil
 
+	case graph.Combine:
+		fn, err := serializeFn(edge)
+		if err != nil {
+			return "", properties{}, err
+		}
+
+		// TODO(herohde) 5/30/2017: we need the accumulator coder here instead.
+		c, err := graphx.EncodeCoder(edge.Input[0].From.Coder)
+		if err != nil {
+			return "", properties{}, err
+		}
+		return "CombineValues", properties{
+			UserName:     buildName(edge.Scope(), edge.CombineFn.Name()),
+			Encoding:     c,
+			SerializedFn: fn,
+		}, nil
+
 	case graph.GBK:
 		return "GroupByKey", properties{
 			UserName:                buildName(edge.Scope(), "group"), // TODO: user-defined

@@ -3,6 +3,8 @@ package typex
 import (
 	"fmt"
 	"reflect"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Class is the type "class" of data as distinguished by the runtime. The class
@@ -15,9 +17,16 @@ const (
 	Invalid Class = iota
 	// Concrete type, such as int, string, struct { .. }.
 	Concrete
-	// Universal type: T, U, V, W, X, Y, Z.
+	// Universal type: T, U, V, W, X, Y, Z. They act as type variables
+	// for type checking purposes, but -- unlike type variables -- are
+	// not instantiated at runtime.
 	Universal
-	// Composite type: KV, GBK, CoGBk, WindowedValue.
+	// Container type: []. A Go-generic container type that both can be
+	// represented as a reflect.Type and may incur runtime conversions.
+	// The component cannot be a Composite.
+	Container
+	// Composite type: KV, GBK, CoGBk, WindowedValue. Beam-generic types
+	// that cannot be represented as a single reflect.Type.
 	Composite
 )
 
@@ -35,6 +44,8 @@ func ClassOf(t reflect.Type) Class {
 		return Universal
 	case IsComposite(t):
 		return Composite
+	case IsContainer(t): // overrules IsConcrete
+		return Container
 	case IsConcrete(t):
 		return Concrete
 	default:
@@ -44,7 +55,7 @@ func ClassOf(t reflect.Type) Class {
 
 // IsConcrete returns true iff the given type is a valid "concrete" data type. Such
 // data must be fully serializable. Functions and channels are examples of invalid
-// types.
+// types. Aggregate types with no universals are considered concrete here.
 func IsConcrete(t reflect.Type) bool {
 	if t == nil {
 		return false
@@ -71,8 +82,17 @@ func IsConcrete(t reflect.Type) bool {
 
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
-			if !IsConcrete(t.Field(i).Type) {
-				return false
+			// We ignore private fields under the assumption that they are
+			// either not needed or will be coded manually. For combiner
+			// accumulators, we need types that need non-trivial coding. Also,
+			// Go serialization schemes in general ignore private fields.
+
+			f := t.Field(i)
+			if len(f.Name) > 0 {
+				r, _ := utf8.DecodeRuneInString(f.Name)
+				if unicode.IsUpper(r) && !IsConcrete(f.Type) {
+					return false
+				}
 			}
 		}
 		return true
@@ -97,6 +117,27 @@ func IsConcrete(t reflect.Type) bool {
 	}
 }
 
+// IsContainer returns true iff the given type is an container data type,
+// such as []int or []T.
+func IsContainer(t reflect.Type) bool {
+	switch {
+	case IsList(t):
+		if IsUniversal(t.Elem()) || IsConcrete(t.Elem()) {
+			return true
+		}
+		return IsContainer(t.Elem())
+	default:
+		return false
+	}
+}
+
+// IsList returns true iff the given type is a slice.
+func IsList(t reflect.Type) bool {
+	return t.Kind() == reflect.Slice
+}
+
+// IsUniversal returns true iff the given type is one of the predefined
+// universal types: T, U, V, W, X, Y or Z.
 func IsUniversal(t reflect.Type) bool {
 	switch t {
 	case TType, UType, VType, WType, XType, YType, ZType:
@@ -106,6 +147,8 @@ func IsUniversal(t reflect.Type) bool {
 	}
 }
 
+// IsComposite returns true iff the given type is one of the predefined
+// Composite marker types: KV, GBK, CoGBK or WindowedValue.
 func IsComposite(t reflect.Type) bool {
 	switch t {
 	case KVType, GBKType, CoGBKType, WindowedValueType:

@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 )
 
 // Opcode represents a primitive Fn API instruction kind.
@@ -13,10 +14,11 @@ type Opcode string
 // Valid opcodes.
 const (
 	ParDo      Opcode = "ParDo"
-	GBK        Opcode = "GBK"
+	GBK        Opcode = "GBK" // TODO: Unify with CoGBK?
 	Source     Opcode = "Source"
 	Sink       Opcode = "Sink"
 	Flatten    Opcode = "Flatten"
+	Combine    Opcode = "Combine"
 	DataSource Opcode = "DataSource"
 	DataSink   Opcode = "DataSink"
 )
@@ -123,16 +125,20 @@ type Target struct {
 	Name string
 }
 
+// TODO(herohde) 5/24/2017: how should we represent/obtain the coder for Combine
+// accumulator types? Coder registry? Assume JSON?
+
 // MultiEdge represents a primitive data processing operation. Each non-user
 // code operation may be implemented by either the harness or the runner.
 type MultiEdge struct {
 	id     int
 	parent *Scope
 
-	Op     Opcode
-	DoFn   *DoFn   // ParDo, Source.
-	Port   *Port   // DataSource, DataSink.
-	Target *Target // DataSource, DataSink.
+	Op        Opcode
+	DoFn      *DoFn      // ParDo, Source.
+	CombineFn *CombineFn // Combine.
+	Port      *Port      // DataSource, DataSink.
+	Target    *Target    // DataSource, DataSink.
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -221,8 +227,12 @@ func NewSource(g *Graph, s *Scope, u *DoFn) (*MultiEdge, error) {
 }
 
 func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge, error) {
-	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative.
-	inbound, kinds, outbound, out, err := Bind(u.ProcessElement(), NodeTypes(in)...)
+	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative. We should
+	// perhaps create a synthetic method for binding purposes? The main question is how to
+	// tell which side input binds to which if the signatures differ, which is a downside of
+	// positional binding.
+
+	inbound, kinds, outbound, out, err := Bind(u.ProcessElementFn(), NodeTypes(in)...)
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +240,53 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge
 	edge := g.NewEdge(s)
 	edge.Op = op
 	edge.DoFn = u
+	for i := 0; i < len(in); i++ {
+		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
+	}
+	for i := 0; i < len(out); i++ {
+		n := g.NewNode(out[i])
+		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
+	}
+
+	log.Printf("EDGE: %v", edge)
+	return edge, nil
+}
+
+// NewCombine inserts a new Combine edge into the graph.
+func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error) {
+	// Create a synthetic function for binding purposes. It takes main inputs,
+	// side inputs and returns the output type -- but hides the accumulator.
+	//
+	//  (1) If AddInput exists, then it lists the main and side inputs. If not,
+	//      the only main input type is the accumulator type.
+	//  (2)	If ExtractOutput exists then it returns the output type. If not,
+	//      then the accumulator is the output type.
+	//
+	// MergeAccumulators is guaranteed to exist. We do not allow the accumulator
+	// to be a tuple type (i.e., so one can't define a inline KV merge function).
+
+	synth := &userfn.UserFn{
+		Name: u.Name(),
+	}
+	if f := u.AddInputFn(); f != nil {
+		synth.Param = f.Param[1:] // drop accumulator parameter.
+	} else {
+		synth.Param = []userfn.FnParam{{Kind: userfn.FnValue, T: u.MergeAccumulatorsFn().Ret[0].T}}
+	}
+	if f := u.ExtractOutputFn(); f != nil {
+		synth.Ret = f.Ret
+	} else {
+		synth.Ret = u.MergeAccumulatorsFn().Ret
+	}
+
+	inbound, kinds, outbound, out, err := Bind(synth, NodeTypes(in)...)
+	if err != nil {
+		return nil, err
+	}
+
+	edge := g.NewEdge(s)
+	edge.Op = Combine
+	edge.CombineFn = u
 	for i := 0; i < len(in); i++ {
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}

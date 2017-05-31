@@ -37,7 +37,7 @@ func NewCoder(t typex.FullType) Coder {
 
 func inferCoder(t typex.FullType) (*coder.Coder, error) {
 	switch t.Class() {
-	case typex.Concrete:
+	case typex.Concrete, typex.Container:
 		c, err := NewJSONCoder(t.Type())
 		if err != nil {
 			return nil, err

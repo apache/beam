@@ -45,5 +45,5 @@ func UnfoldEmit(t reflect.Type) ([]reflect.Type, bool) {
 }
 
 func isInParam(t reflect.Type) bool {
-	return typex.IsConcrete(t) || typex.IsUniversal(t)
+	return typex.IsConcrete(t) || typex.IsUniversal(t) || typex.IsContainer(t)
 }

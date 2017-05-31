@@ -135,7 +135,7 @@ func tryBindInbound(candidate typex.FullType, args []userfn.FnParam, isMain bool
 
 	t := typex.SkipW(candidate)
 	switch t.Class() {
-	case typex.Concrete:
+	case typex.Concrete, typex.Container:
 		if isMain {
 			other = typex.NewW(typex.New(args[0].T))
 		} else {
@@ -252,7 +252,7 @@ func trimIllegal(list []reflect.Type) []reflect.Type {
 	var ret []reflect.Type
 	for _, elm := range list {
 		switch typex.ClassOf(elm) {
-		case typex.Concrete, typex.Universal:
+		case typex.Concrete, typex.Universal, typex.Container:
 			ret = append(ret, elm)
 		}
 	}

@@ -91,14 +91,14 @@ func (n *Source) Up(ctx context.Context) error {
 	if err := Up(ctx, n.Out...); err != nil {
 		return err
 	}
-	if err := n.invoke(ctx, n.Edge.DoFn.Setup()); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.SetupFn()); err != nil {
 		return err
 	}
-	return n.invoke(ctx, n.Edge.DoFn.StartBundle())
+	return n.invoke(ctx, n.Edge.DoFn.StartBundleFn())
 }
 
 func (n *Source) Process(ctx context.Context) error {
-	return n.invoke(ctx, n.Edge.DoFn.ProcessElement())
+	return n.invoke(ctx, n.Edge.DoFn.ProcessElementFn())
 }
 
 func (n *Source) invoke(ctx context.Context, fn *userfn.UserFn) error {
@@ -138,10 +138,10 @@ func (n *Source) invoke(ctx context.Context, fn *userfn.UserFn) error {
 }
 
 func (n *Source) Down(ctx context.Context) error {
-	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundle()); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundleFn()); err != nil {
 		return err
 	}
-	if err := n.invoke(ctx, n.Edge.DoFn.Teardown()); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.TeardownFn()); err != nil {
 		return err
 	}
 	return Down(ctx, n.Out...)
@@ -176,14 +176,14 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// TODO: setup, validate side input
 	// TODO: specialize based on type?
 
-	if err := n.invoke(ctx, n.Edge.DoFn.Setup(), false, FullValue{}); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.SetupFn(), false, FullValue{}); err != nil {
 		return err
 	}
-	return n.invoke(ctx, n.Edge.DoFn.StartBundle(), false, FullValue{})
+	return n.invoke(ctx, n.Edge.DoFn.StartBundleFn(), false, FullValue{})
 }
 
 func (n *ParDo) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
-	return n.invoke(ctx, n.Edge.DoFn.ProcessElement(), true, value, values...)
+	return n.invoke(ctx, n.Edge.DoFn.ProcessElementFn(), true, value, values...)
 }
 
 func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool, value FullValue, values ...ReStream) error {
@@ -238,35 +238,11 @@ func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool
 		input := n.Edge.Input[k+1]
 		param := fn.Param[in[i]]
 
-		switch input.Kind {
-		case graph.Singleton:
-			elms, err := ReadAll(side.Open())
-			if err != nil {
-				return err
-			}
-			if len(elms) != 1 {
-				return fmt.Errorf("singleton side input %v for %v ill-defined", i-1, n.Edge)
-			}
-			args[in[i]] = Convert(elms[0].Elm, param.T)
-
-		case graph.Slice:
-			elms, err := ReadAll(side.Open())
-			if err != nil {
-				return err
-			}
-			slice := reflect.MakeSlice(param.T, len(elms), len(elms))
-			for i := 0; i < len(elms); i++ {
-				slice.Index(i).Set(elms[i].Elm)
-			}
-			args[in[i]] = slice
-
-		case graph.Iter:
-			args[in[i]] = makeIter(param.T, side.Open())
-
-		default:
-			panic(fmt.Sprintf("Unexpected side input kind: %v", input))
+		value, err := makeSideInput(input, param, side.Open())
+		if err != nil {
+			return err
 		}
-
+		args[in[i]] = value
 		i++
 	}
 
@@ -314,10 +290,10 @@ func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool
 }
 
 func (n *ParDo) Down(ctx context.Context) error {
-	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundle(), false, FullValue{}); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundleFn(), false, FullValue{}); err != nil {
 		return err
 	}
-	if err := n.invoke(ctx, n.Edge.DoFn.Teardown(), false, FullValue{}); err != nil {
+	if err := n.invoke(ctx, n.Edge.DoFn.TeardownFn(), false, FullValue{}); err != nil {
 		return err
 	}
 	return Down(ctx, n.Out...)
@@ -325,6 +301,136 @@ func (n *ParDo) Down(ctx context.Context) error {
 
 func (n *ParDo) String() string {
 	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Edge.DoFn.Name()), IDs(n.Out...))
+}
+
+type Combine struct {
+	UID  UnitID
+	Edge *graph.MultiEdge
+	Side []ReStream
+	Out  []Node
+
+	accum reflect.Value
+}
+
+func (n *Combine) ID() UnitID {
+	return n.UID
+}
+
+func (n *Combine) Up(ctx context.Context) error {
+	if err := Up(ctx, n.Out...); err != nil {
+		return err
+	}
+
+	// TODO: setup, validate side input
+	// TODO: specialize based on type?
+
+	fn := n.Edge.CombineFn.CreateAccumulatorFn()
+	if fn == nil {
+		n.accum = reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T)
+		return nil
+	}
+
+	args := make([]reflect.Value, len(fn.Param))
+
+	in := fn.Params(userfn.FnValue | userfn.FnIter | userfn.FnReIter)
+	i := 0
+	for k, side := range n.Side {
+		input := n.Edge.Input[k]
+		param := fn.Param[in[i]]
+
+		value, err := makeSideInput(input, param, side.Open())
+		if err != nil {
+			return err
+		}
+		args[in[i]] = value
+		i++
+	}
+
+	ret := fn.Fn.Call(args)
+	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
+		return ret[index].Interface().(error)
+	}
+	n.accum = ret[fn.Returns(userfn.RetValue)[0]]
+	return nil
+}
+
+func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+	// TODO: precompute args construction to re-use args and just plug in
+	// context and FullValue as well as reset iterators.
+
+	fn := n.Edge.CombineFn.AddInputFn()
+	if fn == nil {
+		// TODO(herohde) 5/30/2017: Merge function only. The input value is an accumulator.
+		panic("No AddInput")
+	}
+
+	// (1) Populate contexts
+
+	args := make([]reflect.Value, len(fn.Param))
+
+	if index, ok := fn.Context(); ok {
+		args[index] = reflect.ValueOf(ctx)
+	}
+
+	// (2) Accumulator and main input from value
+	in := fn.Params(userfn.FnValue | userfn.FnIter | userfn.FnReIter)
+	i := 0
+
+	if index, ok := fn.EventTime(); ok {
+		args[index] = reflect.ValueOf(value.Timestamp)
+	}
+
+	args[in[i]] = n.accum
+	i++
+	args[in[i]] = Convert(value.Elm, fn.Param[i].T)
+	i++
+
+	// (3) Side inputs and form conversion
+
+	for k, side := range n.Side {
+		input := n.Edge.Input[k+1]
+		param := fn.Param[in[i]]
+
+		value, err := makeSideInput(input, param, side.Open())
+		if err != nil {
+			return err
+		}
+		args[in[i]] = value
+		i++
+	}
+
+	// (4) Invoke
+
+	ret := fn.Fn.Call(args)
+	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
+		panic(fmt.Sprintf("AddInput %v failed: %v", fn.Name, ret[index].Interface()))
+		// return ret[index].Interface().(error)
+	}
+	n.accum = ret[fn.Returns(userfn.RetValue)[0]]
+	return nil
+}
+
+func (n *Combine) Down(ctx context.Context) error {
+	value := FullValue{}
+
+	fn := n.Edge.CombineFn.ExtractOutputFn()
+
+	ret := fn.Fn.Call([]reflect.Value{n.accum})
+	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
+		panic(fmt.Sprintf("AddInput %v failed: %v", fn.Name, ret[index].Interface()))
+		// return ret[index].Interface().(error)
+	}
+	value.Elm = ret[fn.Returns(userfn.RetValue)[0]]
+	// TODO(herohde) 6/1/2017: set value.Timestamp
+
+	if err := n.Out[0].ProcessElement(ctx, value); err != nil {
+		panic(err) // see below
+	}
+	return Down(ctx, n.Out...)
+}
+
+func (n *Combine) String() string {
+	return fmt.Sprintf("Combine[%v] Out:%v", path.Base(n.Edge.CombineFn.Name()), IDs(n.Out...))
 }
 
 // DataSource is a Root execution unit.
@@ -564,4 +670,35 @@ func makeEmit(ctx context.Context, t reflect.Type, n Node) reflect.Value {
 		}
 		return nil
 	})
+}
+
+func makeSideInput(input *graph.Inbound, param userfn.FnParam, values Stream) (reflect.Value, error) {
+	switch input.Kind {
+	case graph.Singleton:
+		elms, err := ReadAll(values)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		if len(elms) != 1 {
+			return reflect.Value{}, fmt.Errorf("singleton side input %v for %v ill-defined", input, param)
+		}
+		return Convert(elms[0].Elm, param.T), nil
+
+	case graph.Slice:
+		elms, err := ReadAll(values)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		slice := reflect.MakeSlice(param.T, len(elms), len(elms))
+		for i := 0; i < len(elms); i++ {
+			slice.Index(i).Set(Convert(elms[i].Elm, param.T.Elem()))
+		}
+		return slice, nil
+
+	case graph.Iter:
+		return makeIter(param.T, values), nil
+
+	default:
+		panic(fmt.Sprintf("Unexpected side input kind: %v", input))
+	}
 }

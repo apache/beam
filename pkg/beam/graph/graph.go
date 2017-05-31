@@ -31,6 +31,9 @@ func (g *Graph) Root() *Scope {
 
 // NewScope creates and returns a new scope that is a child of the supplied scope.
 func (g *Graph) NewScope(parent *Scope, name string) *Scope {
+	if parent == nil {
+		panic("Scope is nil")
+	}
 	id := len(g.scopes) + 1
 	s := &Scope{id: id, Label: name, Parent: parent}
 	g.scopes = append(g.scopes, s)
@@ -39,6 +42,9 @@ func (g *Graph) NewScope(parent *Scope, name string) *Scope {
 
 // NewEdge creates a new edge of the graph in the supplied scope.
 func (g *Graph) NewEdge(parent *Scope) *MultiEdge {
+	if parent == nil {
+		panic("Scope is nil")
+	}
 	id := len(g.edges) + 1
 	e := &MultiEdge{id: id, parent: parent}
 	g.edges = append(g.edges, e)
@@ -47,6 +53,9 @@ func (g *Graph) NewEdge(parent *Scope) *MultiEdge {
 
 // NewNode creates a new node in the graph of the supplied fulltype.
 func (g *Graph) NewNode(t typex.FullType) *Node {
+	if !typex.IsBound(t) {
+		panic(fmt.Sprintf("Node type not bound: %v", t))
+	}
 	id := len(g.nodes) + 1
 	n := &Node{id: id, t: t}
 	g.nodes = append(g.nodes, n)
