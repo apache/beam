@@ -25,8 +25,7 @@ func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PC
 	ping := p.Composite("ping")
 	pong := ping // p.Composite("pong")
 
-	// TODO(herohde) 2/23/2017: Dataflow UX seems to have limited support for composite
-	// structures. Fails to display a graph if "pong" above is used.
+	// NOTE(herohde) 2/23/2017: Dataflow does not allow cyclic composite structures.
 
 	small1, big1 := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
 	small2, big2 := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1})  // big-sample  (pong). More words are small.

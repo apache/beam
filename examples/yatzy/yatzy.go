@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf(min{}))
+	graphx.Register(reflect.TypeOf((*minFn)(nil)).Elem())
 }
 
 // roll is a construction-time dice roll. The value is encoded in the shape of
@@ -35,17 +35,17 @@ func roll(p *beam.Pipeline) beam.PCollection {
 	for i := 0; i < num; i++ {
 		col = beam.ParDo(p, incFn, col)
 	}
-	col = beam.ParDo(p, min{Num: *dice}, col)
+	col = beam.ParDo(p, minFn{Num: *dice}, col)
 
 	log.Printf("Lucky number %v!", num)
 	return col
 }
 
-type min struct {
+type minFn struct {
 	Num int `json:"num"`
 }
 
-func (m min) ProcessElement(num int) int {
+func (m minFn) ProcessElement(num int) int {
 	if m.Num < num {
 		return m.Num
 	}

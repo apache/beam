@@ -12,7 +12,9 @@ import (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf(writeFile{}))
+	graphx.Register(reflect.TypeOf((*readFileFn)(nil)).Elem())
+	graphx.Register(reflect.TypeOf((*writeFileFn)(nil)).Elem())
+	graphx.Register(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
 }
 
 // TODO(herohde) 5/1/2017: should godoc for deferred execution be written as if
@@ -23,17 +25,17 @@ func init() {
 // newlines are not part of the lines.
 func Read(p *beam.Pipeline, filename string) beam.PCollection {
 	p = p.Composite("textio.Read")
-	return beam.Source(p, readFn, beam.Data{Data: filename})
+	return beam.Source(p, &readFileFn{Filename: filename})
 }
 
-type fileOpt struct {
-	Filename string `beam:"opt"`
+type readFileFn struct {
+	Filename string `json:"filename"`
 }
 
-func readFn(opt fileOpt, emit func(string)) error {
-	log.Printf("Reading from %v", opt.Filename)
+func (r *readFileFn) ProcessElement(emit func(string)) error {
+	log.Printf("Reading from %v", r.Filename)
 
-	file, err := os.Open(opt.Filename)
+	file, err := os.Open(r.Filename)
 	if err != nil {
 		return err
 	}
@@ -50,17 +52,17 @@ func readFn(opt fileOpt, emit func(string)) error {
 // writer add a newline after each element.
 func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
 	p = p.Composite("textio.Write")
-	beam.Sink(p, &writeFile{Filename: filename}, col)
+	beam.Sink(p, &writeFileFn{Filename: filename}, col)
 }
 
-type writeFile struct {
+type writeFileFn struct {
 	Filename string `json:"filename"`
 
 	writer *bufio.Writer
 	fd     *os.File
 }
 
-func (w *writeFile) Setup() error {
+func (w *writeFileFn) Setup() error {
 	if err := os.MkdirAll(filepath.Dir(w.Filename), 0755); err != nil {
 		return err
 	}
@@ -75,7 +77,7 @@ func (w *writeFile) Setup() error {
 	return nil
 }
 
-func (w *writeFile) ProcessElement(line string) error {
+func (w *writeFileFn) ProcessElement(line string) error {
 	if _, err := w.writer.WriteString(line); err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func (w *writeFile) ProcessElement(line string) error {
 	return err
 }
 
-func (w *writeFile) Teardown() error {
+func (w *writeFileFn) Teardown() error {
 	if err := w.writer.Flush(); err != nil {
 		return err
 	}
@@ -110,15 +112,15 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	if err := scanner.Err(); err != nil {
 		return beam.PCollection{}, err
 	}
-	return beam.Source(p, linesFn, beam.Data{Data: data}), nil
+	return beam.Source(p, &emitLinesFn{Lines: data}), nil
 }
 
-type linesOpt struct {
-	Lines []string `beam:"opt"`
+type emitLinesFn struct {
+	Lines []string `json:"lines"`
 }
 
-func linesFn(opt linesOpt, emit func(string)) {
-	for _, line := range opt.Lines {
+func (e *emitLinesFn) ProcessElement(emit func(string)) {
+	for _, line := range e.Lines {
 		emit(line)
 	}
 }
