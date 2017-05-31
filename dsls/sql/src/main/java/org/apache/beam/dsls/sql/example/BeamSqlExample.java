@@ -55,8 +55,8 @@ public class BeamSqlExample {
     row.addField(2, 1.0);
 
     //create a source PCollection with Create.of();
-    PCollection<BeamSQLRow> inputTable = PBegin.in(p).apply(Create.of(row));
-    inputTable.setCoder(new BeamSqlRowCoder(type));
+    PCollection<BeamSQLRow> inputTable = PBegin.in(p).apply(Create.of(row)
+        .withCoder(new BeamSqlRowCoder(type)));
 
     //run a simple SQL query over input PCollection;
     String sql = "select c2, c3 from TABLE_A where c1=1";
@@ -74,5 +74,4 @@ public class BeamSqlExample {
 
     p.run().waitUntilFinish();
   }
-
 }

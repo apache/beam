@@ -17,35 +17,21 @@
  */
 package org.apache.beam.dsls.sql;
 
-import java.io.Serializable;
-import org.apache.beam.dsls.sql.exception.BeamSqlException;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code BeamSql} is the DSL interface of BeamSQL. It translates a SQL query as a
@@ -83,125 +69,19 @@ outputTableB.apply(BeamSql.toTextRow()).apply(TextIO.write().to("/my/output/path
 p.run().waitUntilFinish();
  * }
  * </pre>
- *
- * <h1>Beam SQL DSL vs CLI client</h1>
- * Beam SQL CLI client(pending) is another way to leverage SQL to process data,
- * which is built on DSL interfaces.
- *
  */
-public class BeamSql implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamSql.class);
-
-  private static SchemaPlus schema;
-  private static BeamQueryPlanner planner;
-
-  static{
-    //Disable Assertion in Calcite temporally, it would not ignore any grammar errors.
-    ClassLoader.getSystemClassLoader().setDefaultAssertionStatus(false);
-    schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
-  }
-
+@Experimental
+public class BeamSql {
   /**
-   * Add a UDF function.
-   */
-  public static void addUDFFunction(String functionName, Class<?> className, String methodName){
-    schema.add(functionName, ScalarFunctionImpl.create(className, methodName));
-  }
-
-  /**
-   * add a {@link BaseBeamTable} to schema repository.
+   * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
    *
-   */
-  public static void registerTable(String tableName, BaseBeamTable table) {
-    schema.add(tableName, table);
-    planner.getSourceTables().put(tableName, table);
-  }
-
-  /**
-   * Find {@link BaseBeamTable} by table name.
-   */
-  public static BaseBeamTable findTable(String tableName){
-    return planner.getSourceTables().get(tableName);
-  }
-  /**
-   * explain and display the logical execution plan.
-   */
-  public static String explainQuery(String sqlString)
-      throws ValidationException, RelConversionException, SqlParseException {
-    BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
-    String beamPlan = RelOptUtil.toString(exeTree);
-    LOG.info(String.format("beamPlan>\n%s", beamPlan));
-
-    return beamPlan;
-  }
-
-  /**
-   * compile SQL, and return a {@link Pipeline}.
+   * <p>The returned {@link PTransform} can be applied to a {@link PCollectionTuple} representing
+   * all the input tables and results in a {@code PCollection<BeamSQLRow} representing the output
+   * table. The {@link PCollectionTuple} contains the mapping from {@code table names} to
+   * {@code PCollection<BeamSQLRow>}, each representing an input table.
    *
-   * <p>This may be changed with following CLI client.
-   */
-  @Experimental
-  public static PCollection<BeamSQLRow> compilePipeline(String sqlStatement) throws Exception{
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class); // FlinkPipelineOptions.class
-    options.setJobName("BeamPlanCreator");
-    Pipeline pipeline = Pipeline.create(options);
-
-    return compilePipeline(sqlStatement, pipeline);
-  }
-
-  /**
-   * compile SQL, and return a {@link Pipeline}.
-   *
-   * <p>This may be changed with following CLI client.
-   */
-  @Experimental
-  public static PCollection<BeamSQLRow> compilePipeline(String sqlStatement, Pipeline basePipeline)
-      throws Exception{
-    PCollection<BeamSQLRow> resultStream = planner.compileBeamPipeline(sqlStatement, basePipeline);
-    return resultStream;
-  }
-
-  //methods for Beam SQL as DSL.
-  /**
-   * Translate a PCollection with type T to {@code PCollection<BeamSQLRow>}
-   * which can be accepted by Beam SQL DSL.
-   */
-  public static <T> PTransform<PCollection<T>, PCollection<BeamSQLRow>> toBeamSqlRow(
-      PTransform<PCollection<T>, PCollection<BeamSQLRow>> recordTransform,
-      BeamSQLRecordType rowType) {
-    return new BeamRowRecordReader<T>(recordTransform, rowType);
-  }
-
-  /**
-   * {@link PTransform} used in {@link BeamSql#toBeamSqlRow(PTransform, BeamSQLRecordType)}
-   * to translate row records.
-   */
-  public static class BeamRowRecordReader<T>
-      extends PTransform<PCollection<T>, PCollection<BeamSQLRow>> {
-    private PTransform<PCollection<T>, PCollection<BeamSQLRow>> recordTransform;
-    private BeamSQLRecordType rowType;
-
-    public BeamRowRecordReader(PTransform<PCollection<T>, PCollection<BeamSQLRow>> recordTransform,
-        BeamSQLRecordType rowType) {
-      this.recordTransform = recordTransform;
-      this.rowType = rowType;
-    }
-
-    @Override
-    public PCollection<BeamSQLRow> expand(PCollection<T> input) {
-      return input.apply(recordTransform).setCoder(new BeamSqlRowCoder(rowType));
-    }
-
-  }
-
-  /**
-   * {@link BeamSql#query(String)} is the core method in Beam SQL DSL.
-   *
-   * <p>It translates a SQL query to a composite {@link PTransform}, which is applied to
-   * {@link PCollectionTuple} and emit a {@link PCollection}. Here {@link PCollectionTuple}
-   * contains the input tables, each is represented as a {@link PCollection}.
+   * <p>It is an error to apply a {@link PCollectionTuple} missing any {@code table names}
+   * referenced within the query.
    */
   public static PTransform<PCollectionTuple, PCollection<BeamSQLRow>> query(String sqlQuery) {
     return new QueryTransform(sqlQuery);
@@ -209,8 +89,10 @@ public class BeamSql implements Serializable {
   }
 
   /**
-   * {@link BeamSql#simpleQuery(String)} is a light-weight method, with similar functions as
-   * {@link BeamSql#query(String)}, but that it's applied to a single source table.
+   * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
+   *
+   * <p>This is a simplified form of {@link #query(String)} where the query must reference
+   * a single input table.
    */
   public static PTransform<PCollection<BeamSQLRow>, PCollection<BeamSQLRow>>
   simpleQuery(String sqlQuery) throws Exception {
@@ -218,7 +100,7 @@ public class BeamSql implements Serializable {
   }
 
   /**
-   * A {@link PTransform} to translate from one SQL to a Beam composite {@link PTransform}.
+   * A {@link PTransform} representing an execution plan for a SQL query.
    */
   public static class QueryTransform extends PTransform<PCollectionTuple, PCollection<BeamSQLRow>> {
     private String sqlQuery;
@@ -230,28 +112,22 @@ public class BeamSql implements Serializable {
     public PCollection<BeamSQLRow> expand(PCollectionTuple input) {
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = BeamSql.planner.convertToBeamRel(sqlQuery);
+        beamRelNode = BeamSqlEnv.planner.convertToBeamRel(sqlQuery);
       } catch (ValidationException | RelConversionException | SqlParseException e) {
-        throw new BeamSqlException(e);
+        throw new IllegalStateException(e);
       }
 
       try {
-        return assemble(input, beamRelNode);
+        return beamRelNode.buildBeamPipeline(input);
       } catch (Exception e) {
-        throw new BeamSqlException(e);
+        throw new IllegalStateException(e);
       }
     }
-
-    private PCollection<BeamSQLRow> assemble(PCollectionTuple input, BeamRelNode beamRelNode)
-        throws Exception {
-      return beamRelNode.buildBeamPipeline(input);
-    }
-
   }
 
   /**
-   * A {@link PTransform} to wrap a call of {@link BeamSql#simpleQuery(String)}
-   * as {@link BeamSql#query(String)}.
+   * A {@link PTransform} representing an execution plan for a SQL query referencing
+   * a single table.
    */
   public static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSQLRow>, PCollection<BeamSQLRow>> {
@@ -268,17 +144,17 @@ public class BeamSql implements Serializable {
     public PCollection<BeamSQLRow> expand(PCollection<BeamSQLRow> input) {
       SqlNode sqlNode;
       try {
-        sqlNode = BeamSql.planner.parseQuery(sqlQuery);
-        BeamSql.planner.getPlanner().close();
+        sqlNode = BeamSqlEnv.planner.parseQuery(sqlQuery);
+        BeamSqlEnv.planner.getPlanner().close();
       } catch (SqlParseException e) {
-        throw new BeamSqlException(e);
+        throw new IllegalStateException(e);
       }
       BeamSqlRowCoder inputCoder = (BeamSqlRowCoder) input.getCoder();
 
       if (sqlNode instanceof SqlSelect) {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
-        BeamSql.registerTable(tableName,
+        BeamSqlEnv.registerTable(tableName,
             new BeamPCollectionTable(input, inputCoder.getTableSchema().toRelDataType()));
         return PCollectionTuple.of(new TupleTag<BeamSQLRow>(tableName), input)
             .apply(BeamSql.query(sqlQuery));
@@ -286,7 +162,5 @@ public class BeamSql implements Serializable {
         throw new BeamSqlUnsupportedException(sqlNode.toString());
       }
     }
-
   }
-
 }

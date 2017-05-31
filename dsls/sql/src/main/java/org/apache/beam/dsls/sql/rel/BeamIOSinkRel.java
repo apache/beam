@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import com.google.common.base.Joiner;
 import java.util.List;
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -68,7 +68,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
-    BaseBeamTable targetTable = BeamSql.findTable(sourceName);
+    BaseBeamTable targetTable = BeamSqlEnv.findTable(sourceName);
 
     PDone streamEnd = upstream.apply(stageName, targetTable.buildIOWriter());
 

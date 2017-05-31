@@ -22,7 +22,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlCli;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -49,8 +50,8 @@ public class BeamPlannerAggregationSubmitTest {
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    BeamSql.registerTable("ORDER_DETAILS", getOrderTable());
-    BeamSql.registerTable("ORDER_SUMMARY", getSummaryTable());
+    BeamSqlEnv.registerTable("ORDER_DETAILS", getOrderTable());
+    BeamSqlEnv.registerTable("ORDER_SUMMARY", getSummaryTable());
   }
 
   @Before
@@ -119,7 +120,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "WHERE SITE_ID = 1 " + "GROUP BY site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
 
-    BeamSql.compilePipeline(sql, pipeline);
+    BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 
@@ -136,7 +137,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "SELECT site_id, COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
 
-    BeamSql.compilePipeline(sql, pipeline);
+    BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 

@@ -18,7 +18,8 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlCli;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.PAssert;
@@ -48,7 +49,7 @@ public class BeamValuesRelTest {
   public void testValues() throws Exception {
     String sql = "insert into string_table(name, description) values "
         + "('hello', 'world'), ('james', 'bond')";
-    PCollection<BeamSQLRow> rows = BeamSql.compilePipeline(sql, pipeline);
+    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
         SqlTypeName.VARCHAR, "name",
         SqlTypeName.VARCHAR, "description",
@@ -60,7 +61,7 @@ public class BeamValuesRelTest {
   @Test
   public void testValues_castInt() throws Exception {
     String sql = "insert into int_table (c0, c1) values(cast(1 as int), cast(2 as int))";
-    PCollection<BeamSQLRow> rows = BeamSql.compilePipeline(sql, pipeline);
+    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
         SqlTypeName.INTEGER, "c0",
         SqlTypeName.INTEGER, "c1",
@@ -72,7 +73,7 @@ public class BeamValuesRelTest {
   @Test
   public void testValues_onlySelect() throws Exception {
     String sql = "select 1, '1'";
-    PCollection<BeamSQLRow> rows = BeamSql.compilePipeline(sql, pipeline);
+    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
         SqlTypeName.INTEGER, "EXPR$0",
         SqlTypeName.CHAR, "EXPR$1",
@@ -83,8 +84,8 @@ public class BeamValuesRelTest {
 
   @BeforeClass
   public static void prepareClass() {
-    BeamSql.registerTable("string_table", stringTable);
-    BeamSql.registerTable("int_table", intTable);
+    BeamSqlEnv.registerTable("string_table", stringTable);
+    BeamSqlEnv.registerTable("int_table", intTable);
   }
 
   @Before

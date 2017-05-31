@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import com.google.common.base.Joiner;
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -56,7 +56,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
       return sourceStream;
     } else {
       //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-      BaseBeamTable sourceTable = BeamSql.findTable(sourceName);
+      BaseBeamTable sourceTable = BeamSqlEnv.findTable(sourceName);
       return sourceTable.buildIOReader(inputPCollections.getPipeline());
     }
   }

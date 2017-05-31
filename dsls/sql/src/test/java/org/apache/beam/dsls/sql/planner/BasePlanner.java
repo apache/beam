@@ -21,7 +21,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -40,9 +40,9 @@ import org.junit.BeforeClass;
 public class BasePlanner {
   @BeforeClass
   public static void prepareClass() {
-    BeamSql.registerTable("ORDER_DETAILS", getTable());
-    BeamSql.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
-    BeamSql.registerTable("SUB_ORDER_RAM", getTable());
+    BeamSqlEnv.registerTable("ORDER_DETAILS", getTable());
+    BeamSqlEnv.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    BeamSqlEnv.registerTable("SUB_ORDER_RAM", getTable());
   }
 
   private static BaseBeamTable getTable() {

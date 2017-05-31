@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,7 +45,7 @@ public class BeamPlannerSubmitTest extends BasePlanner {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
 
-    PCollection<BeamSQLRow> outputStream = BeamSql.compilePipeline(sql, pipeline);
+    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 

@@ -17,7 +17,8 @@
  */
 package org.apache.beam.dsls.sql.schema;
 
-import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.BeamSqlCli;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BasePlanner;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -54,14 +55,14 @@ public class BeamPCollectionTableTest extends BasePlanner{
     row.addField(0, 1);
     row.addField(1, "hello world.");
     PCollection<BeamSQLRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
-    BeamSql.registerTable("COLLECTION_TABLE",
+    BeamSqlEnv.registerTable("COLLECTION_TABLE",
         new BeamPCollectionTable(inputStream, protoRowType));
   }
 
   @Test
   public void testSelectFromPCollectionTable() throws Exception{
     String sql = "select c1, c2 from COLLECTION_TABLE";
-    PCollection<BeamSQLRow> outputStream = BeamSql.compilePipeline(sql, pipeline);
+    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
   }
