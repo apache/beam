@@ -18,7 +18,7 @@ package cz.seznam.euphoria.operator.test.accumulators;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class Counter implements
-    cz.seznam.euphoria.core.client.accumulators.Counter, GetSnapshot<Long> {
+    cz.seznam.euphoria.core.client.accumulators.Counter, Snapshotable<Long> {
 
   private AtomicLong value = new AtomicLong();
 
