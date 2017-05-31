@@ -22,7 +22,7 @@ public interface SnapshotProvider {
 
   Map<String, Long> getCounterSnapshots();
 
-  Map<String, Map<Long, Integer>> getHistogramSnapshots();
+  Map<String, Map<Long, Long>> getHistogramSnapshots();
 
-  Map<String, Map<Duration, Integer>> getTimerSnapshots();
+  Map<String, Map<Duration, Long>> getTimerSnapshots();
 }
