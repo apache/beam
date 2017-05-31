@@ -145,6 +145,7 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <snappy-java.version>1.1.4-M3</snappy-java.version>
+    <flink.scala.version>2.10</flink.scala.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
@@ -339,6 +340,19 @@
         </pluginManagement>
       </build>
     </profile>
+
+    <profile> 
+      <id>flink-scala-2.11</id>
+      <activation>
+        <property>
+          <name>flink-scala-2.11</name>
+        </property>
+      </activation>
+      <properties>
+        <flink.scala.version>2.11</flink.scala.version>
+      </properties>
+    </profile>
+
   </profiles>
 
   <dependencyManagement>
@@ -529,7 +543,7 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-runners-flink_2.10</artifactId>
+        <artifactId>beam-runners-flink_${flink.scala.version}</artifactId>
         <version>${project.version}</version>
       </dependency>
 

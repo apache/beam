@@ -26,7 +26,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-flink_2.10</artifactId>
+  <artifactId>beam-runners-flink_${flink.scala.version}</artifactId>
   <name>Apache Beam :: Runners :: Flink</name>
   <packaging>jar</packaging>
 
@@ -167,7 +167,7 @@
     <!-- Flink dependencies -->
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-clients_2.10</artifactId>
+      <artifactId>flink-clients_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
@@ -191,13 +191,13 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-runtime_2.10</artifactId>
+      <artifactId>flink-runtime_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_2.10</artifactId>
+      <artifactId>flink-streaming-java_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
@@ -212,7 +212,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-runtime_2.10</artifactId>
+      <artifactId>flink-runtime_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -343,7 +343,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_2.10</artifactId>
+      <artifactId>flink-streaming-java_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
@@ -351,7 +351,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-test-utils_2.10</artifactId>
+      <artifactId>flink-test-utils_${flink.scala.version}</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
       <exclusions>

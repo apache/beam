@@ -93,7 +93,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
+          <artifactId>beam-runners-flink_${flink.scala.version}</artifactId>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
