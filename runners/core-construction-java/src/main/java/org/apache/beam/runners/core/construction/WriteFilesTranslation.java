@@ -1,0 +1,152 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.beam.runners.core.construction;
+
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.WriteFilesPayload;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+
+/**
+ * Utility methods for translating a {@link WriteFiles} to and from {@link RunnerApi}
+ * representations.
+ */
+public class WriteFilesTranslation {
+
+  /** The URN for an unknown Java {@link FileBasedSink}. */
+  public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
+      "urn:beam:file_based_sink:javasdk:0.1";
+
+  @VisibleForTesting
+  static WriteFilesPayload toProto(WriteFiles<?> transform) {
+    return WriteFilesPayload.newBuilder()
+        .setSink(toProto(transform.getSink()))
+        .setWindowedWrites(transform.isWindowedWrites())
+        .setRunnerDeterminedSharding(
+            transform.getNumShards() == null && transform.getSharding() == null)
+        .build();
+  }
+
+  private static SdkFunctionSpec toProto(FileBasedSink<?> sink) {
+    return SdkFunctionSpec.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(CUSTOM_JAVA_FILE_BASED_SINK_URN)
+                .setParameter(
+                    Any.pack(
+                        BytesValue.newBuilder()
+                            .setValue(
+                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(sink)))
+                            .build())))
+        .build();
+  }
+
+  @VisibleForTesting
+  static FileBasedSink<?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
+    checkArgument(
+        sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_URN),
+        "Cannot extract %s instance from %s with URN %s",
+        FileBasedSink.class.getSimpleName(),
+        FunctionSpec.class.getSimpleName(),
+        sinkProto.getSpec().getUrn());
+
+    byte[] serializedSink =
+        sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+
+    return (FileBasedSink<?>)
+        SerializableUtils.deserializeFromByteArray(
+            serializedSink, FileBasedSink.class.getSimpleName());
+  }
+
+  public static <T> FileBasedSink<T> getSink(
+      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+          transform)
+      throws IOException {
+    return (FileBasedSink<T>) sinkFromProto(getWriteFilesPayload(transform).getSink());
+  }
+
+  public static <T> boolean isWindowedWrites(
+      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+          transform)
+      throws IOException {
+    return getWriteFilesPayload(transform).getWindowedWrites();
+  }
+
+  public static <T> boolean isRunnerDeterminedSharding(
+      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+          transform)
+      throws IOException {
+    return getWriteFilesPayload(transform).getRunnerDeterminedSharding();
+  }
+
+  private static <T> WriteFilesPayload getWriteFilesPayload(
+      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+          transform)
+      throws IOException {
+    return PTransformTranslation.toProto(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
+        .getSpec()
+        .getParameter()
+        .unpack(WriteFilesPayload.class);
+  }
+
+  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?>> {
+    @Override
+    public String getUrn(WriteFiles<?> transform) {
+      return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, WriteFiles<?>> transform, SdkComponents components) {
+      return FunctionSpec.newBuilder()
+          .setUrn(getUrn(transform.getTransform()))
+          .setParameter(Any.pack(toProto(transform.getTransform())))
+          .build();
+    }
+  }
+
+  /** Registers {@link WriteFilesTranslator}. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return Collections.singletonMap(WriteFiles.class, new WriteFilesTranslator());
+    }
+  }
+}
