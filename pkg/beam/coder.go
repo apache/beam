@@ -8,13 +8,27 @@ import (
 	"reflect"
 )
 
-// Coder represents a coder.
+// Coder defines how to encode and decode values of type 'A' into byte streams.
+// Coders are attached to PCollections of the same type. For PCollections
+// consumed by GBK, the attached coders are required to be deterministic.
 type Coder struct {
 	coder *coder.Coder
 }
 
+// IsValid returns true iff the Coder is valid. Any use of an invalid Coder
+// will result in a panic.
 func (c Coder) IsValid() bool {
 	return c.coder != nil
+}
+
+// Type returns the full type 'A' of elements the coder can encode and decode.
+// 'A' must be a concrete Windowed Value type, such as W<int> or
+// W<KV<int,string>>.
+func (c Coder) Type() typex.FullType {
+	if !c.IsValid() {
+		panic("Invalid Coder")
+	}
+	return c.coder.T
 }
 
 func (c Coder) String() string {
@@ -27,6 +41,9 @@ func (c Coder) String() string {
 // TODO(herohde) 4/4/2017: for convenience, we use the magic json coding
 // everywhere. To be replaced by Coder registry, sharing, etc.
 
+// TODO: select optimal coder based on type, notably handling int, string, etc.
+
+// NewCoder infers a Coder for any bound full type.
 func NewCoder(t typex.FullType) Coder {
 	c, err := inferCoder(t)
 	if err != nil {
@@ -38,7 +55,7 @@ func NewCoder(t typex.FullType) Coder {
 func inferCoder(t typex.FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
-		c, err := NewJSONCoder(t.Type())
+		c, err := newJSONCoder(t.Type())
 		if err != nil {
 			return nil, err
 		}
@@ -85,8 +102,8 @@ func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
 // form that doesn't require LengthPrefix'ing to cut up the bytestream from
 // the FnHarness.
 
-// Concrete and universal coders both have a similar signature. Conversion is
-// handled by reflection.
+// Concrete and universal custom coders both have a similar signature.
+// Conversion is handled by reflection.
 
 func jsonEnc(in typex.T) ([]byte, error) {
 	return json.Marshal(in)
@@ -100,9 +117,7 @@ func jsonDec(t reflect.Type, in []byte) (typex.T, error) {
 	return val.Elem().Interface(), nil
 }
 
-// TODO: select optimal coder based on type, notably handling int, string, etc.
-
-func NewJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
+func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
 	if err != nil {
 		return nil, fmt.Errorf("invalid coder: %v", err)

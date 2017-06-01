@@ -5,13 +5,27 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 )
 
-// Flatten merges incoming PCollection<T>s to a single PCollection<T>.
+// Flatten is a PTransform that takes multiple PCollections of type 'A' and
+// returns a single PCollection of type 'A' containing all the elements in
+// all the input PCollections. The name "Flatten" suggests taking a list of
+// lists and flattening them into a single list.
+//
+// Example of use:
+//
+//    a := textio.Read(p, "...")
+//    b := textio.Read(p, "...")
+//    c := textio.Read(p, "...")
+//    merged := beam.Flatten(p, a, b, c)
+//
+// By default, the Coder of the output PCollection is the same as the Coder
+// of the first PCollection.
 func Flatten(p *Pipeline, cols ...PCollection) PCollection {
 	return Must(TryFlatten(p, cols...))
 }
 
-// TryFlatten merges incoming PCollection<T>s to a single PCollection<T>. Returns
-// an error indicating the set of PCollections that could not be flattened.
+// TryFlatten merges incoming PCollections of type 'A' to a single PCollection
+// of type 'A'. Returns an error indicating the set of PCollections that could
+// not be flattened.
 func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
 	for i, in := range cols {
 		if !in.IsValid() {
@@ -35,6 +49,6 @@ func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
 		return PCollection{}, err
 	}
 	ret := PCollection{edge.Output[0].To}
-	ret.SetCoder(NewCoder(ret.Type()))
+	ret.SetCoder(cols[0].Coder())
 	return ret, nil
 }

@@ -19,6 +19,8 @@ func Seq(p *Pipeline, col PCollection, dofns ...interface{}) PCollection {
 	return cur
 }
 
+// TODO(herohde) 5/30/2017: add composite helper that picks up the enclosing function name.
+
 // Composite is a helper to scope a composite transform.
 func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) PCollection) PCollection {
 	return fn(p.Composite(name))
