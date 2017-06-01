@@ -18,6 +18,10 @@
 
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -704,10 +708,21 @@ class FlinkStreamingTransformTranslators {
       CoderTypeInformation<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder);
 
-      DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
+      SingleOutputStreamOperator<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<K, InputT>())
               .returns(workItemTypeInfo).name("ToKeyedWorkItem");
+
+      // The flat map should set the parallelism based on the previous step rather than
+      // the current step. Otherwise, it will introduce an unnecessary extra shuffle.
+      PipelineTranslationOptimizer optimizer = context.getOptimizer();
+      String mainInputProducerFullName = checkNotNull(optimizer.getProducer(input))
+          .getFullName();
+      Integer mainInputProducerParallelism =
+          optimizer.getPerTransformParallelism(mainInputProducerFullName);
+      if (mainInputProducerParallelism != null) {
+        workItemStream.setParallelism(mainInputProducerParallelism);
+      }
 
       KeyedStream<
           WindowedValue<
@@ -803,10 +818,21 @@ class FlinkStreamingTransformTranslators {
       CoderTypeInformation<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder);
 
-      DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
+      SingleOutputStreamOperator<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<K, InputT>())
               .returns(workItemTypeInfo).name("ToKeyedWorkItem");
+
+      // The flat map should set the parallelism based on the previous step rather than
+      // the current step. Otherwise, it will introduce an unnecessary extra shuffle.
+      PipelineTranslationOptimizer optimizer = context.getOptimizer();
+      String mainInputProducerFullName = checkNotNull(optimizer.getProducer(input))
+          .getFullName();
+      Integer mainInputProducerParallelism =
+          optimizer.getPerTransformParallelism(mainInputProducerFullName);
+      if (mainInputProducerParallelism != null) {
+        workItemStream.setParallelism(mainInputProducerParallelism);
+      }
 
       KeyedStream<
             WindowedValue<
