@@ -75,7 +75,7 @@ class common_job_properties {
         remote {
           url('https://github.com/apache/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
+                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
         branch('${sha1}')
         extensions {
