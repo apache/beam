@@ -42,8 +42,11 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   private int depth = 0;
 
-  public FlinkBatchPipelineTranslator(ExecutionEnvironment env, PipelineOptions options) {
-    this.batchContext = new FlinkBatchTranslationContext(env, options);
+  public FlinkBatchPipelineTranslator(
+      ExecutionEnvironment env,
+      PipelineOptions options,
+      PipelineTranslationOptimizer optimizer) {
+    this.batchContext = new FlinkBatchTranslationContext(env, options, optimizer);
   }
 
   @Override
@@ -113,6 +116,14 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
     // create the applied PTransform on the batchContext
     batchContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
+
+    // Override the batchContext parallelism if perTransformParallelism is found.
+    Integer perTransformParallelism =
+        batchContext.getOptimizer().getPerTransformParallelism(node.getFullName());
+    if (perTransformParallelism != null) {
+      batchContext.getExecutionEnvironment().setParallelism(perTransformParallelism);
+    }
+
     typedTranslator.translateNode(typedTransform, batchContext);
   }
 

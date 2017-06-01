@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,14 +56,19 @@ class FlinkBatchTranslationContext {
 
   private final ExecutionEnvironment env;
   private final PipelineOptions options;
+  private final PipelineTranslationOptimizer optimizer;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   // ------------------------------------------------------------------------
 
-  public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
+  public FlinkBatchTranslationContext(
+      ExecutionEnvironment env,
+      PipelineOptions options,
+      PipelineTranslationOptimizer optimizer) {
     this.env = env;
     this.options = options;
+    this.optimizer = checkNotNull(optimizer, "optimizer");
     this.dataSets = new HashMap<>();
     this.broadcastDataSets = new HashMap<>();
 
@@ -80,6 +87,10 @@ class FlinkBatchTranslationContext {
 
   public PipelineOptions getPipelineOptions() {
     return options;
+  }
+
+  public PipelineTranslationOptimizer getOptimizer() {
+    return optimizer;
   }
 
   @SuppressWarnings("unchecked")

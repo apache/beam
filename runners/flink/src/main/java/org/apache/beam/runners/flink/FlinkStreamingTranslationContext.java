@@ -54,12 +54,18 @@ class FlinkStreamingTranslationContext {
    * */
   private final Map<PValue, DataStream<?>> dataStreams;
 
+  private final PipelineTranslationOptimizer optimizer;
+
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
+  public FlinkStreamingTranslationContext(
+      StreamExecutionEnvironment env,
+      PipelineOptions options,
+      PipelineTranslationOptimizer optimizer) {
     this.env = checkNotNull(env);
     this.options = checkNotNull(options);
     this.dataStreams = new HashMap<>();
+    this.optimizer = checkNotNull(optimizer, "optimizer");
   }
 
   public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -68,6 +74,10 @@ class FlinkStreamingTranslationContext {
 
   public PipelineOptions getPipelineOptions() {
     return options;
+  }
+
+  public PipelineTranslationOptimizer getOptimizer() {
+    return optimizer;
   }
 
   @SuppressWarnings("unchecked")
