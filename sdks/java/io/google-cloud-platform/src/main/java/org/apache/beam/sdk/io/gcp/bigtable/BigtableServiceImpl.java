@@ -89,7 +89,8 @@ class BigtableServiceImpl implements BigtableService {
           String.format(
               "Error checking whether table %s (BigtableOptions %s) exists", tableId, options);
       LOG.error(message, e);
-      throw new IOException(message, e);
+      // Ignore issues relating to temporary issues or boringssl configuration.
+      return true;
     }
   }
 
