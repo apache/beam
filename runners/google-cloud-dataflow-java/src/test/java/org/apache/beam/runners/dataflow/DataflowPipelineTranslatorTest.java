@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.util.Structs.addObject;
-import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -73,7 +71,6 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -531,57 +528,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
   }
 
-  @Test
-  public void testPredefinedAddStep() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    DataflowPipelineTranslator.registerTransformTranslator(
-        EmbeddedTransform.class, new EmbeddedTranslator());
-
-    // Create a predefined step using another pipeline
-    Step predefinedStep = createPredefinedStep();
-
-    // Create a pipeline that the predefined step will be embedded into
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
-        .apply(ParDo.of(new NoOpFn()))
-        .apply(new EmbeddedTransform(predefinedStep.clone()))
-        .apply(ParDo.of(new NoOpFn()));
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    Job job =
-        translator
-            .translate(
-                pipeline,
-                runner,
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(4, steps.size());
-
-    // The input to the embedded step should match the output of the step before
-    Map<String, Object> step1Out = getOutputPortReference(steps.get(1));
-    Map<String, Object> step2In = getDictionary(
-        steps.get(2).getProperties(), PropertyNames.PARALLEL_INPUT);
-    assertEquals(step1Out, step2In);
-
-    // The output from the embedded step should match the input of the step after
-    Map<String, Object> step2Out = getOutputPortReference(steps.get(2));
-    Map<String, Object> step3In = getDictionary(
-        steps.get(3).getProperties(), PropertyNames.PARALLEL_INPUT);
-    assertEquals(step2Out, step3In);
-
-    // The step should not have been modified other than remapping the input
-    Step predefinedStepClone = predefinedStep.clone();
-    Step embeddedStepClone = steps.get(2).clone();
-    predefinedStepClone.getProperties().remove(PropertyNames.PARALLEL_INPUT);
-    embeddedStepClone.getProperties().remove(PropertyNames.PARALLEL_INPUT);
-    assertEquals(predefinedStepClone, embeddedStepClone);
-  }
-
   /**
    * Construct a OutputReference for the output of the step.
    */
@@ -626,47 +572,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
-    }
-  }
-
-  /**
-   * A placeholder transform that will be used to substitute a predefined Step.
-   */
-  private static class EmbeddedTransform
-      extends PTransform<PCollection<String>, PCollection<String>> {
-    private final Step step;
-
-    public EmbeddedTransform(Step step) {
-      this.step = step;
-    }
-
-    @Override
-    public PCollection<String> expand(PCollection<String> input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          input.isBounded());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return StringUtf8Coder.of();
-    }
-  }
-
-  /**
-   * A TransformTranslator that adds the predefined Step using
-   * {@link TranslationContext#addStep} and remaps the input port reference.
-   */
-  private static class EmbeddedTranslator
-      implements TransformTranslator<EmbeddedTransform> {
-    @Override public void translate(EmbeddedTransform transform, TranslationContext context) {
-      PCollection<String> input = context.getInput(transform);
-      addObject(
-          transform.step.getProperties(),
-          PropertyNames.PARALLEL_INPUT,
-          context.asOutputReference(input, context.getProducer(input)));
-      context.addStep(transform, transform.step);
     }
   }
 

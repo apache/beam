@@ -468,48 +468,6 @@ public class DataflowPipelineTranslator {
       return stepContext;
     }
 
-    @Override
-    public Step addStep(PTransform<?, ? extends PValue> transform, Step original) {
-      Step step = original.clone();
-      String stepName = step.getName();
-      if (stepNames.put(getCurrentTransform(transform), stepName) != null) {
-        throw new IllegalArgumentException(transform + " already has a name specified");
-      }
-
-      Map<String, Object> properties = step.getProperties();
-      if (properties != null) {
-        @Nullable List<Map<String, Object>> outputInfoList = null;
-        try {
-          // TODO: This should be done via a Structs accessor.
-          @Nullable List<Map<String, Object>> list =
-              (List<Map<String, Object>>) properties.get(PropertyNames.OUTPUT_INFO);
-          outputInfoList = list;
-        } catch (Exception e) {
-          throw new RuntimeException("Inconsistent dataflow pipeline translation", e);
-        }
-        if (outputInfoList != null && outputInfoList.size() > 0) {
-          Map<String, Object> firstOutputPort = outputInfoList.get(0);
-          @Nullable String name;
-          try {
-            name = getString(firstOutputPort, PropertyNames.OUTPUT_NAME);
-          } catch (Exception e) {
-            name = null;
-          }
-          if (name != null) {
-            registerOutputName(getOutput(transform), name);
-          }
-        }
-      }
-
-      List<Step> steps = job.getSteps();
-      if (steps == null) {
-        steps = new LinkedList<>();
-        job.setSteps(steps);
-      }
-      steps.add(step);
-      return step;
-    }
-
     public OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer) {
       String stepName = stepNames.get(producer);
       checkArgument(stepName != null, "%s doesn't have a name specified", producer);
