@@ -325,6 +325,39 @@ message CombinePayload {
   map<string, SideInput> side_inputs = 4;
 }
 
+// The payload for the test-only primitive TestStream
+message TestStreamPayload {
+
+  // (Required) the coder for elements in the TestStream events
+  string coder_id = 1;
+
+  repeated Event events = 2;
+
+  message Event {
+    oneof event {
+      AdvanceWatermark watermark_event = 1;
+      AdvanceProcessingTime processing_time_event = 2;
+      AddElements element_event = 3;
+    }
+
+    message AdvanceWatermark {
+      int64 new_watermark = 1;
+    }
+
+    message AdvanceProcessingTime {
+      int64 advance_duration = 1;
+    }
+
+    message AddElements {
+      repeated TimestampedElement elements = 1;
+    }
+  }
+
+  message TimestampedElement {
+    bytes encoded_element = 1;
+    int64 timestamp = 2;
+  }
+}
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
