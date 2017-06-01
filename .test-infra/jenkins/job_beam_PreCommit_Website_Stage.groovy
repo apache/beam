@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // Defines a job.
 job('beam_PreCommit_Website_Stage') {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('beam_SeedJob') {
@@ -42,12 +42,13 @@ job('beam_SeedJob') {
     'Run Seed Job')
 
   steps {
+    shell('.test_infra/jenkins/replace_properties.sh')
     dsl {
       // A list or a glob of other groovy files to process.
       external('.test-infra/jenkins/job_*.groovy')
 
-      // If a job is removed from the script, disable it (rather than deleting).
-      removeAction('DISABLE')
+      // If a job is removed from the script, ignore it (rather than deleting).
+      removeAction('IGNORE')
     }
   }
 }

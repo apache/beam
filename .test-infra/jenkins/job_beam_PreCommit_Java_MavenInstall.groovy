@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.

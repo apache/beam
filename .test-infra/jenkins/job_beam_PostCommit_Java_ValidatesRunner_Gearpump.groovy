@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // This job runs the suite of ValidatesRunner tests against the Gearpump
 // runner.

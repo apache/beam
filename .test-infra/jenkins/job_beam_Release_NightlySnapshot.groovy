@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // This is the nightly snapshot build -- we use this to deploy a daily snapshot
 // to https://repository.apache.org/content/groups/snapshots/org/apache/beam.
