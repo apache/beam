@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
 public class HIFIOWithElasticTest implements Serializable {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOWithElasticTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HIFIOWithElasticTest.class);
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
   private static final String ELASTIC_IN_MEM_PORT = "9200";
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
@@ -217,9 +217,9 @@ public class HIFIOWithElasticTest implements Serializable {
           .put("node.ingest", TRUE).build();
       node = new PluginNode(settings);
       node.start();
-      LOGGER.info("Elastic in memory server started.");
+      LOG.info("Elastic in memory server started.");
       prepareElasticIndex();
-      LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
+      LOG.info("Prepared index " + ELASTIC_INDEX_NAME
           + "and populated data on elastic in memory server.");
     }
 
@@ -243,9 +243,9 @@ public class HIFIOWithElasticTest implements Serializable {
     public static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
-      LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
+      LOG.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
       node.close();
-      LOGGER.info("Closed elastic in memory server node.");
+      LOG.info("Closed elastic in memory server node.");
       deleteElasticDataDirectory();
     }
 
