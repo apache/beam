@@ -17,10 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +40,10 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   private TranslationMode translationMode;
 
   private final FlinkPipelineOptions options;
+
+  private final Map<String, Integer> inferredPerTransformParallelism = Maps.newHashMap();
+
+  private final Map<POutput, TransformHierarchy.Node> outputToProducer = Maps.newHashMap();
 
   public PipelineTranslationOptimizer(TranslationMode defaultMode, FlinkPipelineOptions options) {
     this.translationMode = defaultMode;
@@ -52,6 +62,7 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+    inferParallelism(node);
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
@@ -60,6 +71,7 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    inferParallelism(node);
     Class<? extends PTransform> transformClass = node.getTransform().getClass();
     if (transformClass == Read.Unbounded.class) {
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
@@ -68,5 +80,31 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   }
 
   @Override
-  public void visitValue(PValue value, TransformHierarchy.Node producer) {}
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {
+    outputToProducer.put(value, producer);
+  }
+
+  @Nullable
+  public TransformHierarchy.Node getProducer(POutput output) {
+    return outputToProducer.get(output);
+  }
+
+  @Nullable
+  public Integer getPerTransformParallelism(String transformFullName) {
+    return inferredPerTransformParallelism.get(transformFullName);
+  }
+
+  private void inferParallelism(TransformHierarchy.Node node) {
+    Map<String, Integer> perTransformParallelism = options.getPerTransformParallelism();
+    TransformHierarchy.Node enclosingNode = node;
+    while (enclosingNode != null
+        && !perTransformParallelism.containsKey(enclosingNode.getFullName())) {
+      enclosingNode = node.getEnclosingNode();
+    }
+    if (enclosingNode != null) {
+      inferredPerTransformParallelism.put(
+          node.getFullName(),
+          perTransformParallelism.get(enclosingNode.getFullName()));
+    }
+  }
 }
