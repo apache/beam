@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TimePartitioning;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -36,12 +35,12 @@ public class StreamingInserts<DestinationT>
   private BigQueryServices bigQueryServices;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private final TimePartitioning partition;
+  private final String partition;
 
   /** Constructor. */
   StreamingInserts(CreateDisposition createDisposition,
                    DynamicDestinations<?, DestinationT> dynamicDestinations,
-		   TimePartitioning partition) {
+		   String partition) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.partition = partition;

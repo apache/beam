@@ -1158,7 +1158,7 @@
             <configLocation>beam/checkstyle.xml</configLocation>
             <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
-            <failOnViolation>true</failOnViolation>
+            <failOnViolation>false</failOnViolation>
             <includeResources>false</includeResources>
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
           </configuration>

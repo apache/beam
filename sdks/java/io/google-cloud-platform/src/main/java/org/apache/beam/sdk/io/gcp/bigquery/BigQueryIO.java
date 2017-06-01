@@ -666,7 +666,7 @@ public class BigQueryIO {
     @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
     @Nullable abstract PCollectionView<Map<String, String>> getSchemaFromView();
     @Nullable abstract ValueProvider<String> getJsonSchema();
-    @Nullable abstract TimePartitioning getTimePartitioning();
+    @Nullable abstract ValueProvider<String> getJsonTimePartitioning();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
@@ -688,7 +688,7 @@ public class BigQueryIO {
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
       abstract Builder<T> setSchemaFromView(PCollectionView<Map<String, String>> view);
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
-      abstract Builder<T> setTimePartitioning(TimePartitioning partition);
+      abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> partition);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
       abstract Builder<T> setTableDescription(String tableDescription);
@@ -853,7 +853,12 @@ public class BigQueryIO {
      * Allows newly created tables to include a {@link TimePartitioning} class.
      */
     public Write<T> withTimePartitioning(TimePartitioning partition) {
-      return toBuilder().setTimePartitioning(partition).build();
+      return withJsonTimePartitioning(StaticValueProvider.of(BigQueryHelpers.toJsonString(partition)));
+    }
+
+    /** Allows TimePartition to be serialized */
+    public Write<T> withJsonTimePartitioning(ValueProvider<String> partition) {
+      return toBuilder().setJsonTimePartitioning(partition).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -990,8 +995,12 @@ public class BigQueryIO {
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
+	String part = null;
+	if (getJsonTimePartitioning() != null) {
+	    part = getJsonTimePartitioning().get();
+	}
         StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, getTimePartitioning());
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, part);
         streamingInserts.setTestServices(getBigQueryServices());
         return rowsWithDestination.apply(streamingInserts);
       } else {
