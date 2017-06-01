@@ -42,12 +42,12 @@ func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([
 	return ret, nil
 }
 
-// ParDoN inserts a ParDo transform into the pipeline.
+// ParDoN inserts a ParDo with any number of outputs into the pipeline.
 func ParDoN(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) []PCollection {
 	return MustN(TryParDo(p, dofn, col, opts...))
 }
 
-// ParDo0 inserts a ParDo transform into the pipeline.
+// ParDo0 inserts a ParDo with zero output transform into the pipeline.
 func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) {
 	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 0 {
@@ -55,7 +55,189 @@ func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) {
 	}
 }
 
-// ParDo inserts a ParDo transform into the pipeline.
+// ParDo is the core element-wise PTransform in Apache Beam, invoking a
+// user-specified function on each of the elements of the input PCollection
+// to produce zero or more output elements, all of which are collected into
+// the output PCollection. Use one of the ParDo variants for a different
+// number of output PCollections. The PCollections do no need to have the
+// same types.
+//
+// Elements are processed independently, and possibly in parallel across
+// distributed cloud resources. The ParDo processing style is similar to what
+// happens inside the "Mapper" or "Reducer" class of a MapReduce-style
+// algorithm.
+//
+// DoFns
+//
+// The function to use to process each element is specified by a DoFn, either as
+// single function or as a struct with methods, notably ProcessElement. The
+// struct may also define Setup, StartBundle, FinishBundle and Teardown methods.
+// The struct is JSON-serialized and may contain construction-time values.
+//
+// Conceptually, when a ParDo transform is executed, the elements of the input
+// PCollection are first divided up into some number of "bundles". These are
+// farmed off to distributed worker machines (or run locally, if using the
+// local runner). For each bundle of input elements processing proceeds as
+// follows:
+//
+//  * If a struct, a fresh instance of the argument DoFn is created on a
+//    worker from json serialization, and the Setup method is called on this
+//    instance, if present. A runner may reuse DoFn instances for multiple
+//    bundles. A DoFn that has terminated abnormally (by returning an error)
+//    will never be reused.
+//  * The DoFn's StartBundle method, if provided, is called to initialize it.
+//  * The DoFn's ProcessElement method is called on each of the input elements
+//    in the bundle.
+//  * The DoFn's FinishBundle method, if provided, is called to complete its
+//    work. After FinishBundle is called, the framework will not again invoke
+//    ProcessElement or FinishBundle until a new call to StartBundle has
+//    occurred.
+//  * If any of Setup, StartBundle, ProcessElement or FinishBundle methods
+//    return an error, the Teardown method, if provided, will be called on the
+//    DoFn instance.
+//  * If a runner will no longer use a DoFn, the Teardown method, if provided,
+//    will be called on the discarded instance.
+//
+// Each of the calls to any of the DoFn's processing methods can produce zero
+// or more output elements. All of the of output elements from all of the DoFn
+// instances are included in an output PCollection.
+//
+// For example:
+//
+//    words := beam.ParDo(p, &Foo{...}, ...)
+//    lengths := beam.ParDo(p, func (word string) int) {
+//          return len(word)
+//    }, works)
+//
+//
+// Each output element has the same timestamp and is in the same windows as its
+// corresponding input element. The timestamp can be accessed and/or emitted by
+// including a EventTime-typed parameter. The name of the function or struct is
+// used as the DoFn name. Function literals do not have stable names and should
+// thus not be used in production code.
+//
+// Side Inputs
+//
+// While a ParDo processes elements from a single "main input" PCollection, it
+// can take additional "side input" PCollections. These SideInput along with
+// the DoFn parameter form express styles of accessing PCollection computed by
+// earlier pipeline operations, passed in to the ParDo transform using SideInput
+// options, and their contents accessible to each of the DoFn operations. For
+// example:
+//
+//     words := ...
+//     cufoff := ...  // Singleton PCollection<int>
+//     smallWords := beam.ParDo(p, func (word string, cutoff int, emit func(string)) {
+//           if len(word) < cutoff {
+//                emit(word)
+//           }
+//     }, words, beam.SideInput{Input: cutoff})
+//
+// Additional Outputs
+//
+// Optionally, a ParDo transform can produce zero or multiple output
+// PCollections. Note the use of ParDo2 to specfic 2 outputs. For example:
+//
+//     words := ...
+//     cufoff := ...  // Singleton PCollection<int>
+//     small, big := beam.ParDo2(p, func (word string, cutoff int, small, big func(string)) {
+//           if len(word) < cutoff {
+//                small(word)
+//           } else {
+//                big(word)
+//           }
+//     }, words, beam.SideInput{Input: cutoff})
+//
+//
+// By default, the Coders for the elements of each output PCollections is
+// inferred from the concrete type.
+//
+// There are three main ways to initialize the state of a DoFn instance
+// processing a bundle:
+//
+//  * Define public instance variable state. This state will be automatically
+//    JSON serialized and then deserialized in the DoFn instances created for
+//    bundles. This method is good for state known when the original DoFn is
+//    created in the main program, if it's not overly large. This is not
+//    suitable for any state which must only be used for a single bundle, as
+//    DoFn's may be used to process multiple bundles.
+//
+//  * Compute the state as a singleton PCollection and pass it in as a side
+//    input to the DoFn. This is good if the state needs to be computed by the
+//    pipeline, or if the state is very large and so is best read from file(s)
+//    rather than sent as part of the DoFn's serialized state.
+//
+//  * Initialize the state in each DoFn instance, in a StartBundle method.
+//    This is good if the initialization doesn't depend on any information
+//    known only by the main program or computed by earlier pipeline
+//    operations, but is the same for all instances of this DoFn for all
+//    program executions, say setting up empty caches or initializing constant
+//    data.
+//
+// No Global Shared State
+//
+// ParDo operations are intended to be able to run in parallel across multiple
+// worker machines. This precludes easy sharing and updating mutable state
+// across those machines. There is no support in the Beam model for
+// communicating and synchronizing updates to shared state across worker
+// machines, so programs should not access any mutable global variable state in
+// their DoFn, without understanding that the Go processes for the main program
+// and workers will each have its own independent copy of such state, and there
+// won't be any automatic copying of that state across Java processes. All
+// information should be communicated to DoFn instances via main and side
+// inputs and serialized state, and all output should be communicated from a
+// DoFn instance via output PCollections, in the absence of external
+// communication mechanisms written by user code.
+//
+// Fault Tolerance
+//
+// In a distributed system, things can fail: machines can crash, machines can
+// be unable to communicate across the network, etc. While individual failures
+// are rare, the larger the job, the greater the chance that something,
+// somewhere, will fail. Beam runners may strive to mask such failures by
+// retrying failed DoFn bundles. This means that a DoFn instance might process
+// a bundle partially, then crash for some reason, then be rerun (often as a
+// new process) on that same bundle and on the same elements as before.
+// Sometimes two or more DoFn instances will be running on the same bundle
+// simultaneously, with the system taking the results of the first instance to
+// complete successfully. Consequently, the code in a DoFn needs to be written
+// such that these duplicate (sequential or concurrent) executions do not cause
+// problems. If the outputs of a DoFn are a pure function of its inputs, then
+// this requirement is satisfied. However, if a DoFn's execution has external
+// side-effects, such as performing updates to external HTTP services, then
+// the DoFn's code needs to take care to ensure that those updates are
+// idempotent and that concurrent updates are acceptable. This property can be
+// difficult to achieve, so it is advisable to strive to keep DoFns as pure
+// functions as much as possible.
+//
+// Optimization
+//
+// Beam runners may choose to apply optimizations to a pipeline before it is
+// executed. A key optimization, fusion, relates to ParDo operations. If one
+// ParDo operation produces a PCollection that is then consumed as the main
+// input of another ParDo operation, the two ParDo operations will be fused
+// together into a single ParDo operation and run in a single pass; this is
+// "producer-consumer fusion". Similarly, if two or more ParDo operations
+// have the same PCollection main input, they will be fused into a single ParDo
+// that makes just one pass over the input PCollection; this is "sibling
+// fusion".
+//
+// If after fusion there are no more unfused references to a PCollection (e.g.,
+// one between a producer ParDo and a consumer ParDo), the PCollection itself
+// is "fused away" and won't ever be written to disk, saving all the I/O and
+// space expense of constructing it.
+//
+// When Beam runners apply fusion optimization, it is essentially "free" to
+// write ParDo operations in a very modular, composable style, each ParDo
+// operation doing one clear task, and stringing together sequences of ParDo
+// operations to get the desired overall effect. Such programs can be easier to
+// understand, easier to unit-test, easier to extend and evolve, and easier to
+// reuse in new programs. The predefined library of PTransforms that come with
+// Beam makes heavy use of this modular, composable style, trusting to the
+// runner to "flatten out" all the compositions into highly optimized stages.
+//
+// See https://beam.apache.org/documentation/programming-guide/#transforms-pardo"
+// for the web documentation for ParDo
 func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 1 {
@@ -64,7 +246,9 @@ func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) PColl
 	return ret[0]
 }
 
-// ParDo2 inserts a ParDo transform into the pipeline.
+// TODO(herohde) 6/1/2017: add windowing aspects to above documentation.
+
+// ParDo2 inserts a ParDo with 2 outputs into the pipeline.
 func ParDo2(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 2 {
