@@ -863,6 +863,13 @@ public class BigQueryIO {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
+    /** Specfies a policy for handling failed inserts.
+     *
+     * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
+     * collections are written using batch load jobs, so we don't get per-element failures.
+     * Unbounded collections are written using streaming inserts, so we have access to per-element
+     * insert results.
+     */
     public Write<T> withFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
       return toBuilder().setFailedInsertRetryPolicy(retryPolicy).build();
     }
@@ -989,8 +996,8 @@ public class BigQueryIO {
                 + " PCollection.");
         StreamingInserts<DestinationT> streamingInserts =
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
-            .withInsertRetryPolicy(getFailedInsertRetryPolicy());
-        streamingInserts.setTestServices(getBigQueryServices());
+                .withInsertRetryPolicy(getFailedInsertRetryPolicy())
+                .withTestServices((getBigQueryServices()));
         return rowsWithDestination.apply(streamingInserts);
       } else {
         checkArgument(getFailedInsertRetryPolicy() == null,

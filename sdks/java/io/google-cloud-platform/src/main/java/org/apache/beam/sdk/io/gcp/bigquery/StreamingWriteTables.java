@@ -86,8 +86,8 @@ public class StreamingWriteTables extends PTransform<
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
-    TupleTag<Void> mainOutput = new TupleTag<Void>("mainOutput") {};
-    TupleTag<TableRow> failedOutput = new TupleTag<TableRow>("failedOutput") {};
+    TupleTag<Void> mainOutput = new TupleTag<>("mainOutput");
+    TupleTag<TableRow> failedOutput = new TupleTag<>("failedOutput");
     PCollectionTuple tuple = tagged
         .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
         .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
@@ -100,6 +100,7 @@ public class StreamingWriteTables extends PTransform<
             ParDo.of(
                 new StreamingWriteFn(bigQueryServices, retryPolicy, failedOutput))
             .withOutputTags(mainOutput, TupleTagList.of(failedOutput)));
-    return WriteResult.in(input.getPipeline(), tuple.get(failedOutput));
+    return WriteResult.in(input.getPipeline(),
+        tuple.get(failedOutput).setCoder(TableRowJsonCoder.of()));
   }
 }

@@ -40,17 +40,8 @@ public class StreamingInserts<DestinationT>
   /** Constructor. */
   public StreamingInserts(CreateDisposition createDisposition,
                    DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this(createDisposition, dynamicDestinations, InsertRetryPolicy.alwaysRetry());
-  }
-
-  /** Constructor. */
-  public StreamingInserts(CreateDisposition createDisposition,
-                          DynamicDestinations<?, DestinationT> dynamicDestinations,
-                          InsertRetryPolicy retryPolicy) {
-    this.createDisposition = createDisposition;
-    this.dynamicDestinations = dynamicDestinations;
-    this.bigQueryServices = new BigQueryServicesImpl();
-    this.retryPolicy = retryPolicy;
+    this(createDisposition, dynamicDestinations, new BigQueryServicesImpl(),
+        InsertRetryPolicy.alwaysRetry());
   }
 
   /** Constructor. */
@@ -64,14 +55,18 @@ public class StreamingInserts<DestinationT>
     this.retryPolicy = retryPolicy;
   }
 
-  void setTestServices(BigQueryServices bigQueryServices) {
-    this.bigQueryServices = bigQueryServices;
-  }
-
-  StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+  /**
+   * Specify a retry policy for failed inserts.
+   */
+  public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
         createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
   }
+
+  StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
+    return new StreamingInserts<>(
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
+
 
   @Override
   protected Coder<Void> getDefaultOutputCoder() {
@@ -83,7 +78,7 @@ public class StreamingInserts<DestinationT>
     PCollection<KV<TableDestination, TableRow>> writes =
         input.apply(
             "CreateTables",
-            new CreateTables<DestinationT>(createDisposition, dynamicDestinations)
+            new CreateTables<>(createDisposition, dynamicDestinations)
                 .withTestServices(bigQueryServices));
 
     StreamingWriteTables streamingWriteTables =

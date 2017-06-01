@@ -162,7 +162,7 @@ interface BigQueryServices extends Serializable {
     /**
      * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
      *
-     * <p>If any insert fail permanently according to the retry policy, those indices are added
+     * <p>If any insert fail permanently according to the retry policy, those rows are added
      * to failedInserts.
      *
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
