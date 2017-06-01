@@ -50,7 +50,7 @@
     <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
     <tag>HEAD</tag>
   </scm>
-
+  <!--another dummy change-->
   <issueManagement>
     <system>jira</system>
     <url>https://issues.apache.org/jira/browse/BEAM</url>
