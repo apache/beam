@@ -508,50 +508,6 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<View.AsSingleton<T>> viewAsSingleton() {
-    return new TransformEvaluator<View.AsSingleton<T>>() {
-      @Override
-      public void evaluate(View.AsSingleton<T> transform, EvaluationContext context) {
-        Iterable<? extends WindowedValue<?>> iter =
-        context.getWindowedValues(context.getInput(transform));
-        PCollectionView<T> output = context.getOutput(transform);
-        Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
-
-        @SuppressWarnings("unchecked")
-        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
-
-        context.putPView(output, iterCast, coderInternal);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "collect()";
-      }
-    };
-  }
-
-  private static <T> TransformEvaluator<View.AsIterable<T>> viewAsIter() {
-    return new TransformEvaluator<View.AsIterable<T>>() {
-      @Override
-      public void evaluate(View.AsIterable<T> transform, EvaluationContext context) {
-        Iterable<? extends WindowedValue<?>> iter =
-            context.getWindowedValues(context.getInput(transform));
-        PCollectionView<Iterable<T>> output = context.getOutput(transform);
-        Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
-
-        @SuppressWarnings("unchecked")
-        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
-
-        context.putPView(output, iterCast, coderInternal);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "collect()";
-      }
-    };
-  }
-
   private static <ReadT, WriteT> TransformEvaluator<View.CreatePCollectionView<ReadT, WriteT>>
   createPCollView() {
     return new TransformEvaluator<View.CreatePCollectionView<ReadT, WriteT>>() {
@@ -560,7 +516,7 @@ public final class TransformTranslator {
                            EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
-        PCollectionView<WriteT> output = context.getOutput(transform);
+        PCollectionView<WriteT> output = transform.getView();
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         @SuppressWarnings("unchecked")
@@ -645,8 +601,8 @@ public final class TransformTranslator {
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
     EVALUATORS.put(Create.Values.class, create());
-    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
-    EVALUATORS.put(View.AsIterable.class, viewAsIter());
+//    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
+//    EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
     EVALUATORS.put(Window.Assign.class, window());
     EVALUATORS.put(Reshuffle.class, reshuffle());

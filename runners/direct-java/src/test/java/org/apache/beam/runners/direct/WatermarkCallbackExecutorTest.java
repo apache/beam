@@ -59,6 +59,7 @@ public class WatermarkCallbackExecutorTest {
   public void setup() {
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> summed = created.apply(Sum.integersGlobally());
+    DirectGraphs.performDirectOverrides(p);
     DirectGraph graph = DirectGraphs.getGraph(p);
     create = graph.getProducer(created);
     sum = graph.getProducer(summed);

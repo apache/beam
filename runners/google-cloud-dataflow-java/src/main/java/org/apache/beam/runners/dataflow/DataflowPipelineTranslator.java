@@ -440,6 +440,14 @@ public class DataflowPipelineTranslator {
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
+      if (producer.getTransform() instanceof CreateDataflowView) {
+        // CreateDataflowView produces a dummy output (as it must be a primitive transform) but
+        // in the Dataflow Job graph produces only the view and not the output PCollection.
+        asOutputReference(
+            ((CreateDataflowView) producer.getTransform()).getView(),
+            producer.toAppliedPTransform(getPipeline()));
+        return;
+      }
       asOutputReference(value, producer.toAppliedPTransform(getPipeline()));
     }
 
@@ -465,6 +473,7 @@ public class DataflowPipelineTranslator {
       StepTranslator stepContext = new StepTranslator(this, step);
       stepContext.addInput(PropertyNames.USER_NAME, getFullName(transform));
       stepContext.addDisplayData(step, stepName, transform);
+      LOG.info("Adding {} as step {}", getCurrentTransform(transform).getFullName(), stepName);
       return stepContext;
     }
 
@@ -677,7 +686,7 @@ public class DataflowPipelineTranslator {
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
-            stepContext.addCollectionToSingletonOutput(input, context.getOutput(transform));
+            stepContext.addCollectionToSingletonOutput(input, transform.getView());
           }
         });
 

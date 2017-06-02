@@ -21,15 +21,18 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
@@ -44,6 +47,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   private Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
   private Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters = new HashMap<>();
+  private Set<PCollectionView<?>> consumedViews = new HashSet<>();
 
   private ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers =
       ArrayListMultimap.create();
@@ -73,6 +77,13 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         getClass().getSimpleName());
     if (node.isRootNode()) {
       finalized = true;
+      checkState(
+          viewWriters.keySet().containsAll(consumedViews),
+          "All %ss that are consumed must be written by some %s %s: Missing %s",
+          PCollectionView.class.getSimpleName(),
+          WriteView.class.getSimpleName(),
+          PTransform.class.getSimpleName(),
+          Sets.difference(consumedViews, viewWriters.keySet()));
     }
   }
 
@@ -86,11 +97,12 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
       for (PValue value : node.getInputs().values()) {
         primitiveConsumers.put(value, appliedTransform);
       }
-      if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
-        viewWriters.put(
-            ((ViewOverrideFactory.WriteView<?, ?>) node.getTransform()).getView(),
-            node.toAppliedPTransform(getPipeline()));
-      }
+    }
+    if (node.getTransform() instanceof ParDo.MultiOutput) {
+      consumedViews.addAll(((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs());
+    } else if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
+      viewWriters.put(
+          ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));
     }
   }
 
