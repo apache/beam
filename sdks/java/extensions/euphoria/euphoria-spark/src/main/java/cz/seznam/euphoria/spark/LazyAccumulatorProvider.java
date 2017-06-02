@@ -20,17 +20,18 @@ import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 class LazyAccumulatorProvider implements AccumulatorProvider, Serializable {
-  private final Factory factory;
+  private final SparkAccumulatorFactory factory;
   private final Settings settings;
 
   private transient AccumulatorProvider accumulators;
 
-  LazyAccumulatorProvider(Factory factory, Settings settings) {
+  LazyAccumulatorProvider(SparkAccumulatorFactory factory, Settings settings) {
     this.factory = Objects.requireNonNull(factory);
     this.settings = Objects.requireNonNull(settings);
   }
