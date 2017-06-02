@@ -148,8 +148,8 @@ public class JStormStateInternalsTest {
         watermarkHoldState.add(new Instant(1));
         assertEquals(1, watermarkHoldState.read().getMillis());
         watermarkHoldState.add(new Instant(Integer.MIN_VALUE));
-        assertEquals(1, watermarkHoldState.read().getMillis());
+        assertEquals(Integer.MIN_VALUE, watermarkHoldState.read().getMillis());
         watermarkHoldState.add(new Instant(Integer.MAX_VALUE));
-        assertEquals(Integer.MAX_VALUE, watermarkHoldState.read().getMillis());
+        assertEquals(Integer.MIN_VALUE, watermarkHoldState.read().getMillis());
     }
 }
