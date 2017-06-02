@@ -24,7 +24,9 @@ import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -129,4 +131,57 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   public int hashCode() {
     return coder.hashCode();
   }
+
+  @Override
+  public TypeSerializerConfigSnapshot snapshotConfiguration() {
+    return new CoderTypeSerializerConfigSnapshot<>(coder);
+  }
+
+  @Override
+  public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+    if (configSnapshot instanceof CoderTypeSerializerConfigSnapshot) {
+      if (coder.equals(((CoderTypeSerializerConfigSnapshot<?>) configSnapshot).coder)) {
+        return CompatibilityResult.compatible();
+      }
+    }
+    return CompatibilityResult.requiresMigration();
+  }
+
+  /**
+   *  TypeSerializerConfigSnapshot of CoderTypeSerializer.
+   */
+  public static class CoderTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot {
+
+    private static final int VERSION = 1;
+    private Coder<T> coder;
+
+    public CoderTypeSerializerConfigSnapshot(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public int getVersion() {
+      return VERSION;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      CoderTypeSerializerConfigSnapshot<?> that = (CoderTypeSerializerConfigSnapshot<?>) o;
+
+      return coder != null ? coder.equals(that.coder) : that.coder == null;
+    }
+
+    @Override
+    public int hashCode() {
+      return coder.hashCode();
+    }
+  }
+
 }
