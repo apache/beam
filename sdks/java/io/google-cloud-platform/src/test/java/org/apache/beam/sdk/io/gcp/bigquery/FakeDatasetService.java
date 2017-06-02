@@ -25,9 +25,11 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -36,9 +38,15 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 class FakeDatasetService implements DatasetService, Serializable {
+  Map<String, List<String>> insertErrors = Maps.newHashMap();
+
   @Override
   public Table getTable(TableReference tableRef)
       throws InterruptedException, IOException {
@@ -164,10 +172,24 @@ class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  public long insertAll(TableReference ref, List<TableRow> rowList,
+                        @Nullable List<String> insertIdList)
+      throws IOException, InterruptedException {
+    List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
+    for (TableRow row : rowList) {
+      windowedRows.add(ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
+          GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
+  }
+
   @Override
   public long insertAll(
-      TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+      TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+      @Nullable List<String> insertIdList,
+      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
       throws IOException, InterruptedException {
+    Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (BigQueryIOTest.tables) {
       if (insertIdList != null) {
         assertEquals(rowList.size(), insertIdList.size());
@@ -182,7 +204,21 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableContainer tableContainer = getTableContainer(
           ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
       for (int i = 0; i < rowList.size(); ++i) {
-        dataSize += tableContainer.addRow(rowList.get(i), insertIdList.get(i));
+        TableRow row = rowList.get(i).getValue();
+        List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);
+        boolean shouldInsert = true;
+        if (allErrors != null) {
+          for (TableDataInsertAllResponse.InsertErrors errors : allErrors) {
+            if (!retryPolicy.shouldRetry(new Context(errors))) {
+              shouldInsert = false;
+            }
+          }
+        }
+        if (shouldInsert) {
+          dataSize += tableContainer.addRow(row, insertIdList.get(i));
+        } else {
+          failedInserts.add(rowList.get(i));
+        }
       }
       return dataSize;
     }
@@ -198,6 +234,41 @@ class FakeDatasetService implements DatasetService, Serializable {
       tableContainer.getTable().setDescription(tableDescription);
       return tableContainer.getTable();
     }
+  }
+
+  /**
+   * Cause a given {@link TableRow} object to fail when it's inserted. The errors link the list
+   * will be returned on subsequent retries, and the insert will succeed when the errors run out.
+   */
+  public void failOnInsert(
+      Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors) {
+    synchronized (BigQueryIOTest.tables) {
+      for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry
+          : insertErrors.entrySet()) {
+        List<String> errorStrings = Lists.newArrayList();
+        for (TableDataInsertAllResponse.InsertErrors errors : entry.getValue()) {
+          errorStrings.add(BigQueryHelpers.toJsonString(errors));
+        }
+        this.insertErrors.put(BigQueryHelpers.toJsonString(entry.getKey()), errorStrings);
+      }
+    }
+  }
+
+  Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> getInsertErrors() {
+    Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> parsedInsertErrors =
+        Maps.newHashMap();
+    synchronized (BigQueryIOTest.tables) {
+      for (Map.Entry<String, List<String>> entry : this.insertErrors.entrySet()) {
+        TableRow tableRow = BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class);
+        List<TableDataInsertAllResponse.InsertErrors> allErrors = Lists.newArrayList();
+        for (String errorsString : entry.getValue()) {
+          allErrors.add(BigQueryHelpers.fromJsonString(
+              errorsString, TableDataInsertAllResponse.InsertErrors.class));
+        }
+        parsedInsertErrors.put(tableRow, allErrors);
+      }
+    }
+    return parsedInsertErrors;
   }
 
   void throwNotFound(String format, Object... args) throws IOException {
