@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -66,12 +65,12 @@ public class ViewEvaluatorFactoryTest {
             .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
             .apply(GroupByKey.<Void, String>create())
             .apply(Values.<Iterable<String>>create());
-    PCollectionView<Iterable<String>> view =
+    PCollection<Iterable<String>> view =
         concat.apply(new ViewOverrideFactory.WriteView<>(createView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
-    when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
+    when(context.createPCollectionViewWriter(concat, createView.getView())).thenReturn(viewWriter);
 
     CommittedBundle<String> inputBundle = bundleFactory.createBundle(input).commit(Instant.now());
     AppliedPTransform<?, ?, ?> producer = DirectGraphs.getProducer(view);

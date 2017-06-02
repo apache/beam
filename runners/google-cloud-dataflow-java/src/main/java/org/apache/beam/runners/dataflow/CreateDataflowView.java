@@ -24,7 +24,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 
 /** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
 public class CreateDataflowView<ElemT, ViewT>
-    extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+    extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> of(PCollectionView<ViewT> view) {
     return new CreateDataflowView<>(view);
   }
@@ -36,8 +36,10 @@ public class CreateDataflowView<ElemT, ViewT>
   }
 
   @Override
-  public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
-    return view;
+  public PCollection<ElemT> expand(PCollection<ElemT> input) {
+    return PCollection.<ElemT>createPrimitiveOutputInternal(
+            input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
+        .setCoder(input.getCoder());
   }
 
   public PCollectionView<ViewT> getView() {

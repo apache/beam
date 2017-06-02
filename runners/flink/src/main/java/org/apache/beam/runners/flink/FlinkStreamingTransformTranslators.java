@@ -124,7 +124,7 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator());
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslator());
     TRANSLATORS.put(
-        FlinkStreamingViewOverrides.CreateFlinkPCollectionView.class,
+        CreateStreamingFlinkView.CreateFlinkPCollectionView.class,
         new CreateViewStreamingTranslator());
 
     TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorStreaming());
@@ -584,17 +584,17 @@ class FlinkStreamingTransformTranslators {
 
   private static class CreateViewStreamingTranslator<ElemT, ViewT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      FlinkStreamingViewOverrides.CreateFlinkPCollectionView<ElemT, ViewT>> {
+      CreateStreamingFlinkView.CreateFlinkPCollectionView<ElemT, ViewT>> {
 
     @Override
     public void translateNode(
-        FlinkStreamingViewOverrides.CreateFlinkPCollectionView<ElemT, ViewT> transform,
+        CreateStreamingFlinkView.CreateFlinkPCollectionView<ElemT, ViewT> transform,
         FlinkStreamingTranslationContext context) {
       // just forward
       DataStream<WindowedValue<List<ElemT>>> inputDataSet =
           context.getInputDataStream(context.getInput(transform));
 
-      PCollectionView<ViewT> view = context.getOutput(transform);
+      PCollectionView<ViewT> view = transform.getView();
 
       context.setOutputDataStream(view, inputDataSet);
     }

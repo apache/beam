@@ -257,8 +257,10 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
-          input, input.getWindowingStrategy(), input.getCoder())));
+      PCollectionView<List<T>> view =
+          PCollectionViews.listView(input, input.getWindowingStrategy(), input.getCoder());
+      input.apply(CreatePCollectionView.<T, List<T>>of(view));
+      return view;
     }
   }
 
@@ -282,8 +284,10 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
-          input, input.getWindowingStrategy(), input.getCoder())));
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
+      input.apply(CreatePCollectionView.<T, Iterable<T>>of(view));
+      return view;
     }
   }
 
@@ -423,11 +427,10 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
-          PCollectionViews.multimapView(
-              input,
-              input.getWindowingStrategy(),
-              input.getCoder())));
+      PCollectionView<Map<K, Iterable<V>>> view =
+          PCollectionViews.multimapView(input, input.getWindowingStrategy(), input.getCoder());
+      input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(view));
+      return view;
     }
   }
 
@@ -459,11 +462,10 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
-          PCollectionViews.mapView(
-              input,
-              input.getWindowingStrategy(),
-              input.getCoder())));
+      PCollectionView<Map<K, V>> view =
+          PCollectionViews.mapView(input, input.getWindowingStrategy(), input.getCoder());
+      input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(view));
+      return view;
     }
   }
 
@@ -480,7 +482,7 @@ public class View {
    */
   @Internal
   public static class CreatePCollectionView<ElemT, ViewT>
-      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+      extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
     private PCollectionView<ViewT> view;
 
     private CreatePCollectionView(PCollectionView<ViewT> view) {
@@ -506,8 +508,10 @@ public class View {
     }
 
     @Override
-    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
-      return view;
+    public PCollection<ElemT> expand(PCollection<ElemT> input) {
+      return PCollection.<ElemT>createPrimitiveOutputInternal(
+              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
+          .setCoder(input.getCoder());
     }
   }
 }
