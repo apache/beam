@@ -142,7 +142,7 @@ public class SparkRunnerDebuggerTest {
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
         + "_.groupByKey()\n"
         + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Keys$1())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
         + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
