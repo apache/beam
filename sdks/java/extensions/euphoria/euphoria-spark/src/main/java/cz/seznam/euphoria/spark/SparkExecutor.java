@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
@@ -43,8 +44,8 @@ public class SparkExecutor implements Executor {
   private final JavaSparkContext sparkContext;
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
-  private AccumulatorProvider.Factory accumulatorFactory =
-          VoidAccumulatorProvider.getFactory();
+  private SparkAccumulatorFactory accumulatorFactory =
+          new SparkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
 
   public SparkExecutor(SparkConf conf) {
     sparkContext = new JavaSparkContext(conf);
@@ -66,15 +67,30 @@ public class SparkExecutor implements Executor {
     submitExecutor.shutdownNow();
   }
 
+  /**
+   * Set accumulator provider that will be used to collect metrics and counters.
+   * When no provider is set a default instance of {@link VoidAccumulatorProvider}
+   * will be used.
+   *
+   * @param factory Factory to create an instance of accumulator provider.
+   */
+  public void setAccumulatorProvider(SparkAccumulatorFactory factory) {
+    this.accumulatorFactory = Objects.requireNonNull(factory);
+  }
+
   @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
-    this.accumulatorFactory = Objects.requireNonNull(factory);
+    this.accumulatorFactory = new SparkAccumulatorFactory.Adapter(
+            Objects.requireNonNull(factory));
   }
 
   private Result execute(Flow flow) {
     if (!isBoundedInput(flow)) {
       throw new UnsupportedOperationException("Spark executor doesn't support unbounded input");
     }
+
+    // init accumulators
+    accumulatorFactory.init(sparkContext);
 
     List<DataSink<?>> sinks = Collections.emptyList();
     try {

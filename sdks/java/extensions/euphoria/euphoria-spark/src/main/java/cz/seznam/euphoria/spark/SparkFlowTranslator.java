@@ -32,6 +32,7 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.output.DataSinkOutputFormat;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -85,11 +86,11 @@ public class SparkFlowTranslator {
 
   private final JavaSparkContext sparkEnv;
   private final Settings settings;
-  private final AccumulatorProvider.Factory accumulatorFactory;
+  private final SparkAccumulatorFactory accumulatorFactory;
 
   public SparkFlowTranslator(JavaSparkContext sparkEnv,
                              Settings flowSettings,
-                             AccumulatorProvider.Factory accumulatorFactory) {
+                             SparkAccumulatorFactory accumulatorFactory) {
     this.sparkEnv = Objects.requireNonNull(sparkEnv);
     this.settings = Objects.requireNonNull(flowSettings);
     this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
