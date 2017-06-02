@@ -274,7 +274,9 @@ public class HCatalogIO {
         return StatsUtils.getFileSizeForTable(hiveConf, table);
       } finally {
         //IMetaStoreClient is not AutoCloseable, closing it manually
-        client.close();
+        if (client != null) {
+          client.close();
+        }
       }
     }
 
@@ -313,9 +315,8 @@ public class HCatalogIO {
       //pass the 'desired' split count as an hint to the API
       configProps.put(HCatConstants.HCAT_DESIRED_PARTITION_NUM_SPLITS,
           String.valueOf(desiredSplitCount));
-      configProps = Collections.unmodifiableMap(configProps);
       HCatReader masterReader = DataTransferFactory.getHCatReader(entity,
-          spec.getConfigProperties());
+          configProps);
       ReaderContext readerContext = null;
       readerContext = masterReader.prepareRead();
       return readerContext;
