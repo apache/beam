@@ -74,7 +74,8 @@ public class JStormStateInternals<K> implements StateInternals {
         StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
         // throw new UnsupportedOperationException("StateContext is not supported.");
         /**
-         * TODO Same implementation as state() which is without StateContext. This might be updated after
+         * TODO：
+         * Same implementation as state() which is without StateContext. This might be updated after
          * we figure out if we really need StateContext for JStorm state internals.
          */
         return state(namespace, address);

@@ -81,6 +81,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
     @Override
     public synchronized void close() {
         try {
+            activated.set(false);
             this.reader.close();
         } catch (IOException e) {
             e.printStackTrace();

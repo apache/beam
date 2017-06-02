@@ -44,6 +44,7 @@
       A default profile that includes optional dependencies
       on all of our runners. This is aimed at making it very
       easy for users to run examples with any runner without
+    -->
     <profile>
       <id>direct-runner</id>
       <activation>
