@@ -445,6 +445,15 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
+    // We do the check here because we are guaranteed to at least get the +Inf watermark on the
+    // main input when the job finishes.
+    if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // this means we will never see any more side input
+      // we also do the check here because we might have received the side-input MAX watermark
+      // before receiving any main-input data
+      emitAllPushedBackData();
+    }
+
     if (keyCoder == null) {
       setCurrentInputWatermark(mark.getTimestamp());
       long potentialOutputWatermark =
@@ -475,15 +484,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
       pushbackDoFnRunner.finishBundle();
-    }
-
-    // We do the check here because we are guaranteed to at least get the +Inf watermark on the
-    // main input when the job finishes.
-    if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
-      // this means we will never see any more side input
-      // we also do the check here because we might have received the side-input MAX watermark
-      // before receiving any main-input data
-      emitAllPushedBackData();
     }
   }
 
