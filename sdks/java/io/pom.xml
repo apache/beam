@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+	<?xml version="1.0" encoding="UTF-8"?>
 <!--
     Licensed to the Apache Software Foundation (ASF) under one or more
     contributor license agreements.  See the NOTICE file distributed with
@@ -71,7 +71,7 @@
     <module>hadoop-file-system</module>
     <module>hadoop</module>
     <module>hbase</module>
-	<module>hcatalog</module>
+    <module>hcatalog</module>
     <module>jdbc</module>
     <module>jms</module>
     <module>kafka</module>

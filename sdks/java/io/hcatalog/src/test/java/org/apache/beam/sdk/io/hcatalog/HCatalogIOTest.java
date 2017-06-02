@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -9,57 +9,57 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.hcatalog;
 
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE_NAME;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.commitRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigProperties;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getDefaultHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getWriterContext;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.toHCatRecord;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.writeRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.prepareTestData;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.reCreateTestTable;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.Serializable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.BoundedHCatalogSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
-import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
+import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
-import org.apache.hive.hcatalog.data.transfer.WriterContext;
-
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 
 /**
@@ -73,17 +73,55 @@ public class HCatalogIOTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  @Test
-  /**
-   * Perform end-to-end test of Read operation.
-   */
-  public void testReadE2ESuccess() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  @Rule
+  public final transient TestRule testDataSetupRule = new TestWatcher() {
+    public Statement apply(final Statement base, final Description description) {
+      return new Statement() {
+        @Override
+        public void evaluate() throws Throwable {
+          if (description.getAnnotation(TestDataSetupReqd.class) != null) {
+            prepareTestData();
+          } else if (description.getAnnotation(TestDataInitializationReqd.class) != null) {
+            reCreateTestTable();
+          }
+          base.evaluate();
+        }
+      };
+    }
+  };
 
-    Map<String, String> map = insertTestData();
+  /**
+   * Use this annotation to setup complete test data(table populated with records).
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  @interface TestDataSetupReqd {
+  }
+
+  /**
+   * Use this annotation to setup test tables alone(empty tables, no records are populated).
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  @interface TestDataInitializationReqd {
+  }
+
+
+  /**
+   * Perform end-to-end test of Write-then-Read operation.
+   */
+  @Test
+  @TestDataInitializationReqd
+  public void testWriteWriteThenReadSuccess() throws Exception {
+    pipeline.apply(Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT)))
+    .apply(HCatalogIO.write()
+        .withConfigProperties(getConfigProperties())
+        .withTable(TEST_TABLE_NAME));
+
+    pipeline.run();
 
     PCollection<String> output = pipeline.apply(HCatalogIO.read()
-        .withConfigProperties(map)
+        .withConfigProperties(getConfigProperties())
         .withTable(HCatalogIOTestUtils.TEST_TABLE_NAME))
         .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
           @ProcessElement
@@ -91,59 +129,20 @@ public class HCatalogIOTest implements Serializable {
             c.output(c.element().get(0).toString());
           }
         }));
-    PAssert.thatSingleton(output.apply("Count All", Count.<String>globally()))
-    .isEqualTo(100L);
+    PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     pipeline.run();
-  }
-
-  @Test
-  /**
-   * Perform end-to-end test of Write operation.
-   */
-  public void testWriteE2ESuccess() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
-    createTestTable();
-    pipeline.apply(
-        Create.of(
-            toHCatRecord(0), toHCatRecord(1), toHCatRecord(2), toHCatRecord(3),
-            toHCatRecord(4), toHCatRecord(5), toHCatRecord(6), toHCatRecord(7),
-            toHCatRecord(8), toHCatRecord(9), toHCatRecord(10), toHCatRecord(11),
-            toHCatRecord(12), toHCatRecord(13), toHCatRecord(14), toHCatRecord(15),
-            toHCatRecord(16), toHCatRecord(17), toHCatRecord(18), toHCatRecord(19),
-            toHCatRecord(20), toHCatRecord(21), toHCatRecord(22), toHCatRecord(23),
-            toHCatRecord(24), toHCatRecord(25), toHCatRecord(26), toHCatRecord(27),
-            toHCatRecord(28), toHCatRecord(29), toHCatRecord(30), toHCatRecord(31),
-            toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
-            toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
-        )
-        .apply(HCatalogIO.write()
-            .withConfigProperties(getConfigProperties())
-            .withTable(TEST_TABLE_NAME));
-    pipeline.run();
-    Assert.assertTrue(HCatalogIOTestUtils.getRecordsCount(getConfigProperties()) == 40);
   }
 
   /**
    * Test of Write to a non-existent table.
    */
   @Test
-  public void testWriteFailureTableDoesNotExist() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  public void testWriteFailureTableDoesNotExist() throws Exception {
     thrown.expectCause(isA(UserCodeException.class));
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
     pipeline.apply(
-        Create.of(
-            toHCatRecord(0), toHCatRecord(1), toHCatRecord(2), toHCatRecord(3),
-            toHCatRecord(4), toHCatRecord(5), toHCatRecord(6), toHCatRecord(7),
-            toHCatRecord(8), toHCatRecord(9), toHCatRecord(10), toHCatRecord(11),
-            toHCatRecord(12), toHCatRecord(13), toHCatRecord(14), toHCatRecord(15),
-            toHCatRecord(16), toHCatRecord(17), toHCatRecord(18), toHCatRecord(19),
-            toHCatRecord(20), toHCatRecord(21), toHCatRecord(22), toHCatRecord(23),
-            toHCatRecord(24), toHCatRecord(25), toHCatRecord(26), toHCatRecord(27),
-            toHCatRecord(28), toHCatRecord(29), toHCatRecord(30), toHCatRecord(31),
-            toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
-            toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
+        Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT))
         )
         .apply(HCatalogIO.write()
             .withConfigProperties(getConfigProperties())
@@ -155,75 +154,31 @@ public class HCatalogIOTest implements Serializable {
    * Test of Write without specifying a table.
    */
   @Test
-  public void testWriteFailureValidationTable() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  public void testWriteFailureValidationTable() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("table"));
-    pipeline.apply(
-        Create.of(
-            toHCatRecord(0), toHCatRecord(1), toHCatRecord(2), toHCatRecord(3),
-            toHCatRecord(4), toHCatRecord(5), toHCatRecord(6), toHCatRecord(7),
-            toHCatRecord(8), toHCatRecord(9), toHCatRecord(10), toHCatRecord(11),
-            toHCatRecord(12), toHCatRecord(13), toHCatRecord(14), toHCatRecord(15),
-            toHCatRecord(16), toHCatRecord(17), toHCatRecord(18), toHCatRecord(19),
-            toHCatRecord(20), toHCatRecord(21), toHCatRecord(22), toHCatRecord(23),
-            toHCatRecord(24), toHCatRecord(25), toHCatRecord(26), toHCatRecord(27),
-            toHCatRecord(28), toHCatRecord(29), toHCatRecord(30), toHCatRecord(31),
-            toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
-            toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
-        )
-        .apply(HCatalogIO.write()
-            .withConfigProperties(getConfigProperties()));
-    pipeline.run();
+    HCatalogIO.write().withConfigProperties(getConfigProperties()).validate(null);
   }
 
   /**
    * Test of Write without specifying configuration properties.
    */
   @Test
-  public void testWriteFailureValidationConfigProp() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  public void testWriteFailureValidationConfigProp() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("configProperties"));
-    pipeline.apply(
-        Create.of(
-            toHCatRecord(0), toHCatRecord(1), toHCatRecord(2), toHCatRecord(3),
-            toHCatRecord(4), toHCatRecord(5), toHCatRecord(6), toHCatRecord(7),
-            toHCatRecord(8), toHCatRecord(9), toHCatRecord(10), toHCatRecord(11),
-            toHCatRecord(12), toHCatRecord(13), toHCatRecord(14), toHCatRecord(15),
-            toHCatRecord(16), toHCatRecord(17), toHCatRecord(18), toHCatRecord(19),
-            toHCatRecord(20), toHCatRecord(21), toHCatRecord(22), toHCatRecord(23),
-            toHCatRecord(24), toHCatRecord(25), toHCatRecord(26), toHCatRecord(27),
-            toHCatRecord(28), toHCatRecord(29), toHCatRecord(30), toHCatRecord(31),
-            toHCatRecord(32), toHCatRecord(33), toHCatRecord(34), toHCatRecord(35),
-            toHCatRecord(36), toHCatRecord(37), toHCatRecord(38), toHCatRecord(39))
-        )
-        .apply(HCatalogIO.write()
-            .withTable("myowntable"));
-    pipeline.run();
+    HCatalogIO.write().withTable("myowntable").validate(null);
   }
-
 
   /**
    * Test of Read from a non-existent table.
    */
   @Test
-  public void testReadFailureTableDoesNotExist() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
-
-    Map<String, String> map = insertTestData();
-
+  public void testReadFailureTableDoesNotExist() throws Exception {
     pipeline.apply(HCatalogIO.read()
-        .withConfigProperties(map)
-        .withTable("myowntable"))
-        .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(c.element().get(0).toString());
-          }
-        }));
+        .withConfigProperties(getConfigProperties())
+        .withTable("myowntable"));
     thrown.expectCause(isA(NoSuchObjectException.class));
-    //thrown.expectMessage(containsString("NoSuchObjectException"));
     pipeline.run();
   }
 
@@ -231,60 +186,46 @@ public class HCatalogIOTest implements Serializable {
    * Test of Read without specifying configuration properties.
    */
   @Test
-  public void testReadFailureValidationConfig() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  public void testReadFailureValidationConfig() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("configProperties"));
-    pipeline.apply(HCatalogIO.read()
-        .withTable(TEST_TABLE_NAME))
-        .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(c.element().get(0).toString());
-          }
-        }));
-    pipeline.run();
+    HCatalogIO.read().withTable("myowntable").validate(null);
   }
 
   /**
    * Test of Read without specifying a table.
    */
   @Test
-  public void testReadFailureValidationTable() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
-    Map<String, String> map = new HashMap<String, String>();
+  public void testReadFailureValidationTable() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("table"));
-    pipeline.apply(HCatalogIO.read()
-        .withConfigProperties(map))
-        .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(c.element().get(0).toString());
-          }
-        }));
-    pipeline.run();
+    HCatalogIO.read().withConfigProperties(getConfigProperties()).validate(null);
   }
 
   /**
    * Test of Read using SourceTestUtils.readFromSource(..).
    */
   @Test
-  public void testReadFromSource() throws CommandNeedRetryException,
-  IOException, ClassNotFoundException {
+  @TestDataSetupReqd
+  public void testReadFromSource() throws Exception {
     List<BoundedHCatalogSource> sourceList = getSourceList();
-    List<DefaultHCatRecord> recordsList = new ArrayList<DefaultHCatRecord>();
+    List<String> recordsList = new ArrayList<String>();
     for (int i = 0; i < sourceList.size(); i++) {
-      recordsList.addAll(SourceTestUtils.readFromSource(sourceList.get(i),
-        PipelineOptionsFactory.create()));
+      List<DefaultHCatRecord> hcatRecordsList = SourceTestUtils.readFromSource(sourceList.get(i),
+        PipelineOptionsFactory.create());
+      for (HCatRecord record : hcatRecordsList) {
+        recordsList.add(record.get(0).toString());
+      }
     }
-    Assert.assertTrue(recordsList.size() == 100);
+    Assert.assertThat(getExpectedRecords(TEST_RECORDS_COUNT),
+        Matchers.containsInAnyOrder(recordsList.toArray()));
   }
 
   /**
    * Test of Read using SourceTestUtils.assertSourcesEqualReferenceSource(..).
    */
   @Test
+  @TestDataSetupReqd
   public void testSourcesEqualReferenceSource() throws Exception {
     List<BoundedHCatalogSource> sourceList = getSourceList();
     for (int i = 0; i < sourceList.size(); i++) {
@@ -294,14 +235,11 @@ public class HCatalogIOTest implements Serializable {
     }
   }
 
-  private List<BoundedHCatalogSource> getSourceList() throws CommandNeedRetryException,
-  HCatException, IOException,
-      FileNotFoundException, ClassNotFoundException {
+  private List<BoundedHCatalogSource> getSourceList() throws Exception {
     List<BoundedHCatalogSource> sourceList = new ArrayList<BoundedHCatalogSource>();
-    Map<String, String> configProperties = insertTestData();
-    ReaderContext context = getReaderContext(configProperties);
+    ReaderContext context = getReaderContext(getConfigProperties());
     HCatalogIO.Read spec = HCatalogIO.read()
-        .withConfigProperties(configProperties)
+        .withConfigProperties(getConfigProperties())
         .withContext(context)
         .withTable(TEST_TABLE_NAME);
 
@@ -310,33 +248,5 @@ public class HCatalogIOTest implements Serializable {
       sourceList.add(source);
     }
     return sourceList;
-  }
-
-  private Map<String, String> insertTestData() throws CommandNeedRetryException, HCatException,
-      IOException, FileNotFoundException, ClassNotFoundException {
-    createTestTable();
-    Map<String, String> map = getConfigProperties();
-
-    WriterContext cntxt = getWriterContext(map);
-
-    writeRecords(cntxt);
-    commitRecords(map, cntxt);
-    return map;
-  }
-
-  private Map<String, String> getConfigProperties() {
-    Iterator<Entry<String, String>> itr = EmbeddedMetastoreService.getHiveConf().iterator();
-    Map<String, String> map = new HashMap<String, String>();
-    while (itr.hasNext()) {
-      Entry<String, String> kv = itr.next();
-      map.put(kv.getKey(), kv.getValue());
-    }
-    return map;
-  }
-
-  private void createTestTable() throws CommandNeedRetryException {
-    EmbeddedMetastoreService.executeQuery("drop table " + TEST_TABLE_NAME);
-    EmbeddedMetastoreService.executeQuery("create table " + TEST_TABLE_NAME + "(mycol1 string,"
-        + "mycol2 int)");
   }
 }

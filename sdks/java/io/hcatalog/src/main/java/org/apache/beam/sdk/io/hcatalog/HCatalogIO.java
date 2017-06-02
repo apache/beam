@@ -32,7 +32,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
@@ -77,12 +76,10 @@ import org.slf4j.LoggerFactory;
  * For instance:</p>
  *
  * <pre>{@code
- *
  * Map<String, String> configProperties = new HashMap<String, String>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
- *
  *   .apply(HCatalogIO.read()
  *       .withConfigProperties(configProperties) //mandatory
  *       .withTable("employee") //mandatory
@@ -103,12 +100,10 @@ import org.slf4j.LoggerFactory;
  * For instance:</p>
  *
  * <pre>{@code
- *
- * Map<String, String> configProperties = new HashMap<String, String>();
+ * * Map<String, String> configProperties = new HashMap<String, String>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
-
  *   .apply(...)
  *   .apply(HiveIO.write()
  *       .withConfigProperties(configProperties) //mandatory
@@ -119,9 +114,8 @@ import org.slf4j.LoggerFactory;
  *       .withBatchSize(1024L)) //optional,
  *       assumes a default batch size of 1024 if none specified
  * }</pre>
- *
  */
-@Experimental
+
 public class HCatalogIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(HCatalogIO.class);
@@ -306,8 +300,8 @@ public class HCatalogIO {
       //process the splits returned by native API
       //this could be different from 'desiredSplitCount' calculated above
       LOG.debug("actual split count {}", readerContext.numSplits());
-      for (int i = 0; i < readerContext.numSplits(); i++) {
-        sources.add(new BoundedHCatalogSource(spec.withSplitId(i).withContext(readerContext)));
+      for (int split = 0; split < readerContext.numSplits(); split++) {
+        sources.add(new BoundedHCatalogSource(spec.withSplitId(split).withContext(readerContext)));
       }
       return sources;
     }

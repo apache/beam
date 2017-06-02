@@ -1,4 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.hcatalog;
+
+import java.io.File;
 
 import org.apache.hadoop.hive.cli.CliSessionState;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -43,15 +62,30 @@ public class EmbeddedMetastoreService {
   }
 
   private static void initiateService() throws MetaException {
+
+    //set-up the directories for test datastore
+    setUpFSDirectory(HIVE_DIR);
+    setUpFSDirectory(TEST_DATA_DIR);
+    setUpFSDirectory(TEST_WAREHOUSE_DIR);
+
+    //below properties are used by theembedded metastore to store config
+    //and data files during execution
     System.setProperty("test.tmp.dir", HCatUtil.makePathASafeFileName(
         BASE_DIR + HIVE_DIR));
     System.setProperty("derby.stream.error.file",
         HCatUtil.makePathASafeFileName(BASE_DIR + HIVE_DIR + "/derby.log"));
+
     if (SVC_INSTANCE.driver == null) {
       SVC_INSTANCE.setUpHiveConf();
       SVC_INSTANCE.driver = new Driver(SVC_INSTANCE.hiveConf);
       SessionState.start(new CliSessionState(SVC_INSTANCE.hiveConf));
     }
+  }
+
+  private static void setUpFSDirectory(String dirPath) {
+    File fsDir = new File(dirPath);
+    fsDir.mkdir();
+    fsDir.deleteOnExit();
   }
 
   /**
