@@ -141,9 +141,7 @@ public class HCatalogIOTest implements Serializable {
     thrown.expectCause(isA(UserCodeException.class));
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
-    pipeline.apply(
-        Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT))
-        )
+    pipeline.apply(Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT)))
         .apply(HCatalogIO.write()
             .withConfigProperties(getConfigProperties())
             .withTable("myowntable"));
