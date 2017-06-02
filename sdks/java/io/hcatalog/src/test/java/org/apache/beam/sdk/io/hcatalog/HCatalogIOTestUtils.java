@@ -22,15 +22,13 @@ import org.apache.hive.hcatalog.data.transfer.WriterContext;
  */
 public class HCatalogIOTestUtils {
 
-  public static final String TEST_TABLE_NAME = "mytable";
+  static final String TEST_TABLE_NAME = "mytable";
 
   /**
    * Returns the count of records read from the table.
-   * @param map
-   * @return
    * @throws HCatException
    */
-  public static int getRecordsCount(Map<String, String> map) throws HCatException {
+  static int getRecordsCount(Map<String, String> map) throws HCatException {
     ReaderContext readCntxt = getReaderContext(map);
     int recordsCount = 0;
     for (int i = 0; i < readCntxt.numSplits(); i++) {
@@ -41,11 +39,9 @@ public class HCatalogIOTestUtils {
 
   /**
    * Returns ReaderContext object for the passed configuration parameters.
-   * @param config
-   * @return
    * @throws HCatException
    */
-   public static ReaderContext getReaderContext(Map<String, String> config)
+   static ReaderContext getReaderContext(Map<String, String> config)
     throws HCatException {
     ReadEntity entity = new ReadEntity.Builder().withTable(TEST_TABLE_NAME).build();
     HCatReader reader = DataTransferFactory.getHCatReader(entity, config);
@@ -55,11 +51,9 @@ public class HCatalogIOTestUtils {
 
    /**
     * Returns WriterContext object for the passed configuration parameters.
-    * @param config
-    * @return
     * @throws HCatException
     */
-   public static WriterContext getWriterContext(Map<String, String> config) throws HCatException {
+   static WriterContext getWriterContext(Map<String, String> config) throws HCatException {
       WriteEntity.Builder builder = new WriteEntity.Builder();
       WriteEntity entity = builder.withTable(TEST_TABLE_NAME).build();
       HCatWriter writer = DataTransferFactory.getHCatWriter(entity, config);
@@ -78,23 +72,19 @@ public class HCatalogIOTestUtils {
   }
 
    /**
-    * Writes records to the table.
-    * @param context
+    * Writes records to the table using the passed WriterContext.
     * @throws HCatException
     */
-   public static void writeRecords(WriterContext context) throws HCatException {
+   static void writeRecords(WriterContext context) throws HCatException {
     HCatWriter writer = DataTransferFactory.getHCatWriter(context);
     writer.write(new HCatRecordItr());
   }
 
    /**
     * Commits the pending writes to the database.
-    * @param config
-    * @param status
-    * @param context
     * @throws IOException
     */
-   public static void commitRecords(Map<String, String> config, WriterContext context)
+   static void commitRecords(Map<String, String> config, WriterContext context)
        throws IOException {
     WriteEntity.Builder builder = new WriteEntity.Builder();
     WriteEntity entity = builder.withTable(TEST_TABLE_NAME).build();
@@ -103,11 +93,9 @@ public class HCatalogIOTestUtils {
   }
 
    /**
-    * Returns DefaultHCatRecord for passed value.
-    * @param value
-    * @return
+    * Constructs and returns a DefaultHCatRecord for passed value.
     */
-   public static DefaultHCatRecord toHCatRecord(int value) {
+   static DefaultHCatRecord toHCatRecord(int value) {
     List<Object> dataList = new ArrayList<Object>(2);
     dataList.add("Record " + value);
     dataList.add(value);

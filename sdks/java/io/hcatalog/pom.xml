@@ -32,20 +32,20 @@
 
   <properties>
     <hive.version>2.1.0</hive.version>
-
-	<!-- properties for test -->
-	<pig.version>0.12.0</pig.version>
-	<jersey.version>1.14</jersey.version>
-    <test.log4j.scheme>file://</test.log4j.scheme>
-    <project.build.directory>${project.basedir}/target</project.build.directory>
-    <test.tmp.dir>${project.build.directory}/tmp</test.tmp.dir>
-    <test.tmp.dir.uri>file://${test.tmp.dir}</test.tmp.dir.uri>
-    <test.warehouse.dir>${project.build.directory}/warehouse</test.warehouse.dir>
-    <test.warehouse.scheme>pfile://</test.warehouse.scheme>
-    <ant.contrib.version>1.0b3</ant.contrib.version>
-    <maven.antrun.plugin.version>1.7</maven.antrun.plugin.version>
   </properties>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -55,6 +55,11 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
     </dependency>
 
     <dependency>
@@ -73,61 +78,44 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-exec</artifactId>
+      <version>${hive.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
     </dependency>
 
-	<dependency>
-	  <groupId>org.apache.hive.hcatalog</groupId>
-	  <artifactId>hive-hcatalog-core</artifactId>
+    <dependency>
+      <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-core</artifactId>
       <version>${hive.version}</version>
-	  <exclusions>
-	    <exclusion>
-		  <groupId>org.apache.hive</groupId>
-		  <artifactId>hive-exec</artifactId>
-		</exclusion>
-		<exclusion>
-		  <groupId>com.google.protobuf</groupId>
-		  <artifactId>protobuf-java</artifactId>
-		</exclusion>
-	  </exclusions>
-	</dependency>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-exec</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
-<!-- test dependencies -->
-
-	<dependency>
-	  <groupId>org.apache.hive.hcatalog</groupId>
-	  <artifactId>hive-hcatalog-core</artifactId>
-	  <classifier>tests</classifier>
-	  <scope>test</scope>
+    <dependency>
+      <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-core</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
       <version>${hive.version}</version>
-	</dependency>
+    </dependency>
 
-	<dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>test</scope>
-	</dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-common</artifactId>
-      <version>${hive.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-metastore</artifactId>
-      <version>${hive.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-exec</artifactId>
-      <version>${hive.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -140,23 +128,16 @@
     </dependency>
 
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-common</artifactId>
+      <version>${hive.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>com.sun.jersey</groupId>
-      <artifactId>jersey-servlet</artifactId>
-      <version>${jersey.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.pig</groupId>
-      <artifactId>pig</artifactId>
-      <version>${pig.version}</version>
-      <classifier>h2</classifier>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-cli</artifactId>
+      <version>${hive.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -173,97 +154,4 @@
     </dependency>
   </dependencies>
 
-  <build>
-    <pluginManagement>
-      <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <version>${maven.antrun.plugin.version}</version>
-            <dependencies>
-              <dependency>
-                <groupId>ant-contrib</groupId>
-                <artifactId>ant-contrib</artifactId>
-                <version>${ant.contrib.version}</version>
-                <exclusions>
-                  <exclusion>
-                    <groupId>ant</groupId>
-                    <artifactId>ant</artifactId>
-                  </exclusion>
-                </exclusions>
-              </dependency>
-            </dependencies>
-          </plugin>
-      </plugins>
-    </pluginManagement>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>define-classpath</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <exportAntProperties>true</exportAntProperties>
-              <target>
-                <property name="maven.test.classpath" refid="maven.test.classpath"/>
-              </target>
-            </configuration>
-          </execution>
-
-          <execution>
-            <id>setup-test-dirs</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-              	<delete dir="build/" />
-                <delete dir="${test.tmp.dir}" />
-                <delete dir="${test.warehouse.dir}" />
-                <mkdir dir="${test.tmp.dir}" />
-                <mkdir dir="${test.warehouse.dir}" />
-                <mkdir dir="${test.tmp.dir}/conf" />
-                <!-- copies hive-site.xml so it can be modified -->
-                <copy todir="${test.tmp.dir}/conf/">
-                  <fileset dir="${basedir}/resources/testconf/"/>
-                </copy>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
-          <reuseForks>false</reuseForks>
-          <failIfNoTests>false</failIfNoTests>
-          <argLine>-Xmx2048m -XX:MaxPermSize=512m</argLine>
-          <additionalClasspathElements>
-            <additionalClasspathElement>${test.tmp.dir}/conf</additionalClasspathElement>
-            <additionalClasspathElement>${basedir}/conf</additionalClasspathElement>
-          </additionalClasspathElements>
-          <systemPropertyVariables>
-            <build.dir>${project.build.directory}/target</build.dir>
-            <hive.root>${basedir}</hive.root>
-            <hive.version>${project.version}</hive.version>
-            <log4j.configurationFile>${test.log4j.scheme}${test.tmp.dir}/conf/hive-log4j2.properties</log4j.configurationFile>
-            <log4j.debug>true</log4j.debug>
-            <test.tmp.dir>${test.tmp.dir}</test.tmp.dir>
-            <test.tmp.dir.uri>${test.tmp.dir.uri}</test.tmp.dir.uri>
-            <test.warehouse.dir>${test.warehouse.scheme}${test.warehouse.dir}</test.warehouse.dir>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>

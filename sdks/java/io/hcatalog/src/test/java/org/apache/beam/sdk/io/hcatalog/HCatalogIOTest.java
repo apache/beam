@@ -49,12 +49,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
-import org.apache.hive.hcatalog.mapreduce.HCatBaseTest;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -65,7 +65,7 @@ import org.junit.rules.ExpectedException;
 /**
  *Test for HCatalogIO.
  */
-public class HCatalogIOTest extends HCatBaseTest implements Serializable {
+public class HCatalogIOTest implements Serializable {
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -222,9 +222,8 @@ public class HCatalogIOTest extends HCatBaseTest implements Serializable {
             c.output(c.element().get(0).toString());
           }
         }));
-    thrown.expectCause(isA(HCatException.class));
-    thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
-    thrown.expectMessage(containsString("NoSuchObjectException"));
+    thrown.expectCause(isA(NoSuchObjectException.class));
+    //thrown.expectMessage(containsString("NoSuchObjectException"));
     pipeline.run();
   }
 
@@ -326,7 +325,7 @@ public class HCatalogIOTest extends HCatBaseTest implements Serializable {
   }
 
   private Map<String, String> getConfigProperties() {
-    Iterator<Entry<String, String>> itr = hiveConf.iterator();
+    Iterator<Entry<String, String>> itr = EmbeddedMetastoreService.getHiveConf().iterator();
     Map<String, String> map = new HashMap<String, String>();
     while (itr.hasNext()) {
       Entry<String, String> kv = itr.next();
@@ -336,7 +335,8 @@ public class HCatalogIOTest extends HCatBaseTest implements Serializable {
   }
 
   private void createTestTable() throws CommandNeedRetryException {
-    driver.run("drop table " + TEST_TABLE_NAME);
-    driver.run("create table " + TEST_TABLE_NAME + "(mycol1 string, mycol2 int)");
+    EmbeddedMetastoreService.executeQuery("drop table " + TEST_TABLE_NAME);
+    EmbeddedMetastoreService.executeQuery("create table " + TEST_TABLE_NAME + "(mycol1 string,"
+        + "mycol2 int)");
   }
 }
