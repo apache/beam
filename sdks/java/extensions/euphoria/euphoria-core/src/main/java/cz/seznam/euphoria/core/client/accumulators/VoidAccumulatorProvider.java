@@ -20,8 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Placeholder implementation of {@link AccumulatorProvider} that
@@ -49,7 +48,6 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
   }
 
   public static Factory getFactory() {
-    LOG.warn("Using accumulators with VoidAccumulatorProvider will have no effect");
     return Factory.get();
   }
 
@@ -62,6 +60,8 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
     private static final AccumulatorProvider PROVIDER =
             new VoidAccumulatorProvider();
 
+    private static final AtomicBoolean isLogged = new AtomicBoolean();
+
     private Factory() {}
 
     public static Factory get() {
@@ -70,6 +70,9 @@ public class VoidAccumulatorProvider implements AccumulatorProvider {
 
     @Override
     public AccumulatorProvider create(Settings settings) {
+      if (isLogged.compareAndSet(false, true)) {
+        LOG.warn("Using accumulators with VoidAccumulatorProvider will have no effect");
+      }
       return PROVIDER;
     }
   }
