@@ -27,6 +27,7 @@ import apache_beam as beam
 import apache_beam.transforms as ptransform
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import Pipeline, AppliedPTransform
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import create_runner
@@ -240,6 +241,16 @@ class DataflowRunnerTest(unittest.TestCase):
     for _ in range(num_inputs):
       self.assertEqual(inputs[0].element_type, output_type)
 
+  def test_pubsub_source_override(self):
+    remote_runner = DataflowRunner()
+    options = StandardOptions(self.default_properties + ["--streaming"])
+    p = Pipeline(remote_runner,
+                 options=options)
+
+    (p | beam.io.Read(beam.io.PubSubSource("test_topic")))
+    remote_runner.job = apiclient.Job(p._options)
+    super(DataflowRunner, remote_runner).run(p)
+    print remote_runner.job
 
 if __name__ == '__main__':
   unittest.main()
