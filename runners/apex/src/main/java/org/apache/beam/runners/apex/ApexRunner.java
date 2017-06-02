@@ -62,8 +62,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.View.AsIterable;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -214,7 +212,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
    */
   public static class CreateApexPCollectionView<ElemT, ViewT>
-      extends PTransform<PCollection<List<ElemT>>, PCollectionView<ViewT>> {
+      extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
     private static final long serialVersionUID = 1L;
     private PCollectionView<ViewT> view;
 
@@ -228,7 +226,13 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
+    public PCollection<ElemT> expand(PCollection<ElemT> input) {
+      return PCollection.<ElemT>createPrimitiveOutputInternal(
+              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
+          .setCoder(input.getCoder());
+    }
+
+    public PCollectionView<ViewT> getView() {
       return view;
     }
   }
@@ -241,7 +245,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   private static class StreamingWrapSingletonInList<T>
-      extends PTransform<PCollection<T>, PCollectionView<T>> {
+      extends PTransform<PCollection<T>, PCollection<T>> {
     private static final long serialVersionUID = 1L;
     CreatePCollectionView<T, T> transform;
 
@@ -254,9 +258,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<T> expand(PCollection<T> input) {
-      return input
-          .apply(ParDo.of(new WrapAsList<T>()))
+    public PCollection<T> expand(PCollection<T> input) {
+      return ((PCollection<T>) input.apply(ParDo.of(new WrapAsList<T>())))
           .apply(CreateApexPCollectionView.<T, T>of(transform.getView()));
     }
 
@@ -267,15 +270,12 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     static class Factory<T>
         extends SingleInputOutputOverrideFactory<
-            PCollection<T>, PCollectionView<T>,
+            PCollection<T>, PCollection<T>,
             CreatePCollectionView<T, T>> {
       @Override
-      public PTransformReplacement<PCollection<T>, PCollectionView<T>>
-          getReplacementTransform(
-              AppliedPTransform<
-                      PCollection<T>, PCollectionView<T>,
-                      CreatePCollectionView<T, T>>
-                  transform) {
+      public PTransformReplacement<PCollection<T>, PCollection<T>> getReplacementTransform(
+          AppliedPTransform<PCollection<T>, PCollection<T>, CreatePCollectionView<T, T>>
+              transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             new StreamingWrapSingletonInList<>(transform.getTransform()));
@@ -284,18 +284,19 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   private static class StreamingViewAsIterable<T>
-      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
+      extends PTransform<PCollection<T>, PCollection<T>> {
     private static final long serialVersionUID = 1L;
+    private final PCollectionView<Iterable<T>> view;
 
-    private StreamingViewAsIterable() {}
+    private StreamingViewAsIterable(PCollectionView<Iterable<T>> view) {
+      this.view = view;
+    }
 
     @Override
-    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
-      PCollectionView<Iterable<T>> view =
-          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-
-      return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
-          .apply(CreateApexPCollectionView.<T, Iterable<T>> of(view));
+    public PCollection<T> expand(PCollection<T> input) {
+      return ((PCollection<T>)
+              input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults()))
+          .apply(CreateApexPCollectionView.<T, Iterable<T>>of(view));
     }
 
     @Override
@@ -305,15 +306,17 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     static class Factory<T>
         extends SingleInputOutputOverrideFactory<
-            PCollection<T>, PCollectionView<Iterable<T>>, View.AsIterable<T>> {
+            PCollection<T>, PCollection<T>, CreatePCollectionView<T, Iterable<T>>> {
       @Override
-      public PTransformReplacement<PCollection<T>, PCollectionView<Iterable<T>>>
+      public PTransformReplacement<PCollection<T>, PCollection<T>>
           getReplacementTransform(
-              AppliedPTransform<PCollection<T>, PCollectionView<Iterable<T>>, AsIterable<T>>
+              AppliedPTransform<
+                      PCollection<T>, PCollection<T>,
+                      CreatePCollectionView<T, Iterable<T>>>
                   transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            new StreamingViewAsIterable<T>());
+            new StreamingViewAsIterable<T>(transform.getTransform().getView()));
       }
     }
   }

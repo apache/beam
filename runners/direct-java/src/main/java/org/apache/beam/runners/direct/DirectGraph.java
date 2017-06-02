@@ -79,6 +79,10 @@ class DirectGraph {
     return rootTransforms;
   }
 
+  Set<PCollection<?>> getPCollections() {
+    return producers.keySet();
+  }
+
   Set<PCollectionView<?>> getViews() {
     return viewWriters.keySet();
   }
