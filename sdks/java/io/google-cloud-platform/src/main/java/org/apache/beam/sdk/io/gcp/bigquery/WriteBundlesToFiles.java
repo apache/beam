@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
@@ -79,6 +80,7 @@ class WriteBundlesToFiles<DestinationT>
     public final DestinationT destination;
 
     public Result(String filename, Long fileByteSize, DestinationT destination) {
+      checkNotNull(destination);
       this.filename = filename;
       this.fileByteSize = fileByteSize;
       this.destination = destination;

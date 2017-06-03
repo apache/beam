@@ -251,12 +251,16 @@ class BatchLoads<DestinationT>
     // loading.
     PCollection<Void> singleton = p.apply("singleton",
         Create.of((Void) null).withCoder(VoidCoder.of()));
+    DestinationT singletonTableDestination = null;
+    if (singletonTable) {
+      singletonTableDestination = dynamicDestinations.getDestination(null);
+    }
     PCollectionTuple partitions =
         singleton.apply(
             "WritePartition",
             ParDo.of(
                     new WritePartition<>(
-                        singletonTable,
+                        singletonTableDestination,
                         tempFilePrefix,
                         resultsView,
                         multiPartitionsTag,

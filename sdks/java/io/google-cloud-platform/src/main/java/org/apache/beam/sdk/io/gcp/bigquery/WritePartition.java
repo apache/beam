@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class WritePartition<DestinationT>
     extends DoFn<Void, KV<ShardedKey<DestinationT>, List<String>>> {
-  private final boolean singletonTable;
+  private final DestinationT singletonTable;
   private final PCollectionView<String> tempFilePrefix;
   private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
@@ -99,7 +99,7 @@ class WritePartition<DestinationT>
   }
 
   WritePartition(
-      boolean singletonTable,
+      DestinationT singletonTable,
       PCollectionView<String> tempFilePrefix,
       PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
@@ -118,7 +118,7 @@ class WritePartition<DestinationT>
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
-    if (results.isEmpty() && singletonTable) {
+    if (results.isEmpty() && singletonTable != null) {
       String tempFilePrefix = c.sideInput(this.tempFilePrefix);
       TableRowWriter writer = new TableRowWriter(tempFilePrefix);
       writer.close();
@@ -127,7 +127,7 @@ class WritePartition<DestinationT>
       // resolve it to the singleton output table.
       results.add(
           new Result<DestinationT>(
-              writerResult.resourceId.toString(), writerResult.byteSize, null));
+              writerResult.resourceId.toString(), writerResult.byteSize, singletonTable));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();

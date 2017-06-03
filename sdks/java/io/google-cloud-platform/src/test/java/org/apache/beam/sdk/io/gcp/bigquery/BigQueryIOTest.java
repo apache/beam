@@ -1797,10 +1797,13 @@ public class BigQueryIOTest implements Serializable {
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
-
+    String singletonDestination = null
+    if (isSingleton) {
+      singletonDestination = "SINGLETON";
+    }
     List<ShardedKey<String>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
-      expectedPartitions.add(ShardedKey.<String>of(null, 1));
+      expectedPartitions.add(ShardedKey.<String>of(singletonDestination, 1));
     } else {
       for (int i = 0; i < numTables; ++i) {
         for (int j = 1; j <= expectedNumPartitionsPerTable; ++j) {
@@ -1842,8 +1845,8 @@ public class BigQueryIOTest implements Serializable {
         p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
 
     WritePartition<String> writePartition =
-        new WritePartition<>(
-            isSingleton, tempFilePrefixView, resultsView, multiPartitionsTag, singlePartitionTag);
+        new WritePartition<>(singletonDestination, tempFilePrefixView, resultsView,
+            multiPartitionsTag, singlePartitionTag);
 
     DoFnTester<Void, KV<ShardedKey<String>, List<String>>> tester =
         DoFnTester.of(writePartition);
