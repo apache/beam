@@ -257,6 +257,7 @@ class BatchLoads<DestinationT>
             ParDo.of(
                     new WritePartition<>(
                         singletonTable,
+                        dynamicDestinations,
                         tempFilePrefix,
                         resultsView,
                         multiPartitionsTag,
