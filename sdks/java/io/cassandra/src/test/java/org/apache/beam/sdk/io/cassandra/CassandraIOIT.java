@@ -72,7 +72,6 @@ import org.junit.runners.JUnit4;
 public class CassandraIOIT implements Serializable {
 
   private static IOTestPipelineOptions options;
-  private static String writeTableName;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
