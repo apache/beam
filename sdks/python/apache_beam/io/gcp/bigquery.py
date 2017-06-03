@@ -115,6 +115,9 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -134,6 +137,7 @@ __all__ = [
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
+    'WriteToBigQuery',
     ]
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
@@ -813,6 +817,7 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
+    logging.info("Created the table with id %s", table_id)
     # The response is a bigquery.Table instance.
     return response
 
@@ -1134,3 +1139,110 @@ class BigQueryWrapper(object):
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result
+
+
+class BigQueryWriteFn(DoFn):
+  """A ``DoFn`` that streams writes to BigQuery once the table is created.
+  """
+
+  def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
+               create_disposition, write_disposition, client):
+    self.table_id = table_id
+    self.dataset_id = dataset_id
+    self.project_id = project_id
+    self.schema = schema
+    self.client = client
+    self.create_disposition = create_disposition
+    self.write_disposition = write_disposition
+    self._rows_buffer = []
+    self._max_batch_size = batch_size or 500
+
+  def start_bundle(self):
+    self._rows_buffer = []
+    # Transform the table schema into a bigquery.TableSchema instance.
+    if isinstance(self.schema, basestring):
+      # TODO(silviuc): Should add a regex-based validation of the format.
+      table_schema = bigquery.TableSchema()
+      schema_list = [s.strip(' ') for s in self.schema.split(',')]
+      for field_and_type in schema_list:
+        field_name, field_type = field_and_type.split(':')
+        field_schema = bigquery.TableFieldSchema()
+        field_schema.name = field_name
+        field_schema.type = field_type
+        field_schema.mode = 'NULLABLE'
+        table_schema.fields.append(field_schema)
+      self.table_schema = table_schema
+    elif self.schema is None:
+      # TODO(silviuc): Should check that table exists if no schema specified.
+      self.table_schema = self.schema
+    elif isinstance(schema, bigquery.TableSchema):
+      self.table_schema = self.schema
+    else:
+      raise TypeError('Unexpected schema argument: %s.' % self.schema)
+
+    self.bigquery_wrapper = BigQueryWrapper(client=self.client)
+    self.bigquery_wrapper.get_or_create_table(
+        self.project_id, self.dataset_id, self.table_id, self.table_schema,
+        self.create_disposition, self.write_disposition)
+
+  def process(self, element, unused_create_fn_output=None):
+    self._rows_buffer.append(element)
+    if len(self._rows_buffer) >= self._max_batch_size:
+      self._flush_batch()
+
+  def finish_bundle(self):
+    if self._rows_buffer:
+      self._flush_batch()
+    self._rows_buffer = []
+
+  def _flush_batch(self):
+    # Flush the current batch of rows to BigQuery.
+    passed, errors = self.bigquery_wrapper.insert_rows(
+        project_id=self.project_id, dataset_id=self.dataset_id,
+        table_id=self.table_id, rows=self._rows_buffer)
+    if not passed:
+      raise RuntimeError('Could not successfully insert rows to BigQuery'
+                         ' table [%s:%s.%s]. Errors: %s'%
+                         (self.project_id, self.dataset_id,
+                          self.table_id, errors))
+    logging.info("Successfully wrote %d rows.", len(self._rows_buffer))
+    self._rows_buffer = []
+
+
+class WriteToBigQuery(PTransform):
+
+  def __init__(self, table, dataset=None, project=None, schema=None,
+               create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=BigQueryDisposition.WRITE_APPEND,
+               batch_size=None, test_client=None):
+    self.table_reference = _parse_table_reference(table, dataset, project)
+    self.create_disposition = BigQueryDisposition.validate_create(
+        create_disposition)
+    self.write_disposition = BigQueryDisposition.validate_write(
+        write_disposition)
+    self.schema = schema
+    self.batch_size = batch_size
+    self.test_client = test_client
+
+  def expand(self, pcoll):
+    bigquery_write_fn = BigQueryWriteFn(
+        table_id=self.table_reference.tableId,
+        dataset_id=self.table_reference.datasetId,
+        project_id=self.table_reference.projectId,
+        batch_size=self.batch_size,
+        schema=self.schema,
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition,
+        client=self.test_client)
+    return pcoll | 'Write to BQ' >> ParDo(bigquery_write_fn)
+
+  def display_data(self):
+    res = {}
+    if self.table_reference is not None:
+      tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                 self.table_reference.tableId)
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}'.format(self.table_reference.projectId,
+                                   tableSpec)
+      res['table'] = DisplayDataItem(tableSpec, label='Table')
+    return res
