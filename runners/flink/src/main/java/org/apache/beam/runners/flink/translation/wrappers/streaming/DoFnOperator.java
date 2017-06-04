@@ -87,6 +87,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
 
 /**
@@ -98,9 +99,9 @@ import org.joda.time.Instant;
  *                 type when we have additional tagged outputs
  */
 public class DoFnOperator<InputT, FnOutputT, OutputT>
-    extends AbstractStreamOperator<OutputT>
-    implements OneInputStreamOperator<WindowedValue<InputT>, OutputT>,
-      TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, OutputT>,
+    extends AbstractStreamOperator<WindowedValue<OutputT>>
+    implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
+      TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
     KeyGroupCheckpointedOperator, Triggerable<Object, TimerData> {
 
   protected DoFn<InputT, FnOutputT> doFn;
@@ -662,7 +663,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
    * a Flink {@link Output}.
    */
   interface OutputManagerFactory<OutputT> extends Serializable {
-    DoFnRunners.OutputManager create(Output<StreamRecord<OutputT>> output);
+    DoFnRunners.OutputManager create(Output<StreamRecord<WindowedValue<OutputT>>> output);
   }
 
   /**
@@ -673,14 +674,15 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public static class DefaultOutputManagerFactory<OutputT>
       implements OutputManagerFactory<OutputT> {
     @Override
-    public DoFnRunners.OutputManager create(final Output<StreamRecord<OutputT>> output) {
+    public DoFnRunners.OutputManager create(
+        final Output<StreamRecord<WindowedValue<OutputT>>> output) {
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
           // with tagged outputs we can't get around this because we don't
           // know our own output type...
           @SuppressWarnings("unchecked")
-          OutputT castValue = (OutputT) value;
+          WindowedValue<OutputT> castValue = (WindowedValue<OutputT>) value;
           output.collect(new StreamRecord<>(castValue));
         }
       };
@@ -692,22 +694,34 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
    * {@link DoFnRunners.OutputManager} that can write to multiple logical
    * outputs by unioning them in a {@link RawUnionValue}.
    */
-  public static class MultiOutputOutputManagerFactory
-      implements OutputManagerFactory<RawUnionValue> {
+  public static class MultiOutputOutputManagerFactory<OutputT>
+      implements OutputManagerFactory<OutputT> {
 
-    Map<TupleTag<?>, Integer> mapping;
+    private TupleTag<?> mainTag;
+    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
 
-    public MultiOutputOutputManagerFactory(Map<TupleTag<?>, Integer> mapping) {
+    public MultiOutputOutputManagerFactory(
+        TupleTag<?> mainTag,
+        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping) {
+      this.mainTag = mainTag;
       this.mapping = mapping;
     }
 
     @Override
-    public DoFnRunners.OutputManager create(final Output<StreamRecord<RawUnionValue>> output) {
+    public DoFnRunners.OutputManager create(
+        final Output<StreamRecord<WindowedValue<OutputT>>> output) {
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
-          int intTag = mapping.get(tag);
-          output.collect(new StreamRecord<>(new RawUnionValue(intTag, value)));
+          if (tag.equals(mainTag)) {
+            @SuppressWarnings("unchecked")
+            WindowedValue<OutputT> outputValue = (WindowedValue<OutputT>) value;
+            output.collect(new StreamRecord<>(outputValue));
+          } else {
+            @SuppressWarnings("unchecked")
+            OutputTag<WindowedValue<T>> outputTag = (OutputTag) mapping.get(tag);
+            output.<WindowedValue<T>>collect(outputTag, new StreamRecord<>(value));
+          }
         }
       };
     }
