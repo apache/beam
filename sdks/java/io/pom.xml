@@ -32,37 +32,6 @@
   <description>Beam SDK Java IO provides different connectivity components
   (sources and sinks) to consume and produce data from systems.</description>
 
-  <properties>
-    <!--
-      This is the version of Hadoop used to compile the hadoop-common module.
-      This dependency is defined with a provided scope.
-      Users must supply their own Hadoop version at runtime.
-    -->
-    <hadoop.version>2.7.3</hadoop.version>
-  </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-mapreduce-client-core</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <modules>
     <module>amqp</module>
     <module>cassandra</module>
