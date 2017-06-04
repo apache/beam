@@ -34,10 +34,6 @@
 
   <packaging>jar</packaging>
 
-  <properties>
-    <spark.version>1.6.2</spark.version>
-  </properties>
-
   <profiles>
 
     <!--
@@ -66,6 +62,12 @@
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-apex</artifactId>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>javax.servlet</groupId>
+              <artifactId>servlet-api</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <!--
           Apex depends on httpclient version 4.3.5, project has a transitive dependency to httpclient 4.0.1 from
@@ -95,6 +97,12 @@
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-flink_2.10</artifactId>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>javax.servlet</groupId>
+              <artifactId>servlet-api</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
@@ -116,13 +124,11 @@
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-streaming_2.10</artifactId>
-          <version>${spark.version}</version>
           <scope>runtime</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-core_2.10</artifactId>
-          <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>

@@ -32,7 +32,6 @@
 
   <properties>
     <hbase.version>1.2.6</hbase.version>
-    <hbase.hadoop.version>2.5.1</hbase.hadoop.version>
   </properties>
 
   <build>
@@ -109,14 +108,18 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-minicluster</artifactId>
-      <version>${hbase.hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>${hbase.hadoop.version}</version>
       <scope>test</scope>
     </dependency>
 
