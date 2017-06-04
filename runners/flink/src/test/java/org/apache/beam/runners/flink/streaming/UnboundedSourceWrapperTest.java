@@ -55,9 +55,12 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.OutputTag;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -127,11 +130,17 @@ public class UnboundedSourceWrapperTest {
       try {
         sourceOperator.open();
         sourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -215,11 +224,17 @@ public class UnboundedSourceWrapperTest {
       try {
         sourceOperator.open();
         sourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -293,11 +308,17 @@ public class UnboundedSourceWrapperTest {
       try {
         restoredSourceOperator.open();
         restoredSourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -460,6 +481,22 @@ public class UnboundedSourceWrapperTest {
       return list;
     }
 
+  }
+
+  private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
+    StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
+
+    @Override
+    public void toggleStreamStatus(StreamStatus streamStatus) {
+      if (!currentStreamStatus.equals(streamStatus)) {
+        currentStreamStatus = streamStatus;
+      }
+    }
+
+    @Override
+    public StreamStatus getStreamStatus() {
+      return currentStreamStatus;
+    }
   }
 
 }
