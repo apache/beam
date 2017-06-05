@@ -25,6 +25,7 @@ import unittest
 
 
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
+from apache_beam.testing.util import open_shards
 
 
 class JuliaSetTest(unittest.TestCase):
@@ -60,8 +61,8 @@ class JuliaSetTest(unittest.TestCase):
 
     # Parse the results from the file, and ensure it was written in the proper
     # format.
-    with open(self.test_files['output_coord_file_name'] +
-              '-00000-of-00001') as result_file:
+    with open_shards(self.test_files['output_coord_file_name'] +
+              '-*-of-*') as result_file:
       output_lines = result_file.readlines()
 
       # Should have a line for each x-coordinate.

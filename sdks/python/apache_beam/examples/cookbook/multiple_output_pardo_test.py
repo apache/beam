@@ -23,6 +23,7 @@ import tempfile
 import unittest
 
 from apache_beam.examples.cookbook import multiple_output_pardo
+from apache_beam.testing.util import open_shards
 
 
 class MultipleOutputParDo(unittest.TestCase):
@@ -39,7 +40,7 @@ class MultipleOutputParDo(unittest.TestCase):
 
   def get_wordcount_results(self, temp_path):
     results = []
-    with open(temp_path) as result_file:
+    with open_shards(temp_path) as result_file:
       for line in result_file:
         match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
         if match is not None:
@@ -55,15 +56,15 @@ class MultipleOutputParDo(unittest.TestCase):
         '--output=%s' % result_prefix])
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
-    with open(result_prefix + '-chars-00000-of-00001') as f:
+    with open_shards(result_prefix + '-chars-*-of-*') as f:
       contents = f.read()
       self.assertEqual(expected_char_count, int(contents))
 
     short_words = self.get_wordcount_results(
-        result_prefix + '-short-words-00000-of-00001')
+        result_prefix + '-short-words-*-of-*')
     self.assertEqual(sorted(short_words), sorted(self.EXPECTED_SHORT_WORDS))
 
-    words = self.get_wordcount_results(result_prefix + '-words-00000-of-00001')
+    words = self.get_wordcount_results(result_prefix + '-words-*-of-*')
     self.assertEqual(sorted(words), sorted(self.EXPECTED_WORDS))
 
 

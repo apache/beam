@@ -28,6 +28,7 @@ from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import open_shards
 
 
 EXPECTED_RESULTS = set([
@@ -76,8 +77,9 @@ class TfIdfTest(unittest.TestCase):
         '--output', os.path.join(temp_folder, 'result')])
     # Parse result file and compare.
     results = []
-    with open(os.path.join(temp_folder,
-                           'result-00000-of-00001')) as result_file:
+    with open_shards(os.path.join(
+                         temp_folder,
+                         'result-*-of-*')) as result_file:
       for line in result_file:
         match = re.search(EXPECTED_LINE_RE, line)
         logging.info('Result line: %s', line)
