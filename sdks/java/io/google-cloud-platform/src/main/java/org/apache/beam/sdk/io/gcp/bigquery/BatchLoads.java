@@ -180,7 +180,6 @@ class BatchLoads<DestinationT>
                     }));
     final PCollectionView<String> jobIdTokenView = jobIdToken.apply(View.<String>asSingleton());
 
-
     PCollectionView<String> tempFilePrefix = jobIdToken
             .apply(
                 "GetTempFilePrefix",
