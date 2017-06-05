@@ -145,7 +145,7 @@
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
     <spanner.version>0.20.0-beta</spanner.version>
-    <spark.version>1.6.2</spark.version>
+    <spark.version>1.6.3</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
@@ -1097,6 +1097,24 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-mapreduce-client-core</artifactId>
         <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_2.10</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-streaming_2.10</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-network-common_2.10</artifactId>
+        <version>${spark.version}</version>
       </dependency>
 
       <!-- Testing -->
