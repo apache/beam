@@ -165,28 +165,9 @@ class BatchLoads<DestinationT>
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
     Pipeline p = input.getPipeline();
 
-    PCollectionView<String> tempFilePrefix =
-        p.apply("Create", Create.of((Void) null))
-            .apply(
-                "GetTempFilePrefix",
-                ParDo.of(
-                    new DoFn<Void, String>() {
-                      @ProcessElement
-                      public void getTempFilePrefix(ProcessContext c) {
-                        String tempLocation = resolveTempLocation(
-                            c.getPipelineOptions().getTempLocation(),
-                            "BigQueryWriteTemp",
-                            BigQueryHelpers.randomUUIDString());
-                        LOG.info("Writing BigQuery temporary files to {} before loading them.",
-                            tempLocation);
-                        c.output(tempLocation);
-                      }
-                    }))
-            .apply("TempFilePrefixView", View.<String>asSingleton());
-
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
-    PCollectionView<String> jobIdTokenView =
+    final PCollectionView<String> jobIdTokenView =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
                 "CreateJobId",
@@ -199,6 +180,24 @@ class BatchLoads<DestinationT>
                       }
                     }))
             .apply(View.<String>asSingleton());
+
+    PCollectionView<String> tempFilePrefix =
+        p.apply("Create", Create.of((Void) null))
+            .apply(
+                "GetTempFilePrefix",
+                ParDo.of(
+                    new DoFn<Void, String>() {
+                      @ProcessElement
+                      public void getTempFilePrefix(ProcessContext c) {
+                        String tempLocation = resolveTempLocation(
+                            c.getPipelineOptions().getTempLocation(),
+                            "BigQueryWriteTemp", c.sideInput(jobIdTokenView));
+                        LOG.info("Writing BigQuery temporary files to {} before loading them.",
+                            tempLocation);
+                        c.output(tempLocation);
+                      }
+                    }).withSideInputs(jobIdTokenView))
+            .apply("TempFilePrefixView", View.<String>asSingleton());
 
     PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
         input.apply(
