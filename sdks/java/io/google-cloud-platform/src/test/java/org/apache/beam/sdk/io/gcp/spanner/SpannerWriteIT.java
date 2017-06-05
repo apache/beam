@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
@@ -30,10 +31,10 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
 import java.util.UUID;
 
-import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -49,7 +50,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 
 /** End-to-end test of Cloud Spanner Sink. */
 @RunWith(JUnit4.class)
@@ -68,15 +68,21 @@ public class SpannerWriteIT {
     String getInstanceId();
     void setInstanceId(String value);
 
-    @Description("Database ID to write to in Spanner")
+    @Description("Database ID prefix to write to in Spanner")
     @Default.String("beam-testdb")
-    String getDatabaseId();
-    void setDatabaseId(String value);
+    String getDatabaseIdPrefix();
+    void setDatabaseIdPrefix(String value);
+
+    @Description("Table name")
+    @Default.String("users")
+    String getTable();
+    void setTable(String value);
   }
 
   private Spanner spanner;
+  private DatabaseAdminClient databaseAdminClient;
   private SpannerTestPipelineOptions options;
-  private final String tableName = generateTableName();
+  private String databaseName;
 
   @Before
   public void setUp() throws Exception {
@@ -85,44 +91,51 @@ public class SpannerWriteIT {
 
     spanner = SpannerOptions.newBuilder().setProjectId(options.getProjectId()).build().getService();
 
-    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    databaseName = generateDatabaseName();
 
-    databaseAdminClient.getDatabase(options.getInstanceId(), options.getDatabaseId());
+    databaseAdminClient = spanner.getDatabaseAdminClient();
 
-    Operation<Void, UpdateDatabaseDdlMetadata> op =
-        databaseAdminClient.updateDatabaseDdl(
+    // Delete database if exists.
+    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+
+    Operation<Database, CreateDatabaseMetadata> op =
+        databaseAdminClient.createDatabase(
             options.getInstanceId(),
-            options.getDatabaseId(),
+            databaseName,
             Collections.singleton(
                 "CREATE TABLE "
-                    + tableName
+                    + options.getTable()
                     + " ("
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX),"
-                    + ") PRIMARY KEY (Key)"), null);
+                    + ") PRIMARY KEY (Key)"));
     op.waitFor();
+  }
+
+  private String generateDatabaseName() {
+    return options.getDatabaseIdPrefix() + "-" + UUID.randomUUID().toString();
   }
 
   @Test
   public void testWrite() throws Exception {
     p.apply(GenerateSequence.from(0).to(100))
-        .apply(ParDo.of(new GenerateMutations(tableName)))
+        .apply(ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
             SpannerIO.write()
                 .withProjectId(options.getProjectId())
                 .withInstanceId(options.getInstanceId())
-                .withDatabaseId(options.getDatabaseId()));
+                .withDatabaseId(databaseName));
 
     p.run();
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(
             DatabaseId.of(
-                options.getProjectId(), options.getInstanceId(), options.getDatabaseId()));
+                options.getProjectId(), options.getInstanceId(), databaseName));
 
     ResultSet resultSet =
         databaseClient
             .singleUse()
-            .executeQuery(Statement.of("SELECT COUNT(*) FROM " + tableName));
+            .executeQuery(Statement.of("SELECT COUNT(*) FROM " + options.getTable()));
     assertThat(resultSet.next(), is(true));
     assertThat(resultSet.getLong(0), equalTo(100L));
     assertThat(resultSet.next(), is(false));
@@ -130,6 +143,7 @@ public class SpannerWriteIT {
 
   @After
   public void tearDown() throws Exception {
+    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
     spanner.closeAsync().get();
   }
 
@@ -150,9 +164,5 @@ public class SpannerWriteIT {
       Mutation mutation = builder.build();
       c.output(mutation);
     }
-  }
-
-  private static String generateTableName() {
-    return "test-table-" + UUID.randomUUID().toString();
   }
 }
