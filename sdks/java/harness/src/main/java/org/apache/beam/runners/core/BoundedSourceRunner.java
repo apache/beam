@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,12 +39,12 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT> {
   private final PipelineOptions pipelineOptions;
-  private final BeamFnApi.FunctionSpec definition;
+  private final RunnerApi.FunctionSpec definition;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
 
   public BoundedSourceRunner(
       PipelineOptions pipelineOptions,
-      BeamFnApi.FunctionSpec definition,
+      RunnerApi.FunctionSpec definition,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
     this.pipelineOptions = pipelineOptions;
     this.definition = definition;
@@ -61,7 +61,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     try {
       // The representation here is defined as the java serialized representation of the
       // bounded source object packed into a protobuf Any using a protobuf BytesValue wrapper.
-      byte[] bytes = definition.getData().unpack(BytesValue.class).getValue().toByteArray();
+      byte[] bytes = definition.getParameter().unpack(BytesValue.class).getValue().toByteArray();
       @SuppressWarnings("unchecked")
       InputT boundedSource =
           (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
@@ -69,7 +69,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     } catch (InvalidProtocolBufferException e) {
       throw new IOException(
           String.format("Failed to decode %s, expected %s",
-              definition.getData().getTypeUrl(), BytesValue.getDescriptor().getFullName()),
+              definition.getParameter().getTypeUrl(), BytesValue.getDescriptor().getFullName()),
           e);
     }
   }
