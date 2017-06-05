@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -49,6 +50,7 @@ public class PTransformTranslation {
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
   public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
   public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
+  public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
@@ -118,6 +120,17 @@ public class PTransformTranslation {
     }
 
     return transformBuilder.build();
+  }
+
+  /**
+   * Translates a non-composite {@link AppliedPTransform} into a runner API proto.
+   *
+   * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
+   */
+  static RunnerApi.PTransform toProto(
+      AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
+    return toProto(
+        appliedPTransform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components);
   }
 
   private static String toProto(TupleTag<?> tag) {
