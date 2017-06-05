@@ -37,6 +37,8 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,14 +106,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     LOG.info("Executing pipeline using FlinkRunner.");
 
-    PipelineTranslationOptimizer optimizer =
-        new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
-
-    optimizer.translate(pipeline);
-    TranslationMode translationMode = optimizer.getTranslationMode();
+    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
 
     FlinkPipelineExecutor executor;
-    if (translationMode == TranslationMode.STREAMING) {
+    if (streaming) {
       executor = new FlinkStreamingPipelineExecutor();
     } else {
       executor = new FlinkBatchPipelineExecutor();
@@ -208,5 +206,21 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           + "the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
+  }
+
+  private boolean containsUnboundedPCollection(Pipeline p) {
+    class BoundednessVisitor extends Pipeline.PipelineVisitor.Defaults {
+      PCollection.IsBounded boundedness = PCollection.IsBounded.BOUNDED;
+
+      @Override
+      public void visitValue(PValue value, TransformHierarchy.Node producer) {
+        if (value instanceof PCollection) {
+          boundedness = boundedness.and(((PCollection) value).isBounded());
+        }
+      }
+    }
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor.boundedness == PCollection.IsBounded.UNBOUNDED;
   }
 }
