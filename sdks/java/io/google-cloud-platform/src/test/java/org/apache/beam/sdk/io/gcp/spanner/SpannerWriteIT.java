@@ -33,7 +33,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
-import java.util.UUID;
 
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
@@ -54,6 +53,9 @@ import org.junit.runners.JUnit4;
 /** End-to-end test of Cloud Spanner Sink. */
 @RunWith(JUnit4.class)
 public class SpannerWriteIT {
+
+  private static final int MAX_DB_NAME_LENGTH = 30;
+
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   /** Pipeline options for this test. */
@@ -113,7 +115,10 @@ public class SpannerWriteIT {
   }
 
   private String generateDatabaseName() {
-    return options.getDatabaseIdPrefix() + "-" + UUID.randomUUID().toString();
+    String random = RandomStringUtils
+        .randomAlphanumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
+        .toLowerCase();
+    return options.getDatabaseIdPrefix() + "-" + random;
   }
 
   @Test
@@ -160,7 +165,7 @@ public class SpannerWriteIT {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
       Long key = c.element();
       builder.set("Key").to(key);
-      builder.set("Value").to(RandomStringUtils.random(valueSize, true, true));
+      builder.set("Value").to(RandomStringUtils.randomAlphabetic(valueSize));
       Mutation mutation = builder.build();
       c.output(mutation);
     }
