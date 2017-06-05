@@ -29,7 +29,7 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
@@ -41,7 +41,9 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
   }
 
   public static <T> void translateReadHelper(
-      Source<T> source, PTransform<?, ? extends PValue> transform, TranslationContext context) {
+      Source<T> source,
+      PTransform<?, ? extends PCollection<?>> transform,
+      TranslationContext context) {
     try {
       StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
       stepContext.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);

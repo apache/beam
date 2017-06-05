@@ -38,7 +38,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -55,6 +54,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -96,108 +96,145 @@ public class ProcessBundleHandler {
     this.beamFnDataClient = beamFnDataClient;
   }
 
-  protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
-      BeamFnApi.PrimitiveTransform primitiveTransform,
+  private void createRunnerAndConsumersForPTransformRecursively(
+      String pTransformId,
+      RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,
-      Function<BeamFnApi.Target, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
-      BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
+      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
+      Multimap<String, String> pCollectionIdsToConsumingPTransforms,
+      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
-    BeamFnApi.FunctionSpec functionSpec = primitiveTransform.getFunctionSpec();
+    // Recursively ensure that all consumers of the output PCollection have been created.
+    // Since we are creating the consumers first, we know that the we are building the DAG
+    // in reverse topological order.
+    for (String pCollectionId : pTransform.getOutputsMap().values()) {
+      // If we have created the consumers for this PCollection we can skip it.
+      if (pCollectionIdsToConsumers.containsKey(pCollectionId)) {
+        continue;
+      }
+
+      for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
+        createRunnerAndConsumersForPTransformRecursively(
+            consumingPTransformId,
+            processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
+            processBundleInstructionId,
+            processBundleDescriptor,
+            pCollectionIdsToConsumingPTransforms,
+            pCollectionIdsToConsumers,
+            addStartFunction,
+            addFinishFunction);
+      }
+    }
+
+    createRunnerForPTransform(
+        pTransformId,
+        pTransform,
+        processBundleInstructionId,
+        processBundleDescriptor.getPcollectionsMap(),
+        pCollectionIdsToConsumers,
+        addStartFunction,
+        addFinishFunction);
+  }
+
+  protected void createRunnerForPTransform(
+      String pTransformId,
+      RunnerApi.PTransform pTransform,
+      Supplier<String> processBundleInstructionId,
+      Map<String, RunnerApi.PCollection> pCollections,
+      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+
 
     // For every output PCollection, create a map from output name to Consumer
-    ImmutableMap.Builder<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>>
+    ImmutableMap.Builder<String, Collection<ThrowingConsumer<WindowedValue<?>>>>
         outputMapBuilder = ImmutableMap.builder();
-    for (Map.Entry<String, BeamFnApi.PCollection> entry :
-        primitiveTransform.getOutputsMap().entrySet()) {
+    for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
       outputMapBuilder.put(
           entry.getKey(),
-          consumers.apply(
-              BeamFnApi.Target.newBuilder()
-                  .setPrimitiveTransformReference(primitiveTransform.getId())
-                  .setName(entry.getKey())
-                  .build()));
+          pCollectionIdsToConsumers.get(entry.getValue()));
     }
-    ImmutableMap<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap =
+    ImmutableMap<String, Collection<ThrowingConsumer<WindowedValue<?>>>> outputMap =
         outputMapBuilder.build();
 
+
     // Based upon the function spec, populate the start/finish/consumer information.
-    ThrowingConsumer<WindowedValue<InputT>> consumer;
+    RunnerApi.FunctionSpec functionSpec = pTransform.getSpec();
+    ThrowingConsumer<WindowedValue<?>> consumer;
     switch (functionSpec.getUrn()) {
       default:
         BeamFnApi.Target target;
-        BeamFnApi.Coder coderSpec;
+        RunnerApi.Coder coderSpec;
         throw new IllegalArgumentException(
             String.format("Unknown FunctionSpec %s", functionSpec));
 
       case DATA_OUTPUT_URN:
         target = BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference(primitiveTransform.getId())
-            .setName(getOnlyElement(primitiveTransform.getOutputsMap().keySet()))
+            .setPrimitiveTransformReference(pTransformId)
+            .setName(getOnlyElement(pTransform.getInputsMap().keySet()))
             .build();
-        coderSpec = (BeamFnApi.Coder) fnApiRegistry.apply(
-            getOnlyElement(primitiveTransform.getOutputsMap().values()).getCoderReference());
-        BeamFnDataWriteRunner<InputT> remoteGrpcWriteRunner =
-            new BeamFnDataWriteRunner<>(
+        coderSpec = (RunnerApi.Coder) fnApiRegistry.apply(
+            pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
+        BeamFnDataWriteRunner<Object> remoteGrpcWriteRunner =
+            new BeamFnDataWriteRunner<Object>(
                 functionSpec,
                 processBundleInstructionId,
                 target,
                 coderSpec,
                 beamFnDataClient);
         addStartFunction.accept(remoteGrpcWriteRunner::registerForOutput);
-        consumer = remoteGrpcWriteRunner::consume;
+        consumer = (ThrowingConsumer)
+            (ThrowingConsumer<WindowedValue<Object>>) remoteGrpcWriteRunner::consume;
         addFinishFunction.accept(remoteGrpcWriteRunner::close);
         break;
 
       case DATA_INPUT_URN:
         target = BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference(primitiveTransform.getId())
-            .setName(getOnlyElement(primitiveTransform.getInputsMap().keySet()))
+            .setPrimitiveTransformReference(pTransformId)
+            .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
             .build();
-        coderSpec = (BeamFnApi.Coder) fnApiRegistry.apply(
-            getOnlyElement(primitiveTransform.getOutputsMap().values()).getCoderReference());
-        BeamFnDataReadRunner<OutputT> remoteGrpcReadRunner =
-            new BeamFnDataReadRunner<>(
+        coderSpec = (RunnerApi.Coder) fnApiRegistry.apply(
+            pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
+        BeamFnDataReadRunner<?> remoteGrpcReadRunner =
+            new BeamFnDataReadRunner<Object>(
                 functionSpec,
                 processBundleInstructionId,
                 target,
                 coderSpec,
                 beamFnDataClient,
-                outputMap);
+                (Map) outputMap);
         addStartFunction.accept(remoteGrpcReadRunner::registerInputLocation);
         consumer = null;
         addFinishFunction.accept(remoteGrpcReadRunner::blockTillReadFinishes);
         break;
 
       case JAVA_DO_FN_URN:
-        DoFnRunner<InputT, OutputT> doFnRunner = createDoFnRunner(functionSpec, outputMap);
+        DoFnRunner<Object, Object> doFnRunner = createDoFnRunner(functionSpec, (Map) outputMap);
         addStartFunction.accept(doFnRunner::startBundle);
+        consumer = (ThrowingConsumer)
+            (ThrowingConsumer<WindowedValue<Object>>) doFnRunner::processElement;
         addFinishFunction.accept(doFnRunner::finishBundle);
-        consumer = doFnRunner::processElement;
         break;
 
       case JAVA_SOURCE_URN:
         @SuppressWarnings({"unchecked", "rawtypes"})
-        BoundedSourceRunner<BoundedSource<OutputT>, OutputT> sourceRunner =
-            createBoundedSourceRunner(functionSpec, outputMap);
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        ThrowingConsumer<WindowedValue<?>> sourceConsumer =
-            (ThrowingConsumer)
-                (ThrowingConsumer<WindowedValue<BoundedSource<OutputT>>>)
-                    sourceRunner::runReadLoop;
+        BoundedSourceRunner<BoundedSource<Object>, Object> sourceRunner =
+            createBoundedSourceRunner(functionSpec, (Map) outputMap);
         // TODO: Remove and replace with source being sent across gRPC port
         addStartFunction.accept(sourceRunner::start);
-        consumer = (ThrowingConsumer) sourceConsumer;
+        consumer = (ThrowingConsumer)
+            (ThrowingConsumer<WindowedValue<BoundedSource<Object>>>)
+                sourceRunner::runReadLoop;
         break;
     }
 
+    // If we created a consumer, add it to the map containing PCollection ids to consumers
     if (consumer != null) {
-      for (Map.Entry<String, BeamFnApi.Target.List> entry :
-          primitiveTransform.getInputsMap().entrySet()) {
-        for (BeamFnApi.Target target : entry.getValue().getTargetList()) {
-          addConsumer.accept(target, consumer);
-        }
+      for (String inputPCollectionId :
+          pTransform.getInputsMap().values()) {
+        pCollectionIdsToConsumers.put(inputPCollectionId, consumer);
       }
     }
   }
@@ -212,26 +249,43 @@ public class ProcessBundleHandler {
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
-    Multimap<BeamFnApi.Target,
-             ThrowingConsumer<WindowedValue<Object>>> outputTargetToConsumer =
-             HashMultimap.create();
+    Multimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    Multimap<String,
+        ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers =
+        HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
-    // We process the primitive transform list in reverse order
-    // because we assume that the runner provides it in topologically order.
-    // This means that all the start/finish functions will be in reverse topological order.
-    for (BeamFnApi.PrimitiveTransform primitiveTransform :
-        Lists.reverse(bundleDescriptor.getPrimitiveTransformList())) {
-      createConsumersForPrimitiveTransform(
-          primitiveTransform,
+
+    // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
+    for (Map.Entry<String, RunnerApi.PTransform> entry
+        : bundleDescriptor.getTransformsMap().entrySet()) {
+      for (String pCollectionId : entry.getValue().getInputsMap().values()) {
+        pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
+      }
+    }
+
+    //
+    for (Map.Entry<String, RunnerApi.PTransform> entry
+        : bundleDescriptor.getTransformsMap().entrySet()) {
+      // Skip anything which isn't a root
+      // TODO: Remove source as a root and have it be triggered by the Runner.
+      if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
+          && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
+        continue;
+      }
+
+      createRunnerAndConsumersForPTransformRecursively(
+          entry.getKey(),
+          entry.getValue(),
           request::getInstructionId,
-          outputTargetToConsumer::get,
-          outputTargetToConsumer::put,
+          bundleDescriptor,
+          pCollectionIdsToConsumingPTransforms,
+          pCollectionIdsToConsumers,
           startFunctions::add,
           finishFunctions::add);
     }
 
-    // Already in reverse order so we don't need to do anything.
+    // Already in reverse topological order so we don't need to do anything.
     for (ThrowingRunnable startFunction : startFunctions) {
       LOG.debug("Starting function {}", startFunction);
       startFunction.run();
@@ -250,11 +304,11 @@ public class ProcessBundleHandler {
    * Converts a {@link org.apache.beam.fn.v1.BeamFnApi.FunctionSpec} into a {@link DoFnRunner}.
    */
   private <InputT, OutputT> DoFnRunner<InputT, OutputT> createDoFnRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
     ByteString serializedFn;
     try {
-      serializedFn = functionSpec.getData().unpack(BytesValue.class).getValue();
+      serializedFn = functionSpec.getParameter().unpack(BytesValue.class).getValue();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
           String.format("Unable to unwrap DoFn %s", functionSpec), e);
@@ -321,7 +375,7 @@ public class ProcessBundleHandler {
 
   private <InputT extends BoundedSource<OutputT>, OutputT>
       BoundedSourceRunner<InputT, OutputT> createBoundedSourceRunner(
-          BeamFnApi.FunctionSpec functionSpec,
+          RunnerApi.FunctionSpec functionSpec,
           Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
