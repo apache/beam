@@ -18,10 +18,14 @@
 
 package org.apache.beam.runners.spark.io;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -30,9 +34,14 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -49,7 +58,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.scheduler.StreamInputInfo;
 import org.joda.time.Instant;
-
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 
@@ -62,7 +70,7 @@ import scala.runtime.BoxedUnit;
  * <li>Create a single-element (per-partition) stream, that contains the (partitioned)
  * {@link Source} and an optional {@link CheckpointMark} to start from.</li>
  * <li>Read from within a stateful operation {@link JavaPairInputDStream#mapWithState(StateSpec)}
- * using the {@link StateSpecFunctions#mapSourceFunction(SparkRuntimeContext)} mapping function,
+ * using the {@link StateSpecFunctions#mapSourceFunction} mapping function,
  * which manages the state of the CheckpointMark per partition.</li>
  * <li>Since the stateful operation is a map operation, the read iterator needs to be flattened,
  * while reporting the properties of the read (such as number of records) to the tracker.</li>
@@ -73,15 +81,14 @@ public class SparkUnboundedSource {
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
-      UnboundedSource<T, CheckpointMarkT> source) {
+      UnboundedSource<T, CheckpointMarkT> source,
+      String stepName) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
-    SourceDStream<T, CheckpointMarkT> sourceDStream = new SourceDStream<>(jssc.ssc(), source, rc);
-    // if max records per batch was set by the user.
-    if (maxRecordsPerBatch > 0) {
-      sourceDStream.setMaxRecordsPerBatch(maxRecordsPerBatch);
-    }
+    SourceDStream<T, CheckpointMarkT> sourceDStream =
+        new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
+
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
         JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
             JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
@@ -89,39 +96,32 @@ public class SparkUnboundedSource {
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
-        Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream = inputDStream.mapWithState(
-            StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc)));
+        Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream =
+        inputDStream.mapWithState(
+            StateSpec
+                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc, stepName))
+                .numPartitions(sourceDStream.getNumPartitions()));
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
-    // cache since checkpointing is less frequent.
-    mapWithStateDStream.cache();
 
     // report the number of input elements for this InputDStream to the InputInfoTracker.
     int id = inputDStream.inputDStream().id();
-    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(
-        new Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata>() {
-          @Override
-          public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._2();
-          }
-        });
+    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(new Tuple2MetadataFunction());
 
-    // register the ReportingDStream op.
-    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+    // register ReadReportDStream to report information related to this read.
+    new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id), stepName)
+        .register();
 
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
         WindowedValue.FullWindowedValueCoder.of(
             source.getDefaultOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
-    JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream.flatMap(
-        new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
-          @Override
-          public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._1();
-          }
-        }).map(CoderHelpers.fromByteFunction(coder));
+    JavaDStream<WindowedValue<T>> readUnboundedStream =
+        mapWithStateDStream
+            .flatMap(new Tuple2byteFlatMapFunction())
+            .map(CoderHelpers.fromByteFunction(coder));
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 
@@ -145,23 +145,34 @@ public class SparkUnboundedSource {
   }
 
   /**
-   * A DStream function that reports the properties of the read to the
+   * A DStream function for reporting information related to the read process.
+   *
+   * <p>Reports properties of the read to
    * {@link org.apache.spark.streaming.scheduler.InputInfoTracker}
-   * for RateControl purposes and visibility.
+   * for RateControl purposes and visibility.</p>
+   * <p>Updates {@link GlobalWatermarkHolder}.</p>
+   * <p>Updates {@link MetricsAccumulator} with metrics reported in the read.</p>
    */
-  private static class ReportingDStream extends DStream<BoxedUnit> {
+  private static class ReadReportDStream extends DStream<BoxedUnit> {
+
+    private static final String READ_DURATION_MILLIS = "readDurationMillis";
+    private static final String NAMESPACE = "spark-runner.io";
+
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
+    private final String stepName;
 
-    ReportingDStream(
+    ReadReportDStream(
         DStream<Metadata> parent,
         int inputDStreamId,
-        String sourceName) {
+        String sourceName,
+        String stepName) {
       super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;
+      this.stepName = stepName;
     }
 
     @Override
@@ -179,10 +190,12 @@ public class SparkUnboundedSource {
     public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
+      final Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
       long count = 0;
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
       Instant globalHighWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      long maxReadDuration = 0;
       if (parentRDDOpt.isDefined()) {
         JavaRDD<Metadata> parentRDD = parentRDDOpt.get().toJavaRDD();
         for (Metadata metadata: parentRDD.collect()) {
@@ -196,6 +209,18 @@ public class SparkUnboundedSource {
           globalHighWatermarkForBatch =
               globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
                   ? partitionHighWatermark : globalHighWatermarkForBatch;
+          // Update metrics reported in the read
+          final Gauge gauge = Metrics.gauge(NAMESPACE, READ_DURATION_MILLIS);
+          final MetricsContainer container = metadata.getMetricsContainers().getContainer(stepName);
+          try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
+            final long readDurationMillis = metadata.getReadDurationMillis();
+            if (readDurationMillis > maxReadDuration) {
+              gauge.set(readDurationMillis);
+            }
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          metricsAccum.value().updateAll(metadata.getMetricsContainers());
         }
 
         sparkWatermark =
@@ -234,23 +259,58 @@ public class SparkUnboundedSource {
     private final long numRecords;
     private final Instant lowWatermark;
     private final Instant highWatermark;
+    private final long readDurationMillis;
+    private final MetricsContainerStepMap metricsContainers;
 
-    public Metadata(long numRecords, Instant lowWatermark, Instant highWatermark) {
+    public Metadata(
+        long numRecords,
+        Instant lowWatermark,
+        Instant highWatermark,
+        final long readDurationMillis,
+        MetricsContainerStepMap metricsContainer) {
       this.numRecords = numRecords;
+      this.readDurationMillis = readDurationMillis;
+      this.metricsContainers = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
     }
 
-    public long getNumRecords() {
+    long getNumRecords() {
       return numRecords;
     }
 
-    public Instant getLowWatermark() {
+    Instant getLowWatermark() {
       return lowWatermark;
     }
 
-    public Instant getHighWatermark() {
+    Instant getHighWatermark() {
       return highWatermark;
+    }
+
+    public long getReadDurationMillis() {
+      return readDurationMillis;
+    }
+
+    MetricsContainerStepMap getMetricsContainers() {
+      return metricsContainers;
+    }
+  }
+
+  private static class Tuple2MetadataFunction
+      implements Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata> {
+
+    @Override
+    public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._2();
+    }
+  }
+
+  private static class Tuple2byteFlatMapFunction
+      implements FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]> {
+
+    @Override
+    public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._1();
     }
   }
 }

@@ -75,8 +75,8 @@ import org.joda.time.Instant;
  *
  * <p>Before running this example, it will be useful to familiarize yourself with Beam triggers
  * and understand the concept of 'late data',
- * See: <a href="http://beam.apache.org/use/walkthroughs/">
- * http://beam.apache.org/use/walkthroughs/</a>
+ * See: <a href="https://beam.apache.org/documentation/programming-guide/#triggers">
+ * https://beam.apache.org/documentation/programming-guide/#triggers</a>
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
  * (there are no defaults for a general Beam pipeline).
@@ -446,13 +446,15 @@ public class TriggerExample {
         options.getBigQueryDataset(), options.getBigQueryTable());
 
     PCollectionList<TableRow> resultList = pipeline
-        .apply("ReadMyFile", TextIO.Read.from(options.getInput()))
+        .apply("ReadMyFile", TextIO.read().from(options.getInput()))
         .apply("InsertRandomDelays", ParDo.of(new InsertDelays()))
         .apply(ParDo.of(new ExtractFlowInfo()))
         .apply(new CalculateTotalFlow(options.getWindowDuration()));
 
     for (int i = 0; i < resultList.size(); i++){
-      resultList.get(i).apply(BigQueryIO.Write.to(tableRef).withSchema(getSchema()));
+      resultList.get(i).apply(BigQueryIO.writeTableRows()
+          .to(tableRef)
+          .withSchema(getSchema()));
     }
 
     PipelineResult result = pipeline.run();

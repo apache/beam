@@ -31,48 +31,40 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * The evaluation context for a specific pipeline being executed by the
- * {@link DirectRunner}. Contains state shared within the execution across all
- * transforms.
+ * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
+ * Contains state shared within the execution across all transforms.
  *
- * <p>{@link EvaluationContext} contains shared state for an execution of the
- * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
- * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and managing the {@link AggregatorContainer} and
- * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
- * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
- * known to be empty).
+ * <p>{@link EvaluationContext} contains shared state for an execution of the {@link DirectRunner}
+ * that can be used while evaluating a {@link PTransform}. This consists of views into underlying
+ * state and watermark implementations, access to read and write {@link PCollectionView
+ * PCollectionViews}, and managing the {@link DirectExecutionContext ExecutionContexts}. This
+ * includes executing callbacks asynchronously when state changes to the appropriate point (e.g.
+ * when a {@link PCollectionView} is requested and known to be empty).
  *
- * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based
- * on the current global state and updating the global state appropriately. This includes updating
- * the per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that
- * can be executed.
+ * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based on the
+ * current global state and updating the global state appropriately. This includes updating the
+ * per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that can be
+ * executed.
  */
 class EvaluationContext {
   /**
@@ -92,12 +84,10 @@ class EvaluationContext {
   private final WatermarkCallbackExecutor callbackExecutor;
 
   /** The stateInternals of the world, by applied PTransform and key. */
-  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals<?>>
+  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals>
       applicationStateInternals;
 
   private final SideInputContainer sideInputContainer;
-
-  private final AggregatorContainer mergedAggregators;
 
   private final DirectMetrics metrics;
 
@@ -128,11 +118,9 @@ class EvaluationContext {
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.mergedAggregators = AggregatorContainer.create();
     this.metrics = new DirectMetrics();
 
-    this.callbackExecutor =
-        WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
+    this.callbackExecutor = WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
   public void initialize(
@@ -176,14 +164,10 @@ class EvaluationContext {
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
         committedBundles,
         outputTypes);
-    // Commit aggregator changes
-    if (result.getAggregatorChanges() != null) {
-      result.getAggregatorChanges().commit();
-    }
     // Update state internals
-    CopyOnAccessInMemoryStateInternals<?> theirState = result.getState();
+    CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
-      CopyOnAccessInMemoryStateInternals<?> committedState = theirState.commit();
+      CopyOnAccessInMemoryStateInternals committedState = theirState.commit();
       StepAndKey stepAndKey =
           StepAndKey.of(
               result.getTransform(), completedBundle == null ? null : completedBundle.getKey());
@@ -292,11 +276,26 @@ class EvaluationContext {
    * callback will be executed regardless of whether values have been produced.
    */
   public void scheduleAfterOutputWouldBeProduced(
-      PValue value,
+      PCollection<?> value,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
+    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
+
+    fireAvailableCallbacks(producing);
+  }
+
+  /**
+   * Schedule a callback to be executed after output would be produced for the given window if there
+   * had been input.
+   */
+  public void scheduleAfterOutputWouldBeProduced(
+      PCollectionView<?> view,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -325,7 +324,7 @@ class EvaluationContext {
   }
 
   /**
-   * Get an {@link ExecutionContext} for the provided {@link AppliedPTransform} and key.
+   * Get a {@link DirectExecutionContext} for the provided {@link AppliedPTransform} and key.
    */
   public DirectExecutionContext getExecutionContext(
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
@@ -333,7 +332,7 @@ class EvaluationContext {
     return new DirectExecutionContext(
         clock,
         key,
-        (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
+        (CopyOnAccessInMemoryStateInternals) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
   }
 
@@ -364,20 +363,6 @@ class EvaluationContext {
     return sideInputContainer.createReaderForViews(sideInputs);
   }
 
-  /**
-   * Returns a new mutator for the {@link AggregatorContainer}.
-   */
-  public AggregatorContainer.Mutator getAggregatorMutator() {
-    return mergedAggregators.createMutator();
-  }
-
-  /**
-   * Returns the counter container for this context.
-   */
-  public AggregatorContainer getAggregatorContainer() {
-    return mergedAggregators;
-  }
-
   /** Returns the metrics container for this pipeline. */
   public DirectMetrics getMetrics() {
     return metrics;
@@ -402,37 +387,11 @@ class EvaluationContext {
 
   /**
    * Returns true if the step will not produce additional output.
-   *
-   * <p>If the provided transform produces only {@link IsBounded#BOUNDED}
-   * {@link PCollection PCollections}, returns true if the watermark is at
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE positive infinity}.
-   *
-   * <p>If the provided transform produces any {@link IsBounded#UNBOUNDED}
-   * {@link PCollection PCollections}, returns the value of
-   * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
    */
   public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
-    // if the PTransform's watermark isn't at the max value, it isn't done
-    if (watermarkManager
-        .getWatermarks(transform)
-        .getOutputWatermark()
-        .isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      return false;
-    }
-    // If the PTransform has any unbounded outputs, and unbounded producers should not be shut down,
-    // the PTransform may produce additional output. It is not done.
-    for (TaggedPValue output : transform.getOutputs()) {
-      if (output.getValue() instanceof PCollection) {
-        IsBounded bounded = ((PCollection<?>) output.getValue()).isBounded();
-        if (bounded.equals(IsBounded.UNBOUNDED)
-            && !options.isShutdownUnboundedProducersWithMaxWatermark()) {
-          return false;
-        }
-      }
-    }
-    // The PTransform's watermark was at positive infinity and all of its outputs are known to be
-    // done. It is done.
-    return true;
+    // the PTransform is done only if watermark is at the max value
+    Instant stepWatermark = watermarkManager.getWatermarks(transform).getOutputWatermark();
+    return !stepWatermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   /**

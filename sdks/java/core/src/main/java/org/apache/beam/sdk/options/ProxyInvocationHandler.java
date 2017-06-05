@@ -88,7 +88,6 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
  */
 @ThreadSafe
 class ProxyInvocationHandler implements InvocationHandler {
-  private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code.
    */
@@ -480,9 +479,10 @@ class ProxyInvocationHandler implements InvocationHandler {
    */
   private Object getValueFromJson(String propertyName, Method method) {
     try {
-      JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
+      JavaType type = PipelineOptionsFactory.MAPPER.getTypeFactory()
+          .constructType(method.getGenericReturnType());
       JsonNode jsonNode = jsonOptions.get(propertyName);
-      return MAPPER.readValue(jsonNode.toString(), type);
+      return PipelineOptionsFactory.MAPPER.readValue(jsonNode.toString(), type);
     } catch (IOException e) {
       throw new RuntimeException("Unable to parse representation", e);
     }
@@ -645,7 +645,8 @@ class ProxyInvocationHandler implements InvocationHandler {
         DisplayData displayData = DisplayData.from(value);
         for (DisplayData.Item item : displayData.items()) {
           @SuppressWarnings("unchecked")
-          Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
+          Map<String, Object> serializedItem =
+              PipelineOptionsFactory.MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);
         }
 
@@ -700,10 +701,11 @@ class ProxyInvocationHandler implements InvocationHandler {
       // Attempt to serialize and deserialize each property.
       for (Map.Entry<String, BoundValue> entry : options.entrySet()) {
         try {
-          String serializedValue = MAPPER.writeValueAsString(entry.getValue().getValue());
-          JavaType type = MAPPER.getTypeFactory()
+          String serializedValue =
+              PipelineOptionsFactory.MAPPER.writeValueAsString(entry.getValue().getValue());
+          JavaType type = PipelineOptionsFactory.MAPPER.getTypeFactory()
               .constructType(propertyToReturnType.get(entry.getKey()));
-          MAPPER.readValue(serializedValue, type);
+          PipelineOptionsFactory.MAPPER.readValue(serializedValue, type);
         } catch (Exception e) {
           throw new IOException(String.format(
               "Failed to serialize and deserialize property '%s' with value '%s'",

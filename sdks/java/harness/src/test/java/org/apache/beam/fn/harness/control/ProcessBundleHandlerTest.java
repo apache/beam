@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -62,6 +63,7 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -70,12 +72,13 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,6 +95,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class ProcessBundleHandlerTest {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private static final Coder<WindowedValue<String>> STRING_CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String LONG_CODER_SPEC_ID = "998L";
@@ -109,14 +113,14 @@ public class ProcessBundleHandlerTest {
           BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
           .setId(STRING_CODER_SPEC_ID)
           .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(STRING_CODER.asCloudObject()))).build())))
+              OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(STRING_CODER)))).build())))
           .build();
       LONG_CODER_SPEC =
           BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
           .setId(STRING_CODER_SPEC_ID)
           .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(WindowedValue.getFullCoder(
-                  VarLongCoder.of(), GlobalWindow.Coder.INSTANCE).asCloudObject()))).build())))
+              OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(WindowedValue.getFullCoder(
+                  VarLongCoder.of(), GlobalWindow.Coder.INSTANCE))))).build())))
           .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
@@ -300,28 +304,29 @@ public class ProcessBundleHandlerTest {
 
   private static class TestDoFn extends DoFn<String, String> {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-    private static final TupleTag<String> sideOutput = new TupleTag<>("sideOutput");
+    private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
-    @StartBundle
-    public void startBundle(Context context) {
-      context.output("StartBundle");
-    }
+    private BoundedWindow window;
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context, BoundedWindow window) {
       context.output("MainOutput" + context.element());
-      context.sideOutput(sideOutput, "SideOutput" + context.element());
+      context.output(additionalOutput, "AdditionalOutput" + context.element());
+      this.window = window;
     }
 
     @FinishBundle
-    public void finishBundle(Context context) {
-      context.output("FinishBundle");
+    public void finishBundle(FinishBundleContext context) {
+      if (window != null) {
+        context.output("FinishBundle", window.maxTimestamp(), window);
+        window = null;
+      }
     }
   }
 
   /**
    * Create a DoFn that has 3 inputs (inputATarget1, inputATarget2, inputBTarget) and 2 outputs
-   * (mainOutput, sideOutput). Validate that inputs are fed to the {@link DoFn} and that outputs
+   * (mainOutput, output). Validate that inputs are fed to the {@link DoFn} and that outputs
    * are directed to the correct consumers.
    */
   @Test
@@ -329,17 +334,17 @@ public class ProcessBundleHandlerTest {
     Map<String, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
     String primitiveTransformId = "100L";
     long mainOutputId = 101L;
-    long sideOutputId = 102L;
+    long additionalOutputId = 102L;
 
     DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
         new TestDoFn(),
         WindowingStrategy.globalDefault(),
         ImmutableList.of(),
-        STRING_CODER,
+        StringUtf8Coder.of(),
         mainOutputId,
         ImmutableMap.of(
             mainOutputId, TestDoFn.mainOutput,
-            sideOutputId, TestDoFn.sideOutput));
+            additionalOutputId, TestDoFn.additionalOutput));
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
         .setId("1L")
         .setUrn(JAVA_DO_FN_URN)
@@ -372,25 +377,25 @@ public class ProcessBundleHandlerTest {
         .putOutputs(Long.toString(mainOutputId), BeamFnApi.PCollection.newBuilder()
             .setCoderReference(STRING_CODER_SPEC_ID)
             .build())
-        .putOutputs(Long.toString(sideOutputId), BeamFnApi.PCollection.newBuilder()
+        .putOutputs(Long.toString(additionalOutputId), BeamFnApi.PCollection.newBuilder()
             .setCoderReference(STRING_CODER_SPEC_ID)
             .build())
         .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    List<WindowedValue<String>> sideOutputValues = new ArrayList<>();
+    List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     BeamFnApi.Target mainOutputTarget = BeamFnApi.Target.newBuilder()
         .setPrimitiveTransformReference(primitiveTransformId)
         .setName(Long.toString(mainOutputId))
         .build();
-    BeamFnApi.Target sideOutputTarget = BeamFnApi.Target.newBuilder()
+    BeamFnApi.Target additionalOutputTarget = BeamFnApi.Target.newBuilder()
         .setPrimitiveTransformReference(primitiveTransformId)
-        .setName(Long.toString(sideOutputId))
+        .setName(Long.toString(additionalOutputId))
         .build();
     Multimap<BeamFnApi.Target, ThrowingConsumer<WindowedValue<String>>> existingConsumers =
         ImmutableMultimap.of(
             mainOutputTarget, mainOutputValues::add,
-            sideOutputTarget, sideOutputValues::add);
+            additionalOutputTarget, additionalOutputValues::add);
     Multimap<BeamFnApi.Target, ThrowingConsumer<WindowedValue<String>>> newConsumers =
         HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -409,7 +414,6 @@ public class ProcessBundleHandlerTest {
         finishFunctions::add);
 
     Iterables.getOnlyElement(startFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("StartBundle")));
     mainOutputValues.clear();
 
     assertEquals(newConsumers.keySet(),
@@ -422,15 +426,18 @@ public class ProcessBundleHandlerTest {
         valueInGlobalWindow("MainOutputA1"),
         valueInGlobalWindow("MainOutputA2"),
         valueInGlobalWindow("MainOutputB")));
-    assertThat(sideOutputValues, contains(
-        valueInGlobalWindow("SideOutputA1"),
-        valueInGlobalWindow("SideOutputA2"),
-        valueInGlobalWindow("SideOutputB")));
+    assertThat(additionalOutputValues, contains(
+        valueInGlobalWindow("AdditionalOutputA1"),
+        valueInGlobalWindow("AdditionalOutputA2"),
+        valueInGlobalWindow("AdditionalOutputB")));
     mainOutputValues.clear();
-    sideOutputValues.clear();
+    additionalOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("FinishBundle")));
+    assertThat(
+        mainOutputValues,
+        contains(
+            timestampedValueInGlobalWindow("FinishBundle", GlobalWindow.INSTANCE.maxTimestamp())));
     mainOutputValues.clear();
   }
 

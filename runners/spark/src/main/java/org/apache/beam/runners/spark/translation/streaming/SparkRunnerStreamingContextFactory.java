@@ -32,69 +32,75 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function0;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * A {@link JavaStreamingContext} factory for resilience.
- * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#how-to-configure-checkpointing">how-to-configure-checkpointing</a>
+ *
+ * @see <a
+ *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#how-to-configure-checkpointing">how-to-configure-checkpointing</a>
  */
-public class SparkRunnerStreamingContextFactory implements JavaStreamingContextFactory {
+public class SparkRunnerStreamingContextFactory implements Function0<JavaStreamingContext> {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
 
-  private final Pipeline pipeline;
-  private final SparkPipelineOptions options;
-  private final CheckpointDir checkpointDir;
+  // set members as transient to satisfy findbugs and since this only runs in driver.
+  private final transient Pipeline pipeline;
+  private final transient SparkPipelineOptions options;
+  private final transient CheckpointDir checkpointDir;
 
   public SparkRunnerStreamingContextFactory(
-      Pipeline pipeline,
-      SparkPipelineOptions options,
-      CheckpointDir checkpointDir) {
+      Pipeline pipeline, SparkPipelineOptions options, CheckpointDir checkpointDir) {
     this.pipeline = pipeline;
     this.options = options;
     this.checkpointDir = checkpointDir;
   }
 
-  private EvaluationContext ctxt;
-
   @Override
-  public JavaStreamingContext create() {
+  public JavaStreamingContext call() throws Exception {
     LOG.info("Creating a new Spark Streaming Context");
     // validate unbounded read properties.
-    checkArgument(options.getMinReadTimeMillis() < options.getBatchIntervalMillis(),
+    checkArgument(
+        options.getMinReadTimeMillis() < options.getBatchIntervalMillis(),
         "Minimum read time has to be less than batch time.");
-    checkArgument(options.getReadTimePercentage() > 0 && options.getReadTimePercentage() < 1,
+    checkArgument(
+        options.getReadTimePercentage() > 0 && options.getReadTimePercentage() < 1,
         "Read time percentage is bound to (0, 1).");
 
-    SparkPipelineTranslator translator = new StreamingTransformTranslator.Translator(
-        new TransformTranslator.Translator());
+    SparkPipelineTranslator translator =
+        new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
     Duration batchDuration = new Duration(options.getBatchIntervalMillis());
     LOG.info("Setting Spark streaming batchDuration to {} msec", batchDuration.milliseconds());
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
 
-    ctxt = new EvaluationContext(jsc, pipeline, jssc);
+    // We must first init accumulators since translators expect them to be instantiated.
+    SparkRunner.initAccumulators(options, jsc);
+
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
+    // update cache candidates
+    SparkRunner.updateCacheCandidates(pipeline, translator, ctxt);
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
-    checkpoint(jssc);
+    checkpoint(jssc, checkpointDir);
 
     return jssc;
   }
 
-  private void checkpoint(JavaStreamingContext jssc) {
+  private void checkpoint(JavaStreamingContext jssc, CheckpointDir checkpointDir) {
     Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
     Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();
     Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
 
     try {
-      FileSystem fileSystem = rootCheckpointPath.getFileSystem(jssc.sc().hadoopConfiguration());
+      FileSystem fileSystem =
+          rootCheckpointPath.getFileSystem(jssc.sparkContext().hadoopConfiguration());
       if (!fileSystem.exists(rootCheckpointPath)) {
         fileSystem.mkdirs(rootCheckpointPath);
       }

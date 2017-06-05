@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.hbase;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,17 +30,13 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.ByteStringCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
-import org.apache.beam.sdk.io.hbase.coders.HBaseResultCoder;
-import org.apache.beam.sdk.io.hbase.coders.SerializableConfiguration;
-import org.apache.beam.sdk.io.hbase.coders.SerializableScan;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -55,7 +49,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.conf.Configuration;
-
 import org.apache.hadoop.hbase.ClusterStatus;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.RegionLoad;
@@ -129,8 +122,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to HBase</h3>
  *
  * <p>The HBase sink executes a set of row mutations on a single table. It takes as input a
- * {@link PCollection PCollection&lt;KV&lt;ByteString, Iterable&lt;Mutation&gt;&gt;&gt;}, where the
- * {@link ByteString} is the key of the row being mutated, and each {@link Mutation} represents an
+ * {@link PCollection PCollection&lt;KV&lt;byte[], Iterable&lt;Mutation&gt;&gt;&gt;}, where the
+ * {@code byte[]} is the key of the row being mutated, and each {@link Mutation} represents an
  * idempotent transformation to that row.
  *
  * <p>To configure a HBase sink, you must supply a table id and a {@link Configuration}
@@ -138,7 +131,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * Configuration configuration = ...;
- * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
+ * PCollection<KV<byte[], Iterable<Mutation>>> data = ...;
  * data.setCoder(HBaseIO.WRITE_CODER);
  *
  * data.apply("write",
@@ -220,7 +213,7 @@ public class HBaseIO {
          */
         public Read withFilter(Filter filter) {
             checkNotNull(filter, "filter");
-            return withScan(serializableScan.getScan().setFilter(filter));
+            return withScan(serializableScan.get().setFilter(filter));
         }
 
         /**
@@ -232,7 +225,7 @@ public class HBaseIO {
             checkNotNull(keyRange, "keyRange");
             byte[] startRow = keyRange.getStartKey().getBytes();
             byte[] stopRow = keyRange.getEndKey().getBytes();
-            return withScan(serializableScan.getScan().setStartRow(startRow).setStopRow(stopRow));
+            return withScan(serializableScan.get().setStartRow(startRow).setStopRow(stopRow));
         }
 
         /**
@@ -262,12 +255,12 @@ public class HBaseIO {
         }
 
         @Override
-        public void validate(PBegin input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null,
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
-                    serializableConfiguration.getConfiguration())) {
+                    serializableConfiguration.get())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -280,9 +273,9 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
-                    serializableConfiguration.getConfiguration().toString()));
+                    serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
-            builder.addIfNotNull(DisplayData.item("scan", serializableScan.getScan().toString()));
+            builder.addIfNotNull(DisplayData.item("scan", serializableScan.get().toString()));
         }
 
         public String getTableId() {
@@ -290,25 +283,25 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
-            return serializableConfiguration.getConfiguration();
+            return serializableConfiguration.get();
         }
 
         /**
          * Returns the range of keys that will be read from the table.
          */
         public ByteKeyRange getKeyRange() {
-            byte[] startRow = serializableScan.getScan().getStartRow();
-            byte[] stopRow = serializableScan.getScan().getStopRow();
+            byte[] startRow = serializableScan.get().getStartRow();
+            byte[] stopRow = serializableScan.get().getStopRow();
             return ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
         }
 
-        private SerializableConfiguration serializableConfiguration;
-        private String tableId;
-        private SerializableScan serializableScan;
+        private final SerializableConfiguration serializableConfiguration;
+        private final String tableId;
+        private final SerializableScan serializableScan;
     }
 
     static class HBaseSource extends BoundedSource<Result> {
-        private Read read;
+        private final Read read;
         @Nullable private Long estimatedSizeBytes;
 
         HBaseSource(Read read, @Nullable Long estimatedSizeBytes) {
@@ -321,7 +314,7 @@ public class HBaseIO {
             if (estimatedSizeBytes == null) {
                 estimatedSizeBytes = estimateSizeBytes();
                 LOG.debug("Estimated size {} bytes for table {} and scan {}", estimatedSizeBytes,
-                        read.tableId, read.serializableScan.getScan());
+                        read.tableId, read.serializableScan.get());
             }
             return estimatedSizeBytes;
         }
@@ -333,7 +326,7 @@ public class HBaseIO {
         private long estimateSizeBytes() throws Exception {
             // This code is based on RegionSizeCalculator in hbase-server
             long estimatedSizeBytes = 0L;
-            Configuration configuration = this.read.serializableConfiguration.getConfiguration();
+            Configuration configuration = this.read.serializableConfiguration.get();
             try (Connection connection = ConnectionFactory.createConnection(configuration)) {
                 // filter regions for the given table/scan
                 List<HRegionLocation> regionLocations = getRegionLocations(connection);
@@ -363,7 +356,7 @@ public class HBaseIO {
         }
 
         private List<HRegionLocation> getRegionLocations(Connection connection) throws Exception {
-            final Scan scan = read.serializableScan.getScan();
+            final Scan scan = read.serializableScan.get();
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
 
@@ -393,7 +386,7 @@ public class HBaseIO {
         private List<HBaseSource>
             splitBasedOnRegions(List<HRegionLocation> regionLocations, int numSplits)
                 throws Exception {
-            final Scan scan = read.serializableScan.getScan();
+            final Scan scan = read.serializableScan.get();
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
 
@@ -425,10 +418,9 @@ public class HBaseIO {
             return sources;
         }
 
-        @Override
-        public List<? extends BoundedSource<Result>>
-            splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
-                throws Exception {
+    @Override
+    public List<? extends BoundedSource<Result>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
             LOG.debug("desiredBundleSize {} bytes", desiredBundleSizeBytes);
             long estimatedSizeBytes = getEstimatedSizeBytes(options);
             int numSplits = 1;
@@ -481,7 +473,7 @@ public class HBaseIO {
         private Connection connection;
         private ResultScanner scanner;
         private Iterator<Result> iter;
-        private Result result;
+        private Result current;
         private long recordsReturned;
 
         HBaseReader(HBaseSource source) {
@@ -490,27 +482,28 @@ public class HBaseIO {
 
         @Override
         public boolean start() throws IOException {
-            Configuration configuration = source.read.serializableConfiguration.getConfiguration();
+            Configuration configuration = source.read.serializableConfiguration.get();
             String tableId = source.read.tableId;
             connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
             Table table = connection.getTable(tableName);
-            Scan scan = source.read.serializableScan.getScan();
-            scanner = table.getScanner(scan);
+            // [BEAM-2319] We have to clone the Scan because the underlying scanner may mutate it.
+            Scan scanClone = new Scan(source.read.serializableScan.get());
+            scanner = table.getScanner(scanClone);
             iter = scanner.iterator();
             return advance();
         }
 
         @Override
         public Result getCurrent() throws NoSuchElementException {
-            return result;
+            return current;
         }
 
         @Override
         public boolean advance() throws IOException {
             boolean hasRecord = iter.hasNext();
             if (hasRecord) {
-                result = iter.next();
+                current = iter.next();
                 ++recordsReturned;
             }
             return hasRecord;
@@ -553,7 +546,7 @@ public class HBaseIO {
      * @see HBaseIO
      */
     public static class Write
-            extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
+            extends PTransform<PCollection<KV<byte[], Iterable<Mutation>>>, PDone> {
 
         /**
          * Returns a new {@link HBaseIO.Write} that will write to the HBase instance
@@ -582,17 +575,17 @@ public class HBaseIO {
         }
 
         @Override
-        public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+        public PDone expand(PCollection<KV<byte[], Iterable<Mutation>>> input) {
             input.apply(ParDo.of(new HBaseWriterFn(tableId, serializableConfiguration)));
             return PDone.in(input.getPipeline());
         }
 
         @Override
-        public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
-                    serializableConfiguration.getConfiguration())) {
+                    serializableConfiguration.get())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -605,7 +598,7 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
-                    serializableConfiguration.getConfiguration().toString()));
+                    serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
         }
 
@@ -614,13 +607,13 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
-            return serializableConfiguration.getConfiguration();
+            return serializableConfiguration.get();
         }
 
         private final String tableId;
         private final SerializableConfiguration serializableConfiguration;
 
-        private class HBaseWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+        private class HBaseWriterFn extends DoFn<KV<byte[], Iterable<Mutation>>, Void> {
 
             public HBaseWriterFn(String tableId,
                                  SerializableConfiguration serializableConfiguration) {
@@ -631,7 +624,7 @@ public class HBaseIO {
 
             @Setup
             public void setup() throws Exception {
-                Configuration configuration = this.serializableConfiguration.getConfiguration();
+                Configuration configuration = this.serializableConfiguration.get();
                 connection = ConnectionFactory.createConnection(configuration);
 
                 TableName tableName = TableName.valueOf(tableId);
@@ -642,14 +635,9 @@ public class HBaseIO {
                 recordsWritten = 0;
             }
 
-            @StartBundle
-            public void startBundle(Context c) throws Exception {
-
-            }
-
             @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
-                KV<ByteString, Iterable<Mutation>> record = ctx.element();
+                KV<byte[], Iterable<Mutation>> record = ctx.element();
                 List<Mutation> mutations = new ArrayList<>();
                 for (Mutation mutation : record.getValue()) {
                     mutations.add(mutation);
@@ -659,7 +647,7 @@ public class HBaseIO {
             }
 
             @FinishBundle
-            public void finishBundle(Context c) throws Exception {
+            public void finishBundle() throws Exception {
                 mutator.flush();
             }
 
@@ -691,6 +679,6 @@ public class HBaseIO {
         }
     }
 
-    public static final Coder<KV<ByteString, Iterable<Mutation>>> WRITE_CODER =
-            KvCoder.of(ByteStringCoder.of(), IterableCoder.of(HBaseMutationCoder.of()));
+    public static final Coder<KV<byte[], Iterable<Mutation>>> WRITE_CODER =
+            KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(HBaseMutationCoder.of()));
 }

@@ -31,9 +31,9 @@ class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>
 
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
-    PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) context.getInput();
+    PCollection<KV<K, V>> input = context.getInput();
     ApexGroupByKeyOperator<K, V> group = new ApexGroupByKeyOperator<>(context.getPipelineOptions(),
-        input, context.<K>stateInternalsFactory()
+        input, context.getStateBackend()
         );
     context.addOperator(group, group.output);
     context.addStream(input, group.input);

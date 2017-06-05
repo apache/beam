@@ -16,11 +16,16 @@
 #
 
 
-"""Observable base class for iterables."""
+"""Observable base class for iterables.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 
 class ObservableMixin(object):
-  """An observable iterable.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An observable iterable.
 
   Subclasses need to call self.notify_observers with any object yielded.
   """

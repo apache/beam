@@ -35,7 +35,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -153,7 +152,7 @@ public class TopTest {
   public void testTopEmptyWithIncompatibleWindows() {
     p.enableAbandonedNodeEnforcement(false);
 
-    Bound<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
+    Window<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
     PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of())).apply(windowingFn);
 
     expectedEx.expect(IllegalStateException.class);
@@ -232,17 +231,17 @@ public class TopTest {
   @Test
   public void testTopGetNames() {
     assertEquals("Combine.globally(Top(OrderByLength))", Top.of(1, new OrderByLength()).getName());
-    assertEquals("Combine.globally(Top(Smallest))", Top.smallest(1).getName());
-    assertEquals("Combine.globally(Top(Largest))", Top.largest(2).getName());
+    assertEquals("Combine.globally(Top(Reversed))", Top.smallest(1).getName());
+    assertEquals("Combine.globally(Top(Natural))", Top.largest(2).getName());
     assertEquals("Combine.perKey(Top(IntegerComparator))",
         Top.perKey(1, new IntegerComparator()).getName());
-    assertEquals("Combine.perKey(Top(Smallest))", Top.<String, Integer>smallestPerKey(1).getName());
-    assertEquals("Combine.perKey(Top(Largest))", Top.<String, Integer>largestPerKey(2).getName());
+    assertEquals("Combine.perKey(Top(Reversed))", Top.<String, Integer>smallestPerKey(1).getName());
+    assertEquals("Combine.perKey(Top(Natural))", Top.<String, Integer>largestPerKey(2).getName());
   }
 
   @Test
   public void testDisplayData() {
-    Top.Largest<Integer> comparer = new Top.Largest<Integer>();
+    Top.Natural<Integer> comparer = new Top.Natural<Integer>();
     Combine.Globally<Integer, List<Integer>> top = Top.of(1234, comparer);
     DisplayData displayData = DisplayData.from(top);
 

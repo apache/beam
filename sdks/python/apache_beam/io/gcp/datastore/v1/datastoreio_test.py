@@ -27,7 +27,7 @@ from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 
 # Protect against environments where datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from google.cloud.proto.datastore.v1 import query_pb2
@@ -35,7 +35,7 @@ try:
   from googledatastore import helper as datastore_helper
 except ImportError:
   datastore_pb2 = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
@@ -191,6 +191,22 @@ class DatastoreioTest(unittest.TestCase):
       self.assertEqual((num_entities - 1) / _Mutate._WRITE_BATCH_SIZE + 1,
                        self._mock_datastore.commit.call_count)
 
+  def test_DatastoreWriteLargeEntities(self):
+    """100*100kB entities gets split over two Commit RPCs."""
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
+      entities = [e.entity for e in fake_datastore.create_entities(100)]
+
+      datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
+      datastore_write_fn.start_bundle()
+      for entity in entities:
+        datastore_helper.add_properties(
+            entity, {'large': u'A' * 100000}, exclude_from_indexes=True)
+        datastore_write_fn.process(WriteToDatastore.to_upsert_mutation(entity))
+      datastore_write_fn.finish_bundle()
+
+      self.assertEqual(2, self._mock_datastore.commit.call_count)
+
   def verify_unique_keys(self, queries):
     """A helper function that verifies if all the queries have unique keys."""
     keys, _ = zip(*queries)
@@ -240,6 +256,7 @@ class DatastoreioTest(unittest.TestCase):
       q.CopyFrom(query)
       split_queries.append(q)
     return split_queries
+
 
 if __name__ == '__main__':
   unittest.main()

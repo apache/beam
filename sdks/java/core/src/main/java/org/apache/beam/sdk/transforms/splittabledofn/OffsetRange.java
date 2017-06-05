@@ -22,7 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.Serializable;
 
 /** A restriction represented by a range of integers [from, to). */
-public class OffsetRange implements Serializable {
+public class OffsetRange
+    implements Serializable, HasDefaultTracker<OffsetRange, OffsetRangeTracker> {
   private final long from;
   private final long to;
 
@@ -38,6 +39,11 @@ public class OffsetRange implements Serializable {
 
   public long getTo() {
     return to;
+  }
+
+  @Override
+  public OffsetRangeTracker newTracker() {
+    return new OffsetRangeTracker(this);
   }
 
   @Override

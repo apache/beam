@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import static org.junit.Assert.assertThat;
+
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,6 +34,14 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class UnionCoderTest {
+  @Test
+  public void testGetElementCoders() {
+    UnionCoder unionCoder =
+        UnionCoder.of(ImmutableList.<Coder<?>>of(StringUtf8Coder.of(), DoubleCoder.of()));
+    assertThat(
+        unionCoder.getElementCoders().get(0), Matchers.<Coder<?>>equalTo(StringUtf8Coder.of()));
+    assertThat(unionCoder.getElementCoders().get(1), Matchers.<Coder<?>>equalTo(DoubleCoder.of()));
+  }
 
   @Test
   public void testCoderIsSerializable() {

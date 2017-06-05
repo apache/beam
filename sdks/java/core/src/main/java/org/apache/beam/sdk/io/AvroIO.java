@@ -20,33 +20,31 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
-import java.io.IOException;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -54,17 +52,14 @@ import org.apache.beam.sdk.values.PDone;
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
- * <p>To read a {@link PCollection} from one or more Avro files, use
- * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
- * the path of the file(s) to read from (e.g., a local filename or
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"}).
+ * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()},
+ * using {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
+ * See {@link FileSystems} for information on supported file systems and filepatterns.
  *
- * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
- * read specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To read {@link GenericRecord GenericRecords}, provide either
- * a {@link Schema} object or an Avro schema in a JSON-encoded string form.
- * An exception will be thrown if a record doesn't match the specified
+ * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
+ * To read {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes
+ * a {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
+ * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema.
  *
  * <p>For example:
@@ -73,968 +68,464 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.Read.from("/path/to/file.avro")
- *                 .withSchema(AvroAutoGenClass.class));
+ *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("/path/to/file.avro"));
  *
- * // A Read from a GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Read from a GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.Read
- *                .from("gs://my_bucket/path/to/records-*.avro")
- *                .withSchema(schema));
+ *     p.apply(AvroIO.readGenericRecords(schema)
+ *                .from("gs://my_bucket/path/to/records-*.avro"));
  * } </pre>
  *
- * <p>To write a {@link PCollection} to one or more Avro files, use
- * {@link AvroIO.Write}, specifying {@link AvroIO.Write#to} to specify
- * the path of the file to write to (e.g., a local filename or sharded
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}).
+ * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
+ * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default
+ * {@link DefaultFilenamePolicy} will use this prefix, in conjunction with a
+ * {@link ShardNameTemplate} (set via {@link Write#withShardNameTemplate(String)}) and optional
+ * filename suffix (set via {@link Write#withSuffix(String)}, to generate output filenames in a
+ * sharded way. You can override this default write filename policy using
+ * {@link Write#withFilenamePolicy(FileBasedSink.FilenamePolicy)} to specify a custom file naming
+ * policy.
  *
- * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
- * write specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To write {@link GenericRecord GenericRecords}, provide either
- * a {@link Schema} object or a schema in a JSON-encoded string form.
- * An exception will be thrown if a record doesn't match the specified
- * schema.
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner -
+ * {@link AvroIO.Write#withWindowedWrites()} will cause windowing and triggering to be
+ * preserved. When producing windowed writes, the number of output shards must be set explicitly
+ * using {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a
+ * runner-chosen value, so you may need not set it yourself. A
+ * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
+ * unique filenames.
+ *
+ * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}.
+ * To write {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)}
+ * which takes a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema
+ * in a JSON-encoded string form. An exception will be thrown if a record doesn't match the
+ * specified schema.
  *
  * <p>For example:
  * <pre> {@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
- * records.apply(AvroIO.Write.to("/path/to/file.avro")
- *                           .withSchema(AvroAutoGenClass.class));
+ * records.apply(AvroIO.write(AvroAutoGenClass.class).to("/path/to/file.avro"));
  *
- * // A Write to a sharded GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Write to a sharded GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply("WriteToAvro", AvroIO.Write
+ * records.apply("WriteToAvro", AvroIO.writeGenericRecords(schema)
  *     .to("gs://my_bucket/path/to/numbers")
- *     .withSchema(schema)
  *     .withSuffix(".avro"));
  * } </pre>
  *
  * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the
  * {@link org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can
  * be changed or overridden using {@link AvroIO.Write#withCodec}.
- *
- * <h3>Permissions</h3>
- * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
- * more details.
  */
 public class AvroIO {
   /**
-   * A root {@link PTransform} that reads from an Avro file (or multiple Avro
-   * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each record.
+   * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
+   *
+   * <p>The schema must be specified using one of the {@code withSchema} functions.
    */
-  public static class Read {
+  public static <T> Read<T> read(Class<T> recordClass) {
+    return new AutoValue_AvroIO_Read.Builder<T>()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .build();
+  }
 
-    /**
-     * Returns a {@link PTransform} that reads from the file(s)
-     * with the given name or pattern. This can be a local filename
-     * or filename pattern (if running locally), or a Google Cloud
-     * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via
-     * the Google Cloud Dataflow service). Standard
-     * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
-     * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
-     */
-    public static Bound<GenericRecord> from(String filepattern) {
-      return new Bound<>(GenericRecord.class).from(filepattern);
+  /** Reads Avro file(s) containing records of the specified schema. */
+  public static Read<GenericRecord> readGenericRecords(Schema schema) {
+    return new AutoValue_AvroIO_Read.Builder<GenericRecord>()
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .build();
+  }
+
+  /**
+   * Reads Avro file(s) containing records of the specified schema. The schema is specified as a
+   * JSON-encoded string.
+   */
+  public static Read<GenericRecord> readGenericRecords(String schema) {
+    return readGenericRecords(new Schema.Parser().parse(schema));
+  }
+
+  /**
+   * Writes a {@link PCollection} to an Avro file (or multiple Avro files matching a sharding
+   * pattern).
+   */
+  public static <T> Write<T> write(Class<T> recordClass) {
+    return AvroIO.<T>defaultWriteBuilder()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .build();
+  }
+
+  /** Writes Avro records of the specified schema. */
+  public static Write<GenericRecord> writeGenericRecords(Schema schema) {
+    return AvroIO.<GenericRecord>defaultWriteBuilder()
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .build();
+  }
+
+  /**
+   * Writes Avro records of the specified schema. The schema is specified as a JSON-encoded string.
+   */
+  public static Write<GenericRecord> writeGenericRecords(String schema) {
+    return writeGenericRecords(new Schema.Parser().parse(schema));
+  }
+
+  private static <T> Write.Builder<T> defaultWriteBuilder() {
+    return new AutoValue_AvroIO_Write.Builder<T>()
+        .setFilenameSuffix(null)
+        .setShardTemplate(null)
+        .setNumShards(0)
+        .setCodec(Write.DEFAULT_CODEC)
+        .setMetadata(ImmutableMap.<String, Object>of())
+        .setWindowedWrites(false);
+  }
+
+  /** Implementation of {@link #read}. */
+  @AutoValue
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    @Nullable abstract String getFilepattern();
+    @Nullable abstract Class<T> getRecordClass();
+    @Nullable abstract Schema getSchema();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFilepattern(String filepattern);
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+      abstract Builder<T> setSchema(Schema schema);
+
+      abstract Read<T> build();
     }
 
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records whose type is the specified Avro-generated class.
-     *
-     * @param <T> the type of the decoded elements, and the elements
-     * of the resulting {@link PCollection}
-     */
-    public static <T> Bound<T> withSchema(Class<T> type) {
-      return new Bound<>(type).withSchema(type);
+    /** Reads from the given filename or filepattern. */
+    public Read<T> from(String filepattern) {
+      return toBuilder().setFilepattern(filepattern).build();
     }
 
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records of the specified schema.
-     */
-    public static Bound<GenericRecord> withSchema(Schema schema) {
-      return new Bound<>(GenericRecord.class).withSchema(schema);
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      if (getFilepattern() == null) {
+        throw new IllegalStateException(
+            "need to set the filepattern of an AvroIO.Read transform");
+      }
+      if (getSchema() == null) {
+        throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
+      }
+
+      @SuppressWarnings("unchecked")
+      Bounded<T> read =
+          getRecordClass() == GenericRecord.class
+              ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
+                  AvroSource.from(getFilepattern()).withSchema(getSchema()))
+              : org.apache.beam.sdk.io.Read.from(
+                  AvroSource.from(getFilepattern()).withSchema(getRecordClass()));
+
+      PCollection<T> pcol = input.getPipeline().apply("Read", read);
+      // Honor the default output coder that would have been used by this PTransform.
+      pcol.setCoder(getDefaultOutputCoder());
+      return pcol;
     }
 
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records of the specified schema in a JSON-encoded
-     * string form.
-     */
-    public static Bound<GenericRecord> withSchema(String schema) {
-      return withSchema((new Schema.Parser()).parse(schema));
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+        .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
+          .withLabel("Input File Pattern"));
     }
 
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * that has GCS path validation on pipeline creation disabled.
-     *
-     * <p>This can be useful in the case where the GCS input location does
-     * not exist at the pipeline creation time, but is expected to be available
-     * at execution time.
-     */
-    public static Bound<GenericRecord> withoutValidation() {
-      return new Bound<>(GenericRecord.class).withoutValidation();
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return AvroCoder.of(getRecordClass(), getSchema());
     }
-
-    /**
-     * A {@link PTransform} that reads from an Avro file (or multiple Avro
-     * files matching a pattern) and returns a bounded {@link PCollection} containing
-     * the decoding of each record.
-     *
-     * @param <T> the type of each of the elements of the resulting
-     * PCollection
-     */
-    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
-      /** The filepattern to read from. */
-      @Nullable
-      final String filepattern;
-      /** The class type of the records. */
-      final Class<T> type;
-      /** The schema of the input file. */
-      @Nullable
-      final Schema schema;
-      /** An option to indicate if input validation is desired. Default is true. */
-      final boolean validate;
-
-      Bound(Class<T> type) {
-        this(null, null, type, null, true);
-      }
-
-      Bound(String name, String filepattern, Class<T> type, Schema schema, boolean validate) {
-        super(name);
-        this.filepattern = filepattern;
-        this.type = type;
-        this.schema = schema;
-        this.validate = validate;
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads from the file(s) with the given name or pattern.
-       * (See {@link AvroIO.Read#from} for a description of
-       * filepatterns.)
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, type, schema, validate);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records whose type is the
-       * specified Avro-generated class.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param <X> the type of the decoded elements and the elements of
-       * the resulting PCollection
-       */
-      public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type), validate);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records of the specified schema.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(name, filepattern, GenericRecord.class, schema, validate);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records of the specified schema
-       * in a JSON-encoded string form.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(String schema) {
-        return withSchema((new Schema.Parser()).parse(schema));
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that has GCS input path validation on pipeline creation disabled.
-       *
-       * <p>Does not modify this object.
-       *
-       * <p>This can be useful in the case where the GCS input location does
-       * not exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       */
-      public Bound<T> withoutValidation() {
-        return new Bound<>(name, filepattern, type, schema, false);
-      }
-
-      @Override
-      public PCollection<T> expand(PBegin input) {
-        if (filepattern == null) {
-          throw new IllegalStateException(
-              "need to set the filepattern of an AvroIO.Read transform");
-        }
-        if (schema == null) {
-          throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
-        }
-        if (validate) {
-          try {
-            checkState(
-                !IOChannelUtils.getFactory(filepattern).match(filepattern).isEmpty(),
-                "Unable to find any files matching %s",
-                filepattern);
-          } catch (IOException e) {
-            throw new IllegalStateException(
-                String.format("Failed to validate %s", filepattern), e);
-          }
-        }
-
-        @SuppressWarnings("unchecked")
-        Bounded<T> read =
-            type == GenericRecord.class
-                ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
-                    AvroSource.from(filepattern).withSchema(schema))
-                : org.apache.beam.sdk.io.Read.from(
-                    AvroSource.from(filepattern).withSchema(type));
-
-        PCollection<T> pcol = input.getPipeline().apply("Read", read);
-        // Honor the default output coder that would have been used by this PTransform.
-        pcol.setCoder(getDefaultOutputCoder());
-        return pcol;
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder
-          .addIfNotNull(DisplayData.item("filePattern", filepattern)
-            .withLabel("Input File Pattern"))
-          .addIfNotDefault(DisplayData.item("validation", validate)
-            .withLabel("Validation Enabled"), true);
-      }
-
-      @Override
-      protected Coder<T> getDefaultOutputCoder() {
-        return AvroCoder.of(type, schema);
-      }
-
-      public String getFilepattern() {
-        return filepattern;
-      }
-
-      public Schema getSchema() {
-        return schema;
-      }
-
-      public boolean needsValidation() {
-        return validate;
-      }
-    }
-
-    /** Disallow construction of utility class. */
-    private Read() {}
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A root {@link PTransform} that writes a {@link PCollection} to an Avro file (or
-   * multiple Avro files matching a sharding pattern).
-   */
-  public static class Write {
+  /** Implementation of {@link #write}. */
+  @AutoValue
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    private static final SerializableAvroCodecFactory DEFAULT_CODEC =
+        new SerializableAvroCodecFactory(CodecFactory.deflateCodec(6));
+    // This should be a multiple of 4 to not get a partial encoded byte.
+    private static final int METADATA_BYTES_MAX_LENGTH = 40;
+
+    @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
+    @Nullable abstract String getShardTemplate();
+    @Nullable abstract String getFilenameSuffix();
+    abstract int getNumShards();
+    @Nullable abstract Class<T> getRecordClass();
+    @Nullable abstract Schema getSchema();
+    abstract boolean getWindowedWrites();
+    @Nullable abstract FilenamePolicy getFilenamePolicy();
+    /**
+     * The codec used to encode the blocks in the Avro file. String value drawn from those in
+     * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
+     */
+    abstract SerializableAvroCodecFactory getCodec();
+    /** Avro file metadata. */
+    abstract ImmutableMap<String, Object> getMetadata();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+      abstract Builder<T> setFilenameSuffix(String filenameSuffix);
+      abstract Builder<T> setNumShards(int numShards);
+      abstract Builder<T> setShardTemplate(String shardTemplate);
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+      abstract Builder<T> setSchema(Schema schema);
+      abstract Builder<T> setWindowedWrites(boolean windowedWrites);
+      abstract Builder<T> setFilenamePolicy(FilenamePolicy filenamePolicy);
+      abstract Builder<T> setCodec(SerializableAvroCodecFactory codec);
+      abstract Builder<T> setMetadata(ImmutableMap<String, Object> metadata);
+
+      abstract Write<T> build();
+    }
 
     /**
-     * Returns a {@link PTransform} that writes to the file(s)
-     * with the given prefix. This can be a local filename
-     * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
+     * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
+     * supported file systems.
      *
-     * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link Bound#withNumShards}, and end
-     * in a common extension, if given by {@link Bound#withSuffix}.
-     */
-    public static Bound<GenericRecord> to(String prefix) {
-      return new Bound<>(GenericRecord.class).to(prefix);
-    }
-
-    /**
-     * Returns a {@link PTransform} that writes to the file(s) with the
-     * given filename suffix.
-     */
-    public static Bound<GenericRecord> withSuffix(String filenameSuffix) {
-      return new Bound<>(GenericRecord.class).withSuffix(filenameSuffix);
-    }
-
-    /**
-     * Returns a {@link PTransform} that uses the provided shard count.
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Setting this value is not recommended
-     * unless you require a specific number of output files.
+     * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
+     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
+     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
+     */
+    public Write<T> to(String outputPrefix) {
+      return to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
+    }
+
+    /**
+     * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
+     * supported file systems.
      *
-     * @param numShards the number of shards to use, or 0 to let the system
-     *                  decide.
-     */
-    public static Bound<GenericRecord> withNumShards(int numShards) {
-      return new Bound<>(GenericRecord.class).withNumShards(numShards);
-    }
-
-    /**
-     * Returns a {@link PTransform} that uses the given shard name
-     * template.
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
      *
-     * <p>See {@link ShardNameTemplate} for a description of shard templates.
+     * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
+     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
+     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
      */
-    public static Bound<GenericRecord> withShardNameTemplate(String shardTemplate) {
-      return new Bound<>(GenericRecord.class).withShardNameTemplate(shardTemplate);
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> to(ResourceId outputPrefix) {
+      return toResource(StaticValueProvider.of(outputPrefix));
     }
 
     /**
-     * Returns a {@link PTransform} that forces a single file as
-     * output.
+     * Like {@link #to(String)}.
+     */
+    public Write<T> to(ValueProvider<String> outputPrefix) {
+      return toResource(NestedValueProvider.of(outputPrefix,
+          new SerializableFunction<String, ResourceId>() {
+            @Override
+            public ResourceId apply(String input) {
+              return FileBasedSink.convertToFileResourceIfPossible(input);
+            }
+          }));
+    }
+
+    /**
+     * Like {@link #to(ResourceId)}.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
+      return toBuilder().setFilenamePrefix(outputPrefix).build();
+    }
+
+    /**
+     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     */
+    public Write<T> withFilenamePolicy(FilenamePolicy filenamePolicy) {
+      return toBuilder().setFilenamePolicy(filenamePolicy).build();
+    }
+
+    /**
+     * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
+     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Setting this value is not recommended
-     * unless you require a specific number of output files.
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
      */
-    public static Bound<GenericRecord> withoutSharding() {
-      return new Bound<>(GenericRecord.class).withoutSharding();
+    public Write<T> withShardNameTemplate(String shardTemplate) {
+      return toBuilder().setShardTemplate(shardTemplate).build();
     }
 
     /**
-     * Returns a {@link PTransform} that writes Avro file(s)
-     * containing records whose type is the specified Avro-generated class.
+     * Configures the filename suffix for written files. This option may only be used when
+     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
-     * @param <T> the type of the elements of the input PCollection
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
      */
-    public static <T> Bound<T> withSchema(Class<T> type) {
-      return new Bound<>(type).withSchema(type);
+    public Write<T> withSuffix(String filenameSuffix) {
+      return toBuilder().setFilenameSuffix(filenameSuffix).build();
     }
 
     /**
-     * Returns a {@link PTransform} that writes Avro file(s)
-     * containing records of the specified schema.
-     */
-    public static Bound<GenericRecord> withSchema(Schema schema) {
-      return new Bound<>(GenericRecord.class).withSchema(schema);
-    }
-
-    /**
-     * Returns a {@link PTransform} that writes Avro file(s)
-     * containing records of the specified schema in a JSON-encoded
-     * string form.
-     */
-    public static Bound<GenericRecord> withSchema(String schema) {
-      return withSchema((new Schema.Parser()).parse(schema));
-    }
-
-    /**
-     * Returns a {@link PTransform} that writes Avro file(s) that has GCS path validation on
-     * pipeline creation disabled.
+     * Configures the number of output shards produced overall (when using unwindowed writes) or
+     * per-window (when using windowed writes).
      *
-     * <p>This can be useful in the case where the GCS output location does
-     * not exist at the pipeline creation time, but is expected to be available
-     * at execution time.
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
+     *
+     * @param numShards the number of shards to use, or 0 to let the system decide.
      */
-    public static Bound<GenericRecord> withoutValidation() {
-      return new Bound<>(GenericRecord.class).withoutValidation();
+    public Write<T> withNumShards(int numShards) {
+      checkArgument(numShards >= 0);
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /**
-     * Returns a {@link PTransform} that writes Avro file(s) using specified codec.
+     * Forces a single file as output and empty shard name template. This option is only compatible
+     * with unwindowed writes.
+     *
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
+     *
+     * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
-    public static Bound<GenericRecord> withCodec(CodecFactory codec) {
-      return new Bound<>(GenericRecord.class).withCodec(codec);
+    public Write<T> withoutSharding() {
+      return withNumShards(1).withShardNameTemplate("");
     }
 
     /**
-     * Returns a {@link PTransform} that writes Avro file(s) with the specified metadata.
+     * Preserves windowing of input elements and writes them to files based on the element's window.
+     *
+     * <p>Requires use of {@link #withFilenamePolicy(FileBasedSink.FilenamePolicy)}. Filenames will
+     * be generated using {@link FilenamePolicy#windowedFilename}. See also
+     * {@link WriteFiles#withWindowedWrites()}.
+     */
+    public Write<T> withWindowedWrites() {
+      return toBuilder().setWindowedWrites(true).build();
+    }
+
+    /** Writes to Avro file(s) compressed using specified codec. */
+    public Write<T> withCodec(CodecFactory codec) {
+      return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
+    }
+
+    /**
+     * Writes to Avro file(s) with the specified metadata.
      *
      * <p>Supported value types are String, Long, and byte[].
      */
-    public static Bound<GenericRecord> withMetadata(Map<String, Object> metadata) {
-      return new Bound<>(GenericRecord.class).withMetadata(metadata);
+    public Write<T> withMetadata(Map<String, Object> metadata) {
+      Map<String, String> badKeys = Maps.newLinkedHashMap();
+      for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+        Object v = entry.getValue();
+        if (!(v instanceof String || v instanceof Long || v instanceof byte[])) {
+          badKeys.put(entry.getKey(), v.getClass().getSimpleName());
+        }
+      }
+      checkArgument(
+          badKeys.isEmpty(),
+          "Metadata value type must be one of String, Long, or byte[]. Found {}",
+          badKeys);
+      return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-    /**
-     * A {@link PTransform} that writes a bounded {@link PCollection} to an Avro file (or
-     * multiple Avro files matching a sharding pattern).
-     *
-     * @param <T> the type of each of the elements of the input PCollection
-     */
-    public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
-      private static final SerializableAvroCodecFactory DEFAULT_CODEC =
-          new SerializableAvroCodecFactory(CodecFactory.deflateCodec(6));
-      // This should be a multiple of 4 to not get a partial encoded byte.
-      private static final int METADATA_BYTES_MAX_LENGTH = 40;
+    @Override
+    public PDone expand(PCollection<T> input) {
+      checkState(getFilenamePrefix() != null,
+          "Need to set the filename prefix of an AvroIO.Write transform.");
+      checkState(
+          (getFilenamePolicy() == null)
+              || (getShardTemplate() == null && getFilenameSuffix() == null),
+          "Cannot set a filename policy and also a filename template or suffix.");
+      checkState(getSchema() != null,
+          "Need to set the schema of an AvroIO.Write transform.");
+      checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
+          "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
 
-      /** The filename to write to. */
-      @Nullable
-      final String filenamePrefix;
-      /** Suffix to use for each filename. */
-      final String filenameSuffix;
-      /** Requested number of shards. 0 for automatic. */
-      final int numShards;
-      /** Shard template string. */
-      final String shardTemplate;
-      /** The class type of the records. */
-      final Class<T> type;
-      /** The schema of the output file. */
-      @Nullable
-      final Schema schema;
-      /** An option to indicate if output validation is desired. Default is true. */
-      final boolean validate;
-      /**
-       * The codec used to encode the blocks in the Avro file. String value drawn from those in
-       * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
-       */
-      final SerializableAvroCodecFactory codec;
-      /** Avro file metadata. */
-      final ImmutableMap<String, Object> metadata;
-
-      Bound(Class<T> type) {
-        this(
-            null,
-            null,
-            "",
-            0,
-            DEFAULT_SHARD_TEMPLATE,
-            type,
-            null,
-            true,
-            DEFAULT_CODEC,
-            ImmutableMap.<String, Object>of());
+      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+      if (usedFilenamePolicy == null) {
+        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
       }
 
-      Bound(
-          String name,
-          String filenamePrefix,
-          String filenameSuffix,
-          int numShards,
-          String shardTemplate,
-          Class<T> type,
-          Schema schema,
-          boolean validate,
-          SerializableAvroCodecFactory codec,
-          Map<String, Object> metadata) {
-        super(name);
-        this.filenamePrefix = filenamePrefix;
-        this.filenameSuffix = filenameSuffix;
-        this.numShards = numShards;
-        this.shardTemplate = shardTemplate;
-        this.type = type;
-        this.schema = schema;
-        this.validate = validate;
-        this.codec = codec;
-
-        Map<String, String> badKeys = Maps.newLinkedHashMap();
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-          Object v = entry.getValue();
-          if (!(v instanceof String || v instanceof Long || v instanceof byte[])) {
-            badKeys.put(entry.getKey(), v.getClass().getSimpleName());
-          }
-        }
-        checkArgument(
-            badKeys.isEmpty(),
-            "Metadata value type must be one of String, Long, or byte[]. Found {}", badKeys);
-        this.metadata = ImmutableMap.copyOf(metadata);
+      WriteFiles<T> write = WriteFiles.to(
+            new AvroSink<>(
+                getFilenamePrefix(),
+                usedFilenamePolicy,
+                AvroCoder.of(getRecordClass(), getSchema()),
+                getCodec(),
+                getMetadata()));
+      if (getNumShards() > 0) {
+        write = write.withNumShards(getNumShards());
       }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to the file(s) with the given filename prefix.
-       *
-       * <p>See {@link AvroIO.Write#to(String)} for more information
-       * about filenames.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> to(String filenamePrefix) {
-        validateOutputComponent(filenamePrefix);
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
+      if (getWindowedWrites()) {
+        write = write.withWindowedWrites();
       }
+      return input.apply("Write", write);
+    }
 
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to the file(s) with the given filename suffix.
-       *
-       * <p>See {@link ShardNameTemplate} for a description of shard templates.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withSuffix(String filenameSuffix) {
-        validateOutputComponent(filenameSuffix);
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      checkState(
+          getFilenamePrefix() != null,
+          "Unable to populate DisplayData for invalid AvroIO.Write (unset output prefix).");
+      String outputPrefixString = null;
+      if (getFilenamePrefix().isAccessible()) {
+        ResourceId dir = getFilenamePrefix().get();
+        outputPrefixString = dir.toString();
+      } else {
+        outputPrefixString = getFilenamePrefix().toString();
       }
+      builder
+          .add(DisplayData.item("schema", getRecordClass())
+            .withLabel("Record Schema"))
+          .addIfNotNull(DisplayData.item("filePrefix", outputPrefixString)
+            .withLabel("Output File Prefix"))
+          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
+              .withLabel("Output Shard Name Template"))
+          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
+              .withLabel("Output File Suffix"))
+          .addIfNotDefault(DisplayData.item("numShards", getNumShards())
+              .withLabel("Maximum Output Shards"),
+              0)
+          .addIfNotDefault(DisplayData.item("codec", getCodec().toString())
+              .withLabel("Avro Compression Codec"),
+              DEFAULT_CODEC.toString());
+      builder.include("Metadata", new Metadata());
+    }
 
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that uses the provided shard count.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Setting this value is not recommended
-       * unless you require a specific number of output files.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param numShards the number of shards to use, or 0 to let the system
-       *                  decide.
-       * @see ShardNameTemplate
-       */
-      public Bound<T> withNumShards(int numShards) {
-        checkArgument(numShards >= 0);
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that uses the given shard name template.
-       *
-       * <p>Does not modify this object.
-       *
-       * @see ShardNameTemplate
-       */
-      public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that forces a single file as output.
-       *
-       * <p>This is a shortcut for
-       * {@code .withNumShards(1).withShardNameTemplate("")}
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withoutSharding() {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            1,
-            "",
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to Avro file(s) containing records whose type is the
-       * specified Avro-generated class.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param <X> the type of the elements of the input PCollection
-       */
-      public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            ReflectData.get().getSchema(type),
-            validate,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to Avro file(s) containing records of the specified
-       * schema.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            GenericRecord.class,
-            schema,
-            validate,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to Avro file(s) containing records of the specified
-       * schema in a JSON-encoded string form.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(String schema) {
-        return withSchema((new Schema.Parser()).parse(schema));
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that has GCS output path validation on pipeline creation disabled.
-       *
-       * <p>Does not modify this object.
-       *
-       * <p>This can be useful in the case where the GCS output location does
-       * not exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       */
-      public Bound<T> withoutValidation() {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            false,
-            codec,
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to Avro file(s) compressed using specified codec.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withCodec(CodecFactory codec) {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            new SerializableAvroCodecFactory(codec),
-            metadata);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that writes to Avro file(s) with the specified metadata.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withMetadata(Map<String, Object> metadata) {
-        return new Bound<>(
-            name,
-            filenamePrefix,
-            filenameSuffix,
-            numShards,
-            shardTemplate,
-            type,
-            schema,
-            validate,
-            codec,
-            metadata);
-      }
-
-      @Override
-      public PDone expand(PCollection<T> input) {
-        if (filenamePrefix == null) {
-          throw new IllegalStateException(
-              "need to set the filename prefix of an AvroIO.Write transform");
-        }
-        if (schema == null) {
-          throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
-        }
-
-        org.apache.beam.sdk.io.Write.Bound<T> write =
-            org.apache.beam.sdk.io.Write.to(
-                new AvroSink<>(
-                    filenamePrefix,
-                    filenameSuffix,
-                    shardTemplate,
-                    AvroCoder.of(type, schema),
-                    codec,
-                    metadata));
-        if (getNumShards() > 0) {
-          write = write.withNumShards(getNumShards());
-        }
-        return input.apply("Write", write);
-      }
-
+    private class Metadata implements HasDisplayData {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder
-            .add(DisplayData.item("schema", type)
-              .withLabel("Record Schema"))
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix)
-              .withLabel("Output File Prefix"))
-            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
-                .withLabel("Output Shard Name Template"),
-                DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
-                .withLabel("Output File Suffix"),
-                "")
-            .addIfNotDefault(DisplayData.item("numShards", numShards)
-                .withLabel("Maximum Output Shards"),
-                0)
-            .addIfNotDefault(DisplayData.item("validation", validate)
-                .withLabel("Validation Enabled"),
-                true)
-            .addIfNotDefault(DisplayData.item("codec", codec.toString())
-                .withLabel("Avro Compression Codec"),
-                DEFAULT_CODEC.toString());
-        builder.include("Metadata", new Metadata());
-      }
-
-      private class Metadata implements HasDisplayData {
-        @Override
-        public void populateDisplayData(DisplayData.Builder builder) {
-          for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            DisplayData.Type type = DisplayData.inferType(entry.getValue());
-            if (type != null) {
-              builder.add(DisplayData.item(entry.getKey(), type, entry.getValue()));
-            } else {
-              String base64 = BaseEncoding.base64().encode((byte[]) entry.getValue());
-              String repr = base64.length() <= METADATA_BYTES_MAX_LENGTH
-                  ? base64 : base64.substring(0, METADATA_BYTES_MAX_LENGTH) + "...";
-              builder.add(DisplayData.item(entry.getKey(), repr));
-            }
+        for (Map.Entry<String, Object> entry : getMetadata().entrySet()) {
+          DisplayData.Type type = DisplayData.inferType(entry.getValue());
+          if (type != null) {
+            builder.add(DisplayData.item(entry.getKey(), type, entry.getValue()));
+          } else {
+            String base64 = BaseEncoding.base64().encode((byte[]) entry.getValue());
+            String repr = base64.length() <= METADATA_BYTES_MAX_LENGTH
+                ? base64 : base64.substring(0, METADATA_BYTES_MAX_LENGTH) + "...";
+            builder.add(DisplayData.item(entry.getKey(), repr));
           }
         }
       }
-
-      /**
-       * Returns the current shard name template string.
-       */
-      public String getShardNameTemplate() {
-        return shardTemplate;
-      }
-
-      @Override
-      protected Coder<Void> getDefaultOutputCoder() {
-        return VoidCoder.of();
-      }
-
-      public String getFilenamePrefix() {
-        return filenamePrefix;
-      }
-
-      public String getShardTemplate() {
-        return shardTemplate;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
-
-      public String getFilenameSuffix() {
-        return filenameSuffix;
-      }
-
-      public Class<T> getType() {
-        return type;
-      }
-
-      public Schema getSchema() {
-        return schema;
-      }
-
-      public boolean needsValidation() {
-        return validate;
-      }
-
-      public CodecFactory getCodec() {
-        return codec.getCodec();
-      }
-
-      public Map<String, Object> getMetadata() {
-        return metadata;
-      }
     }
 
-    /** Disallow construction of utility class. */
-    private Write() {}
-  }
-
-  // Pattern which matches old-style shard output patterns, which are now
-  // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-        + partialFilePattern);
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
   /** Disallow construction of utility class. */
   private AvroIO() {}
-
-  /**
-   * A {@link FileBasedSink} for Avro files.
-   */
-  @VisibleForTesting
-  static class AvroSink<T> extends FileBasedSink<T> {
-    private final AvroCoder<T> coder;
-    private final SerializableAvroCodecFactory codec;
-    private final ImmutableMap<String, Object> metadata;
-
-    @VisibleForTesting
-    AvroSink(
-        String baseOutputFilename,
-        String extension,
-        String fileNameTemplate,
-        AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec,
-        ImmutableMap<String, Object> metadata) {
-      super(baseOutputFilename, extension, fileNameTemplate);
-      this.coder = coder;
-      this.codec = codec;
-      this.metadata = metadata;
-    }
-
-    @Override
-    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new AvroWriteOperation<>(this, coder, codec, metadata);
-    }
-
-    /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
-     * FileBasedWriteOperation} for Avro files.
-     */
-    private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
-      private final AvroCoder<T> coder;
-      private final SerializableAvroCodecFactory codec;
-      private final ImmutableMap<String, Object> metadata;
-
-      private AvroWriteOperation(AvroSink<T> sink,
-                                 AvroCoder<T> coder,
-                                 SerializableAvroCodecFactory codec,
-                                 ImmutableMap<String, Object> metadata) {
-        super(sink);
-        this.coder = coder;
-        this.codec = codec;
-        this.metadata = metadata;
-      }
-
-      @Override
-      public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
-        return new AvroWriter<>(this, coder, codec, metadata);
-      }
-    }
-
-    /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
-     * for Avro files.
-     */
-    private static class AvroWriter<T> extends FileBasedWriter<T> {
-      private final AvroCoder<T> coder;
-      private DataFileWriter<T> dataFileWriter;
-      private SerializableAvroCodecFactory codec;
-      private final ImmutableMap<String, Object> metadata;
-
-      public AvroWriter(FileBasedWriteOperation<T> writeOperation,
-                        AvroCoder<T> coder,
-                        SerializableAvroCodecFactory codec,
-                        ImmutableMap<String, Object> metadata) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
-        this.coder = coder;
-        this.codec = codec;
-        this.metadata = metadata;
-      }
-
-      @SuppressWarnings("deprecation") // uses internal test functionality.
-      @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        dataFileWriter = new DataFileWriter<>(coder.createDatumWriter()).setCodec(codec.getCodec());
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-          Object v = entry.getValue();
-          if (v instanceof String) {
-            dataFileWriter.setMeta(entry.getKey(), (String) v);
-          } else if (v instanceof Long) {
-            dataFileWriter.setMeta(entry.getKey(), (Long) v);
-          } else if (v instanceof byte[]) {
-            dataFileWriter.setMeta(entry.getKey(), (byte[]) v);
-          } else {
-            throw new IllegalStateException(
-                "Metadata value type must be one of String, Long, or byte[]. Found "
-                    + v.getClass().getSimpleName());
-          }
-        }
-        dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
-      }
-
-      @Override
-      public void write(T value) throws Exception {
-        dataFileWriter.append(value);
-      }
-
-      @Override
-      protected void finishWrite() throws Exception {
-        dataFileWriter.flush();
-      }
-    }
-  }
 }

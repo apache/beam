@@ -38,8 +38,16 @@ import org.apache.beam.sdk.values.PCollectionView;
  * {@code PTransform}s for taking samples of the elements in a
  * {@code PCollection}, or samples of the values associated with each
  * key in a {@code PCollection} of {@code KV}s.
+ *
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the
+ * {@link Combine} transform.
  */
 public class Sample {
+
+  /** Returns a {@link CombineFn} that computes a fixed-sized sample of its inputs. */
+  public static <T> CombineFn<T, ?, Iterable<T>> combineFn(int sampleSize) {
+    return new FixedSizedSampleFn<>(sampleSize);
+  }
 
   /**
    * {@code Sample#any(long)} takes a {@code PCollection<T>} and a limit, and
@@ -64,72 +72,69 @@ public class Sample {
    * @param limit the number of elements to take from the input
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> any(long limit) {
-    return new SampleAny<>(limit);
+    return new Any<>(limit);
   }
 
   /**
-   * Returns a {@code PTransform} that takes a {@code PCollection<T>},
-   * selects {@code sampleSize} elements, uniformly at random, and returns a
-   * {@code PCollection<Iterable<T>>} containing the selected elements.
-   * If the input {@code PCollection} has fewer than
-   * {@code sampleSize} elements, then the output {@code Iterable<T>}
-   * will be all the input's elements.
+   * Returns a {@code PTransform} that takes a {@code PCollection<T>}, selects {@code sampleSize}
+   * elements, uniformly at random, and returns a {@code PCollection<Iterable<T>>} containing the
+   * selected elements. If the input {@code PCollection} has fewer than {@code sampleSize} elements,
+   * then the output {@code Iterable<T>} will be all the input's elements.
+   *
+   * <p>All of the elements of the output {@code PCollection} should fit into
+   * main memory of a single worker machine.  This operation does not
+   * run in parallel.
    *
    * <p>Example of use:
-   * <pre> {@code
+   *
+   * <pre>{@code
    * PCollection<String> pc = ...;
    * PCollection<Iterable<String>> sampleOfSize10 =
    *     pc.apply(Sample.fixedSizeGlobally(10));
-   * } </pre>
+   * }
+   * </pre>
    *
    * @param sampleSize the number of elements to select; must be {@code >= 0}
    * @param <T> the type of the elements
    */
-  public static <T> PTransform<PCollection<T>, PCollection<Iterable<T>>>
-      fixedSizeGlobally(int sampleSize) {
-    return Combine.globally(new FixedSizedSampleFn<T>(sampleSize));
+  public static <T> PTransform<PCollection<T>, PCollection<Iterable<T>>> fixedSizeGlobally(
+      int sampleSize) {
+    return new FixedSizeGlobally<>(sampleSize);
   }
 
   /**
-   * Returns a {@code PTransform} that takes an input
-   * {@code PCollection<KV<K, V>>} and returns a
-   * {@code PCollection<KV<K, Iterable<V>>>} that contains an output
-   * element mapping each distinct key in the input
-   * {@code PCollection} to a sample of {@code sampleSize} values
-   * associated with that key in the input {@code PCollection}, taken
-   * uniformly at random.  If a key in the input {@code PCollection}
-   * has fewer than {@code sampleSize} values associated with it, then
-   * the output {@code Iterable<V>} associated with that key will be
-   * all the values associated with that key in the input
-   * {@code PCollection}.
+   * Returns a {@code PTransform} that takes an input {@code PCollection<KV<K, V>>} and returns a
+   * {@code PCollection<KV<K, Iterable<V>>>} that contains an output element mapping each distinct
+   * key in the input {@code PCollection} to a sample of {@code sampleSize} values associated with
+   * that key in the input {@code PCollection}, taken uniformly at random. If a key in the input
+   * {@code PCollection} has fewer than {@code sampleSize} values associated with it, then the
+   * output {@code Iterable<V>} associated with that key will be all the values associated with that
+   * key in the input {@code PCollection}.
    *
    * <p>Example of use:
-   * <pre> {@code
+   *
+   * <pre>{@code
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> sampleOfSize10PerKey =
    *     pc.apply(Sample.<String, Integer>fixedSizePerKey());
-   * } </pre>
+   * }
+   * </pre>
    *
-   * @param sampleSize the number of values to select for each
-   * distinct key; must be {@code >= 0}
+   * @param sampleSize the number of values to select for each distinct key; must be {@code >= 0}
    * @param <K> the type of the keys
    * @param <V> the type of the values
    */
-  public static <K, V> PTransform<PCollection<KV<K, V>>,
-                                  PCollection<KV<K, Iterable<V>>>>
-      fixedSizePerKey(int sampleSize) {
-    return Combine.perKey(new FixedSizedSampleFn<V>(sampleSize));
+  public static <K, V>
+      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> fixedSizePerKey(
+          int sampleSize) {
+    return new FixedSizePerKey<>(sampleSize);
   }
 
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@link PTransform} that takes a {@code PCollection<T>} and a limit, and
-   * produces a new {@code PCollection<T>} containing up to limit
-   * elements of the input {@code PCollection}.
-   */
-  public static class SampleAny<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  /** Implementation of {@link #any(long)}. */
+  private static class Any<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final long limit;
 
     /**
@@ -137,7 +142,7 @@ public class Sample {
      * produces a new PCollection containing up to {@code limit}
      * elements of its input {@code PCollection}.
      */
-    private SampleAny(long limit) {
+    private Any(long limit) {
       checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
       this.limit = limit;
     }
@@ -145,12 +150,9 @@ public class Sample {
     @Override
     public PCollection<T> expand(PCollection<T> in) {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
-      return
-          in.getPipeline()
+      return in.getPipeline()
           .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo
-                 .withSideInputs(iterableView)
-                 .of(new SampleAnyDoFn<>(limit, iterableView)))
+          .apply(ParDo.of(new SampleAnyDoFn<>(limit, iterableView)).withSideInputs(iterableView))
           .setCoder(in.getCoder());
     }
 
@@ -159,6 +161,50 @@ public class Sample {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("sampleSize", limit)
         .withLabel("Sample Size"));
+    }
+  }
+
+  /** Implementation of {@link #fixedSizeGlobally(int)}. */
+  private static class FixedSizeGlobally<T>
+      extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
+    private final int sampleSize;
+
+    private FixedSizeGlobally(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public PCollection<Iterable<T>> expand(PCollection<T> input) {
+      return input.apply(Combine.globally(new FixedSizedSampleFn<T>(sampleSize)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"));
+    }
+  }
+
+  /** Implementation of {@link #fixedSizeGlobally(int)}. */
+  private static class FixedSizePerKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+    private final int sampleSize;
+
+    private FixedSizePerKey(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      return input.apply(Combine.<K, V, Iterable<V>>perKey(new FixedSizedSampleFn<V>(sampleSize)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"));
     }
   }
 

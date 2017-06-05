@@ -30,11 +30,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -45,7 +45,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -70,7 +69,7 @@ public class ParDoEvaluatorTest {
   @Mock private EvaluationContext evaluationContext;
   private PCollection<Integer> inputPc;
   private TupleTag<Integer> mainOutputTag;
-  private List<TupleTag<?>> sideOutputTags;
+  private List<TupleTag<?>> additionalOutputTags;
   private BundleFactory bundleFactory;
 
   @Rule
@@ -81,7 +80,7 @@ public class ParDoEvaluatorTest {
     MockitoAnnotations.initMocks(this);
     inputPc = p.apply(Create.of(1, 2, 3));
     mainOutputTag = new TupleTag<Integer>() {};
-    sideOutputTags = TupleTagList.empty().getAll();
+    additionalOutputTags = TupleTagList.empty().getAll();
 
     bundleFactory = ImmutableListBundleFactory.create();
   }
@@ -98,7 +97,7 @@ public class ParDoEvaluatorTest {
     UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(output);
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
-    ParDoEvaluator<Integer, Integer> evaluator =
+    ParDoEvaluator<Integer> evaluator =
         createEvaluator(singletonView, fn, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
@@ -130,7 +129,7 @@ public class ParDoEvaluatorTest {
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
 
-  private ParDoEvaluator<Integer, Integer> createEvaluator(
+  private ParDoEvaluator<Integer> createEvaluator(
       PCollectionView<Integer> singletonView,
       RecorderFn fn,
       PCollection<Integer> output) {
@@ -141,19 +140,14 @@ public class ParDoEvaluatorTest {
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);
     when(
-            executionContext.getOrCreateStepContext(
-                Mockito.any(String.class), Mockito.any(String.class)))
+            executionContext.getStepContext(
+                Mockito.any(String.class)))
         .thenReturn(stepContext);
     when(stepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
     when(
             evaluationContext.getExecutionContext(
                 Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
-
-    AggregatorContainer container = AggregatorContainer.create();
-    AggregatorContainer.Mutator mutator = container.createMutator();
-    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
-    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     @SuppressWarnings("unchecked")
     AppliedPTransform<PCollection<Integer>, ?, ?> transform =
@@ -162,14 +156,15 @@ public class ParDoEvaluatorTest {
         evaluationContext,
         stepContext,
         transform,
-        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs()).getValue())
+        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs().values()))
             .getWindowingStrategy(),
         fn,
         null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
-        sideOutputTags,
-        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output));
+        additionalOutputTags,
+        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output),
+        ParDoEvaluator.<Integer, Integer>defaultRunnerFactory());
   }
 
   private static class RecorderFn extends DoFn<Integer, Integer> {

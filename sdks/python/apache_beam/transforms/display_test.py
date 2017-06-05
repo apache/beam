@@ -29,7 +29,7 @@ import apache_beam as beam
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class DisplayDataItemMatcher(BaseMatcher):
@@ -114,6 +114,42 @@ class DisplayDataTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DisplayData.create_from_options(MyDisplayComponent())
 
+  def test_value_provider_display_data(self):
+    class TestOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--int_flag',
+            type=int,
+            help='int_flag description')
+        parser.add_value_provider_argument(
+            '--str_flag',
+            type=str,
+            default='hello',
+            help='str_flag description')
+        parser.add_value_provider_argument(
+            '--float_flag',
+            type=float,
+            help='float_flag description')
+    options = TestOptions(['--int_flag', '1'])
+    items = DisplayData.create_from_options(options).items
+    expected_items = [
+        DisplayDataItemMatcher(
+            'int_flag',
+            '1'),
+        DisplayDataItemMatcher(
+            'str_flag',
+            'RuntimeValueProvider(option: str_flag,'
+            ' type: str, default_value: \'hello\')'
+        ),
+        DisplayDataItemMatcher(
+            'float_flag',
+            'RuntimeValueProvider(option: float_flag,'
+            ' type: float, default_value: None)'
+        )
+    ]
+    hc.assert_that(items, hc.contains_inanyorder(*expected_items))
+
   def test_create_list_display_data(self):
     flags = ['--extra_package', 'package1', '--extra_package', 'package2']
     pipeline_options = PipelineOptions(flags=flags)
@@ -121,6 +157,17 @@ class DisplayDataTest(unittest.TestCase):
     hc.assert_that(items, hc.contains_inanyorder(
         DisplayDataItemMatcher('extra_packages',
                                str(['package1', 'package2']))))
+
+  def test_unicode_type_display_data(self):
+    class MyDoFn(beam.DoFn):
+      def display_data(self):
+        return {'unicode_string': unicode('my string'),
+                'unicode_literal_string': u'my literal string'}
+
+    fn = MyDoFn()
+    dd = DisplayData.create_from(fn)
+    for item in dd.items:
+      self.assertEqual(item.type, 'STRING')
 
   def test_base_cases(self):
     """ Tests basic display data cases (key:value, key:dict)

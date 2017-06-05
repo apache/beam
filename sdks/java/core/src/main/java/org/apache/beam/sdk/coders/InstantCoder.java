@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Converter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
@@ -31,8 +32,6 @@ import org.joda.time.Instant;
  * shifted such that lexicographic ordering of the bytes corresponds to chronological order.
  */
 public class InstantCoder extends AtomicCoder<Instant> {
-
-  @JsonCreator
   public static InstantCoder of() {
     return INSTANCE;
   }
@@ -42,48 +41,46 @@ public class InstantCoder extends AtomicCoder<Instant> {
   private static final InstantCoder INSTANCE = new InstantCoder();
   private static final TypeDescriptor<Instant> TYPE_DESCRIPTOR = new TypeDescriptor<Instant>() {};
 
-  private final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
-
   private InstantCoder() {}
 
-  private static final Converter<Instant, Long> ORDER_PRESERVING_CONVERTER =
-      new LexicographicLongConverter();
-
-  /**
-   * Converts {@link Instant} to a {@code Long} representing its millis-since-epoch,
-   * but shifted so that the byte representation of negative values are lexicographically
-   * ordered before the byte representation of positive values.
-   *
-   * <p>This deliberately utilizes the well-defined overflow for {@code Long} values.
-   * See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
-   */
-  private static class LexicographicLongConverter extends Converter<Instant, Long> {
-
-    @Override
-    protected Long doForward(Instant instant) {
-      return instant.getMillis() - Long.MIN_VALUE;
-    }
-
-    @Override
-    protected Instant doBackward(Long shiftedMillis) {
-      return new Instant(shiftedMillis + Long.MIN_VALUE);
-    }
-  }
-
   @Override
-  public void encode(Instant value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+  public void encode(Instant value, OutputStream outStream) throws CoderException, IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Instant");
     }
-    longCoder.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream, context);
+
+    // Converts {@link Instant} to a {@code long} representing its millis-since-epoch,
+    // but shifted so that the byte representation of negative values are lexicographically
+    // ordered before the byte representation of positive values.
+    //
+    // This deliberately utilizes the well-defined underflow for {@code long} values.
+    // See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
+    long shiftedMillis = value.getMillis() - Long.MIN_VALUE;
+    new DataOutputStream(outStream).writeLong(shiftedMillis);
   }
 
   @Override
-  public Instant decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
-    return ORDER_PRESERVING_CONVERTER.reverse().convert(longCoder.decode(inStream, context));
+  public Instant decode(InputStream inStream) throws CoderException, IOException {
+    long shiftedMillis;
+    try {
+      shiftedMillis = new DataInputStream(inStream).readLong();
+    } catch (EOFException | UTFDataFormatException exn) {
+      // These exceptions correspond to decoding problems, so change
+      // what kind of exception they're branded as.
+      throw new CoderException(exn);
+    }
+
+    // Produces an {@link Instant} from a {@code long} representing its millis-since-epoch,
+    // but shifted so that the byte representation of negative values are lexicographically
+    // ordered before the byte representation of positive values.
+    //
+    // This deliberately utilizes the well-defined overflow for {@code long} values.
+    // See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
+    return new Instant(shiftedMillis + Long.MIN_VALUE);
   }
+
+  @Override
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}
@@ -101,16 +98,16 @@ public class InstantCoder extends AtomicCoder<Instant> {
    * @return {@code true}. The byte size for a big endian long is a constant.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Instant value, Context context) {
-    return longCoder.isRegisterByteSizeObserverCheap(
-        ORDER_PRESERVING_CONVERTER.convert(value), context);
+  public boolean isRegisterByteSizeObserverCheap(Instant value) {
+    return true;
   }
 
   @Override
-  public void registerByteSizeObserver(
-      Instant value, ElementByteSizeObserver observer, Context context) throws Exception {
-    longCoder.registerByteSizeObserver(
-        ORDER_PRESERVING_CONVERTER.convert(value), observer, context);
+  protected long getEncodedElementByteSize(Instant value) throws Exception {
+    if (value == null) {
+      throw new CoderException("cannot encode a null Instant");
+    }
+    return 8;
   }
 
   @Override

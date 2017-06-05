@@ -23,8 +23,19 @@
 #
 # The exit-code of the script indicates success or a failure.
 
-set -e
+set -o errexit
 set -o pipefail
+
+MODULE=apache_beam
+
+usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
+
+if test $# -gt 0; then
+  case "$@" in
+    --help) usage; exit 1;;
+	 *)      MODULE="$@";;
+  esac
+fi
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
@@ -34,18 +45,20 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_messages.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
-"apache_beam/coders/proto2_coder_test_messages_pb2.py")
+"apache_beam/coders/proto2_coder_test_messages_pb2.py"
+apache_beam/runners/api/*pb2*.py
+)
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
-  if [[ $FILES_TO_IGNORE ]]; then
-    FILES_TO_IGNORE="$FILES_TO_IGNORE, "
+  if test -z "$FILES_TO_IGNORE"
+    then FILES_TO_IGNORE="$(basename $file)"
+    else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
-  FILES_TO_IGNORE="$FILES_TO_IGNORE$(basename $file)" 
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-echo "Running pylint:"
-pylint apache_beam --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pep8:"
-pep8 apache_beam --exclude="$FILES_TO_IGNORE"
+echo "Running pylint for module $MODULE:"
+pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
+echo "Running pycodestyle for module $MODULE:"
+pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"

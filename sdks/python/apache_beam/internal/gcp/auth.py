@@ -21,16 +21,12 @@ import datetime
 import json
 import logging
 import os
-import sys
 import urllib2
 
 from oauth2client.client import GoogleCredentials
 from oauth2client.client import OAuth2Credentials
 
-from apache_beam.utils import processes
 from apache_beam.utils import retry
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 # When we are running in GCE, we can authenticate with VM credentials.
@@ -42,7 +38,9 @@ executing_project = None
 
 
 def set_running_in_gce(worker_executing_project):
-  """Informs the authentication library that we are running in GCE.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Informs the authentication library that we are running in GCE.
 
   When we are running in GCE, we have the option of using the VM metadata
   credentials for authentication to Google services.
@@ -61,8 +59,10 @@ class AuthenticationException(retry.PermanentException):
   pass
 
 
-class GCEMetadataCredentials(OAuth2Credentials):
-  """Credential object initialized using access token from GCE VM metadata."""
+class _GCEMetadataCredentials(OAuth2Credentials):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Credential object initialized using access token from GCE VM metadata."""
 
   def __init__(self, user_agent=None):
     """Create an instance of GCEMetadataCredentials.
@@ -73,7 +73,7 @@ class GCEMetadataCredentials(OAuth2Credentials):
     Args:
       user_agent: string, The HTTP User-Agent to provide for this application.
     """
-    super(GCEMetadataCredentials, self).__init__(
+    super(_GCEMetadataCredentials, self).__init__(
         None,  # access_token
         None,  # client_id
         None,  # client_secret
@@ -86,36 +86,21 @@ class GCEMetadataCredentials(OAuth2Credentials):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _refresh(self, http_request):
     refresh_time = datetime.datetime.now()
-    req = urllib2.Request('http://metadata.google.internal/computeMetadata/v1/'
-                          'instance/service-accounts/default/token',
-                          headers={'Metadata-Flavor': 'Google'})
+    metadata_root = os.environ.get(
+        'GCE_METADATA_ROOT', 'metadata.google.internal')
+    token_url = ('http://{}/computeMetadata/v1/instance/service-accounts/'
+                 'default/token').format(metadata_root)
+    req = urllib2.Request(token_url, headers={'Metadata-Flavor': 'Google'})
     token_data = json.loads(urllib2.urlopen(req).read())
     self.access_token = token_data['access_token']
     self.token_expiry = (refresh_time +
                          datetime.timedelta(seconds=token_data['expires_in']))
 
 
-class _GCloudWrapperCredentials(OAuth2Credentials):
-  """Credentials class wrapping gcloud credentials via shell."""
-
-  def __init__(self, user_agent, **kwds):
-    super(_GCloudWrapperCredentials, self).__init__(
-        None, None, None, None, None, None, user_agent, **kwds)
-
-  def _refresh(self, http_request):
-    """Gets an access token using the gcloud client."""
-    try:
-      gcloud_process = processes.Popen(
-          ['gcloud', 'auth', 'print-access-token'], stdout=processes.PIPE)
-    except OSError as exn:
-      logging.error('The gcloud tool was not found.', exc_info=True)
-      raise AuthenticationException('The gcloud tool was not found: %s' % exn)
-    output, _ = gcloud_process.communicate()
-    self.access_token = output.strip()
-
-
 def get_service_credentials():
-  """Get credentials to access Google services."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Get credentials to access Google services."""
   user_agent = 'beam-python-sdk/1.0'
   if is_running_in_gce:
     # We are currently running as a GCE taskrunner worker.
@@ -123,7 +108,7 @@ def get_service_credentials():
     # TODO(ccy): It's not entirely clear if these credentials are thread-safe.
     # If so, we can cache these credentials to save the overhead of creating
     # them again.
-    return GCEMetadataCredentials(user_agent=user_agent)
+    return _GCEMetadataCredentials(user_agent=user_agent)
   else:
     client_scopes = [
         'https://www.googleapis.com/auth/bigquery',
@@ -133,53 +118,12 @@ def get_service_credentials():
         'https://www.googleapis.com/auth/datastore'
     ]
 
-    # TODO(BEAM-1068): Do not recreate options from sys.argv.
-    # We are currently being run from the command line.
-    google_cloud_options = PipelineOptions(
-        sys.argv).view_as(GoogleCloudOptions)
-    if google_cloud_options.service_account_name:
-      if not google_cloud_options.service_account_key_file:
-        raise AuthenticationException(
-            'key file not provided for service account.')
-      if not os.path.exists(google_cloud_options.service_account_key_file):
-        raise AuthenticationException(
-            'Specified service account key file does not exist.')
-
-      # The following code uses oauth2client >=2.0.0 functionality and if this
-      # is not available due to import errors will use 1.5.2 functionality.
-      try:
-        from oauth2client.service_account import ServiceAccountCredentials
-        return ServiceAccountCredentials.from_p12_keyfile(
-            google_cloud_options.service_account_name,
-            google_cloud_options.service_account_key_file,
-            private_key_password=None,
-            scopes=client_scopes)
-      except ImportError:
-        with file(google_cloud_options.service_account_key_file) as f:
-          service_account_key = f.read()
-        from oauth2client.client import SignedJwtAssertionCredentials
-        return SignedJwtAssertionCredentials(
-            google_cloud_options.service_account_name,
-            service_account_key,
-            client_scopes,
-            user_agent=user_agent)
-    else:
-      try:
-        credentials = _GCloudWrapperCredentials(user_agent)
-        # Check if we are able to get an access token. If not fallback to
-        # application default credentials.
-        credentials.get_access_token()
-        return credentials
-      except AuthenticationException:
-        logging.warning('Unable to find credentials from gcloud.')
-
-      # Falling back to application default credentials.
-      try:
-        credentials = GoogleCredentials.get_application_default()
-        credentials = credentials.create_scoped(client_scopes)
-        logging.debug('Connecting using Google Application Default '
-                      'Credentials.')
-        return credentials
-      except Exception:
-        logging.warning('Unable to find default credentials to use.')
-        raise
+    try:
+      credentials = GoogleCredentials.get_application_default()
+      credentials = credentials.create_scoped(client_scopes)
+      logging.debug('Connecting using Google Application Default '
+                    'Credentials.')
+      return credentials
+    except Exception:
+      logging.warning('Unable to find default credentials to use.')
+      raise

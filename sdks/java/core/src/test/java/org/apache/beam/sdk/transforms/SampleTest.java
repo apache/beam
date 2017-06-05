@@ -37,8 +37,8 @@ import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -163,7 +163,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testPickAny() {
       runPickAnyTest(lines, limit);
     }
@@ -235,7 +235,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSample() {
 
       PCollection<Integer> input =
@@ -249,7 +249,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleEmpty() {
 
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
@@ -262,7 +262,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleZero() {
 
       PCollection<Integer> input = pipeline.apply(Create.of(ImmutableList.copyOf(DATA))
@@ -276,7 +276,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleInsufficientElements() {
 
       PCollection<Integer> input =
@@ -301,7 +301,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleMultiplicity() {
 
       PCollection<Integer> input =
@@ -318,7 +318,7 @@ public class SampleTest {
 
     @Test
     public void testSampleGetName() {
-      assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+      assertEquals("Sample.Any", Sample.<String>any(1).getName());
     }
 
     @Test

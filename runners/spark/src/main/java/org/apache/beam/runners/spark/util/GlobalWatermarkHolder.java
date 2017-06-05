@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -131,7 +130,7 @@ public class GlobalWatermarkHolder {
         if (broadcast != null) {
           // for now this is blocking, we could make this asynchronous
           // but it could slow down WM propagation.
-          broadcast.unpersist(true);
+          broadcast.destroy();
         }
         broadcast = jsc.broadcast(newBroadcast);
       }

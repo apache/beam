@@ -29,22 +29,26 @@ import os
 import Queue
 import re
 import threading
+import time
 import traceback
 
-import apitools.base.py.transfer as transfer
-from apitools.base.py.batch import BatchApiRequest
-from apitools.base.py.exceptions import HttpError
-
-from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
+
+__all__ = ['GcsIO']
+
 
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
+  import apitools.base.py.transfer as transfer
+  from apitools.base.py.batch import BatchApiRequest
+  from apitools.base.py.exceptions import HttpError
+  from apache_beam.internal.gcp import auth
   from apache_beam.io.gcp.internal.clients import storage
 except ImportError:
-  raise RuntimeError(
+  raise ImportError(
       'Google Cloud Storage I/O not supported for this execution environment '
       '(could not import storage API client).')
 
@@ -155,6 +159,8 @@ class GcsIO(object):
 
     Args:
       pattern: GCS file path pattern in the form gs://<bucket>/<name_pattern>.
+      limit: Maximal number of path names to return.
+        All matching paths are returned if set to None.
 
     Returns:
       list of GCS file paths matching the given pattern.
@@ -251,9 +257,9 @@ class GcsIO(object):
       self.client.objects.Copy(request)
     except HttpError as http_error:
       if http_error.status_code == 404:
-        # This is a permanent error that should not be retried.  Note that
-        # FileSink.finalize_write expects an IOError when the source file does
-        # not exist.
+        # This is a permanent error that should not be retried. Note that
+        # FileBasedSink.finalize_write expects an IOError when the source
+        # file does not exist.
         raise GcsIOError(errno.ENOENT, 'Source file not found: %s' % src)
       raise
 
@@ -366,27 +372,40 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern):
+  def size_of_files_in_glob(self, pattern, limit=None):
     """Returns the size of all the files in the glob as a dictionary
 
     Args:
-      path: a file path pattern that reads the size of all the files
+      pattern: a file path pattern that reads the size of all the files
     """
     bucket, name_pattern = parse_gcs_path(pattern)
     # Get the prefix with which we can list objects in the given bucket.
     prefix = re.match('^[^[*?]*', name_pattern).group(0)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
+    counter = 0
+    start_time = time.time()
+    logging.info("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
         if fnmatch.fnmatch(item.name, name_pattern):
           file_name = 'gs://%s/%s' % (item.bucket, item.name)
           file_sizes[file_name] = item.size
+          counter += 1
+        if limit is not None and counter >= limit:
+          break
+        if counter % 10000 == 0:
+          logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
+        if limit is not None and len(file_sizes) >= limit:
+          break
       else:
         break
+    logging.info(
+        "Finished the size estimation of the input at %s files. " +\
+        "Estimation took %s seconds", counter, time.time() - start_time)
     return file_sizes
 
 
@@ -752,7 +771,6 @@ class GcsBufferedWriter(object):
     self.path = path
     self.mode = mode
     self.bucket, self.name = parse_gcs_path(path)
-    self.mode = mode
 
     self.closed = False
     self.position = 0

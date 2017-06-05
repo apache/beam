@@ -18,7 +18,10 @@
 # cython: profile=False
 # cython: overflowcheck=True
 
-"""Counters collect the progress of the Worker for reporting to the service."""
+"""Counters collect the progress of the Worker for reporting to the service.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import threading
 from apache_beam.transforms import cy_combiners
@@ -37,9 +40,8 @@ class Counter(object):
 
   Attributes:
     name: the name of the counter, a string
-    aggregation_kind: one of the aggregation kinds defined by this class.
-    total: the total size of all the items passed to update()
-    elements: the number of times update() was called
+    combine_fn: the CombineFn to use for aggregation
+    accumulator: the accumulator created for the combine_fn
   """
 
   # Handy references to common counters.

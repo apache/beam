@@ -36,7 +36,7 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   }
 
   /**
-   * Returns the reason that this {@code WindowFn} is invalid.
+   * Returns the reason that this {@link WindowFn} is invalid.
    */
   public String getCause() {
     return cause;
@@ -75,7 +75,18 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   }
 
   @Override
-  public W getSideInputWindow(BoundedWindow window) {
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "Only %s objects with the same originalWindowFn are compatible.",
+              InvalidWindows.class.getSimpleName()));
+    }
+  }
+
+  @Override
+  public WindowMappingFn<W> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException("InvalidWindows is not allowed in side inputs");
   }
 

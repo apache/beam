@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag used to mark tests which execute using the Dataflow runner
+ * Category tag used to mark tests which execute
  * in streaming mode. Example usage:
  * <pre><code>
  *    {@literal @}Test

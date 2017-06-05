@@ -26,8 +26,11 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.joda.time.Duration;
 
 /**
  * A {@link WindowFn} that assigns all elements to a static collection of
@@ -95,14 +98,32 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "Only %s objects with the same window supplier are compatible.",
+              StaticWindows.class.getSimpleName()));
+    }
+  }
+
+  @Override
   public Coder<BoundedWindow> windowCoder() {
     return coder;
   }
 
   @Override
-  public BoundedWindow getSideInputWindow(BoundedWindow window) {
-    checkArgument(windows.get().contains(window),
-        "StaticWindows only supports side input windows for main input windows that it contains");
-    return window;
+  public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+    return new WindowMappingFn<BoundedWindow>(Duration.millis(Long.MAX_VALUE)) {
+      @Override
+      public BoundedWindow getSideInputWindow(BoundedWindow mainWindow) {
+        checkArgument(
+            windows.get().contains(mainWindow),
+            "%s only supports side input windows for main input windows that it contains",
+            StaticWindows.class.getSimpleName());
+        return mainWindow;
+      }
+    };
   }
 }

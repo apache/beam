@@ -17,37 +17,57 @@
  */
 package org.apache.beam.sdk;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,16 +86,15 @@ public class PipelineTest {
   @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  static class PipelineWrapper extends Pipeline {
-    protected PipelineWrapper(PipelineRunner<?> runner) {
-      super(runner, PipelineOptionsFactory.create());
-    }
-  }
-
   // Mock class that throws a user code exception during the call to
   // Pipeline.run().
   static class TestPipelineRunnerThrowingUserException
       extends PipelineRunner<PipelineResult> {
+
+    public static TestPipelineRunnerThrowingUserException fromOptions(PipelineOptions options) {
+      return new TestPipelineRunnerThrowingUserException();
+    }
+
     @Override
     public PipelineResult run(Pipeline pipeline) {
       Throwable t = new IllegalStateException("user code exception");
@@ -85,8 +104,13 @@ public class PipelineTest {
 
   // Mock class that throws an SDK or API client code exception during
   // the call to Pipeline.run().
-  static class TestPipelineRunnerThrowingSDKException
+  static class TestPipelineRunnerThrowingSdkException
       extends PipelineRunner<PipelineResult> {
+
+    public static TestPipelineRunnerThrowingSdkException fromOptions(PipelineOptions options) {
+      return new TestPipelineRunnerThrowingSdkException();
+    }
+
     @Override
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
@@ -95,8 +119,9 @@ public class PipelineTest {
 
   @Test
   public void testPipelineUserExceptionHandling() {
-    Pipeline p = new PipelineWrapper(
-        new TestPipelineRunnerThrowingUserException());
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(TestPipelineRunnerThrowingUserException.class);
+    Pipeline p = Pipeline.create(options);
 
     // Check pipeline runner correctly catches user errors.
     thrown.expect(PipelineExecutionException.class);
@@ -107,7 +132,9 @@ public class PipelineTest {
 
   @Test
   public void testPipelineSDKExceptionHandling() {
-    Pipeline p = new PipelineWrapper(new TestPipelineRunnerThrowingSDKException());
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(TestPipelineRunnerThrowingSdkException.class);
+    Pipeline p = Pipeline.create(options);
 
     // Check pipeline runner correctly catches SDK errors.
     try {
@@ -124,7 +151,7 @@ public class PipelineTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultipleApply() {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
@@ -168,8 +195,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyNotLogged("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyNotLogged("do not have stable unique names");
   }
 
   @Test
@@ -180,8 +207,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyWarn("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyWarn("do not have stable unique names");
   }
 
   @Test
@@ -190,15 +217,16 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
 
-    thrown.expectMessage("does not have a stable unique name.");
+    thrown.expectMessage("do not have stable unique names");
     pipeline.apply(Create.of(5, 6, 7));
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
   }
 
   /**
    * Tests that Pipeline supports a pass-through identity function.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
     PCollection<Integer> output = pipeline
@@ -221,7 +249,7 @@ public class PipelineTest {
    * Tests that Pipeline supports pulling an element out of a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
@@ -254,7 +282,7 @@ public class PipelineTest {
    * Tests that Pipeline supports putting an element into a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
@@ -289,5 +317,201 @@ public class PipelineTest {
   @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
     pipeline.run();
+  }
+
+  @Test
+  public void testReplaceAll() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    pipeline.apply("unbounded", GenerateSequence.from(0));
+    pipeline.apply("bounded", GenerateSequence.from(0).to(100));
+
+    pipeline.replaceAll(
+        ImmutableList.of(
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof GenerateSequence;
+                  }
+                },
+                new GenerateSequenceToCreateOverride()),
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof Create.Values;
+                  }
+                },
+                new CreateValuesToEmptyFlattenOverride())));
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              assertThat(
+                  node.getTransform().getClass(),
+                  not(
+                      anyOf(
+                          Matchers.<Class<? extends PTransform>>equalTo(
+                              GenerateSequence.class),
+                          Matchers.<Class<? extends PTransform>>equalTo(
+                              Create.Values.class))));
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+  }
+
+  /**
+   * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
+   * matches.
+   */
+  @Test
+  public void testReplaceAllIncomplete() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    pipeline.apply(GenerateSequence.from(0));
+
+    // The order is such that the output of the second will match the first, which is not permitted
+    thrown.expect(IllegalStateException.class);
+    pipeline.replaceAll(
+        ImmutableList.of(
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof Create.Values;
+                  }
+                },
+                new CreateValuesToEmptyFlattenOverride()),
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof GenerateSequence;
+                  }
+                },
+                new GenerateSequenceToCreateOverride())));
+  }
+
+  @Test
+  public void testReplacedNames() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    final PCollection<String> originalInput = pipeline.apply(Create.of("foo", "bar", "baz"));
+    class OriginalTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementOverrideFactory
+        implements PTransformOverrideFactory<
+            PCollection<String>, PCollection<Long>, OriginalTransform> {
+      @Override
+      public PTransformReplacement<PCollection<String>, PCollection<Long>> getReplacementTransform(
+          AppliedPTransform<PCollection<String>, PCollection<Long>, OriginalTransform> transform) {
+        return PTransformReplacement.of(originalInput, new ReplacementTransform());
+      }
+
+      @Override
+      public Map<PValue, ReplacementOutput> mapOutputs(
+          Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+        return Collections.<PValue, ReplacementOutput>singletonMap(
+            newOutput,
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(
+                    Iterables.getOnlyElement(outputs.values())),
+                    TaggedPValue.ofExpandedValue(newOutput)));
+      }
+    }
+
+    class OriginalMatcher implements PTransformMatcher {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform() instanceof OriginalTransform;
+      }
+    }
+
+    originalInput.apply("original_application", new OriginalTransform());
+    pipeline.replaceAll(
+        Collections.singletonList(
+            PTransformOverride.of(new OriginalMatcher(), new ReplacementOverrideFactory())));
+    final Set<String> names = new HashSet<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              names.add(node.getFullName());
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            names.add(node.getFullName());
+          }
+        });
+
+    assertThat(names, hasItem("original_application/custom_name"));
+    assertThat(names, not(hasItem("original_application/custom_name2")));
+  }
+
+  static class GenerateSequenceToCreateOverride
+      implements PTransformOverrideFactory<PBegin, PCollection<Long>, GenerateSequence> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<Long>, GenerateSequence> transform) {
+      return PTransformReplacement.of(transform.getPipeline().begin(), Create.of(0L));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
+      return Collections.<PValue, ReplacementOutput>singletonMap(
+          newOutput,
+          ReplacementOutput.of(
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
+    }
+  }
+
+  private static class EmptyFlatten<T> extends PTransform<PBegin, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      PCollectionList<T> empty = PCollectionList.empty(input.getPipeline());
+      return empty.apply(Flatten.<T>pCollections());
+    }
+  }
+
+  static class CreateValuesToEmptyFlattenOverride<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new EmptyFlatten<T>());
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
+      return Collections.<PValue, ReplacementOutput>singletonMap(
+          newOutput,
+          ReplacementOutput.of(
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
+    }
   }
 }

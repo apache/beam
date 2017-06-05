@@ -36,7 +36,9 @@ import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -45,6 +47,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SessionsTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSimple() throws Exception {
@@ -106,6 +110,16 @@ public class SessionsTest {
             Sessions.withGapDuration(new Duration(20))));
   }
 
+  @Test
+  public void testVerifyCompatibility() throws IncompatibleWindowException {
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(Sessions.withGapDuration(new Duration(10)));
+
+    thrown.expect(IncompatibleWindowException.class);
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(FixedWindows.of(new Duration(10)));
+  }
+
   /**
    * Validates that the output timestamp for aggregate data falls within the acceptable range.
    */
@@ -118,7 +132,7 @@ public class SessionsTest {
   }
 
   /**
-   * Test to confirm that {@link Sessions} with the default {@link OutputTimeFn} holds up the
+   * Test to confirm that {@link Sessions} with the default {@link TimestampCombiner} holds up the
    * watermark potentially indefinitely.
    */
   @Test
@@ -126,7 +140,7 @@ public class SessionsTest {
     try {
       WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
           Sessions.withGapDuration(Duration.millis(10)),
-          OutputTimeFns.outputAtEarliestInputTimestamp(),
+          TimestampCombiner.EARLIEST,
           ImmutableList.of(
               (List<Long>) ImmutableList.of(1L, 3L),
               (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
@@ -148,7 +162,7 @@ public class SessionsTest {
   public void testValidOutputAtEndTimes() throws Exception {
     WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
         Sessions.withGapDuration(Duration.millis(10)),
-        OutputTimeFns.outputAtEndOfWindow(),
+        TimestampCombiner.END_OF_WINDOW,
           ImmutableList.of(
               (List<Long>) ImmutableList.of(1L, 3L),
               (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));

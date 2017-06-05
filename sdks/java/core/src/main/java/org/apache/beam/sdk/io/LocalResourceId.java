@@ -21,10 +21,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.UUID;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -35,7 +37,8 @@ import org.apache.commons.lang3.SystemUtils;
  */
 class LocalResourceId implements ResourceId {
 
-  private final Path path;
+  private final String pathString;
+  private transient volatile Path cachedPath;
   private final boolean isDirectory;
 
   static LocalResourceId fromPath(Path path, boolean isDirectory) {
@@ -44,7 +47,8 @@ class LocalResourceId implements ResourceId {
   }
 
   private LocalResourceId(Path path, boolean isDirectory) {
-    this.path = path.normalize();
+    this.pathString = path.toAbsolutePath().normalize().toString()
+        + (isDirectory ? File.separatorChar : "");
     this.isDirectory = isDirectory;
   }
 
@@ -52,11 +56,12 @@ class LocalResourceId implements ResourceId {
   public LocalResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(
         isDirectory,
-        String.format("Expected the path is a directory, but had [%s].", path));
+        "Expected the path is a directory, but had [%s].",
+        pathString);
     checkArgument(
         resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
             || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
-        String.format("ResolveOptions: [%s] is not supported.", resolveOptions));
+        "ResolveOptions: [%s] is not supported.", resolveOptions);
     checkArgument(
         !(resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
             && other.endsWith("/")),
@@ -73,28 +78,36 @@ class LocalResourceId implements ResourceId {
     if (isDirectory) {
       return this;
     } else {
+      Path path = getPath();
       Path parent = path.getParent();
       if (parent == null && path.getNameCount() == 1) {
         parent = Paths.get(".");
       }
       checkState(
           parent != null,
-          String.format("Failed to get the current directory for path: [%s].", path));
+          "Failed to get the current directory for path: [%s].",
+          pathString);
       return fromPath(
           parent,
           true /* isDirectory */);
     }
   }
 
+  @Override
+  @Nullable public String getFilename() {
+    Path fileName = getPath().getFileName();
+    return fileName == null ? null : fileName.toString();
+  }
+
   private LocalResourceId resolveLocalPath(String other, ResolveOptions resolveOptions) {
     return new LocalResourceId(
-        path.resolve(other),
+        getPath().resolve(other),
         resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY));
   }
 
   private LocalResourceId resolveLocalPathWindowsOS(String other, ResolveOptions resolveOptions) {
     String uuid = UUID.randomUUID().toString();
-    Path pathAsterisksReplaced = Paths.get(path.toString().replaceAll("\\*", uuid));
+    Path pathAsterisksReplaced = Paths.get(pathString.replaceAll("\\*", uuid));
     String otherAsterisksReplaced = other.replaceAll("\\*", uuid);
 
     return new LocalResourceId(
@@ -107,16 +120,24 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public String getScheme() {
-    return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+    return "file";
+  }
+
+  @Override
+  public boolean isDirectory() {
+    return isDirectory;
   }
 
   Path getPath() {
-    return path;
+    if (cachedPath == null) {
+      cachedPath = Paths.get(pathString);
+    }
+    return cachedPath;
   }
 
   @Override
   public String toString() {
-    return String.format("LocalResourceId: [%s]", path);
+    return pathString;
   }
 
   @Override
@@ -125,12 +146,12 @@ class LocalResourceId implements ResourceId {
       return false;
     }
     LocalResourceId other = (LocalResourceId) obj;
-    return this.path.equals(other.path)
+    return this.pathString.equals(other.pathString)
         && this.isDirectory == other.isDirectory;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(path, isDirectory);
+    return Objects.hash(pathString, isDirectory);
   }
 }

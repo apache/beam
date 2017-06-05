@@ -23,9 +23,12 @@ package org.apache.beam.sdk.options;
 public interface StreamingOptions extends
     ApplicationNameOptions, PipelineOptions {
   /**
-   * Set to true if running a streaming pipeline.
+   * Set to true if running a streaming pipeline. This will be automatically set to true if the
+   * pipeline contains an Unbounded PCollection.
    */
-  @Description("Set to true if running a streaming pipeline.")
+  @Description("Set to true if running a streaming pipeline. This will be automatically set to "
+      + "true if the pipeline contains an Unbounded PCollection.")
+  @Hidden
   boolean isStreaming();
   void setStreaming(boolean value);
 }

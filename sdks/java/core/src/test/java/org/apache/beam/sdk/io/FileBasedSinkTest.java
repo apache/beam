@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,22 +38,24 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
-
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
+import org.apache.beam.sdk.io.FileBasedSink.Writer;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -60,59 +63,62 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for FileBasedSink.
+ * Tests for {@link FileBasedSink}.
  */
 @RunWith(JUnit4.class)
 public class FileBasedSinkTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  private String baseOutputFilename = "output";
-  private String tempDirectory = "temp";
+  private final String tempDirectoryName = "temp";
 
-  private String appendToTempFolder(String filename) {
-    return Paths.get(tmpFolder.getRoot().getPath(), filename).toString();
+  private ResourceId getTemporaryFolder() {
+    return LocalResources.fromFile(tmpFolder.getRoot(), /* isDirectory */ true);
   }
 
-  private String getBaseOutputFilename() {
-    return appendToTempFolder(baseOutputFilename);
+  private ResourceId getBaseOutputDirectory() {
+    String baseOutputDirname = "output";
+    return getTemporaryFolder()
+        .resolve(baseOutputDirname, StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
-  private String getBaseTempDirectory() {
-    return appendToTempFolder(tempDirectory);
+  private ResourceId getBaseTempDirectory() {
+    return getTemporaryFolder()
+        .resolve(tempDirectoryName, StandardResolveOptions.RESOLVE_DIRECTORY);
   }
 
   /**
-   * FileBasedWriter opens the correct file, writes the header, footer, and elements in the
-   * correct order, and returns the correct filename.
+   * Writer opens the correct file, writes the header, footer, and elements in the correct
+   * order, and returns the correct filename.
    */
   @Test
   public void testWriter() throws Exception {
     String testUid = "testId";
-    String expectedFilename = IOChannelUtils.resolve(getBaseTempDirectory(), testUid);
-    SimpleSink.SimpleWriter writer = buildWriter();
-
+    ResourceId expectedTempFile = getBaseTempDirectory()
+        .resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
     List<String> expected = new ArrayList<>();
     expected.add(SimpleSink.SimpleWriter.HEADER);
     expected.addAll(values);
     expected.add(SimpleSink.SimpleWriter.FOOTER);
 
-    writer.open(testUid);
+    SimpleSink.SimpleWriter writer =
+        buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
+    writer.openUnwindowed(testUid, -1);
     for (String value : values) {
       writer.write(value);
     }
     FileResult result = writer.close();
 
-    assertEquals(expectedFilename, result.getFilename());
-    assertFileContains(expected, expectedFilename);
+    FileBasedSink sink = writer.getWriteOperation().getSink();
+    assertEquals(expectedTempFile, result.getTempFilename());
+    assertFileContains(expected, expectedTempFile);
   }
 
   /**
    * Assert that a file contains the lines provided, in the same order as expected.
    */
-  private void assertFileContains(List<String> expected, String filename) throws Exception {
-    try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+  private void assertFileContains(List<String> expected, ResourceId file) throws Exception {
+    try (BufferedReader reader = new BufferedReader(new FileReader(file.toString()))) {
       List<String> actual = new ArrayList<>();
       for (;;) {
         String line = reader.readLine();
@@ -121,13 +127,11 @@ public class FileBasedSinkTest {
         }
         actual.add(line);
       }
-      assertEquals(expected, actual);
+      assertEquals("contents for " + file, expected, actual);
     }
   }
 
-  /**
-   * Write lines to a file.
-   */
+  /** Write lines to a file. */
   private void writeFile(List<String> lines, File file) throws Exception {
     try (PrintWriter writer = new PrintWriter(new FileOutputStream(file))) {
       for (String line : lines) {
@@ -137,33 +141,21 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * Removes temporary files when temporary and output filenames differ.
+   * Removes temporary files when temporary and output directories differ.
    */
   @Test
   public void testRemoveWithTempFilename() throws Exception {
-    testRemoveTemporaryFiles(3, tempDirectory);
+    testRemoveTemporaryFiles(3, getBaseTempDirectory());
   }
 
-  /**
-   * Removes only temporary files, even if temporary and output files share the same base filename.
-   */
-  @Test
-  public void testRemoveWithSameFilename() throws Exception {
-    testRemoveTemporaryFiles(3, baseOutputFilename);
-  }
-
-  /**
-   * Finalize copies temporary files to output files and removes any temporary files.
-   */
+  /** Finalize copies temporary files to output files and removes any temporary files. */
   @Test
   public void testFinalize() throws Exception {
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(buildWriteOperation(), files);
   }
 
-  /**
-   * Finalize can be called repeatedly.
-   */
+  /** Finalize can be called repeatedly. */
   @Test
   public void testFinalizeMultipleCalls() throws Exception {
     List<File> files = generateTemporaryFilesForFinalize(3);
@@ -172,31 +164,27 @@ public class FileBasedSinkTest {
     runFinalize(writeOp, files);
   }
 
-  /**
-   * Finalize can be called when some temporary files do not exist and output files exist.
-   */
+  /** Finalize can be called when some temporary files do not exist and output files exist. */
   @Test
   public void testFinalizeWithIntermediateState() throws Exception {
-    List<File> files = generateTemporaryFilesForFinalize(3);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(writeOp, files);
 
-    // create a temporary file
-    tmpFolder.newFolder(tempDirectory);
-    tmpFolder.newFile(tempDirectory + "/1");
+    // create a temporary file and then rerun finalize
+    tmpFolder.newFolder(tempDirectoryName);
+    tmpFolder.newFile(tempDirectoryName + "/1");
 
     runFinalize(writeOp, files);
   }
 
-  /**
-   * Generate n temporary files using the temporary file pattern of FileBasedWriter.
-   */
+  /** Generate n temporary files using the temporary file pattern of Writer. */
   private List<File> generateTemporaryFilesForFinalize(int numFiles) throws Exception {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      String temporaryFilename =
-          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, "" + i);
-      File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
+      ResourceId temporaryFile =
+          WriteOperation.buildTemporaryFilename(getBaseTempDirectory(), "" + i);
+      File tmpFile = new File(tmpFolder.getRoot(), temporaryFile.toString());
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
@@ -205,253 +193,267 @@ public class FileBasedSinkTest {
     return temporaryFiles;
   }
 
-  /**
-   * Finalize and verify that files are copied and temporary files are optionally removed.
-   */
+  /** Finalize and verify that files are copied and temporary files are optionally removed. */
   private void runFinalize(SimpleSink.SimpleWriteOperation writeOp, List<File> temporaryFiles)
       throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
-
     int numFiles = temporaryFiles.size();
 
-    List<File> outputFiles = new ArrayList<>();
     List<FileResult> fileResults = new ArrayList<>();
-    List<String> outputFilenames = writeOp.generateDestinationFilenames(numFiles);
-
-    // Create temporary output bundles and output File objects
+    // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
-      fileResults.add(new FileResult(temporaryFiles.get(i).toString()));
-      outputFiles.add(new File(outputFilenames.get(i)));
+      fileResults.add(
+          new FileResult(
+              LocalResources.fromFile(temporaryFiles.get(i), false),
+              WriteFiles.UNKNOWN_SHARDNUM,
+              null,
+              null));
     }
 
-    writeOp.finalize(fileResults, options);
+    writeOp.finalize(fileResults);
 
+    ResourceId outputDirectory = writeOp.getSink().getBaseOutputDirectoryProvider().get();
     for (int i = 0; i < numFiles; i++) {
-      assertTrue(outputFiles.get(i).exists());
+      ResourceId outputFilename = writeOp.getSink().getFilenamePolicy()
+          .unwindowedFilename(outputDirectory, new Context(i, numFiles), "");
+      assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
 
-    assertFalse(new File(writeOp.tempDirectory.get()).exists());
+    assertFalse(new File(writeOp.tempDirectory.get().toString()).exists());
     // Test that repeated requests of the temp directory return a stable result.
     assertEquals(writeOp.tempDirectory.get(), writeOp.tempDirectory.get());
   }
 
   /**
-   * Create n temporary and output files and verify that removeTemporaryFiles only
-   * removes temporary files.
+   * Create n temporary and output files and verify that removeTemporaryFiles only removes temporary
+   * files.
    */
-  private void testRemoveTemporaryFiles(int numFiles, String baseTemporaryFilename)
+  private void testRemoveTemporaryFiles(int numFiles, ResourceId tempDirectory)
       throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation(baseTemporaryFilename);
+    String prefix = "file";
+    SimpleSink sink =
+        new SimpleSink(getBaseOutputDirectory(), prefix, "", "");
+
+    WriteOperation<String> writeOp =
+        new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
 
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      File tmpFile = new File(tmpFolder.getRoot(),
-          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
+      ResourceId tempResource =
+          WriteOperation.buildTemporaryFilename(tempDirectory, prefix + i);
+      File tmpFile = new File(tempResource.toString());
       tmpFile.getParentFile().mkdirs();
-      assertTrue(tmpFile.createNewFile());
+      assertTrue("not able to create new temp file", tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
-      File outputFile = tmpFolder.newFile(baseOutputFilename + i);
+      ResourceId outputFileId =
+          getBaseOutputDirectory().resolve(prefix + i, StandardResolveOptions.RESOLVE_FILE);
+      File outputFile = new File(outputFileId.toString());
+      outputFile.getParentFile().mkdirs();
+      assertTrue("not able to create new output file", outputFile.createNewFile());
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(Collections.<String>emptyList(), options);
+    writeOp.removeTemporaryFiles(Collections.<ResourceId>emptySet(), true);
 
     for (int i = 0; i < numFiles; i++) {
-      assertFalse(temporaryFiles.get(i).exists());
-      assertTrue(outputFiles.get(i).exists());
+      File temporaryFile = temporaryFiles.get(i);
+      assertThat(
+          String.format("temp file %s exists", temporaryFile),
+          temporaryFile.exists(), is(false));
+      File outputFile = outputFiles.get(i);
+      assertThat(
+          String.format("output file %s exists", outputFile),
+          outputFile.exists(), is(true));
     }
   }
 
-  /**
-   * Output files are copied to the destination location with the correct names and contents.
-   */
+  /** Output files are copied to the destination location with the correct names and contents. */
   @Test
   public void testCopyToOutputFiles() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    ResourceId outputDirectory = writeOp.getSink().getBaseOutputDirectoryProvider().get();
 
-    List<String> inputFilenames = Arrays.asList("input-3", "input-2", "input-1");
-    List<String> inputContents = Arrays.asList("3", "2", "1");
+    List<String> inputFilenames = Arrays.asList("input-1", "input-2", "input-3");
+    List<String> inputContents = Arrays.asList("1", "2", "3");
     List<String> expectedOutputFilenames = Arrays.asList(
-        "output-00002-of-00003.test", "output-00001-of-00003.test", "output-00000-of-00003.test");
+        "file-00-of-03.test", "file-01-of-03.test", "file-02-of-03.test");
 
-    List<String> inputFilePaths = new ArrayList<>();
-    List<String> expectedOutputPaths = new ArrayList<>();
+    Map<ResourceId, ResourceId> inputFilePaths = new HashMap<>();
+    List<ResourceId> expectedOutputPaths = new ArrayList<>();
 
     for (int i = 0; i < inputFilenames.size(); i++) {
       // Generate output paths.
-      File outputFile = tmpFolder.newFile(expectedOutputFilenames.get(i));
-      expectedOutputPaths.add(outputFile.toString());
+      expectedOutputPaths.add(
+          getBaseOutputDirectory()
+              .resolve(expectedOutputFilenames.get(i), StandardResolveOptions.RESOLVE_FILE));
 
       // Generate and write to input paths.
       File inputTmpFile = tmpFolder.newFile(inputFilenames.get(i));
-      List<String> lines = Arrays.asList(inputContents.get(i));
+      List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
-      inputFilePaths.add(inputTmpFile.toString());
+      inputFilePaths.put(LocalResources.fromFile(inputTmpFile, false),
+          writeOp.getSink().getFilenamePolicy()
+              .unwindowedFilename(outputDirectory, new Context(i, inputFilenames.size()), ""));
     }
 
     // Copy input files to output files.
-    List<String> actual = writeOp.copyToOutputFiles(inputFilePaths, options);
-
-    // Assert that the expected paths are returned.
-    assertThat(expectedOutputPaths, containsInAnyOrder(actual.toArray()));
+    writeOp.copyToOutputFiles(inputFilePaths);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
-      assertFileContains(Arrays.asList(inputContents.get(i)), expectedOutputPaths.get(i));
+      assertFileContains(
+          Collections.singletonList(inputContents.get(i)), expectedOutputPaths.get(i));
     }
   }
 
-  /**
-   * Output filenames use the supplied naming template.
-   */
-  @Test
-  public void testGenerateOutputFilenamesWithTemplate() {
-    List<String> expected;
-    List<String> actual;
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "test", ".SS.of.NN");
-    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
-
-    expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
-        appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
-    actual = writeOp.generateDestinationFilenames(3);
-    assertEquals(expected, actual);
-
-    expected = Arrays.asList(appendToTempFolder("output.00.of.01.test"));
-    actual = writeOp.generateDestinationFilenames(1);
-    assertEquals(expected, actual);
-
-    expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
-    assertEquals(expected, actual);
-
-    // Also validate that we handle the case where the user specified "." that we do
-    // not prefix an additional "." making "..test"
-    sink = new SimpleSink(getBaseOutputFilename(), ".test", ".SS.of.NN");
-    writeOp = new SimpleSink.SimpleWriteOperation(sink);
-    expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
-        appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
-    actual = writeOp.generateDestinationFilenames(3);
-    assertEquals(expected, actual);
-
-    expected = Arrays.asList(appendToTempFolder("output.00.of.01.test"));
-    actual = writeOp.generateDestinationFilenames(1);
-    assertEquals(expected, actual);
-
-    expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
-    assertEquals(expected, actual);
+  public List<ResourceId> generateDestinationFilenames(
+      ResourceId outputDirectory, FilenamePolicy policy, int numFiles) {
+    List<ResourceId> filenames = new ArrayList<>();
+    for (int i = 0; i < numFiles; i++) {
+      filenames.add(policy.unwindowedFilename(outputDirectory, new Context(i, numFiles), ""));
+    }
+    return filenames;
   }
 
   /**
    * Output filenames are generated correctly when an extension is supplied.
    */
+
   @Test
-  public void testGenerateOutputFilenamesWithExtension() {
-    List<String> expected;
-    List<String> actual;
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+  public void testGenerateOutputFilenames() {
+    List<ResourceId> expected;
+    List<ResourceId> actual;
+    ResourceId root = getBaseOutputDirectory();
+
+    SimpleSink sink = new SimpleSink(root, "file", ".SSSSS.of.NNNNN", ".test");
+    FilenamePolicy policy = sink.getFilenamePolicy();
 
     expected = Arrays.asList(
-        appendToTempFolder("output-00000-of-00003.test"),
-        appendToTempFolder("output-00001-of-00003.test"),
-        appendToTempFolder("output-00002-of-00003.test"));
-    actual = writeOp.generateDestinationFilenames(3);
+        root.resolve("file.00000.of.00003.test", StandardResolveOptions.RESOLVE_FILE),
+        root.resolve("file.00001.of.00003.test", StandardResolveOptions.RESOLVE_FILE),
+        root.resolve("file.00002.of.00003.test", StandardResolveOptions.RESOLVE_FILE)
+    );
+    actual = generateDestinationFilenames(root, policy, 3);
     assertEquals(expected, actual);
 
-    expected = Arrays.asList(appendToTempFolder("output-00000-of-00001.test"));
-    actual = writeOp.generateDestinationFilenames(1);
+    expected = Collections.singletonList(
+        root.resolve("file.00000.of.00001.test", StandardResolveOptions.RESOLVE_FILE)
+    );
+    actual = generateDestinationFilenames(root, policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(root, policy, 0);
     assertEquals(expected, actual);
   }
 
-  /**
-   * Reject non-distinct output filenames.
-   */
+  /** Reject non-distinct output filenames. */
   @Test
-  public void testCollidingOutputFilenames() {
-    SimpleSink sink = new SimpleSink("output", "test", "-NN");
+  public void testCollidingOutputFilenames() throws IOException {
+    ResourceId root = getBaseOutputDirectory();
+    SimpleSink sink = new SimpleSink(root, "file", "-NN", "test");
     SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
 
-    // A single shard doesn't need to include the shard number.
-    assertEquals(Arrays.asList("output-01.test"),
-                 writeOp.generateDestinationFilenames(1));
-
+    ResourceId temp1 = root.resolve("temp1", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId temp2 = root.resolve("temp2", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId temp3 = root.resolve("temp3", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId output = root.resolve("file-03.test", StandardResolveOptions.RESOLVE_FILE);
     // More than one shard does.
     try {
-      writeOp.generateDestinationFilenames(3);
+      Iterable<FileResult> results =
+          Lists.newArrayList(
+              new FileResult(temp1, 1, null, null),
+              new FileResult(temp2, 1, null, null),
+              new FileResult(temp3, 1, null, null));
+      writeOp.buildOutputFilenames(results);
       fail("Should have failed.");
     } catch (IllegalStateException exn) {
-      assertEquals("Shard name template '-NN' only generated 1 distinct file names for 3 files.",
-                   exn.getMessage());
+      assertEquals("Only generated 1 distinct file names for 3 files.", exn.getMessage());
     }
   }
 
-  /**
-   * Output filenames are generated correctly when an extension is not supplied.
-   */
+  /** Output filenames are generated correctly when an extension is not supplied. */
   @Test
   public void testGenerateOutputFilenamesWithoutExtension() {
-    List<String> expected;
-    List<String> actual;
-    SimpleSink sink = new SimpleSink(appendToTempFolder(baseOutputFilename), "");
-    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
+    List<ResourceId> expected;
+    List<ResourceId> actual;
+    ResourceId root = getBaseOutputDirectory();
+    SimpleSink sink = new SimpleSink(root, "file", "-SSSSS-of-NNNNN", "");
+    FilenamePolicy policy = sink.getFilenamePolicy();
 
-    expected = Arrays.asList(appendToTempFolder("output-00000-of-00003"),
-        appendToTempFolder("output-00001-of-00003"), appendToTempFolder("output-00002-of-00003"));
-    actual = writeOp.generateDestinationFilenames(3);
+    expected = Arrays.asList(
+        root.resolve("file-00000-of-00003", StandardResolveOptions.RESOLVE_FILE),
+        root.resolve("file-00001-of-00003", StandardResolveOptions.RESOLVE_FILE),
+        root.resolve("file-00002-of-00003", StandardResolveOptions.RESOLVE_FILE)
+    );
+    actual = generateDestinationFilenames(root, policy, 3);
     assertEquals(expected, actual);
 
-    expected = Arrays.asList(appendToTempFolder("output-00000-of-00001"));
-    actual = writeOp.generateDestinationFilenames(1);
+    expected = Collections.singletonList(
+        root.resolve("file-00000-of-00001", StandardResolveOptions.RESOLVE_FILE)
+    );
+    actual = generateDestinationFilenames(root, policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(root, policy, 0);
     assertEquals(expected, actual);
   }
 
-  /**
-   * {@link CompressionType#BZIP2} correctly writes Gzipped data.
-   */
+  /** {@link CompressionType#BZIP2} correctly writes BZip2 data. */
   @Test
   public void testCompressionTypeBZIP2() throws FileNotFoundException, IOException {
     final File file =
         writeValuesWithWritableByteChannelFactory(CompressionType.BZIP2, "abc", "123");
     // Read Bzip2ed data back in using Apache commons API (de facto standard).
-    assertReadValues(new BufferedReader(new InputStreamReader(
-        new BZip2CompressorInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())),
-        "abc", "123");
+    assertReadValues(
+        new BufferedReader(
+            new InputStreamReader(
+                new BZip2CompressorInputStream(new FileInputStream(file)),
+                StandardCharsets.UTF_8.name())),
+        "abc",
+        "123");
   }
 
-  /**
-   * {@link CompressionType#GZIP} correctly writes Gzipped data.
-   */
+  /** {@link CompressionType#GZIP} correctly writes Gzipped data. */
   @Test
   public void testCompressionTypeGZIP() throws FileNotFoundException, IOException {
     final File file = writeValuesWithWritableByteChannelFactory(CompressionType.GZIP, "abc", "123");
     // Read Gzipped data back in using standard API.
-    assertReadValues(new BufferedReader(new InputStreamReader(
-        new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())), "abc",
+    assertReadValues(
+        new BufferedReader(
+            new InputStreamReader(
+                new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())),
+        "abc",
         "123");
   }
 
-  /**
-   * {@link CompressionType#GZIP} correctly writes Gzipped data.
-   */
+  /** {@link CompressionType#DEFLATE} correctly writes deflate data. */
+  @Test
+  public void testCompressionTypeDEFLATE() throws FileNotFoundException, IOException {
+    final File file =
+        writeValuesWithWritableByteChannelFactory(CompressionType.DEFLATE, "abc", "123");
+    // Read Gzipped data back in using standard API.
+    assertReadValues(
+        new BufferedReader(
+            new InputStreamReader(
+                new DeflateCompressorInputStream(new FileInputStream(file)),
+                StandardCharsets.UTF_8.name())),
+        "abc",
+        "123");
+  }
+
+  /** {@link CompressionType#UNCOMPRESSED} correctly writes uncompressed data. */
   @Test
   public void testCompressionTypeUNCOMPRESSED() throws FileNotFoundException, IOException {
     final File file =
         writeValuesWithWritableByteChannelFactory(CompressionType.UNCOMPRESSED, "abc", "123");
     // Read uncompressed data back in using standard API.
-    assertReadValues(new BufferedReader(new InputStreamReader(
-        new FileInputStream(file), StandardCharsets.UTF_8.name())), "abc",
+    assertReadValues(
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8.name())),
+        "abc",
         "123");
   }
 
@@ -465,7 +467,7 @@ public class FileBasedSinkTest {
 
   private File writeValuesWithWritableByteChannelFactory(final WritableByteChannelFactory factory,
       String... values)
-      throws IOException, FileNotFoundException {
+      throws IOException {
     final File file = tmpFolder.newFile("test.gz");
     final WritableByteChannel channel =
         factory.create(Channels.newChannel(new FileOutputStream(file)));
@@ -477,18 +479,19 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * {@link FileBasedWriter} writes to the {@link WritableByteChannel} provided by
-   * {@link DrunkWritableByteChannelFactory}.
+   * {@link Writer} writes to the {@link WritableByteChannel} provided by {@link
+   * DrunkWritableByteChannelFactory}.
    */
   @Test
   public void testFileBasedWriterWithWritableByteChannelFactory() throws Exception {
     final String testUid = "testId";
-    SimpleSink.SimpleWriteOperation writeOp =
-        new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
-            .createWriteOperation(null);
-    final FileBasedWriter<String> writer =
-        writeOp.createWriter(null);
-    final String expectedFilename = IOChannelUtils.resolve(writeOp.tempDirectory.get(), testUid);
+    ResourceId root = getBaseOutputDirectory();
+    WriteOperation<String> writeOp =
+        new SimpleSink(root, "file", "-SS-of-NN", "txt", new DrunkWritableByteChannelFactory())
+            .createWriteOperation();
+    final Writer<String> writer = writeOp.createWriter();
+    final ResourceId expectedFile =
+        writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");
@@ -500,116 +503,30 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.open(testUid);
+    writer.openUnwindowed(testUid, -1);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();
 
-    assertEquals(expectedFilename, result.getFilename());
-    assertFileContains(expected, expectedFilename);
+    assertEquals(expectedFile, result.getTempFilename());
+    assertFileContains(expected, expectedFile);
   }
 
-  /**
-   * A simple FileBasedSink that writes String values as lines with header and footer lines.
-   */
-  private static final class SimpleSink extends FileBasedSink<String> {
-    public SimpleSink(String baseOutputFilename, String extension) {
-      super(baseOutputFilename, extension);
-    }
-
-    public SimpleSink(String baseOutputFilename, String extension,
-        WritableByteChannelFactory writableByteChannelFactory) {
-      super(baseOutputFilename, extension, writableByteChannelFactory);
-    }
-
-    public SimpleSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
-      super(baseOutputFilename, extension, fileNamingTemplate);
-    }
-
-    @Override
-    public SimpleWriteOperation createWriteOperation(PipelineOptions options) {
-      return new SimpleWriteOperation(this);
-    }
-
-    private static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
-      public SimpleWriteOperation(SimpleSink sink, String tempOutputFilename) {
-        super(sink, tempOutputFilename);
-      }
-
-      public SimpleWriteOperation(SimpleSink sink) {
-        super(sink);
-      }
-
-      @Override
-      public SimpleWriter createWriter(PipelineOptions options) throws Exception {
-        return new SimpleWriter(this);
-      }
-    }
-
-    private static final class SimpleWriter extends FileBasedWriter<String> {
-      static final String HEADER = "header";
-      static final String FOOTER = "footer";
-
-      private WritableByteChannel channel;
-
-      public SimpleWriter(SimpleWriteOperation writeOperation) {
-        super(writeOperation);
-      }
-
-      private static ByteBuffer wrap(String value) throws Exception {
-        return ByteBuffer.wrap((value + "\n").getBytes("UTF-8"));
-      }
-
-      @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        this.channel = channel;
-      }
-
-      @Override
-      protected void writeHeader() throws Exception {
-        channel.write(wrap(HEADER));
-      }
-
-      @Override
-      protected void writeFooter() throws Exception {
-        channel.write(wrap(FOOTER));
-      }
-
-      @Override
-      public void write(String value) throws Exception {
-        channel.write(wrap(value));
-      }
-    }
-  }
-
-  /**
-   * Build a SimpleSink with default options.
-   */
+  /** Build a SimpleSink with default options. */
   private SimpleSink buildSink() {
-    return new SimpleSink(getBaseOutputFilename(), "test");
+    return new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", ".test");
   }
 
   /**
-   * Build a SimpleWriteOperation with default options and the given base temporary filename.
+   * Build a SimpleWriteOperation with default options and the given temporary directory.
    */
-  private SimpleSink.SimpleWriteOperation buildWriteOperation(String baseTemporaryFilename) {
+  private SimpleSink.SimpleWriteOperation buildWriteOperationWithTempDir(ResourceId tempDirectory) {
     SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(sink, appendToTempFolder(baseTemporaryFilename));
+    return new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
   }
 
-  /**
-   * Build a write operation with the default options for it and its parent sink.
-   */
+  /** Build a write operation with the default options for it and its parent sink. */
   private SimpleSink.SimpleWriteOperation buildWriteOperation() {
-    SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(sink, getBaseTempDirectory());
-  }
-
-  /**
-   * Build a writer with the default options for its parent write operation and sink.
-   */
-  private SimpleSink.SimpleWriter buildWriter() {
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
-    return new SimpleSink.SimpleWriter(writeOp);
+    return buildSink().createWriteOperation();
   }
 }

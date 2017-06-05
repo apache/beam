@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -28,7 +24,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -40,20 +35,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends StandardCoder<T> {
+public class NullableCoder<T> extends StructuredCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
     }
     return new NullableCoder<>(valueCoder);
-  }
-
-  @JsonCreator
-  public static NullableCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 components, got %s", components.size());
-    return of(components.get(0));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -74,6 +61,12 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   @Override
+  public void encode(@Nullable T value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (value == null) {
@@ -82,6 +75,11 @@ public class NullableCoder<T> extends StandardCoder<T> {
       outStream.write(ENCODE_PRESENT);
       valueCoder.encode(value, outStream, context);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -106,11 +104,11 @@ public class NullableCoder<T> extends StandardCoder<T> {
   /**
    * {@code NullableCoder} is deterministic if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic("Value coder must be deterministic", valueCoder);
+    verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
   }
 
   /**
@@ -124,7 +122,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public Object structuralValue(@Nullable T value) throws Exception {
+  public Object structuralValue(@Nullable T value) {
     if (value == null) {
       return Optional.absent();
     }
@@ -132,7 +130,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
@@ -140,36 +138,36 @@ public class NullableCoder<T> extends StandardCoder<T> {
    */
   @Override
   public void registerByteSizeObserver(
-      @Nullable T value, ElementByteSizeObserver observer, Context context) throws Exception {
+      @Nullable T value, ElementByteSizeObserver observer) throws Exception {
     observer.update(1);
     if (value != null) {
-      valueCoder.registerByteSizeObserver(value, observer, context);
+      valueCoder.registerByteSizeObserver(value, observer);
     }
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
    * {@inheritDoc}
    */
   @Override
-  protected long getEncodedElementByteSize(@Nullable T value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(@Nullable T value) throws Exception {
     if (value == null) {
       return 1;
     }
 
-    if (valueCoder instanceof StandardCoder) {
-      // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
+    if (valueCoder instanceof StructuredCoder) {
+      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
-      return 1  + ((StandardCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value, context);
+      return 1  + ((StructuredCoder<T>) valueCoder)
+          .getEncodedElementByteSize(value);
     }
 
-    // If value is not a StandardCoder then fall back to the default StandardCoder behavior
+    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the null indicator byte.
-    return super.getEncodedElementByteSize(value, context);
+    return super.getEncodedElementByteSize(value);
   }
 
   /**
@@ -178,11 +176,11 @@ public class NullableCoder<T> extends StandardCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
     if (value == null) {
       return true;
     }
-    return valueCoder.isRegisterByteSizeObserverCheap(value, context);
+    return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 
   @Override

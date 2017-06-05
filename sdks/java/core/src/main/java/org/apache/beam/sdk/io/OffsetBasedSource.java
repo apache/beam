@@ -108,7 +108,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   }
 
   @Override
-  public List<? extends OffsetBasedSource<T>> splitIntoBundles(
+  public List<? extends OffsetBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     // Split the range into bundles based on the desiredBundleSizeBytes. Final bundle is adjusted to
     // make sure that we do not end up with a too small bundle at the end. If the desired bundle
@@ -163,7 +163,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   /**
    * Returns approximately how many bytes of data correspond to a single offset in this source.
    * Used for translation between this source's range and methods defined in terms of bytes, such
-   * as {@link #getEstimatedSizeBytes} and {@link #splitIntoBundles}.
+   * as {@link #getEstimatedSizeBytes} and {@link #split}.
    *
    * <p>Defaults to {@code 1} byte, which is the common case for, e.g., file sources.
    */

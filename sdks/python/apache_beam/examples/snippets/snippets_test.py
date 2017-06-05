@@ -29,13 +29,17 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.coders.coders import ToStringCoder
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.utils.windowed_value import WindowedValue
 
 # pylint: disable=expression-not-assigned
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -117,7 +121,6 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'A', 'C'}, set(all_capitals))
 
   def test_pardo_with_label(self):
-    # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
     result = words | 'CountUniqueLetters' >> beam.Map(
@@ -127,41 +130,41 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = TestPipeline()
-    words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
+    # pylint: disable=line-too-long
+    with TestPipeline() as p:
+      words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
-    # [START model_pardo_side_input]
-    # Callable takes additional arguments.
-    def filter_using_length(word, lower_bound, upper_bound=float('inf')):
-      if lower_bound <= len(word) <= upper_bound:
-        yield word
+      # [START model_pardo_side_input]
+      # Callable takes additional arguments.
+      def filter_using_length(word, lower_bound, upper_bound=float('inf')):
+        if lower_bound <= len(word) <= upper_bound:
+          yield word
 
-    # Construct a deferred side input.
-    avg_word_len = (words
-                    | beam.Map(len)
-                    | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
+      # Construct a deferred side input.
+      avg_word_len = (words
+                      | beam.Map(len)
+                      | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
-    # Call with explicit side inputs.
-    small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
+      # Call with explicit side inputs.
+      small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
 
-    # A single deferred side input.
-    larger_than_average = (words | 'large' >> beam.FlatMap(
-        filter_using_length,
-        lower_bound=pvalue.AsSingleton(avg_word_len)))
+      # A single deferred side input.
+      larger_than_average = (words | 'large' >> beam.FlatMap(
+          filter_using_length,
+          lower_bound=pvalue.AsSingleton(avg_word_len)))
 
-    # Mix and match.
-    small_but_nontrivial = words | beam.FlatMap(filter_using_length,
-                                                lower_bound=2,
-                                                upper_bound=pvalue.AsSingleton(
-                                                    avg_word_len))
-    # [END model_pardo_side_input]
+      # Mix and match.
+      small_but_nontrivial = words | beam.FlatMap(
+          filter_using_length,
+          lower_bound=2,
+          upper_bound=pvalue.AsSingleton(avg_word_len))
+      # [END model_pardo_side_input]
 
-    beam.assert_that(small_words, beam.equal_to(['a', 'bb', 'ccc']))
-    beam.assert_that(larger_than_average, beam.equal_to(['ccc', 'dddd']),
-                     label='larger_than_average')
-    beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
-                     label='small_but_not_trivial')
-    p.run()
+      assert_that(small_words, equal_to(['a', 'bb', 'ccc']))
+      assert_that(larger_than_average, equal_to(['ccc', 'dddd']),
+                  label='larger_than_average')
+      assert_that(small_but_nontrivial, equal_to(['bb']),
+                  label='small_but_not_trivial')
 
   def test_pardo_side_input_dofn(self):
     words = ['a', 'bb', 'ccc', 'dddd']
@@ -176,8 +179,8 @@ class ParDoTest(unittest.TestCase):
     # [END model_pardo_side_input_dofn]
     self.assertEqual({'a', 'bb', 'ccc'}, set(small_words))
 
-  def test_pardo_with_side_outputs(self):
-    # [START model_pardo_emitting_values_on_side_outputs]
+  def test_pardo_with_tagged_outputs(self):
+    # [START model_pardo_emitting_values_on_tagged_outputs]
     class ProcessWords(beam.DoFn):
 
       def process(self, element, cutoff_length, marker):
@@ -185,48 +188,48 @@ class ParDoTest(unittest.TestCase):
           # Emit this short word to the main output.
           yield element
         else:
-          # Emit this word's long length to a side output.
-          yield pvalue.SideOutputValue(
+          # Emit this word's long length to the 'above_cutoff_lengths' output.
+          yield pvalue.TaggedOutput(
               'above_cutoff_lengths', len(element))
         if element.startswith(marker):
-          # Emit this word to a different side output.
-          yield pvalue.SideOutputValue('marked strings', element)
-    # [END model_pardo_emitting_values_on_side_outputs]
+          # Emit this word to a different output with the 'marked strings' tag.
+          yield pvalue.TaggedOutput('marked strings', element)
+    # [END model_pardo_emitting_values_on_tagged_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
 
-    # [START model_pardo_with_side_outputs]
+    # [START model_pardo_with_tagged_outputs]
     results = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
                .with_outputs('above_cutoff_lengths', 'marked strings',
                              main='below_cutoff_strings'))
     below = results.below_cutoff_strings
     above = results.above_cutoff_lengths
     marked = results['marked strings']  # indexing works as well
-    # [END model_pardo_with_side_outputs]
+    # [END model_pardo_with_tagged_outputs]
 
     self.assertEqual({'a', 'an'}, set(below))
     self.assertEqual({3, 5}, set(above))
     self.assertEqual({'xyz'}, set(marked))
 
-    # [START model_pardo_with_side_outputs_iter]
+    # [START model_pardo_with_tagged_outputs_iter]
     below, above, marked = (words
                             | beam.ParDo(
                                 ProcessWords(), cutoff_length=2, marker='x')
                             .with_outputs('above_cutoff_lengths',
                                           'marked strings',
                                           main='below_cutoff_strings'))
-    # [END model_pardo_with_side_outputs_iter]
+    # [END model_pardo_with_tagged_outputs_iter]
 
     self.assertEqual({'a', 'an'}, set(below))
     self.assertEqual({3, 5}, set(above))
     self.assertEqual({'xyz'}, set(marked))
 
-  def test_pardo_with_undeclared_side_outputs(self):
+  def test_pardo_with_undeclared_outputs(self):
     numbers = [1, 2, 3, 4, 5, 10, 20]
 
-    # [START model_pardo_with_side_outputs_undeclared]
+    # [START model_pardo_with_undeclared_outputs]
     def even_odd(x):
-      yield pvalue.SideOutputValue('odd' if x % 2 else 'even', x)
+      yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
       if x % 10 == 0:
         yield x
 
@@ -235,7 +238,7 @@ class ParDoTest(unittest.TestCase):
     evens = results.even
     odds = results.odd
     tens = results[None]  # the undeclared main output
-    # [END model_pardo_with_side_outputs_undeclared]
+    # [END model_pardo_with_undeclared_outputs]
 
     self.assertEqual({2, 4, 10, 20}, set(evens))
     self.assertEqual({1, 3, 5}, set(odds))
@@ -245,10 +248,9 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = TestPipeline()
-    evens = None  # pylint: disable=unused-variable
-
     # [START type_hints_missing_define_numbers]
+    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
 
@@ -269,7 +271,6 @@ class TypeHintsTest(unittest.TestCase):
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_takes]
-      p.options.view_as(TypeOptions).pipeline_type_check = True
       evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
@@ -307,65 +308,65 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_off(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
-    # [START type_hints_runtime_off]
-    p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-    p.run()
+    with TestPipeline() as p:
+      # [START type_hints_runtime_off]
+      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
+    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
-      p.options.view_as(TypeOptions).runtime_type_check = True
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = TestPipeline()
-    lines = (p | beam.Create(
-        ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
+    with TestPipeline() as p:
+      lines = (p | beam.Create(
+          ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
-    # [START type_hints_deterministic_key]
-    class Player(object):
-      def __init__(self, team, name):
-        self.team = team
-        self.name = name
+      # For pickling
+      global Player  # pylint: disable=global-variable-not-assigned
 
-    class PlayerCoder(beam.coders.Coder):
-      def encode(self, player):
-        return '%s:%s' % (player.team, player.name)
+      # [START type_hints_deterministic_key]
+      class Player(object):
+        def __init__(self, team, name):
+          self.team = team
+          self.name = name
 
-      def decode(self, s):
-        return Player(*s.split(':'))
+      class PlayerCoder(beam.coders.Coder):
+        def encode(self, player):
+          return '%s:%s' % (player.team, player.name)
 
-      def is_deterministic(self):
-        return True
+        def decode(self, s):
+          return Player(*s.split(':'))
 
-    beam.coders.registry.register_coder(Player, PlayerCoder)
+        def is_deterministic(self):
+          return True
 
-    def parse_player_and_score(csv):
-      name, team, score = csv.split(',')
-      return Player(team, name), int(score)
+      beam.coders.registry.register_coder(Player, PlayerCoder)
 
-    totals = (
-        lines
-        | beam.Map(parse_player_and_score)
-        | beam.CombinePerKey(sum).with_input_types(
-            beam.typehints.Tuple[Player, int]))
-    # [END type_hints_deterministic_key]
+      def parse_player_and_score(csv):
+        name, team, score = csv.split(',')
+        return Player(team, name), int(score)
 
-    assert_that(
-        totals | beam.Map(lambda (k, v): (k.name, v)),
-        equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
+      totals = (
+          lines
+          | beam.Map(parse_player_and_score)
+          | beam.CombinePerKey(sum).with_input_types(
+              beam.typehints.Tuple[Player, int]))
+      # [END type_hints_deterministic_key]
 
-    p.run()
+      assert_that(
+          totals | beam.Map(lambda (k, v): (k.name, v)),
+          equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
 class SnippetsTest(unittest.TestCase):
   # Replacing text read/write transforms with dummy transforms for testing.
+
   class DummyReadTransform(beam.PTransform):
     """A transform that will replace iobase.ReadFromText.
 
@@ -387,16 +388,20 @@ class SnippetsTest(unittest.TestCase):
         pass
 
       def finish_bundle(self):
+        from apache_beam.transforms import window
+
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
           if self.compression_type is None:
             with open(file_name) as file:
               for record in file:
-                yield self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip('\n'))
+                yield WindowedValue(value, -1, [window.GlobalWindow()])
           else:
             with gzip.open(file_name, 'r') as file:
               for record in file:
-                yield self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip('\n'))
+                yield WindowedValue(value, -1, [window.GlobalWindow()])
 
     def expand(self, pcoll):
       return pcoll | beam.Create([None]) | 'DummyReadForTesting' >> beam.ParDo(
@@ -416,7 +421,7 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
-        self.coder = coders.ToStringCoder()
+        self.coder = ToStringCoder()
 
       def start_bundle(self):
         assert self.file_to_write
@@ -466,8 +471,7 @@ class SnippetsTest(unittest.TestCase):
 
     if sorted_output:
       return sorted(s.rstrip('\n') for s in all_lines)
-    else:
-      return all_lines
+    return all_lines
 
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
@@ -632,7 +636,8 @@ class SnippetsTest(unittest.TestCase):
   def test_examples_wordcount(self):
     pipelines = [snippets.examples_wordcount_minimal,
                  snippets.examples_wordcount_wordcount,
-                 snippets.pipeline_monitoring]
+                 snippets.pipeline_monitoring,
+                 snippets.examples_wordcount_templated]
 
     for pipeline in pipelines:
       temp_path = self.create_temp_file(
@@ -642,6 +647,17 @@ class SnippetsTest(unittest.TestCase):
       self.assertEqual(
           self.get_output(result_path),
           ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
+
+  def test_examples_ptransforms_templated(self):
+    pipelines = [snippets.examples_ptransforms_templated]
+
+    for pipeline in pipelines:
+      temp_path = self.create_temp_file('1\n 2\n 3')
+      result_path = self.create_temp_file()
+      pipeline({'read': temp_path, 'write': result_path})
+      self.assertEqual(
+          self.get_output(result_path),
+          ['11', '12', '13'])
 
   def test_examples_wordcount_debugging(self):
     temp_path = self.create_temp_file(
@@ -686,6 +702,66 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
     expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
     self.assertEqual(expect, self.get_output(result_path))
+
+  def test_model_use_and_query_metrics(self):
+    """DebuggingWordCount example snippets."""
+
+    import re
+
+    p = TestPipeline()  # Use TestPipeline for testing.
+    words = p | beam.Create(['albert', 'sam', 'mark', 'sarah',
+                             'swati', 'daniel', 'andrea'])
+
+    # pylint: disable=unused-variable
+    # [START metrics_usage_example]
+    class FilterTextFn(beam.DoFn):
+      """A DoFn that filters for a specific key based on a regex."""
+
+      def __init__(self, pattern):
+        self.pattern = pattern
+        # A custom metric can track values in your pipeline as it runs. Create
+        # custom metrics to count unmatched words, and know the distribution of
+        # word lengths in the input PCollection.
+        self.word_len_dist = Metrics.distribution(self.__class__,
+                                                  'word_len_dist')
+        self.unmatched_words = Metrics.counter(self.__class__,
+                                               'unmatched_words')
+
+      def process(self, element):
+        word = element
+        self.word_len_dist.update(len(word))
+        if re.match(self.pattern, word):
+          yield element
+        else:
+          self.unmatched_words.inc()
+
+    filtered_words = (
+        words | 'FilterText' >> beam.ParDo(FilterTextFn('s.*')))
+    # [END metrics_usage_example]
+    # pylint: enable=unused-variable
+
+    # [START metrics_check_values_example]
+    result = p.run()
+    result.wait_until_finish()
+
+    custom_distribution = result.metrics().query(
+        MetricsFilter().with_name('word_len_dist'))['distributions']
+    custom_counter = result.metrics().query(
+        MetricsFilter().with_name('unmatched_words'))['counters']
+
+    if custom_distribution:
+      logging.info('The average word length was %d',
+                   custom_distribution[0].committed.mean)
+    if custom_counter:
+      logging.info('There were %d words that did not match the filter.',
+                   custom_counter[0].committed)
+    # [END metrics_check_values_example]
+
+    # There should be 4 words that did not match
+    self.assertEqual(custom_counter[0].committed, 4)
+    # The shortest word is 3 characters, the longest is 6
+    self.assertEqual(custom_distribution[0].committed.min, 3)
+    self.assertEqual(custom_distribution[0].committed.max, 6)
 
   def test_model_join_using_side_inputs(self):
     name_list = ['a', 'b']
@@ -765,7 +841,7 @@ class CombineTest(unittest.TestCase):
   def test_custom_average(self):
     pc = [2, 3, 5, 7]
 
-    # [START combine_custom_average]
+    # [START combine_custom_average_define]
     class AverageFn(beam.CombineFn):
       def create_accumulator(self):
         return (0.0, 0)
@@ -779,8 +855,10 @@ class CombineTest(unittest.TestCase):
 
       def extract_output(self, (sum, count)):
         return sum / count if count else float('NaN')
+    # [END combine_custom_average_define]
+    # [START combine_custom_average_execute]
     average = pc | beam.CombineGlobally(AverageFn())
-    # [END combine_custom_average]
+    # [END combine_custom_average_execute]
     self.assertEqual([4.25], average)
 
   def test_keys(self):
@@ -794,109 +872,121 @@ class CombineTest(unittest.TestCase):
     self.assertEqual({('cat', 3), ('dog', 2)}, set(perkey_counts))
 
   def test_setting_fixed_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([22, 33, 55, 100, 115, 120])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_fixed_windows]
-    from apache_beam import window
-    fixed_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
-    # [END setting_fixed_windows]
-    summed = (fixed_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([110, 215, 120]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([22, 33, 55, 100, 115, 120])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_fixed_windows]
+      from apache_beam import window
+      fixed_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
+      # [END setting_fixed_windows]
+      summed = (fixed_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([110, 215, 120]))
 
   def test_setting_sliding_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 16, 23])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_sliding_windows]
-    from apache_beam import window
-    sliding_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.SlidingWindows(30, 5)))
-    # [END setting_sliding_windows]
-    summed = (sliding_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed,
-                     beam.equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 16, 23])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_sliding_windows]
+      from apache_beam import window
+      sliding_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.SlidingWindows(30, 5)))
+      # [END setting_sliding_windows]
+      summed = (sliding_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed,
+                  equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
 
   def test_setting_session_windows(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 11, 16, 27])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_session_windows]
-    from apache_beam import window
-    session_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.Sessions(10)))
-    # [END setting_session_windows]
-    summed = (session_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed,
-                     beam.equal_to([29, 27]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 11, 16, 27])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_session_windows]
+      from apache_beam import window
+      session_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.Sessions(10)))
+      # [END setting_session_windows]
+      summed = (session_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed,
+                  equal_to([29, 27]))
 
   def test_setting_global_window(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([2, 11, 16, 27])
-    items = (unkeyed_items
-             | 'key' >> beam.Map(
-                 lambda x: beam.window.TimestampedValue(('k', x), x)))
-    # [START setting_global_window]
-    from apache_beam import window
-    session_windowed_items = (
-        items | 'window' >> beam.WindowInto(window.GlobalWindows()))
-    # [END setting_global_window]
-    summed = (session_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([56]))
-    p.run()
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([2, 11, 16, 27])
+      items = (unkeyed_items
+               | 'key' >> beam.Map(
+                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+      # [START setting_global_window]
+      from apache_beam import window
+      session_windowed_items = (
+          items | 'window' >> beam.WindowInto(window.GlobalWindows()))
+      # [END setting_global_window]
+      summed = (session_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([56]))
 
   def test_setting_timestamp(self):
-    p = TestPipeline()
-    unkeyed_items = p | beam.Create([12, 30, 60, 61, 66])
-    items = (unkeyed_items | 'key' >> beam.Map(lambda x: ('k', x)))
+    with TestPipeline() as p:
+      unkeyed_items = p | beam.Create([12, 30, 60, 61, 66])
+      items = (unkeyed_items | 'key' >> beam.Map(lambda x: ('k', x)))
 
-    def extract_timestamp_from_log_entry(entry):
-      return entry[1]
+      def extract_timestamp_from_log_entry(entry):
+        return entry[1]
 
-    # [START setting_timestamp]
-    class AddTimestampDoFn(beam.DoFn):
+      # [START setting_timestamp]
+      class AddTimestampDoFn(beam.DoFn):
 
-      def process(self, element):
-        # Extract the numeric Unix seconds-since-epoch timestamp to be
-        # associated with the current log entry.
-        unix_timestamp = extract_timestamp_from_log_entry(element)
-        # Wrap and emit the current entry and new timestamp in a
-        # TimestampedValue.
-        yield beam.TimestampedValue(element, unix_timestamp)
+        def process(self, element):
+          # Extract the numeric Unix seconds-since-epoch timestamp to be
+          # associated with the current log entry.
+          unix_timestamp = extract_timestamp_from_log_entry(element)
+          # Wrap and emit the current entry and new timestamp in a
+          # TimestampedValue.
+          yield beam.window.TimestampedValue(element, unix_timestamp)
 
-    timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
-    # [END setting_timestamp]
-    fixed_windowed_items = (
-        timestamped_items | 'window' >> beam.WindowInto(
-            beam.window.FixedWindows(60)))
-    summed = (fixed_windowed_items
-              | 'group' >> beam.GroupByKey()
-              | 'combine' >> beam.CombineValues(sum))
-    unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([42, 187]))
-    p.run()
+      timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
+      # [END setting_timestamp]
+      fixed_windowed_items = (
+          timestamped_items | 'window' >> beam.WindowInto(
+              beam.window.FixedWindows(60)))
+      summed = (fixed_windowed_items
+                | 'group' >> beam.GroupByKey()
+                | 'combine' >> beam.CombineValues(sum))
+      unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
+      assert_that(unkeyed, equal_to([42, 187]))
+
+
+class PTransformTest(unittest.TestCase):
+  """Tests for PTransform."""
+
+  def test_composite(self):
+
+    # [START model_composite_transform]
+    class ComputeWordLengths(beam.PTransform):
+      def expand(self, pcoll):
+        # transform logic goes here
+        return pcoll | beam.Map(lambda x: len(x))
+    # [END model_composite_transform]
+
+    with TestPipeline() as p:
+      lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
+      assert_that(lengths, equal_to([1, 2, 3]))
 
 
 if __name__ == '__main__':

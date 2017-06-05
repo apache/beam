@@ -52,6 +52,7 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
+import functools
 import glob
 import logging
 import os
@@ -60,19 +61,19 @@ import shutil
 import sys
 import tempfile
 
-
-from apache_beam import utils
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 # Update this version to the next version whenever there is a change that will
 # require changes to the execution environment.
-BEAM_CONTAINER_VERSION = 'beam-0.6.0-20170223'
+# This should be in the beam-[version]-[date] format, date is optional.
+BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170601'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -87,9 +88,24 @@ def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
   logging.info('file copy from %s to %s.', from_path, to_path)
   if from_path.startswith('gs://') or to_path.startswith('gs://'):
-    command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
-    logging.info('Executing command: %s', command_args)
-    processes.check_call(command_args)
+    from apache_beam.io.gcp import gcsio
+    if from_path.startswith('gs://') and to_path.startswith('gs://'):
+      # Both files are GCS files so copy.
+      gcsio.GcsIO().copy(from_path, to_path)
+    elif to_path.startswith('gs://'):
+      # Only target is a GCS file, read local file and upload.
+      with open(from_path, 'rb') as f:
+        with gcsio.GcsIO().open(to_path, mode='wb') as g:
+          pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
+          for chunk in iter(pfun, ''):
+            g.write(chunk)
+    else:
+      # Source is a GCS file but target is local file.
+      with gcsio.GcsIO().open(from_path, mode='rb') as g:
+        with open(to_path, 'wb') as f:
+          pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
+          for chunk in iter(pfun, ''):
+            f.write(chunk)
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
@@ -110,12 +126,12 @@ def _dependency_file_download(from_url, to_folder):
     response, content = __import__('httplib2').Http().request(from_url)
     if int(response['status']) >= 400:
       raise RuntimeError(
-          'Dataflow SDK not found at %s (response: %s)' % (from_url, response))
-    local_download_file = os.path.join(to_folder, 'dataflow-sdk.tar.gz')
+          'Beam SDK not found at %s (response: %s)' % (from_url, response))
+    local_download_file = os.path.join(to_folder, 'beam-sdk.tar.gz')
     with open(local_download_file, 'w') as f:
       f.write(content)
   except Exception:
-    logging.info('Failed to download SDK from %s', from_url)
+    logging.info('Failed to download Beam SDK from %s', from_url)
     raise
   return local_download_file
 
@@ -175,12 +191,12 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
 
   if staging_temp_dir:
     local_packages.extend(
-        [utils.path.join(staging_temp_dir, f) for f in os.listdir(
+        [FileSystems.join(staging_temp_dir, f) for f in os.listdir(
             staging_temp_dir)])
 
   for package in local_packages:
     basename = os.path.basename(package)
-    staged_path = utils.path.join(staging_location, basename)
+    staged_path = FileSystems.join(staging_location, basename)
     file_copy(package, staged_path)
     resources.append(basename)
   # Create a file containing the list of extra packages and stage it.
@@ -193,7 +209,7 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   with open(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), 'wt') as f:
     for package in local_packages:
       f.write('%s\n' % os.path.basename(package))
-  staged_path = utils.path.join(staging_location, EXTRA_PACKAGES_FILE)
+  staged_path = FileSystems.join(staging_location, EXTRA_PACKAGES_FILE)
   # Note that the caller of this function is responsible for deleting the
   # temporary folder where all temp files are created, including this one.
   file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
@@ -229,7 +245,9 @@ def _populate_requirements_cache(requirements_file, cache_dir):
 def stage_job_resources(
     options, file_copy=_dependency_file_copy, build_setup_args=None,
     temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
-  """Creates (if needed) and stages job resources to options.staging_location.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates (if needed) and stages job resources to options.staging_location.
 
   Args:
     options: Command line options. More specifically the function will expect
@@ -274,8 +292,8 @@ def stage_job_resources(
       raise RuntimeError('The file %s cannot be found. It was specified in the '
                          '--requirements_file command line option.' %
                          setup_options.requirements_file)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  REQUIREMENTS_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   REQUIREMENTS_FILE)
     file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
     requirements_cache_path = (
@@ -289,8 +307,8 @@ def stage_job_resources(
     populate_requirements_cache(
         setup_options.requirements_file, requirements_cache_path)
     for pkg in  glob.glob(os.path.join(requirements_cache_path, '*')):
-      file_copy(pkg, utils.path.join(google_cloud_options.staging_location,
-                                     os.path.basename(pkg)))
+      file_copy(pkg, FileSystems.join(google_cloud_options.staging_location,
+                                      os.path.basename(pkg)))
       resources.append(os.path.basename(pkg))
 
   # Handle a setup file if present.
@@ -308,8 +326,8 @@ def stage_job_resources(
           'setup.py instead of %s' % setup_options.setup_file)
     tarball_file = _build_setup_package(setup_options.setup_file, temp_dir,
                                         build_setup_args)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  WORKFLOW_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   WORKFLOW_TARBALL_FILE)
     file_copy(tarball_file, staged_path)
     resources.append(WORKFLOW_TARBALL_FILE)
 
@@ -328,12 +346,12 @@ def stage_job_resources(
     pickled_session_file = os.path.join(temp_dir,
                                         names.PICKLED_MAIN_SESSION_FILE)
     pickler.dump_session(pickled_session_file)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  names.PICKLED_MAIN_SESSION_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.PICKLED_MAIN_SESSION_FILE)
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
-  if hasattr(setup_options, 'sdk_location') and setup_options.sdk_location:
+  if hasattr(setup_options, 'sdk_location'):
     if setup_options.sdk_location == 'default':
       stage_tarball_from_remote_location = True
     elif (setup_options.sdk_location.startswith('gs://') or
@@ -343,8 +361,8 @@ def stage_job_resources(
     else:
       stage_tarball_from_remote_location = False
 
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.DATAFLOW_SDK_TARBALL_FILE)
     if stage_tarball_from_remote_location:
       # If --sdk_location is not specified then the appropriate package
       # will be obtained from PyPI (https://pypi.python.org) based on the
@@ -359,10 +377,10 @@ def stage_job_resources(
         sdk_remote_location = 'pypi'
       else:
         sdk_remote_location = setup_options.sdk_location
-      _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
+      _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
-      # Check if we have a local Dataflow SDK tarball present. This branch is
+      # Check if we have a local Beam SDK tarball present. This branch is
       # used by tests running with the SDK built at head.
       if setup_options.sdk_location == 'default':
         module_path = os.path.abspath(__file__)
@@ -375,13 +393,16 @@ def stage_job_resources(
       else:
         sdk_path = setup_options.sdk_location
       if os.path.isfile(sdk_path):
-        logging.info('Copying dataflow SDK "%s" to staging location.', sdk_path)
+        logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
         file_copy(sdk_path, staged_path)
         resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
       else:
         if setup_options.sdk_location == 'default':
-          raise RuntimeError('Cannot find default Dataflow SDK tar file "%s"',
+          raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
                              sdk_path)
+        elif not setup_options.sdk_location:
+          logging.info('Beam SDK will not be staged since --sdk_location '
+                       'is empty.')
         else:
           raise RuntimeError(
               'The file "%s" cannot be found. Its location was specified by '
@@ -412,11 +433,11 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(saved_current_directory)
 
 
-def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
-  """Stage a Dataflow SDK tarball with the appropriate version.
+def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
+  """Stage a Beam SDK tarball with the appropriate version.
 
   Args:
-    sdk_remote_location: A GCS path to a Dataflow SDK tarball or a URL from
+    sdk_remote_location: A GCS path to a SDK tarball or a URL from
       the file can be downloaded.
     staged_path: GCS path where the found SDK tarball should be copied.
     temp_dir: path to temporary location where the file should be downloaded.
@@ -428,7 +449,7 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
   if (sdk_remote_location.startswith('http://') or
       sdk_remote_location.startswith('https://')):
     logging.info(
-        'Staging Dataflow SDK tarball from %s to %s',
+        'Staging Beam SDK tarball from %s to %s',
         sdk_remote_location, staged_path)
     local_download_file = _dependency_file_download(
         sdk_remote_location, temp_dir)
@@ -436,7 +457,7 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
   elif sdk_remote_location.startswith('gs://'):
     # Stage the file to the GCS staging area.
     logging.info(
-        'Staging Dataflow SDK tarball from %s to %s',
+        'Staging Beam SDK tarball from %s to %s',
         sdk_remote_location, staged_path)
     _dependency_file_copy(sdk_remote_location, staged_path)
   elif sdk_remote_location == 'pypi':
@@ -449,7 +470,9 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
 
 
 def get_required_container_version():
-  """Returns the Google Cloud Dataflow container version for remote execution.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the Google Cloud Dataflow container version for remote execution.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
@@ -469,22 +492,24 @@ def get_required_container_version():
 
 
 def get_sdk_name_and_version():
-  """Returns name and version of SDK reported to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return ('Apache Beam SDK for Python', beam_version.__version__)
-  else:
-    return ('Google Cloud Dataflow SDK for Python', container_version)
+  return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def get_sdk_package_name():
-  """Returns the PyPI package name to be staged to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the PyPI package name to be staged to Google Cloud Dataflow."""
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME
-  else:
-    return GOOGLE_PACKAGE_NAME
+  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):

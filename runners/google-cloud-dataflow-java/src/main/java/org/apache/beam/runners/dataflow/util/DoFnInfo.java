@@ -21,9 +21,9 @@ import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Wrapper class holding the necessary information to serialize a {@link DoFn}.
@@ -53,18 +53,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
   }
 
-  /** TODO: remove this when Dataflow worker uses the DoFn overload. */
-  @Deprecated
-  @SuppressWarnings("unchecked")
-  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
-      Serializable doFn,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Iterable<PCollectionView<?>> sideInputViews,
-      Coder<InputT> inputCoder,
-      long mainOutput,
-      Map<Long, TupleTag<?>> outputMap) {
-    return forFn(
-        (DoFn<InputT, OutputT>) doFn,
+  public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
+    return DoFnInfo.forFn(newFn,
         windowingStrategy,
         sideInputViews,
         inputCoder,
@@ -85,12 +75,6 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.inputCoder = inputCoder;
     this.mainOutput = mainOutput;
     this.outputMap = outputMap;
-  }
-
-  /** TODO: remove this when Dataflow worker uses {@link #getDoFn}. */
-  @Deprecated
-  public Serializable getFn() {
-    return doFn;
   }
 
   /** Returns the embedded function. */

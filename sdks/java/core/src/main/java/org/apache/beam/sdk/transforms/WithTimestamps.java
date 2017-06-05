@@ -45,10 +45,16 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * each element is output with a timestamp obtained as the result of {@code fn.apply(v)}.
    *
    * <p>If the input {@link PCollection} elements have timestamps, the output timestamp for each
-   * element must not be before the input element's timestamp minus the value of
-   * {@link #getAllowedTimestampSkew()}. If an output timestamp is before this time, the transform
-   * will throw an {@link IllegalArgumentException} when executed. Use
-   * {@link #withAllowedTimestampSkew(Duration)} to update the allowed skew.
+   * element must not be before the input element's timestamp minus the value of {@link
+   * #getAllowedTimestampSkew()}. If an output timestamp is before this time, the transform will
+   * throw an {@link IllegalArgumentException} when executed. Use {@link
+   * #withAllowedTimestampSkew(Duration)} to update the allowed skew.
+   *
+   * <p>CAUTION: Use of {@link #withAllowedTimestampSkew(Duration)} permits elements to be emitted
+   * behind the watermark. These elements are considered late, and if behind the {@link
+   * Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   * {@link PCollection} may be silently dropped. See https://issues.apache.org/jira/browse/BEAM-644
+   * for details on a replacement.
    *
    * <p>Each output element will be in the same windows as the input element. If a new window based
    * on the new output timestamp is desired, apply a new instance of {@link Window#into(WindowFn)}.
@@ -82,7 +88,13 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    *
    * <p>The default value is {@code Duration.ZERO}, allowing timestamps to only be shifted into the
    * future. For infinite skew, use {@code new Duration(Long.MAX_VALUE)}.
+   * @deprecated This method permits a to elements to be emitted behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */
+  @Deprecated
   public WithTimestamps<T> withAllowedTimestampSkew(Duration allowedTimestampSkew) {
     return new WithTimestamps<>(this.fn, allowedTimestampSkew);
   }
@@ -92,7 +104,13 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * duration that timestamps can be shifted backwards from the timestamp of the input element.
    *
    * @see DoFn#getAllowedTimestampSkew()
+   * @deprecated This method permits a to elements to be emitted behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return allowedTimestampSkew;
   }

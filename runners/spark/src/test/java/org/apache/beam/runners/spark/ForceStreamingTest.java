@@ -46,19 +46,22 @@ public class ForceStreamingTest {
 
   @Test
   public void test() throws IOException {
-    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    TestSparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
     options.setRunner(TestSparkRunner.class);
-    // force streaming.
     options.setForceStreaming(true);
 
+    // pipeline with a bounded read.
     Pipeline pipeline = Pipeline.create(options);
 
     // apply the BoundedReadFromUnboundedSource.
-    @SuppressWarnings("unchecked")
-    BoundedReadFromUnboundedSource boundedRead =
+    BoundedReadFromUnboundedSource<?> boundedRead =
         Read.from(CountingSource.unbounded()).withMaxNumRecords(-1);
-    //noinspection unchecked
     pipeline.apply(boundedRead);
+
+    // adapt reads
+    TestSparkRunner runner = TestSparkRunner.fromOptions(options);
+    runner.adaptBoundedReads(pipeline);
 
     UnboundedReadDetector unboundedReadDetector = new UnboundedReadDetector();
     pipeline.traverseTopologically(unboundedReadDetector);
@@ -77,7 +80,7 @@ public class ForceStreamingTest {
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      if (transformClass == Read.Unbounded.class) {
+      if (Read.Unbounded.class.equals(transformClass)) {
         isUnbounded = true;
       }
     }

@@ -30,10 +30,11 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import Counter, Distribution
 from apache_beam.metrics.metricbase import MetricName
 
+__all__ = ['Metrics', 'MetricsFilter']
+
 
 class Metrics(object):
-  """Lets users create/access metric objects during pipeline execution.
-  """
+  """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
   def get_namespace(namespace):
     if inspect.isclass(namespace):
@@ -93,17 +94,52 @@ class Metrics(object):
 
 
 class MetricResults(object):
+
+  @staticmethod
+  def _matches_name(filter, metric_key):
+    if not filter.names and not filter.namespaces:
+      return True
+
+    if ((filter.namespaces and
+         metric_key.metric.namespace in filter.namespaces) or
+        (filter.names and
+         metric_key.metric.name in filter.names)):
+      return True
+    return False
+
+  @staticmethod
+  def _matches_sub_path(actual_scope, filter_scope):
+    start_pos = actual_scope.find(filter_scope)
+    end_pos = start_pos + len(filter_scope)
+
+    if start_pos == -1:
+      return False  # No match at all
+    elif start_pos != 0 and actual_scope[start_pos - 1] != '/':
+      return False  # The first entry was not exactly matched
+    elif end_pos != len(actual_scope) and actual_scope[end_pos] != '/':
+      return False  # The last entry was not exactly matched
+    return True
+
+  @staticmethod
+  def _matches_scope(filter, metric_key):
+    if not filter.steps:
+      return True
+
+    for step in filter.steps:
+      if MetricResults._matches_sub_path(metric_key.step, step):
+        return True
+
+    return False
+
   @staticmethod
   def matches(filter, metric_key):
     if filter is None:
       return True
 
-    if (metric_key.step in filter.steps and
-        metric_key.metric.namespace in filter.namespaces and
-        metric_key.metric.name in filter.names):
+    if (MetricResults._matches_name(filter, metric_key) and
+        MetricResults._matches_scope(filter, metric_key)):
       return True
-    else:
-      return False
+    return False
 
   def query(self, filter=None):
     raise NotImplementedError
@@ -111,6 +147,8 @@ class MetricResults(object):
 
 class MetricsFilter(object):
   """Simple object to filter metrics results.
+
+  This class is experimental. No backwards-compatibility guarantees.
 
   If filters by matching a result's step-namespace-name with three internal
   sets. No execution/matching logic is added to this object, so that it may
@@ -139,9 +177,9 @@ class MetricsFilter(object):
 
   def with_names(self, names):
     if isinstance(names, str):
-      raise ValueError('Names must be an iterable, not a string')
+      raise ValueError('Names must be a collection, not a string')
 
-    self._steps.update(names)
+    self._names.update(names)
     return self
 
   def with_namespace(self, namespace):
@@ -158,7 +196,7 @@ class MetricsFilter(object):
     return self.with_steps([step])
 
   def with_steps(self, steps):
-    if isinstance(namespaces, str):
+    if isinstance(steps, str):
       raise ValueError('Steps must be an iterable, not a string')
 
     self._steps.update(steps)

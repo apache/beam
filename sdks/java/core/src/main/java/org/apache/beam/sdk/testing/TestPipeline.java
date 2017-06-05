@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.TreeNode;
@@ -40,15 +42,17 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -59,7 +63,7 @@ import org.junit.runners.model.Statement;
  * locally or against a remote pipeline runner.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the {@link
- * RunnableOnService} {@link Category} annotation, as each test run against a pipeline runner will
+ * ValidatesRunner} {@link Category} annotation, as each test run against a pipeline runner will
  * utilize resources of that pipeline runner.
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
@@ -68,7 +72,7 @@ import org.junit.runners.model.Statement;
  * <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
  *     options. For example:
  *     <pre>{@code [
- *     "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+ *     "--runner=TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>
@@ -99,6 +103,8 @@ import org.junit.runners.model.Statement;
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
+  private final PipelineOptions options;
+
   private static class PipelineRunEnforcement {
 
     @SuppressWarnings("WeakerAccess")
@@ -106,7 +112,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     protected final Pipeline pipeline;
 
-    private boolean runInvoked;
+    protected boolean runAttempted;
 
     private PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
@@ -116,12 +122,14 @@ public class TestPipeline extends Pipeline implements TestRule {
       enableAutoRunIfMissing = enable;
     }
 
-    protected void afterPipelineExecution() {
-      runInvoked = true;
+    protected void beforePipelineExecution() {
+      runAttempted = true;
     }
 
-    protected void afterTestCompletion() {
-      if (!runInvoked && enableAutoRunIfMissing) {
+    protected void afterPipelineExecution() {}
+
+    protected void afterUserCodeFinished() {
+      if (!runAttempted && enableAutoRunIfMissing) {
         pipeline.run().waitUntilFinish();
       }
     }
@@ -174,25 +182,33 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     private void verifyPipelineExecution() {
-      final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
-      if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
-        final boolean hasDanglingPAssert =
-            FluentIterable.from(pipelineNodes)
-                .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                .anyMatch(isPAssertNode);
-        if (hasDanglingPAssert) {
-          throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+      if (!isEmptyPipeline(pipeline)) {
+        if (!runAttempted && !enableAutoRunIfMissing) {
+          throw new PipelineRunMissingException("The pipeline has not been run.");
+
         } else {
-          throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
-        }
-      } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        if (!isEmptyPipeline(pipeline)) {
-          throw new PipelineRunMissingException(
-              "The pipeline has not been run (runner: "
-                  + pipeline.getOptions().getRunner().getSimpleName()
-                  + ")");
+          final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
+          if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
+            final boolean hasDanglingPAssert =
+                FluentIterable.from(pipelineNodes)
+                    .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                    .anyMatch(isPAssertNode);
+            if (hasDanglingPAssert) {
+              throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+            } else {
+              throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
+            }
+          }
         }
       }
+    }
+
+    private boolean visitedAll(final List<TransformHierarchy.Node> pipelineNodes) {
+      return runVisitedNodes.equals(pipelineNodes);
+    }
+
+    private boolean pipelineRunSucceeded() {
+      return runVisitedNodes != null;
     }
 
     @Override
@@ -202,8 +218,8 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     @Override
-    protected void afterTestCompletion() {
-      super.afterTestCompletion();
+    protected void afterUserCodeFinished() {
+      super.afterUserCodeFinished();
       verifyPipelineExecution();
     }
   }
@@ -227,9 +243,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+  /** System property used to set {@link TestPipelineOptions}. */
+  public static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
@@ -245,12 +265,16 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   public static TestPipeline fromOptions(PipelineOptions options) {
-    return new TestPipeline(PipelineRunner.fromOptions(options), options);
+    return new TestPipeline(options);
   }
 
-  private TestPipeline(
-      final PipelineRunner<? extends PipelineResult> runner, final PipelineOptions options) {
-    super(runner, options);
+  private TestPipeline(final PipelineOptions options) {
+    super(options);
+    this.options = options;
+  }
+
+  public PipelineOptions getOptions() {
+    return this.options;
   }
 
   @Override
@@ -267,14 +291,14 @@ public class TestPipeline extends Pipeline implements TestRule {
                   .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
 
           final boolean crashingRunner =
-              CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+              CrashingRunner.class.isAssignableFrom(options.getRunner());
 
           checkState(
               !(annotatedWithNeedsRunner && crashingRunner),
               "The test was annotated with a [@%s] / [@%s] while the runner "
                   + "was set to [%s]. Please re-check your configuration.",
               NeedsRunner.class.getSimpleName(),
-              RunnableOnService.class.getSimpleName(),
+              ValidatesRunner.class.getSimpleName(),
               CrashingRunner.class.getSimpleName());
 
           enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
@@ -283,9 +307,19 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       @Override
       public void evaluate() throws Throwable {
+
         setDeducedEnforcementLevel();
+
+        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
+        // Exceptions thrown during the execution of the user's test code will propagate here,
+        // unless the user explicitly handles them with a "catch" clause in his code. If the
+        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // we move on to invoking the configured enforcements.
+        // If the user does not handle a thrown exception, it will propagate here and interrupt
+        // the flow, preventing the enforcement(s) from being activated.
+        // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.get().afterTestCompletion();
+        enforcement.get().afterUserCodeFinished();
       }
     };
   }
@@ -294,15 +328,17 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError} that is raised during
    * testing.
    */
-  @Override
   public PipelineResult run() {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-        + "@Rule public final transient TestPipeline pipeline = TestPipeline.Create();");
+            + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
+    final PipelineResult pipelineResult;
     try {
-      return super.run();
+      enforcement.get().beforePipelineExecution();
+      pipelineResult = super.run();
+      verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -310,9 +346,12 @@ public class TestPipeline extends Pipeline implements TestRule {
       } else {
         throw exc;
       }
-    } finally {
-      enforcement.get().afterPipelineExecution();
     }
+
+    // If we reach this point, the pipeline has been run and no exceptions have been thrown during
+    // its execution.
+    enforcement.get().afterPipelineExecution();
+    return pipelineResult;
   }
 
   /**
@@ -324,7 +363,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    * <li>Addition of PTransforms after the pipeline has already run.
    * </ul>
    * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
-   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link RunnableOnService} annotation
+   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link ValidatesRunner} annotation
    * are detected.
    */
   public TestPipeline enableAbandonedNodeEnforcement(final boolean enable) {
@@ -347,7 +386,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   @Override
   public String toString() {
-    return "TestPipeline#" + getOptions().as(ApplicationNameOptions.class).getAppName();
+    return "TestPipeline#" + options.as(ApplicationNameOptions.class).getAppName();
   }
 
   /** Creates {@link PipelineOptions} for testing. */
@@ -360,8 +399,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
-                      MAPPER.readValue(beamTestPipelineOptions, String[].class))
-                  .as(TestPipelineOptions.class);
+              MAPPER.readValue(beamTestPipelineOptions, String[].class))
+              .as(TestPipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, set some reasonable defaults
@@ -371,11 +410,10 @@ public class TestPipeline extends Pipeline implements TestRule {
         if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
           options.setRunner(CrashingRunner.class);
         }
-        options.as(GcpOptions.class).setGcpCredential(new TestCredential());
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
-      IOChannelUtils.registerIOFactoriesAllowOverride(options);
+      FileSystems.setDefaultPipelineOptions(options);
       return options;
     } catch (IOException e) {
       throw new RuntimeException(
@@ -398,7 +436,9 @@ public class TestPipeline extends Pipeline implements TestRule {
       Iterator<Entry<String, JsonNode>> entries = optsNode.fields();
       while (entries.hasNext()) {
         Entry<String, JsonNode> entry = entries.next();
-        if (entry.getValue().isTextual()) {
+        if (entry.getValue().isNull()) {
+          continue;
+        } else if (entry.getValue().isTextual()) {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
         } else {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
@@ -460,6 +500,35 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
     return firstInstanceAfterTestPipeline;
+  }
+
+  /**
+   * Verifies all {{@link PAssert PAsserts}} in the pipeline have been executed and were successful.
+   *
+   * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
+   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
+   */
+  public static void verifyPAssertsSucceeded(Pipeline pipeline, PipelineResult pipelineResult) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      long expectedNumberOfAssertions = (long) PAssert.countAsserts(pipeline);
+
+      long successfulAssertions = 0;
+      Iterable<MetricResult<Long>> successCounterResults =
+          pipelineResult.metrics().queryMetrics(
+              MetricsFilter.builder()
+                  .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+                  .build())
+              .counters();
+      for (MetricResult<Long> counter : successCounterResults) {
+        if (counter.attempted() > 0) {
+          successfulAssertions++;
+        }
+      }
+
+      assertThat(String
+          .format("Expected %d successful assertions, but found %d.", expectedNumberOfAssertions,
+              successfulAssertions), successfulAssertions, is(expectedNumberOfAssertions));
+    }
   }
 
   private static class IsEmptyVisitor extends PipelineVisitor.Defaults {

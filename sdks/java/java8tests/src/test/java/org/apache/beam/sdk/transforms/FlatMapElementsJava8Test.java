@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -52,8 +52,8 @@ public class FlatMapElementsJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(FlatMapElements
             // Note that the input type annotation is required.
-            .via((Integer i) -> ImmutableList.of(i, -i))
-            .withOutputType(new TypeDescriptor<Integer>() {}));
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> ImmutableList.of(i, -i)));
 
     PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();
@@ -69,8 +69,8 @@ public class FlatMapElementsJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(FlatMapElements
             // Note that the input type annotation is required.
-            .via(new Negater()::numAndNegation)
-            .withOutputType(new TypeDescriptor<Integer>() {}));
+            .into(TypeDescriptors.integers())
+            .via(new Negater()::numAndNegation));
 
     PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();

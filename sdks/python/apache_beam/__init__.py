@@ -17,7 +17,7 @@
 
 """Apache Beam SDK for Python.
 
-Apache Beam <http://cloud.google.com/dataflow/>
+Apache Beam <https://beam.apache.org/>
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
@@ -66,10 +66,10 @@ The examples subdirectory has some examples.
 import sys
 
 
-if sys.version_info.major != 2:
+if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
   raise RuntimeError(
-      'Dataflow SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python [%s].' % sys.version)
+      'The Apache Beam SDK for Python is supported only on Python 2.7. '
+      'It is not supported on Python ['+ str(sys.version_info) + '].')
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
@@ -77,6 +77,9 @@ import apache_beam.internal.pickler
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import typehints
+from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
 # pylint: enable=wrong-import-position
+
+__version__ = version.__version__

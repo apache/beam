@@ -24,6 +24,21 @@ from apache_beam.utils.annotations import experimental
 class AnnotationTests(unittest.TestCase):
   # Note: use different names for each of the the functions decorated
   # so that a warning is produced for each of them.
+  def test_deprecated_with_since_current_message(self):
+    with warnings.catch_warnings(record=True) as w:
+      @deprecated(since='v.1', current='multiply', extra_message='Do this')
+      def fnc_test_deprecated_with_since_current_message():
+        return 'lol'
+      fnc_test_deprecated_with_since_current_message()
+      self.check_annotation(
+          warning=w, warning_size=1,
+          warning_type=DeprecationWarning,
+          fnc_name='fnc_test_deprecated_with_since_current_message',
+          annotation_type='deprecated',
+          label_check_list=[('since', True),
+                            ('instead', True),
+                            ('Do this', True)])
+
   def test_deprecated_with_since_current(self):
     with warnings.catch_warnings(record=True) as w:
       @deprecated(since='v.1', current='multiply')
@@ -58,7 +73,21 @@ class AnnotationTests(unittest.TestCase):
         def fnc_test_deprecated_without_since_should_fail():
           return 'lol'
         fnc_test_deprecated_without_since_should_fail()
-      assert len(w) == 0
+      assert not w
+
+  def test_experimental_with_current_message(self):
+    with warnings.catch_warnings(record=True) as w:
+      @experimental(current='multiply', extra_message='Do this')
+      def fnc_test_experimental_with_current_message():
+        return 'lol'
+      fnc_test_experimental_with_current_message()
+      self.check_annotation(
+          warning=w, warning_size=1,
+          warning_type=FutureWarning,
+          fnc_name='fnc_test_experimental_with_current_message',
+          annotation_type='experimental',
+          label_check_list=[('instead', True),
+                            ('Do this', True)])
 
   def test_experimental_with_current(self):
     with warnings.catch_warnings(record=True) as w:

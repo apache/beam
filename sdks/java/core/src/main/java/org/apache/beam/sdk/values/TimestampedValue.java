@@ -17,22 +17,19 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.joda.time.Instant;
 
 /**
@@ -88,25 +85,13 @@ public class TimestampedValue<V> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@link Coder} for {@link TimestampedValue}.
-   */
-  public static class TimestampedValueCoder<T>
-      extends StandardCoder<TimestampedValue<T>> {
+  /** A {@link Coder} for {@link TimestampedValue}. */
+  public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
     private final Coder<T> valueCoder;
 
     public static <T> TimestampedValueCoder<T> of(Coder<T> valueCoder) {
       return new TimestampedValueCoder<>(valueCoder);
-    }
-
-    @JsonCreator
-    public static TimestampedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1,
-                    "Expecting 1 component, got " + components.size());
-      return of(components.get(0));
     }
 
     @SuppressWarnings("unchecked")
@@ -116,27 +101,25 @@ public class TimestampedValue<V> {
 
     @Override
     public void encode(TimestampedValue<T> windowedElem,
-                       OutputStream outStream,
-                       Context context)
+                       OutputStream outStream)
         throws IOException {
-      valueCoder.encode(windowedElem.getValue(), outStream, context.nested());
+      valueCoder.encode(windowedElem.getValue(), outStream);
       InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream, context);
+          windowedElem.getTimestamp(), outStream);
     }
 
     @Override
-    public TimestampedValue<T> decode(InputStream inStream, Context context)
+    public TimestampedValue<T> decode(InputStream inStream)
         throws IOException {
-      T value = valueCoder.decode(inStream, context.nested());
-      Instant timestamp = InstantCoder.of().decode(inStream, context);
+      T value = valueCoder.decode(inStream);
+      Instant timestamp = InstantCoder.of().decode(inStream);
       return TimestampedValue.of(value, timestamp);
     }
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          "TimestampedValueCoder requires a deterministic valueCoder",
-          valueCoder);
+          this, "TimestampedValueCoder requires a deterministic valueCoder", valueCoder);
     }
 
     @Override
@@ -148,14 +131,15 @@ public class TimestampedValue<V> {
       return valueCoder;
     }
 
-    public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
-      return Arrays.<Object>asList(exampleValue.getValue());
-    }
-
     @Override
     public TypeDescriptor<TimestampedValue<T>> getEncodedTypeDescriptor() {
       return new TypeDescriptor<TimestampedValue<T>>() {}.where(
           new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
     }
   }
 

@@ -18,13 +18,14 @@
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * A primitive {@link PTransform} that implements the {@link Window#into(WindowFn)}
@@ -42,13 +43,13 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <T> the type of input element
  */
 class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
-  private final Window.Bound<T> transform;
+  private final Window<T> transform;
 
   /**
    * Builds an instance of this class from the overriden transform.
    */
   @SuppressWarnings("unused") // Used via reflection
-  public AssignWindows(Window.Bound<T> transform) {
+  public AssignWindows(Window<T> transform) {
     this.transform = transform;
   }
 
@@ -73,8 +74,8 @@ class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   @Override
-  public void validate(PCollection<T> input) {
-    transform.validate(input);
+  public void validate(PipelineOptions options) {
+    transform.validate(options);
   }
 
   @Override

@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,12 +28,11 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SetCoder;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -61,7 +61,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
    * be keep locally but if side inputs are broadcast to all parallel operators then all will
    * have the same view of the state.
    */
-  private final StateInternals<Void> stateInternals;
+  private final StateInternals stateInternals;
 
   /**
    * A state tag for each side input that we handle. The state is used to track
@@ -70,18 +70,17 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   private final Map<
       PCollectionView<?>,
       StateTag<
-          Object,
-          AccumulatorCombiningState<
-              BoundedWindow,
-              Set<BoundedWindow>,
-              Set<BoundedWindow>>>> availableWindowsTags;
+          CombiningState<
+                        BoundedWindow,
+                        Set<BoundedWindow>,
+                        Set<BoundedWindow>>>> availableWindowsTags;
 
   /**
    * State tag for the actual contents of each side input per window.
    */
   private final Map<
       PCollectionView<?>,
-      StateTag<Object, ValueState<Iterable<WindowedValue<?>>>>> sideInputContentsTags;
+      StateTag<ValueState<Iterable<WindowedValue<?>>>>> sideInputContentsTags;
 
   /**
    * Creates a new {@code SideInputHandler} for the given side inputs that uses
@@ -89,7 +88,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
    */
   public SideInputHandler(
       Collection<PCollectionView<?>> sideInputs,
-      StateInternals<Void> stateInternals) {
+      StateInternals stateInternals) {
     this.sideInputs = sideInputs;
     this.stateInternals = stateInternals;
     this.availableWindowsTags = new HashMap<>();
@@ -105,11 +104,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
               .windowCoder();
 
       StateTag<
-          Object,
-          AccumulatorCombiningState<
-              BoundedWindow,
-              Set<BoundedWindow>,
-              Set<BoundedWindow>>> availableTag = StateTags.combiningValue(
+          CombiningState<
+                        BoundedWindow,
+                        Set<BoundedWindow>,
+                        Set<BoundedWindow>>> availableTag = StateTags.combiningValue(
           "side-input-available-windows-" + sideInput.getTagInternal().getId(),
           SetCoder.of(windowCoder),
           new WindowSetCombineFn());
@@ -117,7 +115,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
       availableWindowsTags.put(sideInput, availableTag);
 
       Coder<Iterable<WindowedValue<?>>> coder = sideInput.getCoderInternal();
-      StateTag<Object, ValueState<Iterable<WindowedValue<?>>>> stateTag =
+      StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
           StateTags.value("side-input-data-" + sideInput.getTagInternal().getId(), coder);
       sideInputContentsTags.put(sideInput, stateTag);
     }
@@ -145,7 +143,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
       inputWithReifiedWindows.add(value.withValue(e));
     }
 
-    StateTag<Object, ValueState<Iterable<WindowedValue<?>>>> stateTag =
+    StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
         sideInputContentsTags.get(sideInput);
 
     for (BoundedWindow window: value.getWindows()) {
@@ -163,11 +161,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Override
   public <T> T get(PCollectionView<T> sideInput, BoundedWindow window) {
 
-    if (!isReady(sideInput, window)) {
-      throw new IllegalStateException(
-          "Side input " + sideInput + " is not ready for window " + window);
-    }
-
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) sideInput
@@ -175,13 +168,17 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
             .getWindowFn()
             .windowCoder();
 
-    StateTag<Object, ValueState<Iterable<WindowedValue<?>>>> stateTag =
+    StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
         sideInputContentsTags.get(sideInput);
 
     ValueState<Iterable<WindowedValue<?>>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
     Iterable<WindowedValue<?>> elements = state.read();
+
+    if (elements == null) {
+      elements = Collections.emptyList();
+    }
 
     return sideInput.getViewFn().apply(elements);
   }

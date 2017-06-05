@@ -25,8 +25,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -76,7 +76,7 @@ public class WindowingTest implements Serializable {
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply("Window",
               Window.<String>into(windowFn)
-                  .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
+                  .withTimestampCombiner(TimestampCombiner.EARLIEST))
           .apply(Count.<String>perElement())
           .apply("FormatCounts", ParDo.of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
@@ -89,7 +89,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPartitioningWindowing() {
     PCollection<String> input =
         p.apply(
@@ -114,7 +114,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testNonPartitioningWindowing() {
     PCollection<String> input =
         p.apply(
@@ -139,7 +139,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMergingWindowing() {
     PCollection<String> input =
         p.apply(
@@ -160,7 +160,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowPreservation() {
     PCollection<String> input1 = p.apply("Create12",
         Create.timestamped(
@@ -215,7 +215,7 @@ public class WindowingTest implements Serializable {
     }
 
     PCollection<String> output = p.begin()
-        .apply("ReadLines", TextIO.Read.from(filename))
+        .apply("ReadLines", TextIO.read().from(filename))
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
         .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 

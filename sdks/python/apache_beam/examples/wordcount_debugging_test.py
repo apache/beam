@@ -54,6 +54,7 @@ class WordCountTest(unittest.TestCase):
     results = self.get_results(temp_path)
     self.assertEqual(sorted(results), sorted(expected_words))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

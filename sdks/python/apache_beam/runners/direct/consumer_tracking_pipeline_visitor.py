@@ -24,7 +24,9 @@ from apache_beam.pipeline import PipelineVisitor
 
 
 class ConsumerTrackingPipelineVisitor(PipelineVisitor):
-  """Visitor for extracting value-consumer relations from the graph.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Visitor for extracting value-consumer relations from the graph.
 
   Tracks the AppliedPTransforms that consume each PValue in the Pipeline. This
   is used to schedule consuming PTransforms to consume input after the upstream
@@ -34,18 +36,13 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   def __init__(self):
     self.value_to_consumers = {}  # Map from PValue to [AppliedPTransform].
     self.root_transforms = set()  # set of (root) AppliedPTransforms.
-    self.views = []               # list of PCollectionViews.
+    self.views = []               # list of side inputs.
     self.step_names = {}          # Map from AppliedPTransform to String.
 
     self._num_transforms = 0
 
-  def visit_value(self, value, producer_node):
-    if value:
-      if isinstance(value, pvalue.PCollectionView):
-        self.views.append(value)
-
   def visit_transform(self, applied_ptransform):
-    inputs = applied_ptransform.inputs
+    inputs = list(applied_ptransform.inputs)
     if inputs:
       for input_value in inputs:
         if isinstance(input_value, pvalue.PBegin):
@@ -57,3 +54,5 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
       self.root_transforms.add(applied_ptransform)
     self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
     self._num_transforms += 1
+    for side_input in applied_ptransform.side_inputs:
+      self.views.append(side_input)

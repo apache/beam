@@ -15,13 +15,18 @@
 # limitations under the License.
 #
 
-"""Collection of useful coders."""
+"""Collection of useful coders.
+
+Only those coders listed in __all__ are part of the public API of this module.
+"""
 
 import base64
 import cPickle as pickle
 import google.protobuf
 
 from apache_beam.coders import coder_impl
+from apache_beam.utils import urns
+from apache_beam.utils import proto_utils
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -41,6 +46,13 @@ except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
+
+
+__all__ = ['Coder',
+           'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
+           'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
+           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
 def serialize_coder(coder):
@@ -114,6 +126,10 @@ class Coder(object):
                                         self.estimate_size)
 
   def get_impl(self):
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the CoderImpl backing this Coder.
+    """
     if not hasattr(self, '_impl'):
       self._impl = self._create_impl()
       assert isinstance(self._impl, coder_impl.CoderImpl)
@@ -127,8 +143,7 @@ class Coder(object):
       d = dict(self.__dict__)
       del d['_impl']
       return d
-    else:
-      return self.__dict__
+    return self.__dict__
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -151,13 +166,17 @@ class Coder(object):
       raise ValueError('Not a KV coder: %s.' % self)
 
   def _get_component_coders(self):
-    """Returns the internal component coders of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the internal component coders of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
     return []
 
   def as_cloud_object(self):
-    """Returns Google Cloud Dataflow API description of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns Google Cloud Dataflow API description of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
 
@@ -182,6 +201,28 @@ class Coder(object):
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
+  def to_runner_api(self, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
+    # TODO(BEAM-115): Use specialized URNs and components.
+    from apache_beam.runners.api import beam_runner_api_pb2
+    return beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=urns.PICKLED_CODER,
+                parameter=proto_utils.pack_Any(
+                    google.protobuf.wrappers_pb2.BytesValue(
+                        value=serialize_coder(self))))))
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
+    any_proto = proto.spec.spec.parameter
+    bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
+    any_proto.Unpack(bytes_proto)
+    return deserialize_coder(bytes_proto.value)
+
 
 class StrUtf8Coder(Coder):
   """A coder used for reading and writing strings as UTF-8."""
@@ -204,8 +245,7 @@ class ToStringCoder(Coder):
       return value.encode('utf-8')
     elif isinstance(value, str):
       return value
-    else:
-      return str(value)
+    return str(value)
 
   def decode(self, _):
     raise NotImplementedError('ToStringCoder cannot be used for decoding.')
@@ -246,6 +286,12 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
@@ -255,6 +301,12 @@ class VarIntCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class FloatCoder(FastCoder):
@@ -266,6 +318,12 @@ class FloatCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
@@ -275,6 +333,12 @@ class TimestampCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class SingletonCoder(FastCoder):
@@ -289,13 +353,19 @@ class SingletonCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def __eq__(self, other):
+    return type(self) == type(other) and self._value == other._value
+
+  def __hash__(self):
+    return hash(self._value)
+
 
 def maybe_dill_dumps(o):
   """Pickle using cPickle or the Dill pickler as a fallback."""
   # We need to use the dill pickler for objects of certain custom classes,
   # including, for example, ones that contain lambdas.
   try:
-    return pickle.dumps(o)
+    return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
     return dill.dumps(o)
 
@@ -345,12 +415,21 @@ class _PickleCoderBase(FastCoder):
   def value_coder(self):
     return self
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
 
   def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
+    dumps = pickle.dumps
+    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    return coder_impl.CallbackCoderImpl(
+        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
 
 
 class DillCoder(_PickleCoderBase):
@@ -426,6 +505,12 @@ class FastPrimitivesCoder(FastCoder):
   def value_coder(self):
     return self
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class Base64PickleCoder(Coder):
   """Coder of objects by Python pickle, then base64 encoding."""
@@ -433,7 +518,7 @@ class Base64PickleCoder(Coder):
   # than via a special Coder.
 
   def encode(self, value):
-    return base64.b64encode(pickle.dumps(value))
+    return base64.b64encode(pickle.dumps(value, pickle.HIGHEST_PROTOCOL))
 
   def decode(self, encoded):
     return pickle.loads(base64.b64decode(encoded))
@@ -482,6 +567,13 @@ class ProtoCoder(FastCoder):
     # TODO(vikasrk): A proto message can be deterministic if it does not contain
     # a Map.
     return False
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.proto_message_type == other.proto_message_type)
+
+  def __hash__(self):
+    return hash(self.proto_message_type)
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
@@ -543,6 +635,13 @@ class TupleCoder(FastCoder):
   def __repr__(self):
     return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._coders)
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._coders == self._coders)
+
+  def __hash__(self):
+    return hash(self._coders)
+
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
@@ -565,6 +664,13 @@ class TupleSequenceCoder(FastCoder):
 
   def __repr__(self):
     return 'TupleSequenceCoder[%r]' % self._elem_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._elem_coder == self._elem_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._elem_coder))
 
 
 class IterableCoder(FastCoder):
@@ -599,21 +705,12 @@ class IterableCoder(FastCoder):
   def __repr__(self):
     return 'IterableCoder[%r]' % self._elem_coder
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._elem_coder == self._elem_coder)
 
-class WindowCoder(PickleCoder):
-  """Coder for windows in windowed values."""
-
-  def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
-
-  def is_deterministic(self):
-    # Note that WindowCoder as implemented is not deterministic because the
-    # implementation simply pickles windows.  See the corresponding comments
-    # on PickleCoder for more details.
-    return False
-
-  def as_cloud_object(self):
-    return super(WindowCoder, self).as_cloud_object(is_pair_like=False)
+  def __hash__(self):
+    return hash((type(self), self._elem_coder))
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -642,6 +739,12 @@ class IntervalWindowCoder(FastCoder):
     return {
         '@type': 'kind:interval_window',
     }
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class WindowedValueCoder(FastCoder):
@@ -689,9 +792,21 @@ class WindowedValueCoder(FastCoder):
   def __repr__(self):
     return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.wrapped_value_coder == other.wrapped_value_coder
+            and self.timestamp_coder == other.timestamp_coder
+            and self.window_coder == other.window_coder)
+
+  def __hash__(self):
+    return hash(
+        (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
+
 
 class LengthPrefixCoder(FastCoder):
-  """Coder which prefixes the length of the encoded object in the stream."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the length of the encoded object in the stream."""
 
   def __init__(self, value_coder):
     self._value_coder = value_coder
@@ -720,3 +835,10 @@ class LengthPrefixCoder(FastCoder):
 
   def __repr__(self):
     return 'LengthPrefixCoder[%r]' % self._value_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._value_coder))

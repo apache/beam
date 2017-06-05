@@ -52,8 +52,8 @@ from apache_beam.io import WriteToText
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 ONE_HOUR_IN_SECONDS = 3600
@@ -78,10 +78,6 @@ class ComputeSessions(beam.PTransform):
   A session is defined as a string of edits where each is separated from the
   next by less than an hour.
   """
-
-  def __init__(self):
-    super(ComputeSessions, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'ComputeSessionsWindow' >> beam.WindowInto(
@@ -91,10 +87,6 @@ class ComputeSessions(beam.PTransform):
 
 class TopPerMonth(beam.PTransform):
   """Computes the longest session ending in each month."""
-
-  def __init__(self):
-    super(TopPerMonth, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'TopPerMonthWindow' >> beam.WindowInto(
@@ -167,14 +159,12 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | ReadFromText(known_args.input)
-   | ComputeTopSessions(known_args.sampling_threshold)
-   | WriteToText(known_args.output))
-
-  p.run()
+    (p  # pylint: disable=expression-not-assigned
+     | ReadFromText(known_args.input)
+     | ComputeTopSessions(known_args.sampling_threshold)
+     | WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

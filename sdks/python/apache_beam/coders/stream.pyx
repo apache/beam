@@ -15,6 +15,11 @@
 # limitations under the License.
 #
 
+"""Compiled version of the Stream objects used by CoderImpl.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 cimport libc.stdlib
 cimport libc.string
 
@@ -25,9 +30,9 @@ cdef class OutputStream(object):
   #TODO(robertwb): Consider using raw C++ streams.
 
   def __cinit__(self):
-    self.size = 1024
+    self.buffer_size = 1024
     self.pos = 0
-    self.data = <char*>libc.stdlib.malloc(self.size)
+    self.data = <char*>libc.stdlib.malloc(self.buffer_size)
     assert self.data, "OutputStream malloc failed."
 
   def __dealloc__(self):
@@ -38,13 +43,13 @@ cdef class OutputStream(object):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
-    if self.size < self.pos + blen:
+    if self.buffer_size < self.pos + blen:
       self.extend(blen)
     libc.string.memcpy(self.data + self.pos, <char*>b, blen)
     self.pos += blen
 
   cpdef write_byte(self, unsigned char val):
-    if  self.size < self.pos + 1:
+    if  self.buffer_size < self.pos + 1:
       self.extend(1)
     self.data[self.pos] = val
     self.pos += 1
@@ -66,7 +71,7 @@ cdef class OutputStream(object):
     self.write_bigendian_uint64(signed_v)
 
   cpdef write_bigendian_uint64(self, libc.stdint.uint64_t v):
-    if  self.size < self.pos + 8:
+    if  self.buffer_size < self.pos + 8:
       self.extend(8)
     self.data[self.pos    ] = <unsigned char>(v >> 56)
     self.data[self.pos + 1] = <unsigned char>(v >> 48)
@@ -80,7 +85,7 @@ cdef class OutputStream(object):
 
   cpdef write_bigendian_int32(self, libc.stdint.int32_t signed_v):
     cdef libc.stdint.uint32_t v = signed_v
-    if  self.size < self.pos + 4:
+    if  self.buffer_size < self.pos + 4:
       self.extend(4)
     self.data[self.pos    ] = <unsigned char>(v >> 24)
     self.data[self.pos + 1] = <unsigned char>(v >> 16)
@@ -94,10 +99,13 @@ cdef class OutputStream(object):
   cpdef bytes get(self):
     return self.data[:self.pos]
 
+  cpdef size_t size(self) except? -1:
+    return self.pos
+
   cdef extend(self, size_t missing):
-    while missing > self.size - self.pos:
-      self.size *= 2
-    self.data = <char*>libc.stdlib.realloc(self.data, self.size)
+    while missing > self.buffer_size - self.pos:
+      self.buffer_size *= 2
+    self.data = <char*>libc.stdlib.realloc(self.data, self.buffer_size)
     assert self.data, "OutputStream realloc failed."
 
 

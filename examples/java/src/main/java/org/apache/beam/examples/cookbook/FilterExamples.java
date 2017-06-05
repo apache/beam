@@ -175,7 +175,6 @@ public class FilterExamples {
       // We'll only output readings with temperatures below this mean.
       PCollection<TableRow> filteredRows = monthFilteredRows
           .apply("ParseAndFilter", ParDo
-              .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
@@ -185,7 +184,7 @@ public class FilterExamples {
                     c.output(c.element());
                   }
                 }
-              }));
+              }).withSideInputs(globalMeanTemp));
 
       return filteredRows;
     }
@@ -238,10 +237,10 @@ public class FilterExamples {
 
     TableSchema schema = buildWeatherSchemaProjection();
 
-    p.apply(BigQueryIO.Read.from(options.getInput()))
+    p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(ParDo.of(new ProjectionFn()))
      .apply(new BelowGlobalMean(options.getMonthFilter()))
-     .apply(BigQueryIO.Write
+     .apply(BigQueryIO.writeTableRows()
         .to(options.getOutput())
         .withSchema(schema)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)

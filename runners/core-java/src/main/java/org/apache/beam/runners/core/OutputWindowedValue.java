@@ -25,7 +25,7 @@ import org.joda.time.Instant;
 
 /**
  * An object that can output a value with all of its windowing information to the main output or
- * a side output.
+ * any tagged output.
  */
 public interface OutputWindowedValue<OutputT> {
   /** Outputs a value with windowing information to the main output. */
@@ -35,10 +35,10 @@ public interface OutputWindowedValue<OutputT> {
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane);
 
-  /** Outputs a value with windowing information to a side output. */
-  <SideOutputT> void sideOutputWindowedValue(
-      TupleTag<SideOutputT> tag,
-      SideOutputT output,
+  /** Outputs a value with windowing information to a tagged output. */
+  <AdditionalOutputT> void outputWindowedValue(
+      TupleTag<AdditionalOutputT> tag,
+      AdditionalOutputT output,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane);

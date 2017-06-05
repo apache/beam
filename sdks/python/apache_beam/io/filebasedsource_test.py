@@ -29,20 +29,22 @@ import hamcrest as hc
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io.filesystem import CompressionTypes
 
 # importing following private classes for testing
 from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
 
 
 class LineSource(FileBasedSource):
@@ -115,10 +117,10 @@ def _write_prepared_data(data, directory=None,
 
 
 def write_prepared_pattern(data, suffixes=None):
+  assert data, 'Data (%s) seems to be empty' % data
   if suffixes is None:
     suffixes = [''] * len(data)
   temp_dir = tempfile.mkdtemp()
-  assert len(data) > 0
   for i, d in enumerate(data):
     file_name = _write_prepared_data(d, temp_dir, prefix='mytemp',
                                      suffix=suffixes[i])
@@ -220,6 +222,27 @@ class TestFileBasedSource(unittest.TestCase):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
+
+  def test_string_or_value_provider_only(self):
+    str_file_pattern = tempfile.NamedTemporaryFile(delete=False).name
+    self.assertEqual(str_file_pattern,
+                     FileBasedSource(str_file_pattern)._pattern.value)
+
+    static_vp_file_pattern = StaticValueProvider(value_type=str,
+                                                 value=str_file_pattern)
+    self.assertEqual(static_vp_file_pattern,
+                     FileBasedSource(static_vp_file_pattern)._pattern)
+
+    runtime_vp_file_pattern = RuntimeValueProvider(
+        option_name='arg',
+        value_type=str,
+        default_value=str_file_pattern)
+    self.assertEqual(runtime_vp_file_pattern,
+                     FileBasedSource(runtime_vp_file_pattern)._pattern)
+
+    invalid_file_pattern = 123
+    with self.assertRaises(TypeError):
+      FileBasedSource(invalid_file_pattern)
 
   def test_validation_file_exists(self):
     file_name, _ = write_data(10)
@@ -366,7 +389,7 @@ class TestFileBasedSource(unittest.TestCase):
 
   def _run_source_test(self, pattern, expected_data, splittable=True):
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         pattern, splittable=splittable))
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
@@ -406,10 +429,10 @@ class TestFileBasedSource(unittest.TestCase):
       f.write('\n'.join(lines))
 
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         filename,
         splittable=False,
-        compression_type=fileio.CompressionTypes.BZIP2))
+        compression_type=CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -421,10 +444,10 @@ class TestFileBasedSource(unittest.TestCase):
       f.write('\n'.join(lines))
 
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         filename,
         splittable=False,
-        compression_type=fileio.CompressionTypes.GZIP))
+        compression_type=CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -439,10 +462,10 @@ class TestFileBasedSource(unittest.TestCase):
           compressobj.compress('\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         file_pattern,
         splittable=False,
-        compression_type=fileio.CompressionTypes.BZIP2))
+        compression_type=CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -458,10 +481,10 @@ class TestFileBasedSource(unittest.TestCase):
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         file_pattern,
         splittable=False,
-        compression_type=fileio.CompressionTypes.GZIP))
+        compression_type=CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -473,9 +496,9 @@ class TestFileBasedSource(unittest.TestCase):
       f.write('\n'.join(lines))
 
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         filename,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -487,9 +510,9 @@ class TestFileBasedSource(unittest.TestCase):
       f.write('\n'.join(lines))
 
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         filename,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -506,9 +529,9 @@ class TestFileBasedSource(unittest.TestCase):
     file_pattern = write_prepared_pattern(
         compressed_chunks, suffixes=['.gz']*len(chunks))
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         file_pattern,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -528,9 +551,9 @@ class TestFileBasedSource(unittest.TestCase):
     file_pattern = write_prepared_pattern(chunks_to_write,
                                           suffixes=(['.gz', '']*3))
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
         file_pattern,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -702,6 +725,7 @@ class TestSingleFileSource(unittest.TestCase):
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
     self.assertItemsEqual(expected_data[2:9], read_data)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

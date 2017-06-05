@@ -46,6 +46,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -54,17 +56,24 @@ import org.apache.beam.sdk.io.CompressedSource.CompressedReader;
 import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.CompressedSource.DecompressingChannelFactory;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -118,6 +127,18 @@ public class CompressedSourceTest {
     source = CompressedSource.from(new ByteSource("input.BZ2", 1));
     assertFalse(source.isSplittable());
 
+    // ZIP files are not splittable
+    source = CompressedSource.from(new ByteSource("input.zip", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.ZIP", 1));
+    assertFalse(source.isSplittable());
+
+    // DEFLATE files are not splittable
+    source = CompressedSource.from(new ByteSource("input.deflate", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.DEFLATE", 1));
+    assertFalse(source.isSplittable());
+
     // Other extensions are assumed to be splittable.
     source = CompressedSource.from(new ByteSource("input.txt", 1));
     assertTrue(source.isSplittable());
@@ -157,6 +178,26 @@ public class CompressedSourceTest {
   public void testReadBzip2() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.BZIP2);
+  }
+
+  /**
+   * Test reading nonempty input with zip.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadZip() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.ZIP);
+  }
+
+  /**
+   * Test reading nonempty input with deflate.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadDeflate() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.DEFLATE);
   }
 
   /**
@@ -445,9 +486,46 @@ public class CompressedSourceTest {
         return new GzipCompressorOutputStream(stream);
       case BZIP2:
         return new BZip2CompressorOutputStream(stream);
+      case ZIP:
+        return new TestZipOutputStream(stream);
+      case DEFLATE:
+        return new DeflateCompressorOutputStream(stream);
       default:
         throw new RuntimeException("Unexpected compression mode");
     }
+  }
+
+  /**
+   * Extend of {@link ZipOutputStream} that splits up bytes into multiple entries.
+   */
+  private static class TestZipOutputStream extends OutputStream {
+
+    private ZipOutputStream zipOutputStream;
+    private long offset = 0;
+    private int entry = 0;
+
+    public TestZipOutputStream(OutputStream stream) throws IOException {
+      super();
+      zipOutputStream = new ZipOutputStream(stream);
+      zipOutputStream.putNextEntry(new ZipEntry(String.format("entry-%05d", entry)));
+    }
+
+    @Override
+    public void write(int b) throws IOException {
+      zipOutputStream.write(b);
+      offset++;
+      if (offset % 100 == 0) {
+        entry++;
+        zipOutputStream.putNextEntry(new ZipEntry(String.format("entry-%05d", entry)));
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      zipOutputStream.closeEntry();
+      super.close();
+    }
+
   }
 
   /**
@@ -478,8 +556,13 @@ public class CompressedSourceTest {
     if (decompressionFactory != null) {
       source = source.withDecompression(decompressionFactory);
     }
-    PCollection<Byte> output = p.apply(Read.from(source));
-    PAssert.that(output).containsInAnyOrder(Bytes.asList(expected));
+    PCollection<KV<Long, Byte>> output = p.apply(Read.from(source))
+        .apply(ParDo.of(new ExtractIndexFromTimestamp()));
+    ArrayList<KV<Long, Byte>> expectedOutput = new ArrayList<>();
+    for (int i = 0; i < expected.length; i++) {
+      expectedOutput.add(KV.of((long) i, expected[i]));
+    }
+    PAssert.that(output).containsInAnyOrder(expectedOutput);
     p.run();
   }
 
@@ -495,16 +578,16 @@ public class CompressedSourceTest {
    */
   private static class ByteSource extends FileBasedSource<Byte> {
     public ByteSource(String fileOrPatternSpec, long minBundleSize) {
-      super(fileOrPatternSpec, minBundleSize);
+      super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
     }
 
-    public ByteSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
-      super(fileName, minBundleSize, startOffset, endOffset);
+    public ByteSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+      super(metadata, minBundleSize, startOffset, endOffset);
     }
 
     @Override
-    protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
-      return new ByteSource(fileName, getMinBundleSize(), start, end);
+    protected ByteSource createForSubrangeOfFile(Metadata metadata, long start, long end) {
+      return new ByteSource(metadata, getMinBundleSize(), start, end);
     }
 
     @Override
@@ -558,6 +641,18 @@ public class CompressedSourceTest {
       protected long getCurrentOffset() {
         return offset;
       }
+
+      @Override
+      public Instant getCurrentTimestamp() throws NoSuchElementException {
+        return new Instant(getCurrentOffset());
+      }
+    }
+  }
+
+  private static class ExtractIndexFromTimestamp extends DoFn<Byte, KV<Long, Byte>> {
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      context.output(KV.of(context.timestamp().getMillis(), context.element()));
     }
   }
 

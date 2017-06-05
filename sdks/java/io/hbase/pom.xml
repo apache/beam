@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -31,10 +31,8 @@
   <description>Library to read and write from/to HBase</description>
 
   <properties>
-    <hbase.version>1.3.0</hbase.version>
-    <hbase.guava.version>12.0.1</hbase.guava.version>
-    <hbase.protobuf.version>2.5.0</hbase.protobuf.version>
-    <hadoop.version>2.5.1</hadoop.version>
+    <hbase.version>1.2.5</hbase.version>
+    <hbase.hadoop.version>2.5.1</hbase.hadoop.version>
   </properties>
 
   <build>
@@ -42,102 +40,38 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>bundle-and-repackage</id>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <createDependencyReducedPom>false</createDependencyReducedPom>
-                <artifactSet>
-                  <includes>
-                    <include>com.google.guava:guava</include>
-                    <include>com.google.protobuf:protobuf-java</include>
-                  </includes>
-                </artifactSet>
-                <relocations>
-                  <relocation>
-                    <pattern>com.google.common</pattern>
-                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.common</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>com.google.thirdparty</pattern>
-                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.thirdparty</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>com.google.protobuf</pattern>
-                    <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.protobuf</shadedPattern>
-                  </relocation>
-                </relocations>
-              </configuration>
-            </execution>
-          </executions>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <parallel>all</parallel>
+            <threadCount>4</threadCount>
+            <!-- Need to redefine log configuration because it gets lost on parallel tests -->
+            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-      </plugin>
-    </plugins>
   </build>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <exclusions>
-        <!-- exclude beam version of protobuf -->
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-lite</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-client</artifactId>
+      <version>${hbase.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>${hbase.guava.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <scope>provided</scope>
-      <version>${hbase.protobuf.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-client</artifactId>
-      <version>${hbase.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-protocol</artifactId>
-      <version>${hbase.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-common</artifactId>
-      <version>${hbase.version}</version>
     </dependency>
 
     <dependency>
@@ -146,15 +80,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-server</artifactId>
+      <artifactId>hbase-shaded-server</artifactId>
       <version>${hbase.version}</version>
       <scope>test</scope>
     </dependency>
@@ -170,7 +103,14 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-minicluster</artifactId>
-      <version>${hadoop.version}</version>
+      <version>${hbase.hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hbase.hadoop.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -191,9 +131,8 @@
     </dependency>
 
     <dependency>
-      <groupId>commons-lang</groupId>
-      <artifactId>commons-lang</artifactId>
-      <version>2.6</version>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
       <scope>test</scope>
     </dependency>
 

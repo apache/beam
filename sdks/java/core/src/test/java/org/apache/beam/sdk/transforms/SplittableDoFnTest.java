@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,10 +30,12 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
@@ -62,18 +63,14 @@ import org.junit.runners.JUnit4;
  * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
-public class SplittableDoFnTest {
+public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         c.output(KV.of(c.element(), (int) i));
-        if (i % 3 == 0) {
-          return resume();
-        }
       }
-      return stop();
     }
 
     @GetInitialRestriction
@@ -86,11 +83,6 @@ public class SplittableDoFnTest {
         String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
   }
 
@@ -105,7 +97,7 @@ public class SplittableDoFnTest {
   public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testPairWithIndexBasic() {
 
     PCollection<KV<String, Integer>> res =
@@ -129,7 +121,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
@@ -200,34 +192,24 @@ public class SplittableDoFnTest {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      int trueEnd = snapToNextBlock((int) tracker.currentRestriction().getTo(), blockStarts);
-      for (int i = trueStart; i < trueEnd; ++i) {
-        if (!tracker.tryClaim(blockStarts[i])) {
-          return resume();
-        }
+      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
       }
-      return stop();
     }
 
     @GetInitialRestriction
     public OffsetRange getInitialRange(String element) {
       return new OffsetRange(0, MAX_INDEX);
     }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
-    }
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
         .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
@@ -236,63 +218,123 @@ public class SplittableDoFnTest {
     p.run();
   }
 
-  private static class SDFWithSideInputsAndOutputs extends DoFn<Integer, String> {
+  private static class SDFWithSideInput extends DoFn<Integer, String> {
     private final PCollectionView<String> sideInput;
-    private final TupleTag<String> sideOutput;
 
-    private SDFWithSideInputsAndOutputs(
-        PCollectionView<String> sideInput, TupleTag<String> sideOutput) {
+    private SDFWithSideInput(PCollectionView<String> sideInput) {
       this.sideInput = sideInput;
-      this.sideOutput = sideOutput;
     }
 
     @ProcessElement
     public void process(ProcessContext c, OffsetRangeTracker tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
-      c.output("main:" + side + ":" + c.element());
-      c.sideOutput(sideOutput, "side:" + side + ":" + c.element());
+      c.output(side + ":" + c.element());
     }
 
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(Integer value) {
       return new OffsetRange(0, 1);
     }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
-    }
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
-  public void testSideInputsAndOutputs() throws Exception {
-
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  public void testSideInput() throws Exception {
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
-    TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    TupleTag<String> sideOutputTag = new TupleTag<>("side");
 
-    PCollectionTuple res =
+    PCollection<String> res =
         p.apply("input", Create.of(0, 1, 2))
-            .apply(
-                ParDo.of(new SDFWithSideInputsAndOutputs(sideInput, sideOutputTag))
-                    .withSideInputs(sideInput)
-                    .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
-    res.get(mainOutputTag).setCoder(StringUtf8Coder.of());
-    res.get(sideOutputTag).setCoder(StringUtf8Coder.of());
+            .apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
 
-    PAssert.that(res.get(mainOutputTag))
-        .containsInAnyOrder(Arrays.asList("main:foo:0", "main:foo:1", "main:foo:2"));
-    PAssert.that(res.get(sideOutputTag))
-        .containsInAnyOrder(Arrays.asList("side:foo:0", "side:foo:1", "side:foo:2"));
+    PAssert.that(res).containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
 
     p.run();
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
+  public void testWindowedSideInput() throws Exception {
+    PCollection<Integer> mainInput =
+        p.apply("main",
+                Create.timestamped(
+                    TimestampedValue.of(0, new Instant(0)),
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(3)),
+                    TimestampedValue.of(4, new Instant(4)),
+                    TimestampedValue.of(5, new Instant(5)),
+                    TimestampedValue.of(6, new Instant(6)),
+                    TimestampedValue.of(7, new Instant(7))))
+            .apply("window 2", Window.<Integer>into(FixedWindows.of(Duration.millis(2))));
+
+    PCollectionView<String> sideInput =
+        p.apply("side",
+                Create.timestamped(
+                    TimestampedValue.of("a", new Instant(0)),
+                    TimestampedValue.of("b", new Instant(4))))
+            .apply("window 4", Window.<String>into(FixedWindows.of(Duration.millis(4))))
+            .apply("singleton", View.<String>asSingleton());
+
+    PCollection<String> res =
+        mainInput.apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
+
+    PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
+
+    p.run();
+
+    // TODO: also add test coverage when the SDF checkpoints - the resumed call should also
+    // properly access side inputs.
+    // TODO: also test coverage when some of the windows of the side input are not ready.
+  }
+
+  private static class SDFWithAdditionalOutput extends DoFn<Integer, String> {
+    private final TupleTag<String> additionalOutput;
+
+    private SDFWithAdditionalOutput(TupleTag<String> additionalOutput) {
+      this.additionalOutput = additionalOutput;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
+      c.output("main:" + c.element());
+      c.output(additionalOutput, "additional:" + c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(Integer value) {
+      return new OffsetRange(0, 1);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  public void testAdditionalOutput() throws Exception {
+    TupleTag<String> mainOutputTag = new TupleTag<String>("main") {};
+    TupleTag<String> additionalOutputTag = new TupleTag<String>("additional") {};
+
+    PCollectionTuple res =
+        p.apply("input", Create.of(0, 1, 2))
+            .apply(
+                ParDo.of(new SDFWithAdditionalOutput(additionalOutputTag))
+                    .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
+
+    PAssert.that(res.get(mainOutputTag))
+        .containsInAnyOrder(Arrays.asList("main:0", "main:1", "main:2"));
+    PAssert.that(res.get(additionalOutputTag))
+        .containsInAnyOrder(Arrays.asList("additional:0", "additional:1", "additional:2"));
+
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesTestStream.class})
   public void testLateData() throws Exception {
 
     Instant base = Instant.now();
@@ -356,11 +398,6 @@ public class SplittableDoFnTest {
       return new OffsetRange(0, 1);
     }
 
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
-    }
-
     @Setup
     public void setUp() {
       assertEquals(State.BEFORE_SETUP, state);
@@ -368,13 +405,13 @@ public class SplittableDoFnTest {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       state = State.INSIDE_BUNDLE;
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       assertEquals(State.INSIDE_BUNDLE, state);
       state = State.OUTSIDE_BUNDLE;
     }
@@ -387,7 +424,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
 
     PCollection<String> res =

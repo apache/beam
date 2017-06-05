@@ -23,12 +23,12 @@ import unittest
 
 import dill
 
-import coders
 import observable
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
+from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 
 
@@ -61,9 +61,7 @@ class CodersTest(unittest.TestCase):
     standard -= set([coders.Coder,
                      coders.FastCoder,
                      coders.ProtoCoder,
-                     coders.ToStringCoder,
-                     coders.WindowCoder,
-                     coders.IntervalWindowCoder])
+                     coders.ToStringCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
 
@@ -172,6 +170,9 @@ class CodersTest(unittest.TestCase):
                      *[window.IntervalWindow(x, y)
                        for x in [-2**52, 0, 2**52]
                        for y in range(-100, 100)])
+    self.check_coder(
+        coders.TupleCoder((coders.IntervalWindowCoder(),)),
+        (window.IntervalWindow(0, 10),))
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
@@ -248,6 +249,26 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(),
                            coders.IterableCoder(coders.VarIntCoder()))),
         (1, [1, 2, 3]))
+
+  def test_iterable_coder_unknown_length(self):
+    # Empty
+    self._test_iterable_coder_of_unknown_length(0)
+    # Single element
+    self._test_iterable_coder_of_unknown_length(1)
+    # Multiple elements
+    self._test_iterable_coder_of_unknown_length(100)
+    # Multiple elements with underlying stream buffer overflow.
+    self._test_iterable_coder_of_unknown_length(80000)
+
+  def _test_iterable_coder_of_unknown_length(self, count):
+    def iter_generator(count):
+      for i in range(count):
+        yield i
+
+    iterable_coder = coders.IterableCoder(coders.VarIntCoder())
+    self.assertItemsEqual(list(iter_generator(count)),
+                          iterable_coder.decode(
+                              iterable_coder.encode(iter_generator(count))))
 
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(coders.VarIntCoder(),

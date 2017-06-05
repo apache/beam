@@ -26,21 +26,16 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.TestClock;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.TestStreamIndex;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -60,10 +55,12 @@ public class TestStreamEvaluatorFactoryTest {
 
   @Rule
   public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private DirectRunner runner;
 
   @Before
   public void setup() {
     context = mock(EvaluationContext.class);
+    runner = DirectRunner.fromOptions(TestPipeline.testingPipelineOptions());
     factory = new TestStreamEvaluatorFactory(context);
     bundleFactory = ImmutableListBundleFactory.create();
   }
@@ -80,7 +77,7 @@ public class TestStreamEvaluatorFactoryTest {
         .advanceProcessingTime(Duration.standardMinutes(10))
         .advanceWatermarkToInfinity();
     PCollection<Integer> streamVals =
-        p.apply(new DirectTestStream<Integer>(testStream));
+        p.apply(new DirectTestStream<Integer>(runner, testStream));
 
     TestClock clock = new TestClock();
     when(context.getClock()).thenReturn(clock);
@@ -176,12 +173,5 @@ public class TestStreamEvaluatorFactoryTest {
     assertThat(fifthResult.getOutputBundles(), Matchers.emptyIterable());
     assertThat(fifthResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(fifthResult.getUnprocessedElements(), Matchers.emptyIterable());
-  }
-
-  @Test
-  public void overrideFactoryGetInputSucceeds() {
-    DirectTestStreamFactory<?> factory = new DirectTestStreamFactory<>();
-    PBegin begin = factory.getInput(Collections.<TaggedPValue>emptyList(), p);
-    assertThat(begin.getPipeline(), Matchers.<Pipeline>equalTo(p));
   }
 }

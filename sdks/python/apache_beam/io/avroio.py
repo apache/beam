@@ -27,7 +27,9 @@ from avro import schema
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
+from apache_beam.io import iobase
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
@@ -66,13 +68,11 @@ class ReadFromAvro(PTransform):
       {u'name': u'Alyssa', u'favorite_number': 256, u'favorite_color': None}).
 
     Args:
-      label: label of the PTransform.
       file_pattern: the set of files to be read.
       min_bundle_size: the minimum size in bytes, to be considered when
                        splitting the input into bundles.
       validate: flag to verify that the files exist during the pipeline
                 creation time.
-      **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
     self._source = _AvroSource(file_pattern, min_bundle_size, validate=validate)
@@ -128,6 +128,11 @@ class _AvroUtils(object):
 
     Args:
       f: Avro file to read.
+      codec: The codec to use for block-level decompression.
+        Supported codecs: 'null', 'deflate', 'snappy'
+      schema: Avro Schema definition represented as JSON string.
+      expected_sync_marker: Avro synchronization marker. If the block's sync
+        marker does not match with this parameter then ValueError is thrown.
     Returns:
       A single _AvroBlock.
 
@@ -135,6 +140,7 @@ class _AvroUtils(object):
       ValueError: If the block cannot be read properly because the file doesn't
         match the specification.
     """
+    offset = f.tell()
     decoder = avroio.BinaryDecoder(f)
     num_records = decoder.read_long()
     block_size = decoder.read_long()
@@ -144,7 +150,8 @@ class _AvroUtils(object):
       raise ValueError('Unexpected sync marker (actual "%s" vs expected "%s"). '
                        'Maybe the underlying avro file is corrupted?',
                        sync_marker, expected_sync_marker)
-    return _AvroBlock(block_bytes, num_records, codec, schema)
+    size = f.tell() - offset
+    return _AvroBlock(block_bytes, num_records, codec, schema, offset, size)
 
   @staticmethod
   def advance_file_past_next_sync_marker(f, sync_marker):
@@ -172,13 +179,22 @@ class _AvroUtils(object):
 class _AvroBlock(object):
   """Represents a block of an Avro file."""
 
-  def __init__(self, block_bytes, num_records, codec, schema_string):
+  def __init__(self, block_bytes, num_records, codec, schema_string,
+               offset, size):
     # Decompress data early on (if needed) and thus decrease the number of
     # parallel copies of the data in memory at any given in time during
     # block iteration.
     self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
     self._schema = schema.parse(schema_string)
+    self._offset = offset
+    self._size = size
+
+  def size(self):
+    return self._size
+
+  def offset(self):
+    return self._offset
 
   @staticmethod
   def _decompress_bytes(data, codec):
@@ -232,12 +248,26 @@ class _AvroSource(filebasedsource.FileBasedSource):
   """
 
   def read_records(self, file_name, range_tracker):
+    next_block_start = -1
+
+    def split_points_unclaimed(stop_position):
+      if next_block_start >= stop_position:
+        # Next block starts at or after the suggested stop position. Hence
+        # there will not be split points to be claimed for the range ending at
+        # suggested stop position.
+        return 0
+
+      return iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+
+    range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
+
     start_offset = range_tracker.start_position()
     if start_offset is None:
       start_offset = 0
 
     with self.open_file(file_name) as f:
-      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(f)
+      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(
+          f)
 
       # We have to start at current position if previous bundle ended at the
       # end of a sync marker.
@@ -248,6 +278,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(f.tell()):
         block = _AvroUtils.read_block_from_file(f, codec, schema_string,
                                                 sync_marker)
+        next_block_start = block.offset() + block.size()
         for record in block.records():
           yield record
 
@@ -275,21 +306,18 @@ class WriteToAvro(beam.transforms.PTransform):
       codec: The codec to use for block-level compression. Any string supported
         by the Avro specification is accepted (for example 'null').
       file_name_suffix: Suffix for the files written.
-      append_trailing_newlines: indicate whether this sink should write an
-        additional newline char after writing each element.
       num_shards: The number of files (shards) used for output. If not set, the
         service will decide on the optimal number of shards.
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. Currently only '' and
-        '-SSSSS-of-NNNNN' are patterns accepted by the service.
-        When constructing a filename for a particular shard number, the
-        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
-        number and shard count respectively.  This argument can be '' in which
-        case it behaves as if num_shards was set to 1 and only one file will be
-        generated. The default pattern used is '-SSSSS-of-NNNNN'.
+        the shard number and shard count. When constructing a filename for a
+        particular shard number, the upper-case letters 'S' and 'N' are
+        replaced with the 0-padded shard number and shard count respectively.
+        This argument can be '' in which case it behaves as if num_shards was
+        set to 1 and only one file will be generated. The default pattern used
+        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
 
@@ -306,7 +334,7 @@ class WriteToAvro(beam.transforms.PTransform):
     return {'sink_dd': self._sink}
 
 
-class _AvroSink(fileio.FileSink):
+class _AvroSink(filebasedsink.FileBasedSink):
   """A sink to avro files."""
 
   def __init__(self,
@@ -326,7 +354,7 @@ class _AvroSink(fileio.FileSink):
         mime_type=mime_type,
         # Compression happens at the block level using the supplied codec, and
         # not at the file level.
-        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED)
     self._schema = schema
     self._codec = codec
 

@@ -24,7 +24,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Instant;
 
 /**
- * {@link Trigger}s that fire based on properties of the elements in the current pane.
+ * A {@link Trigger} that fires at some point after a specified number of input elements have
+ * arrived.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane extends OnceTrigger {
@@ -61,7 +62,7 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
-  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return AfterPane.elementCountAtLeast(1);
   }
 

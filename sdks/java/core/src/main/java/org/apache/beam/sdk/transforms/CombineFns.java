@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -37,67 +35,20 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
-import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Static utility methods that create combine function instances.
  */
 public class CombineFns {
-
-  /**
-   * Returns a {@link ComposeKeyedCombineFnBuilder} to construct a composed
-   * {@link PerKeyCombineFn}.
-   *
-   * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
-   *
-   * <p>Example:
-   * <pre>{@code
-   * PCollection<KV<K, Integer>> latencies = ...;
-   *
-   * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
-   * TupleTag<Double> meanLatencyTag = new TupleTag<Double>();
-   *
-   * SimpleFunction<Integer, Integer> identityFn =
-   *     new SimpleFunction<Integer, Integer>() {
-   *      {@literal @}Override
-   *       public Integer apply(Integer input) {
-   *           return input;
-   *       }};
-   * PCollection<KV<K, CoCombineResult>> maxAndMean = latencies.apply(
-   *     Combine.perKey(
-   *         CombineFns.composeKeyed()
-   *            .with(identityFn, new MaxIntegerFn(), maxLatencyTag)
-   *            .with(identityFn, new MeanFn<Integer>(), meanLatencyTag)));
-   *
-   * PCollection<T> finalResultCollection = maxAndMean
-   *     .apply(ParDo.of(
-   *         new DoFn<KV<K, CoCombineResult>, T>() {
-   *          {@literal @}ProcessElement
-   *           public void processElement(ProcessContext c) throws Exception {
-   *             KV<K, CoCombineResult> e = c.element();
-   *             Integer maxLatency = e.getValue().get(maxLatencyTag);
-   *             Double meanLatency = e.getValue().get(meanLatencyTag);
-   *             .... Do Something ....
-   *             c.output(...some T...);
-   *           }
-   *         }));
-   * }</pre>
-   */
-  public static ComposeKeyedCombineFnBuilder composeKeyed() {
-    return new ComposeKeyedCombineFnBuilder();
-  }
 
   /**
    * Returns a {@link ComposeCombineFnBuilder} to construct a composed
@@ -145,67 +96,6 @@ public class CombineFns {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A builder class to construct a composed {@link PerKeyCombineFn}.
-   */
-  public static class ComposeKeyedCombineFnBuilder {
-    /**
-     * Returns a {@link ComposedKeyedCombineFn} that can take additional
-     * {@link PerKeyCombineFn PerKeyCombineFns} and apply them as a single combine function.
-     *
-     * <p>The {@link ComposedKeyedCombineFn} extracts inputs from {@code DataT} with
-     * the {@code extractInputFn} and combines them with the {@code keyedCombineFn},
-     * and then it outputs each combined value with a {@link TupleTag} to a
-     * {@link CoCombineResult}.
-     */
-    public <K, DataT, InputT, OutputT> ComposedKeyedCombineFn<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        KeyedCombineFn<K, InputT, ?, OutputT> keyedCombineFn,
-        TupleTag<OutputT> outputTag) {
-      return new ComposedKeyedCombineFn<DataT, K>()
-          .with(extractInputFn, keyedCombineFn, outputTag);
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} that can take additional
-     * {@link PerKeyCombineFn PerKeyCombineFns} and apply them as a single combine function.
-     *
-     * <p>The {@link ComposedKeyedCombineFnWithContext} extracts inputs from {@code DataT} with
-     * the {@code extractInputFn} and combines them with the {@code keyedCombineFnWithContext},
-     * and then it outputs each combined value with a {@link TupleTag} to a
-     * {@link CoCombineResult}.
-     */
-    public <K, DataT, InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        KeyedCombineFnWithContext<K, InputT, ?, OutputT> keyedCombineFnWithContext,
-        TupleTag<OutputT> outputTag) {
-      return new ComposedKeyedCombineFnWithContext<DataT, K>()
-          .with(extractInputFn, keyedCombineFnWithContext, outputTag);
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFn} that can take additional
-     * {@link PerKeyCombineFn PerKeyCombineFns} and apply them as a single combine function.
-     */
-    public <K, DataT, InputT, OutputT> ComposedKeyedCombineFn<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        CombineFn<InputT, ?, OutputT> combineFn,
-        TupleTag<OutputT> outputTag) {
-      return with(extractInputFn, combineFn.<K>asKeyedFn(), outputTag);
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} that can take additional
-     * {@link PerKeyCombineFn PerKeyCombineFns} and apply them as a single combine function.
-     */
-    public <K, DataT, InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        CombineFnWithContext<InputT, ?, OutputT> combineFnWithContext,
-        TupleTag<OutputT> outputTag) {
-      return with(extractInputFn, combineFnWithContext.<K>asKeyedFn(), outputTag);
-    }
-  }
-
-  /**
    * A builder class to construct a composed {@link GlobalCombineFn}.
    */
   public static class ComposeCombineFnBuilder {
@@ -249,7 +139,7 @@ public class CombineFns {
   /**
    * A tuple of outputs produced by a composed combine functions.
    *
-   * <p>See {@link #compose()} or {@link #composeKeyed()}) for details.
+   * <p>See {@link #compose()} for details.
    */
   public static class CoCombineResult implements Serializable {
 
@@ -449,7 +339,7 @@ public class CombineFns {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
         Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
+            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFns.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -588,7 +478,7 @@ public class CombineFns {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
         Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
+            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFnWithContexts.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -598,345 +488,6 @@ public class CombineFns {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFnWithContexts);
-    }
-  }
-
-  /**
-   * A composed {@link KeyedCombineFn} that applies multiple {@link KeyedCombineFn KeyedCombineFns}.
-   *
-   * <p>For each {@link KeyedCombineFn} it extracts inputs from {@code DataT} with
-   * the {@code extractInputFn} and combines them,
-   * and then it outputs each combined value with a {@link TupleTag} to a
-   * {@link CoCombineResult}.
-   */
-  public static class ComposedKeyedCombineFn<DataT, K>
-      extends KeyedCombineFn<K, DataT, Object[], CoCombineResult> {
-
-    private final List<SerializableFunction<DataT, Object>> extractInputFns;
-    private final List<KeyedCombineFn<K, Object, Object, Object>> keyedCombineFns;
-    private final List<TupleTag<?>> outputTags;
-    private final int combineFnCount;
-
-    private ComposedKeyedCombineFn() {
-      this.extractInputFns = ImmutableList.of();
-      this.keyedCombineFns = ImmutableList.of();
-      this.outputTags = ImmutableList.of();
-      this.combineFnCount = 0;
-    }
-
-    private ComposedKeyedCombineFn(
-        ImmutableList<SerializableFunction<DataT, ?>> extractInputFns,
-        ImmutableList<KeyedCombineFn<K, ?, ?, ?>> keyedCombineFns,
-        ImmutableList<TupleTag<?>> outputTags) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<SerializableFunction<DataT, Object>> castedExtractInputFns = (List) extractInputFns;
-      this.extractInputFns = castedExtractInputFns;
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<KeyedCombineFn<K, Object, Object, Object>> castedKeyedCombineFns =
-          (List) keyedCombineFns;
-      this.keyedCombineFns = castedKeyedCombineFns;
-      this.outputTags = outputTags;
-      this.combineFnCount = this.keyedCombineFns.size();
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFn} with an additional {@link KeyedCombineFn}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFn<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        KeyedCombineFn<K, InputT, ?, OutputT> keyedCombineFn,
-        TupleTag<OutputT> outputTag) {
-      checkUniqueness(outputTags, outputTag);
-      return new ComposedKeyedCombineFn<>(
-          ImmutableList.<SerializableFunction<DataT, ?>>builder()
-          .addAll(extractInputFns)
-          .add(extractInputFn)
-          .build(),
-      ImmutableList.<KeyedCombineFn<K, ?, ?, ?>>builder()
-          .addAll(keyedCombineFns)
-          .add(keyedCombineFn)
-          .build(),
-      ImmutableList.<TupleTag<?>>builder()
-          .addAll(outputTags)
-          .add(outputTag)
-          .build());
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} with an additional
-     * {@link KeyedCombineFnWithContext}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        KeyedCombineFnWithContext<K, InputT, ?, OutputT> keyedCombineFn,
-        TupleTag<OutputT> outputTag) {
-      checkUniqueness(outputTags, outputTag);
-      List<KeyedCombineFnWithContext<K, Object, Object, Object>> fnsWithContext =
-          Lists.newArrayList();
-      for (KeyedCombineFn<K, Object, Object, Object> fn : keyedCombineFns) {
-        fnsWithContext.add(CombineFnUtil.toFnWithContext(fn));
-      }
-      return new ComposedKeyedCombineFnWithContext<>(
-          ImmutableList.<SerializableFunction<DataT, ?>>builder()
-          .addAll(extractInputFns)
-          .add(extractInputFn)
-          .build(),
-      ImmutableList.<KeyedCombineFnWithContext<K, ?, ?, ?>>builder()
-          .addAll(fnsWithContext)
-          .add(keyedCombineFn)
-          .build(),
-      ImmutableList.<TupleTag<?>>builder()
-          .addAll(outputTags)
-          .add(outputTag)
-          .build());
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFn} with an additional {@link CombineFn}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFn<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        CombineFn<InputT, ?, OutputT> keyedCombineFn,
-        TupleTag<OutputT> outputTag) {
-      return with(extractInputFn, keyedCombineFn.<K>asKeyedFn(), outputTag);
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} with an additional
-     * {@link CombineFnWithContext}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        CombineFnWithContext<InputT, ?, OutputT> keyedCombineFn,
-        TupleTag<OutputT> outputTag) {
-      return with(extractInputFn, keyedCombineFn.<K>asKeyedFn(), outputTag);
-    }
-
-    @Override
-    public Object[] createAccumulator(K key) {
-      Object[] accumsArray = new Object[combineFnCount];
-      for (int i = 0; i < combineFnCount; ++i) {
-        accumsArray[i] = keyedCombineFns.get(i).createAccumulator(key);
-      }
-      return accumsArray;
-    }
-
-    @Override
-    public Object[] addInput(K key, Object[] accumulator, DataT value) {
-      for (int i = 0; i < combineFnCount; ++i) {
-        Object input = extractInputFns.get(i).apply(value);
-        accumulator[i] = keyedCombineFns.get(i).addInput(key, accumulator[i], input);
-      }
-      return accumulator;
-    }
-
-    @Override
-    public Object[] mergeAccumulators(K key, final Iterable<Object[]> accumulators) {
-      Iterator<Object[]> iter = accumulators.iterator();
-      if (!iter.hasNext()) {
-        return createAccumulator(key);
-      } else {
-        // Reuses the first accumulator, and overwrites its values.
-        // It is safe because {@code accum[i]} only depends on
-        // the i-th component of each accumulator.
-        Object[] accum = iter.next();
-        for (int i = 0; i < combineFnCount; ++i) {
-          accum[i] = keyedCombineFns.get(i).mergeAccumulators(
-              key, new ProjectionIterable(accumulators, i));
-        }
-        return accum;
-      }
-    }
-
-    @Override
-    public CoCombineResult extractOutput(K key, Object[] accumulator) {
-      Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
-      for (int i = 0; i < combineFnCount; ++i) {
-        valuesMap.put(
-            outputTags.get(i),
-            keyedCombineFns.get(i).extractOutput(key, accumulator[i]));
-      }
-      return new CoCombineResult(valuesMap);
-    }
-
-    @Override
-    public Object[] compact(K key, Object[] accumulator) {
-      for (int i = 0; i < combineFnCount; ++i) {
-        accumulator[i] = keyedCombineFns.get(i).compact(key, accumulator[i]);
-      }
-      return accumulator;
-    }
-
-    @Override
-    public Coder<Object[]> getAccumulatorCoder(
-        CoderRegistry registry, Coder<K> keyCoder, Coder<DataT> dataCoder)
-        throws CannotProvideCoderException {
-      List<Coder<Object>> coders = Lists.newArrayList();
-      for (int i = 0; i < combineFnCount; ++i) {
-        Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
-        coders.add(keyedCombineFns.get(i).getAccumulatorCoder(registry, keyCoder, inputCoder));
-      }
-      return new ComposedAccumulatorCoder(coders);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      CombineFns.populateDisplayData(builder, keyedCombineFns);
-    }
-  }
-
-  /**
-   * A composed {@link KeyedCombineFnWithContext} that applies multiple
-   * {@link KeyedCombineFnWithContext KeyedCombineFnWithContexts}.
-   *
-   * <p>For each {@link KeyedCombineFnWithContext} it extracts inputs from {@code DataT} with
-   * the {@code extractInputFn} and combines them,
-   * and then it outputs each combined value with a {@link TupleTag} to a
-   * {@link CoCombineResult}.
-   */
-  public static class ComposedKeyedCombineFnWithContext<DataT, K>
-      extends KeyedCombineFnWithContext<K, DataT, Object[], CoCombineResult> {
-
-    private final List<SerializableFunction<DataT, Object>> extractInputFns;
-    private final List<KeyedCombineFnWithContext<K, Object, Object, Object>> keyedCombineFns;
-    private final List<TupleTag<?>> outputTags;
-    private final int combineFnCount;
-
-    private ComposedKeyedCombineFnWithContext() {
-      this.extractInputFns = ImmutableList.of();
-      this.keyedCombineFns = ImmutableList.of();
-      this.outputTags = ImmutableList.of();
-      this.combineFnCount = 0;
-    }
-
-    private ComposedKeyedCombineFnWithContext(
-        ImmutableList<SerializableFunction<DataT, ?>> extractInputFns,
-        ImmutableList<KeyedCombineFnWithContext<K, ?, ?, ?>> keyedCombineFns,
-        ImmutableList<TupleTag<?>> outputTags) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<SerializableFunction<DataT, Object>> castedExtractInputFns =
-          (List) extractInputFns;
-      this.extractInputFns = castedExtractInputFns;
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<KeyedCombineFnWithContext<K, Object, Object, Object>> castedKeyedCombineFns =
-          (List) keyedCombineFns;
-      this.keyedCombineFns = castedKeyedCombineFns;
-      this.outputTags = outputTags;
-      this.combineFnCount = this.keyedCombineFns.size();
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} with an additional
-     * {@link PerKeyCombineFn}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        PerKeyCombineFn<K, InputT, ?, OutputT> perKeyCombineFn,
-        TupleTag<OutputT> outputTag) {
-      checkUniqueness(outputTags, outputTag);
-      return new ComposedKeyedCombineFnWithContext<>(
-          ImmutableList.<SerializableFunction<DataT, ?>>builder()
-              .addAll(extractInputFns)
-              .add(extractInputFn)
-              .build(),
-          ImmutableList.<KeyedCombineFnWithContext<K, ?, ?, ?>>builder()
-              .addAll(keyedCombineFns)
-              .add(CombineFnUtil.toFnWithContext(perKeyCombineFn))
-              .build(),
-          ImmutableList.<TupleTag<?>>builder()
-              .addAll(outputTags)
-              .add(outputTag)
-              .build());
-    }
-
-    /**
-     * Returns a {@link ComposedKeyedCombineFnWithContext} with an additional
-     * {@link GlobalCombineFn}.
-     */
-    public <InputT, OutputT> ComposedKeyedCombineFnWithContext<DataT, K> with(
-        SimpleFunction<DataT, InputT> extractInputFn,
-        GlobalCombineFn<InputT, ?, OutputT> perKeyCombineFn,
-        TupleTag<OutputT> outputTag) {
-      return with(extractInputFn, perKeyCombineFn.<K>asKeyedFn(), outputTag);
-    }
-
-    @Override
-    public Object[] createAccumulator(K key, Context c) {
-      Object[] accumsArray = new Object[combineFnCount];
-      for (int i = 0; i < combineFnCount; ++i) {
-        accumsArray[i] = keyedCombineFns.get(i).createAccumulator(key, c);
-      }
-      return accumsArray;
-    }
-
-    @Override
-    public Object[] addInput(K key, Object[] accumulator, DataT value, Context c) {
-      for (int i = 0; i < combineFnCount; ++i) {
-        Object input = extractInputFns.get(i).apply(value);
-        accumulator[i] = keyedCombineFns.get(i).addInput(key, accumulator[i], input, c);
-      }
-      return accumulator;
-    }
-
-    @Override
-    public Object[] mergeAccumulators(K key, Iterable<Object[]> accumulators, Context c) {
-      Iterator<Object[]> iter = accumulators.iterator();
-      if (!iter.hasNext()) {
-        return createAccumulator(key, c);
-      } else {
-        // Reuses the first accumulator, and overwrites its values.
-        // It is safe because {@code accum[i]} only depends on
-        // the i-th component of each accumulator.
-        Object[] accum = iter.next();
-        for (int i = 0; i < combineFnCount; ++i) {
-          accum[i] = keyedCombineFns.get(i).mergeAccumulators(
-              key, new ProjectionIterable(accumulators, i), c);
-        }
-        return accum;
-      }
-    }
-
-    @Override
-    public CoCombineResult extractOutput(K key, Object[] accumulator, Context c) {
-      Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
-      for (int i = 0; i < combineFnCount; ++i) {
-        valuesMap.put(
-            outputTags.get(i),
-            keyedCombineFns.get(i).extractOutput(key, accumulator[i], c));
-      }
-      return new CoCombineResult(valuesMap);
-    }
-
-    @Override
-    public Object[] compact(K key, Object[] accumulator, Context c) {
-      for (int i = 0; i < combineFnCount; ++i) {
-        accumulator[i] = keyedCombineFns.get(i).compact(key, accumulator[i], c);
-      }
-      return accumulator;
-    }
-
-    @Override
-    public Coder<Object[]> getAccumulatorCoder(
-        CoderRegistry registry, Coder<K> keyCoder, Coder<DataT> dataCoder)
-        throws CannotProvideCoderException {
-      List<Coder<Object>> coders = Lists.newArrayList();
-      for (int i = 0; i < combineFnCount; ++i) {
-        Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
-        coders.add(keyedCombineFns.get(i).getAccumulatorCoder(
-            registry, keyCoder, inputCoder));
-      }
-      return new ComposedAccumulatorCoder(coders);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
 
@@ -973,7 +524,7 @@ public class CombineFns {
     }
   }
 
-  private static class ComposedAccumulatorCoder extends StandardCoder<Object[]> {
+  private static class ComposedAccumulatorCoder extends StructuredCoder<Object[]> {
     private List<Coder<Object>> coders;
     private int codersCount;
 
@@ -982,12 +533,10 @@ public class CombineFns {
       this.codersCount  = coders.size();
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    @JsonCreator
-    public static ComposedAccumulatorCoder of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      return new ComposedAccumulatorCoder((List) components);
+    @Override
+    public void encode(Object[] value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
     }
 
     @Override
@@ -998,11 +547,15 @@ public class CombineFns {
         return;
       }
       int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        coders.get(i).encode(value[i], outStream, nestedContext);
+        coders.get(i).encode(value[i], outStream);
       }
       coders.get(lastIndex).encode(value[lastIndex], outStream, context);
+    }
+
+    @Override
+    public Object[] decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -1013,9 +566,8 @@ public class CombineFns {
         return ret;
       }
       int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        ret[i] = coders.get(i).decode(inStream, nestedContext);
+        ret[i] = coders.get(i).decode(inStream);
       }
       ret[lastIndex] = coders.get(lastIndex).decode(inStream, context);
       return ret;

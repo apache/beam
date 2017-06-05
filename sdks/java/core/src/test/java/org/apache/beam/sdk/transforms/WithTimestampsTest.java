@@ -23,8 +23,8 @@ import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -49,7 +49,7 @@ public class WithTimestampsTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withTimestampsShouldApplyTimestamps() {
 
     SerializableFunction<String, Instant> timestampFn =
@@ -120,7 +120,7 @@ public class WithTimestampsTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
 
     SerializableFunction<String, Instant> timestampFn =
@@ -195,7 +195,7 @@ public class WithTimestampsTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withTimestampsWithNullFnShouldThrowOnConstruction() {
 
     SerializableFunction<String, Instant> timestampFn = null;

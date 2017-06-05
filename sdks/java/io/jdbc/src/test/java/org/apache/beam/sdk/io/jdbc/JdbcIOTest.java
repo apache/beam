@@ -126,7 +126,7 @@ public class JdbcIOTest implements Serializable {
   @Test
   public void testDataSourceConfigurationDataSource() throws Exception {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -136,7 +136,7 @@ public class JdbcIOTest implements Serializable {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
         "org.apache.derby.jdbc.ClientDriver",
         "jdbc:derby://localhost:" + port + "/target/beam");
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -148,7 +148,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername("sa")
         .withPassword("sa");
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -160,7 +160,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername("sa")
         .withPassword(null);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -172,7 +172,7 @@ public class JdbcIOTest implements Serializable {
         "jdbc:derby://localhost:" + port + "/target/beam")
         .withUsername(null)
         .withPassword(null);
-    try (Connection conn = config.getConnection()) {
+    try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -223,7 +223,7 @@ public class JdbcIOTest implements Serializable {
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                      .withQuery(String.format("select name,id from %s where name = ?",
                          JdbcTestDataSet.READ_TABLE_NAME))
-                     .withStatementPrepator(new JdbcIO.StatementPreparator() {
+                     .withStatementPreparator(new JdbcIO.StatementPreparator() {
                        @Override
                        public void setParameters(PreparedStatement preparedStatement)
                                throws Exception {

@@ -28,7 +28,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,10 +41,10 @@ import org.junit.runners.JUnit4;
 public class StateTagTest {
   @Test
   public void testValueEquality() {
-    StateTag<?, ?> fooVarInt1 = StateTags.value("foo", VarIntCoder.of());
-    StateTag<?, ?> fooVarInt2 = StateTags.value("foo", VarIntCoder.of());
-    StateTag<?, ?> fooBigEndian = StateTags.value("foo", BigEndianIntegerCoder.of());
-    StateTag<?, ?> barVarInt = StateTags.value("bar", VarIntCoder.of());
+    StateTag<?> fooVarInt1 = StateTags.value("foo", VarIntCoder.of());
+    StateTag<?> fooVarInt2 = StateTags.value("foo", VarIntCoder.of());
+    StateTag<?> fooBigEndian = StateTags.value("foo", BigEndianIntegerCoder.of());
+    StateTag<?> barVarInt = StateTags.value("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
     assertNotEquals(fooVarInt1, fooBigEndian);
@@ -53,10 +53,10 @@ public class StateTagTest {
 
   @Test
   public void testBagEquality() {
-    StateTag<?, ?> fooVarInt1 = StateTags.bag("foo", VarIntCoder.of());
-    StateTag<?, ?> fooVarInt2 = StateTags.bag("foo", VarIntCoder.of());
-    StateTag<?, ?> fooBigEndian = StateTags.bag("foo", BigEndianIntegerCoder.of());
-    StateTag<?, ?> barVarInt = StateTags.bag("bar", VarIntCoder.of());
+    StateTag<?> fooVarInt1 = StateTags.bag("foo", VarIntCoder.of());
+    StateTag<?> fooVarInt2 = StateTags.bag("foo", VarIntCoder.of());
+    StateTag<?> fooBigEndian = StateTags.bag("foo", BigEndianIntegerCoder.of());
+    StateTag<?> barVarInt = StateTags.bag("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
     assertNotEquals(fooVarInt1, fooBigEndian);
@@ -65,10 +65,10 @@ public class StateTagTest {
 
   @Test
   public void testSetEquality() {
-    StateTag<?, ?> fooVarInt1 = StateTags.set("foo", VarIntCoder.of());
-    StateTag<?, ?> fooVarInt2 = StateTags.set("foo", VarIntCoder.of());
-    StateTag<?, ?> fooBigEndian = StateTags.set("foo", BigEndianIntegerCoder.of());
-    StateTag<?, ?> barVarInt = StateTags.set("bar", VarIntCoder.of());
+    StateTag<?> fooVarInt1 = StateTags.set("foo", VarIntCoder.of());
+    StateTag<?> fooVarInt2 = StateTags.set("foo", VarIntCoder.of());
+    StateTag<?> fooBigEndian = StateTags.set("foo", BigEndianIntegerCoder.of());
+    StateTag<?> barVarInt = StateTags.set("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
     assertNotEquals(fooVarInt1, fooBigEndian);
@@ -77,15 +77,15 @@ public class StateTagTest {
 
   @Test
   public void testMapEquality() {
-    StateTag<?, ?> fooStringVarInt1 =
+    StateTag<?> fooStringVarInt1 =
         StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
-    StateTag<?, ?> fooStringVarInt2 =
+    StateTag<?> fooStringVarInt2 =
         StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
-    StateTag<?, ?> fooStringBigEndian =
+    StateTag<?> fooStringBigEndian =
         StateTags.map("foo", StringUtf8Coder.of(), BigEndianIntegerCoder.of());
-    StateTag<?, ?> fooVarIntBigEndian =
+    StateTag<?> fooVarIntBigEndian =
         StateTags.map("foo", VarIntCoder.of(), BigEndianIntegerCoder.of());
-    StateTag<?, ?> barStringVarInt =
+    StateTag<?> barStringVarInt =
         StateTags.map("bar", StringUtf8Coder.of(), VarIntCoder.of());
 
     assertEquals(fooStringVarInt1, fooStringVarInt2);
@@ -97,15 +97,11 @@ public class StateTagTest {
 
   @Test
   public void testWatermarkBagEquality() {
-    StateTag<?, ?> foo1 = StateTags.watermarkStateInternal(
-        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    StateTag<?, ?> foo2 = StateTags.watermarkStateInternal(
-        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    StateTag<?, ?> bar = StateTags.watermarkStateInternal(
-        "bar", OutputTimeFns.outputAtEarliestInputTimestamp());
+    StateTag<?> foo1 = StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    StateTag<?> foo2 = StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    StateTag<?> bar = StateTags.watermarkStateInternal("bar", TimestampCombiner.EARLIEST);
 
-    StateTag<?, ?> bar2 = StateTags.watermarkStateInternal(
-        "bar", OutputTimeFns.outputAtLatestInputTimestamp());
+    StateTag<?> bar2 = StateTags.watermarkStateInternal("bar", TimestampCombiner.LATEST);
 
     // Same id, same fn.
     assertEquals(foo1, foo2);
@@ -123,12 +119,12 @@ public class StateTagTest {
     Coder<Integer> input2 = BigEndianIntegerCoder.of();
     Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();
 
-    StateTag<?, ?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
-    StateTag<?, ?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
-    StateTag<?, ?> fooCoder1Min = StateTags.combiningValueFromInputInternal("foo", input1, minFn);
+    StateTag<?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?> fooCoder1Min = StateTags.combiningValueFromInputInternal("foo", input1, minFn);
 
-    StateTag<?, ?> fooCoder2Max = StateTags.combiningValueFromInputInternal("foo", input2, maxFn);
-    StateTag<?, ?> barCoder1Max = StateTags.combiningValueFromInputInternal("bar", input1, maxFn);
+    StateTag<?> fooCoder2Max = StateTags.combiningValueFromInputInternal("foo", input2, maxFn);
+    StateTag<?> barCoder1Max = StateTags.combiningValueFromInputInternal("bar", input1, maxFn);
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);
@@ -158,8 +154,7 @@ public class StateTagTest {
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Test
   public void testCombiningValueWithContextEquality() {
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
 
     Combine.BinaryCombineIntegerFn maxFn = Max.ofIntegers();
     Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();
@@ -167,17 +162,17 @@ public class StateTagTest {
     Coder<int[]> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
     Coder<int[]> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
 
-    StateTag<?, ?> fooCoder1Max1 = StateTags.keyedCombiningValueWithContext(
-            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).<String>asKeyedFn());
-    StateTag<?, ?> fooCoder1Max2 = StateTags.keyedCombiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
-    StateTag<?, ?> fooCoder1Min = StateTags.keyedCombiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(minFn).asKeyedFn());
+    StateTag<?> fooCoder1Max1 = StateTags.combiningValueWithContext(
+            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> fooCoder1Max2 = StateTags.combiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> fooCoder1Min = StateTags.combiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(minFn));
 
-    StateTag<?, ?> fooCoder2Max = StateTags.keyedCombiningValueWithContext(
-        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
-    StateTag<?, ?> barCoder1Max = StateTags.keyedCombiningValueWithContext(
-        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
+    StateTag<?> fooCoder2Max = StateTags.combiningValueWithContext(
+        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?> barCoder1Max = StateTags.combiningValueWithContext(
+        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn));
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);

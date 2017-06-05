@@ -101,6 +101,17 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     return this.equals(other);
   }
 
+  @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "Only %s objects with the same size and offset are compatible.",
+              FixedWindows.class.getSimpleName()));
+    }
+  }
+
   public Duration getSize() {
     return size;
   }

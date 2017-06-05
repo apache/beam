@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
  * Creates {@link ModelEnforcement} instances for an {@link AppliedPTransform} on an input
  * {@link CommittedBundle bundle}. {@link ModelEnforcement} instances are created before the
  * {@link TransformEvaluator} is created.
  */
-public interface ModelEnforcementFactory {
+interface ModelEnforcementFactory {
   <T> ModelEnforcement<T> forBundle(CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer);
 }

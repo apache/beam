@@ -15,31 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+
 
 /**
  * Test the RDD storage level defined by user.
  */
 public class StorageLevelTest {
 
+  private static String beamTestPipelineOptions;
+
   @Rule
-  public final transient SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final TestPipeline pipeline = TestPipeline.create();
+
+  @BeforeClass
+  public static void init() {
+    beamTestPipelineOptions =
+        System.getProperty(TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+
+    System.setProperty(
+        TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS,
+        beamTestPipelineOptions.replace("]", ", \"--storageLevel=DISK_ONLY\"]"));
+  }
+
+  @AfterClass
+  public static void teardown() {
+    System.setProperty(
+        TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS,
+        beamTestPipelineOptions);
+  }
 
   @Test
   public void test() throws Exception {
-    pipelineOptions.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
-
-    PCollection<String> pCollection = p.apply(Create.of("foo"));
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
     // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
@@ -50,7 +69,7 @@ public class StorageLevelTest {
 
     PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
 
-    p.run();
+    pipeline.run();
   }
 
 }

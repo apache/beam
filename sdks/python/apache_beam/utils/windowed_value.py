@@ -16,10 +16,12 @@
 #
 
 """Core windowing data structures.
+
+This module is experimental. No backwards-compatibility guarantees.
 """
 
 # This module is carefully crafted to have optimal performance when
-# compiled whiel still being valid Python.  Care needs to be taken when
+# compiled while still being valid Python.  Care needs to be taken when
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
@@ -79,19 +81,16 @@ class WindowedValue(object):
     """
     if type(left) is not type(right):
       return cmp(type(left), type(right))
-    else:
-      # TODO(robertwb): Avoid the type checks?
-      # Returns False (0) if equal, and True (1) if not.
-      return not WindowedValue._typed_eq(left, right)
+
+    # TODO(robertwb): Avoid the type checks?
+    # Returns False (0) if equal, and True (1) if not.
+    return not WindowedValue._typed_eq(left, right)
 
   @staticmethod
   def _typed_eq(left, right):
-    if (left.timestamp_micros == right.timestamp_micros
-        and left.value == right.value
-        and left.windows == right.windows):
-      return True
-    else:
-      return False
+    return (left.timestamp_micros == right.timestamp_micros
+            and left.value == right.value
+            and left.windows == right.windows)
 
   def with_value(self, new_value):
     """Creates a new WindowedValue with the same timestamps and windows as this.

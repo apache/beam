@@ -17,6 +17,8 @@
 
 """Retry decorators for calls raising exceptions.
 
+For internal use only; no backwards-compatibility guarantees.
+
 This module is used mostly to decorate all integration points where the code
 makes calls to remote services. Searching through the code base for @retry
 should find all such places. For this reason even places where retry is not
@@ -59,7 +61,7 @@ class FuzzedExponentialIntervals(object):
     fuzz: A value between 0 and 1, indicating the fraction of fuzz. For a
       given delay d, the fuzzed delay is randomly chosen between
       [(1 - fuzz) * d, d].
-    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+    max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
   """
@@ -86,16 +88,8 @@ class FuzzedExponentialIntervals(object):
 def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
-    if exception.status_code >= 500:
-      return True
-    else:
-      return False
-  elif isinstance(exception, PermanentException):
-    return False
-  else:
-    # We may get here for non HttpErrors such as socket timeouts, SSL
-    # exceptions, etc.
-    return True
+    return exception.status_code >= 500
+  return not isinstance(exception, PermanentException)
 
 
 def retry_on_server_errors_and_timeout_filter(exception):
@@ -143,9 +137,9 @@ def with_exponential_backoff(
       can be used so that the delays are not randomized.
     factor: The exponential factor to use on subsequent retries.
       Default is 2 (doubling).
-    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+    max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
-      the time. Defaults to 4 hours.
+      the time. Defaults to 1 hour.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
@@ -184,7 +178,7 @@ def with_exponential_backoff(
               sleep_interval = retry_intervals.next()
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              raise exn, None, exn_traceback
+              raise exn, None, exn_traceback  # pylint: disable=raising-bad-type
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

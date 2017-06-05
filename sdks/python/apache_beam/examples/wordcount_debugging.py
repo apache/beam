@@ -49,8 +49,10 @@ import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class FilterTextFn(beam.DoFn):
@@ -90,10 +92,6 @@ class CountWords(beam.PTransform):
   A PTransform that converts a PCollection containing lines of text into a
   PCollection of (word, count) tuples.
   """
-
-  def __init__(self):
-    super(CountWords, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
@@ -120,35 +118,32 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # Read the text file[pattern] into a PCollection, count the occurrences of
-  # each word and filter by a list of words.
-  filtered_words = (
-      p | 'read' >> ReadFromText(known_args.input)
-      | CountWords()
-      | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
+    # Read the text file[pattern] into a PCollection, count the occurrences of
+    # each word and filter by a list of words.
+    filtered_words = (
+        p | 'read' >> ReadFromText(known_args.input)
+        | CountWords()
+        | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
-  # assert_that is a convenient PTransform that checks a PCollection has an
-  # expected value. Asserts are best used in unit tests with small data sets but
-  # is demonstrated here as a teaching tool.
-  #
-  # Note assert_that does not provide any output and that successful completion
-  # of the Pipeline implies that the expectations were  met. Learn more at
-  # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
-  # test your pipeline.
-  beam.assert_that(
-      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+    # assert_that is a convenient PTransform that checks a PCollection has an
+    # expected value. Asserts are best used in unit tests with small data sets
+    # but is demonstrated here as a teaching tool.
+    #
+    # Note assert_that does not provide any output and that successful
+    # completion of the Pipeline implies that the expectations were  met. Learn
+    # more at https://cloud.google.com/dataflow/pipelines/testing-your-pipeline
+    # on how to best test your pipeline.
+    assert_that(
+        filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
 
-  # Format the counts into a PCollection of strings and write the output using a
-  # "Write" transform that has side effects.
-  # pylint: disable=unused-variable
-  output = (filtered_words
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | 'write' >> WriteToText(known_args.output))
-
-  # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+    # Format the counts into a PCollection of strings and write the output using
+    # a "Write" transform that has side effects.
+    # pylint: disable=unused-variable
+    output = (filtered_words
+              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'write' >> WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

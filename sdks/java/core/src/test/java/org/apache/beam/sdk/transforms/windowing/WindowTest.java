@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.not;
@@ -29,22 +30,33 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -123,9 +135,9 @@ public class WindowTest implements Serializable {
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply("Mode", Window.<String>accumulatingFiredPanes())
-      .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
-      .apply("Trigger", Window.<String>triggering(trigger))
+      .apply("Mode", Window.<String>configure().accumulatingFiredPanes())
+      .apply("Lateness", Window.<String>configure().withAllowedLateness(Duration.standardDays(1)))
+      .apply("Trigger", Window.<String>configure().triggering(trigger))
       .apply("Window", Window.<String>into(fixed10))
       .getWindowingStrategy();
 
@@ -151,6 +163,87 @@ public class WindowTest implements Serializable {
 
     assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
     assertEquals(fixed25, strategy.getWindowFn());
+  }
+
+  @Test
+  public void testWindowIntoAssignesLongerAllowedLateness() {
+
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
+
+    PCollection<String> notChanged = pipeline
+        .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+        .apply("WindowInto25", Window.<String>into(fixed25)
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+            .accumulatingFiredPanes())
+        .apply("WindowInto10", Window.<String>into(fixed10)
+            .withAllowedLateness(Duration.standardDays(2)));
+
+    assertEquals(Duration.standardDays(2), notChanged.getWindowingStrategy()
+        .getAllowedLateness());
+
+    PCollection<String> data = pipeline
+        .apply("createChanged", Create.of("hello", "world").withCoder(StringUtf8Coder.of()));
+
+    PCollection<String> longWindow = data.apply("WindowInto25c", Window.<String>into(fixed25)
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+            .accumulatingFiredPanes());
+
+    assertEquals(Duration.standardDays(1), longWindow.getWindowingStrategy()
+        .getAllowedLateness());
+
+    PCollection<String> autoCorrectedWindow = longWindow.apply("WindowInto10c",
+        Window.<String>into(fixed10).withAllowedLateness(Duration.standardHours(1)));
+
+    assertEquals(Duration.standardDays(1), autoCorrectedWindow.getWindowingStrategy()
+        .getAllowedLateness());
+  }
+
+  /**
+   * With {@link #testWindowIntoNullWindowFnNoAssign()}, demonstrates that the expansions of the
+   * {@link Window} transform depends on if it actually assigns elements to windows.
+   */
+  @Test
+  public void testWindowIntoWindowFnAssign() {
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            Window.<Integer>into(
+                FixedWindows.of(Duration.standardMinutes(11L).plus(Duration.millis(1L)))));
+
+    final AtomicBoolean foundAssign = new AtomicBoolean(false);
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            if (node.getTransform() instanceof Window.Assign) {
+              foundAssign.set(true);
+            }
+          }
+        });
+    assertThat(foundAssign.get(), is(true));
+  }
+
+  /**
+   * With {@link #testWindowIntoWindowFnAssign()}, demonstrates that the expansions of the
+   * {@link Window} transform depends on if it actually assigns elements to windows.
+   */
+  @Test
+  public void testWindowIntoNullWindowFnNoAssign() {
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            Window.<Integer>configure().triggering(AfterWatermark.pastEndOfWindow())
+                .withAllowedLateness(Duration.ZERO)
+                .accumulatingFiredPanes());
+
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            assertThat(node.getTransform(), not(instanceOf(Window.Assign.class)));
+          }
+        });
   }
 
   @Test
@@ -189,7 +282,9 @@ public class WindowTest implements Serializable {
     thrown.expectMessage("requires that the accumulation mode");
     input.apply(
         "Triggering",
-        Window.<String>withAllowedLateness(Duration.standardDays(1)).triggering(trigger));
+        Window.<String>configure()
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(trigger));
   }
 
   @Test
@@ -202,8 +297,8 @@ public class WindowTest implements Serializable {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("allowed lateness");
     thrown.expectMessage("accumulation mode be specified");
-    input
-        .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)));
+    input.apply(
+        "Lateness", Window.<String>configure().withAllowedLateness(Duration.standardDays(1)));
   }
 
   @Test
@@ -215,9 +310,98 @@ public class WindowTest implements Serializable {
     thrown.expectMessage("requires that the allowed lateness");
     pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply("Mode", Window.<String>accumulatingFiredPanes())
+      .apply("Mode", Window.<String>configure().accumulatingFiredPanes())
       .apply("Window", Window.<String>into(fixed10))
-      .apply("Trigger", Window.<String>triggering(trigger));
+      .apply("Trigger", Window.<String>configure().triggering(trigger));
+  }
+
+  private static class WindowOddEvenBuckets extends NonMergingWindowFn<Long, IntervalWindow> {
+    private static final IntervalWindow EVEN_WINDOW =
+        new IntervalWindow(
+            BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp());
+    private static final IntervalWindow ODD_WINDOW =
+        new IntervalWindow(
+            BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp().minus(1));
+
+    @Override
+    public Collection<IntervalWindow> assignWindows(AssignContext c) throws Exception {
+      if (c.element() % 2 == 0) {
+        return Collections.singleton(EVEN_WINDOW);
+      }
+      return Collections.singleton(ODD_WINDOW);
+    }
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return other instanceof WindowOddEvenBuckets;
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other, "WindowOddEvenBuckets is only compatible with WindowOddEvenBuckets.");
+      }
+    }
+
+    @Override
+    public Coder<IntervalWindow> windowCoder() {
+      return new IntervalWindow.IntervalWindowCoder();
+    }
+
+    @Override
+    public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException(
+          String.format("Can't use %s for side inputs", getClass().getSimpleName()));
+    }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testNoWindowFnDoesNotReassignWindows() {
+    pipeline.enableAbandonedNodeEnforcement(true);
+
+    final PCollection<Long> initialWindows =
+        pipeline
+            .apply(GenerateSequence.from(0).to(10))
+            .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
+
+    // Sanity check the window assignment to demonstrate the baseline
+    PAssert.that(initialWindows)
+        .inWindow(WindowOddEvenBuckets.EVEN_WINDOW)
+        .containsInAnyOrder(0L, 2L, 4L, 6L, 8L);
+    PAssert.that(initialWindows)
+        .inWindow(WindowOddEvenBuckets.ODD_WINDOW)
+        .containsInAnyOrder(1L, 3L, 5L, 7L, 9L);
+
+    PCollection<Boolean> upOne =
+        initialWindows.apply(
+            "ModifyTypes",
+            MapElements.<Long, Boolean>via(
+                new SimpleFunction<Long, Boolean>() {
+                  @Override
+                  public Boolean apply(Long input) {
+                    return input % 2 == 0;
+                  }
+                }));
+    PAssert.that(upOne)
+        .inWindow(WindowOddEvenBuckets.EVEN_WINDOW)
+        .containsInAnyOrder(true, true, true, true, true);
+    PAssert.that(upOne)
+        .inWindow(WindowOddEvenBuckets.ODD_WINDOW)
+        .containsInAnyOrder(false, false, false, false, false);
+
+    // The elements should be in the same windows, even though they would not be assigned to the
+    // same windows with the updated timestamps. If we try to apply the original WindowFn, the type
+    // will not be appropriate and the runner should crash, as a Boolean cannot be converted into
+    // a long.
+    PCollection<Boolean> updatedTrigger =
+        upOne.apply(
+            "UpdateWindowingStrategy",
+            Window.<Boolean>configure().triggering(Never.ever())
+                .withAllowedLateness(Duration.ZERO)
+                .accumulatingFiredPanes());
+    pipeline.run();
   }
 
   /**
@@ -225,8 +409,8 @@ public class WindowTest implements Serializable {
    * with the windowing function default, the end of the window.
    */
   @Test
-  @Category(RunnableOnService.class)
-  public void testOutputTimeFnDefault() {
+  @Category(ValidatesRunner.class)
+  public void testTimestampCombinerDefault() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline
@@ -259,8 +443,8 @@ public class WindowTest implements Serializable {
    * with the windowing function customized to use the end of the window.
    */
   @Test
-  @Category(RunnableOnService.class)
-  public void testOutputTimeFnEndOfWindow() {
+  @Category(ValidatesRunner.class)
+  public void testTimestampCombinerEndOfWindow() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline.apply(
@@ -268,7 +452,7 @@ public class WindowTest implements Serializable {
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+            .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
           @ProcessElement
@@ -286,14 +470,14 @@ public class WindowTest implements Serializable {
     AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
     Duration allowedLateness = Duration.standardMinutes(10);
     Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
-    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
+    TimestampCombiner timestampCombiner = TimestampCombiner.END_OF_WINDOW;
 
-    Window.Bound<?> window = Window
+    Window<?> window = Window
         .into(windowFn)
         .triggering(triggerBuilder)
         .accumulatingFiredPanes()
         .withAllowedLateness(allowedLateness, closingBehavior)
-        .withOutputTimeFn(outputTimeFn);
+        .withTimestampCombiner(timestampCombiner);
 
     DisplayData displayData = DisplayData.from(window);
 
@@ -306,27 +490,79 @@ public class WindowTest implements Serializable {
     assertThat(displayData,
         hasDisplayItem("allowedLateness", allowedLateness));
     assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
-    assertThat(displayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
+    assertThat(displayData, hasDisplayItem("timestampCombiner", timestampCombiner.toString()));
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testPrimitiveDisplayData() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+    AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
+    Duration allowedLateness = Duration.standardMinutes(10);
+    Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
+    TimestampCombiner timestampCombiner = TimestampCombiner.END_OF_WINDOW;
+
+    Window<?> window = Window
+        .into(windowFn)
+        .triggering(triggerBuilder)
+        .accumulatingFiredPanes()
+        .withAllowedLateness(allowedLateness, closingBehavior)
+        .withTimestampCombiner(timestampCombiner);
+
+    DisplayData primitiveDisplayData =
+        Iterables.getOnlyElement(
+            DisplayDataEvaluator.create().displayDataForPrimitiveTransforms(window));
+
+    assertThat(primitiveDisplayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(primitiveDisplayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(primitiveDisplayData, hasDisplayItem("trigger", triggerBuilder.toString()));
+    assertThat(primitiveDisplayData,
+        hasDisplayItem("accumulationMode", AccumulationMode.ACCUMULATING_FIRED_PANES.toString()));
+    assertThat(primitiveDisplayData,
+        hasDisplayItem("allowedLateness", allowedLateness));
+    assertThat(primitiveDisplayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
+    assertThat(
+        primitiveDisplayData, hasDisplayItem("timestampCombiner", timestampCombiner.toString()));
+  }
+
+  @Test
+  public void testAssignDisplayDataUnchanged() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+
+    Window<Object> original = Window.into(windowFn);
+    WindowingStrategy<?, ?> updated = WindowingStrategy.globalDefault().withWindowFn(windowFn);
+
+    DisplayData displayData = DisplayData.from(new Window.Assign<>(original, updated));
+
+    assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(displayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(displayData, not(hasDisplayItem("trigger")));
+    assertThat(displayData, not(hasDisplayItem("accumulationMode")));
+    assertThat(displayData, not(hasDisplayItem("allowedLateness")));
+    assertThat(displayData, not(hasDisplayItem("closingBehavior")));
+    assertThat(displayData, not(hasDisplayItem("timestampCombiner")));
   }
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> onlyHasAccumulationMode = Window.discardingFiredPanes();
+    Window<?> onlyHasAccumulationMode = Window.<Object>configure().discardingFiredPanes();
     assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
         "windowFn",
         "trigger",
-        "outputTimeFn",
+        "timestampCombiner",
         "allowedLateness",
         "closingBehavior")))));
 
-    Window.Bound<?> noAccumulationMode = Window.into(new GlobalWindows());
+    Window<?> noAccumulationMode = Window.into(new GlobalWindows());
     assertThat(DisplayData.from(noAccumulationMode),
         not(hasDisplayItem(hasKey("accumulationMode"))));
   }
 
   @Test
   public void testDisplayDataExcludesDefaults() {
-    Window.Bound<?> window = Window.into(new GlobalWindows())
+    Window<?> window = Window.into(new GlobalWindows())
         .triggering(DefaultTrigger.of())
         .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 

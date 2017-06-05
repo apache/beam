@@ -17,27 +17,37 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Executors;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -51,7 +61,11 @@ class SplittableProcessElementsEvaluatorFactory<
 
   SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
-    this.delegateFactory = new ParDoEvaluatorFactory<>(evaluationContext);
+    this.delegateFactory =
+        new ParDoEvaluatorFactory<>(
+            evaluationContext,
+            SplittableProcessElementsEvaluatorFactory
+                .<InputT, OutputT, RestrictionT>processFnRunnerFactory());
   }
 
   @Override
@@ -74,20 +88,19 @@ class SplittableProcessElementsEvaluatorFactory<
       createEvaluator(
           AppliedPTransform<
                   PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
-                  PCollectionTuple,
-                  SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
+                  PCollectionTuple, ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
               application,
           CommittedBundle<InputT> inputBundle)
           throws Exception {
-    final SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
-    SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
+    ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
         transform.newProcessFn(transform.getFn());
 
     DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
     processFn =
-        ((SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+        ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
             fnManager
                 .<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
                     get());
@@ -96,16 +109,16 @@ class SplittableProcessElementsEvaluatorFactory<
     final DirectExecutionContext.DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundle.getKey())
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
-    ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+    final ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
         parDoEvaluator =
             delegateFactory.createParDoEvaluator(
                 application,
                 inputBundle.getKey(),
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
-                transform.getSideOutputTags().getAll(),
+                transform.getAdditionalOutputTags().getAll(),
                 stepContext,
                 processFn,
                 fnManager);
@@ -114,7 +127,7 @@ class SplittableProcessElementsEvaluatorFactory<
         new StateInternalsFactory<String>() {
           @SuppressWarnings({"unchecked", "rawtypes"})
           @Override
-          public StateInternals<String> stateInternalsForKey(String key) {
+          public StateInternals stateInternalsForKey(String key) {
             return (StateInternals) stepContext.stateInternals();
           }
         });
@@ -127,40 +140,84 @@ class SplittableProcessElementsEvaluatorFactory<
           }
         });
 
-    final OutputManager outputManager = parDoEvaluator.getOutputManager();
+    OutputWindowedValue<OutputT> outputWindowedValue =
+        new OutputWindowedValue<OutputT>() {
+          private final OutputManager outputManager = parDoEvaluator.getOutputManager();
+
+          @Override
+          public void outputWindowedValue(
+              OutputT output,
+              Instant timestamp,
+              Collection<? extends BoundedWindow> windows,
+              PaneInfo pane) {
+            outputManager.output(
+                transform.getMainOutputTag(), WindowedValue.of(output, timestamp, windows, pane));
+          }
+
+          @Override
+          public <AdditionalOutputT> void outputWindowedValue(
+              TupleTag<AdditionalOutputT> tag,
+              AdditionalOutputT output,
+              Instant timestamp,
+              Collection<? extends BoundedWindow> windows,
+              PaneInfo pane) {
+            outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+          }
+        };
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, TrackerT>(
             transform.getFn(),
             evaluationContext.getPipelineOptions(),
-            new OutputWindowedValue<OutputT>() {
-              @Override
-              public void outputWindowedValue(
-                  OutputT output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo pane) {
-                outputManager.output(
-                    transform.getMainOutputTag(),
-                    WindowedValue.of(output, timestamp, windows, pane));
-              }
-
-              @Override
-              public <SideOutputT> void sideOutputWindowedValue(
-                  TupleTag<SideOutputT> tag,
-                  SideOutputT output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo pane) {
-                outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-              }
-            },
+            outputWindowedValue,
             evaluationContext.createSideInputReader(transform.getSideInputs()),
             // TODO: For better performance, use a higher-level executor?
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the
+            // DirectRunner.
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder()
+                    .setThreadFactory(MoreExecutors.platformThreadFactory())
+                    .setDaemon(true)
+                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
+                    .build()),
             10000,
             Duration.standardSeconds(10)));
 
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnManager);
+  }
+
+  private static <InputT, OutputT, RestrictionT>
+  ParDoEvaluator.DoFnRunnerFactory<
+                KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+          processFnRunnerFactory() {
+    return new ParDoEvaluator.DoFnRunnerFactory<
+            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
+      @Override
+      public PushbackSideInputDoFnRunner<
+          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+      createRunner(
+          PipelineOptions options,
+          DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> fn,
+          List<PCollectionView<?>> sideInputs,
+          ReadyCheckingSideInputReader sideInputReader,
+          OutputManager outputManager,
+          TupleTag<OutputT> mainOutputTag,
+          List<TupleTag<?>> additionalOutputTags,
+          DirectExecutionContext.DirectStepContext stepContext,
+          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
+        ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
+            (ProcessFn) fn;
+        return DoFnRunners.newProcessFnRunner(
+            processFn,
+            options,
+            sideInputs,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            stepContext,
+            windowingStrategy);
+      }
+    };
   }
 }

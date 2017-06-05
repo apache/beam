@@ -37,7 +37,7 @@ class ElasticSearchIOTestUtils {
   /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
-    DO_NOT_INJECT_INVALID_DOCS;
+    DO_NOT_INJECT_INVALID_DOCS
   }
 
   /** Deletes the given index synchronously. */

@@ -26,7 +26,7 @@ import unittest
 
 import yaml
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.coders import coder_impl
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
@@ -34,7 +34,7 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
+    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
 
 
 def _load_test_cases(test_yaml):
@@ -94,13 +94,18 @@ class StandardCodersTest(unittest.TestCase):
       for expected_encoded, json_value in spec['examples'].items():
         value = parse_value(json_value)
         expected_encoded = expected_encoded.encode('latin1')
-        actual_encoded = encode_nested(coder, value, nested)
-        if self.fix and actual_encoded != expected_encoded:
-          self.to_fix[spec['index'], expected_encoded] = actual_encoded
+        if not spec['coder'].get('non_deterministic', False):
+          actual_encoded = encode_nested(coder, value, nested)
+          if self.fix and actual_encoded != expected_encoded:
+            self.to_fix[spec['index'], expected_encoded] = actual_encoded
+          else:
+            self.assertEqual(expected_encoded, actual_encoded)
+            self.assertEqual(decode_nested(coder, expected_encoded, nested),
+                             value)
         else:
+          # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),
                            value)
-          self.assertEqual(expected_encoded, actual_encoded)
 
   def parse_coder(self, spec):
     return self._urn_to_coder_class[spec['urn']](

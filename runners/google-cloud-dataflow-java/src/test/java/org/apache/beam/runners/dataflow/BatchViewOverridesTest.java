@@ -280,7 +280,7 @@ public class BatchViewOverridesTest {
 
     // Verify the number of unique keys per window.
     assertThat(
-        doFnTester.takeSideOutputElements(outputForSizeTag),
+        doFnTester.takeOutputElements(outputForSizeTag),
         contains(
             KV.of(
                 ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowA)),
@@ -294,7 +294,7 @@ public class BatchViewOverridesTest {
 
     // Verify the output for the unique keys.
     assertThat(
-        doFnTester.takeSideOutputElements(outputForEntrySetTag),
+        doFnTester.takeOutputElements(outputForEntrySetTag),
         contains(
             KV.of(
                 ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowA)),

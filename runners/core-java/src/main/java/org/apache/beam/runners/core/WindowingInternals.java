@@ -40,7 +40,7 @@ public interface WindowingInternals<InputT, OutputT> {
    * Unsupported state internals. The key type is unknown. It is up to the user to use the
    * correct type of key.
    */
-  StateInternals<?> stateInternals();
+  StateInternals stateInternals();
 
   /**
    * Output the value at the specified timestamp in the listed windows.
@@ -49,11 +49,11 @@ public interface WindowingInternals<InputT, OutputT> {
       Collection<? extends BoundedWindow> windows, PaneInfo pane);
 
   /**
-   * Output the value to a side output at the specified timestamp in the listed windows.
+   * Output the value to a tagged output at the specified timestamp in the listed windows.
    */
-  <SideOutputT> void sideOutputWindowedValue(
-      TupleTag<SideOutputT> tag,
-      SideOutputT output,
+  <AdditionalOutputT> void outputWindowedValue(
+      TupleTag<AdditionalOutputT> tag,
+      AdditionalOutputT output,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane);

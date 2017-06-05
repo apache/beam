@@ -34,7 +34,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -402,7 +402,8 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
-            bigquery.TableCell(v=to_json_value([]))])]
+            # REPEATED field without any values.
+            bigquery.TableCell(v=None)])]
     return table_rows, schema, expected_rows
 
   def test_read_from_table(self):

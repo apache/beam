@@ -27,6 +27,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.io import iobase
 import apache_beam.io.source_test_utils as source_test_utils
 
 # Importing following private classes for testing.
@@ -40,12 +41,11 @@ from apache_beam import coders
 from apache_beam.io.filebasedsource_test import EOL
 from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
-from apache_beam.io.fileio import CompressionTypes
+from apache_beam.io.filesystem import CompressionTypes
 
-from apache_beam.test_pipeline import TestPipeline
-
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 # TODO: Refactor code so all io tests are using same library
@@ -254,7 +254,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     sources_info = ([
         (split.source, split.start_position, split.stop_position) for
         split in splits])
-    source_test_utils.assertSourcesEqualReferenceSource(
+    source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
 
   def test_progress(self):
@@ -265,20 +265,32 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
     fraction_consumed_report = []
+    split_points_report = []
     range_tracker = splits[0].source.get_range_tracker(
         splits[0].start_position, splits[0].stop_position)
     for _ in splits[0].source.read(range_tracker):
       fraction_consumed_report.append(range_tracker.fraction_consumed())
+      split_points_report.append(range_tracker.split_points())
 
     self.assertEqual(
         [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
+    expected_split_points_report = [
+        ((i - 1), iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+        for i in range(1, 10)]
+
+    # At last split point, the remaining split points callback returns 1 since
+    # the expected position of next record becomes equal to the stop position.
+    expected_split_points_report.append((9, 1))
+
+    self.assertEqual(
+        expected_split_points_report, split_points_report)
 
   def test_read_reentrant_without_splitting(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reentrant_after_splitting(self):
     file_name, expected_data = write_data(10)
@@ -287,7 +299,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertReentrantReadsSucceed(
+    source_test_utils.assert_reentrant_reads_succeed(
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_dynamic_work_rebalancing(self):
@@ -297,7 +309,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertSplitAtFractionExhaustive(
+    source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position)
 
   def test_dynamic_work_rebalancing_windows_eol(self):
@@ -307,7 +319,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertSplitAtFractionExhaustive(
+    source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position,
         perform_multi_threaded_test=False)
 
@@ -318,7 +330,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertSplitAtFractionExhaustive(
+    source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position,
         perform_multi_threaded_test=False)
 
@@ -436,7 +448,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     sources_info = ([
         (split.source, split.start_position, split.stop_position) for
         split in splits])
-    source_test_utils.assertSourcesEqualReferenceSource(
+    source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
 
   def test_read_gzip_empty_file(self):
@@ -548,10 +560,10 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
         (split.source, split.start_position, split.stop_position) for
         split in splits])
     self.assertGreater(len(sources_info), 1)
-    reference_lines = source_test_utils.readFromSource(*reference_source_info)
+    reference_lines = source_test_utils.read_from_source(*reference_source_info)
     split_lines = []
     for source_info in sources_info:
-      split_lines.extend(source_test_utils.readFromSource(*source_info))
+      split_lines.extend(source_test_utils.read_from_source(*source_info))
 
     self.assertEqual(expected_data[2:], reference_lines)
     self.assertEqual(reference_lines, split_lines)

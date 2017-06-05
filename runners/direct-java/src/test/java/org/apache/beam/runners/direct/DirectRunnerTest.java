@@ -32,9 +32,18 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -42,13 +51,13 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -65,6 +74,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -182,9 +192,10 @@ public class DirectRunnerTest implements Serializable {
     TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
     };
     PCollection<byte[]> foos =
-        p.apply(Create.of(1, 1, 1, 2, 2, 3)).apply(MapElements.via(getBytes).withOutputType(td));
+        p.apply(Create.of(1, 1, 1, 2, 2, 3))
+            .apply(MapElements.into(td).via(getBytes));
     PCollection<byte[]> msync =
-        p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.via(getBytes).withOutputType(td));
+        p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.into(td).via(getBytes));
     PCollection<byte[]> bytes =
         PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
     PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
@@ -219,6 +230,76 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(longs).containsInAnyOrder(0L, 1L, 2L);
     p.run();
+  }
+
+  @Test
+  public void cancelShouldStopPipeline() throws Exception {
+    PipelineOptions opts = TestPipeline.testingPipelineOptions();
+    opts.as(DirectOptions.class).setBlockOnRun(false);
+    opts.setRunner(DirectRunner.class);
+
+    final Pipeline p = Pipeline.create(opts);
+    p.apply(GenerateSequence.from(0).withRate(1L, Duration.standardSeconds(1)));
+
+    final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
+    Runnable cancelRunnable = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          resultExchange.take().cancel();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        } catch (IOException e) {
+          throw new IllegalStateException(e);
+        }
+      }
+    };
+
+    Callable<PipelineResult> runPipelineRunnable = new Callable<PipelineResult>() {
+      @Override
+      public PipelineResult call() {
+        PipelineResult res = p.run();
+        try {
+          resultExchange.put(res);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        }
+        return res;
+      }
+    };
+
+    ExecutorService executor = Executors.newCachedThreadPool();
+    executor.submit(cancelRunnable);
+    Future<PipelineResult> result = executor.submit(runPipelineRunnable);
+
+    // If cancel doesn't work, this will hang forever
+    result.get().waitUntilFinish();
+  }
+
+  @Test
+  public void testWaitUntilFinishTimeout() throws Exception {
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline p = Pipeline.create(options);
+    p
+      .apply(Create.of(1L))
+      .apply(ParDo.of(
+          new DoFn<Long, Long>() {
+            @ProcessElement
+            public void hang(ProcessContext context) throws InterruptedException {
+              // Hangs "forever"
+              Thread.sleep(Long.MAX_VALUE);
+            }
+          }));
+    PipelineResult result = p.run();
+    // The pipeline should never complete;
+    assertThat(result.getState(), is(State.RUNNING));
+    // Must time out, otherwise this test will never complete
+    result.waitUntilFinish(Duration.millis(1L));
+    assertThat(result.getState(), is(State.RUNNING));
   }
 
   @Test
@@ -425,8 +506,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromBoundedRead() throws Exception {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.upTo(10)).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0).to(10)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
@@ -436,8 +516,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromUnboundedRead() {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.unbounded()).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
@@ -447,11 +526,11 @@ public class DirectRunnerTest implements Serializable {
   private static class LongNoDecodeCoder extends AtomicCoder<Long> {
     @Override
     public void encode(
-        Long value, OutputStream outStream, Context context) throws IOException {
+        Long value, OutputStream outStream) throws IOException {
     }
 
     @Override
-    public Long decode(InputStream inStream, Context context) throws IOException {
+    public Long decode(InputStream inStream) throws IOException {
       throw new CoderException("Cannot decode a long");
     }
   }
@@ -468,13 +547,13 @@ public class DirectRunnerTest implements Serializable {
     }
 
     @Override
-    public List<? extends BoundedSource<T>> splitIntoBundles(
+    public List<? extends BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       // Must have more than
       checkState(
           desiredBundleSizeBytes < getEstimatedSizeBytes(options),
           "Must split into more than one source");
-      return underlying.splitIntoBundles(desiredBundleSizeBytes, options);
+      return underlying.split(desiredBundleSizeBytes, options);
     }
 
     @Override

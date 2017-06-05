@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""A library of basic cythonized CombineFn subclasses."""
+"""A library of basic cythonized CombineFn subclasses.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 

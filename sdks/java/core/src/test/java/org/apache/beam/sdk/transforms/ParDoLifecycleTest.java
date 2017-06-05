@@ -28,8 +28,8 @@ import static org.junit.Assert.fail;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -49,7 +49,7 @@ public class ParDoLifecycleTest implements Serializable {
   public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOldFnCallSequence() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
@@ -60,7 +60,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOldFnCallSequenceMulti() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
@@ -87,7 +87,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertThat("setup should have been called", setupCalled, is(true));
       assertThat(
           "Even number of startBundle and finishBundle calls in startBundle",
@@ -108,7 +108,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat(
           "there should be one bundle that has been started but not finished",
@@ -128,7 +128,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFnCallSequence() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
@@ -139,7 +139,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFnCallSequenceMulti() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
@@ -167,7 +167,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void begin(Context c) {
+    public void begin() {
       assertThat("setup should have been called", setupCalled, is(true));
       assertThat("Even number of startBundle and finishBundle calls in startBundle",
           startBundleCalls,
@@ -186,7 +186,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void end(Context c) {
+    public void end() {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat("there should be one bundle that has been started but not finished",
           startBundleCalls,
@@ -354,7 +354,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle() throws Exception {
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
@@ -364,7 +364,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 
@@ -401,7 +401,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @StartBundle
-    public void preBundle(Context c) throws Exception {
+    public void preBundle() throws Exception {
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
@@ -411,7 +411,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
 
     @FinishBundle
-    public void postBundle(Context c) throws Exception {
+    public void postBundle() throws Exception {
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
 

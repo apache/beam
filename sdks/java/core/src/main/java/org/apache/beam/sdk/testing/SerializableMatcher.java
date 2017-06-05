@@ -25,7 +25,7 @@ import org.hamcrest.Matcher;
 /**
  * A {@link Matcher} that is also {@link Serializable}.
  *
- * <p>Such matchers can be used with {@link PAssert}, which builds Dataflow pipelines
+ * <p>Such matchers can be used with {@link PAssert}, which builds pipelines
  * such that these matchers may be serialized and executed remotely.
  *
  * <p>To create a {@code SerializableMatcher}, extend {@link org.hamcrest.BaseMatcher}

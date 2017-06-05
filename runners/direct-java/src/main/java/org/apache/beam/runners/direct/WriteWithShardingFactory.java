@@ -18,144 +18,122 @@
 
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.io.Write.Bound;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides {@link Write} {@link PTransform PTransforms}
- * with an unspecified number of shards with a write with a specified number of shards. The number
- * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
+ * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles}
+ * {@link PTransform PTransforms} with an unspecified number of shards with a write with a
+ * specified number of shards. The number of shards is the log base 10 of the number of input
+ * records, with up to 2 additional shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements org.apache.beam.sdk.runners.PTransformOverrideFactory<
-        PCollection<InputT>, PDone, Write.Bound<InputT>> {
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
+  @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
-      Bound<InputT> transform) {
-    if (transform.getSharding() == null) {
-      return new DynamicallyReshardedWrite<>(transform);
-    }
-    return transform;
-  }
+  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
+      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
 
-  @Override
-  public PCollection<InputT> getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PDone newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
     return Collections.emptyMap();
   }
 
-  private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final transient Write.Bound<T> original;
-
-    private DynamicallyReshardedWrite(Bound<T> original) {
-      this.original = original;
-    }
+  private static class LogElementShardsWithDrift<T>
+      extends PTransform<PCollection<T>, PCollectionView<Integer>> {
 
     @Override
-    public PDone expand(PCollection<T> input) {
-      checkArgument(
-          IsBounded.BOUNDED == input.isBounded(),
-          "%s can only be applied to a Bounded PCollection",
-          getClass().getSimpleName());
-      PCollection<T> records =
-          input.apply(
-              "RewindowInputs",
-              Window.<T>into(new GlobalWindows())
-                  .triggering(DefaultTrigger.of())
-                  .withAllowedLateness(Duration.ZERO)
-                  .discardingFiredPanes());
-      final PCollectionView<Long> numRecords =
-          records.apply("CountRecords", Count.<T>globally().asSingletonView());
-      PCollection<T> resharded =
-          records
-              .apply(
-                  "ApplySharding",
-                  ParDo.withSideInputs(numRecords)
-                      .of(
-                          new KeyBasedOnCountFn<T>(
-                              numRecords,
-                              ThreadLocalRandom.current().nextInt(MAX_RANDOM_EXTRA_SHARDS))))
-              .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-              .apply("DropShardingKeys", Values.<Iterable<T>>create())
-              .apply("FlattenShardIterables", Flatten.<T>iterables());
-      // This is an inverted application to apply the expansion of the original Write PTransform
-      // without adding a new Write Transform Node, which would be overwritten the same way, leading
-      // to an infinite recursion. We cannot modify the number of shards, because that is determined
-      // at runtime.
-      return resharded.apply(original);
+    public PCollectionView<Integer> expand(PCollection<T> records) {
+      return records
+          .apply(Window.<T>into(new GlobalWindows()))
+          .apply("CountRecords", Count.<T>globally())
+          .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
+          .apply(View.<Integer>asSingleton());
     }
   }
 
   @VisibleForTesting
-  static class KeyBasedOnCountFn<T> extends DoFn<T, KV<Integer, T>> {
-    @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
-    private final PCollectionView<Long> numRecords;
-    private final int randomExtraShards;
-    private int currentShard;
-    private int maxShards = 0;
+  static class CalculateShardsFn extends DoFn<Long, Integer> {
+    private final Supplier<Integer> extraShardsSupplier;
 
-    KeyBasedOnCountFn(PCollectionView<Long> numRecords, int extraShards) {
-      this.numRecords = numRecords;
-      this.randomExtraShards = extraShards;
+    public CalculateShardsFn() {
+      this(new BoundedRandomIntSupplier(MAX_RANDOM_EXTRA_SHARDS));
+    }
+
+    /**
+     * Construct a {@link CalculateShardsFn} that always uses a constant number of specified extra
+     * shards.
+     */
+    @VisibleForTesting
+    CalculateShardsFn(int constantExtraShards) {
+      this(Suppliers.ofInstance(constantExtraShards));
+    }
+
+    private CalculateShardsFn(Supplier<Integer> extraShardsSupplier) {
+      this.extraShardsSupplier = extraShardsSupplier;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      if (maxShards == 0) {
-        maxShards = calculateShards(c.sideInput(numRecords));
-        currentShard = ThreadLocalRandom.current().nextInt(maxShards);
-      }
-      int shard = currentShard;
-      currentShard = (currentShard + 1) % maxShards;
-      c.output(KV.of(shard, c.element()));
+    public void process(ProcessContext ctxt) {
+      ctxt.output(calculateShards(ctxt.element()));
     }
 
     private int calculateShards(long totalRecords) {
-      checkArgument(
-          totalRecords > 0,
-          "KeyBasedOnCountFn cannot be invoked on an element if there are no elements");
-      if (totalRecords < MIN_SHARDS_FOR_LOG + randomExtraShards) {
+      if (totalRecords == 0) {
+        // WriteFiles out at least one shard, even if there is no input.
+        return 1;
+      }
+      // Windows get their own number of random extra shards. This is stored in a side input, so
+      // writers use a consistent number of keys.
+      int extraShards = extraShardsSupplier.get();
+      if (totalRecords < MIN_SHARDS_FOR_LOG + extraShards) {
         return (int) totalRecords;
       }
       // 100mil records before >7 output files
       int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
-      int shards = Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + randomExtraShards;
-      return shards;
+      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + extraShards;
+    }
+  }
+
+  private static class BoundedRandomIntSupplier implements Supplier<Integer>, Serializable {
+    private final int upperBound;
+
+    private BoundedRandomIntSupplier(int upperBound) {
+      this.upperBound = upperBound;
+    }
+
+    @Override
+    public Integer get() {
+      return ThreadLocalRandom.current().nextInt(0, upperBound);
     }
   }
 }

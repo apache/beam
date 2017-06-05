@@ -36,9 +36,9 @@ import org.apache.beam.sdk.values.PDone;
 public class WriteWindowedToBigQuery<T>
     extends WriteToBigQuery<T> {
 
-  public WriteWindowedToBigQuery(String tableName,
-      Map<String, FieldInfo<T>> fieldInfo) {
-    super(tableName, fieldInfo);
+  public WriteWindowedToBigQuery(
+      String projectId, String datasetId, String tableName, Map<String, FieldInfo<T>> fieldInfo) {
+    super(projectId, datasetId, tableName, fieldInfo);
   }
 
   /** Convert each key/score pair into a BigQuery TableRow. */
@@ -58,14 +58,14 @@ public class WriteWindowedToBigQuery<T>
 
   @Override
   public PDone expand(PCollection<T> teamAndScore) {
-    return teamAndScore
+    teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
-      .apply(BigQueryIO.Write
-                .to(getTable(teamAndScore.getPipeline(),
-                    tableName))
+      .apply(BigQueryIO.writeTableRows()
+                .to(getTable(projectId, datasetId, tableName))
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+    return PDone.in(teamAndScore.getPipeline());
   }
 
 }

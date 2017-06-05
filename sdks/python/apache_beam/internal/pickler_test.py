@@ -80,5 +80,6 @@ class PicklerTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       dumps((_ for _ in range(10)))
 
+
 if __name__ == '__main__':
   unittest.main()

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * The result of {@link org.apache.beam.sdk.io.FileSystem#match}.
@@ -30,52 +32,44 @@ public abstract class MatchResult {
   /**
    * Returns a {@link MatchResult} given the {@link Status} and {@link Metadata}.
    */
-  public static MatchResult create(final Status status, final Metadata[] metadata) {
-    return new MatchResult() {
-      @Override
-      public Status status() {
-        return status;
-      }
+  public static MatchResult create(Status status, List<Metadata> metadata) {
+    return new AutoValue_MatchResult_Success(status, metadata);
+  }
 
-      @Override
-      public Metadata[] metadata() throws IOException {
-        return metadata;
-      }
-    };
+  @AutoValue
+  abstract static class Success extends MatchResult {
+    abstract List<Metadata> getMetadata();
+
+    @Override
+    public List<Metadata> metadata() throws IOException {
+      return getMetadata();
+    }
   }
 
   /**
    * Returns a {@link MatchResult} given the {@link Status} and {@link IOException}.
    */
   public static MatchResult create(final Status status, final IOException e) {
-    return new MatchResult() {
-      @Override
-      public Status status() {
-        return status;
-      }
+    return new AutoValue_MatchResult_Failure(status, e);
+  }
 
-      @Override
-      public Metadata[] metadata() throws IOException {
-        throw e;
-      }
-    };
+  @AutoValue
+  abstract static class Failure extends MatchResult {
+    abstract IOException getException();
+
+    @Override
+    public List<Metadata> metadata() throws IOException {
+      throw getException();
+    }
   }
 
   /**
    * Returns a {@link MatchResult} with {@link Status#UNKNOWN}.
    */
   public static MatchResult unknown() {
-    return new MatchResult() {
-      @Override
-      public Status status() {
-        return Status.UNKNOWN;
-      }
-
-      @Override
-      public Metadata[] metadata() throws IOException {
-        throw new IOException("MatchResult status is UNKNOWN, and metadata is not available.");
-      }
-    };
+    return new AutoValue_MatchResult_Failure(
+        Status.UNKNOWN,
+        new IOException("MatchResult status is UNKNOWN, and metadata is not available."));
   }
 
   /**
@@ -86,13 +80,13 @@ public abstract class MatchResult {
   /**
    * {@link Metadata} of matched files.
    */
-  public abstract Metadata[] metadata() throws IOException;
+  public abstract List<Metadata> metadata() throws IOException;
 
   /**
    * {@link Metadata} of a matched file.
    */
   @AutoValue
-  public abstract static class Metadata {
+  public abstract static class Metadata implements Serializable {
     public abstract ResourceId resourceId();
     public abstract long sizeBytes();
     public abstract boolean isReadSeekEfficient();

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -26,22 +27,26 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
-import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -57,7 +62,7 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The id for the job.
    */
-  private String jobId;
+  protected String jobId;
 
   /**
    * The {@link DataflowPipelineOptions} for the job.
@@ -71,6 +76,12 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowClient dataflowClient;
 
   /**
+   * MetricResults object for Dataflow Runner. It allows for querying of metrics from the Dataflow
+   * service.
+   */
+  private final DataflowMetrics dataflowMetrics;
+
+  /**
    * The state the job terminated in or {@code null} if the job has not terminated.
    */
   @Nullable
@@ -82,12 +93,17 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   private DataflowPipelineJob replacedByJob = null;
 
-  private DataflowAggregatorTransforms aggregatorTransforms;
+  protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
 
   /**
    * The Metric Updates retrieved after the job was in a terminal state.
    */
   private List<MetricUpdate> terminalMetricUpdates;
+
+  /**
+   * The latest timestamp up to which job messages have been retrieved.
+   */
+  private long lastTimestamp = Long.MIN_VALUE;
 
   /**
    * The polling interval for job status and messages information.
@@ -119,16 +135,19 @@ public class DataflowPipelineJob implements PipelineResult {
    *
    * @param jobId the job id
    * @param dataflowOptions used to configure the client for the Dataflow Service
-   * @param aggregatorTransforms a mapping from aggregators to PTransforms
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
    */
   public DataflowPipelineJob(
+      DataflowClient dataflowClient,
       String jobId,
       DataflowPipelineOptions dataflowOptions,
-      DataflowAggregatorTransforms aggregatorTransforms) {
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
+    this.dataflowClient = dataflowClient;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
-    this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
-    this.aggregatorTransforms = aggregatorTransforms;
+    this.transformStepNames = HashBiMap.create(
+        firstNonNull(transformStepNames, ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of()));
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
   /**
@@ -171,7 +190,8 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   public State waitUntilFinish(Duration duration) {
     try {
-      return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
+      return waitUntilFinish(
+          duration, new MonitoringUtil.LoggingHandler());
     } catch (Exception e) {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
@@ -217,10 +237,27 @@ public class DataflowPipelineJob implements PipelineResult {
 
     try {
       Runtime.getRuntime().addShutdownHook(shutdownHook);
-      return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+      return waitUntilFinish(
+          duration,
+          messageHandler,
+          Sleeper.DEFAULT,
+          NanoClock.SYSTEM,
+          new MonitoringUtil(dataflowClient));
     } finally {
       Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }
+  }
+
+  @Nullable
+  @VisibleForTesting
+  State waitUntilFinish(
+      Duration duration,
+      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      Sleeper sleeper,
+      NanoClock nanoClock)
+      throws IOException, InterruptedException {
+    return waitUntilFinish(
+        duration, messageHandler, sleeper, nanoClock, new MonitoringUtil(dataflowClient));
   }
 
   /**
@@ -244,15 +281,15 @@ public class DataflowPipelineJob implements PipelineResult {
       Duration duration,
       @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
-      NanoClock nanoClock) throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(dataflowClient);
+      NanoClock nanoClock,
+      MonitoringUtil monitor) throws IOException, InterruptedException {
 
-    long lastTimestamp = 0;
     BackOff backoff;
     if (!duration.isLongerThan(Duration.ZERO)) {
-      backoff = MESSAGES_BACKOFF_FACTORY.backoff();
+      backoff = BackOffAdapter.toGcpBackOff(MESSAGES_BACKOFF_FACTORY.backoff());
     } else {
-      backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff();
+      backoff = BackOffAdapter.toGcpBackOff(
+          MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff());
     }
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
@@ -264,7 +301,10 @@ public class DataflowPipelineJob implements PipelineResult {
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      state = getStateWithRetries(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff(), sleeper);
+      state = getStateWithRetries(
+          BackOffAdapter.toGcpBackOff(
+              STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff()),
+          sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
@@ -319,7 +359,8 @@ public class DataflowPipelineJob implements PipelineResult {
           Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
           Duration remaining = duration.minus(consumed);
           if (remaining.isLongerThan(Duration.ZERO)) {
-            backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff();
+            backoff = BackOffAdapter.toGcpBackOff(
+                MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff());
           } else {
             // If there is no time remaining, don't bother backing off.
             backoff = BackOff.STOP_BACKOFF;
@@ -331,28 +372,68 @@ public class DataflowPipelineJob implements PipelineResult {
     return null;  // Timed out.
   }
 
+  private AtomicReference<FutureTask<State>> cancelState = new AtomicReference<>();
+
   @Override
   public State cancel() throws IOException {
-    Job content = new Job();
-    content.setProjectId(getProjectId());
-    content.setId(jobId);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    try {
-      dataflowClient.updateJob(jobId, content);
-      return State.CANCELLED;
-    } catch (IOException e) {
-      State state = getState();
-      if (state.isTerminal()) {
-        LOG.warn("Job is already terminated. State is {}", state);
-        return state;
-      } else {
-        String errorMsg = String.format(
-            "Failed to cancel the job, "
-                + "please go to the Developers Console to cancel it manually: %s",
-            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-        LOG.warn(errorMsg);
-        throw new IOException(errorMsg, e);
+    // Enforce that a cancel() call on the job is done at most once - as
+    // a workaround for Dataflow service's current bugs with multiple
+    // cancellation, where it may sometimes return an error when cancelling
+    // a job that was already cancelled, but still report the job state as
+    // RUNNING.
+    // To partially work around these issues, we absorb duplicate cancel()
+    // calls. This, of course, doesn't address the case when the job terminates
+    // externally almost concurrently to calling cancel(), but at least it
+    // makes it possible to safely call cancel() multiple times and from
+    // multiple threads in one program.
+    FutureTask<State> tentativeCancelTask = new FutureTask<>(new Callable<State>() {
+      @Override
+      public State call() throws Exception {
+        Job content = new Job();
+        content.setProjectId(getProjectId());
+        content.setId(jobId);
+        content.setRequestedState("JOB_STATE_CANCELLED");
+        try {
+          Job job = dataflowClient.updateJob(jobId, content);
+          return MonitoringUtil.toState(job.getCurrentState());
+        } catch (IOException e) {
+          State state = getState();
+          if (state.isTerminal()) {
+            LOG.warn("Cancel failed because job is already terminated. State is {}", state);
+            return state;
+          } else if (e.getMessage().contains("has terminated")) {
+            // This handles the case where the getState() call above returns RUNNING but the cancel
+            // was rejected because the job is in fact done. Hopefully, someday we can delete this
+            // code if there is better consistency between the State and whether Cancel succeeds.
+            //
+            // Example message:
+            //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
+            //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
+            //    terminated in state SUCCESS: Workflow job: 2017-04-01_22_50_59-9269855660514862348
+            //    succeeded.
+            LOG.warn("Cancel failed because job is already terminated.", e);
+            return state;
+          } else {
+            String errorMsg = String.format(
+                "Failed to cancel job in state %s, "
+                    + "please go to the Developers Console to cancel it manually: %s",
+                state,
+                MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+            LOG.warn(errorMsg);
+            throw new IOException(errorMsg, e);
+          }
+        }
       }
+    });
+    if (cancelState.compareAndSet(null, tentativeCancelTask)) {
+      // This thread should perform cancellation, while others will
+      // only wait for the result.
+      cancelState.get().run();
+    }
+    try {
+      return cancelState.get().get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IOException(e);
     }
   }
 
@@ -362,7 +443,9 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
 
-    return getStateWithRetries(STATUS_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+    return getStateWithRetries(
+        BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()),
+        Sleeper.DEFAULT);
   }
 
   /**
@@ -408,7 +491,7 @@ public class DataflowPipelineJob implements PipelineResult {
         if (currentState.isTerminal()) {
           terminalState = currentState;
           replacedByJob = new DataflowPipelineJob(
-              job.getReplacedByJobId(), dataflowOptions, aggregatorTransforms);
+              dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
         }
         return job;
       } catch (IOException exn) {
@@ -437,55 +520,7 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   @Override
-  public <OutputT> AggregatorValues<OutputT> getAggregatorValues(Aggregator<?, OutputT> aggregator)
-      throws AggregatorRetrievalException {
-    try {
-      final Map<String, OutputT> stepValues = fromMetricUpdates(aggregator);
-      return new AggregatorValues<OutputT>() {
-        @Override
-        public Map<String, OutputT> getValuesAtSteps() {
-          return stepValues;
-        }
-
-        @Override
-        public String toString() {
-          return MoreObjects.toStringHelper(this)
-              .add("stepValues", stepValues)
-              .toString();
-        }
-      };
-    } catch (IOException e) {
-      throw new AggregatorRetrievalException(
-          "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
-    }
-  }
-
-  @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException(
-        "The DataflowRunner does not currently support metrics.");
-  }
-
-  private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
-      throws IOException {
-    if (aggregatorTransforms.contains(aggregator)) {
-      List<MetricUpdate> metricUpdates;
-      if (terminalMetricUpdates != null) {
-        metricUpdates = terminalMetricUpdates;
-      } else {
-        boolean terminal = getState().isTerminal();
-        JobMetrics jobMetrics = dataflowClient.getJobMetrics(jobId);
-        metricUpdates = jobMetrics.getMetrics();
-        if (terminal && jobMetrics.getMetrics() != null) {
-          terminalMetricUpdates = metricUpdates;
-        }
-      }
-
-      return DataflowMetricUpdateExtractor.fromMetricUpdates(
-          aggregator, aggregatorTransforms, metricUpdates);
-    } else {
-      throw new IllegalArgumentException(
-          "Aggregator " + aggregator + " is not used in this pipeline");
-    }
+    return dataflowMetrics;
   }
 }

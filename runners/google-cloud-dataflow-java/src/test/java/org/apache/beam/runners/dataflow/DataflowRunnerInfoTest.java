@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -32,20 +33,22 @@ public class DataflowRunnerInfoTest {
   public void getDataflowRunnerInfo() throws Exception {
     DataflowRunnerInfo info = DataflowRunnerInfo.getDataflowRunnerInfo();
 
-    String version = info.getEnvironmentMajorVersion();
+    String version = info.getLegacyEnvironmentMajorVersion();
     // Validate major version is a number
     assertTrue(
-        String.format("Environment major version number %s is not a number", version),
+        String.format("Legacy environment major version number %s is not a number", version),
         version.matches("\\d+"));
 
-    // Validate container images contain gcr.io
+    version = info.getFnApiEnvironmentMajorVersion();
+    // Validate major version is a number
+    assertTrue(
+        String.format("FnAPI environment major version number %s is not a number", version),
+        version.matches("\\d+"));
+
+    // Validate container version does not contain a $ (indicating it was not filled in).
     assertThat(
-        "batch worker harness container image invalid",
-        info.getBatchWorkerHarnessContainerImage(),
-        containsString("gcr.io"));
-    assertThat(
-        "streaming worker harness container image invalid",
-        info.getStreamingWorkerHarnessContainerImage(),
-        containsString("gcr.io"));
+        "container version invalid",
+        info.getContainerVersion(),
+        not(containsString("$")));
   }
 }

@@ -15,8 +15,7 @@
 # limitations under the License.
 #
 
-"""A package containing utilities."""
+"""A package containing internal utilities.
 
-# We must import path here to support the pattern of referencing utils.path
-# without needing to explicitly import apache_beam.utils.path.
-import path
+For internal use only; no backwards-compatibility guarantees.
+"""

@@ -31,9 +31,9 @@ import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.LoggingHandler;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.util.TestCredential;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -89,30 +89,29 @@ public class MonitoringUtilTest {
   }
 
   @Test
-  public void testToStateCreatesState() {
-    String stateName = "JOB_STATE_DONE";
+  public void testToStateNormal() {
+    // Trivially mapped cases
+    assertEquals(State.UNKNOWN, MonitoringUtil.toState("JOB_STATE_UNKNOWN"));
+    assertEquals(State.STOPPED, MonitoringUtil.toState("JOB_STATE_STOPPED"));
+    assertEquals(State.RUNNING, MonitoringUtil.toState("JOB_STATE_RUNNING"));
+    assertEquals(State.DONE, MonitoringUtil.toState("JOB_STATE_DONE"));
+    assertEquals(State.FAILED, MonitoringUtil.toState("JOB_STATE_FAILED"));
+    assertEquals(State.CANCELLED, MonitoringUtil.toState("JOB_STATE_CANCELLED"));
+    assertEquals(State.UPDATED, MonitoringUtil.toState("JOB_STATE_UPDATED"));
 
-    State result = MonitoringUtil.toState(stateName);
-
-    assertEquals(State.DONE, result);
+    // Non-trivially mapped cases
+    assertEquals(State.RUNNING, MonitoringUtil.toState("JOB_STATE_DRAINING"));
+    assertEquals(State.DONE, MonitoringUtil.toState("JOB_STATE_DRAINED"));
   }
 
   @Test
   public void testToStateWithNullReturnsUnknown() {
-    String stateName = null;
-
-    State result = MonitoringUtil.toState(stateName);
-
-    assertEquals(State.UNKNOWN, result);
+    assertEquals(State.UNKNOWN, MonitoringUtil.toState(null));
   }
 
   @Test
   public void testToStateWithOtherValueReturnsUnknown() {
-    String stateName = "FOO_BAR_BAZ";
-
-    State result = MonitoringUtil.toState(stateName);
-
-    assertEquals(State.UNKNOWN, result);
+    assertEquals(State.UNKNOWN, MonitoringUtil.toState("FOO_BAR_BAZ"));
   }
 
   @Test

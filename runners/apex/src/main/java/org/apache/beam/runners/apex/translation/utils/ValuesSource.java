@@ -24,9 +24,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -55,7 +53,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> generateInitialSplits(
+  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.singletonList(this);
   }

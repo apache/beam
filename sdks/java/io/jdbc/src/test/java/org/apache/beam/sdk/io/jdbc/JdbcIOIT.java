@@ -24,10 +24,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,16 +51,19 @@ import org.postgresql.ds.PGSimpleDataSource;
  * <p>This test requires a running instance of Postgres, and the test dataset must exist in the
  * database. `JdbcTestDataSet` will create the read table.
  *
- * <p>You can run just this test by doing the following:
+ * <p>You can run this test by doing the following:
  * <pre>
- * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[
- * "--postgresServerName=1.2.3.4",
- * "--postgresUsername=postgres",
- * "--postgresDatabaseName=myfancydb",
- * "--postgresPassword=yourpassword",
- * "--postgresSsl=false"
- * ]' -DskipITs=false -Dit.test=org.apache.beam.sdk.io.jdbc.JdbcIOIT -DfailIfNoTests=false
+ *  mvn -e -Pio-it verify -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions='[
+ *  "--postgresServerName=1.2.3.4",
+ *  "--postgresUsername=postgres",
+ *  "--postgresDatabaseName=myfancydb",
+ *  "--postgresPassword=mypass",
+ *  "--postgresSsl=false" ]'
  * </pre>
+ *
+ * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
+ * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
+ * invocation pipeline options.
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
@@ -68,9 +72,9 @@ public class JdbcIOIT {
 
   @BeforeClass
   public static void setup() throws SQLException {
-    PipelineOptionsFactory.register(PostgresTestOptions.class);
-    PostgresTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(PostgresTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
+        .as(IOTestPipelineOptions.class);
 
     // We do dataSource set up in BeforeClass rather than Before since we don't need to create a new
     // dataSource for each test.
@@ -103,6 +107,9 @@ public class JdbcIOIT {
     }
   }
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   /**
    * Does a test read of a few rows from a postgres database.
    *
@@ -111,13 +118,11 @@ public class JdbcIOIT {
    */
   @Test
   public void testRead() throws SQLException {
-    String tableName = JdbcTestDataSet.READ_TABLE_NAME;
-
-    TestPipeline pipeline = TestPipeline.create();
+    String writeTableName = JdbcTestDataSet.READ_TABLE_NAME;
 
     PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withQuery("select name,id from " + tableName)
+            .withQuery("select name,id from " + writeTableName)
             .withRowMapper(new CreateKVOfNameAndId())
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
@@ -147,8 +152,6 @@ public class JdbcIOIT {
   @Test
   public void testWrite() throws SQLException {
     writeTableName = JdbcTestDataSet.createWriteDataTable(dataSource);
-
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {

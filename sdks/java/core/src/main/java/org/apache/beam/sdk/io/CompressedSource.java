@@ -36,32 +36,38 @@ import java.util.zip.ZipInputStream;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.joda.time.Instant;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
  * {@link FileBasedSource} that is able to read the decompressed file format.
  *
- * <p>For example, use the following to read from a gzip-compressed XML file:
+ * <p>For example, use the following to read from a gzip-compressed file-based source:
  *
  * <pre> {@code
- * XmlSource mySource = XmlSource.from(...);
+ * FileBasedSource<T> mySource = ...;
  * PCollection<T> collection = p.apply(Read.from(CompressedSource
  *     .from(mySource)
  *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
  * } </pre>
  *
- * <p>Supported compression algorithms are {@link CompressionMode#GZIP} and
- * {@link CompressionMode#BZIP2}. User-defined compression types are supported by implementing
+ * <p>Supported compression algorithms are {@link CompressionMode#GZIP},
+ * {@link CompressionMode#BZIP2}, {@link CompressionMode#ZIP} and {@link CompressionMode#DEFLATE}.
+ * User-defined compression types are supported by implementing
  * {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in
  * {@link CompressionMode} based on the file name provided to the source, namely
- * {@code ".bz2"} indicates {@link CompressionMode#BZIP2} and {@code ".gz"} indicates
- * {@link CompressionMode#GZIP}. If the file name does not match any of the supported
+ * {@code ".bz2"} indicates {@link CompressionMode#BZIP2}, {@code ".gz"} indicates
+ * {@link CompressionMode#GZIP}, {@code ".zip"} indicates {@link CompressionMode#ZIP} and
+ * {@code ".deflate"} indicates {@link CompressionMode#DEFLATE}. If the file name does not match
+ * any of the supported
  * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
@@ -165,6 +171,22 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
         return Channels.newChannel(zip);
       }
+    },
+
+    /**
+     * Reads a byte channel assuming it is compressed with deflate.
+     */
+    DEFLATE {
+      @Override
+      public boolean matches(String fileName) {
+        return fileName.toLowerCase().endsWith(".deflate");
+      }
+
+      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+          throws IOException {
+        return Channels.newChannel(
+            new DeflateCompressorInputStream(Channels.newInputStream(channel)));
+      }
     };
 
     /**
@@ -267,16 +289,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   private final DecompressingChannelFactory channelFactory;
 
   /**
-   * Creates a {@link Read} transform that reads from that reads from the underlying
-   * {@link FileBasedSource} {@code sourceDelegate} after decompressing it with a {@link
-   * DecompressingChannelFactory}.
-   */
-  public static <T> Read.Bounded<T> readFromSource(
-      FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    return Read.from(new CompressedSource<>(sourceDelegate, channelFactory));
-  }
-
-  /**
    * Creates a {@code CompressedSource} from an underlying {@code FileBasedSource}. The type
    * of compression used will be based on the file name extension unless explicitly
    * configured via {@link CompressedSource#withDecompression}.
@@ -309,14 +321,21 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * CompressedSource#createForSubrangeOfFile}.
    */
   private CompressedSource(FileBasedSource<T> sourceDelegate,
-      DecompressingChannelFactory channelFactory, String filePatternOrSpec, long minBundleSize,
+      DecompressingChannelFactory channelFactory, Metadata metadata, long minBundleSize,
       long startOffset, long endOffset) {
-    super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
+    super(metadata, minBundleSize, startOffset, endOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
+    boolean splittable;
+    try {
+      splittable = isSplittable();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to determine if the source is splittable", e);
+    }
     checkArgument(
-        isSplittable() || startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
+        splittable || startOffset == 0,
+        "CompressedSources must start reading at offset 0. Requested offset: %s",
+        startOffset);
   }
 
   /**
@@ -335,9 +354,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * source for a single file.
    */
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
-    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
-        channelFactory, fileName, sourceDelegate.getMinBundleSize(), start, end);
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
+    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(metadata, start, end),
+        channelFactory, metadata, sourceDelegate.getMinBundleSize(), start, end);
   }
 
   /**
@@ -346,11 +365,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * from the requested file name that the file is not compressed.
    */
   @Override
-  protected final boolean isSplittable() {
+  protected final boolean isSplittable() throws Exception {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;
-      return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec());
+      return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec())
+          && sourceDelegate.isSplittable();
     }
     return false;
   }
@@ -385,8 +405,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           .withLabel("Read Source"));
 
     if (channelFactory instanceof Enum) {
-      // GZIP and BZIP are implemented as enums; Enum classes are anonymous, so use the .name()
-      // value instead
+      // GZIP, BZIP, ZIP and DEFLATE are implemented as enums; Enum classes are anonymous, so use
+      // the .name() value instead
       builder.add(DisplayData.item("compressionMode", ((Enum) channelFactory).name())
         .withLabel("Compression Mode"));
     } else {
@@ -559,6 +579,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         }
         return channel.getCount();
       }
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      return readerDelegate.getCurrentTimestamp();
     }
   }
 }

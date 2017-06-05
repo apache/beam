@@ -27,8 +27,11 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -37,10 +40,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -178,8 +177,10 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof ContextParameter) {
-        return cases.dispatch((ContextParameter) this);
+      if (this instanceof StartBundleContextParameter) {
+        return cases.dispatch((StartBundleContextParameter) this);
+      } else if (this instanceof FinishBundleContextParameter) {
+        return cases.dispatch((FinishBundleContextParameter) this);
       } else if (this instanceof ProcessContextParameter) {
         return cases.dispatch((ProcessContextParameter) this);
       } else if (this instanceof OnTimerContextParameter) {
@@ -203,7 +204,8 @@ public abstract class DoFnSignature {
      * An interface for destructuring a {@link Parameter}.
      */
     public interface Cases<ResultT> {
-      ResultT dispatch(ContextParameter p);
+      ResultT dispatch(StartBundleContextParameter p);
+      ResultT dispatch(FinishBundleContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
@@ -219,7 +221,12 @@ public abstract class DoFnSignature {
         protected abstract ResultT dispatchDefault(Parameter p);
 
         @Override
-        public ResultT dispatch(ContextParameter p) {
+        public ResultT dispatch(StartBundleContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(FinishBundleContextParameter p) {
           return dispatchDefault(p);
         }
 
@@ -256,17 +263,14 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final ContextParameter CONTEXT_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_ContextParameter();
+    private static final StartBundleContextParameter START_BUNDLE_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_StartBundleContextParameter();
+    private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_FinishBundleContextParameter();
     private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
-
-    /** Returns a {@link ContextParameter}. */
-    public static ContextParameter context() {
-      return CONTEXT_PARAMETER;
-    }
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -302,13 +306,22 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type {@link DoFn.Context}.
+     * Descriptor for a {@link Parameter} of type {@link DoFn.StartBundleContext}.
      *
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class ContextParameter extends Parameter {
-      ContextParameter() {}
+    public abstract static class StartBundleContextParameter extends Parameter {
+      StartBundleContextParameter() {}
+    }
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.FinishBundleContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class FinishBundleContextParameter extends Parameter {
+      FinishBundleContextParameter() {}
     }
 
     /**
@@ -397,21 +410,16 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
-    /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
-    public abstract boolean hasReturnValue();
-
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
         TypeDescriptor<?> trackerT,
-        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
-        boolean hasReturnValue) {
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           trackerT,
-          windowT,
-          hasReturnValue);
+          windowT);
     }
 
     /**

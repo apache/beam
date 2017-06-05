@@ -26,13 +26,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import org.apache.beam.runners.core.LateDataDroppingDoFnRunner.LateDataFilter;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -58,12 +58,12 @@ public class LateDataDroppingDoFnRunnerTest {
 
   @Test
   public void testLateDataFilter() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
 
-    InMemoryLongSumAggregator droppedDueToLateness =
-        new InMemoryLongSumAggregator("droppedDueToLateness");
     LateDataFilter lateDataFilter = new LateDataFilter(
-        WindowingStrategy.of(WINDOW_FN), mockTimerInternals, droppedDueToLateness);
+        WindowingStrategy.of(WINDOW_FN), mockTimerInternals);
 
     Iterable<WindowedValue<Integer>> actual = lateDataFilter.filter(
         "a",
@@ -78,10 +78,18 @@ public class LateDataDroppingDoFnRunnerTest {
         createDatum(16, 16L),
         createDatum(18, 18L));
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    assertEquals(1, droppedDueToLateness.sum);
+    long droppedValues = container.getCounter(
+        MetricName.named(LateDataDroppingDoFnRunner.class,
+            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+        .getCumulative().longValue();
+    assertEquals(1, droppedValues);
     // Ensure that reiterating returns the same results and doesn't increment the counter again.
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    assertEquals(1, droppedDueToLateness.sum);
+    droppedValues = container.getCounter(
+        MetricName.named(LateDataDroppingDoFnRunner.class,
+            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+        .getCumulative().longValue();
+    assertEquals(1, droppedValues);
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {
@@ -91,29 +99,5 @@ public class LateDataDroppingDoFnRunnerTest {
         timestamp,
         Arrays.asList(WINDOW_FN.assignWindow(timestamp)),
         PaneInfo.NO_FIRING);
-  }
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
-    private final String name;
-    private long sum = 0;
-
-    public InMemoryLongSumAggregator(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(Long value) {
-      sum += value;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
-    }
   }
 }

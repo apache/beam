@@ -22,9 +22,9 @@ import unittest
 import apache_beam as beam
 
 from apache_beam.io import iobase
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, is_empty
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.util import assert_that, is_empty
 
 
 class _TestSink(iobase.Sink):
@@ -98,11 +98,10 @@ class WriteTest(unittest.TestCase):
                       return_write_results=True):
     write_to_test_sink = WriteToTestSink(return_init_result,
                                          return_write_results)
-    p = TestPipeline()
-    result = p | beam.Create(data) | write_to_test_sink | beam.Map(list)
+    with TestPipeline() as p:
+      result = p | beam.Create(data) | write_to_test_sink | beam.Map(list)
 
-    assert_that(result, is_empty())
-    p.run()
+      assert_that(result, is_empty())
 
     sink = write_to_test_sink.last_sink
     self.assertIsNotNone(sink)

@@ -19,7 +19,9 @@
 
 import unittest
 
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.runners import pipeline_context
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -27,17 +29,21 @@ from apache_beam.transforms import Create
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import WindowInto
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
-from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 def context(element, timestamp):
@@ -51,10 +57,18 @@ class ReifyWindowsFn(core.DoFn):
   def process(self, element, window=core.DoFn.WindowParam):
     key, values = element
     yield "%s @ %s" % (key, window), values
+
+
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 
 class WindowTest(unittest.TestCase):
+
+  def test_timestamped_value_cmp(self):
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2))
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.0))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.1))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('b', 2))
 
   def test_global_window(self):
     self.assertEqual(GlobalWindow(), GlobalWindow())
@@ -96,6 +110,20 @@ class WindowTest(unittest.TestCase):
     self.assertEqual(expected, windowfn.assign(context('v', 8)))
     self.assertEqual(expected, windowfn.assign(context('v', 11)))
 
+  def test_sliding_windows_assignment_fraction(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=1.5)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 3)))
+
+  def test_sliding_windows_assignment_fraction_large_offset(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=4.0)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(4.0, 7.5), IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 4.5)))
+
   def test_sessions_merging(self):
     windowfn = Sessions(10)
 
@@ -136,93 +164,114 @@ class WindowTest(unittest.TestCase):
 
   def timestamped_key_values(self, pipeline, key, *timestamps):
     return (pipeline | 'start' >> Create(timestamps)
-            | Map(lambda x: WindowedValue((key, x), x, [])))
+            | Map(lambda x: WindowedValue((key, x), x, [GlobalWindow()])))
 
   def test_sliding_windows(self):
-    p = TestPipeline()
-    pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
-    result = (pcoll
-              | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
-              | GroupByKey()
-              | reify_windows)
-    expected = [('key @ [-2.0, 2.0)', [1]),
-                ('key @ [0.0, 4.0)', [1, 2, 3]),
-                ('key @ [2.0, 6.0)', [2, 3])]
-    assert_that(result, equal_to(expected))
-    p.run()
+    with TestPipeline() as p:
+      pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
+      result = (pcoll
+                | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
+                | GroupByKey()
+                | reify_windows)
+      expected = [('key @ [-2.0, 2.0)', [1]),
+                  ('key @ [0.0, 4.0)', [1, 2, 3]),
+                  ('key @ [2.0, 6.0)', [2, 3])]
+      assert_that(result, equal_to(expected))
 
   def test_sessions(self):
-    p = TestPipeline()
-    pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
-    result = (pcoll
-              | 'w' >> WindowInto(Sessions(10))
-              | GroupByKey()
-              | sort_values
-              | reify_windows)
-    expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
-                ('key @ [20.0, 45.0)', [20, 27, 35])]
-    assert_that(result, equal_to(expected))
-    p.run()
+    with TestPipeline() as p:
+      pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
+      result = (pcoll
+                | 'w' >> WindowInto(Sessions(10))
+                | GroupByKey()
+                | sort_values
+                | reify_windows)
+      expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
+                  ('key @ [20.0, 45.0)', [20, 27, 35])]
+      assert_that(result, equal_to(expected))
 
   def test_timestamped_value(self):
-    p = TestPipeline()
-    result = (p
-              | 'start' >> Create([(k, k) for k in range(10)])
-              | Map(lambda (x, t): TimestampedValue(x, t))
-              | 'w' >> WindowInto(FixedWindows(5))
-              | Map(lambda v: ('key', v))
-              | GroupByKey())
-    assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
-                                  ('key', [5, 6, 7, 8, 9])]))
-    p.run()
+    with TestPipeline() as p:
+      result = (p
+                | 'start' >> Create([(k, k) for k in range(10)])
+                | Map(lambda (x, t): TimestampedValue(x, t))
+                | 'w' >> WindowInto(FixedWindows(5))
+                | Map(lambda v: ('key', v))
+                | GroupByKey())
+      assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
+                                    ('key', [5, 6, 7, 8, 9])]))
 
   def test_rewindow(self):
-    p = TestPipeline()
-    result = (p
-              | Create([(k, k) for k in range(10)])
-              | Map(lambda (x, t): TimestampedValue(x, t))
-              | 'window' >> WindowInto(SlidingWindows(period=2, size=6))
-              # Per the model, each element is now duplicated across
-              # three windows. Rewindowing must preserve this duplication.
-              | 'rewindow' >> WindowInto(FixedWindows(5))
-              | 'rewindow2' >> WindowInto(FixedWindows(5))
-              | Map(lambda v: ('key', v))
-              | GroupByKey())
-    assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
-                                  ('key', sorted([5, 6, 7, 8, 9] * 3))]))
-    p.run()
+    with TestPipeline() as p:
+      result = (p
+                | Create([(k, k) for k in range(10)])
+                | Map(lambda (x, t): TimestampedValue(x, t))
+                | 'window' >> WindowInto(SlidingWindows(period=2, size=6))
+                # Per the model, each element is now duplicated across
+                # three windows. Rewindowing must preserve this duplication.
+                | 'rewindow' >> WindowInto(FixedWindows(5))
+                | 'rewindow2' >> WindowInto(FixedWindows(5))
+                | Map(lambda v: ('key', v))
+                | GroupByKey())
+      assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
+                                    ('key', sorted([5, 6, 7, 8, 9] * 3))]))
 
   def test_timestamped_with_combiners(self):
-    p = TestPipeline()
-    result = (p
-              # Create some initial test values.
-              | 'start' >> Create([(k, k) for k in range(10)])
-              # The purpose of the WindowInto transform is to establish a
-              # FixedWindows windowing function for the PCollection.
-              # It does not bucket elements into windows since the timestamps
-              # from Create are not spaced 5 ms apart and very likely they all
-              # fall into the same window.
-              | 'w' >> WindowInto(FixedWindows(5))
-              # Generate timestamped values using the values as timestamps.
-              # Now there are values 5 ms apart and since Map propagates the
-              # windowing function from input to output the output PCollection
-              # will have elements falling into different 5ms windows.
-              | Map(lambda (x, t): TimestampedValue(x, t))
-              # We add a 'key' to each value representing the index of the
-              # window. This is important since there is no guarantee of
-              # order for the elements of a PCollection.
-              | Map(lambda v: (v / 5, v)))
-    # Sum all elements associated with a key and window. Although it
-    # is called CombinePerKey it is really CombinePerKeyAndWindow the
-    # same way GroupByKey is really GroupByKeyAndWindow.
-    sum_per_window = result | CombinePerKey(sum)
-    # Compute mean per key and window.
-    mean_per_window = result | combiners.Mean.PerKey()
-    assert_that(sum_per_window, equal_to([(0, 10), (1, 35)]),
-                label='assert:sum')
-    assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
-                label='assert:mean')
-    p.run()
+    with TestPipeline() as p:
+      result = (p
+                # Create some initial test values.
+                | 'start' >> Create([(k, k) for k in range(10)])
+                # The purpose of the WindowInto transform is to establish a
+                # FixedWindows windowing function for the PCollection.
+                # It does not bucket elements into windows since the timestamps
+                # from Create are not spaced 5 ms apart and very likely they all
+                # fall into the same window.
+                | 'w' >> WindowInto(FixedWindows(5))
+                # Generate timestamped values using the values as timestamps.
+                # Now there are values 5 ms apart and since Map propagates the
+                # windowing function from input to output the output PCollection
+                # will have elements falling into different 5ms windows.
+                | Map(lambda (x, t): TimestampedValue(x, t))
+                # We add a 'key' to each value representing the index of the
+                # window. This is important since there is no guarantee of
+                # order for the elements of a PCollection.
+                | Map(lambda v: (v / 5, v)))
+      # Sum all elements associated with a key and window. Although it
+      # is called CombinePerKey it is really CombinePerKeyAndWindow the
+      # same way GroupByKey is really GroupByKeyAndWindow.
+      sum_per_window = result | CombinePerKey(sum)
+      # Compute mean per key and window.
+      mean_per_window = result | combiners.Mean.PerKey()
+      assert_that(sum_per_window, equal_to([(0, 10), (1, 35)]),
+                  label='assert:sum')
+      assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
+                  label='assert:mean')
+
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_windowfn_encoding(self):
+    for window_fn in (GlobalWindows(),
+                      FixedWindows(37),
+                      SlidingWindows(2, 389),
+                      Sessions(5077)):
+      context = pipeline_context.PipelineContext()
+      self.assertEqual(
+          window_fn,
+          WindowFn.from_runner_api(window_fn.to_runner_api(context), context))
+
+  def test_windowing_encoding(self):
+    for windowing in (
+        Windowing(GlobalWindows()),
+        Windowing(FixedWindows(1, 3), AfterCount(6),
+                  accumulation_mode=AccumulationMode.ACCUMULATING),
+        Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
+                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST,
+                  accumulation_mode=AccumulationMode.DISCARDING)):
+      context = pipeline_context.PipelineContext()
+      self.assertEqual(
+          windowing,
+          Windowing.from_runner_api(windowing.to_runner_api(context), context))
 
 
 if __name__ == '__main__':

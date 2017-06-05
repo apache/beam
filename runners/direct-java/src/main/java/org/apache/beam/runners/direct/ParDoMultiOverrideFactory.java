@@ -19,40 +19,40 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
-import java.util.List;
+import com.google.protobuf.Message;
 import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypedPValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
@@ -61,11 +61,21 @@ import org.apache.beam.sdk.values.TypedPValue;
  */
 class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple, BoundMulti<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
   @Override
+  public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
+      getReplacementTransform(
+          AppliedPTransform<
+                  PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+              transform) {
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        getReplacementTransform(transform.getTransform()));
+  }
+
   @SuppressWarnings("unchecked")
-  public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
-      BoundMulti<InputT, OutputT> transform) {
+  private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
+      MultiOutput<InputT, OutputT> transform) {
 
     DoFn<InputT, OutputT> fn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
@@ -75,8 +85,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
         || signature.timerDeclarations().size() > 0) {
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
-      ParDo.BoundMulti<KV<?, ?>, OutputT> keyedTransform =
-          (ParDo.BoundMulti<KV<?, ?>, OutputT>) transform;
+      MultiOutput<KV<?, ?>, OutputT> keyedTransform =
+          (MultiOutput<KV<?, ?>, OutputT>) transform;
 
       return new GbkThenStatefulParDo(keyedTransform);
     } else {
@@ -85,22 +95,16 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
   }
 
   @Override
-  public PCollection<? extends InputT> getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
-  }
-
-  @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
     return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   static class GbkThenStatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
-    private final ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
+    private final MultiOutput<KV<K, InputT>, OutputT> underlyingParDo;
 
-    public GbkThenStatefulParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo) {
+    public GbkThenStatefulParDo(MultiOutput<KV<K, InputT>, OutputT> underlyingParDo) {
       this.underlyingParDo = underlyingParDo;
     }
 
@@ -132,14 +136,14 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               // to alter the flow of data. This entails:
               //  - trigger as fast as possible
               //  - maintain the full timestamps of elements
-              //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
+              //  - ensure this GBK holds to the minimum of those timestamps (via TimestampCombiner)
               //  - discard past panes as it is "just a stream" of elements
               .apply(
-                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>triggering(
-                          Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>configure()
+                      .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .discardingFiredPanes()
                       .withAllowedLateness(inputWindowingStrategy.getAllowedLateness())
-                      .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
+                      .withTimestampCombiner(TimestampCombiner.EARLIEST))
 
               // A full GBK to group by key _and_ window
               .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
@@ -163,25 +167,29 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     }
   }
 
+  static final String DIRECT_STATEFUL_PAR_DO_URN =
+      "urn:beam:directrunner:transforms:stateful_pardo:v1";
+
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
-    private final transient ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
+      extends PTransformTranslation.RawPTransform<
+          PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple, Message> {
+    private final transient MultiOutput<KV<K, InputT>, OutputT> underlyingParDo;
     private final transient PCollection<KV<K, InputT>> originalInput;
 
     public StatefulParDo(
-        ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo,
+        MultiOutput<KV<K, InputT>, OutputT> underlyingParDo,
         PCollection<KV<K, InputT>> originalInput) {
       this.underlyingParDo = underlyingParDo;
       this.originalInput = originalInput;
     }
 
-    public ParDo.BoundMulti<KV<K, InputT>, OutputT> getUnderlyingParDo() {
+    public MultiOutput<KV<K, InputT>, OutputT> getUnderlyingParDo() {
       return underlyingParDo;
     }
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, TypedPValue<T> output)
+        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, PCollection<T> output)
         throws CannotProvideCoderException {
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
@@ -193,11 +201,16 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
               TupleTagList.of(underlyingParDo.getMainOutputTag())
-                  .and(underlyingParDo.getSideOutputTags().getAll()),
+                  .and(underlyingParDo.getAdditionalOutputTags().getAll()),
               input.getWindowingStrategy(),
               input.isBounded());
 
       return outputs;
+    }
+
+    @Override
+    public String getUrn() {
+      return DIRECT_STATEFUL_PAR_DO_URN;
     }
   }
 

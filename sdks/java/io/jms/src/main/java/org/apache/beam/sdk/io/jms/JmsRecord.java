@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.jms;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 import javax.jms.Destination;
 

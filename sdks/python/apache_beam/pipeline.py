@@ -28,19 +28,18 @@ to be executed for each node visited is specified through a runner object.
 Typical usage:
 
   # Create a pipeline object using a local runner for execution.
-  p = beam.Pipeline('DirectRunner')
+  with beam.Pipeline('DirectRunner') as p:
 
-  # Add to the pipeline a "Create" transform. When executed this
-  # transform will produce a PCollection object with the specified values.
-  pcoll = p | 'create' >> beam.Create([1, 2, 3])
+    # Add to the pipeline a "Create" transform. When executed this
+    # transform will produce a PCollection object with the specified values.
+    pcoll = p | 'Create' >> beam.Create([1, 2, 3])
 
-  # Another transform could be applied to pcoll, e.g., writing to a text file.
-  # For other transforms, refer to transforms/ directory.
-  pcoll | 'write' >> beam.io.WriteToText('./output')
+    # Another transform could be applied to pcoll, e.g., writing to a text file.
+    # For other transforms, refer to transforms/ directory.
+    pcoll | 'Write' >> beam.io.WriteToText('./output')
 
-  # run() will execute the DAG stored in the pipeline.  The execution of the
-  # nodes visited is done using the specified local runner.
-  p.run()
+    # run() will execute the DAG stored in the pipeline.  The execution of the
+    # nodes visited is done using the specified local runner.
 
 """
 
@@ -53,17 +52,21 @@ import shutil
 import tempfile
 
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
+from apache_beam.typehints import typehints
 from apache_beam.typehints import TypeCheckError
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
-from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.pipeline_options import TypeOptions
-from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.utils.annotations import deprecated
+
+
+__all__ = ['Pipeline']
 
 
 class Pipeline(object):
@@ -73,8 +76,8 @@ class Pipeline(object):
   the PValues are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
-  If same transform instance needs to be applied then a clone should be created
-  with a new label (e.g., transform.clone('new label')).
+  If same transform instance needs to be applied then the right shift operator
+  should be used to designate new names (e.g. `input | "label" >> my_tranform`).
   """
 
   def __init__(self, runner=None, options=None, argv=None):
@@ -94,25 +97,24 @@ class Pipeline(object):
       ValueError: if either the runner or options argument is not of the
       expected type.
     """
-
     if options is not None:
       if isinstance(options, PipelineOptions):
-        self.options = options
+        self._options = options
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
             'Received : %r', options)
     elif argv is not None:
       if isinstance(argv, list):
-        self.options = PipelineOptions(argv)
+        self._options = PipelineOptions(argv)
       else:
         raise ValueError(
             'Parameter argv, if specified, must be a list. Received : %r', argv)
     else:
-      self.options = PipelineOptions([])
+      self._options = PipelineOptions([])
 
     if runner is None:
-      runner = self.options.view_as(StandardOptions).runner
+      runner = self._options.view_as(StandardOptions).runner
       if runner is None:
         runner = StandardOptions.DEFAULT_RUNNER
         logging.info(('Missing pipeline option (runner). Executing pipeline '
@@ -125,7 +127,7 @@ class Pipeline(object):
                       'name of a registered runner.')
 
     # Validate pipeline options
-    errors = PipelineOptionsValidator(self.options, runner).validate()
+    errors = PipelineOptionsValidator(self._options, runner).validate()
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
@@ -139,9 +141,13 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
-    # Store cache of views created from PCollections.  For reference, see
-    # pvalue._cache_view().
-    self._view_cache = {}
+
+  @property
+  @deprecated(since='First stable release',
+              extra_message='References to <pipeline>.options'
+              ' will not be supported')
+  def options(self):
+    return self._options
 
   def _current_transform(self):
     """Returns the transform currently on the top of the stack."""
@@ -151,9 +157,15 @@ class Pipeline(object):
     """Returns the root transform of the transform stack."""
     return self.transforms_stack[0]
 
-  def run(self):
+  def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
-    if self.options.view_as(SetupOptions).save_main_session:
+
+    # When possible, invoke a round trip through the runner API.
+    if test_runner_api and self._verify_runner_api_compatible():
+      return Pipeline.from_runner_api(
+          self.to_runner_api(), self.runner, self._options).run(False)
+
+    if self._options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
@@ -171,6 +183,8 @@ class Pipeline(object):
 
   def visit(self, visitor):
     """Visits depth-first every node of a pipeline's DAG.
+
+    Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
       visitor: PipelineVisitor object whose callbacks will be called for each
@@ -191,6 +205,7 @@ class Pipeline(object):
     Args:
       transform: the PTranform to apply.
       pvalueish: the input for the PTransform (typically a PCollection).
+      label: label of the PTransform.
 
     Raises:
       TypeError: if the transform object extracted from the argument list is
@@ -242,7 +257,7 @@ class Pipeline(object):
     self._current_transform().add_part(current)
     self.transforms_stack.append(current)
 
-    type_options = self.options.view_as(TypeOptions)
+    type_options = self._options.view_as(TypeOptions)
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
@@ -261,8 +276,8 @@ class Pipeline(object):
         result.producer = current
       # TODO(robertwb): Multi-input, multi-output inference.
       # TODO(robertwb): Ideally we'd do intersection here.
-      if (type_options is not None and type_options.pipeline_type_check and
-          isinstance(result, (pvalue.PCollection, pvalue.PCollectionView))
+      if (type_options is not None and type_options.pipeline_type_check
+          and isinstance(result, pvalue.PCollection)
           and not result.element_type):
         input_element_type = (
             inputs[0].element_type
@@ -298,11 +313,64 @@ class Pipeline(object):
     self.transforms_stack.pop()
     return pvalueish_result
 
+  def _verify_runner_api_compatible(self):
+    class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
+      ok = True  # Really a nonlocal.
+
+      def visit_transform(self, transform_node):
+        if transform_node.side_inputs:
+          # No side inputs (yet).
+          Visitor.ok = False
+        try:
+          # Transforms must be picklable.
+          pickler.loads(pickler.dumps(transform_node.transform,
+                                      enable_trace=False),
+                        enable_trace=False)
+        except Exception:
+          Visitor.ok = False
+
+      def visit_value(self, value, _):
+        if isinstance(value, pvalue.PDone):
+          Visitor.ok = False
+
+    self.visit(Visitor())
+    return Visitor.ok
+
+  def to_runner_api(self):
+    """For internal use only; no backwards-compatibility guarantees."""
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    context = pipeline_context.PipelineContext()
+    # Mutates context; placing inline would force dependence on
+    # argument evaluation order.
+    root_transform_id = context.transforms.get_id(self._root_transform())
+    proto = beam_runner_api_pb2.Pipeline(
+        root_transform_ids=[root_transform_id],
+        components=context.to_runner_api())
+    return proto
+
+  @staticmethod
+  def from_runner_api(proto, runner, options):
+    """For internal use only; no backwards-compatibility guarantees."""
+    p = Pipeline(runner=runner, options=options)
+    from apache_beam.runners import pipeline_context
+    context = pipeline_context.PipelineContext(proto.components)
+    root_transform_id, = proto.root_transform_ids
+    p.transforms_stack = [
+        context.transforms.get_by_id(root_transform_id)]
+    # TODO(robertwb): These are only needed to continue construction. Omit?
+    p.applied_labels = set([
+        t.unique_name for t in proto.components.transforms.values()])
+    for id in proto.components.pcollections:
+      context.pcollections.get_by_id(id).pipeline = p
+    return p
+
 
 class PipelineVisitor(object):
-  """Visitor pattern class used to traverse a DAG of transforms.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  Visitor pattern class used to traverse a DAG of transforms
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def visit_value(self, value, producer_node):
@@ -329,9 +397,10 @@ class PipelineVisitor(object):
 
 
 class AppliedPTransform(object):
-  """A transform node representing an instance of applying a PTransform.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  A transform node representing an instance of applying a PTransform
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def __init__(self, parent, transform, full_label, inputs):
@@ -370,15 +439,19 @@ class AppliedPTransform(object):
         if not isinstance(main_input, pvalue.PBegin):
           real_producer(main_input).refcounts[main_input.tag] += 1
       for side_input in self.side_inputs:
-        real_producer(side_input).refcounts[side_input.tag] += 1
+        real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
   def add_output(self, output, tag=None):
-    assert (isinstance(output, pvalue.PValue) or
-            isinstance(output, pvalue.DoOutputsTuple))
-    if tag is None:
-      tag = len(self.outputs)
-    assert tag not in self.outputs
-    self.outputs[tag] = output
+    if isinstance(output, pvalue.DoOutputsTuple):
+      self.add_output(output[output._main_tag])
+    elif isinstance(output, pvalue.PValue):
+      # TODO(BEAM-1833): Require tags when calling this method.
+      if tag is None and None in self.outputs:
+        tag = len(self.outputs)
+      assert tag not in self.outputs
+      self.outputs[tag] = output
+    else:
+      raise TypeError("Unexpected output type: %s" % output)
 
   def add_part(self, part):
     assert isinstance(part, AppliedPTransform)
@@ -406,7 +479,8 @@ class AppliedPTransform(object):
 
     # Visit side inputs.
     for pval in self.side_inputs:
-      if isinstance(pval, pvalue.PCollectionView) and pval not in visited:
+      if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
+        pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
         assert pval.producer is not None
         pval.producer.visit(visitor, pipeline, visited)
         # The value should be visited now since we visit outputs too.
@@ -440,3 +514,53 @@ class AppliedPTransform(object):
         if v not in visited:
           visited.add(v)
           visitor.visit_value(v, self)
+
+  def named_inputs(self):
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    return {str(ix): input for ix, input in enumerate(self.inputs)
+            if isinstance(input, pvalue.PCollection)}
+
+  def named_outputs(self):
+    return {str(tag): output for tag, output in self.outputs.items()
+            if isinstance(output, pvalue.PCollection)}
+
+  def to_runner_api(self, context):
+    from apache_beam.runners.api import beam_runner_api_pb2
+
+    def transform_to_runner_api(transform, context):
+      if transform is None:
+        return None
+      else:
+        return transform.to_runner_api(context)
+    return beam_runner_api_pb2.PTransform(
+        unique_name=self.full_label,
+        spec=transform_to_runner_api(self.transform, context),
+        subtransforms=[context.transforms.get_id(part) for part in self.parts],
+        # TODO(BEAM-115): Side inputs.
+        inputs={tag: context.pcollections.get_id(pc)
+                for tag, pc in self.named_inputs().items()},
+        outputs={str(tag): context.pcollections.get_id(out)
+                 for tag, out in self.named_outputs().items()},
+        # TODO(BEAM-115): display_data
+        display_data=None)
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    result = AppliedPTransform(
+        parent=None,
+        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
+        full_label=proto.unique_name,
+        inputs=[
+            context.pcollections.get_by_id(id) for id in proto.inputs.values()])
+    result.parts = [
+        context.transforms.get_by_id(id) for id in proto.subtransforms]
+    result.outputs = {
+        None if tag == 'None' else tag: context.pcollections.get_by_id(id)
+        for tag, id in proto.outputs.items()}
+    if not result.parts:
+      for tag, pc in result.outputs.items():
+        if pc not in result.inputs:
+          pc.producer = result
+          pc.tag = tag
+    result.update_input_refcounts()
+    return result

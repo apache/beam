@@ -21,6 +21,8 @@ package org.apache.beam.runners.spark.metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import java.io.IOException;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,34 +42,43 @@ import org.slf4j.LoggerFactory;
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
 
+  private static final String ACCUMULATOR_NAME = "Beam.Metrics";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "metrics";
 
-  private static volatile Accumulator<SparkMetricsContainer> instance = null;
+  private static volatile Accumulator<MetricsContainerStepMap> instance = null;
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
-  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  public static void init(
-      JavaSparkContext jsc,
-      Optional<CheckpointDir> checkpointDir) {
+  /**
+   * Init metrics accumulator if it has not been initiated. This method is idempotent.
+   */
+  public static void init(SparkPipelineOptions opts, JavaSparkContext jsc) {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
-          // TODO: currently when recovering from checkpoint, Spark does not recover the
-          // last known Accumulator value. The SparkRunner should be able to persist and recover
-          // the SparkMetricsContainer in order to recover metrics as well.
-          SparkMetricsContainer initialValue = new SparkMetricsContainer();
-          instance = jsc.sc().accumulator(initialValue, "Beam.Metrics",
-              new MetricsAccumulatorParam());
-          if (checkpointDir.isPresent()) {
-            recoverValueFromCheckpoint(jsc, checkpointDir.get());
+          Optional<CheckpointDir> maybeCheckpointDir =
+              opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+                  : Optional.<CheckpointDir>absent();
+          Accumulator<MetricsContainerStepMap> accumulator =
+              jsc.sc().accumulator(
+                  new MetricsContainerStepMap(),
+                  ACCUMULATOR_NAME,
+                  new MetricsAccumulatorParam());
+          if (maybeCheckpointDir.isPresent()) {
+            Optional<MetricsContainerStepMap> maybeRecoveredValue =
+                recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
+            if (maybeRecoveredValue.isPresent()) {
+              accumulator.setValue(maybeRecoveredValue.get());
+            }
           }
+          instance = accumulator;
         }
       }
+      LOG.info("Instantiated metrics accumulator: " + instance.value());
     }
   }
 
-  public static Accumulator<SparkMetricsContainer> getInstance() {
+  public static Accumulator<MetricsContainerStepMap> getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");
     } else {
@@ -75,28 +86,29 @@ public class MetricsAccumulator {
     }
   }
 
-  private static void recoverValueFromCheckpoint(
+  private static Optional<MetricsContainerStepMap> recoverValueFromCheckpoint(
       JavaSparkContext jsc,
       CheckpointDir checkpointDir) {
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
-      SparkMetricsContainer recoveredValue = Checkpoint.readObject(fileSystem, checkpointFilePath);
+      MetricsContainerStepMap recoveredValue =
+          Checkpoint.readObject(fileSystem, checkpointFilePath);
       if (recoveredValue != null) {
-        LOG.info("Recovered metrics from checkpoint: " + recoveredValue);
-        instance.setValue(recoveredValue);
+        LOG.info("Recovered metrics from checkpoint.");
+        return Optional.of(recoveredValue);
       } else {
         LOG.info("No metrics checkpoint found.");
       }
     } catch (Exception e) {
       throw new RuntimeException("Failure while reading metrics checkpoint.", e);
     }
+    return Optional.absent();
   }
 
-  @SuppressWarnings("unused")
   @VisibleForTesting
-  static void clear() {
+  public static void clear() {
     synchronized (MetricsAccumulator.class) {
       instance = null;
     }
@@ -109,7 +121,7 @@ public class MetricsAccumulator {
   }
 
   /**
-   * Spark Listener which checkpoints {@link SparkMetricsContainer} values for fault-tolerance.
+   * Spark Listener which checkpoints {@link MetricsContainerStepMap} values for fault-tolerance.
    */
   public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
     @Override

@@ -23,8 +23,11 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -45,7 +48,12 @@ public class DirectGroupByKeyOverrideFactoryTest {
         p.apply(
             Create.of(KV.of("foo", 1))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
-    PCollection<?> reconstructed = factory.getInput(input.expand(), p);
-    assertThat(reconstructed, Matchers.<PCollection<?>>equalTo(input));
+    PCollection<KV<String, Iterable<Integer>>> grouped =
+        input.apply(GroupByKey.<String, Integer>create());
+    AppliedPTransform<?, ?, ?> producer = DirectGraphs.getProducer(grouped);
+    PTransformReplacement<
+            PCollection<KV<String, Integer>>, PCollection<KV<String, Iterable<Integer>>>>
+        replacement = factory.getReplacementTransform((AppliedPTransform) producer);
+    assertThat(replacement.getInput(), Matchers.<PCollection<?>>equalTo(input));
   }
 }

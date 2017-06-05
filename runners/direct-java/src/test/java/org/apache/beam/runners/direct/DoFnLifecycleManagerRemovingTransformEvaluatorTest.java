@@ -29,10 +29,10 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -53,7 +53,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Test
   public void delegatesToUnderlying() throws Exception {
-    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     DoFn<?, ?> original = lifecycleManager.get();
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
@@ -72,7 +72,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Test
   public void removesOnExceptionInProcessElement() throws Exception {
-    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     doThrow(Exception.class).when(underlying).processElement(any(WindowedValue.class));
 
     DoFn<?, ?> original = lifecycleManager.get();
@@ -91,7 +91,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Test
   public void removesOnExceptionInOnTimer() throws Exception {
-    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     doThrow(Exception.class)
         .when(underlying)
         .onTimer(any(TimerData.class), any(BoundedWindow.class));
@@ -114,7 +114,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Test
   public void removesOnExceptionInFinishBundle() throws Exception {
-    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     doThrow(Exception.class).when(underlying).finishBundle();
 
     DoFn<?, ?> original = lifecycleManager.get();

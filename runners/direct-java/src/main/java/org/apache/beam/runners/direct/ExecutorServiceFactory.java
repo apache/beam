@@ -25,7 +25,7 @@ import java.util.concurrent.ExecutorService;
  * another (e.g., if any executor is shut down the remaining executors should continue to process
  * work).
  */
-public interface ExecutorServiceFactory {
+interface ExecutorServiceFactory {
   /**
    * Create a new {@link ExecutorService}.
    */

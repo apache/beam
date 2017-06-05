@@ -26,6 +26,9 @@ import shutil
 import tempfile
 
 
+__all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
+
+
 def _get_runner_map(runner_names, module_path):
   """Create a map of runner name in lower case to full import path to the
   runner class.
@@ -56,7 +59,9 @@ _ALL_KNOWN_RUNNERS = (
 
 
 def create_runner(runner_name):
-  """Creates a runner instance from a runner class name.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates a runner instance from a runner class name.
 
   Args:
     runner_name: Name of the pipeline runner. Possible values are:
@@ -78,7 +83,15 @@ def create_runner(runner_name):
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
-    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    try:
+      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    except ImportError:
+      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+        raise ImportError(
+            'Google Cloud Dataflow runner not available, '
+            'please install apache_beam[gcp]')
+      else:
+        raise
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
@@ -91,8 +104,6 @@ class PipelineRunner(object):
 
   The base runner provides a run() method for visiting every node in the
   pipeline's DAG and executing the transforms computing the PValue in the node.
-  It also provides a clear() method for visiting every node and clearing out
-  the values contained in PValue objects produced during a run.
 
   A custom runner will typically provide implementations for some of the
   transform methods (ParDo, GroupByKey, Create, etc.). It may also
@@ -120,38 +131,6 @@ class PipelineRunner(object):
           raise
 
     pipeline.visit(RunVisitor(self))
-
-  def clear(self, pipeline, node=None):
-    """Clear all nodes or nodes reachable from node of materialized values.
-
-    Args:
-      pipeline: Pipeline object containing PValues to be cleared.
-      node: Optional node in the Pipeline processing DAG. If specified only
-        nodes reachable from this node will be cleared (ancestors of the node).
-
-    This method is not intended (for now) to be called by users of Runner
-    objects. It is a hook for future layers on top of the current programming
-    model to control how much of the previously computed values are kept
-    around. Presumably an interactivity layer will use it. The simplest way
-    to change the behavior would be to define a runner that overwrites the
-    clear_pvalue() method since this method (runner.clear) will visit all
-    relevant nodes and call clear_pvalue on them.
-
-    """
-
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-
-    class ClearVisitor(PipelineVisitor):
-
-      def __init__(self, runner):
-        self.runner = runner
-
-      def visit_value(self, value, _):
-        self.runner.clear_pvalue(value)
-
-    pipeline.visit(ClearVisitor(self), node=node)
 
   def apply(self, transform, input):
     """Runner callback for a pipeline.apply call.
@@ -196,7 +175,9 @@ class PipelineRunner(object):
 
 
 class PValueCache(object):
-  """Local cache for arbitrary information computed for PValue objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Local cache for arbitrary information computed for PValue objects."""
 
   def __init__(self, use_disk_backed_cache=False):
     # Cache of values computed while a runner executes a pipeline. This is a
@@ -222,7 +203,7 @@ class PValueCache(object):
     return len(self._cache)
 
   def to_cache_key(self, transform, tag):
-    return str((id(transform), tag))
+    return transform.full_label, tag
 
   def _ensure_pvalue_has_real_producer(self, pvalue):
     """Ensure the passed-in PValue has the real_producer attribute.
@@ -276,8 +257,8 @@ class PValueCache(object):
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
-        # This is an undeclared, empty side output of a DoFn executed
-        # in the local runner before this side output referenced.
+        # This is an undeclared, empty output of a DoFn executed
+        # in the local runner before this output was referenced.
         return []
       else:
         raise

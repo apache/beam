@@ -17,15 +17,12 @@
  */
 package org.apache.beam.runners.apex;
 
+import com.datatorrent.api.DAG;
 import java.io.IOException;
-
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 
 /**
@@ -48,10 +45,11 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
     return new TestApexRunner(apexOptions);
   }
 
-  @Override
-  public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
-    return delegate.apply(transform, input);
+  public static DAG translate(Pipeline pipeline, ApexPipelineOptions options) {
+    ApexRunner delegate = new ApexRunner(options);
+    delegate.translateOnly = true;
+    DAG dag = delegate.run(pipeline).getApexDAG();
+    return dag;
   }
 
   @Override

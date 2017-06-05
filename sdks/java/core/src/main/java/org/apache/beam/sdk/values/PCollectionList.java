@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
@@ -116,7 +116,7 @@ public class PCollectionList<T> implements PInput, POutput {
     return new PCollectionList<>(pipeline,
         ImmutableList.<TaggedPValue>builder()
             .addAll(pcollections)
-            .add(Iterables.getOnlyElement(pc.expand()))
+            .add(TaggedPValue.of(new TupleTag<T>(), pc))
             .build());
   }
 
@@ -133,10 +133,9 @@ public class PCollectionList<T> implements PInput, POutput {
     builder.addAll(pcollections);
     for (PCollection<T> pc : pcs) {
       if (pc.getPipeline() != pipeline) {
-        throw new IllegalArgumentException(
-            "PCollections come from different Pipelines");
+        throw new IllegalArgumentException("PCollections come from different Pipelines");
       }
-      builder.add(Iterables.getOnlyElement(pc.expand()));
+      builder.add(TaggedPValue.of(new TupleTag<T>(), pc));
     }
     return new PCollectionList<>(pipeline, builder.build());
   }
@@ -200,7 +199,10 @@ public class PCollectionList<T> implements PInput, POutput {
   // Internal details below here.
 
   final Pipeline pipeline;
-  // ImmutableMap has a defined iteration order.
+  /**
+   * The {@link PCollection PCollections} contained by this {@link PCollectionList}, and an
+   * arbitrary tags associated with each.
+   */
   final List<TaggedPValue> pcollections;
 
   PCollectionList(Pipeline pipeline) {
@@ -218,24 +220,27 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   @Override
-  public List<TaggedPValue> expand() {
-    return pcollections;
+  public Map<TupleTag<?>, PValue> expand() {
+    ImmutableMap.Builder<TupleTag<?>, PValue> expanded = ImmutableMap.builder();
+    for (TaggedPValue tagged : pcollections) {
+      expanded.put(tagged.getTag(), tagged.getValue());
+    }
+    return expanded.build();
   }
 
   @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    // All component PCollections will have already been finished.
     int i = 0;
     for (TaggedPValue tpv : pcollections) {
       @SuppressWarnings("unchecked")
       PCollection<T> pc = (PCollection<T>) tpv.getValue();
-      pc.recordAsOutput(transform, "out" + i);
+      if (pc.getName().equals(PValueBase.defaultName(transformName))) {
+        pc.setName(String.format("%s.%s%s", transformName, "out", i));
+      }
       i++;
     }
-  }
-
-  @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) {
-    // All component PCollections will have already been finished.
   }
 
   @Override
@@ -244,11 +249,11 @@ public class PCollectionList<T> implements PInput, POutput {
       return false;
     }
     PCollectionList that = (PCollectionList) other;
-    return this.pipeline.equals(that.pipeline) && this.pcollections.equals(that.pcollections);
+    return this.pipeline.equals(that.pipeline) && this.getAll().equals(that.getAll());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.pipeline, this.pcollections);
+    return Objects.hash(this.pipeline, this.getAll());
   }
 }

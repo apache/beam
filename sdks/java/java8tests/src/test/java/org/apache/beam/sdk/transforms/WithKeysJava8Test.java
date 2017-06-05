@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.hamcrest.Matchers.containsString;
-
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -45,7 +43,7 @@ public class WithKeysJava8Test {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withLambdaAndTypeDescriptorShouldSucceed() {
 
 
@@ -69,13 +67,6 @@ public class WithKeysJava8Test {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder for ApplyKeysWithWithKeys");
-    thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage(
-        containsString("Building a Coder using a registered CoderFactory failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the @DefaultCoder annotation failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     p.run();
   }

@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.lang.reflect.ParameterizedType;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -30,32 +33,29 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 public class FlatMapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   /**
-   * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
-   * returns a {@link PTransform} that applies {@code fn} to every element of the input
-   * {@code PCollection<InputT>} and outputs all of the elements to the output
-   * {@code PCollection<OutputT>}.
-   *
-   * <p>Example of use in Java 8:
-   * <pre>{@code
-   * PCollection<String> words = lines.apply(
-   *     FlatMapElements.via((String line) -> Arrays.asList(line.split(" ")))
-   *         .withOutputType(new TypeDescriptor<String>(){});
-   * }</pre>
-   *
-   * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
-   * descriptor need not be provided.
+   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
+   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
+   * if constructed using {@link #via(SimpleFunction)} directly.
    */
-  public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+  @Nullable
+  private final transient TypeDescriptor<Iterable<OutputT>> outputType;
 
-    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
-    // covariance and contravariance in Java, so instead we cast it to an invariant
-    // function here.
-    @SuppressWarnings("unchecked") // safe covariant cast
-    SerializableFunction<InputT, Iterable<OutputT>> simplerFn =
-        (SerializableFunction<InputT, Iterable<OutputT>>) fn;
+  /**
+   * Non-null on a fully specified transform - is null only when constructed using {@link
+   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
+   */
+  @Nullable
+  private final SimpleFunction<InputT, Iterable<OutputT>> fn;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
-    return new MissingOutputTypeDescriptor<>(simplerFn);
+  private FlatMapElements(
+      @Nullable SimpleFunction<InputT, Iterable<OutputT>> fn,
+      @Nullable TypeDescriptor<Iterable<OutputT>> outputType,
+      @Nullable Class<?> fnClass) {
+    this.fn = fn;
+    this.outputType = outputType;
+    this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
+
   }
 
   /**
@@ -82,54 +82,45 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
   via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
-    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
-    // covariance and contravariance in Java, so instead we cast it to an invariant
-    // function here.
-    @SuppressWarnings("unchecked") // safe covariant cast
-    SimpleFunction<InputT, Iterable<OutputT>> simplerFn =
-        (SimpleFunction<InputT, Iterable<OutputT>>) fn;
-
-    return new FlatMapElements<>(simplerFn, fn.getClass());
+    return new FlatMapElements(fn, null, fn.getClass());
   }
 
   /**
-   * An intermediate builder for a {@link FlatMapElements} transform. To complete the transform,
-   * provide an output type descriptor to {@link MissingOutputTypeDescriptor#withOutputType}. See
-   * {@link #via(SerializableFunction)} for a full example of use.
+   * Returns a new {@link FlatMapElements} transform with the given type descriptor for the output
+   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
    */
-  public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
-
-    private final SerializableFunction<InputT, Iterable<OutputT>> fn;
-
-    private MissingOutputTypeDescriptor(
-        SerializableFunction<InputT, Iterable<OutputT>> fn) {
-      this.fn = fn;
-    }
-
-    public FlatMapElements<InputT, OutputT> withOutputType(TypeDescriptor<OutputT> outputType) {
-      TypeDescriptor<Iterable<OutputT>> iterableOutputType = TypeDescriptors.iterables(outputType);
-
-      return new FlatMapElements<>(
-          SimpleFunction.fromSerializableFunctionWithOutputType(fn,
-              iterableOutputType),
-              fn.getClass());
-    }
+  public static <OutputT> FlatMapElements<?, OutputT>
+  into(final TypeDescriptor<OutputT> outputType) {
+    return new FlatMapElements<>(null, TypeDescriptors.iterables(outputType), null);
   }
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  private final SimpleFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
-
-  private FlatMapElements(
-      SimpleFunction<InputT, ? extends Iterable<OutputT>> fn,
-      Class<?> fnClass) {
-    this.fn = fn;
-    this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
+  /**
+   * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
+   * returns a {@link PTransform} that applies {@code fn} to every element of the input
+   * {@code PCollection<InputT>} and outputs all of the elements to the output
+   * {@code PCollection<OutputT>}.
+   *
+   * <p>Example of use in Java 8:
+   * <pre>{@code
+   * PCollection<String> words = lines.apply(
+   *     FlatMapElements.into(TypeDescriptors.strings())
+   *                    .via((String line) -> Arrays.asList(line.split(" ")))
+   * }</pre>
+   *
+   * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
+   * descriptor need not be provided.
+   */
+  public <NewInputT> FlatMapElements<NewInputT, OutputT>
+  via(SerializableFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
+    return new FlatMapElements(
+        SimpleFunction.fromSerializableFunctionWithOutputType(fn, (TypeDescriptor) outputType),
+        null,
+        fn.getClass());
   }
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    checkNotNull(fn, "Must specify a function on FlatMapElements using .via()");
     return input.apply(
         "FlatMap",
         ParDo.of(

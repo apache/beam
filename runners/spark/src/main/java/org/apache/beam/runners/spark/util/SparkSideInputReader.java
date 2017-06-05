@@ -24,13 +24,13 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 
 /**
@@ -54,9 +54,8 @@ public class SparkSideInputReader implements SideInputReader {
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
     //--- sideInput window
-    WindowingStrategy<?, ?> sideInputWindowStrategy = windowedBroadcastHelper.getKey();
     final BoundedWindow sideInputWindow =
-        sideInputWindowStrategy.getWindowFn().getSideInputWindow(window);
+        view.getWindowMappingFn().getSideInputWindow(window);
 
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.

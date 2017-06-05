@@ -21,10 +21,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.values.POutput;
@@ -39,60 +40,40 @@ public class ReplacementOutputs {
   private ReplacementOutputs() {}
 
   public static Map<PValue, ReplacementOutput> singleton(
-      List<TaggedPValue> original, PValue replacement) {
-    TaggedPValue taggedReplacement = Iterables.getOnlyElement(replacement.expand());
-    return ImmutableMap.<PValue, ReplacementOutput>builder()
-        .put(
-            taggedReplacement.getValue(),
-            ReplacementOutput.of(Iterables.getOnlyElement(original), taggedReplacement))
-        .build();
-  }
-
-  public static Map<PValue, ReplacementOutput> ordered(
-      List<TaggedPValue> original, POutput replacement) {
-    ImmutableMap.Builder<PValue, ReplacementOutput> result = ImmutableMap.builder();
-    List<TaggedPValue> replacements = replacement.expand();
-    checkArgument(
-        original.size() == replacements.size(),
-        "Original and Replacements must be the same size. Original: %s Replacement: %s",
-        original.size(),
-        replacements.size());
-    int i = 0;
-    for (TaggedPValue replacementPvalue : replacements) {
-      result.put(
-          replacementPvalue.getValue(), ReplacementOutput.of(original.get(i), replacementPvalue));
-      i++;
-    }
-    return result.build();
+      Map<TupleTag<?>, PValue> original, PValue replacement) {
+    Entry<TupleTag<?>, PValue> originalElement = Iterables.getOnlyElement(original.entrySet());
+    TupleTag<?> replacementTag = Iterables.getOnlyElement(replacement.expand().entrySet()).getKey();
+    return Collections.singletonMap(
+        replacement,
+        ReplacementOutput.of(
+            TaggedPValue.of(originalElement.getKey(), originalElement.getValue()),
+            TaggedPValue.of(replacementTag, replacement)));
   }
 
   public static Map<PValue, ReplacementOutput> tagged(
-      List<TaggedPValue> original, POutput replacement) {
+      Map<TupleTag<?>, PValue> original, POutput replacement) {
     Map<TupleTag<?>, TaggedPValue> originalTags = new HashMap<>();
-    for (TaggedPValue value : original) {
-      TaggedPValue former = originalTags.put(value.getTag(), value);
-      checkArgument(
-          former == null || former.equals(value),
-          "Found two tags in an expanded output which map to different values: output: %s "
-              + "Values: %s and %s",
-          original,
-          former,
-          value);
+    for (Map.Entry<TupleTag<?>, PValue> originalValue : original.entrySet()) {
+      originalTags.put(
+          originalValue.getKey(),
+          TaggedPValue.of(originalValue.getKey(), originalValue.getValue()));
     }
     ImmutableMap.Builder<PValue, ReplacementOutput> resultBuilder = ImmutableMap.builder();
     Set<TupleTag<?>> missingTags = new HashSet<>(originalTags.keySet());
-    for (TaggedPValue replacementValue : replacement.expand()) {
-      TaggedPValue mapped = originalTags.get(replacementValue.getTag());
+    for (Map.Entry<TupleTag<?>, PValue> replacementValue : replacement.expand().entrySet()) {
+      TaggedPValue mapped = originalTags.get(replacementValue.getKey());
       checkArgument(
           mapped != null,
           "Missing original output for Tag %s and Value %s Between original %s and replacement %s",
-          replacementValue.getTag(),
+          replacementValue.getKey(),
           replacementValue.getValue(),
           original,
           replacement.expand());
       resultBuilder.put(
-          replacementValue.getValue(), ReplacementOutput.of(mapped, replacementValue));
-      missingTags.remove(replacementValue.getTag());
+          replacementValue.getValue(),
+          ReplacementOutput.of(
+              mapped, TaggedPValue.of(replacementValue.getKey(), replacementValue.getValue())));
+      missingTags.remove(replacementValue.getKey());
     }
     ImmutableMap<PValue, ReplacementOutput> result = resultBuilder.build();
     checkArgument(

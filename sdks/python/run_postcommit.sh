@@ -32,7 +32,7 @@ set -v
 LOCAL_PATH=$HOME/.local/bin/
 
 # Remove any tox cache from previous workspace
-rm -rf sdks/python/.tox
+rm -rf sdks/python/target/.tox
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
@@ -56,12 +56,8 @@ python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
 
 # Run tests on the service.
 
-# Where to store wordcount output.
+# Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
-
-# Job name needs to be unique
-JOBNAME_E2E_WC=py-wordcount-`date +%s`
-JOBNAME_VR_TEST=py-validatesrunner-`date +%s`
 
 PROJECT=apache-beam-testing
 
@@ -77,26 +73,33 @@ echo "mock" >> postcommit_requirements.txt
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
-  -a ValidatesRunner --test-pipeline-options=" \
+  --attr ValidatesRunner \
+  --nocapture \
+  --processes=4 \
+  --process-timeout=900 \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
-    --job_name=$JOBNAME_VR_TEST \
     --requirements_file=postcommit_requirements.txt \
     --num_workers=1"
 
-# Run wordcount on the Google Cloud Dataflow service
-# and validate job that finishes successfully.
-echo ">>> RUNNING TEST DATAFLOW RUNNER py-wordcount"
+# Run integration tests on the Google Cloud Dataflow service
+# and validate that jobs finish successfully.
+echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
-  -a IT --test-pipeline-options=" \
+  --attr IT \
+  --nocapture \
+  --processes=4 \
+  --process-timeout=900 \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
-    --staging_location=$GCS_LOCATION/staging-wordcount \
-    --temp_location=$GCS_LOCATION/temp-wordcount \
-    --output=$GCS_LOCATION/py-wordcount-cloud/output \
+    --staging_location=$GCS_LOCATION/staging-it \
+    --temp_location=$GCS_LOCATION/temp-it \
+    --output=$GCS_LOCATION/py-it-cloud/output \
     --sdk_location=$SDK_LOCATION \
-    --job_name=$JOBNAME_E2E_WC \
-    --num_workers=1"
+    --num_workers=1 \
+    --sleep_secs=20"

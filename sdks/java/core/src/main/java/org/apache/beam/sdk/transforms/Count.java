@@ -23,64 +23,69 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.util.Iterator;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 
 /**
- * {@code PTransorm}s to count the elements in a {@link PCollection}.
+ * {@link PTransform PTransforms} to count the elements in a {@link PCollection}.
  *
  * <p>{@link Count#perElement()} can be used to count the number of occurrences of each
  * distinct element in the PCollection, {@link Count#perKey()} can be used to count the
  * number of values per key, and {@link Count#globally()} can be used to count the total
  * number of elements in a PCollection.
+ *
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the
+ * {@link Combine} transform.
  */
 public class Count {
   private Count() {
     // do not instantiate
   }
 
+  /** Returns a {@link CombineFn} that counts the number of its inputs. */
+  public static <T> CombineFn<T, ?, Long> combineFn() {
+    return new CountFn<T>();
+  }
+
   /**
-   * Returns a {@link Combine.Globally} {@link PTransform} that counts the number of elements in
+   * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
+   *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code Combine.globally(Count.<T>combineFn()).withoutDefaults()} instead.
    */
-  public static <T> Combine.Globally<T, Long> globally() {
+  public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
     return Combine.globally(new CountFn<T>());
   }
 
   /**
-   * Returns a {@link Combine.PerKey} {@link PTransform} that counts the number of elements
+   * Returns a {@link PTransform} that counts the number of elements
    * associated with each key of its input {@link PCollection}.
    */
-  public static <K, V> Combine.PerKey<K, V, Long> perKey() {
+  public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> perKey() {
     return Combine.<K, V, Long>perKey(new CountFn<V>());
   }
 
   /**
-   * Returns a {@link PerElement Count.PerElement} {@link PTransform} that counts the number of
-   * occurrences of each element in its input {@link PCollection}.
+   * Returns a {@link PTransform} that counts the number of occurrences of each element
+   * in its input {@link PCollection}.
    *
-   * <p>See {@link PerElement Count.PerElement} for more details.
-   */
-  public static <T> PerElement<T> perElement() {
-    return new PerElement<>();
-  }
-
-  /**
-   * {@code Count.PerElement<T>} takes a {@code PCollection<T>} and returns a
+   * <p>The returned {@code PTransform} takes a {@code PCollection<T>} and returns a
    * {@code PCollection<KV<T, Long>>} representing a map from each distinct element of the input
    * {@code PCollection} to the number of times that element occurs in the input. Each key in the
    * output {@code PCollection} is unique.
    *
-   * <p>This transform compares two values of type {@code T} by first encoding each element using
-   * the input {@code PCollection}'s {@code Coder}, then comparing the encoded bytes. Because of
-   * this, the input coder must be deterministic.
+   * <p>The returned transform compares two values of type {@code T} by first encoding each
+   * element using the input {@code PCollection}'s {@code Coder}, then comparing the encoded
+   * bytes. Because of this, the input coder must be deterministic.
    * (See {@link org.apache.beam.sdk.coders.Coder#verifyDeterministic()} for more detail).
    * Performing the comparison in this manner admits efficient parallel evaluation.
    *
@@ -93,14 +98,21 @@ public class Count {
    * PCollection<KV<String, Long>> wordCounts =
    *     words.apply(Count.<String>perElement());
    * } </pre>
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
+    return new PerElement<>();
+  }
+
+  /**
+   * Private implementation of {@link #perElement()}.
    *
    * @param <T> the type of the elements of the input {@code PCollection}, and the type of the keys
    * of the output {@code PCollection}
    */
-  public static class PerElement<T>
+  private static class PerElement<T>
       extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
 
-    public PerElement() { }
+    private PerElement() { }
 
     @Override
     public PCollection<KV<T, Long>> expand(PCollection<T> input) {
@@ -155,15 +167,15 @@ public class Count {
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry,
                                              Coder<T> inputCoder) {
-      return new CustomCoder<long[]>() {
+      return new AtomicCoder<long[]>() {
         @Override
-        public void encode(long[] value, OutputStream outStream, Context context)
+        public void encode(long[] value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value[0], outStream);
         }
 
         @Override
-        public long[] decode(InputStream inStream, Context context)
+        public long[] decode(InputStream inStream)
             throws IOException, CoderException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
@@ -173,20 +185,25 @@ public class Count {
         }
 
         @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        public boolean isRegisterByteSizeObserverCheap(long[] value) {
           return true;
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
         }
-
-        @Override
-        public String getEncodingId() {
-          return "VarLongSingletonArray";
-        }
       };
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null && getClass().equals(other.getClass());
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
     }
   }
 }

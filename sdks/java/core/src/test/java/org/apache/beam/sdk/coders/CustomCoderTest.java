@@ -48,13 +48,13 @@ public class CustomCoderTest {
     }
 
     @Override
-    public void encode(KV<String, Long> kv, OutputStream out, Context context)
+    public void encode(KV<String, Long> kv, OutputStream out)
             throws IOException {
       new DataOutputStream(out).writeLong(kv.getValue());
     }
 
     @Override
-    public KV<String, Long> decode(InputStream inStream, Context context)
+    public KV<String, Long> decode(InputStream inStream)
         throws IOException {
       return KV.of(key, new DataInputStream(inStream).readLong());
     }
@@ -84,51 +84,5 @@ public class CustomCoderTest {
   @Test
   public void testEncodable() throws Exception {
     SerializableUtils.ensureSerializable(new MyCustomCoder("key"));
-  }
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(new MyCustomCoder("foo"),
-        MyCustomCoder.class.getCanonicalName());
-  }
-
-  @Test
-  public void testAnonymousEncodingIdError() throws Exception {
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Anonymous CustomCoder subclass");
-    thrown.expectMessage("must override getEncodingId()");
-    new CustomCoder<Integer>() {
-
-      @Override
-      public void encode(Integer kv, OutputStream out, Context context) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public Integer decode(InputStream inStream, Context context) {
-        throw new UnsupportedOperationException();
-      }
-    }.getEncodingId();
-  }
-
-  @Test
-  public void testAnonymousEncodingIdOk() throws Exception {
-    new CustomCoder<Integer>() {
-
-      @Override
-      public void encode(Integer kv, OutputStream out, Context context) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public Integer decode(InputStream inStream, Context context) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public String getEncodingId() {
-        return "A user must specify this. It can contain any character, including these: !$#%$@.";
-      }
-    }.getEncodingId();
   }
 }

@@ -20,12 +20,11 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -43,7 +42,7 @@ public class ToStringTest {
   public final TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testToStringOf() {
     Integer[] ints = {1, 2, 3, 4, 5};
     String[] strings = {"1", "2", "3", "4", "5"};
@@ -54,7 +53,7 @@ public class ToStringTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testToStringKV() {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
@@ -65,13 +64,13 @@ public class ToStringTest {
     expected.add("two,2");
 
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
-    PCollection<String> output = input.apply(ToString.kv());
+    PCollection<String> output = input.apply(ToString.kvs());
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testToStringKVWithDelimiter() {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
@@ -82,13 +81,13 @@ public class ToStringTest {
     expected.add("two\t2");
 
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
-    PCollection<String> output = input.apply(ToString.kv("\t"));
+    PCollection<String> output = input.apply(ToString.kvs("\t"));
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testToStringIterable() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
@@ -100,13 +99,13 @@ public class ToStringTest {
 
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
-    PCollection<String> output = input.apply(ToString.iterable());
+    PCollection<String> output = input.apply(ToString.iterables());
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testToStringIterableWithDelimiter() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
@@ -118,7 +117,7 @@ public class ToStringTest {
 
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
-    PCollection<String> output = input.apply(ToString.iterable("\t"));
+    PCollection<String> output = input.apply(ToString.iterables("\t"));
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }

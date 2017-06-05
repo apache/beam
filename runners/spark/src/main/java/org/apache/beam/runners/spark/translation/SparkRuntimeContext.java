@@ -19,20 +19,15 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.spark.Accumulator;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * The SparkRuntimeContext allows us to define useful features on the client side before our
@@ -40,20 +35,25 @@ import org.apache.spark.Accumulator;
  */
 public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
-
-  /**
-   * Map fo names to Beam aggregators.
-   */
-  private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(Pipeline pipeline) {
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+  SparkRuntimeContext(Pipeline pipeline, PipelineOptions options) {
+    this.serializedPipelineOptions = serializePipelineOptions(options);
+  }
+
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static ObjectMapper createMapper() {
+    return new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   }
 
   private String serializePipelineOptions(PipelineOptions pipelineOptions) {
     try {
-      return new ObjectMapper().writeValueAsString(pipelineOptions);
+      return createMapper().writeValueAsString(pipelineOptions);
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Failed to serialize the pipeline options.", e);
     }
@@ -61,91 +61,38 @@ public class SparkRuntimeContext implements Serializable {
 
   private static PipelineOptions deserializePipelineOptions(String serializedPipelineOptions) {
     try {
-      return new ObjectMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
+      return createMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
   }
 
-  public synchronized PipelineOptions getPipelineOptions() {
-    return deserializePipelineOptions(serializedPipelineOptions);
-  }
-
-  /**
-   * Creates and aggregator and associates it with the specified name.
-   *
-   * @param accum     Spark Accumulator.
-   * @param named     Name of aggregator.
-   * @param combineFn Combine function used in aggregation.
-   * @param <InputT>  Type of inputs to aggregator.
-   * @param <InterT>  Intermediate data type
-   * @param <OutputT> Type of aggregator outputs.
-   * @return Specified aggregator
-   */
-  public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
-      Accumulator<NamedAggregators> accum,
-      String named,
-      Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
-    @SuppressWarnings("unchecked")
-    Aggregator<InputT, OutputT> aggregator = (Aggregator<InputT, OutputT>) aggregators.get(named);
-    try {
-      if (aggregator == null) {
-        @SuppressWarnings("unchecked")
-        final
-        NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
-            new NamedAggregators.CombineFunctionState<>(
-                (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
-                // hidden assumption: InputT == OutputT
-                (Coder<InputT>) getCoderRegistry().getCoder(combineFn.getOutputType()),
-                this);
-
-        accum.add(new NamedAggregators(named, state));
-        aggregator = new SparkAggregator<>(named, state);
-        aggregators.put(named, aggregator);
-      }
-      return aggregator;
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException(String.format("Unable to create an aggregator named: [%s]", named),
-                                 e);
-    }
+  public PipelineOptions getPipelineOptions() {
+    return PipelineOptionsHolder.getOrInit(serializedPipelineOptions);
   }
 
   public CoderRegistry getCoderRegistry() {
     if (coderRegistry == null) {
-      coderRegistry = new CoderRegistry();
-      coderRegistry.registerStandardCoders();
+      coderRegistry = CoderRegistry.createDefault();
     }
     return coderRegistry;
   }
 
-  /**
-   * Initialize spark aggregators exactly once.
-   *
-   * @param <InputT> Type of element fed in to aggregator.
-   */
-  private static class SparkAggregator<InputT, OutputT>
-      implements Aggregator<InputT, OutputT>, Serializable {
-    private final String name;
-    private final NamedAggregators.State<InputT, ?, OutputT> state;
+  private static class PipelineOptionsHolder {
+    // on executors, this should deserialize once.
+    private static transient volatile PipelineOptions pipelineOptions = null;
 
-    SparkAggregator(String name, NamedAggregators.State<InputT, ?, OutputT> state) {
-      this.name = name;
-      this.state = state;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public void addValue(InputT elem) {
-      state.update(elem);
-    }
-
-    @Override
-    public Combine.CombineFn<InputT, ?, OutputT> getCombineFn() {
-      return state.getCombineFn();
+    static PipelineOptions getOrInit(String serializedPipelineOptions) {
+      if (pipelineOptions == null) {
+        synchronized (PipelineOptionsHolder.class) {
+          if (pipelineOptions == null) {
+            pipelineOptions = deserializePipelineOptions(serializedPipelineOptions);
+          }
+        }
+        // Register standard FileSystems.
+        FileSystems.setDefaultPipelineOptions(pipelineOptions);
+      }
+      return pipelineOptions;
     }
   }
 }

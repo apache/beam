@@ -31,21 +31,21 @@ import org.joda.time.Instant;
  * The argument to the {@link Window} transform used to assign elements into
  * windows and to determine how windows are merged.  See {@link Window} for more
  * information on how {@code WindowFn}s are used and for a library of
- * predefined {@code WindowFn}s.
+ * predefined {@link WindowFn WindowFns}.
  *
  * <p>Users will generally want to use the predefined
- * {@code WindowFn}s, but it is also possible to create new
+ * {@link WindowFn WindowFns}, but it is also possible to create new
  * subclasses.
  *
- * <p>To create a custom {@code WindowFn}, inherit from this class and override all required
+ * <p>To create a custom {@link WindowFn}, inherit from this class and override all required
  * methods.  If no merging is required, inherit from {@link NonMergingWindowFn}
  * instead.  If no merging is required and each element is assigned to a single window, inherit from
- * {@code PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
+ * {@link PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
  * optimizations in the runner.
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the
- *            windows used by this {@code WindowFn}
+ *            windows used by this {@link WindowFn}
  */
 public abstract class WindowFn<T, W extends BoundedWindow>
     implements Serializable, HasDisplayData {
@@ -114,8 +114,29 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   /**
    * Returns whether this performs the same merging as the given
    * {@code WindowFn}.
+   *
+   * @deprecated please override verifyCompatibility to throw a useful error message;
+   *     we will remove isCompatible at version 3.0.0
    */
+  @Deprecated
   public abstract boolean isCompatible(WindowFn<?, ?> other);
+
+  /**
+   * Throw {@link IncompatibleWindowException} if this WindowFn does not perform the same merging as
+   * the given ${@code WindowFn}.
+   *
+   * @throws IncompatibleWindowException if compared WindowFns are not compatible.
+   */
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is not compatible with %s",
+              this.getClass().getSimpleName(),
+              other.getClass().getSimpleName()));
+    }
+  }
 
   /**
    * Returns the {@link Coder} used for serializing the windows used
@@ -124,12 +145,11 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract Coder<W> windowCoder();
 
   /**
-   * Returns the window of the side input corresponding to the given window of
-   * the main input.
-   *
-   * <p>Authors of custom {@code WindowFn}s should override this.
+   * Returns the default {@link WindowMappingFn} to use to map main input windows to side input
+   * windows. This should accept arbitrary main input windows, and produce a {@link BoundedWindow}
+   * that can be produced by this {@link WindowFn}.
    */
-  public abstract W getSideInputWindow(BoundedWindow window);
+  public abstract WindowMappingFn<W> getDefaultWindowMappingFn();
 
   /**
    * Returns the output timestamp to use for data depending on the given

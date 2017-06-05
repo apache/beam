@@ -38,20 +38,18 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.MapState;
-import org.apache.beam.sdk.util.state.SetState;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,7 +72,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = internals.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -94,7 +92,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = internals.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -116,18 +114,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
    */
   @Test
   public void testGetWithPresentInUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, ValueState<String>> valueTag = StateTags.value("foo", StringUtf8Coder.of());
+    StateTag<ValueState<String>> valueTag = StateTags.value("foo", StringUtf8Coder.of());
     ValueState<String> underlyingValue = underlying.state(namespace, valueTag);
     assertThat(underlyingValue.read(), nullValue(String.class));
 
     underlyingValue.write("bar");
     assertThat(underlyingValue.read(), equalTo("bar"));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     ValueState<String> copyOnAccessState = internals.state(namespace, valueTag);
     assertThat(copyOnAccessState.read(), equalTo("bar"));
@@ -142,18 +140,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testBagStateWithUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<Integer>> valueTag = StateTags.bag("foo", VarIntCoder.of());
+    StateTag<BagState<Integer>> valueTag = StateTags.bag("foo", VarIntCoder.of());
     BagState<Integer> underlyingValue = underlying.state(namespace, valueTag);
     assertThat(underlyingValue.read(), emptyIterable());
 
     underlyingValue.add(1);
     assertThat(underlyingValue.read(), containsInAnyOrder(1));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     BagState<Integer> copyOnAccessState = internals.state(namespace, valueTag);
     assertThat(copyOnAccessState.read(), containsInAnyOrder(1));
@@ -168,18 +166,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testSetStateWithUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, SetState<Integer>> valueTag = StateTags.set("foo", VarIntCoder.of());
+    StateTag<SetState<Integer>> valueTag = StateTags.set("foo", VarIntCoder.of());
     SetState<Integer> underlyingValue = underlying.state(namespace, valueTag);
     assertThat(underlyingValue.read(), emptyIterable());
 
     underlyingValue.add(1);
     assertThat(underlyingValue.read(), containsInAnyOrder(1));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     SetState<Integer> copyOnAccessState = internals.state(namespace, valueTag);
     assertThat(copyOnAccessState.read(), containsInAnyOrder(1));
@@ -194,116 +192,82 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testMapStateWithUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, MapState<String, Integer>> valueTag =
+    StateTag<MapState<String, Integer>> valueTag =
         StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
     MapState<String, Integer> underlyingValue = underlying.state(namespace, valueTag);
-    assertThat(underlyingValue.iterate(), emptyIterable());
+    assertThat(underlyingValue.entries().read(), emptyIterable());
 
     underlyingValue.put("hello", 1);
-    assertThat(underlyingValue.get("hello"), equalTo(1));
+    assertThat(underlyingValue.get("hello").read(), equalTo(1));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     MapState<String, Integer> copyOnAccessState = internals.state(namespace, valueTag);
-    assertThat(copyOnAccessState.get("hello"), equalTo(1));
+    assertThat(copyOnAccessState.get("hello").read(), equalTo(1));
 
     copyOnAccessState.put("world", 4);
-    assertThat(copyOnAccessState.get("hello"), equalTo(1));
-    assertThat(copyOnAccessState.get("world"), equalTo(4));
-    assertThat(underlyingValue.get("hello"), equalTo(1));
-    assertNull(underlyingValue.get("world"));
+    assertThat(copyOnAccessState.get("hello").read(), equalTo(1));
+    assertThat(copyOnAccessState.get("world").read(), equalTo(4));
+    assertThat(underlyingValue.get("hello").read(), equalTo(1));
+    assertNull(underlyingValue.get("world").read());
 
     MapState<String, Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
-    assertThat(underlyingValue.iterate(), equalTo(reReadUnderlyingValue.iterate()));
+    assertThat(underlyingValue.entries().read(), equalTo(reReadUnderlyingValue.entries().read()));
   }
 
   @Test
   public void testAccumulatorCombiningStateWithUnderlying() throws CannotProvideCoderException {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
     CombineFn<Long, long[], Long> sumLongFn = Sum.ofLongs();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<Object, AccumulatorCombiningState<Long, long[], Long>> stateTag =
+    StateTag<CombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
-            sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
-    CombiningState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
+            sumLongFn.getAccumulatorCoder(reg, reg.getCoder(Long.class)), sumLongFn);
+    GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 
     underlyingValue.add(1L);
     assertThat(underlyingValue.read(), equalTo(1L));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    CombiningState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
+    GroupingState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
     assertThat(copyOnAccessState.read(), equalTo(1L));
 
     copyOnAccessState.add(4L);
     assertThat(copyOnAccessState.read(), equalTo(5L));
     assertThat(underlyingValue.read(), equalTo(1L));
 
-    CombiningState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
-  }
-
-  @Test
-  public void testKeyedAccumulatorCombiningStateWithUnderlying() throws Exception {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    KeyedCombineFn<String, Long, long[], Long> sumLongFn = Sum.ofLongs().asKeyedFn();
-
-    StateNamespace namespace = new StateNamespaceForTest("foo");
-    CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<String, AccumulatorCombiningState<Long, long[], Long>> stateTag =
-        StateTags.keyedCombiningValue(
-            "summer",
-            sumLongFn.getAccumulatorCoder(
-                reg, StringUtf8Coder.of(), reg.getDefaultCoder(Long.class)),
-            sumLongFn);
-    CombiningState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(0L));
-
-    underlyingValue.add(1L);
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    CopyOnAccessInMemoryStateInternals<String> internals =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    CombiningState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
-    assertThat(copyOnAccessState.read(), equalTo(1L));
-
-    copyOnAccessState.add(4L);
-    assertThat(copyOnAccessState.read(), equalTo(5L));
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    CombiningState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
+    GroupingState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
 
   @Test
   public void testWatermarkHoldStateWithUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
-    OutputTimeFn<BoundedWindow> outputTimeFn =
-        OutputTimeFns.outputAtEarliestInputTimestamp();
+    TimestampCombiner timestampCombiner = TimestampCombiner.EARLIEST;
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> stateTag =
-        StateTags.watermarkStateInternal("wmstate", outputTimeFn);
-    WatermarkHoldState<?> underlyingValue = underlying.state(namespace, stateTag);
+    StateTag<WatermarkHoldState> stateTag =
+        StateTags.watermarkStateInternal("wmstate", timestampCombiner);
+    WatermarkHoldState underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), nullValue());
 
     underlyingValue.add(new Instant(250L));
     assertThat(underlyingValue.read(), equalTo(new Instant(250L)));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    WatermarkHoldState<BoundedWindow> copyOnAccessState = internals.state(namespace, stateTag);
+    WatermarkHoldState copyOnAccessState = internals.state(namespace, stateTag);
     assertThat(copyOnAccessState.read(), equalTo(new Instant(250L)));
 
     copyOnAccessState.add(new Instant(100L));
@@ -313,17 +277,17 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     copyOnAccessState.add(new Instant(500L));
     assertThat(copyOnAccessState.read(), equalTo(new Instant(100L)));
 
-    WatermarkHoldState<BoundedWindow> reReadUnderlyingValue =
+    WatermarkHoldState reReadUnderlyingValue =
         underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
 
   @Test
   public void testCommitWithoutUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = internals.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -340,13 +304,13 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = underlying.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -367,15 +331,15 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithClearedInUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CopyOnAccessInMemoryStateInternals<String> secondUnderlying =
+    CopyOnAccessInMemoryStateInternals<String>secondUnderlying =
         spy(CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying));
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, secondUnderlying);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = underlying.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -397,13 +361,13 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithOverwrittenUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = underlying.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -428,15 +392,15 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithAddedUnderlying() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
 
     internals.commit();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = underlying.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -452,7 +416,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithEmptyTableIsEmpty() {
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     internals.commit();
@@ -462,11 +426,11 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithOnlyClearedValuesIsEmpty() {
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = internals.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -480,13 +444,13 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testCommitWithEmptyNewAndFullUnderlyingIsNotEmpty() {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    StateTag<BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
     BagState<String> stringBag = underlying.state(namespace, bagTag);
     assertThat(stringBag.read(), emptyIterable());
 
@@ -511,18 +475,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         return new Instant(689743L);
       }
     };
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
 
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> firstHold =
+    StateTag<WatermarkHoldState> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState firstHold =
         internals.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(22L));
 
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> secondHold =
+    StateTag<WatermarkHoldState> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(2L));
 
@@ -544,20 +508,20 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         return new Instant(689743L);
       }
     };
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> firstHold =
+    StateTag<WatermarkHoldState> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(22L));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
 
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> secondHold =
+    StateTag<WatermarkHoldState> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(244L));
 
@@ -581,20 +545,20 @@ public class CopyOnAccessInMemoryStateInternalsTest {
             return new Instant(689743L);
           }
         };
-    CopyOnAccessInMemoryStateInternals<String> underlying =
+    CopyOnAccessInMemoryStateInternals<String>underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> firstHold =
+    StateTag<WatermarkHoldState> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(224L));
 
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
 
-    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkHoldState<BoundedWindow> secondHold =
+    StateTag<WatermarkHoldState> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
+    WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(24L));
 
@@ -604,13 +568,13 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
   @Test
   public void testGetEarliestHoldBeforeCommit() {
-    CopyOnAccessInMemoryStateInternals<String> internals =
+    CopyOnAccessInMemoryStateInternals<String>internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
     internals
         .state(
             StateNamespaces.global(),
-            StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp()))
+            StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST))
         .add(new Instant(1234L));
 
     thrown.expect(IllegalStateException.class);

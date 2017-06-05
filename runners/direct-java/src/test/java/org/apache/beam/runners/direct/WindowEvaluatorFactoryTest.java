@@ -29,26 +29,21 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -114,33 +109,9 @@ public class WindowEvaluatorFactoryTest {
   }
 
   @Test
-  public void nullWindowFunSucceeds() throws Exception {
-    Bound<Long> transform =
-        Window.<Long>triggering(
-                AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(1)))
-            .accumulatingFiredPanes();
-    PCollection<Long> triggering = input.apply(transform);
-
-    CommittedBundle<Long> inputBundle = createInputBundle();
-
-    UncommittedBundle<Long> outputBundle = createOutputBundle(triggering, inputBundle);
-
-    TransformResult<Long> result = runEvaluator(triggering, inputBundle, transform);
-
-    assertThat(
-        Iterables.getOnlyElement(result.getOutputBundles()),
-        Matchers.<UncommittedBundle<?>>equalTo(outputBundle));
-    CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
-    assertThat(
-        committed.getElements(),
-        containsInAnyOrder(
-            valueInIntervalWindow, valueInGlobalWindow, valueInGlobalAndTwoIntervalWindows));
-  }
-
-  @Test
   public void singleWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(7);
-    Bound<Long> transform = Window.<Long>into(FixedWindows.of(windowDuration));
+    Window<Long> transform = Window.<Long>into(FixedWindows.of(windowDuration));
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
@@ -150,7 +121,7 @@ public class WindowEvaluatorFactoryTest {
     BoundedWindow firstSecondWindow = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
     BoundedWindow thirdWindow = new IntervalWindow(EPOCH.minus(windowDuration), EPOCH);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -179,13 +150,13 @@ public class WindowEvaluatorFactoryTest {
   public void multipleWindowsWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(6);
     Duration slidingBy = Duration.standardDays(3);
-    Bound<Long> transform = Window.into(SlidingWindows.of(windowDuration).every(slidingBy));
+    Window<Long> transform = Window.into(SlidingWindows.of(windowDuration).every(slidingBy));
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
     UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -236,13 +207,13 @@ public class WindowEvaluatorFactoryTest {
 
   @Test
   public void referencesEarlierWindowsSucceeds() throws Exception {
-    Bound<Long> transform = Window.into(new EvaluatorTestWindowFn());
+    Window<Long> transform = Window.into(new EvaluatorTestWindowFn());
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
     UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -307,17 +278,9 @@ public class WindowEvaluatorFactoryTest {
   }
 
   private TransformResult<Long> runEvaluator(
-      PCollection<Long> windowed,
-      CommittedBundle<Long> inputBundle,
-      Window.Bound<Long> windowTransform /* Required while Window.Bound is a composite */)
-      throws Exception {
+      PCollection<Long> windowed, CommittedBundle<Long> inputBundle) throws Exception {
     TransformEvaluator<Long> evaluator =
-        factory.forApplication(
-            AppliedPTransform
-                .<PCollection<Long>, PCollection<Long>,
-                    PTransform<PCollection<Long>, PCollection<Long>>>
-                    of("Window", input.expand(), windowed.expand(), windowTransform, p),
-            inputBundle);
+        factory.forApplication(DirectGraphs.getProducer(windowed), inputBundle);
 
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
@@ -342,6 +305,15 @@ public class WindowEvaluatorFactoryTest {
     }
 
     @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is not compatible with any other %s.",
+              EvaluatorTestWindowFn.class.getSimpleName(), WindowFn.class.getSimpleName()));
+    }
+
+    @Override
     public Coder<BoundedWindow> windowCoder() {
       @SuppressWarnings({"unchecked", "rawtypes"}) Coder coder =
           (Coder) GlobalWindow.Coder.INSTANCE;
@@ -349,8 +321,8 @@ public class WindowEvaluatorFactoryTest {
     }
 
     @Override
-    public BoundedWindow getSideInputWindow(BoundedWindow window) {
-      return null;
+    public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException("Cannot be used as a side input");
     }
   }
 }

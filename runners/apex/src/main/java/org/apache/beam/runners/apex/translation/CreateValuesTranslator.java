@@ -20,21 +20,22 @@ package org.apache.beam.runners.apex.translation;
 
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.apex.translation.utils.ValuesSource;
+import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Wraps elements from Create.Values into an {@link UnboundedSource}.
  * mainly used for testing
  */
-class CreateValuesTranslator<T> implements TransformTranslator<Create.Values<T>> {
+class CreateValuesTranslator<T> implements TransformTranslator<PrimitiveCreate<T>> {
   private static final long serialVersionUID = 1451000241832745629L;
 
   @Override
-  public void translate(Create.Values<T> transform, TranslationContext context) {
-    UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
-        ((PCollection<T>) context.getOutput()).getCoder());
+  public void translate(PrimitiveCreate<T> transform, TranslationContext context) {
+    UnboundedSource<T, ?> unboundedSource =
+        new ValuesSource<>(
+            transform.getElements(), ((PCollection<T>) context.getOutput()).getCoder());
     ApexReadUnboundedInputOperator<T, ?> operator =
         new ApexReadUnboundedInputOperator<>(unboundedSource, context.getPipelineOptions());
     context.addOperator(operator, operator.output);

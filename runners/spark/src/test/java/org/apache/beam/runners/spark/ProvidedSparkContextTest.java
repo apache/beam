@@ -27,9 +27,11 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
@@ -95,7 +97,9 @@ public class ProvidedSparkContextTest {
         PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
         // Run test from pipeline
-        p.run().waitUntilFinish();
+        PipelineResult result = p.run();
+
+        TestPipeline.verifyPAssertsSucceeded(p, result);
     }
 
     private void testWithInvalidContext(JavaSparkContext jsc) {
@@ -104,10 +108,8 @@ public class ProvidedSparkContextTest {
         Pipeline p = Pipeline.create(options);
         PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
                 .of()));
-        PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+        inputWords.apply(new WordCount.CountWords())
                 .apply(MapElements.via(new WordCount.FormatAsTextFn()));
-
-        PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
         try {
             p.run().waitUntilFinish();
@@ -119,7 +121,7 @@ public class ProvidedSparkContextTest {
 
     private static SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
         final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
-        options.setRunner(SparkRunner.class);
+        options.setRunner(TestSparkRunner.class);
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
         options.setEnableSparkMetricSinks(false);

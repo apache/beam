@@ -149,9 +149,9 @@ public class MaxPerKeyExamples {
     fields.add(new TableFieldSchema().setName("max_mean_temp").setType("FLOAT"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.Read.from(options.getInput()))
+    p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new MaxMeanTemp())
-     .apply(BigQueryIO.Write
+     .apply(BigQueryIO.writeTableRows()
         .to(options.getOutput())
         .withSchema(schema)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)

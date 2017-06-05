@@ -25,7 +25,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import tfidf
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 EXPECTED_RESULTS = set([
@@ -48,20 +50,20 @@ class TfIdfTest(unittest.TestCase):
       f.write(contents)
 
   def test_tfidf_transform(self):
-    p = TestPipeline()
-    uri_to_line = p | 'create sample' >> beam.Create(
-        [('1.txt', 'abc def ghi'),
-         ('2.txt', 'abc def'),
-         ('3.txt', 'abc')])
-    result = (
-        uri_to_line
-        | tfidf.TfIdf()
-        | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
-    beam.assert_that(result, beam.equal_to(EXPECTED_RESULTS))
-    # Run the pipeline. Note that the assert_that above adds to the pipeline
-    # a check that the result PCollection contains expected values. To actually
-    # trigger the check the pipeline must be run.
-    p.run()
+    with TestPipeline() as p:
+      uri_to_line = p | 'create sample' >> beam.Create(
+          [('1.txt', 'abc def ghi'),
+           ('2.txt', 'abc def'),
+           ('3.txt', 'abc')])
+      result = (
+          uri_to_line
+          | tfidf.TfIdf()
+          | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
+      assert_that(result, equal_to(EXPECTED_RESULTS))
+      # Run the pipeline. Note that the assert_that above adds to the pipeline
+      # a check that the result PCollection contains expected values.
+      # To actually trigger the check the pipeline must be run (e.g. by
+      # exiting the with context).
 
   def test_basics(self):
     # Setup the files with expected content.

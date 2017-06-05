@@ -22,6 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
@@ -42,12 +45,12 @@ import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -80,8 +83,8 @@ public class FlattenTest implements Serializable {
 
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testFlattenPCollectionList() {
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollections() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
@@ -94,8 +97,20 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListThenParDo() {
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollectionsSingletonList() {
+    PCollection<String> input = p.apply(Create.of(LINES));
+    PCollection<String> output = PCollectionList.of(input).apply(Flatten.<String>pCollections());
+
+    assertThat(output, not(equalTo(input)));
+
+    PAssert.that(output).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollectionsThenParDo() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
@@ -109,8 +124,8 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListEmpty() {
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollectionsEmpty() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
@@ -120,12 +135,12 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenInputMultipleCopies() {
     int count = 5;
-    PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(count));
+    PCollection<Long> longs = p.apply("mkLines", GenerateSequence.from(0).to(count));
     PCollection<Long> biggerLongs =
-        p.apply("mkOtherLines", CountingInput.upTo(count))
+        p.apply("mkOtherLines", GenerateSequence.from(0).to(count))
             .apply(
                 MapElements.via(
                     new SimpleFunction<Long, Long>() {
@@ -152,7 +167,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, FlattenWithHeterogeneousCoders.class})
+  @Category({ValidatesRunner.class, FlattenWithHeterogeneousCoders.class})
   public void testFlattenMultipleCoders() throws CannotProvideCoderException {
     PCollection<Long> bigEndianLongs =
         p.apply(
@@ -160,7 +175,7 @@ public class FlattenTest implements Serializable {
             Create.of(0L, 1L, 2L, 3L, null, 4L, 5L, null, 6L, 7L, 8L, null, 9L)
                 .withCoder(NullableCoder.of(BigEndianLongCoder.of())));
     PCollection<Long> varLongs =
-        p.apply("VarLengthLongs", CountingInput.upTo(5L)).setCoder(VarLongCoder.of());
+        p.apply("VarLengthLongs", GenerateSequence.from(0).to(5)).setCoder(VarLongCoder.of());
 
     PCollection<Long> flattened =
         PCollectionList.of(bigEndianLongs)
@@ -174,7 +189,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyFlattenAsSideInput() {
     final PCollectionView<Iterable<String>> view =
         PCollectionList.<String>empty(p)
@@ -183,22 +198,22 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+        .apply(ParDo.of(new DoFn<Void, String>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
                       c.output(side);
                     }
                   }
-                }));
+                }).withSideInputs(view));
 
     PAssert.that(output).empty();
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListEmptyThenParDo() {
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollectionsEmptyThenParDo() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
@@ -211,7 +226,7 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFlattenNoListsNoCoder() {
-    // not RunnableOnService because it should fail at pipeline construction time anyhow.
+    // not ValidatesRunner because it should fail at pipeline construction time anyhow.
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("cannot provide a Coder for empty");
 
@@ -224,7 +239,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterables() {
     PCollection<Iterable<String>> input = p
         .apply(Create.<Iterable<String>>of(LINES)
@@ -240,7 +255,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesLists() {
     PCollection<List<String>> input =
         p.apply(Create.<List<String>>of(LINES).withCoder(ListCoder.of(StringUtf8Coder.of())));
@@ -253,7 +268,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesSets() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -268,7 +283,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesCollections() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -284,7 +299,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesEmpty() {
     PCollection<Iterable<String>> input = p
         .apply(Create.<Iterable<String>>of(NO_LINES)
@@ -366,8 +381,8 @@ public class FlattenTest implements Serializable {
 
   @Test
   public void testFlattenGetName() {
-    Assert.assertEquals("Flatten.FlattenIterables", Flatten.<String>iterables().getName());
-    Assert.assertEquals("Flatten.FlattenPCollectionList", Flatten.<String>pCollections().getName());
+    Assert.assertEquals("Flatten.Iterables", Flatten.<String>iterables().getName());
+    Assert.assertEquals("Flatten.PCollections", Flatten.<String>pCollections().getName());
   }
 
   /////////////////////////////////////////////////////////////////////////////

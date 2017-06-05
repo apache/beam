@@ -17,18 +17,26 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.google.common.base.MoreObjects;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -42,29 +50,8 @@ public class PTransformMatchers {
   private PTransformMatchers() {}
 
   /**
-   * Returns a {@link PTransformMatcher} which matches a {@link PTransform} if any of the provided
-   * matchers match the {@link PTransform}.
-   */
-  public static PTransformMatcher anyOf(
-      final PTransformMatcher matcher, final PTransformMatcher... matchers) {
-    return new PTransformMatcher() {
-      @Override
-      public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        for (PTransformMatcher component : matchers) {
-          if (component.matches(application)) {
-            return true;
-          }
-        }
-        return matcher.matches(application);
-      }
-    };
-  }
-
-  /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
    * {@link PTransform} is equal to the {@link Class} provided ot this matcher.
-   * @param clazz
-   * @return
    */
   public static PTransformMatcher classEqualTo(Class<? extends PTransform> clazz) {
     return new EqualClassPTransformMatcher(clazz);
@@ -81,49 +68,66 @@ public class PTransformMatchers {
     public boolean matches(AppliedPTransform<?, ?, ?> application) {
       return application.getTransform().getClass().equals(clazz);
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(EqualClassPTransformMatcher.class)
+          .add("class", clazz)
+          .toString();
+    }
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
-   * is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoSingle() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.Bound) {
-          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.SingleOutput) {
+          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().isSplittable();
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableParDoSingleMatcher").toString();
+      }
     };
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
-   * uses state or timers, as specified by {@link DoFnSignature#usesState()} and
-   * {@link DoFnSignature#usesTimers()}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and {@link
+   * DoFnSignature#usesTimers()}.
    */
   public static PTransformMatcher stateOrTimerParDoSingle() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.Bound) {
-          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.SingleOutput) {
+          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoSingleMatcher").toString();
+      }
     };
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
    * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoMulti() {
@@ -131,18 +135,23 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.BoundMulti) {
-          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutput) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().isSplittable();
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableParDoMultiMatcher").toString();
+      }
     };
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
    * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and
    * {@link DoFnSignature#usesTimers()}.
    */
@@ -151,47 +160,119 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.BoundMulti) {
-          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutput) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoMultiMatcher").toString();
+      }
     };
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link ParDo.Bound} or {@link ParDo.BoundMulti}
-   * where the {@link DoFn} is of the provided type.
+   * A {@link PTransformMatcher} which matches a {@link ParDo.SingleOutput} or {@link
+   * ParDo.MultiOutput} where the {@link DoFn} is of the provided type.
    */
   public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         DoFn<?, ?> fn;
-        if (application.getTransform() instanceof ParDo.Bound) {
-          fn = ((ParDo.Bound) application.getTransform()).getFn();
-        } else if (application.getTransform() instanceof ParDo.BoundMulti) {
-          fn = ((ParDo.BoundMulti) application.getTransform()).getFn();
+        if (application.getTransform() instanceof ParDo.SingleOutput) {
+          fn = ((ParDo.SingleOutput) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.MultiOutput) {
+          fn = ((ParDo.MultiOutput) application.getTransform()).getFn();
         } else {
           return false;
         }
         return fnType.equals(fn.getClass());
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("ParDoWithFnTypeMatcher")
+            .add("fnType", fnType)
+            .toString();
+      }
+    };
+  }
+
+  public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (!(application.getTransform() instanceof CreatePCollectionView)) {
+          return false;
+        }
+        CreatePCollectionView<?, ?> createView =
+            (CreatePCollectionView<?, ?>) application.getTransform();
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        return viewFn.getClass().equals(viewFnType);
+      }
     };
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link Flatten.FlattenPCollectionList} which
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
    * consumes no input {@link PCollection PCollections}.
    */
   public static PTransformMatcher emptyFlatten() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        return (application.getTransform() instanceof Flatten.FlattenPCollectionList)
+        return (application.getTransform() instanceof Flatten.PCollections)
             && application.getInputs().isEmpty();
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("EmptyFlattenMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
+   * consumes a single input {@link PCollection} multiple times.
+   */
+  public static PTransformMatcher flattenWithDuplicateInputs() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof Flatten.PCollections) {
+          Set<PValue> observed = new HashSet<>();
+          for (PValue pvalue : application.getInputs().values()) {
+            boolean firstInstance = observed.add(pvalue);
+            if (!firstInstance) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("FlattenWithDuplicateInputsMatcher").toString();
+      }
+    };
+  }
+
+  public static PTransformMatcher writeWithRunnerDeterminedSharding() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof WriteFiles) {
+          WriteFiles write = (WriteFiles) application.getTransform();
+          return write.getSharding() == null && write.getNumShards() == null;
+        }
+        return false;
       }
     };
   }

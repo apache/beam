@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.mqtt;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,9 +27,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -99,6 +97,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@Experimental
 public class MqttIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIO.class);
@@ -209,6 +208,10 @@ public class MqttIO {
         String clientId = getClientId() + "-" + UUID.randomUUID().toString();
         LOG.debug("MQTT client id set to {}", clientId);
         client.setClientId(clientId);
+      } else {
+        String clientId = UUID.randomUUID().toString();
+        LOG.debug("MQTT client id set to random value {}", clientId);
+        client.setClientId(clientId);
       }
       return client;
     }
@@ -285,7 +288,7 @@ public class MqttIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       // validation is performed in the ConnectionConfiguration create()
     }
 
@@ -359,7 +362,7 @@ public class MqttIO {
     }
 
     @Override
-    public List<UnboundedMqttSource> generateInitialSplits(int desiredNumSplits,
+    public List<UnboundedMqttSource> split(int desiredNumSplits,
                                                            PipelineOptions options) {
       // MQTT is based on a pub/sub pattern
       // so, if we create several subscribers on the same topic, they all will receive the same
@@ -535,7 +538,7 @@ public class MqttIO {
     }
 
     @Override
-    public void validate(PCollection<byte[]> input) {
+    public void validate(PipelineOptions options) {
       // validate is done in connection configuration
     }
 

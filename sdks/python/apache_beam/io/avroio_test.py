@@ -22,14 +22,15 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.io import iobase
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
 
 # Importing following private class for testing purposes.
 from apache_beam.io.avroio import _AvroSource as AvroSource
@@ -141,10 +142,10 @@ class TestAvro(unittest.TestCase):
           (split.source, split.start_position, split.stop_position)
           for split in splits
       ]
-      source_test_utils.assertSourcesEqualReferenceSource((source, None, None),
-                                                          sources_info)
+      source_test_utils.assert_sources_equal_reference_source(
+          (source, None, None), sources_info)
     else:
-      read_records = source_test_utils.readFromSource(source, None, None)
+      read_records = source_test_utils.read_from_source(source, None, None)
       self.assertItemsEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
@@ -227,7 +228,7 @@ class TestAvro(unittest.TestCase):
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
     source = AvroSource(file_name)
-    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
@@ -235,7 +236,7 @@ class TestAvro(unittest.TestCase):
     splits = [
         split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertReentrantReadsSucceed(
+    source_test_utils.assert_reentrant_reads_succeed(
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_read_without_splitting_multiple_blocks(self):
@@ -247,6 +248,36 @@ class TestAvro(unittest.TestCase):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
     self._run_avro_test(file_name, 10000, True, expected_result)
+
+  def test_split_points(self):
+    file_name = self._write_data(count=12000)
+    source = AvroSource(file_name)
+
+    splits = [
+        split
+        for split in source.split(desired_bundle_size=float('inf'))
+    ]
+    assert len(splits) == 1
+
+    range_tracker = splits[0].source.get_range_tracker(
+        splits[0].start_position, splits[0].stop_position)
+
+    split_points_report = []
+
+    for _ in splits[0].source.read(range_tracker):
+      split_points_report.append(range_tracker.split_points())
+
+    # There are a total of three blocks. Each block has more than 10 records.
+
+    # When reading records of the first block, range_tracker.split_points()
+    # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+    self.assertEquals(
+        split_points_report[:10],
+        [(0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)] * 10)
+
+    # When reading records of last block, range_tracker.split_points() should
+    # return (2, 1)
+    self.assertEquals(split_points_report[-10:], [(2, 1)] * 10)
 
   def test_read_without_splitting_compressed_deflate(self):
     file_name = self._write_data(codec='deflate')
@@ -291,7 +322,7 @@ class TestAvro(unittest.TestCase):
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]
       assert len(splits) == 1
-      source_test_utils.assertSplitAtFractionExhaustive(splits[0].source)
+      source_test_utils.assert_split_at_fraction_exhaustive(splits[0].source)
     finally:
       avro.datafile.SYNC_INTERVAL = old_sync_interval
 
@@ -312,7 +343,7 @@ class TestAvro(unittest.TestCase):
 
     source = AvroSource(corrupted_file_name)
     with self.assertRaises(ValueError) as exn:
-      source_test_utils.readFromSource(source, None, None)
+      source_test_utils.read_from_source(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
   def test_source_transform(self):

@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.aggregators;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import java.io.IOException;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,36 +35,54 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
+ * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class AggregatorsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
 
+  private static final String ACCUMULATOR_NAME = "Beam.Aggregators";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "aggregators";
 
-  private static volatile Accumulator<NamedAggregators> instance;
+  private static volatile Accumulator<NamedAggregators> instance = null;
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
-  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  static Accumulator<NamedAggregators> getInstance(
-      JavaSparkContext jsc,
-      Optional<CheckpointDir> checkpointDir) {
+  /**
+   * Init aggregators accumulator if it has not been initiated. This method is idempotent.
+   */
+  public static void init(SparkPipelineOptions opts, JavaSparkContext jsc) {
     if (instance == null) {
       synchronized (AggregatorsAccumulator.class) {
         if (instance == null) {
-          instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
-          if (checkpointDir.isPresent()) {
-            recoverValueFromCheckpoint(jsc, checkpointDir.get());
+          Optional<CheckpointDir> maybeCheckpointDir =
+              opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+                  : Optional.<CheckpointDir>absent();
+          Accumulator<NamedAggregators> accumulator =
+              jsc.sc().accumulator(new NamedAggregators(), ACCUMULATOR_NAME, new AggAccumParam());
+          if (maybeCheckpointDir.isPresent()) {
+            Optional<NamedAggregators> maybeRecoveredValue =
+                recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
+            if (maybeRecoveredValue.isPresent()) {
+              accumulator.setValue(maybeRecoveredValue.get());
+            }
           }
+          instance = accumulator;
         }
       }
+      LOG.info("Instantiated aggregators accumulator: " + instance.value());
     }
-    return instance;
   }
 
-  private static void recoverValueFromCheckpoint(
+  public static Accumulator<NamedAggregators> getInstance() {
+    if (instance == null) {
+      throw new IllegalStateException("Aggregrators accumulator has not been instantiated");
+    } else {
+      return instance;
+    }
+  }
+
+  private static Optional<NamedAggregators> recoverValueFromCheckpoint(
       JavaSparkContext jsc,
       CheckpointDir checkpointDir) {
     try {
@@ -72,14 +91,15 @@ public class AggregatorsAccumulator {
       fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
       NamedAggregators recoveredValue = Checkpoint.readObject(fileSystem, checkpointFilePath);
       if (recoveredValue != null) {
-        LOG.info("Recovered accumulators from checkpoint: " + recoveredValue);
-        instance.setValue(recoveredValue);
+        LOG.info("Recovered aggregators from checkpoint");
+        return Optional.of(recoveredValue);
       } else {
         LOG.info("No accumulator checkpoint found.");
       }
     } catch (Exception e) {
       throw new RuntimeException("Failure while reading accumulator checkpoint.", e);
     }
+    return Optional.absent();
   }
 
   private static void checkpoint() throws IOException {

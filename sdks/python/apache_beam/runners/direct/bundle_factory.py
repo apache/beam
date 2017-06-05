@@ -24,7 +24,9 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class BundleFactory(object):
-  """BundleFactory creates output bundles to be used by transform evaluators.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  BundleFactory creates output bundles to be used by transform evaluators.
 
   Args:
     stacked: whether or not to stack the WindowedValues within the bundle
@@ -36,7 +38,7 @@ class BundleFactory(object):
     self._stacked = stacked
 
   def create_bundle(self, output_pcollection):
-    return Bundle(output_pcollection, self._stacked)
+    return _Bundle(output_pcollection, self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
     bundle = self.create_bundle(output_pcollection)
@@ -45,7 +47,7 @@ class BundleFactory(object):
 
 
 # a bundle represents a unit of work that will be processed by a transform.
-class Bundle(object):
+class _Bundle(object):
   """Part of a PCollection with output elements.
 
   Part of a PCollection. Elements are output to a bundle, which will cause them
@@ -67,7 +69,7 @@ class Bundle(object):
     b = Bundle(stacked=False)
   """
 
-  class StackedWindowedValues(object):
+  class _StackedWindowedValues(object):
     """A stack of WindowedValues with the same timestamp and windows.
 
     It must be initialized from a single WindowedValue.
@@ -106,8 +108,7 @@ class Bundle(object):
                             self._initial_windowed_value.windows)
 
   def __init__(self, pcollection, stacked=True):
-    assert (isinstance(pcollection, pvalue.PCollection)
-            or isinstance(pcollection, pvalue.PCollectionView))
+    assert isinstance(pcollection, pvalue.PCollection)
     self._pcollection = pcollection
     self._elements = []
     self._stacked = stacked
@@ -128,12 +129,11 @@ class Bundle(object):
     if not self._stacked:
       if self._committed and not make_copy:
         return self._elements
-      else:
-        return list(self._elements)
+      return list(self._elements)
 
     def iterable_stacked_or_elements(elements):
       for e in elements:
-        if isinstance(e, Bundle.StackedWindowedValues):
+        if isinstance(e, _Bundle._StackedWindowedValues):
           for w in e.windowed_values():
             yield w
         else:
@@ -141,9 +141,8 @@ class Bundle(object):
 
     if self._committed and not make_copy:
       return iterable_stacked_or_elements(self._elements)
-    else:
-      # returns a copy.
-      return [e for e in iterable_stacked_or_elements(self._elements)]
+    # returns a copy.
+    return [e for e in iterable_stacked_or_elements(self._elements)]
 
   def has_elements(self):
     return len(self._elements) > 0
@@ -172,13 +171,13 @@ class Bundle(object):
     if not self._stacked:
       self._elements.append(element)
       return
-    if (len(self._elements) > 0 and
-        (isinstance(self._elements[-1], WindowedValue) or
-         isinstance(self._elements[-1], Bundle.StackedWindowedValues)) and
+    if (self._elements and
+        (isinstance(self._elements[-1], (WindowedValue,
+                                         _Bundle._StackedWindowedValues))) and
         self._elements[-1].timestamp == element.timestamp and
         self._elements[-1].windows == element.windows):
       if isinstance(self._elements[-1], WindowedValue):
-        self._elements[-1] = Bundle.StackedWindowedValues(self._elements[-1])
+        self._elements[-1] = _Bundle._StackedWindowedValues(self._elements[-1])
       self._elements[-1].add_value(element.value)
     else:
       self._elements.append(element)

@@ -37,6 +37,7 @@ import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -97,6 +98,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@Experimental
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
@@ -293,7 +295,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
@@ -338,7 +340,7 @@ public class JmsIO {
     }
 
     @Override
-    public List<UnboundedJmsSource> generateInitialSplits(
+    public List<UnboundedJmsSource> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
       if (spec.getTopic() != null) {
@@ -377,7 +379,8 @@ public class JmsIO {
 
   }
 
-  private static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
+  @VisibleForTesting
+  static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
 
     private UnboundedJmsSource source;
     private JmsCheckpointMark checkpointMark;
@@ -419,7 +422,7 @@ public class JmsIO {
       }
 
       try {
-        this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
       } catch (Exception e) {
         throw new IOException("Error creating JMS session", e);
       }
@@ -652,7 +655,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PCollection<String> input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "
@@ -671,8 +674,8 @@ public class JmsIO {
         this.spec = spec;
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
+      @Setup
+      public void setup() throws Exception {
         if (producer == null) {
           if (spec.getUsername() != null) {
             this.connection =
@@ -697,17 +700,12 @@ public class JmsIO {
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
-        try {
-          TextMessage message = session.createTextMessage(value);
-          producer.send(message);
-        } catch (Exception t) {
-          finishBundle(null);
-          throw t;
-        }
+        TextMessage message = session.createTextMessage(value);
+        producer.send(message);
       }
 
-      @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      @Teardown
+      public void teardown() throws Exception {
         producer.close();
         producer = null;
         session.close();

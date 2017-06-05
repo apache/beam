@@ -23,11 +23,14 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
@@ -82,6 +85,16 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.verifyCompatibility() should never be called."
+                + " It is a private implementation detail of sdk utilities."
+                + " This message indicates a bug in the Beam SDK.",
+            getClass().getCanonicalName()));
+  }
+
+  @Override
   public Coder<BoundedWindow> windowCoder() {
     // Safe because the prior WindowFn provides both the windows and the coder.
     // The Coder is _not_ actually a coder for an arbitrary BoundedWindow.
@@ -89,7 +102,7 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   }
 
   @Override
-  public BoundedWindow getSideInputWindow(BoundedWindow window) {
+  public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException(
         String.format(
             "%s.getSideInputWindow() should never be called."

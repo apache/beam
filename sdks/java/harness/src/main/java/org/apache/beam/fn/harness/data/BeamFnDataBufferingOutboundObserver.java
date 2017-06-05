@@ -27,7 +27,6 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -110,7 +109,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
 
   @Override
   public void accept(WindowedValue<T> t) throws IOException {
-    coder.encode(t, bufferedElements, Context.NESTED);
+    coder.encode(t, bufferedElements);
     counter += 1;
     if (bufferedElements.size() >= bufferLimit) {
       outboundObserver.onNext(convertBufferForTransmission().build());

@@ -26,8 +26,8 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 
 /**
  * {@link TriggerStateMachine}s that fire based on properties of the elements in the current pane.
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPaneStateMachine extends OnceTriggerStateMachine {
 
-private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
+private static final StateTag<CombiningState<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), Sum.ofLongs()));

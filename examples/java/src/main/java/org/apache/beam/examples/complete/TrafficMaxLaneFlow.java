@@ -291,7 +291,7 @@ public class TrafficMaxLaneFlow {
     @Override
     public PCollection<String> expand(PBegin begin) {
       return begin
-          .apply(TextIO.Read.from(inputFile))
+          .apply(TextIO.read().from(inputFile))
           .apply(ParDo.of(new ExtractTimestamps()));
     }
   }
@@ -348,7 +348,7 @@ public class TrafficMaxLaneFlow {
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new MaxLaneFlow())
-        .apply(BigQueryIO.Write.to(tableRef)
+        .apply(BigQueryIO.writeTableRows().to(tableRef)
             .withSchema(FormatMaxesFn.getSchema()));
 
     // Run the pipeline.

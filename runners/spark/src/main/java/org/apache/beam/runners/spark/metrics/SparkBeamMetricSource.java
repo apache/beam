@@ -19,28 +19,28 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
-
 import org.apache.spark.metrics.source.Source;
 
 
 /**
  * A Spark {@link Source} that is tailored to expose a {@link SparkBeamMetric},
- * wrapping an underlying {@link SparkMetricsContainer} instance.
+ * wrapping an underlying {@link org.apache.beam.sdk.metrics.MetricResults} instance.
  */
 public class SparkBeamMetricSource implements Source {
+  private static final String METRIC_NAME = "Metrics";
 
-  private final String sourceName;
+  private final String name;
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
-  public SparkBeamMetricSource(final String appName) {
-    sourceName = appName;
-    metricRegistry.register("Beam.Metrics", new SparkBeamMetric());
+  public SparkBeamMetricSource(final String name) {
+    this.name = name;
+    metricRegistry.register(METRIC_NAME, new SparkBeamMetric());
   }
 
   @Override
   public String sourceName() {
-    return sourceName;
+    return name;
   }
 
   @Override

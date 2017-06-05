@@ -21,44 +21,21 @@ from __future__ import absolute_import
 
 
 class TransformResult(object):
-  """The result of evaluating an AppliedPTransform with a TransformEvaluator."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles, state,
                timer_update, counters, watermark_hold,
                undeclared_tag_values=None):
-    self._applied_ptransform = applied_ptransform
-    self._uncommitted_output_bundles = uncommitted_output_bundles
-    self._state = state
-    self._timer_update = timer_update
-    self._counters = counters
-    self._watermark_hold = watermark_hold
+    self.transform = applied_ptransform
+    self.uncommitted_output_bundles = uncommitted_output_bundles
+    self.state = state
+    # TODO: timer update is currently unused.
+    self.timer_update = timer_update
+    self.counters = counters
+    self.watermark_hold = watermark_hold
     # Only used when caching (materializing) all values is requested.
-    self._undeclared_tag_values = undeclared_tag_values
-    self.metric_updates = None
-
-  def logical_metric_updates(self):
-    return self.metric_updates
-
-  @property
-  def transform(self):
-    return self._applied_ptransform
-
-  @property
-  def output_bundles(self):
-    return self._uncommitted_output_bundles
-
-  @property
-  def state(self):
-    return self._state
-
-  @property
-  def counters(self):
-    return self._counters
-
-  @property
-  def watermark_hold(self):
-    return self._watermark_hold
-
-  @property
-  def undeclared_tag_values(self):
-    return self._undeclared_tag_values
+    self.undeclared_tag_values = undeclared_tag_values
+    # Populated by the TransformExecutor.
+    self.logical_metric_updates = None

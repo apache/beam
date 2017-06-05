@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,23 +27,65 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
-class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
-  public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
+  public interface DoFnRunnerFactory<InputT, OutputT> {
+    PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
+        PipelineOptions options,
+        DoFn<InputT, OutputT> fn,
+        List<PCollectionView<?>> sideInputs,
+        ReadyCheckingSideInputReader sideInputReader,
+        OutputManager outputManager,
+        TupleTag<OutputT> mainOutputTag,
+        List<TupleTag<?>> additionalOutputTags,
+        DirectStepContext stepContext,
+        WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
+  }
+
+  public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
+    return new DoFnRunnerFactory<InputT, OutputT>() {
+      @Override
+      public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
+          PipelineOptions options,
+          DoFn<InputT, OutputT> fn,
+          List<PCollectionView<?>> sideInputs,
+          ReadyCheckingSideInputReader sideInputReader,
+          OutputManager outputManager,
+          TupleTag<OutputT> mainOutputTag,
+          List<TupleTag<?>> additionalOutputTags,
+          DirectStepContext stepContext,
+          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
+        DoFnRunner<InputT, OutputT> underlying =
+            DoFnRunners.simpleRunner(
+                options,
+                fn,
+                sideInputReader,
+                outputManager,
+                mainOutputTag,
+                additionalOutputTags,
+                stepContext,
+                windowingStrategy);
+        return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
+      }
+    };
+  }
+
+  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
@@ -51,10 +94,41 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      Map<TupleTag<?>, PCollection<?>> outputs) {
-    AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
+      List<TupleTag<?>> additionalOutputTags,
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
 
+    BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);
+
+    ReadyCheckingSideInputReader sideInputReader =
+        evaluationContext.createSideInputReader(sideInputs);
+
+    PushbackSideInputDoFnRunner<InputT, OutputT> runner = runnerFactory.createRunner(
+        evaluationContext.getPipelineOptions(),
+        fn,
+        sideInputs,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy);
+
+    return create(runner, stepContext, application, outputManager);
+  }
+
+  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
+      PushbackSideInputDoFnRunner<InputT, OutputT> runner,
+      DirectStepContext stepContext,
+      AppliedPTransform<?, ?, ?> application,
+      BundleOutputManager outputManager) {
+    return new ParDoEvaluator<>(runner, application, outputManager, stepContext);
+  }
+
+  static BundleOutputManager createOutputManager(
+      EvaluationContext evaluationContext,
+      StructuralKey<?> key,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
       // Just trust the context's decision as to whether the output should be keyed.
@@ -68,60 +142,34 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
             outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
       }
     }
-    BundleOutputManager outputManager = BundleOutputManager.create(outputBundles);
-
-    ReadyCheckingSideInputReader sideInputReader =
-        evaluationContext.createSideInputReader(sideInputs);
-
-    DoFnRunner<InputT, OutputT> underlying =
-        DoFnRunners.simpleRunner(
-            evaluationContext.getPipelineOptions(),
-            fn,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            sideOutputTags,
-            stepContext,
-            aggregatorChanges,
-            windowingStrategy);
-    PushbackSideInputDoFnRunner<InputT, OutputT> runner =
-        PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
-
-    try {
-      runner.startBundle();
-    } catch (Exception e) {
-      throw UserCodeException.wrap(e);
-    }
-
-    return new ParDoEvaluator<>(
-        evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
+    return BundleOutputManager.create(outputBundles);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final EvaluationContext evaluationContext;
   private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
   private final AppliedPTransform<?, ?, ?> transform;
-  private final AggregatorContainer.Mutator aggregatorChanges;
   private final BundleOutputManager outputManager;
   private final DirectStepContext stepContext;
 
   private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
-      EvaluationContext evaluationContext,
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
       AppliedPTransform<?, ?, ?> transform,
-      AggregatorContainer.Mutator aggregatorChanges,
       BundleOutputManager outputManager,
       DirectStepContext stepContext) {
-    this.evaluationContext = evaluationContext;
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.outputManager = outputManager;
     this.stepContext = stepContext;
-    this.aggregatorChanges = aggregatorChanges;
     this.unprocessedElements = ImmutableList.builder();
+
+    try {
+      fnRunner.startBundle();
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
   }
 
   public BundleOutputManager getOutputManager() {
@@ -153,11 +201,11 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
-    StepTransformResult.Builder resultBuilder;
-    CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
+    StepTransformResult.Builder<InputT> resultBuilder;
+    CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
     if (state != null) {
       resultBuilder =
-          StepTransformResult.withHold(transform, state.getEarliestWatermarkHold())
+          StepTransformResult.<InputT>withHold(transform, state.getEarliestWatermarkHold())
               .withState(state);
     } else {
       resultBuilder = StepTransformResult.withoutHold(transform);
@@ -165,14 +213,12 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     return resultBuilder
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
-        .withAggregatorChanges(aggregatorChanges)
         .addUnprocessedElements(unprocessedElements.build())
         .build();
   }
 
   static class BundleOutputManager implements OutputManager {
     private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
-    private final Map<TupleTag<?>, List<?>> undeclaredOutputs;
 
     public static BundleOutputManager create(Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
       return new BundleOutputManager(outputBundles);
@@ -180,23 +226,13 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     private BundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
       this.bundles = bundles;
-      undeclaredOutputs = new HashMap<>();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      UncommittedBundle bundle = bundles.get(tag);
-      if (bundle == null) {
-        List<WindowedValue<T>> undeclaredContents = (List) undeclaredOutputs.get(tag);
-        if (undeclaredContents == null) {
-          undeclaredContents = new ArrayList<>();
-          undeclaredOutputs.put(tag, undeclaredContents);
-        }
-        undeclaredContents.add(output);
-      } else {
-        bundle.add(output);
-      }
+      checkArgument(bundles.containsKey(tag), "Unknown output tag %s", tag);
+      ((UncommittedBundle) bundles.get(tag)).add(output);
     }
   }
 }

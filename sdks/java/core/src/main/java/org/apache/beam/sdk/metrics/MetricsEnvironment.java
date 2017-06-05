@@ -21,6 +21,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * <p>Users should not interact directly with this class. Instead, use {@link Metrics} and the
  * returned objects to create and modify metrics.
  *
- * <p>The runner should create {@link MetricsContainer} for each context in which metrics are
+ * <p>The runner should create a {@link MetricsContainer} for each context in which metrics are
  * reported (by step and name) and call {@link #setCurrentContainer} before invoking any code that
  * may update metrics within that step. It should call {@link #setCurrentContainer} again to restore
  * the previous container.
@@ -39,9 +42,11 @@ import org.slf4j.LoggerFactory;
  * container for the current thread and get a {@link Closeable} that will restore the previous
  * container when closed.
  */
+@Experimental(Kind.METRICS)
+@Internal
 public class MetricsEnvironment {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsEnvironment.class);
 
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
@@ -68,6 +73,11 @@ public class MetricsEnvironment {
   /** Called by the run to indicate whether metrics reporting is supported. */
   public static void setMetricsSupported(boolean supported) {
     METRICS_SUPPORTED.set(supported);
+  }
+
+  /** Indicates whether metrics reporting is supported. */
+  public static boolean isMetricsSupported() {
+    return METRICS_SUPPORTED.get();
   }
 
   /**

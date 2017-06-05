@@ -35,6 +35,16 @@
            results in one Java source tree. -->
       <mapper type="regexp" from="^.*/src/main/java/(.*)$$" to="\1"/>
     </copy>
+
+    <copy todir="${collect.dir}">
+      <fileset dir="../../../runners">
+        <include name="**/src/main/java/**/*.java"/>
+      </fileset>
+      <!-- For each pathname, turn X/src/main/java/Y to Y. This
+           results in one Java source tree. -->
+      <mapper type="regexp" from="^.*/src/main/java/(.*)$$" to="\1"/>
+    </copy>
+
     <!-- Run javadoc. -->
     <javadoc sourcepath="${collect.dir}"
       destdir="${output.dir}"
@@ -69,21 +79,19 @@
         offline="true" packageListLoc="joda-docs"/>
       <link href="http://junit.sourceforge.net/javadoc/"
             offline="true" packageListLoc="junit-docs"/>
-      
-      <excludepackage name="org.apache.beam.examples"/>
-      <excludepackage name="org.apache.beam.examples.common"/>
-      <excludepackage name="org.apache.beam.examples.cookbook"/>
-      <excludepackage name="org.apache.beam.examples.complete"/>
-      <excludepackage name="org.apache.beam.examples.complete.game"/>
-      <excludepackage name="org.apache.beam.examples.complete.game.injector"/>
-      <excludepackage name="org.apache.beam.examples.complete.game.utils"/>
-      <excludepackage name="org.apache.beam.runners.apex.translation"/>
-      <excludepackage name="org.apache.beam.runners.dataflow.internal"/>
-      <excludepackage name="org.apache.beam.runners.flink.examples"/>
-      <excludepackage name="org.apache.beam.runners.flink.translation"/>
-      <excludepackage name="org.apache.beam.runners.spark.examples"/>
-      <excludepackage name="org.apache.beam.runners.spark.translation"/>
-      <excludepackage name="org.openjdk.jmh.infra.generated"/>
+
+      <excludepackage name="org.apache.beam.examples.*"/>
+      <excludepackage name="org.apache.beam.fn.*"/>
+      <excludepackage name="org.apache.beam.runners.apex.translation.*"/>
+      <excludepackage name="org.apache.beam.runners.core.*"/>
+      <excludepackage name="org.apache.beam.runners.dataflow.internal.*"/>
+      <excludepackage name="org.apache.beam.runners.flink.examples.*"/>
+      <excludepackage name="org.apache.beam.runners.flink.translation.*"/>
+      <excludepackage name="org.apache.beam.runners.spark.examples.*"/>
+      <excludepackage name="org.apache.beam.runners.spark.translation.*"/>
+      <excludepackage name="org.apache.beam.sdk.transforms.reflect.*"/>
+      <excludepackage name="org.apache.beam.sdk.runners.*"/>
+      <excludepackage name="org.apache.beam.sdk.util.*"/>
     </javadoc>
     <!-- make a jar file to push to central -->
     <jar destfile="${output.jar}" basedir="${output.dir}"/>

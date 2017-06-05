@@ -1,0 +1,74 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Temporary cassandra single node cluster set up 
+# to connect to production cluster through cqlsh remotely. 
+# Headless service that allows us to get the IP addresses of our Cassandra nodes
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: cassandra-temp
+  name: cassandra-temp
+spec:
+  clusterIP: None
+  ports:
+    - port: 7000
+      name: intra-node-communication
+    - port: 7001
+      name: tls-intra-node-communication
+    - port: 9042
+      name: cql
+  selector:
+    name: cassandra-temp
+---
+# Replication Controller for Cassandra which tracks the Cassandra pods.
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    name: cassandra-temp
+  name: cassandra-temp
+spec:
+  replicas: 1
+  selector:
+    name: cassandra-temp
+  template:
+    metadata:
+      labels:
+        name: cassandra-temp
+    spec:
+      containers:
+        - image: cassandra
+          name: cassandra-temp
+          env:
+            - name: PEER_DISCOVERY_SERVICE
+              value: cassandra-temp
+            - name: CASSANDRA_CLUSTER_NAME
+              value: Cassandra
+            - name: CASSANDRA_DC
+              value: DC1
+            - name: CASSANDRA_RACK
+              value: Kubernetes Cluster
+          ports:
+            - containerPort: 9042
+              name: cql
+          volumeMounts:
+            - mountPath: /var/lib/cassandra/data
+              name: data
+      volumes:
+        - name: data
+          emptyDir: {}

@@ -47,10 +47,6 @@ message Components {
 
   // (Required) A map from pipeline-scoped id to Environment.
   map<string, Environment> environments = 5;
-
-  // (Required) A map from pipeline-scoped id to FunctionSpec,
-  // a record for a particular user-defined function.
-  map<string, FunctionSpec> function_specs = 6;
 }
 
 // A disjoint union of all the things that may contain references
@@ -69,7 +65,7 @@ message MessageWithComponents {
   oneof root {
     Coder coder = 2;
     CombinePayload combine_payload = 3;
-    FunctionSpec function_spec = 4;
+    SdkFunctionSpec sdk_function_spec = 4;
     ParDoPayload par_do_payload = 6;
     PTransform ptransform = 7;
     PCollection pcollection = 8;
@@ -77,7 +73,7 @@ message MessageWithComponents {
     SideInput side_input = 11;
     WindowIntoPayload window_into_payload = 12;
     WindowingStrategy windowing_strategy = 13;
-    UrnWithParameter urn_with_parameter = 14;
+    FunctionSpec function_spec = 14;
   }
 }
 
@@ -96,8 +92,8 @@ message Pipeline {
   // this pipeline.
   Components components = 1;
 
-  // (Required) The id of the PTransform that is the root of the pipeline
-  string root_transform_id = 2;
+  // (Required) The ids of all PTransforms that are not contained within another PTransform
+  repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.
@@ -137,7 +133,7 @@ message PTransform {
   //
   //  - when the URN is "urn:beam:transforms:combine" it is a CombinePayload
   //
-  UrnWithParameter spec = 1;
+  FunctionSpec spec = 1;
 
   // (Optional) if this node is a composite, a list of the ids of
   // transforms that it contains.
@@ -207,24 +203,23 @@ message PCollection {
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec for the DoFn.
-  string fn_id = 1;
+  // (Required) The SdkFunctionSpec of the DoFn.
+  SdkFunctionSpec do_fn = 1;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
   // (may force runners to execute the ParDo differently)
   repeated Parameter parameters = 2;
 
-  // (Optional) An ordered list of side inputs, describing for each local name
-  // to the data to be provided and the expected access pattern.
-  // (the SDK may not be order-sensitive)
-  repeated SideInput side_inputs = 3;
+  // (Optional) A mapping of local input names to side inputs, describing
+  // the expected access pattern.
+  map<string, SideInput> side_inputs = 3;
 
-  // (Optional) if the DoFn uses state, a list of the specs for cells.
-  repeated StateSpec state_specs = 4;
+  // (Optional) A mapping of local state names to state specifications.
+  map<string, StateSpec> state_specs = 4;
 
-  // (Optional) if the DoFn uses timers, a list of the specs for timers.
-  repeated TimerSpec timer_specs = 5;
+  // (Optional) A mapping of local timer names to timer specifications.
+  map<string, TimerSpec> timer_specs = 5;
 }
 
 // Parameters that a UDF might require.
@@ -232,7 +227,7 @@ message ParDoPayload {
 // The details of how a runner sends these parameters to the SDK harness
 // are the subject of the Fn API.
 //
-// The details ofo how an SDK harness delivers them to the UDF is entirely
+// The details of how an SDK harness delivers them to the UDF is entirely
 // up to the SDK. (for some SDKs there may be parameters that are not
 // represented here if the runner doesn't need to do anything)
 //
@@ -252,11 +247,39 @@ message Parameter {
 }
 
 message StateSpec {
-  // TODO: AST for state spec
+  oneof spec {
+    ValueStateSpec value_spec = 1;
+    BagStateSpec bag_spec = 2;
+    CombiningStateSpec combining_spec = 3;
+    MapStateSpec map_spec = 4;
+    SetStateSpec set_spec = 5;
+  }
+}
+
+message ValueStateSpec {
+  string coder_id = 1;
+}
+
+message BagStateSpec {
+  string element_coder_id = 1;
+}
+
+message CombiningStateSpec {
+  string accumulator_coder_id = 1;
+  SdkFunctionSpec combine_fn = 2;
+}
+
+message MapStateSpec {
+  string key_coder_id = 1;
+  string value_coder_id = 2;
+}
+
+message SetStateSpec {
+  string element_coder_id = 1;
 }
 
 message TimerSpec {
-  // TODO: AST for timer spec
+  TimeDomain time_domain = 1;
 }
 
 enum IsBounded {
@@ -267,9 +290,8 @@ enum IsBounded {
 // The payload for the primitive Read transform.
 message ReadPayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec of the source for
-  // this Read.
-  string source_id = 1;
+  // (Required) The SdkFunctionSpec of the source for this Read.
+  SdkFunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded is_bounded = 2;
@@ -280,15 +302,15 @@ message ReadPayload {
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the WindowFn.
-  string fn_id = 1;
+  // (Required) The SdkFunctionSpec of the WindowFn.
+  SdkFunctionSpec window_fn = 1;
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec for the CombineFn.
-  string fn_id = 1;
+  // (Required) The SdkFunctionSpec of the CombineFn.
+  SdkFunctionSpec combine_fn = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
@@ -298,10 +320,53 @@ message CombinePayload {
   // (may force runners to execute the ParDo differently)
   repeated Parameter parameters = 3;
 
-  // (Optional) An ordered list of side inputs, describing for each local name
-  // to the data to be provided and the expected access pattern.
-  // (the SDK may not be order-sensitive)
-  repeated SideInput side_inputs = 4;
+  // (Optional) A mapping of local input names to side inputs, describing
+  // the expected access pattern.
+  map<string, SideInput> side_inputs = 4;
+}
+
+// The payload for the test-only primitive TestStream
+message TestStreamPayload {
+
+  // (Required) the coder for elements in the TestStream events
+  string coder_id = 1;
+
+  repeated Event events = 2;
+
+  message Event {
+    oneof event {
+      AdvanceWatermark watermark_event = 1;
+      AdvanceProcessingTime processing_time_event = 2;
+      AddElements element_event = 3;
+    }
+
+    message AdvanceWatermark {
+      int64 new_watermark = 1;
+    }
+
+    message AdvanceProcessingTime {
+      int64 advance_duration = 1;
+    }
+
+    message AddElements {
+      repeated TimestampedElement elements = 1;
+    }
+  }
+
+  message TimestampedElement {
+    bytes encoded_element = 1;
+    int64 timestamp = 2;
+  }
+}
+// The payload for the special-but-not-primitive WriteFiles transform.
+message WriteFilesPayload {
+
+  // (Required) The SdkFunctionSpec of the FileBasedSink.
+  SdkFunctionSpec sink = 1;
+
+  bool windowed_writes = 2;
+
+  bool runner_determined_sharding = 3;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -313,11 +378,11 @@ message Coder {
   // that can only be used by a particular SDK. It does not include component
   // coders, as it is beneficial for these to be comprehensible to a runner
   // regardless of whether the binary format is agree-upon.
-  FunctionSpec spec = 1;
+  SdkFunctionSpec spec = 1;
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
-  // the FunctionSpec and all components must be identical, recursively.
+  // the SdkFunctionSpec and all components must be identical, recursively.
   repeated string component_coder_ids = 2;
 }
 
@@ -327,10 +392,10 @@ message Coder {
 // TODO: consider inlining field on PCollection
 message WindowingStrategy {
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // assigns windows, merges windows, and shifts timestamps before they are
+  // (Required) The SdkFunctionSpec of the UDF that assigns windows,
+  // merges windows, and shifts timestamps before they are
   // combined according to the OutputTime.
-  string fn_id = 1;
+  SdkFunctionSpec window_fn = 1;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -535,7 +600,7 @@ message Trigger {
     AfterAll after_all = 1;
     AfterAny after_any = 2;
     AfterEach after_each = 3;
-    AfterEndOfWindow after_end_of_widow = 4;
+    AfterEndOfWindow after_end_of_window = 4;
     AfterProcessingTime after_processing_time = 5;
     AfterSynchronizedProcessingTime after_synchronized_processing_time = 6;
     Always always = 12;
@@ -575,13 +640,6 @@ message TimestampTransform {
 
 // A specification for how to "side input" a PCollection.
 message SideInput {
-
-  // (Required) A local name for this side input, as embedded in a serialized UDF.
-  string name = 1;
-
-  // (Required) The pipeline-scoped unique id of the PCollection to be side input.
-  string pcollection_id = 2;
-
   // (Required) URN of the access pattern required by the `view_fn` to present
   // the desired SDK-specific interface to a UDF.
   //
@@ -591,22 +649,22 @@ message SideInput {
   // The only access pattern intended for Beam, because of its superior
   // performance possibilities, is "urn:beam:sideinput:multimap" (or some such
   // URN)
-  string access_pattern = 3;
+  FunctionSpec access_pattern = 1;
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // adapts a particular access_pattern to a user-facing view type.
+  // (Required) The SdkFunctionSpec of the UDF that adapts a particular
+  // access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  string view_fn_id = 4;
+  SdkFunctionSpec view_fn = 2;
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // maps a main input window to a side input window.
+  // (Required) The SdkFunctionSpec of the UDF that maps a main input window
+  // to a side input window.
   //
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  string window_mapping_fn_id = 5;
+  SdkFunctionSpec window_mapping_fn = 3;
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but
@@ -623,10 +681,10 @@ message Environment {
 
 // A specification of a user defined function.
 //
-message FunctionSpec {
+message SdkFunctionSpec {
 
   // (Required) A full specification of this function.
-  UrnWithParameter spec = 1;
+  FunctionSpec spec = 1;
 
   // (Required) Reference to an execution environment capable of
   // invoking this function.
@@ -660,7 +718,7 @@ message FunctionSpec {
 //    version of the Beam Java SDK. The payload will often
 //    then be an opaque message such as bytes in a
 //    language-specific serialization format.
-message UrnWithParameter {
+message FunctionSpec {
 
   // (Required) A URN that describes the accompanying payload.
   // For any URN that is not recognized (by whomever is inspecting

@@ -34,11 +34,11 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.MergingTriggerInfo;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.TriggerInfo;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timers;
-import org.apache.beam.sdk.util.state.State;
 import org.joda.time.Instant;
 
 /**
@@ -50,11 +50,11 @@ import org.joda.time.Instant;
 public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
   private final WindowFn<?, W> windowFn;
-  private StateInternals<?> stateInternals;
+  private StateInternals stateInternals;
   private final Coder<W> windowCoder;
 
-  public TriggerStateMachineContextFactory(WindowFn<?, W> windowFn,
-      StateInternals<?> stateInternals, ActiveWindowSet<W> activeWindows) {
+  public TriggerStateMachineContextFactory(
+      WindowFn<?, W> windowFn, StateInternals stateInternals, ActiveWindowSet<W> activeWindows) {
     // Future triggers may be able to exploit the active window to state address window mapping.
     this.windowFn = windowFn;
     this.stateInternals = stateInternals;
@@ -263,7 +263,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public <StateT extends State> StateT access(StateTag<? super Object, StateT> address) {
+    public <StateT extends State> StateT access(StateTag<StateT> address) {
       return stateInternals.state(windowNamespace, address);
     }
   }
@@ -280,13 +280,13 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public <StateT extends State> StateT access(
-        StateTag<? super Object, StateT> address) {
+        StateTag<StateT> address) {
       return stateInternals.state(windowNamespace, address);
     }
 
     @Override
     public <StateT extends State> Map<W, StateT> accessInEachMergingWindow(
-        StateTag<? super Object, StateT> address) {
+        StateTag<StateT> address) {
       ImmutableMap.Builder<W, StateT> builder = ImmutableMap.builder();
       for (W mergingWindow : activeToBeMerged) {
         StateT stateForWindow = stateInternals.state(namespaceFor(mergingWindow), address);

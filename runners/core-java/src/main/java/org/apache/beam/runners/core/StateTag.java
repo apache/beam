@@ -22,20 +22,18 @@ import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.MapState;
-import org.apache.beam.sdk.util.state.SetState;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 
 /**
  * An address and specification for a persistent state cell. This includes a unique identifier for
@@ -47,12 +45,10 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
  *
  * <p>Currently, this can only be used in a step immediately following a {@link GroupByKey}.
  *
- * @param <K> The type of key that must be used with the state tag. Contravariant: methods should
- *            accept values of type {@code KeyedStateTag<? super K, StateT>}.
  * @param <StateT> The type of state being tagged.
  */
 @Experimental(Kind.STATE)
-public interface StateTag<K, StateT extends State> extends Serializable {
+public interface StateTag<StateT extends State> extends Serializable {
 
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
   void appendTo(Appendable sb) throws IOException;
@@ -65,7 +61,7 @@ public interface StateTag<K, StateT extends State> extends Serializable {
   /**
    * The specification for the state stored in the referenced cell.
    */
-  StateSpec<K, StateT> getSpec();
+  StateSpec<StateT> getSpec();
 
   /**
    * Bind this state tag. See {@link StateSpec#bind}.
@@ -73,53 +69,44 @@ public interface StateTag<K, StateT extends State> extends Serializable {
    * @deprecated Use the {@link StateSpec#bind} method via {@link #getSpec} for now.
    */
   @Deprecated
-  StateT bind(StateBinder<? extends K> binder);
+  StateT bind(StateBinder binder);
 
   /**
    * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
    *
-   * @param <K> the type of key this binder embodies.
    * @deprecated for migration only; runners should reference the top level {@link StateBinder}
    * and move towards {@link StateSpec} rather than {@link StateTag}.
    */
   @Deprecated
-  public interface StateBinder<K> {
-    <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> spec, Coder<T> coder);
+  public interface StateBinder {
+    <T> ValueState<T> bindValue(StateTag<ValueState<T>> spec, Coder<T> coder);
 
-    <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> spec, Coder<T> elemCoder);
+    <T> BagState<T> bindBag(StateTag<BagState<T>> spec, Coder<T> elemCoder);
 
-    <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder);
+    <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder);
 
     <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
 
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+    <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        StateTag<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn);
 
     <InputT, AccumT, OutputT>
-    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT>
-    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
-            combineFn);
+        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
+            StateTag<CombiningState<InputT, AccumT, OutputT>> spec,
+            Coder<AccumT> accumCoder,
+            CombineFnWithContext<InputT, AccumT, OutputT> combineFn);
 
     /**
      * Bind to a watermark {@link StateSpec}.
      *
-     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps added to
-     * the returned {@link WatermarkHoldState} are to be combined.
+     * <p>This accepts the {@link TimestampCombiner} that dictates how watermark hold timestamps
+     * added to the returned {@link WatermarkHoldState} are to be combined.
      */
-    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateTag<? super K, WatermarkHoldState<W>> spec,
-        OutputTimeFn<? super W> outputTimeFn);
+    WatermarkHoldState bindWatermark(
+        StateTag<WatermarkHoldState> spec, TimestampCombiner timestampCombiner);
   }
 }

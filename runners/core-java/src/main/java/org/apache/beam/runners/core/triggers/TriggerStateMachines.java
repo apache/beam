@@ -37,8 +37,8 @@ public class TriggerStateMachines {
       case AFTER_ANY:
         return AfterFirstStateMachine.of(
             stateMachinesForTriggers(trigger.getAfterAny().getSubtriggersList()));
-      case AFTER_END_OF_WIDOW:
-        return stateMachineForAfterEndOfWindow(trigger.getAfterEndOfWidow());
+      case AFTER_END_OF_WINDOW:
+        return stateMachineForAfterEndOfWindow(trigger.getAfterEndOfWindow());
       case ELEMENT_COUNT:
         return AfterPaneStateMachine.elementCountAtLeast(
             trigger.getElementCount().getElementCount());

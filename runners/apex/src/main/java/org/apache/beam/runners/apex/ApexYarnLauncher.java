@@ -25,7 +25,6 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -56,7 +55,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-
 import org.apache.apex.api.EmbeddedAppLauncher;
 import org.apache.apex.api.Launcher;
 import org.apache.apex.api.Launcher.AppHandle;
@@ -173,56 +171,57 @@ public class ApexYarnLauncher {
    * @throws IOException when dependency information cannot be read
    */
   public static List<File> getYarnDeployDependencies() throws IOException {
-    InputStream dependencyTree = ApexRunner.class.getResourceAsStream("dependency-tree");
-    BufferedReader br = new BufferedReader(new InputStreamReader(dependencyTree));
-    String line = null;
-    List<String> excludes = new ArrayList<>();
-    int excludeLevel = Integer.MAX_VALUE;
-    while ((line = br.readLine()) != null) {
-      for (int i = 0; i < line.length(); i++) {
-        char c = line.charAt(i);
-        if (Character.isLetter(c)) {
-          if (i > excludeLevel) {
-            excludes.add(line.substring(i));
-          } else {
-            if (line.substring(i).startsWith("org.apache.hadoop")) {
-              excludeLevel = i;
-              excludes.add(line.substring(i));
-            } else {
-              excludeLevel = Integer.MAX_VALUE;
+    try (InputStream dependencyTree = ApexRunner.class.getResourceAsStream("dependency-tree")) {
+      try (BufferedReader br = new BufferedReader(new InputStreamReader(dependencyTree))) {
+        String line;
+        List<String> excludes = new ArrayList<>();
+        int excludeLevel = Integer.MAX_VALUE;
+        while ((line = br.readLine()) != null) {
+          for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (Character.isLetter(c)) {
+              if (i > excludeLevel) {
+                excludes.add(line.substring(i));
+              } else {
+                if (line.substring(i).startsWith("org.apache.hadoop")) {
+                  excludeLevel = i;
+                  excludes.add(line.substring(i));
+                } else {
+                  excludeLevel = Integer.MAX_VALUE;
+                }
+              }
+              break;
             }
           }
-          break;
         }
-      }
-    }
-    br.close();
 
-    Set<String> excludeJarFileNames = Sets.newHashSet();
-    for (String exclude : excludes) {
-      String[] mvnc = exclude.split(":");
-      String fileName = mvnc[1] + "-";
-      if (mvnc.length == 6) {
-        fileName += mvnc[4] + "-" + mvnc[3]; // with classifier
-      } else {
-        fileName += mvnc[3];
-      }
-      fileName += ".jar";
-      excludeJarFileNames.add(fileName);
-    }
+        Set<String> excludeJarFileNames = Sets.newHashSet();
+        for (String exclude : excludes) {
+          String[] mvnc = exclude.split(":");
+          String fileName = mvnc[1] + "-";
+          if (mvnc.length == 6) {
+            fileName += mvnc[4] + "-" + mvnc[3]; // with classifier
+          } else {
+            fileName += mvnc[3];
+          }
+          fileName += ".jar";
+          excludeJarFileNames.add(fileName);
+        }
 
-    ClassLoader classLoader = ApexYarnLauncher.class.getClassLoader();
-    URL[] urls = ((URLClassLoader) classLoader).getURLs();
-    List<File> dependencyJars = new ArrayList<>();
-    for (int i = 0; i < urls.length; i++) {
-      File f = new File(urls[i].getFile());
-      // dependencies can also be directories in the build reactor,
-      // the Apex client will automatically create jar files for those.
-      if (f.exists() && !excludeJarFileNames.contains(f.getName())) {
-          dependencyJars.add(f);
+        ClassLoader classLoader = ApexYarnLauncher.class.getClassLoader();
+        URL[] urls = ((URLClassLoader) classLoader).getURLs();
+        List<File> dependencyJars = new ArrayList<>();
+        for (int i = 0; i < urls.length; i++) {
+          File f = new File(urls[i].getFile());
+          // dependencies can also be directories in the build reactor,
+          // the Apex client will automatically create jar files for those.
+          if (f.exists() && !excludeJarFileNames.contains(f.getName())) {
+            dependencyJars.add(f);
+          }
+        }
+        return dependencyJars;
       }
     }
-    return dependencyJars;
   }
 
   /**
@@ -238,17 +237,17 @@ public class ApexYarnLauncher {
       throw new RuntimeException("Failed to remove " + jarFile);
     }
     URI uri = URI.create("jar:" + jarFile.toURI());
-    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env);) {
+    try (final FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
 
       File manifestFile = new File(dir, JarFile.MANIFEST_NAME);
       Files.createDirectory(zipfs.getPath("META-INF"));
-      final OutputStream out = Files.newOutputStream(zipfs.getPath(JarFile.MANIFEST_NAME));
-      if (!manifestFile.exists()) {
-        new Manifest().write(out);
-      } else {
-        FileUtils.copyFile(manifestFile, out);
+      try (final OutputStream out = Files.newOutputStream(zipfs.getPath(JarFile.MANIFEST_NAME))) {
+        if (!manifestFile.exists()) {
+          new Manifest().write(out);
+        } else {
+          FileUtils.copyFile(manifestFile, out);
+        }
       }
-      out.close();
 
       final java.nio.file.Path root = dir.toPath();
       Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
@@ -274,9 +273,9 @@ public class ApexYarnLauncher {
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
           String name = relativePath + file.getFileName();
           if (!JarFile.MANIFEST_NAME.equals(name)) {
-            final OutputStream out = Files.newOutputStream(zipfs.getPath(name));
-            FileUtils.copyFile(file.toFile(), out);
-            out.close();
+            try (final OutputStream out = Files.newOutputStream(zipfs.getPath(name))) {
+              FileUtils.copyFile(file.toFile(), out);
+            }
           }
           return super.visitFile(file, attrs);
         }
@@ -295,8 +294,6 @@ public class ApexYarnLauncher {
 
   /**
    * Transfer the properties to the configuration object.
-   * @param conf
-   * @param props
    */
   public static void addProperties(Configuration conf, Properties props) {
     for (final String propertyName : props.stringPropertyNames()) {

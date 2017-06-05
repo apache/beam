@@ -21,7 +21,7 @@
 
 This directory holds simple "cookbook" examples, which show how to define
 commonly-used data analysis patterns that you would likely incorporate into a
-larger Dataflow pipeline. They include:
+larger Apache Beam pipeline. They include:
 
  <ul>
   <li><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes</a>
@@ -67,5 +67,5 @@ larger Dataflow pipeline. They include:
   </ul>
 
 See the [documentation](http://beam.apache.org/get-started/quickstart/) and the [Examples
-README](../../../../../../../../../README.md) for
+README](../../../../../../../../README.md) for
 information about how to run these examples.

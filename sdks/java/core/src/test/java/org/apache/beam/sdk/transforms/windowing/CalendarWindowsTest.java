@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
@@ -29,11 +30,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.CalendarWindows.MonthsWindows;
+import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -42,6 +48,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CalendarWindowsTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static Instant makeTimestamp(int year, int month, int day, int hours, int minutes) {
     return new DateTime(year, month, day, hours, minutes, DateTimeZone.UTC).toInstant();
@@ -81,6 +88,14 @@ public class CalendarWindowsTest {
         set(timestamps.get(4), timestamps.get(5)));
 
     assertEquals(expected, runWindowFn(CalendarWindows.days(1), timestamps));
+  }
+
+  @Test
+  public void testDaysCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.DaysWindows daysWindows = CalendarWindows.days(10);
+    daysWindows.verifyCompatibility(CalendarWindows.days(10));
+    thrown.expect(IncompatibleWindowException.class);
+    daysWindows.verifyCompatibility(CalendarWindows.days(9));
   }
 
   @Test
@@ -158,6 +173,14 @@ public class CalendarWindowsTest {
   }
 
   @Test
+  public void testMonthsCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.MonthsWindows monthsWindows = CalendarWindows.months(10).beginningOnDay(15);
+    monthsWindows.verifyCompatibility(CalendarWindows.months(10).beginningOnDay(15));
+    thrown.expect(IncompatibleWindowException.class);
+    monthsWindows.verifyCompatibility(CalendarWindows.months(10).beginningOnDay(30));
+  }
+
+  @Test
   public void testMultiMonths() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
 
@@ -232,6 +255,14 @@ public class CalendarWindowsTest {
   }
 
   @Test
+  public void testYearsCompatibility() throws IncompatibleWindowException {
+    CalendarWindows.YearsWindows yearsWindows = CalendarWindows.years(2017).beginningOnDay(1, 1);
+    yearsWindows.verifyCompatibility(CalendarWindows.years(2017).beginningOnDay(1, 1));
+    thrown.expect(IncompatibleWindowException.class);
+    yearsWindows.verifyCompatibility(CalendarWindows.years(2017).beginningOnDay(1, 2));
+  }
+
+  @Test
   public void testTimeZone() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
 
@@ -259,6 +290,32 @@ public class CalendarWindowsTest {
     assertEquals(expected, runWindowFn(
         CalendarWindows.days(1).withTimeZone(timeZone),
         timestamps));
+  }
+
+  @Test
+  public void testDefaultWindowMappingFn() {
+    MonthsWindows windowFn = CalendarWindows.months(2);
+    WindowMappingFn<?> mapping = windowFn.getDefaultWindowMappingFn();
+
+    assertThat(
+        mapping.getSideInputWindow(
+            new BoundedWindow() {
+              @Override
+              public Instant maxTimestamp() {
+                return new Instant(100L);
+              }
+            }),
+        Matchers.<BoundedWindow>equalTo(windowFn.assignWindow(new Instant(100L))));
+    assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
+  }
+
+  @Test
+  public void testDefaultWindowMappingFnGlobal() {
+    MonthsWindows windowFn = CalendarWindows.months(2);
+    WindowMappingFn<?> mapping = windowFn.getDefaultWindowMappingFn();
+
+    thrown.expect(IllegalArgumentException.class);
+    mapping.getSideInputWindow(GlobalWindow.INSTANCE);
   }
 
   @Test

@@ -20,8 +20,8 @@ package org.apache.beam.runners.core;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 /**
@@ -32,9 +32,9 @@ public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
     super(key);
   }
 
-  public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
-    Set<StateTag<? super K, ?>> inUse = new HashSet<>();
-    for (Map.Entry<StateTag<? super K, ?>, State> entry :
+  public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
+    Set<StateTag<?>> inUse = new HashSet<>();
+    for (Map.Entry<StateTag<?>, State> entry :
       inMemoryState.getTagsInUse(namespace).entrySet()) {
       if (!isEmptyForTesting(entry.getValue())) {
         inUse.add(entry.getKey());
@@ -52,7 +52,7 @@ public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
     Instant minimum = null;
     for (State storage : inMemoryState.values()) {
       if (storage instanceof WatermarkHoldState) {
-        Instant hold = ((WatermarkHoldState<?>) storage).read();
+        Instant hold = ((WatermarkHoldState) storage).read();
         if (minimum == null || (hold != null && hold.isBefore(minimum))) {
           minimum = hold;
         }

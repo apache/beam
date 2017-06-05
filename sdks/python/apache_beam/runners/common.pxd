@@ -21,39 +21,69 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
-cdef type SideOutputValue, TimestampedValue
+cdef type TaggedOutput, TimestampedValue
 
 
 cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
 
 
-cdef class DoFnRunner(Receiver):
+cdef class DoFnMethodWrapper(object):
+  cdef public object args
+  cdef public object defaults
+  cdef public object method_value
 
-  cdef object dofn
-  cdef object dofn_process
-  cdef object window_fn
+
+cdef class DoFnSignature(object):
+  cdef public DoFnMethodWrapper process_method
+  cdef public DoFnMethodWrapper start_bundle_method
+  cdef public DoFnMethodWrapper finish_bundle_method
+  cdef public object do_fn
+
+
+cdef class DoFnInvoker(object):
+  cdef public DoFnSignature signature
+  cdef _OutputProcessor output_processor
+
+  cpdef invoke_process(self, WindowedValue windowed_value)
+  cpdef invoke_start_bundle(self)
+  cpdef invoke_finish_bundle(self)
+
+  # TODO(chamikara) define static method create_invoker() here.
+
+
+cdef class SimpleInvoker(DoFnInvoker):
+  cdef object process_method
+
+
+cdef class PerWindowInvoker(DoFnInvoker):
+  cdef list side_inputs
   cdef DoFnContext context
-  cdef object tagged_receivers
+  cdef list args_for_process
+  cdef dict kwargs_for_process
+  cdef list placeholders
+  cdef bint has_windowed_inputs
+  cdef object process_method
+
+
+cdef class DoFnRunner(Receiver):
+  cdef DoFnContext context
   cdef LoggingContext logging_context
   cdef object step_name
-  cdef list args
-  cdef dict kwargs
   cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
-  cdef bint has_windowed_inputs
-  cdef list placeholders
-  cdef bint use_simple_invoker
+  cdef DoFnInvoker do_fn_invoker
 
+  cpdef process(self, WindowedValue windowed_value)
+
+
+cdef class _OutputProcessor(object):
+  cdef object window_fn
   cdef Receiver main_receivers
-
-  cpdef process(self, WindowedValue element)
-  cdef _dofn_invoker(self, WindowedValue element)
-  cdef _dofn_simple_invoker(self, WindowedValue element)
-  cdef _dofn_per_window_invoker(self, WindowedValue element)
+  cdef object tagged_receivers
 
   @cython.locals(windowed_value=WindowedValue)
-  cpdef _process_outputs(self, WindowedValue element, results)
+  cpdef process_outputs(self, WindowedValue element, results)
 
 
 cdef class DoFnContext(object):

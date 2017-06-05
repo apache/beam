@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class VarIntCoder extends AtomicCoder<Integer> {
 
-  @JsonCreator
   public static VarIntCoder of() {
     return INSTANCE;
   }
@@ -46,7 +44,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   private VarIntCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream, Context context)
+  public void encode(Integer value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
@@ -55,7 +53,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  public Integer decode(InputStream inStream, Context context)
+  public Integer decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return VarInt.decodeInt(inStream);
@@ -65,6 +63,9 @@ public class VarIntCoder extends AtomicCoder<Integer> {
       throw new CoderException(exn);
     }
   }
+
+  @Override
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}
@@ -82,7 +83,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
    * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Integer value) {
     return true;
   }
 
@@ -92,7 +93,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  protected long getEncodedElementByteSize(Integer value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

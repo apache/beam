@@ -21,7 +21,7 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -53,7 +54,7 @@ public class GatherAllPanesTest implements Serializable {
   @Category(NeedsRunner.class)
   public void singlePaneSingleReifiedPane() {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
-        p.apply(CountingInput.upTo(20000))
+        p.apply(GenerateSequence.from(0).to(20000))
             .apply(
                 WithTimestamps.of(
                     new SerializableFunction<Long, Instant>() {
@@ -94,8 +95,8 @@ public class GatherAllPanesTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void multiplePanesMultipleReifiedPane() {
-    PCollection<Long> someElems = p.apply("someLongs", CountingInput.upTo(20000));
-    PCollection<Long> otherElems = p.apply("otherLongs", CountingInput.upTo(20000));
+    PCollection<Long> someElems = p.apply("someLongs", GenerateSequence.from(0).to(20000));
+    PCollection<Long> otherElems = p.apply("otherLongs", GenerateSequence.from(0).to(20000));
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         PCollectionList.of(someElems)
             .and(otherElems)

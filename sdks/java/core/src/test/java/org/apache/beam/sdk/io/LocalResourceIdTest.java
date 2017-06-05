@@ -17,16 +17,26 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.nio.file.Paths;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -40,6 +50,8 @@ public class LocalResourceIdTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void testResolveInUnix() throws Exception {
@@ -212,6 +224,45 @@ public class LocalResourceIdTest {
     assertNotEquals(
         toResourceIdentifier("/root/tmp"),
         toResourceIdentifier("/root/tmp/"));
+  }
+
+  @Test
+  public void testIsDirectory() throws Exception {
+    assertTrue(toResourceIdentifier("/").isDirectory());
+    assertTrue(toResourceIdentifier("/root/tmp/").isDirectory());
+    assertFalse(toResourceIdentifier("/root").isDirectory());
+  }
+
+  @Test
+  public void testToString() throws Exception {
+    File someFile = tmpFolder.newFile("somefile");
+    LocalResourceId fileResource =
+        LocalResourceId.fromPath(someFile.toPath(), /* isDirectory */ false);
+    assertThat(fileResource.toString(), not(endsWith(File.separator)));
+    assertThat(fileResource.toString(), containsString("somefile"));
+    assertThat(fileResource.toString(), startsWith(tmpFolder.getRoot().getAbsolutePath()));
+
+    LocalResourceId dirResource =
+        LocalResourceId.fromPath(someFile.toPath(), /* isDirectory */ true);
+    assertThat(dirResource.toString(), endsWith(File.separator));
+    assertThat(dirResource.toString(), containsString("somefile"));
+    assertThat(dirResource.toString(), startsWith(tmpFolder.getRoot().getAbsolutePath()));
+  }
+
+  @Test
+  public void testGetFilename() throws Exception {
+    assertEquals(toResourceIdentifier("/").getFilename(), null);
+    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
+        "tmp");
+    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
+        "tmp");
+    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
+        "xyz.txt");
+  }
+
+  @Test
+  public void testResourceIdTester() throws Exception {
+    ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }
 
   private LocalResourceId toResourceIdentifier(String str) throws Exception {

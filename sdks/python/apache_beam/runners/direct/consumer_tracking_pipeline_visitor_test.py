@@ -46,8 +46,6 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     self.visitor = ConsumerTrackingPipelineVisitor()
 
   def test_root_transforms(self):
-    root_create = Create([[1, 2, 3]])
-
     class DummySource(iobase.BoundedSource):
       pass
 
@@ -55,9 +53,8 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     root_flatten = Flatten(pipeline=self.pipeline)
 
     pbegin = pvalue.PBegin(self.pipeline)
-    pcoll_create = pbegin | 'create' >> root_create
-    pbegin | 'read' >> root_read
-    pcoll_create | FlatMap(lambda x: x)
+    pcoll_read = pbegin | 'read' >> root_read
+    pcoll_read | FlatMap(lambda x: x)
     [] | 'flatten' >> root_flatten
 
     self.pipeline.visit(self.visitor)
@@ -66,12 +63,12 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
         [t.transform for t in self.visitor.root_transforms])
 
     self.assertEqual(root_transforms, sorted(
-        [root_read, root_create, root_flatten]))
+        [root_read, root_flatten]))
 
     pbegin_consumers = sorted(
         [c.transform for c in self.visitor.value_to_consumers[pbegin]])
-    self.assertEqual(pbegin_consumers, sorted([root_read, root_create]))
-    self.assertEqual(len(self.visitor.step_names), 4)
+    self.assertEqual(pbegin_consumers, sorted([root_read]))
+    self.assertEqual(len(self.visitor.step_names), 3)
 
   def test_side_inputs(self):
 
@@ -79,7 +76,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
       def process(self, element):
         if element < 0:
-          yield pvalue.SideOutputValue('tag_negative', element)
+          yield pvalue.TaggedOutput('tag_negative', element)
         else:
           yield element
 
@@ -88,10 +85,13 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
       def process(self, element, negatives):
         yield element
 
-    root_create = Create([[-1, 2, 3]])
+    class DummySource(iobase.BoundedSource):
+      pass
+
+    root_read = Read(DummySource())
 
     result = (self.pipeline
-              | 'create' >> root_create
+              | 'read' >> root_read
               | ParDo(SplitNumbersFn()).with_outputs('tag_negative',
                                                      main='positive'))
     positive, negative = result
@@ -101,11 +101,11 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     root_transforms = sorted(
         [t.transform for t in self.visitor.root_transforms])
-    self.assertEqual(root_transforms, sorted([root_create]))
-    self.assertEqual(len(self.visitor.step_names), 4)
+    self.assertEqual(root_transforms, sorted([root_read]))
+    self.assertEqual(len(self.visitor.step_names), 3)
     self.assertEqual(len(self.visitor.views), 1)
     self.assertTrue(isinstance(self.visitor.views[0],
-                               pvalue.ListPCollectionView))
+                               pvalue.AsList))
 
   def test_co_group_by_key(self):
     emails = self.pipeline | 'email' >> Create([('joe', 'joe@example.com')])

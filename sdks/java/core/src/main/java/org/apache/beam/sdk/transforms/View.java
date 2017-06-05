@@ -19,12 +19,16 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from
@@ -112,16 +116,17 @@ import org.apache.beam.sdk.values.PCollectionView;
  * {@code
  * PCollection<Page> pages = ... // pages fit into memory
  * PCollection<UrlVisit> urlVisits = ... // very large collection
- * final PCollectionView<Map<URL, Page>> = urlToPage
+ * final PCollectionView<Map<URL, Page>> urlToPageView = pages
  *     .apply(WithKeys.of( ... )) // extract the URL from the page
  *     .apply(View.<URL, Page>asMap());
  *
  * PCollection PageVisits = urlVisits
- *     .apply(ParDo.withSideInputs(urlToPage)
+ *     .apply(ParDo.withSideInputs(urlToPageView)
  *         .of(new DoFn<UrlVisit, PageVisit>() {
  *             {@literal @}Override
  *             void processElement(ProcessContext context) {
  *               UrlVisit urlVisit = context.element();
+ *               Map<URL, Page> urlToPage = context.sideInput(urlToPageView);
  *               Page page = urlToPage.get(urlVisit.getUrl());
  *               c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
@@ -129,7 +134,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * }
  * </pre>
  *
- * <p>See {@link ParDo#withSideInputs} for details on how to access
+ * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {
@@ -202,7 +207,7 @@ public class View {
    * PCollection<KV<K, V>> input = ...
    * CombineFn<V, OutputT> yourCombineFn = ...
    * PCollectionView<Map<K, OutputT>> output = input
-   *     .apply(Combine.perKey(yourCombineFn.<K>asKeyedFn()))
+   *     .apply(Combine.perKey(yourCombineFn))
    *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *
@@ -234,62 +239,62 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asList()}.
    */
+  @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     private AsList() { }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<List<T>> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<List<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asIterable()}.
    */
+  @Internal
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
     private AsIterable() { }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asSingleton()}.
    */
+  @Internal
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
     private final T defaultValue;
     private final boolean hasDefault;
@@ -326,60 +331,114 @@ public class View {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
+
+      Combine.Globally<T, T> singletonCombine =
+          Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
+      if (!hasDefault) {
+        singletonCombine = singletonCombine.withoutDefaults();
+      }
+      return input.apply(singletonCombine.asSingletonView());
+    }
+  }
+
+  private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
+    private final boolean hasDefault;
+    private final Coder<T> valueCoder;
+    private final byte[] defaultValue;
+
+    private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
+      this.hasDefault = hasDefault;
+      if (hasDefault) {
+        if (defaultValue == null) {
+          this.defaultValue = null;
+          this.valueCoder = coder;
+        } else {
+          this.valueCoder = coder;
+          try {
+            this.defaultValue = CoderUtils.encodeToByteArray(coder, defaultValue);
+          } catch (CoderException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Could not encode the default value %s with the provided coder %s",
+                    defaultValue, coder));
+          }
+        }
+      } else {
+        this.valueCoder = null;
+        this.defaultValue = null;
+      }
     }
 
     @Override
-    public PCollectionView<T> expand(PCollection<T> input) {
-      return input.apply(CreatePCollectionView.<T, T>of(PCollectionViews.singletonView(
-          input.getPipeline(),
-          input.getWindowingStrategy(),
-          hasDefault,
-          defaultValue,
-          input.getCoder())));
+    public T apply(T left, T right) {
+      throw new IllegalArgumentException(
+          "PCollection with more than one element "
+              + "accessed as a singleton view. Consider using Combine.globally().asSingleton() to "
+              + "combine the PCollection into a single value");
+    }
+
+    public T identity() {
+      if (hasDefault) {
+        if (defaultValue == null) {
+          return null;
+        }
+        try {
+          return CoderUtils.decodeFromByteArray(valueCoder, defaultValue);
+        } catch (CoderException e) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not decode the default value with the provided coder %s", valueCoder));
+        }
+      } else {
+        throw new IllegalArgumentException(
+            "Empty PCollection accessed as a singleton view. "
+                + "Consider setting withDefault to provide a default value");
+      }
     }
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asMultimap()}.
    */
+  @Internal
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
     private AsMultimap() { }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
           PCollectionViews.multimapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asMap()}.
    */
+  @Internal
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
     private AsMap() { }
@@ -393,19 +452,16 @@ public class View {
     }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
           PCollectionViews.mapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }
@@ -415,13 +471,14 @@ public class View {
   // Internal details below
 
   /**
-   * Creates a primitive {@link PCollectionView}.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>For internal use only by runner implementors.
+   * <p>Creates a primitive {@link PCollectionView}.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
    */
+  @Internal
   public static class CreatePCollectionView<ElemT, ViewT>
       extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
     private PCollectionView<ViewT> view;

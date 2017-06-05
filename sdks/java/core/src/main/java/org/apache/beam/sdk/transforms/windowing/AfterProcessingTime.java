@@ -30,8 +30,8 @@ import org.joda.time.format.PeriodFormat;
 import org.joda.time.format.PeriodFormatter;
 
 /**
- * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
- * the real-time domain.
+ * A {@link Trigger} trigger that fires at a specified point in processing time, relative to when
+ * input first arrives.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends OnceTrigger {
@@ -40,7 +40,7 @@ public class AfterProcessingTime extends OnceTrigger {
 
   private final List<TimestampTransform> timestampTransforms;
 
-  public AfterProcessingTime(List<TimestampTransform> timestampTransforms) {
+  private AfterProcessingTime(List<TimestampTransform> timestampTransforms) {
     super(null);
     this.timestampTransforms = timestampTransforms;
   }

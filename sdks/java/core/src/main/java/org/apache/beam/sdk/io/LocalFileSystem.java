@@ -27,17 +27,19 @@ import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -53,8 +55,6 @@ import org.slf4j.LoggerFactory;
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
-
-  private static final Metadata[] EMPTY_METADATA = new Metadata[0];
 
   LocalFileSystem() {
   }
@@ -107,19 +107,21 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       LocalResourceId src = srcResourceIds.get(i);
       LocalResourceId dst = destResourceIds.get(i);
       LOG.debug("Copying {} to {}", src, dst);
-      try {
-        // Copy the source file, replacing the existing destination.
-        // Paths.get(x) will not work on Windows OSes cause of the ":" after the drive letter.
-        Files.copy(
-            src.getPath(),
-            dst.getPath(),
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.COPY_ATTRIBUTES);
-      } catch (NoSuchFileException e) {
-        LOG.debug("{} does not exist.", src);
-        // Suppress exception if file does not exist.
-        // TODO: re-throw FileNotFoundException once FileSystems supports ignoreMissingFile.
+      File parent = dst.getCurrentDirectory().getPath().toFile();
+      if (!parent.exists()) {
+        checkArgument(
+            parent.mkdirs() || parent.exists(),
+            "Unable to make output directory %s in order to copy into file %s",
+            parent,
+            dst.getPath());
       }
+      // Copy the source file, replacing the existing destination.
+      // Paths.get(x) will not work on Windows OSes cause of the ":" after the drive letter.
+      Files.copy(
+          src.getPath(),
+          dst.getPath(),
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.COPY_ATTRIBUTES);
     }
   }
 
@@ -137,45 +139,52 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       LocalResourceId src = srcResourceIds.get(i);
       LocalResourceId dst = destResourceIds.get(i);
       LOG.debug("Renaming {} to {}", src, dst);
-      try {
-        // Rename the source file, replacing the existing destination.
-        Files.move(
-            src.getPath(),
-            dst.getPath(),
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.COPY_ATTRIBUTES,
-            StandardCopyOption.ATOMIC_MOVE);
-      } catch (NoSuchFileException e) {
-        LOG.debug("{} does not exist.", src);
-        // Suppress exception if file does not exist.
-        // TODO: re-throw FileNotFoundException once FileSystems supports ignoreMissingFile.
+      File parent = dst.getCurrentDirectory().getPath().toFile();
+      if (!parent.exists()) {
+        checkArgument(
+            parent.mkdirs() || parent.exists(),
+            "Unable to make output directory %s in order to move into file %s",
+            parent,
+            dst.getPath());
       }
+      // Rename the source file, replacing the existing destination.
+      Files.move(
+          src.getPath(),
+          dst.getPath(),
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.ATOMIC_MOVE);
     }
   }
 
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {
-      LOG.debug("deleting file {}", resourceId);
-      // Delete the file if it exists.
-      // TODO: use Files.delete() once FileSystems supports ignoreMissingFile.
-      boolean exists = Files.deleteIfExists(resourceId.getPath());
-      if (!exists) {
-        LOG.debug("Tried to delete {}, but it did not exist", resourceId);
-      }
+      LOG.debug("Deleting file {}", resourceId);
+      Files.delete(resourceId.getPath());
     }
+  }
+
+  @Override
+  protected LocalResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    Path path = Paths.get(singleResourceSpec);
+    return LocalResourceId.fromPath(path, isDirectory);
+  }
+
+  @Override
+  protected String getScheme() {
+    return "file";
   }
 
   private MatchResult matchOne(String spec) throws IOException {
     File file = Paths.get(spec).toFile();
 
     if (file.exists()) {
-      return MatchResult.create(Status.OK, new Metadata[]{toMetadata(file)});
+      return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      return MatchResult.create(Status.NOT_FOUND, EMPTY_METADATA);
+      return MatchResult.create(Status.NOT_FOUND, Collections.<Metadata>emptyList());
     }
 
     // Method getAbsolutePath() on Windows platform may return something like
@@ -207,7 +216,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     for (File match : matchedFiles) {
       result.add(toMetadata(match));
     }
-    return MatchResult.create(Status.OK, result.toArray(new Metadata[result.size()]));
+    if (result.isEmpty()) {
+      // TODO: consider to return Status.OK for globs.
+      return MatchResult.create(
+          Status.NOT_FOUND,
+          new FileNotFoundException(String.format("No files found for spec: %s.", spec)));
+    } else {
+      return MatchResult.create(Status.OK, result);
+    }
   }
 
   private Metadata toMetadata(File file) {

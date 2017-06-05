@@ -26,9 +26,9 @@ from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils
 from apache_beam.io.concat_source import ConcatSource
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class RangeSource(iobase.BoundedSource):
@@ -83,7 +83,7 @@ class RangeSource(iobase.BoundedSource):
 class ConcatSourceTest(unittest.TestCase):
 
   def test_range_source(self):
-    source_test_utils.assertSplitAtFractionExhaustive(RangeSource(0, 10, 3))
+    source_test_utils.assert_split_at_fraction_exhaustive(RangeSource(0, 10, 3))
 
   def test_conact_source(self):
     source = ConcatSource([RangeSource(0, 4),
@@ -157,7 +157,7 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEquals(range_tracker.position_at_fraction(1), (3, None))
 
   def test_empty_source(self):
-    read_all = source_test_utils.readFromSource
+    read_all = source_test_utils.read_from_source
 
     empty = RangeSource(0, 0)
     self.assertEquals(read_all(ConcatSource([])), [])
@@ -174,7 +174,7 @@ class ConcatSourceTest(unittest.TestCase):
                       [])
 
   def test_single_source(self):
-    read_all = source_test_utils.readFromSource
+    read_all = source_test_utils.read_from_source
 
     range10 = RangeSource(0, 10)
     self.assertEquals(read_all(ConcatSource([range10])), range(10))
@@ -183,7 +183,7 @@ class ConcatSourceTest(unittest.TestCase):
                       range(5))
 
   def test_source_with_empty_ranges(self):
-    read_all = source_test_utils.readFromSource
+    read_all = source_test_utils.read_from_source
 
     empty = RangeSource(0, 0)
     self.assertEquals(read_all(empty), [])
@@ -206,7 +206,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(13, 17),
                            empty,
                           ])
-    source_test_utils.assertSplitAtFractionExhaustive(source)
+    source_test_utils.assert_split_at_fraction_exhaustive(source)
 
   def test_run_concat_direct(self):
     source = ConcatSource([RangeSource(0, 10),
@@ -214,7 +214,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(100, 1000),
                           ])
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(source)
+    pcoll = pipeline | beam.io.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 
     pipeline.run()
@@ -224,7 +224,8 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(100, 110),
                            RangeSource(1000, 1010),
                           ])
-    source_test_utils.assertSplitAtFractionExhaustive(source)
+    source_test_utils.assert_split_at_fraction_exhaustive(source)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

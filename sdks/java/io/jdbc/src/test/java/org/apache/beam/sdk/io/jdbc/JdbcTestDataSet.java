@@ -22,6 +22,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
@@ -41,23 +42,25 @@ public class JdbcTestDataSet {
    * Use this to create the read tables before IT read tests.
    *
    * <p>To invoke this class, you can use this command line:
+   * (run from the jdbc root directory)
    * mvn test-compile exec:java -Dexec.mainClass=org.apache.beam.sdk.io.jdbc.JdbcTestDataSet \
-   *   -Dexec.args="--postgresIp=1.1.1.1 --postgresUsername=postgres
+   *   -Dexec.args="--postgresServerName=127.0.0.1 --postgresUsername=postgres \
    *   --postgresDatabaseName=myfancydb \
    *   --postgresPassword=yourpassword --postgresSsl=false" \
    *   -Dexec.classpathScope=test
-   * @param args Please pass options from PostgresTestOptions used for connection to postgres as
+   * @param args Please pass options from IOTestPipelineOptions used for connection to postgres as
    * shown above.
    */
   public static void main(String[] args) throws SQLException {
-    PipelineOptionsFactory.register(PostgresTestOptions.class);
-    PostgresTestOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(PostgresTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
 
     createReadDataTable(getDataSource(options));
   }
 
-  public static PGSimpleDataSource getDataSource(PostgresTestOptions options) throws SQLException {
+  public static PGSimpleDataSource getDataSource(IOTestPipelineOptions options)
+      throws SQLException {
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
 
     // Tests must receive parameters for connections from PipelineOptions

@@ -48,7 +48,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(100)
     source = self._create_source(data)
     self.assertItemsEqual(
-        data, source_test_utils.readFromSource(source, None, None))
+        data, source_test_utils.read_from_source(source, None, None))
 
   def test_source_equals_reference_source(self):
     data = self._create_data(100)
@@ -60,25 +60,25 @@ class SourceTestUtilsTest(unittest.TestCase):
                        'bundles. Please adjust the test so that at least '
                        'two splits get generated.', len(sources_info))
 
-    source_test_utils.assertSourcesEqualReferenceSource(
+    source_test_utils.assert_sources_equal_reference_source(
         (reference_source, None, None), sources_info)
 
   def test_split_at_fraction_successful(self):
     data = self._create_data(100)
     source = self._create_source(data)
-    result1 = source_test_utils.assertSplitAtFractionBehavior(
+    result1 = source_test_utils.assert_split_at_fraction_behavior(
         source, 10, 0.5,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    result2 = source_test_utils.assertSplitAtFractionBehavior(
+    result2 = source_test_utils.assert_split_at_fraction_behavior(
         source, 20, 0.5,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
     self.assertEquals(result1, result2)
     self.assertEquals(100, result1[0] + result1[1])
 
-    result3 = source_test_utils.assertSplitAtFractionBehavior(
+    result3 = source_test_utils.assert_split_at_fraction_behavior(
         source, 30, 0.8,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    result4 = source_test_utils.assertSplitAtFractionBehavior(
+    result4 = source_test_utils.assert_split_at_fraction_behavior(
         source, 50, 0.8,
         source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
     self.assertEquals(result3, result4)
@@ -91,13 +91,13 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(100)
     source = self._create_source(data)
 
-    result = source_test_utils.assertSplitAtFractionBehavior(
+    result = source_test_utils.assert_split_at_fraction_behavior(
         source, 90, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
     self.assertEquals(result[0], 100)
     self.assertEquals(result[1], -1)
 
     with self.assertRaises(ValueError):
-      source_test_utils.assertSplitAtFractionBehavior(
+      source_test_utils.assert_split_at_fraction_behavior(
           source, 10, 0.5, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
 
   def test_split_at_fraction_binary(self):
@@ -105,7 +105,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     source = self._create_source(data)
 
     stats = source_test_utils.SplitFractionStatistics([], [])
-    source_test_utils.assertSplitAtFractionBinary(
+    source_test_utils.assert_split_at_fraction_binary(
         source, data, 10, 0.5, None, 0.8, None, stats)
 
     # These lists should not be empty now.
@@ -115,7 +115,8 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_split_at_fraction_exhaustive(self):
     data = self._create_data(10)
     source = self._create_source(data)
-    source_test_utils.assertSplitAtFractionExhaustive(source)
+    source_test_utils.assert_split_at_fraction_exhaustive(source)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -47,32 +47,34 @@ public final class DataflowRunnerInfo {
 
   private Properties properties;
 
-  private static final String ENVIRONMENT_MAJOR_VERSION_KEY = "environment.major.version";
-  private static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE_KEY = "worker.image.batch";
-  private static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE_KEY =
-      "worker.image.streaming";
+  private static final String FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY =
+      "fnapi.environment.major.version";
+  private static final String LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY =
+      "legacy.environment.major.version";
+  private static final String CONTAINER_VERSION_KEY = "container.version";
 
-  /** Provides the environment's major version number. */
-  public String getEnvironmentMajorVersion() {
+  /** Provides the legacy environment's major version number. */
+  public String getLegacyEnvironmentMajorVersion() {
     checkState(
-        properties.containsKey(ENVIRONMENT_MAJOR_VERSION_KEY), "Unknown environment major version");
-    return properties.getProperty(ENVIRONMENT_MAJOR_VERSION_KEY);
+        properties.containsKey(LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY),
+        "Unknown legacy environment major version");
+    return properties.getProperty(LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY);
   }
 
-  /** Provides the batch worker harness container image name. */
-  public String getBatchWorkerHarnessContainerImage() {
+  /** Provides the FnAPI environment's major version number. */
+  public String getFnApiEnvironmentMajorVersion() {
     checkState(
-        properties.containsKey(BATCH_WORKER_HARNESS_CONTAINER_IMAGE_KEY),
-        "Unknown batch worker harness container image");
-    return properties.getProperty(BATCH_WORKER_HARNESS_CONTAINER_IMAGE_KEY);
+        properties.containsKey(FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY),
+        "Unknown FnAPI environment major version");
+    return properties.getProperty(FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY);
   }
 
-  /** Provides the streaming worker harness container image name. */
-  public String getStreamingWorkerHarnessContainerImage() {
+  /** Provides the container version that will be used for constructing harness image paths. */
+  public String getContainerVersion() {
     checkState(
-        properties.containsKey(STREAMING_WORKER_HARNESS_CONTAINER_IMAGE_KEY),
-        "Unknown streaming worker harness container image");
-    return properties.getProperty(STREAMING_WORKER_HARNESS_CONTAINER_IMAGE_KEY);
+        properties.containsKey(CONTAINER_VERSION_KEY),
+        "Unknown container version");
+    return properties.getProperty(CONTAINER_VERSION_KEY);
   }
 
   private DataflowRunnerInfo(String resourcePath) {

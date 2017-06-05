@@ -31,18 +31,20 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -62,7 +64,7 @@ public class TransformTreeTest {
   enum TransformsSeen {
     READ,
     WRITE,
-    SAMPLE_ANY
+    SAMPLE
   }
 
   /**
@@ -110,8 +112,6 @@ public class TransformTreeTest {
     }
   }
 
-  // Builds a pipeline containing a composite operation (Pick), then
-  // visits the nodes and verifies that the hierarchy was captured.
   @Test
   public void testCompositeCapture() throws Exception {
     p.enableAbandonedNodeEnforcement(false);
@@ -119,55 +119,62 @@ public class TransformTreeTest {
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
 
-    p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
-        .apply(Sample.<String>any(10))
-        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
+    final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample =
+        Sample.fixedSizeGlobally(10);
+    p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
+        .apply(sample)
+        .apply(Flatten.<String>iterables())
+        .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);
     final EnumSet<TransformsSeen> left =
         EnumSet.noneOf(TransformsSeen.class);
 
-    p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
-      @Override
-      public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-        PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
-          assertNotNull(node.getEnclosingNode());
-          assertTrue(node.isCompositeNode());
-        } else if (transform instanceof Write.Bound) {
-          assertTrue(visited.add(TransformsSeen.WRITE));
-          assertNotNull(node.getEnclosingNode());
-          assertTrue(node.isCompositeNode());
-        }
-        assertThat(transform, not(instanceOf(Read.Bounded.class)));
-        return CompositeBehavior.ENTER_TRANSFORM;
-      }
+    p.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            if (node.isRootNode()) {
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+            PTransform<?, ?> transform = node.getTransform();
+            if (sample.getClass().equals(transform.getClass())) {
+              assertTrue(visited.add(TransformsSeen.SAMPLE));
+              assertNotNull(node.getEnclosingNode());
+              assertTrue(node.isCompositeNode());
+            } else if (transform instanceof WriteFiles) {
+              assertTrue(visited.add(TransformsSeen.WRITE));
+              assertNotNull(node.getEnclosingNode());
+              assertTrue(node.isCompositeNode());
+            }
+            assertThat(transform, not(instanceOf(Read.Bounded.class)));
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
 
-      @Override
-      public void leaveCompositeTransform(TransformHierarchy.Node node) {
-        PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
-        }
-      }
+          @Override
+          public void leaveCompositeTransform(TransformHierarchy.Node node) {
+            PTransform<?, ?> transform = node.getTransform();
+            if (!node.isRootNode() && transform.getClass().equals(sample.getClass())) {
+              assertTrue(left.add(TransformsSeen.SAMPLE));
+            }
+          }
 
-      @Override
-      public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-        PTransform<?, ?> transform = node.getTransform();
-        // Pick is a composite, should not be visited here.
-        assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
-        assertThat(transform, not(instanceOf(Write.Bound.class)));
-        if (transform instanceof Read.Bounded
-            && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
-          assertTrue(visited.add(TransformsSeen.READ));
-        }
-      }
-    });
+          @Override
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            PTransform<?, ?> transform = node.getTransform();
+            // Pick is a composite, should not be visited here.
+            assertThat(transform, not(instanceOf(Combine.Globally.class)));
+            assertThat(transform, not(instanceOf(WriteFiles.class)));
+            if (transform instanceof Read.Bounded
+                && node.getEnclosingNode().getTransform() instanceof TextIO.Read) {
+              assertTrue(visited.add(TransformsSeen.READ));
+            }
+          }
+        });
 
     assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
+    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE)));
   }
 
   @Test(expected = IllegalArgumentException.class)

@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 """Unit tests for the apiclient module."""
-
 import unittest
 
 from mock import Mock
 
 from apache_beam.metrics.cells import DistributionData
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.dataflow.internal.clients import dataflow
@@ -44,6 +43,38 @@ class UtilTest(unittest.TestCase):
     apiclient.DataflowApplicationClient(
         pipeline_options,
         DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
+
+  def test_set_network(self):
+    pipeline_options = PipelineOptions(
+        ['--network', 'anetworkname',
+         '--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0') #any environment version
+    self.assertEqual(env.proto.workerPools[0].network,
+                     'anetworkname')
+
+  def test_set_subnetwork(self):
+    pipeline_options = PipelineOptions(
+        ['--subnetwork', '/regions/MY/subnetworks/SUBNETWORK',
+         '--temp_location', 'gs://any-location/temp'])
+
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0') #any environment version
+    self.assertEqual(env.proto.workerPools[0].subnetwork,
+                     '/regions/MY/subnetworks/SUBNETWORK')
+
+  def test_invalid_default_job_name(self):
+    # Regexp for job names in dataflow.
+    regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
+
+    job_name = apiclient.Job._build_default_job_name('invalid.-_user_n*/ame')
+    self.assertRegexpMatches(job_name, regexp)
+
+    job_name = apiclient.Job._build_default_job_name(
+        'invalid-extremely-long.username_that_shouldbeshortened_or_is_invalid')
+    self.assertRegexpMatches(job_name, regexp)
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)

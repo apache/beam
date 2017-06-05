@@ -68,6 +68,24 @@ import copy
 import types
 
 
+__all__ = [
+    'Any',
+    'Union',
+    'Optional',
+    'Tuple',
+    'Tuple',
+    'List',
+    'KV',
+    'Dict',
+    'Set',
+    'Iterable',
+    'Iterator',
+    'Generator',
+    'WindowedValue',
+    'TypeVariable',
+]
+
+
 # A set of the built-in Python types we don't support, guiding the users
 # to templated (upper-case) versions instead.
 DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
@@ -156,15 +174,13 @@ class TypeConstraint(object):
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
     return type_constraint.match_type_variables(concrete_type)
-  else:
-    return {}
+  return {}
 
 
 def bind_type_variables(type_constraint, bindings):
   if isinstance(type_constraint, TypeConstraint):
     return type_constraint.bind_type_variables(bindings)
-  else:
-    return type_constraint
+  return type_constraint
 
 
 class SequenceTypeConstraint(TypeConstraint):
@@ -230,17 +246,15 @@ class SequenceTypeConstraint(TypeConstraint):
   def match_type_variables(self, concrete_type):
     if isinstance(concrete_type, SequenceTypeConstraint):
       return match_type_variables(self.inner_type, concrete_type.inner_type)
-    else:
-      return {}
+    return {}
 
   def bind_type_variables(self, bindings):
     bound_inner_type = bind_type_variables(self.inner_type, bindings)
     if bound_inner_type == self.inner_type:
       return self
-    else:
-      bound_self = copy.copy(self)
-      bound_self.inner_type = bound_inner_type
-      return bound_self
+    bound_self = copy.copy(self)
+    bound_self.inner_type = bound_inner_type
+    return bound_self
 
 
 class CompositeTypeHint(object):
@@ -433,11 +447,10 @@ class UnionHint(CompositeTypeHint):
         # E.g. Union[A, B, C] > Union[A, B].
         return all(is_consistent_with(elem, self)
                    for elem in sub.union_types)
-      else:
-        # Other must be compatible with at least one of this union's subtypes.
-        # E.g. Union[A, B, C] > T if T > A or T > B or T > C.
-        return any(is_consistent_with(sub, elem)
-                   for elem in self.union_types)
+      # Other must be compatible with at least one of this union's subtypes.
+      # E.g. Union[A, B, C] > T if T > A or T > B or T > C.
+      return any(is_consistent_with(sub, elem)
+                 for elem in self.union_types)
 
     def type_check(self, instance):
       error_msg = ''
@@ -476,8 +489,7 @@ class UnionHint(CompositeTypeHint):
       return Any
     elif len(params) == 1:
       return iter(params).next()
-    else:
-      return self.UnionConstraint(params)
+    return self.UnionConstraint(params)
 
 
 UnionConstraint = UnionHint.UnionConstraint
@@ -529,8 +541,7 @@ class TupleHint(CompositeTypeHint):
         # E.g. Tuple[A, B] < Tuple[C, ...] iff A < C and B < C.
         return all(is_consistent_with(elem, self.inner_type)
                    for elem in sub.tuple_types)
-      else:
-        return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
+      return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
 
   class TupleConstraint(TypeConstraint):
 
@@ -603,8 +614,7 @@ class TupleHint(CompositeTypeHint):
           bind_type_variables(t, bindings) for t in self.tuple_types)
       if bound_tuple_types == self.tuple_types:
         return self
-      else:
-        return Tuple[bound_tuple_types]
+      return Tuple[bound_tuple_types]
 
   def __getitem__(self, type_params):
     ellipsis = False
@@ -630,8 +640,7 @@ class TupleHint(CompositeTypeHint):
 
     if ellipsis:
       return self.TupleSequenceConstraint(type_params[0])
-    else:
-      return self.TupleConstraint(type_params)
+    return self.TupleConstraint(type_params)
 
 
 TupleConstraint = TupleHint.TupleConstraint
@@ -787,16 +796,14 @@ class DictHint(CompositeTypeHint):
         bindings.update(
             match_type_variables(self.value_type, concrete_type.value_type))
         return bindings
-      else:
-        return {}
+      return {}
 
     def bind_type_variables(self, bindings):
       bound_key_type = bind_type_variables(self.key_type, bindings)
       bound_value_type = bind_type_variables(self.value_type, bindings)
       if (bound_key_type, self.key_type) == (bound_value_type, self.value_type):
         return self
-      else:
-        return Dict[bound_key_type, bound_value_type]
+      return Dict[bound_key_type, bound_value_type]
 
   def __getitem__(self, type_params):
     # Type param must be a (k, v) pair.
@@ -879,14 +886,12 @@ class IterableHint(CompositeTypeHint):
         if not sub.tuple_types:
           # The empty tuple is consistent with Iterator[T] for any T.
           return True
-        else:
-          # Each element in the hetrogenious tuple must be consistent with
-          # the iterator type.
-          # E.g. Tuple[A, B] < Iterable[C] if A < C and B < C.
-          return all(is_consistent_with(elem, self.inner_type)
-                     for elem in sub.tuple_types)
-      else:
-        return False
+        # Each element in the hetrogenious tuple must be consistent with
+        # the iterator type.
+        # E.g. Tuple[A, B] < Iterable[C] if A < C and B < C.
+        return all(is_consistent_with(elem, self.inner_type)
+                   for elem in sub.tuple_types)
+      return False
 
   def __getitem__(self, type_param):
     validate_composite_type_param(
@@ -994,7 +999,8 @@ class WindowedTypeConstraint(TypeConstraint):
           '%s hint type-constraint violated. The type of element in '
           'is incorrect. Expected an instance of type %s, '
           'instead received an instance of type %s.' %
-          (repr(self), _unified_repr(self.inner_type), elem.__class__.__name__))
+          (repr(self), _unified_repr(self.inner_type),
+           instance.value.__class__.__name__))
 
 
 class GeneratorHint(IteratorHint):
@@ -1029,8 +1035,7 @@ _KNOWN_PRIMITIVE_TYPES = {
 def normalize(x):
   if x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
-  else:
-    return x
+  return x
 
 
 def is_consistent_with(sub, base):
@@ -1052,10 +1057,8 @@ def is_consistent_with(sub, base):
   if isinstance(base, TypeConstraint):
     if isinstance(sub, UnionConstraint):
       return all(is_consistent_with(c, base) for c in sub.union_types)
-    else:
-      return base._consistent_with_check_(sub)
+    return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object
-  else:
-    return issubclass(sub, base)
+  return issubclass(sub, base)

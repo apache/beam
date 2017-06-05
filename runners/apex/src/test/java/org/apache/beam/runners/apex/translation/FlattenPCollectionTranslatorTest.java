@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.apex.translation;
 
+import com.datatorrent.api.DAG;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.Set;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -91,6 +93,18 @@ public class FlattenPCollectionTranslatorTest {
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
+  }
+
+  @Test
+  public void testFlattenSingleCollection() {
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    Pipeline p = Pipeline.create();
+    PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
+    PCollectionList.of(single).apply(Flatten.<String>pCollections())
+      .apply(ParDo.of(new EmbeddedCollector()));
+    DAG dag = TestApexRunner.translate(p, options);
+    Assert.assertNotNull(
+        dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
 
 }

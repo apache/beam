@@ -23,11 +23,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.sdk.metrics.MetricUpdates;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
@@ -36,7 +35,7 @@ import org.joda.time.Instant;
  * An immutable {@link TransformResult}.
  */
 @AutoValue
-public abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
+abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
   public static <InputT> Builder<InputT> withHold(
       AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
@@ -54,7 +53,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
         getTransform(),
         getOutputBundles(),
         getUnprocessedElements(),
-        getAggregatorChanges(),
         metricUpdates,
         getWatermarkHold(),
         getState(),
@@ -70,9 +68,8 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
-    private CopyOnAccessInMemoryStateInternals<?> state;
+    private CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
-    private AggregatorContainer.Mutator aggregatorChanges;
     private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
@@ -91,7 +88,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
-          aggregatorChanges,
           metricUpdates,
           watermarkHold,
           state,
@@ -99,17 +95,12 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           producedOutputs);
     }
 
-    public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
-      this.aggregatorChanges = aggregatorChanges;
-      return this;
-    }
-
     public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
       this.metricUpdates = metricUpdates;
       return this;
     }
 
-    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
+    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals state) {
       this.state = state;
       return this;
     }

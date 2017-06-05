@@ -28,12 +28,11 @@ import unittest
 import httplib2
 import mock
 
-from apache_beam.io import gcsio
-from apache_beam.io.gcp.internal.clients import storage
-
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp.internal.clients import storage
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   HttpError = None
@@ -295,7 +294,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(file_name) in self.client.objects.files)
 
-  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_delete_batch(self, *unused_args):
     gcsio.BatchApiRequest = FakeBatchApiRequest
     file_name_pattern = 'gs://gcsio-test/delete_me_%d'
@@ -346,7 +345,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertRaises(IOError, self.gcs.copy, 'gs://gcsio-test/non-existent',
                       'gs://gcsio-test/non-existent-destination')
 
-  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
     gcsio.BatchApiRequest = FakeBatchApiRequest
     from_name_pattern = 'gs://gcsio-test/copy_me_%d'
@@ -642,6 +641,7 @@ class TestGCSIO(unittest.TestCase):
         'apple/fish/cat',
         'apple/fish/cart',
         'apple/fish/carl',
+        'apple/fish/handle',
         'apple/dish/bat',
         'apple/dish/cat',
         'apple/dish/carl',
@@ -662,6 +662,7 @@ class TestGCSIO(unittest.TestCase):
             'apple/fish/cat',
             'apple/fish/cart',
             'apple/fish/carl',
+            'apple/fish/handle',
             'apple/dish/bat',
             'apple/dish/cat',
             'apple/dish/carl',
@@ -687,6 +688,12 @@ class TestGCSIO(unittest.TestCase):
             'apple/fish/carl',
         ]),
         ('gs://gcsio-test/apple/fish/b*', [
+            'apple/fish/blubber',
+            'apple/fish/blowfish',
+            'apple/fish/bambi',
+            'apple/fish/balloon',
+        ]),
+        ('gs://gcsio-test/apple/f*/b*', [
             'apple/fish/blubber',
             'apple/fish/blowfish',
             'apple/fish/bambi',
@@ -727,6 +734,56 @@ class TestGCSIO(unittest.TestCase):
         ('apple/dish/bat', 13),
         ('apple/dish/cat', 14),
         ('apple/dish/carl', 15),
+        ('apple/fish/handle', 16),
+    ]
+    for (object_name, size) in object_names:
+      file_name = 'gs://%s/%s' % (bucket_name, object_name)
+      self._insert_random_file(self.client, file_name, size)
+    test_cases = [
+        ('gs://gcsio-test/cow/*', [
+            ('cow/cat/fish', 2),
+            ('cow/cat/blubber', 3),
+            ('cow/dog/blubber', 4),
+        ]),
+        ('gs://gcsio-test/apple/fish/car?', [
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+        ]),
+        ('gs://gcsio-test/*/f*/car?', [
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+        ]),
+    ]
+    for file_pattern, expected_object_names in test_cases:
+      expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
+                             for (o, s) in expected_object_names}
+      self.assertEqual(
+          self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
+
+    # Check if limits are followed correctly
+    limit = 1
+    for file_pattern, expected_object_names in test_cases:
+      expected_num_items = min(len(expected_object_names), limit)
+      self.assertEqual(
+          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
+
+  def test_size_of_files_in_glob_limited(self):
+    bucket_name = 'gcsio-test'
+    object_names = [
+        ('cow/cat/fish', 2),
+        ('cow/cat/blubber', 3),
+        ('cow/dog/blubber', 4),
+        ('apple/dog/blubber', 5),
+        ('apple/fish/blubber', 6),
+        ('apple/fish/blowfish', 7),
+        ('apple/fish/bambi', 8),
+        ('apple/fish/balloon', 9),
+        ('apple/fish/cat', 10),
+        ('apple/fish/cart', 11),
+        ('apple/fish/carl', 12),
+        ('apple/dish/bat', 13),
+        ('apple/dish/cat', 14),
+        ('apple/dish/carl', 15),
     ]
     for (object_name, size) in object_names:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
@@ -742,11 +799,12 @@ class TestGCSIO(unittest.TestCase):
             ('apple/fish/carl', 12),
         ])
     ]
+    # Check if limits are followed correctly
+    limit = 1
     for file_pattern, expected_object_names in test_cases:
-      expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
-                             for (o, s) in expected_object_names}
+      expected_num_items = min(len(expected_object_names), limit)
       self.assertEqual(
-          self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
+          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

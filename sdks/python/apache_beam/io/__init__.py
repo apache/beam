@@ -19,7 +19,7 @@
 
 # pylint: disable=wildcard-import
 from apache_beam.io.avroio import *
-from apache_beam.io.fileio import *
+from apache_beam.io.filebasedsink import *
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Sink
 from apache_beam.io.iobase import Write
@@ -33,6 +33,7 @@ from apache_beam.io.range_trackers import *
 try:
   from apache_beam.io.gcp.bigquery import *
   from apache_beam.io.gcp.pubsub import *
+  from apache_beam.io.gcp import gcsio
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

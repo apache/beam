@@ -48,9 +48,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The primary role of {@link ByteKeyRange} is to provide functionality for
  * {@link #estimateFractionForKey(ByteKey)}, {@link #interpolateKey(double)}, and
- * {@link #split(int)}, which are used for Google Cloud Dataflow's
- * <a href="https://cloud.google.com/dataflow/service/dataflow-service-desc#AutoScaling">Autoscaling
- * and Dynamic Work Rebalancing</a> features.
+ * {@link #split(int)}.
  *
  * <p>{@link ByteKeyRange} implements these features by treating a {@link ByteKey}'s underlying
  * {@code byte[]} as the binary expansion of floating point numbers in the range {@code [0.0, 1.0]}.

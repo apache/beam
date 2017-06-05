@@ -26,15 +26,21 @@ import mock
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 
-from apache_beam.pipeline import Pipeline
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import Pipeline, AppliedPTransform
+from apache_beam.pvalue import PCollection
 from apache_beam.runners import create_runner
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.transforms.core import _GroupByKeyOnly
+from apache_beam.transforms.core import Windowing
+from apache_beam.transforms import window
+from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -102,7 +108,7 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
      | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
      | ptransform.GroupByKey())
-    remote_runner.job = apiclient.Job(p.options)
+    remote_runner.job = apiclient.Job(p._options)
     super(DataflowRunner, remote_runner).run(p)
 
   def test_remote_runner_display_data(self):
@@ -136,13 +142,13 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3, 4, 5])
      | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
-    remote_runner.job = apiclient.Job(p.options)
+    remote_runner.job = apiclient.Job(p._options)
     super(DataflowRunner, remote_runner).run(p)
     job_dict = json.loads(str(remote_runner.job))
     steps = [step
              for step in job_dict['steps']
              if len(step['properties'].get('display_data', [])) > 0]
-    step = steps[0]
+    step = steps[1]
     disp_data = step['properties']['display_data']
     disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
     nspace = SpecialParDo.__module__+ '.'
@@ -175,6 +181,75 @@ class DataflowRunnerTest(unittest.TestCase):
                                 '"GroupByKey" is not a key-value coder: '
                                 'RowAsDictJsonCoder')):
       unused_invalid = rows | beam.GroupByKey()
+
+  def test_group_by_key_input_visitor_with_valid_inputs(self):
+    p = TestPipeline()
+    pcoll1 = PCollection(p)
+    pcoll2 = PCollection(p)
+    pcoll3 = PCollection(p)
+    for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
+      pcoll1.element_type = None
+      pcoll2.element_type = typehints.Any
+      pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
+      for pcoll in [pcoll1, pcoll2, pcoll3]:
+        DataflowRunner.group_by_key_input_visitor().visit_transform(
+            AppliedPTransform(None, transform, "label", [pcoll]))
+        self.assertEqual(pcoll.element_type,
+                         typehints.KV[typehints.Any, typehints.Any])
+
+  def test_group_by_key_input_visitor_with_invalid_inputs(self):
+    p = TestPipeline()
+    pcoll1 = PCollection(p)
+    pcoll2 = PCollection(p)
+    for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
+      pcoll1.element_type = typehints.TupleSequenceConstraint
+      pcoll2.element_type = typehints.Set
+      err_msg = "Input to GroupByKey must be of Tuple or Any type"
+      for pcoll in [pcoll1, pcoll2]:
+        with self.assertRaisesRegexp(ValueError, err_msg):
+          DataflowRunner.group_by_key_input_visitor().visit_transform(
+              AppliedPTransform(None, transform, "label", [pcoll]))
+
+  def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
+    p = TestPipeline()
+    pcoll = PCollection(p)
+    for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
+      pcoll.element_type = typehints.Any
+      DataflowRunner.group_by_key_input_visitor().visit_transform(
+          AppliedPTransform(None, transform, "label", [pcoll]))
+      self.assertEqual(pcoll.element_type, typehints.Any)
+
+  def test_flatten_input_with_visitor_with_single_input(self):
+    self._test_flatten_input_visitor(typehints.KV[int, int], typehints.Any, 1)
+
+  def test_flatten_input_with_visitor_with_multiple_inputs(self):
+    self._test_flatten_input_visitor(
+        typehints.KV[int, typehints.Any], typehints.Any, 5)
+
+  def _test_flatten_input_visitor(self, input_type, output_type, num_inputs):
+    p = TestPipeline()
+    inputs = []
+    for _ in range(num_inputs):
+      input_pcoll = PCollection(p)
+      input_pcoll.element_type = input_type
+      inputs.append(input_pcoll)
+    output_pcoll = PCollection(p)
+    output_pcoll.element_type = output_type
+
+    flatten = AppliedPTransform(None, beam.Flatten(), "label", inputs)
+    flatten.add_output(output_pcoll, None)
+    DataflowRunner.flatten_input_visitor().visit_transform(flatten)
+    for _ in range(num_inputs):
+      self.assertEqual(inputs[0].element_type, output_type)
+
+  def test_serialize_windowing_strategy(self):
+    # This just tests the basic path; more complete tests
+    # are in window_test.py.
+    strategy = Windowing(window.FixedWindows(10))
+    self.assertEqual(
+        strategy,
+        DataflowRunner.deserialize_windowing_strategy(
+            DataflowRunner.serialize_windowing_strategy(strategy)))
 
 
 if __name__ == '__main__':

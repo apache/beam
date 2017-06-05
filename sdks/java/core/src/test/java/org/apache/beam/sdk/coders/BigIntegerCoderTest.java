@@ -59,14 +59,6 @@ public class BigIntegerCoderTest {
     }
   }
 
-  // This should never change. The definition of big endian encoding is fixed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
-  }
-
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
@@ -83,11 +75,12 @@ public class BigIntegerCoderTest {
   public void testGetEncodedElementByteSize() throws Exception {
     TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
     for (BigInteger value : TEST_VALUES) {
-      TEST_CODER.registerByteSizeObserver(value, observer, Coder.Context.OUTER);
+      TEST_CODER.registerByteSizeObserver(value, observer);
       observer.advance();
       assertThat(
           observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(TEST_CODER, value).length));
+          equalTo((long) CoderUtils.encodeToByteArray(
+              TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 
@@ -97,15 +90,5 @@ public class BigIntegerCoderTest {
     thrown.expectMessage("cannot encode a null BigInteger");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
-  }
-
-  /**
-   * This is a change-detector test. If this test fails, then the encoding id of
-   * {@link BigIntegerCoder} must change.
-   */
-  @Test
-  public void testCoderIdDependencies() {
-    assertThat(VarIntCoder.of().getEncodingId(), equalTo(""));
-    assertThat(ByteArrayCoder.of().getEncodingId(), equalTo(""));
   }
 }

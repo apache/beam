@@ -54,14 +54,15 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
@@ -126,7 +127,7 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-public class WatermarkManager {
+class WatermarkManager {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -790,6 +791,18 @@ public class WatermarkManager {
     }
   }
 
+  private TransformWatermarks getValueWatermark(PValue pvalue) {
+    if (pvalue instanceof PCollection) {
+      return getTransformWatermark(graph.getProducer((PCollection<?>) pvalue));
+    } else if (pvalue instanceof PCollectionView<?>) {
+      return getTransformWatermark(graph.getWriter((PCollectionView<?>) pvalue));
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown type of %s %s", PValue.class.getSimpleName(), pvalue.getClass()));
+    }
+  }
+
   private TransformWatermarks getTransformWatermark(AppliedPTransform<?, ?, ?> transform) {
     TransformWatermarks wms = transformToWatermarks.get(transform);
     if (wms == null) {
@@ -818,14 +831,13 @@ public class WatermarkManager {
 
   private Collection<Watermark> getInputProcessingWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
-    List<TaggedPValue> inputs = transform.getInputs();
+    Map<TupleTag<?>, PValue> inputs = transform.getInputs();
     if (inputs.isEmpty()) {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
-    for (TaggedPValue pvalue : inputs) {
+    for (PValue pvalue : inputs.values()) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue.getValue()))
-              .synchronizedProcessingOutputWatermark;
+          getValueWatermark(pvalue).synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
     }
     return inputWmsBuilder.build();
@@ -833,13 +845,12 @@ public class WatermarkManager {
 
   private List<Watermark> getInputWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWatermarksBuilder = ImmutableList.builder();
-    List<TaggedPValue> inputs = transform.getInputs();
+    Map<TupleTag<?>, PValue> inputs = transform.getInputs();
     if (inputs.isEmpty()) {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
-    for (TaggedPValue pvalue : inputs) {
-      Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue.getValue())).outputWatermark;
+    for (PValue pvalue : inputs.values()) {
+      Watermark producerOutputWatermark = getValueWatermark(pvalue).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
     List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
@@ -1023,8 +1034,8 @@ public class WatermarkManager {
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
       Set<AppliedPTransform<?, ?, ?>> additionalRefreshes = new HashSet<>();
-      for (TaggedPValue outputPValue : toRefresh.getOutputs()) {
-        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue.getValue()));
+      for (PValue outputPValue : toRefresh.getOutputs().values()) {
+        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue));
       }
       return additionalRefreshes;
     }

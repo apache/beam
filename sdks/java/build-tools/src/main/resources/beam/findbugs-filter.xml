@@ -74,6 +74,16 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
+    <Field name="typeDescriptor"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--
+    the field is used only in getEncodedTypeDescriptor, where it is restored if it is not present due to
+    serialization
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.io.jms.JmsRecord"/>
     <Field name="jmsDestination"/>
     <Bug pattern="SE_BAD_FIELD"/>
@@ -120,13 +130,6 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
-    <Method name="reset" />
-    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
-    <!-- Explicitly handled in implementation. -->
-  </Match>
-
-  <Match>
     <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
     <Method name="readAll" />
     <Bug pattern="EI_EXPOSE_REP"/>
@@ -155,6 +158,40 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$MonitorRunnable" />
+    <Method name="shouldShutdown" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- visibleUpdates is a non-capacity-limited LinkedBlockingQueue, which
+      can never refuse an offered update -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$DirectBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.runners.spark.metrics.sink.CsvSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
@@ -176,7 +213,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Class name="org.apache.beam.sdk.extensions.gcp.storage.GcsResourceId"/>
     <Method name="getCurrentDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     <!--
@@ -334,7 +371,7 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
@@ -346,10 +383,16 @@
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningValueStateSpec"/>
+    <Class name="StateSpecs$CombiningStateSpec"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ClassPath$ClassInfo"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    <!--[BEAM-1676] Class doesn't override equals in superclass-->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>
@@ -362,4 +405,11 @@
     <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
     <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
   </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.direct.ParDoMultiOverrideFactory$StatefulParDo"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!-- PTransforms do not actually support serialization. -->
+  </Match>
+
 </FindBugsFilter>

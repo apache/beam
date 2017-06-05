@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.services.dataflow.Dataflow;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -53,8 +54,9 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
       + "be enabled with this flag. Please sync with the Dataflow team before enabling any "
       + "experiments.")
   @Experimental
+  @Nullable
   List<String> getExperiments();
-  void setExperiments(List<String> value);
+  void setExperiments(@Nullable List<String> value);
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value

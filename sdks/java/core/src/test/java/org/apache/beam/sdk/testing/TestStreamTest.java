@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.TestStream.Builder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -96,7 +97,8 @@ public class TestStreamTest implements Serializable {
         .apply(GroupByKey.<Integer, Integer>create())
         .apply(Values.<Iterable<Integer>>create())
         .apply(Flatten.<Integer>iterables());
-    PCollection<Long> count = windowed.apply(Count.<Integer>globally().withoutDefaults());
+    PCollection<Long> count =
+        windowed.apply(Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
     PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
 
     IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
@@ -144,7 +146,7 @@ public class TestStreamTest implements Serializable {
         .advanceWatermarkToInfinity();
 
     PCollection<Long> sum = p.apply(source)
-        .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
+        .apply(Window.<Long>configure().triggering(AfterWatermark.pastEndOfWindow()
             .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
                 .plusDelayOf(Duration.standardMinutes(5)))).accumulatingFiredPanes()
             .withAllowedLateness(Duration.ZERO))
@@ -270,14 +272,14 @@ public class TestStreamTest implements Serializable {
     PCollection<String> createStrings =
         p.apply("CreateStrings", stream)
             .apply("WindowStrings",
-                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
+                Window.<String>configure().triggering(AfterPane.elementCountAtLeast(2))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
     PCollection<Integer> createInts =
         p.apply("CreateInts", other)
             .apply("WindowInts",
-                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
+                Window.<Integer>configure().triggering(AfterPane.elementCountAtLeast(4))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
@@ -310,29 +312,5 @@ public class TestStreamTest implements Serializable {
             .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  @Test
-  public void testEncodeDecode() throws Exception {
-    TestStream.Event<Integer> elems =
-        TestStream.ElementEvent.add(
-            TimestampedValue.of(1, new Instant()),
-            TimestampedValue.of(-10, new Instant()),
-            TimestampedValue.of(Integer.MAX_VALUE, new Instant()));
-    TestStream.Event<Integer> wm = TestStream.WatermarkEvent.advanceTo(new Instant(100));
-    TestStream.Event<Integer> procTime =
-        TestStream.ProcessingTimeEvent.advanceBy(Duration.millis(90548));
-
-    TestStream.EventCoder<Integer> coder = TestStream.EventCoder.of(VarIntCoder.of());
-
-    CoderProperties.coderSerializable(coder);
-    CoderProperties.coderDecodeEncodeEqual(coder, elems);
-    CoderProperties.coderDecodeEncodeEqual(coder, wm);
-    CoderProperties.coderDecodeEncodeEqual(coder, procTime);
-  }
-
-  @Test
-  public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(TestStream.EventCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 }

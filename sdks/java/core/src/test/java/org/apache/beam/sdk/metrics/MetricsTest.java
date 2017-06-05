@@ -18,31 +18,37 @@
 
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
-import static org.apache.beam.sdk.metrics.MetricMatchers.distributionCommittedMinMax;
-import static org.hamcrest.Matchers.equalTo;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
+import org.apache.beam.sdk.testing.UsesCounterMetrics;
+import org.apache.beam.sdk.testing.UsesDistributionMetrics;
+import org.apache.beam.sdk.testing.UsesGaugeMetrics;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.hamcrest.CoreMatchers;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.mockito.Mockito;
 
 /**
  * Tests for {@link Metrics}.
@@ -52,6 +58,15 @@ public class MetricsTest implements Serializable {
   private static final String NS = "test";
   private static final String NAME = "name";
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
+  private static final String NAMESPACE = MetricsTest.class.getName();
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
+
+  private static MetricQueryResults queryTestMetrics(PipelineResult result) {
+    return result.metrics().queryMetrics(
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+            .build());
+  }
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -62,14 +77,14 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  public void distributionWithoutContainer() {
+  public void testDistributionWithoutContainer() {
     assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
     Metrics.distribution(NS, NAME).update(5L);
   }
 
   @Test
-  public void counterWithoutContainer() {
+  public void testCounterWithoutContainer() {
     assertNull(MetricsEnvironment.getCurrentContainer());
     // Should not fail even though there is no metrics container.
     Counter counter = Metrics.counter(NS, NAME);
@@ -80,93 +95,110 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  public void distributionToCell() {
-    MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setCurrentContainer(container);
+  public void testDistributionToCell() {
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
+    Distribution mockDistribution = Mockito.mock(Distribution.class);
+    when(mockContainer.getDistribution(METRIC_NAME)).thenReturn(mockDistribution);
 
     Distribution distribution = Metrics.distribution(NS, NAME);
 
+    MetricsEnvironment.setCurrentContainer(mockContainer);
     distribution.update(5L);
 
-    DistributionCell cell = container.getDistribution(METRIC_NAME);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(5, 1, 5, 5)));
+    verify(mockDistribution).update(5L);
 
     distribution.update(36L);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(41, 2, 5, 36)));
-
     distribution.update(1L);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 1, 36)));
+    verify(mockDistribution).update(36L);
+    verify(mockDistribution).update(1L);
   }
 
   @Test
-  public void counterToCell() {
-    MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setCurrentContainer(container);
+  public void testCounterToCell() {
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
+    Counter mockCounter = Mockito.mock(Counter.class);
+    when(mockContainer.getCounter(METRIC_NAME)).thenReturn(mockCounter);
+
     Counter counter = Metrics.counter(NS, NAME);
-    CounterCell cell = container.getCounter(METRIC_NAME);
+
+    MetricsEnvironment.setCurrentContainer(mockContainer);
     counter.inc();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(1L));
+    verify(mockCounter).inc(1);
 
     counter.inc(47L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(48L));
+    verify(mockCounter).inc(47);
 
     counter.dec(5L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(43L));
-
-    counter.dec();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
+    verify(mockCounter).inc(-5);
   }
 
-  @Category({RunnableOnService.class, UsesCommittedMetrics.class})
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
+      UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void committedMetricsReportToQuery() {
+  public void testAllCommittedMetrics() {
     PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
 
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-        .build());
-
-    assertThat(metrics.counters(), hasItem(
-        committedMetricsResult(MetricsTest.class.getName(), "count", "MyStep1", 3L)));
-    assertThat(metrics.distributions(), hasItem(
-        committedMetricsResult(MetricsTest.class.getName(), "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L))));
-
-    assertThat(metrics.counters(), hasItem(
-        committedMetricsResult(MetricsTest.class.getName(), "count", "MyStep2", 6L)));
-    assertThat(metrics.distributions(), hasItem(
-        committedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L))));
-
-    assertThat(metrics.distributions(), hasItem(
-        distributionCommittedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
+    assertAllMetrics(metrics, true);
   }
 
-
-  @Category({RunnableOnService.class, UsesAttemptedMetrics.class})
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
+      UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void attemptedMetricsReportToQuery() {
+  public void testAllAttemptedMetrics() {
     PipelineResult result = runPipelineWithMetrics();
-
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-        .build());
+    MetricQueryResults metrics = queryTestMetrics(result);
 
     // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
-    assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult(MetricsTest.class.getName(), "count", "MyStep1", 3L)));
-    assertThat(metrics.distributions(), hasItem(
-        attemptedMetricsResult(MetricsTest.class.getName(), "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L))));
+    assertAllMetrics(metrics, false);
+  }
 
-    assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult(MetricsTest.class.getName(), "count", "MyStep2", 6L)));
-    assertThat(metrics.distributions(), hasItem(
-        attemptedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L))));
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void testCommittedCounterMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertCounterMetrics(metrics, true);
+  }
 
-    assertThat(metrics.distributions(), hasItem(
-        distributionAttemptedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void testAttemptedCounterMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertCounterMetrics(metrics, false);
+  }
+
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesDistributionMetrics.class})
+  @Test
+  public void testCommittedDistributionMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertDistributionMetrics(metrics, true);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
+  @Test
+  public void testAttemptedDistributionMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertDistributionMetrics(metrics, false);
+  }
+
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
+  @Test
+  public void testCommittedGaugeMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertGaugeMetrics(metrics, true);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
+  @Test
+  public void testAttemptedGaugeMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = queryTestMetrics(result);
+    assertGaugeMetrics(metrics, false);
   }
 
   private PipelineResult runPipelineWithMetrics() {
@@ -179,7 +211,7 @@ public class MetricsTest implements Serializable {
           Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
 
           @StartBundle
-          public void startBundle(Context c) {
+          public void startBundle() {
             bundleDist.update(10L);
           }
 
@@ -195,25 +227,114 @@ public class MetricsTest implements Serializable {
           }
 
           @DoFn.FinishBundle
-          public void finishBundle(Context c) {
+          public void finishBundle() {
             bundleDist.update(40L);
           }
         }))
-        .apply("MyStep2", ParDo.withOutputTags(output1, TupleTagList.of(output2))
+        .apply("MyStep2", ParDo
             .of(new DoFn<Integer, Integer>() {
               @SuppressWarnings("unused")
               @ProcessElement
               public void processElement(ProcessContext c) {
                 Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
+                Integer element = c.element();
                 count.inc();
-                values.update(c.element());
-                c.output(c.element());
-                c.sideOutput(output2, c.element());
+                values.update(element);
+                gauge.set(12L);
+                c.output(element);
+                c.output(output2, element);
               }
-            }));
+            })
+            .withOutputTags(output1, TupleTagList.of(output2)));
     PipelineResult result = pipeline.run();
 
     result.waitUntilFinish();
     return result;
+  }
+
+  private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertThat(metrics.counters(), hasItem(
+        metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
+    assertThat(metrics.counters(), hasItem(
+        metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
+  }
+
+  private static void assertGaugeMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertThat(metrics.gauges(), hasItem(
+        metricsResult(NAMESPACE, "my-gauge", "MyStep2",
+            GaugeResult.create(12L, Instant.now()), isCommitted)));
+  }
+
+  private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertThat(metrics.distributions(), hasItem(
+        metricsResult(NAMESPACE, "input", "MyStep1",
+            DistributionResult.create(26L, 3L, 5L, 13L), isCommitted)));
+
+    assertThat(metrics.distributions(), hasItem(
+        metricsResult(NAMESPACE, "input", "MyStep2",
+            DistributionResult.create(52L, 6L, 5L, 13L), isCommitted)));
+    assertThat(metrics.distributions(), hasItem(
+        distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
+  }
+
+  private static void assertAllMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertCounterMetrics(metrics, isCommitted);
+    assertDistributionMetrics(metrics, isCommitted);
+    assertGaugeMetrics(metrics, isCommitted);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  public void testBoundedSourceMetrics() {
+    long numElements = 1000;
+
+    pipeline.apply(GenerateSequence.from(0).to(numElements));
+
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
+                    .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(BoundedCountingSource)",
+            1000L)));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  public void testUnboundedSourceMetrics() {
+    long numElements = 1000;
+
+    // Use withMaxReadTime to force unbounded mode.
+    pipeline.apply(
+        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
+
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
+                    .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(UnboundedCountingSource)",
+            1000L)));
   }
 }

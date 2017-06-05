@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
@@ -50,31 +51,25 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -112,9 +107,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private boolean autoAdvanceOutputWatermark = true;
 
-  private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
-
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
    * a {@link TriggerStateMachine} from its {@link Trigger}.
@@ -124,7 +116,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
         TriggerStateMachines.stateMachineForTrigger(
-            Triggers.toProto(windowingStrategy.getTrigger())),
+            TriggerTranslation.toProto(windowingStrategy.getTrigger())),
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
@@ -161,7 +153,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withMode(mode)
             .withAllowedLateness(allowedDataLateness)
             .withClosingBehavior(closingBehavior);
@@ -170,32 +162,32 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and
-   * {@link KeyedCombineFn}, creating a {@link TriggerStateMachine} from the
+   * {@link CombineFn}, creating a {@link TriggerStateMachine} from the
    * {@link Trigger} in the {@link WindowingStrategy}.
    */
   public static <W extends BoundedWindow, AccumT, OutputT>
       ReduceFnTester<Integer, OutputT, W> combining(
           WindowingStrategy<?, W> strategy,
-          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+          CombineFn<Integer, AccumT, OutputT> combineFn,
           Coder<OutputT> outputCoder)
           throws Exception {
 
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder);
   }
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy},
-   * {@link KeyedCombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
+   * {@link CombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
    * between {@link ReduceFnRunner} and the {@link TriggerStateMachine}.
    * Ignores the {@link Trigger} in the {@link WindowingStrategy}.
    */
@@ -203,12 +195,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   ReduceFnTester<Integer, OutputT, W> combining(
       WindowingStrategy<?, W> strategy,
       TriggerStateMachine triggerStateMachine,
-      KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+      CombineFn<Integer, AccumT, OutputT> combineFn,
       Coder<OutputT> outputCoder)
       throws Exception {
 
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -225,20 +216,20 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public static <W extends BoundedWindow, AccumT, OutputT>
       ReduceFnTester<Integer, OutputT, W> combining(
           WindowingStrategy<?, W> strategy,
-          KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+          CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
           Coder<OutputT> outputCoder,
           PipelineOptions options,
           SideInputReader sideInputReader)
           throws Exception {
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder,
         options,
@@ -249,13 +240,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   ReduceFnTester<Integer, OutputT, W> combining(
       WindowingStrategy<?, W> strategy,
       TriggerStateMachine triggerStateMachine,
-      KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+      CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
       Coder<OutputT> outputCoder,
       PipelineOptions options,
       SideInputReader sideInputReader)
       throws Exception {
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -308,7 +298,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         timerInternals,
         testOutputter,
         sideInputReader,
-        droppedDueToClosedWindow,
         reduceFn,
         options);
   }
@@ -325,31 +314,34 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.<StateTag<?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(
-            TriggerStateMachineRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
-            WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
+        ImmutableSet.<StateTag<?>>of(
+            TriggerStateMachineRunner.FINISHED_BITS_TAG,
+            PaneInfoTracker.PANE_INFO_TAG,
+            WatermarkHold.watermarkHoldTagForTimestampCombiner(
+                objectStrategy.getTimestampCombiner()),
             WatermarkHold.EXTRA_HOLD_TAG));
   }
 
   public final void assertHasOnlyGlobalState() {
     assertHasOnlyGlobalAndAllowedTags(
-        Collections.<W>emptySet(), Collections.<StateTag<? super String, ?>>emptySet());
+        Collections.<W>emptySet(), Collections.<StateTag<?>>emptySet());
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(
+        ImmutableSet.<StateTag<?>>of(
             PaneInfoTracker.PANE_INFO_TAG,
-            WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
+            WatermarkHold.watermarkHoldTagForTimestampCombiner(
+                objectStrategy.getTimestampCombiner()),
             WatermarkHold.EXTRA_HOLD_TAG));
   }
 
@@ -358,30 +350,30 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
    */
   private void assertHasOnlyGlobalAndAllowedTags(
-      Set<W> expectedWindows, Set<StateTag<? super String, ?>> allowedTags) {
+      Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
     }
-    Map<StateNamespace, Set<StateTag<? super String, ?>>> actualWindows = new HashMap<>();
+    Map<StateNamespace, Set<StateTag<?>>> actualWindows = new HashMap<>();
 
     for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
       if (namespace instanceof StateNamespaces.GlobalNamespace) {
         continue;
       } else if (namespace instanceof StateNamespaces.WindowNamespace) {
-        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         if (tagsInUse.isEmpty()) {
           continue;
         }
         actualWindows.put(namespace, tagsInUse);
-        Set<StateTag<? super String, ?>> unexpected = Sets.difference(tagsInUse, allowedTags);
+        Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
         if (unexpected.isEmpty()) {
           continue;
         } else {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
-        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
       } else {
         fail("Unrecognized namespace " + namespace);
@@ -402,10 +394,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public Instant getOutputWatermark() {
     return timerInternals.currentOutputWatermarkTime();
-  }
-
-  public long getElementsDroppedDueToClosedWindow() {
-    return droppedDueToClosedWindow.getSum();
   }
 
   /**
@@ -574,13 +562,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public <SideOutputT> void sideOutputWindowedValue(
-        TupleTag<SideOutputT> tag,
-        SideOutputT output,
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
+      throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs");
     }
   }
 
@@ -611,34 +599,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     @Override
     public BoundedWindow window() {
       return window;
-    }
-  }
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
-    private final String name;
-    private long sum = 0;
-
-    public InMemoryLongSumAggregator(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(Long value) {
-      sum += value;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
-    }
-
-    public long getSum() {
-      return sum;
     }
   }
 }

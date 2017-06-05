@@ -137,29 +137,29 @@ public class BufferedExternalSorterTest {
 
   @Test
   public void testEmpty() throws Exception {
-    SorterTestUtils.testEmpty(BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString())));
+    SorterTestUtils.testEmpty(BufferedExternalSorter.create(BufferedExternalSorter.options()
+        .withTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testSingleElement() throws Exception {
     SorterTestUtils.testSingleElement(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-            .setTempLocation(tmpLocation.toString())));
+        BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
     SorterTestUtils.testEmptyKeyValueElement(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-            .setTempLocation(tmpLocation.toString())));
+        BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
     SorterTestUtils.testMultipleIterations(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-            .setTempLocation(tmpLocation.toString())));
+        BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())));
   }
 
   @Test
@@ -168,8 +168,8 @@ public class BufferedExternalSorterTest {
         new SorterGenerator() {
           @Override
           public Sorter generateSorter() throws Exception {
-            return BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-                .setTempLocation(tmpLocation.toString()));
+            return BufferedExternalSorter.create(BufferedExternalSorter.options()
+                .withTempLocation(tmpLocation.toString()));
           }
         },
         1000000,
@@ -182,8 +182,8 @@ public class BufferedExternalSorterTest {
         new SorterGenerator() {
           @Override
           public Sorter generateSorter() throws Exception {
-            return BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-                .setTempLocation(tmpLocation.toString()));
+            return BufferedExternalSorter.create(BufferedExternalSorter.options()
+                .withTempLocation(tmpLocation.toString()));
           }
         },
         1,
@@ -193,16 +193,16 @@ public class BufferedExternalSorterTest {
   @Test
   public void testAddAfterSort() throws Exception {
     SorterTestUtils.testAddAfterSort(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-              .setTempLocation(tmpLocation.toString())), thrown);
+        BufferedExternalSorter.create(BufferedExternalSorter.options()
+              .withTempLocation(tmpLocation.toString())), thrown);
     fail();
   }
 
   @Test
   public void testSortTwice() throws Exception {
     SorterTestUtils.testSortTwice(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()
-            .setTempLocation(tmpLocation.toString())), thrown);
+        BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())), thrown);
     fail();
   }
 
@@ -210,24 +210,24 @@ public class BufferedExternalSorterTest {
   public void testNegativeMemory() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options()
-        .setTempLocation(tmpLocation.toString());
-    options.setMemoryMB(-1);
+    BufferedExternalSorter.Options options = BufferedExternalSorter.options()
+        .withTempLocation(tmpLocation.toString());
+    options.withMemoryMB(-1);
   }
 
   @Test
   public void testZeroMemory() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be greater than zero");
-    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
-    options.setMemoryMB(0);
+    BufferedExternalSorter.Options options = BufferedExternalSorter.options();
+    options.withMemoryMB(0);
   }
 
   @Test
   public void testMemoryTooLarge() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("memoryMB must be less than 2048");
-    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
-    options.setMemoryMB(2048);
+    BufferedExternalSorter.Options options = BufferedExternalSorter.options();
+    options.withMemoryMB(2048);
   }
 }

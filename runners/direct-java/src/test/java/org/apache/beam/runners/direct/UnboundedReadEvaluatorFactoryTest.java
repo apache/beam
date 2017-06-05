@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -43,8 +44,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.runners.direct.UnboundedReadEvaluatorFactory.UnboundedSourceShard;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -58,9 +57,9 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -75,6 +74,7 @@ import org.joda.time.ReadableInstant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.invocation.InvocationOnMock;
@@ -95,8 +95,8 @@ public class UnboundedReadEvaluatorFactoryTest {
   private UnboundedSource<Long, ?> source;
   private DirectGraph graph;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -373,6 +373,41 @@ public class UnboundedReadEvaluatorFactoryTest {
     secondEvaluator.finishBundle();
 
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(2));
+    assertThat(
+        Iterables.getOnlyElement(residual.getElements()).getValue().getCheckpoint().isFinalized(),
+        is(true));
+  }
+
+  @Test
+  public void evaluatorThrowsInCloseRethrows() throws Exception {
+    ContiguousSet<Long> elems = ContiguousSet.create(Range.closed(0L, 20L), DiscreteDomain.longs());
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]))
+            .throwsOnClose();
+
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform =
+        DirectGraphs.getGraph(p).getProducer(pcollection);
+
+    when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
+    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
+    when(context.createBundle(pcollection)).thenReturn(output);
+
+    WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
+        WindowedValue.valueInGlobalWindow(
+            UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
+    CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
+        bundleFactory
+            .<UnboundedSourceShard<Long, TestCheckpointMark>>createRootBundle()
+            .add(shard)
+            .commit(Instant.now());
+    UnboundedReadEvaluatorFactory factory =
+        new UnboundedReadEvaluatorFactory(context, 0.0 /* never reuse */);
+    TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
+        factory.forApplication(sourceTransform, inputBundle);
+    thrown.expect(IOException.class);
+    thrown.expectMessage("throws on close");
+    evaluator.processElement(shard);
   }
 
   /**
@@ -398,16 +433,22 @@ public class UnboundedReadEvaluatorFactoryTest {
     private final Coder<T> coder;
     private final List<T> elems;
     private boolean dedupes = false;
+    private boolean throwOnClose;
 
     public TestUnboundedSource(Coder<T> coder, T... elems) {
+      this(coder, false, Arrays.asList(elems));
+    }
+
+   private TestUnboundedSource(Coder<T> coder, boolean throwOnClose, List<T> elems) {
       readerAdvancedCount = 0;
       readerClosedCount = 0;
       this.coder = coder;
-      this.elems = Arrays.asList(elems);
+      this.elems = elems;
+      this.throwOnClose = throwOnClose;
     }
 
     @Override
-    public List<? extends UnboundedSource<T, TestCheckpointMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<T, TestCheckpointMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       return ImmutableList.of(this);
     }
@@ -415,9 +456,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Override
     public UnboundedSource.UnboundedReader<T> createReader(
         PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) {
-      if (checkpointMark != null) {
-        assertThat(checkpointMark.isFinalized(), is(true));
-      }
+      checkState(
+          checkpointMark == null || checkpointMark.decoded,
+          "Cannot resume from a checkpoint that has not been decoded");
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
@@ -440,9 +481,14 @@ public class UnboundedReadEvaluatorFactoryTest {
       return coder;
     }
 
+    public TestUnboundedSource<T> throwsOnClose() {
+      return new TestUnboundedSource<>(coder, true, elems);
+    }
+
     private class TestUnboundedReader extends UnboundedReader<T> {
       private final List<T> elems;
       private int index;
+      private boolean closed = false;
 
       public TestUnboundedReader(List<T> elems, int startIndex) {
         this.elems = elems;
@@ -502,7 +548,16 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public void close() throws IOException {
-        readerClosedCount++;
+        try {
+          readerClosedCount++;
+          // Enforce the AutoCloseable contract. Close is not idempotent.
+          assertThat(closed, is(false));
+          if (throwOnClose) {
+            throw new IOException(String.format("%s throws on close", TestUnboundedSource.this));
+          }
+        } finally {
+          closed = true;
+        }
       }
     }
   }
@@ -510,6 +565,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   private static class TestCheckpointMark implements CheckpointMark {
     final int index;
     private boolean finalized = false;
+    private boolean decoded = false;
 
     private TestCheckpointMark(int index) {
       this.index = index;
@@ -517,6 +573,12 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     @Override
     public void finalizeCheckpoint() throws IOException {
+      checkState(
+          !finalized, "%s was finalized more than once", TestCheckpointMark.class.getSimpleName());
+      checkState(
+          !decoded,
+          "%s was finalized after being decoded",
+          TestCheckpointMark.class.getSimpleName());
       finalized = true;
     }
 
@@ -528,17 +590,18 @@ public class UnboundedReadEvaluatorFactoryTest {
       @Override
       public void encode(
           TestCheckpointMark value,
-          OutputStream outStream,
-          org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
+          OutputStream outStream)
+          throws IOException {
         VarInt.encode(value.index, outStream);
       }
 
       @Override
       public TestCheckpointMark decode(
-          InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
-        return new TestCheckpointMark(VarInt.decodeInt(inStream));
+          InputStream inStream)
+          throws IOException {
+        TestCheckpointMark decoded = new TestCheckpointMark(VarInt.decodeInt(inStream));
+        decoded.decoded = true;
+        return decoded;
       }
     }
   }

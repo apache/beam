@@ -32,4 +32,10 @@ interface TransformExecutorService {
    * {@link TransformExecutor TransformExecutors} to be evaluated.
    */
   void complete(TransformExecutor<?> completed);
+
+  /**
+   * Cancel any outstanding work, if possible. Any future calls to schedule should ignore any
+   * work.
+   */
+  void shutdown();
 }

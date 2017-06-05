@@ -26,8 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Filter;
@@ -62,15 +62,16 @@ public class MinimalWordCountJava8Test implements Serializable {
   public void testMinimalWordCountJava8() throws Exception {
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());
 
-    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
-     .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
-         .withOutputType(TypeDescriptors.strings()))
+    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
+     .apply(FlatMapElements
+         .into(TypeDescriptors.strings())
+         .via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+"))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
-         .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
-         .withOutputType(TypeDescriptors.strings()))
-     .apply(TextIO.Write.to("gs://your-output-bucket/and-output-prefix"));
+         .into(TypeDescriptors.strings())
+         .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
+     .apply(TextIO.write().to("gs://your-output-bucket/and-output-prefix"));
   }
 
   private GcsUtil buildMockGcsUtil() throws IOException {

@@ -28,6 +28,7 @@ import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.Time;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.InputDStream;
 import org.apache.spark.streaming.scheduler.RateController;
 import org.apache.spark.streaming.scheduler.RateController$;
@@ -36,7 +37,6 @@ import org.apache.spark.streaming.scheduler.rate.RateEstimator$;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Tuple2;
 
 
@@ -60,6 +60,15 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
+  // Reader cache interval to expire readers if they haven't been accessed in the last microbatch.
+  // The reason we expire readers is that upon executor death/addition source split ownership can be
+  // reshuffled between executors. When this happens we want to close and expire unused readers
+  // in the executor in case it regains ownership of the source split in the future - to avoid
+  // resuming from an earlier checkpoint.
+  private final double readerCacheInterval;
+  // Number of partitions for the DStream is final and remains the same throughout the entire
+  // lifetime of the pipeline, including when resuming from checkpoint.
+  private final int numPartitions;
   // the initial parallelism, set by Spark's backend, will be determined once when the job starts.
   // in case of resuming/recovering from checkpoint, the DStream will be reconstructed and this
   // property should not be reset.
@@ -67,38 +76,82 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   // the bound on max records is optional.
   // in case it is set explicitly via PipelineOptions, it takes precedence
   // otherwise it could be activated via RateController.
-  private Long boundMaxRecords = null;
+  private final long boundMaxRecords;
 
   SourceDStream(
       StreamingContext ssc,
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
-      SparkRuntimeContext runtimeContext) {
-
+      SparkRuntimeContext runtimeContext,
+      Long boundMaxRecords) {
     super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
     this.unboundedSource = unboundedSource;
     this.runtimeContext = runtimeContext;
+
     SparkPipelineOptions options = runtimeContext.getPipelineOptions().as(
         SparkPipelineOptions.class);
+
+    // Reader cache expiration interval. 50% of batch interval is added to accommodate latency.
+    this.readerCacheInterval = 1.5 * options.getBatchIntervalMillis();
+
     this.boundReadDuration = boundReadDuration(options.getReadTimePercentage(),
         options.getMinReadTimeMillis());
     // set initial parallelism once.
-    this.initialParallelism = ssc().sc().defaultParallelism();
+    this.initialParallelism = ssc().sparkContext().defaultParallelism();
     checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
-  }
 
-  public void setMaxRecordsPerBatch(long maxRecordsPerBatch) {
-    boundMaxRecords = maxRecordsPerBatch;
+    this.boundMaxRecords = boundMaxRecords;
+
+    try {
+      this.numPartitions =
+          createMicrobatchSource()
+              .split(options)
+              .size();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public scala.Option<RDD<Tuple2<Source<T>, CheckpointMarkT>>> compute(Time validTime) {
-    long maxNumRecords = boundMaxRecords != null ? boundMaxRecords : rateControlledMaxRecords();
-    MicrobatchSource<T, CheckpointMarkT> microbatchSource = new MicrobatchSource<>(
-        unboundedSource, boundReadDuration, initialParallelism, maxNumRecords, -1,
-        id());
-    RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd = new SourceRDD.Unbounded<>(
-        ssc().sc(), runtimeContext, microbatchSource);
+    RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd =
+        new SourceRDD.Unbounded<>(
+            ssc().sparkContext(),
+            runtimeContext,
+            createMicrobatchSource(),
+            numPartitions);
     return scala.Option.apply(rdd);
+  }
+
+
+  private MicrobatchSource<T, CheckpointMarkT> createMicrobatchSource() {
+    return new MicrobatchSource<>(unboundedSource,
+                                  boundReadDuration,
+                                  initialParallelism,
+                                  computeReadMaxRecords(),
+                                  -1,
+                                  id(),
+                                  readerCacheInterval);
+  }
+
+  private long computeReadMaxRecords() {
+    if (boundMaxRecords > 0) {
+      LOG.info("Max records per batch has been set to {}, as configured in the PipelineOptions.",
+               boundMaxRecords);
+      return boundMaxRecords;
+    } else {
+      final scala.Option<Long> rateControlledMax = rateControlledMaxRecords();
+      if (rateControlledMax.isDefined()) {
+        LOG.info("Max records per batch has been set to {}, as advised by the rate controller.",
+                 rateControlledMax.get());
+        return rateControlledMax.get();
+      } else {
+        LOG.info("Max records per batch has not been limited by neither configuration "
+                     + "nor the rate controller, and will remain unlimited for the current batch "
+                     + "({}).",
+                 Long.MAX_VALUE);
+        return Long.MAX_VALUE;
+      }
+    }
   }
 
   @Override
@@ -110,6 +163,14 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   @Override
   public String name() {
     return "Beam UnboundedSource [" + id() + "]";
+  }
+
+  /**
+   * Number of partitions is exposed so clients of {@link SourceDStream} can use this to set
+   * appropriate partitioning for operations such as {@link JavaPairDStream#mapWithState}.
+   */
+  int getNumPartitions() {
+    return numPartitions;
   }
 
   //---- Bound by time.
@@ -129,19 +190,18 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
   //---- Bound by records.
 
-  private long rateControlledMaxRecords() {
-    scala.Option<RateController> rateControllerOption = rateController();
-    if (rateControllerOption.isDefined()) {
-      long rateLimitPerSecond = rateControllerOption.get().getLatestRate();
-      if (rateLimitPerSecond > 0) {
-        long totalRateLimit =
-            rateLimitPerSecond * (ssc().graph().batchDuration().milliseconds() / 1000);
-        LOG.info("RateController set limit to {}", totalRateLimit);
-        return totalRateLimit;
-      }
+  private scala.Option<Long> rateControlledMaxRecords() {
+    final scala.Option<RateController> rateControllerOption = rateController();
+    final scala.Option<Long> rateLimitPerBatch;
+    final long rateLimitPerSec;
+    if (rateControllerOption.isDefined()
+        && ((rateLimitPerSec = rateControllerOption.get().getLatestRate()) > 0)) {
+      final long batchDurationSec = ssc().graph().batchDuration().milliseconds() / 1000;
+      rateLimitPerBatch = scala.Option.apply(rateLimitPerSec * batchDurationSec);
+    } else {
+      rateLimitPerBatch = scala.Option.empty();
     }
-    LOG.info("RateController had nothing to report, default is Long.MAX_VALUE");
-    return Long.MAX_VALUE;
+    return rateLimitPerBatch;
   }
 
   private final RateController rateController = new SourceRateController(id(),

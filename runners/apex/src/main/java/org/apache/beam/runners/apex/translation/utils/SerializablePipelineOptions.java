@@ -17,20 +17,25 @@
  */
 package org.apache.beam.runners.apex.translation.utils;
 
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * A wrapper to enable serialization of {@link PipelineOptions}.
  */
 public class SerializablePipelineOptions implements Externalizable {
+
+  /* Used to ensure we initialize file systems exactly once, because it's a slow operation. */
+  private static final AtomicBoolean FILE_SYSTEMS_INTIIALIZED = new AtomicBoolean(false);
 
   private transient ApexPipelineOptions pipelineOptions;
 
@@ -47,14 +52,27 @@ public class SerializablePipelineOptions implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeUTF(new ObjectMapper().writeValueAsString(pipelineOptions));
+    out.writeUTF(createMapper().writeValueAsString(pipelineOptions));
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String s = in.readUTF();
-    this.pipelineOptions = new ObjectMapper().readValue(s, PipelineOptions.class)
+    this.pipelineOptions = createMapper().readValue(s, PipelineOptions.class)
         .as(ApexPipelineOptions.class);
+
+    if (FILE_SYSTEMS_INTIIALIZED.compareAndSet(false, true)) {
+      FileSystems.setDefaultPipelineOptions(pipelineOptions);
+    }
   }
 
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static ObjectMapper createMapper() {
+    return new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  }
 }
