@@ -31,10 +31,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -44,7 +41,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -122,16 +118,15 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to HBase</h3>
  *
  * <p>The HBase sink executes a set of row mutations on a single table. It takes as input a
- * {@link PCollection PCollection&lt;KV&lt;byte[], Iterable&lt;Mutation&gt;&gt;&gt;}, where the
- * {@code byte[]} is the key of the row being mutated, and each {@link Mutation} represents an
- * idempotent transformation to that row.
+ * {@link PCollection PCollection&lt;Mutation&gt;}, where each {@link Mutation} represents an
+ * idempotent transformation on a row.
  *
  * <p>To configure a HBase sink, you must supply a table id and a {@link Configuration}
  * to identify the HBase instance, for example:
  *
  * <pre>{@code
  * Configuration configuration = ...;
- * PCollection<KV<byte[], Iterable<Mutation>>> data = ...;
+ * PCollection<Mutation> data = ...;
  * data.setCoder(HBaseIO.WRITE_CODER);
  *
  * data.apply("write",
@@ -545,9 +540,7 @@ public class HBaseIO {
      *
      * @see HBaseIO
      */
-    public static class Write
-            extends PTransform<PCollection<KV<byte[], Iterable<Mutation>>>, PDone> {
-
+    public static class Write extends PTransform<PCollection<Mutation>, PDone> {
         /**
          * Returns a new {@link HBaseIO.Write} that will write to the HBase instance
          * indicated by the given Configuration, and using any other specified customizations.
@@ -575,7 +568,7 @@ public class HBaseIO {
         }
 
         @Override
-        public PDone expand(PCollection<KV<byte[], Iterable<Mutation>>> input) {
+        public PDone expand(PCollection<Mutation> input) {
             input.apply(ParDo.of(new HBaseWriterFn(tableId, serializableConfiguration)));
             return PDone.in(input.getPipeline());
         }
@@ -613,7 +606,7 @@ public class HBaseIO {
         private final String tableId;
         private final SerializableConfiguration serializableConfiguration;
 
-        private class HBaseWriterFn extends DoFn<KV<byte[], Iterable<Mutation>>, Void> {
+        private class HBaseWriterFn extends DoFn<Mutation, Void> {
 
             public HBaseWriterFn(String tableId,
                                  SerializableConfiguration serializableConfiguration) {
@@ -624,31 +617,27 @@ public class HBaseIO {
 
             @Setup
             public void setup() throws Exception {
-                Configuration configuration = this.serializableConfiguration.get();
-                connection = ConnectionFactory.createConnection(configuration);
+                connection = ConnectionFactory.createConnection(serializableConfiguration.get());
+            }
 
-                TableName tableName = TableName.valueOf(tableId);
+            @StartBundle
+            public void startBundle(StartBundleContext c) throws IOException {
                 BufferedMutatorParams params =
-                    new BufferedMutatorParams(tableName);
+                    new BufferedMutatorParams(TableName.valueOf(tableId));
                 mutator = connection.getBufferedMutator(params);
-
                 recordsWritten = 0;
             }
 
             @ProcessElement
-            public void processElement(ProcessContext ctx) throws Exception {
-                KV<byte[], Iterable<Mutation>> record = ctx.element();
-                List<Mutation> mutations = new ArrayList<>();
-                for (Mutation mutation : record.getValue()) {
-                    mutations.add(mutation);
-                    ++recordsWritten;
-                }
-                mutator.mutate(mutations);
+            public void processElement(ProcessContext c) throws Exception {
+                mutator.mutate(c.element());
+                ++recordsWritten;
             }
 
             @FinishBundle
             public void finishBundle() throws Exception {
                 mutator.flush();
+                LOG.debug("Wrote {} records", recordsWritten);
             }
 
             @Teardown
@@ -661,7 +650,6 @@ public class HBaseIO {
                     connection.close();
                     connection = null;
                 }
-                LOG.debug("Wrote {} records", recordsWritten);
             }
 
             @Override
@@ -679,6 +667,5 @@ public class HBaseIO {
         }
     }
 
-    public static final Coder<KV<byte[], Iterable<Mutation>>> WRITE_CODER =
-            KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(HBaseMutationCoder.of()));
+    public static final Coder<Mutation> WRITE_CODER = HBaseMutationCoder.of();
 }
