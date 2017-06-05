@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
@@ -89,14 +90,18 @@ public class SparkExecutor implements Executor {
       throw new UnsupportedOperationException("Spark executor doesn't support unbounded input");
     }
 
+    // clone the accumulators factory first to make sure
+    // each running flow owns its own instance
+    SparkAccumulatorFactory clonedFactory = SerializationUtils.clone(accumulatorFactory);
+
     // init accumulators
-    accumulatorFactory.init(sparkContext);
+    clonedFactory.init(sparkContext);
 
     List<DataSink<?>> sinks = Collections.emptyList();
     try {
       // FIXME blocking operation in Spark
       SparkFlowTranslator translator =
-              new SparkFlowTranslator(sparkContext, flow.getSettings(), accumulatorFactory);
+              new SparkFlowTranslator(sparkContext, flow.getSettings(), clonedFactory);
       sinks = translator.translateInto(flow);
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty
