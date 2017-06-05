@@ -34,7 +34,8 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class WritePartition<DestinationT>
     extends DoFn<Void, KV<ShardedKey<DestinationT>, List<String>>> {
-  private final DestinationT singletonTable;
+  private final boolean singletonTable;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
   private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
@@ -99,12 +100,14 @@ class WritePartition<DestinationT>
   }
 
   WritePartition(
-      DestinationT singletonTable,
+      boolean singletonTable,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
       PCollectionView<String> tempFilePrefix,
       PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
     this.singletonTable = singletonTable;
+    this.dynamicDestinations = dynamicDestinations;
     this.results = results;
     this.tempFilePrefix = tempFilePrefix;
     this.multiPartitionsTag = multiPartitionsTag;
@@ -118,7 +121,7 @@ class WritePartition<DestinationT>
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
-    if (results.isEmpty() && singletonTable != null) {
+    if (results.isEmpty() && singletonTable) {
       String tempFilePrefix = c.sideInput(this.tempFilePrefix);
       TableRowWriter writer = new TableRowWriter(tempFilePrefix);
       writer.close();
@@ -126,8 +129,8 @@ class WritePartition<DestinationT>
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
       results.add(
-          new Result<DestinationT>(
-              writerResult.resourceId.toString(), writerResult.byteSize, singletonTable));
+          new Result<>(writerResult.resourceId.toString(), writerResult.byteSize,
+              dynamicDestinations.getDestination(null)));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();
