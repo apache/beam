@@ -38,7 +38,6 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
@@ -199,10 +198,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     // have just recorded the full names during apply time.
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
-      pipeline.traverseTopologically(new Pipeline.PipelineVisitor() {
-        @Override
-        public void visitValue(PValue value, TransformHierarchy.Node producer) {
-        }
+      pipeline.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
 
         @Override
         public void visitPrimitiveTransform(TransformHierarchy.Node node) {
@@ -217,10 +213,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
           return CompositeBehavior.ENTER_TRANSFORM;
-        }
-
-        @Override
-        public void leaveCompositeTransform(TransformHierarchy.Node node) {
         }
       });
 

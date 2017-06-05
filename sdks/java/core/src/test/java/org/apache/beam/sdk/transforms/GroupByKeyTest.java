@@ -45,6 +45,7 @@ import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -425,6 +426,79 @@ public class GroupByKeyTest {
         .satisfies(new AssertThatAllKeysExist(numKeys));
 
     p.run();
+  }
+
+  private static String bigString(char c, int size) {
+    char[] buf = new char[size];
+    for (int i = 0; i < size; i++) {
+      buf[i] = c;
+    }
+    return new String(buf);
+  }
+
+  private static void runLargeKeysTest(TestPipeline p, final int keySize) throws Exception {
+    PCollection<KV<String, Integer>> result = p
+        .apply(Create.of("a", "a", "b"))
+        .apply("Expand", ParDo.of(new DoFn<String, KV<String, String>>() {
+              @ProcessElement
+              public void process(ProcessContext c) {
+                c.output(KV.of(bigString(c.element().charAt(0), keySize), c.element()));
+              }
+          }))
+        .apply(GroupByKey.<String, String>create())
+        .apply("Count", ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, Integer>>() {
+              @ProcessElement
+              public void process(ProcessContext c) {
+                int size = 0;
+                for (String value : c.element().getValue()) {
+                  size++;
+                }
+                c.output(KV.of(c.element().getKey(), size));
+              }
+          }));
+
+    PAssert.that(result).satisfies(
+        new SerializableFunction<Iterable<KV<String, Integer>>, Void>() {
+          @Override
+          public Void apply(Iterable<KV<String, Integer>> values) {
+            assertThat(values,
+                containsInAnyOrder(
+                    KV.of(bigString('a', keySize), 2), KV.of(bigString('b', keySize), 1)));
+            return null;
+          }
+        });
+
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, LargeKeys.Above10KB.class})
+  public void testLargeKeys10KB() throws Exception {
+    runLargeKeysTest(p, 10 << 10);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, LargeKeys.Above100KB.class})
+  public void testLargeKeys100KB() throws Exception {
+    runLargeKeysTest(p, 100 << 10);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, LargeKeys.Above1MB.class})
+  public void testLargeKeys1MB() throws Exception {
+    runLargeKeysTest(p, 1 << 20);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, LargeKeys.Above10MB.class})
+  public void testLargeKeys10MB() throws Exception {
+    runLargeKeysTest(p, 10 << 20);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
+  public void testLargeKeys100MB() throws Exception {
+    runLargeKeysTest(p, 100 << 20);
   }
 
   /**

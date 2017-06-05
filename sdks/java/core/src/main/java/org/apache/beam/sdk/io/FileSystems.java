@@ -449,12 +449,6 @@ public class FileSystems {
 
   /********************************** METHODS FOR REGISTRATION **********************************/
 
-  /** @deprecated to be removed. */
-  @Deprecated // for DataflowRunner backwards compatibility.
-  public static void setDefaultConfigInWorkers(PipelineOptions options) {
-    setDefaultPipelineOptions(options);
-  }
-
   /**
    * Sets the default configuration in workers.
    *

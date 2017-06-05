@@ -19,8 +19,9 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-import java.util.Collections;
+import com.google.common.collect.Lists;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -90,7 +91,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     RuntimeContext runtimeContext = getRuntimeContext();
 
     DoFnRunners.OutputManager outputManager;
-    if (outputMap == null) {
+    if (outputMap.size() == 1) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional Outputs
@@ -114,13 +115,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
 
+    List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
+
     DoFnRunner<KV<K, V>, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(), dofn,
         new FlinkSideInputReader(sideInputs, runtimeContext),
         outputManager,
         mainOutputTag,
-        // see SimpleDoFnRunner, just use it to limit number of additional outputs
-        Collections.<TupleTag<?>>emptyList(),
+        additionalOutputTags,
         new FlinkNoOpStepContext() {
           @Override
           public StateInternals stateInternals() {

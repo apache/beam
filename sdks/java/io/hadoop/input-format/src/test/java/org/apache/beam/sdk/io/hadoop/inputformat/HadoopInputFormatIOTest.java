@@ -26,11 +26,11 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.EmployeeInputFormat.EmployeeRecordReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.EmployeeInputFormat.NewObjectsEmployeeInputSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -94,11 +94,11 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadBuildsCorrectly() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(myKeyTranslate)
         .withValueTranslation(myValueTranslate);
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(myValueTranslate, read.getValueTranslationFunction());
     assertEquals(myValueTranslate.getOutputTypeDescriptor(), read.getValueTypeDescriptor());
@@ -116,10 +116,10 @@ public class HadoopInputFormatIOTest {
     HadoopInputFormatIO.Read<String, String> read =
         HadoopInputFormatIO.<String, String>read()
             .withValueTranslation(myValueTranslate)
-            .withConfiguration(serConf.getHadoopConfiguration())
+            .withConfiguration(serConf.get())
             .withKeyTranslation(myKeyTranslate);
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(myValueTranslate, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyTypeDescriptor());
@@ -142,15 +142,15 @@ public class HadoopInputFormatIOTest {
             Employee.class,
             Text.class);
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(myKeyTranslate)
-        .withConfiguration(diffConf.getHadoopConfiguration());
-    assertEquals(diffConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+        .withConfiguration(diffConf.get());
+    assertEquals(diffConf.get(),
+        read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyTypeDescriptor());
-    assertEquals(diffConf.getHadoopConfiguration().getClass("value.class", Object.class), read
+    assertEquals(diffConf.get().getClass("value.class", Object.class), read
         .getValueTypeDescriptor().getRawType());
   }
 
@@ -173,14 +173,14 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationWithConfiguration() {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
-        .withConfiguration(serConf.getHadoopConfiguration());
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+        .withConfiguration(serConf.get());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(null, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
-    assertEquals(serConf.getHadoopConfiguration().getClass("key.class", Object.class), read
+    assertEquals(serConf.get().getClass("key.class", Object.class), read
         .getKeyTypeDescriptor().getRawType());
-    assertEquals(serConf.getHadoopConfiguration().getClass("value.class", Object.class), read
+    assertEquals(serConf.get().getClass("value.class", Object.class), read
         .getValueTypeDescriptor().getRawType());
   }
 
@@ -194,7 +194,7 @@ public class HadoopInputFormatIOTest {
   public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
     HadoopInputFormatIO.<String, Employee>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(null);
   }
 
@@ -205,15 +205,15 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslation() {
     HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(myKeyTranslate);
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),
         read.getKeyTypeDescriptor().getRawType());
-    assertEquals(serConf.getHadoopConfiguration().getClass("value.class", Object.class),
+    assertEquals(serConf.get().getClass("value.class", Object.class),
         read.getValueTypeDescriptor().getRawType());
   }
 
@@ -227,7 +227,7 @@ public class HadoopInputFormatIOTest {
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
     HadoopInputFormatIO.<Text, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withValueTranslation(null);
   }
 
@@ -238,13 +238,13 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationWithConfigurationValueTranslation() {
     HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withValueTranslation(myValueTranslate);
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(null, read.getKeyTranslationFunction());
     assertEquals(myValueTranslate, read.getValueTranslationFunction());
-    assertEquals(serConf.getHadoopConfiguration().getClass("key.class", Object.class),
+    assertEquals(serConf.get().getClass("key.class", Object.class),
         read.getKeyTypeDescriptor().getRawType());
     assertEquals(myValueTranslate.getOutputTypeDescriptor().getRawType(),
         read.getValueTypeDescriptor().getRawType());
@@ -257,11 +257,11 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslationValueTranslation() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(myKeyTranslate)
         .withValueTranslation(myValueTranslate);
-    assertEquals(serConf.getHadoopConfiguration(),
-        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(serConf.get(),
+        read.getConfiguration().get());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
     assertEquals(myValueTranslate, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),
@@ -342,13 +342,13 @@ public class HadoopInputFormatIOTest {
           }
         };
     HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
+        .withConfiguration(serConf.get())
         .withKeyTranslation(myKeyTranslateWithWrongInputType);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format(
         "Key translation's input type is not same as hadoop InputFormat : %s key " + "class : %s",
-        serConf.getHadoopConfiguration().getClass("mapreduce.job.inputformat.class",
-            InputFormat.class), serConf.getHadoopConfiguration()
+        serConf.get().getClass("mapreduce.job.inputformat.class",
+            InputFormat.class), serConf.get()
             .getClass("key.class", Object.class)));
     read.validateTransform();
   }
@@ -370,15 +370,15 @@ public class HadoopInputFormatIOTest {
         };
     HadoopInputFormatIO.Read<Text, String> read =
         HadoopInputFormatIO.<Text, String>read()
-            .withConfiguration(serConf.getHadoopConfiguration())
+            .withConfiguration(serConf.get())
             .withValueTranslation(myValueTranslateWithWrongInputType);
     String expectedMessage =
         String.format(
             "Value translation's input type is not same as hadoop InputFormat :  "
                 + "%s value class : %s",
-            serConf.getHadoopConfiguration().getClass("mapreduce.job.inputformat.class",
+            serConf.get().getClass("mapreduce.job.inputformat.class",
                 InputFormat.class),
-            serConf.getHadoopConfiguration().getClass("value.class", Object.class));
+            serConf.get().getClass("value.class", Object.class));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
     read.validateTransform();
@@ -387,7 +387,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadingData() throws Exception {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
-        .withConfiguration(serConf.getHadoopConfiguration());
+        .withConfiguration(serConf.get());
     List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
     PCollection<KV<Text, Employee>> actual = p.apply("ReadTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -413,11 +413,11 @@ public class HadoopInputFormatIOTest {
     assertThat(
         displayData,
         hasDisplayItem("mapreduce.job.inputformat.class",
-            serConf.getHadoopConfiguration().get("mapreduce.job.inputformat.class")));
+            serConf.get().get("mapreduce.job.inputformat.class")));
     assertThat(displayData,
-        hasDisplayItem("key.class", serConf.getHadoopConfiguration().get("key.class")));
+        hasDisplayItem("key.class", serConf.get().get("key.class")));
     assertThat(displayData,
-        hasDisplayItem("value.class", serConf.getHadoopConfiguration().get("value.class")));
+        hasDisplayItem("value.class", serConf.get().get("value.class")));
   }
 
   /**

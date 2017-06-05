@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -52,22 +51,20 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * The evaluation context for a specific pipeline being executed by the
- * {@link DirectRunner}. Contains state shared within the execution across all
- * transforms.
+ * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
+ * Contains state shared within the execution across all transforms.
  *
- * <p>{@link EvaluationContext} contains shared state for an execution of the
- * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
- * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and managing the
- * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
- * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
- * known to be empty).
+ * <p>{@link EvaluationContext} contains shared state for an execution of the {@link DirectRunner}
+ * that can be used while evaluating a {@link PTransform}. This consists of views into underlying
+ * state and watermark implementations, access to read and write {@link PCollectionView
+ * PCollectionViews}, and managing the {@link DirectExecutionContext ExecutionContexts}. This
+ * includes executing callbacks asynchronously when state changes to the appropriate point (e.g.
+ * when a {@link PCollectionView} is requested and known to be empty).
  *
- * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based
- * on the current global state and updating the global state appropriately. This includes updating
- * the per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that
- * can be executed.
+ * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based on the
+ * current global state and updating the global state appropriately. This includes updating the
+ * per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that can be
+ * executed.
  */
 class EvaluationContext {
   /**
@@ -279,11 +276,26 @@ class EvaluationContext {
    * callback will be executed regardless of whether values have been produced.
    */
   public void scheduleAfterOutputWouldBeProduced(
-      PValue value,
+      PCollection<?> value,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
+    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
+
+    fireAvailableCallbacks(producing);
+  }
+
+  /**
+   * Schedule a callback to be executed after output would be produced for the given window if there
+   * had been input.
+   */
+  public void scheduleAfterOutputWouldBeProduced(
+      PCollectionView<?> view,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -312,7 +324,7 @@ class EvaluationContext {
   }
 
   /**
-   * Get an {@link ExecutionContext} for the provided {@link AppliedPTransform} and key.
+   * Get a {@link DirectExecutionContext} for the provided {@link AppliedPTransform} and key.
    */
   public DirectExecutionContext getExecutionContext(
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {

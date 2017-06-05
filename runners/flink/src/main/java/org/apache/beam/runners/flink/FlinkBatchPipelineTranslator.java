@@ -112,7 +112,7 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
 
     // create the applied PTransform on the batchContext
-    batchContext.setCurrentTransform(node.toAppliedPTransform());
+    batchContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     typedTranslator.translateNode(typedTransform, batchContext);
   }
 

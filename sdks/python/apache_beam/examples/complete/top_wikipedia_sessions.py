@@ -159,14 +159,12 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | ReadFromText(known_args.input)
-   | ComputeTopSessions(known_args.sampling_threshold)
-   | WriteToText(known_args.output))
-
-  p.run()
+    (p  # pylint: disable=expression-not-assigned
+     | ReadFromText(known_args.input)
+     | ComputeTopSessions(known_args.sampling_threshold)
+     | WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

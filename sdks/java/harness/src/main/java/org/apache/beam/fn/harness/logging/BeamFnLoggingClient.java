@@ -38,7 +38,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -179,11 +178,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
     private final BlockingDeque<BeamFnApi.LogEntry> bufferedLogEntries =
         new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private final Future<?> bufferedLogWriter;
-    private final ThreadLocal<Consumer<BeamFnApi.LogEntry>> logEntryHandler;
+    /**
+     * Safe object publishing is not required since we only care if the thread that set
+     * this field is equal to the thread also attempting to add a log entry.
+     */
+    private Thread logEntryHandlerThread;
 
     private LogRecordHandler(ExecutorService executorService) {
       bufferedLogWriter = executorService.submit(this);
-      logEntryHandler = new ThreadLocal<>();
     }
 
     @Override
@@ -204,19 +206,18 @@ public class BeamFnLoggingClient implements AutoCloseable {
         builder.setTrace(getStackTraceAsString(record.getThrown()));
       }
       // The thread that sends log records should never perform a blocking publish and
-      // only insert log records best effort. We detect which thread is logging
-      // by using the thread local, defaulting to the blocking publish.
-      MoreObjects.firstNonNull(
-          logEntryHandler.get(), this::blockingPublish).accept(builder.build());
-    }
-
-    /** Blocks caller till enough space exists to publish this log entry. */
-    private void blockingPublish(BeamFnApi.LogEntry logEntry) {
-      try {
-        bufferedLogEntries.put(logEntry);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+      // only insert log records best effort.
+      if (Thread.currentThread() != logEntryHandlerThread) {
+        // Blocks caller till enough space exists to publish this log entry.
+        try {
+          bufferedLogEntries.put(builder.build());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(e);
+        }
+      } else {
+        // Never blocks caller, will drop log message if buffer is full.
+        bufferedLogEntries.offer(builder.build());
       }
     }
 
@@ -225,7 +226,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
       // Logging which occurs in this thread will attempt to publish log entries into the
       // above handler which should never block if the queue is full otherwise
       // this thread will get stuck.
-      logEntryHandler.set(bufferedLogEntries::offer);
+      logEntryHandlerThread = Thread.currentThread();
+
       List<BeamFnApi.LogEntry> additionalLogEntries =
           new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
       try {

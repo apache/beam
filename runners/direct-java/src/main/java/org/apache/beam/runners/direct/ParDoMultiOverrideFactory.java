@@ -19,13 +19,15 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.protobuf.Message;
 import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -165,8 +167,12 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     }
   }
 
+  static final String DIRECT_STATEFUL_PAR_DO_URN =
+      "urn:beam:directrunner:transforms:stateful_pardo:v1";
+
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
+      extends PTransformTranslation.RawPTransform<
+          PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple, Message> {
     private final transient MultiOutput<KV<K, InputT>, OutputT> underlyingParDo;
     private final transient PCollection<KV<K, InputT>> originalInput;
 
@@ -200,6 +206,11 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               input.isBounded());
 
       return outputs;
+    }
+
+    @Override
+    public String getUrn() {
+      return DIRECT_STATEFUL_PAR_DO_URN;
     }
   }
 

@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
-class SdkComponents {
+public class SdkComponents {
   private final RunnerApi.Components.Builder componentsBuilder;
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds;
@@ -62,10 +62,10 @@ class SdkComponents {
     return new SdkComponents();
   }
 
-  public static RunnerApi.Pipeline translatePipeline(Pipeline p) {
+  public static RunnerApi.Pipeline translatePipeline(Pipeline pipeline) {
     final SdkComponents components = create();
     final Collection<String> rootIds = new HashSet<>();
-    p.traverseTopologically(
+    pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =
               ArrayListMultimap.create();
@@ -77,9 +77,10 @@ class SdkComponents {
                 rootIds.add(components.getExistingPTransformId(pipelineRoot));
               }
             } else {
-              children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+              children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
               try {
-                components.registerPTransform(node.toAppliedPTransform(), children.get(node));
+                components.registerPTransform(
+                    node.toAppliedPTransform(getPipeline()), children.get(node));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -88,10 +89,11 @@ class SdkComponents {
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+            children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
             try {
               components.registerPTransform(
-                  node.toAppliedPTransform(), Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+                  node.toAppliedPTransform(getPipeline()),
+                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }
@@ -129,7 +131,8 @@ class SdkComponents {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
+    componentsBuilder.putTransforms(name, PTransformTranslation
+        .toProto(appliedPTransform, children, this));
     return name;
   }
 
@@ -174,7 +177,8 @@ class SdkComponents {
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
-    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
+    componentsBuilder.putPcollections(
+        uniqueName, PCollectionTranslation.toProto(pCollection, this));
     return uniqueName;
   }
 
@@ -196,7 +200,7 @@ class SdkComponents {
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
     RunnerApi.WindowingStrategy windowingStrategyProto =
-        WindowingStrategies.toProto(windowingStrategy, this);
+        WindowingStrategyTranslation.toProto(windowingStrategy, this);
     componentsBuilder.putWindowingStrategies(name, windowingStrategyProto);
     return name;
   }
@@ -218,7 +222,7 @@ class SdkComponents {
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(Equivalence.identity().wrap(coder), name);
-    RunnerApi.Coder coderProto = Coders.toProto(coder, this);
+    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
     return name;
   }

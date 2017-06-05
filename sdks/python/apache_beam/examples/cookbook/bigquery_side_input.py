@@ -88,32 +88,31 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  group_ids = []
-  for i in xrange(0, int(known_args.num_groups)):
-    group_ids.append('id' + str(i))
+    group_ids = []
+    for i in xrange(0, int(known_args.num_groups)):
+      group_ids.append('id' + str(i))
 
-  query_corpus = 'select UNIQUE(corpus) from publicdata:samples.shakespeare'
-  query_word = 'select UNIQUE(word) from publicdata:samples.shakespeare'
-  ignore_corpus = known_args.ignore_corpus
-  ignore_word = known_args.ignore_word
+    query_corpus = 'select UNIQUE(corpus) from publicdata:samples.shakespeare'
+    query_word = 'select UNIQUE(word) from publicdata:samples.shakespeare'
+    ignore_corpus = known_args.ignore_corpus
+    ignore_word = known_args.ignore_word
 
-  pcoll_corpus = p | 'read corpus' >> beam.io.Read(
-      beam.io.BigQuerySource(query=query_corpus))
-  pcoll_word = p | 'read_words' >> beam.io.Read(
-      beam.io.BigQuerySource(query=query_word))
-  pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
-      [ignore_corpus])
-  pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
-  pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
+    pcoll_corpus = p | 'read corpus' >> beam.io.Read(
+        beam.io.BigQuerySource(query=query_corpus))
+    pcoll_word = p | 'read_words' >> beam.io.Read(
+        beam.io.BigQuerySource(query=query_word))
+    pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
+        [ignore_corpus])
+    pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
+    pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
 
-  pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
-                               pcoll_ignore_corpus, pcoll_ignore_word)
+    pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
+                                 pcoll_ignore_corpus, pcoll_ignore_word)
 
-  # pylint:disable=expression-not-assigned
-  pcoll_groups | WriteToText(known_args.output)
-  p.run()
+    # pylint:disable=expression-not-assigned
+    pcoll_groups | WriteToText(known_args.output)
 
 
 if __name__ == '__main__':

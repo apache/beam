@@ -20,11 +20,12 @@ package org.apache.beam.runners.flink;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -78,6 +79,10 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
                 PTransformOverride.of(
                     PTransformMatchers.splittableParDoMulti(),
                     new SplittableParDoOverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
+                    new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.classEqualTo(View.AsIterable.class),
@@ -183,7 +188,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
     // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     typedTranslator.translateNode(typedTransform, streamingContext);
   }
 
@@ -198,7 +203,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     @SuppressWarnings("unchecked")
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
 
     return typedTranslator.canTranslate(typedTransform, streamingContext);
   }

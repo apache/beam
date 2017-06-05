@@ -29,8 +29,7 @@ import org.apache.beam.sdk.values.PInput;
  * Provides {@link CommittedBundle bundles} that will be provided to the {@link PTransform
  * PTransforms} that are at the root of a {@link Pipeline}.
  */
-interface RootInputProvider<
-    T, ShardT, InputT extends PInput, TransformT extends PTransform<InputT, PCollection<T>>> {
+interface RootInputProvider<T, ShardT, InputT extends PInput> {
   /**
    * Get the initial inputs for the {@link AppliedPTransform}. The {@link AppliedPTransform} will be
    * provided with these {@link CommittedBundle bundles} as input when the {@link Pipeline} runs.
@@ -44,6 +43,8 @@ interface RootInputProvider<
    *     greater than or equal to 1.
    */
   Collection<CommittedBundle<ShardT>> getInitialInputs(
-      AppliedPTransform<InputT, PCollection<T>, TransformT> transform, int targetParallelism)
+      AppliedPTransform<InputT, PCollection<T>, PTransform<InputT, PCollection<T>>>
+          transform,
+      int targetParallelism)
       throws Exception;
 }

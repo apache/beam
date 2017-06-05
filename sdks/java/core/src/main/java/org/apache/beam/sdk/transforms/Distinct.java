@@ -17,9 +17,15 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code Distinct<T>} takes a {@code PCollection<T>} and
@@ -59,6 +65,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class Distinct<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
+  private static final Logger LOG = LoggerFactory.getLogger(Distinct.class);
+
   /**
    * Returns a {@code Distinct<T>} {@code PTransform}.
    *
@@ -66,7 +74,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    * {@code PCollection}s
    */
   public static <T> Distinct<T> create() {
-    return new Distinct<T>();
+    return new Distinct<>();
   }
 
   /**
@@ -78,26 +86,48 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    */
   public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
       SerializableFunction<T, IdT> fn) {
-    return new WithRepresentativeValues<T, IdT>(fn, null);
+    return new WithRepresentativeValues<>(fn, null);
+  }
+
+  private static <T, W extends BoundedWindow> void validateWindowStrategy(
+      WindowingStrategy<T, W> strategy) {
+    if (!strategy.getWindowFn().isNonMerging()
+        && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
+        || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
+        throw new UnsupportedOperationException(String.format(
+            "%s does not support non-merging windowing strategies, except when using the default "
+                + "trigger and zero allowed lateness.", Distinct.class.getSimpleName()));
+    }
   }
 
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    return in
-        .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
-          @Override
-          public KV<T, Void> apply(T element) {
-            return KV.of(element, (Void) null);
-          }
-        }))
-        .apply(Combine.<T, Void>perKey(
-            new SerializableFunction<Iterable<Void>, Void>() {
+    validateWindowStrategy(in.getWindowingStrategy());
+    PCollection<KV<T, Void>> combined =
+        in.apply("KeyByElement", MapElements.via(
+            new SimpleFunction<T, KV<T, Void>>() {
               @Override
-              public Void apply(Iterable<Void> iter) {
-                return null; // ignore input
-                }
+              public KV<T, Void> apply(T element) {
+                return KV.of(element, (Void) null);
+              }
             }))
-        .apply(Keys.<T>create());
+            .apply("DropValues",
+                Combine.<T, Void>perKey(
+                    new SerializableFunction<Iterable<Void>, Void>() {
+                      @Override
+                      public Void apply(Iterable<Void> iter) {
+                        return null; // ignore input
+                      }
+                    }));
+    return combined.apply("ExtractFirstKey", ParDo.of(new DoFn<KV<T, Void>, T>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        if (c.pane().isFirst()) {
+          // Only output the key if it's the first time it's been seen.
+          c.output(c.element().getKey());
+        }
+      }
+    }));
   }
 
   /**
@@ -120,22 +150,32 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       this.representativeType = representativeType;
     }
 
+
     @Override
     public PCollection<T> expand(PCollection<T> in) {
+      validateWindowStrategy(in.getWindowingStrategy());
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
       }
-      return in
-          .apply(withKeys)
-          .apply(Combine.<IdT, T, T>perKey(
+      PCollection<KV<IdT, T>> combined = in
+          .apply("KeyByRepresentativeValue", withKeys)
+          .apply("OneValuePerKey", Combine.<IdT, T, T>perKey(
               new Combine.BinaryCombineFn<T>() {
                 @Override
                 public T apply(T left, T right) {
                   return left;
                 }
-              }))
-          .apply(Values.<T>create());
+              }));
+        return combined.apply("KeepFirstPane", ParDo.of(new DoFn<KV<IdT, T>, T>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            // Only output the value if it's the first time it's been seen.
+            if (c.pane().isFirst()) {
+              c.output(c.element().getValue());
+            }
+          }
+        }));
     }
 
     /**

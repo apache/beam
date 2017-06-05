@@ -147,18 +147,15 @@ def model_pipelines(argv):
   pipeline_options = PipelineOptions(argv)
   my_options = pipeline_options.view_as(MyOptions)
 
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p
-   | beam.io.ReadFromText(my_options.input)
-   | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | beam.Map(lambda x: (x, 1))
-   | beam.combiners.Count.PerKey()
-   | beam.io.WriteToText(my_options.output))
-
-  result = p.run()
+    (p
+     | beam.io.ReadFromText(my_options.input)
+     | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+     | beam.Map(lambda x: (x, 1))
+     | beam.combiners.Count.PerKey()
+     | beam.io.WriteToText(my_options.output))
   # [END model_pipelines]
-  result.wait_until_finish()
 
 
 def model_pcollection(argv):
@@ -178,21 +175,18 @@ def model_pcollection(argv):
   my_options = pipeline_options.view_as(MyOptions)
 
   # [START model_pcollection]
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  lines = (p
-           | beam.Create([
-               'To be, or not to be: that is the question: ',
-               'Whether \'tis nobler in the mind to suffer ',
-               'The slings and arrows of outrageous fortune, ',
-               'Or to take arms against a sea of troubles, ']))
-  # [END model_pcollection]
+    lines = (p
+             | beam.Create([
+                 'To be, or not to be: that is the question: ',
+                 'Whether \'tis nobler in the mind to suffer ',
+                 'The slings and arrows of outrageous fortune, ',
+                 'Or to take arms against a sea of troubles, ']))
+    # [END model_pcollection]
 
-  (lines
-   | beam.io.WriteToText(my_options.output))
-
-  result = p.run()
-  result.wait_until_finish()
+    (lines
+     | beam.io.WriteToText(my_options.output))
 
 
 def pipeline_options_remote(argv):
@@ -297,12 +291,10 @@ def pipeline_options_command_line(argv):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # Create the Pipeline with remaining arguments.
-  p = beam.Pipeline(argv=pipeline_args)
-  lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
-  lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
-  # [END pipeline_options_command_line]
-
-  p.run().wait_until_finish()
+  with beam.Pipeline(argv=pipeline_args) as p:
+    lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
+    lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
+    # [END pipeline_options_command_line]
 
 
 def pipeline_logging(lines, output):
@@ -329,13 +321,11 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  (p
-   | beam.Create(lines)
-   | beam.ParDo(ExtractWordsFn())
-   | beam.io.WriteToText(output))
-
-  p.run()
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    (p
+     | beam.Create(lines)
+     | beam.ParDo(ExtractWordsFn())
+     | beam.io.WriteToText(output))
 
 
 def pipeline_monitoring(renames):
@@ -385,20 +375,19 @@ def pipeline_monitoring(renames):
 
   pipeline_options = PipelineOptions()
   options = pipeline_options.view_as(WordCountOptions)
-  p = TestPipeline()  # Use TestPipeline for testing.
+  with TestPipeline() as p:  # Use TestPipeline for testing.
 
-  # [START pipeline_monitoring_execution]
-  (p
-   # Read the lines of the input text.
-   | 'ReadLines' >> beam.io.ReadFromText(options.input)
-   # Count the words.
-   | CountWords()
-   # Write the formatted word counts to output.
-   | 'WriteCounts' >> beam.io.WriteToText(options.output))
-  # [END pipeline_monitoring_execution]
+    # [START pipeline_monitoring_execution]
+    (p
+     # Read the lines of the input text.
+     | 'ReadLines' >> beam.io.ReadFromText(options.input)
+     # Count the words.
+     | CountWords()
+     # Write the formatted word counts to output.
+     | 'WriteCounts' >> beam.io.WriteToText(options.output))
+    # [END pipeline_monitoring_execution]
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def examples_wordcount_minimal(renames):
@@ -478,40 +467,84 @@ def examples_wordcount_wordcount(renames):
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
-  p = beam.Pipeline(options=options)
-  # [END examples_wordcount_wordcount_options]
+  with beam.Pipeline(options=options) as p:
+    # [END examples_wordcount_wordcount_options]
 
-  lines = p | beam.io.ReadFromText(
-      'gs://dataflow-samples/shakespeare/kinglear.txt')
+    lines = p | beam.io.ReadFromText(
+        'gs://dataflow-samples/shakespeare/kinglear.txt')
 
-  # [START examples_wordcount_wordcount_composite]
-  class CountWords(beam.PTransform):
+    # [START examples_wordcount_wordcount_composite]
+    class CountWords(beam.PTransform):
 
-    def expand(self, pcoll):
-      return (pcoll
-              # Convert lines of text into individual words.
-              | 'ExtractWords' >> beam.FlatMap(
-                  lambda x: re.findall(r'[A-Za-z\']+', x))
+      def expand(self, pcoll):
+        return (pcoll
+                # Convert lines of text into individual words.
+                | 'ExtractWords' >> beam.FlatMap(
+                    lambda x: re.findall(r'[A-Za-z\']+', x))
 
-              # Count the number of times each word occurs.
-              | beam.combiners.Count.PerElement())
+                # Count the number of times each word occurs.
+                | beam.combiners.Count.PerElement())
 
-  counts = lines | CountWords()
-  # [END examples_wordcount_wordcount_composite]
+    counts = lines | CountWords()
+    # [END examples_wordcount_wordcount_composite]
 
-  # [START examples_wordcount_wordcount_dofn]
-  class FormatAsTextFn(beam.DoFn):
+    # [START examples_wordcount_wordcount_dofn]
+    class FormatAsTextFn(beam.DoFn):
 
-    def process(self, element):
-      word, count = element
-      yield '%s: %s' % (word, count)
+      def process(self, element):
+        word, count = element
+        yield '%s: %s' % (word, count)
 
-  formatted = counts | beam.ParDo(FormatAsTextFn())
-  # [END examples_wordcount_wordcount_dofn]
+    formatted = counts | beam.ParDo(FormatAsTextFn())
+    # [END examples_wordcount_wordcount_dofn]
 
-  formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
+    formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
+    p.visit(SnippetUtils.RenameFiles(renames))
+
+
+def examples_wordcount_templated(renames):
+  """Templated WordCount example snippet."""
+  import re
+
+  import apache_beam as beam
+  from apache_beam.io import ReadFromText
+  from apache_beam.io import WriteToText
+  from apache_beam.options.pipeline_options import PipelineOptions
+
+  # [START example_wordcount_templated]
+  class WordcountTemplatedOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      # Use add_value_provider_argument for arguments to be templatable
+      # Use add_argument as usual for non-templatable arguments
+      parser.add_value_provider_argument(
+          '--input',
+          help='Path of the file to read from')
+      parser.add_argument(
+          '--output',
+          required=True,
+          help='Output file to write results to.')
+  pipeline_options = PipelineOptions(['--output', 'some/output_path'])
+  p = beam.Pipeline(options=pipeline_options)
+
+  wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
+  lines = p | 'Read' >> ReadFromText(wordcount_options.input)
+  # [END example_wordcount_templated]
+
+  (
+      lines
+      | 'ExtractWords' >> beam.FlatMap(
+          lambda x: re.findall(r'[A-Za-z\']+', x))
+      | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+      | 'Group' >> beam.GroupByKey()
+      | 'Sum' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+      | 'Format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+      | 'Write' >> WriteToText(wordcount_options.output)
+  )
+
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run().wait_until_finish()
+  result = p.run()
+  result.wait_until_finish()
 
 
 def examples_wordcount_debugging(renames):
@@ -558,27 +591,68 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  filtered_words = (
-      p
-      | beam.io.ReadFromText(
-          'gs://dataflow-samples/shakespeare/kinglear.txt')
-      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-      | beam.combiners.Count.PerElement()
-      | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    filtered_words = (
+        p
+        | beam.io.ReadFromText(
+            'gs://dataflow-samples/shakespeare/kinglear.txt')
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: re.findall(r'[A-Za-z\']+', x))
+        | beam.combiners.Count.PerElement()
+        | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
-  # [START example_wordcount_debugging_assert]
-  beam.testing.util.assert_that(
-      filtered_words, beam.testing.util.equal_to(
-          [('Flourish', 3), ('stomach', 1)]))
-  # [END example_wordcount_debugging_assert]
+    # [START example_wordcount_debugging_assert]
+    beam.testing.util.assert_that(
+        filtered_words, beam.testing.util.equal_to(
+            [('Flourish', 3), ('stomach', 1)]))
+    # [END example_wordcount_debugging_assert]
 
-  output = (filtered_words
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
+    output = (filtered_words
+              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
+
+    p.visit(SnippetUtils.RenameFiles(renames))
+
+
+def examples_ptransforms_templated(renames):
+  # [START examples_ptransforms_templated]
+  import apache_beam as beam
+  from apache_beam.io import WriteToText
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.options.value_provider import StaticValueProvider
+
+  class TemplatedUserOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_value_provider_argument('--templated_int', type=int)
+
+  class MySumFn(beam.DoFn):
+    def __init__(self, templated_int):
+      self.templated_int = templated_int
+
+    def process(self, an_int):
+      yield self.templated_int.get() + an_int
+
+  pipeline_options = PipelineOptions()
+  p = beam.Pipeline(options=pipeline_options)
+
+  user_options = pipeline_options.view_as(TemplatedUserOptions)
+  my_sum_fn = MySumFn(user_options.templated_int)
+  sum = (p
+         | 'ReadCollection' >> beam.io.ReadFromText(
+             'gs://some/integer_collection')
+         | 'StringToInt' >> beam.Map(lambda w: int(w))
+         | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
+         | 'WriteResultingCollection' >> WriteToText('some/output_path'))
+  # [END examples_ptransforms_templated]
+
+  # Templates are not supported by DirectRunner (only by DataflowRunner)
+  # so a value must be provided at graph-construction time
+  my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  result = p.run()
+  result.wait_until_finish()
 
 
 import apache_beam as beam
@@ -659,16 +733,14 @@ def model_custom_source(count):
 
   # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
-  p = beam.Pipeline(options=PipelineOptions())
-  numbers = p | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
-  # [END model_custom_source_use_new_source]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    numbers = p | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
+    # [END model_custom_source_use_new_source]
 
-  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  assert_that(
-      lines, equal_to(
-          ['line ' + str(number) for number in range(0, count)]))
-
-  p.run().wait_until_finish()
+    lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+    assert_that(
+        lines, equal_to(
+            ['line ' + str(number) for number in range(0, count)]))
 
   # We recommend users to start Source classes with an underscore to discourage
   # using the Source class directly when a PTransform for the source is
@@ -796,14 +868,12 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
 
   # Using the new sink in an example pipeline.
   # [START model_custom_sink_use_new_sink]
-  p = beam.Pipeline(options=PipelineOptions())
-  kvs = p | 'CreateKVs' >> beam.Create(KVs)
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    kvs = p | 'CreateKVs' >> beam.Create(KVs)
 
-  kvs | 'WriteToSimpleKV' >> beam.io.Write(
-      SimpleKVSink('http://url_to_simple_kv/', final_table_name))
-  # [END model_custom_sink_use_new_sink]
-
-  p.run().wait_until_finish()
+    kvs | 'WriteToSimpleKV' >> beam.io.Write(
+        SimpleKVSink('http://url_to_simple_kv/', final_table_name))
+    # [END model_custom_sink_use_new_sink]
 
   # We recommend users to start Sink class names with an underscore to
   # discourage using the Sink class directly when a PTransform for the sink is
@@ -828,13 +898,11 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   final_table_name = final_table_name_with_ptransform
 
   # [START model_custom_sink_use_ptransform]
-  p = beam.Pipeline(options=PipelineOptions())
-  kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
-  kvs | 'WriteToSimpleKV' >> WriteToKVSink(
-      'http://url_to_simple_kv/', final_table_name)
-  # [END model_custom_sink_use_ptransform]
-
-  p.run().wait_until_finish()
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
+    kvs | 'WriteToSimpleKV' >> WriteToKVSink(
+        'http://url_to_simple_kv/', final_table_name)
+    # [END model_custom_sink_use_ptransform]
 
 
 def model_textio(renames):
@@ -847,37 +915,35 @@ def model_textio(renames):
   from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_textio_read]
-  p = beam.Pipeline(options=PipelineOptions())
-  # [START model_pipelineio_read]
-  lines = p | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
-  # [END model_pipelineio_read]
-  # [END model_textio_read]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    # [START model_pipelineio_read]
+    lines = p | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
+    # [END model_pipelineio_read]
+    # [END model_textio_read]
 
-  # [START model_textio_write]
-  filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
-  # [START model_pipelineio_write]
-  filtered_words | 'WriteToText' >> beam.io.WriteToText(
-      '/path/to/numbers', file_name_suffix='.csv')
-  # [END model_pipelineio_write]
-  # [END model_textio_write]
+    # [START model_textio_write]
+    filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
+    # [START model_pipelineio_write]
+    filtered_words | 'WriteToText' >> beam.io.WriteToText(
+        '/path/to/numbers', file_name_suffix='.csv')
+    # [END model_pipelineio_write]
+    # [END model_textio_write]
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run().wait_until_finish()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def model_textio_compressed(renames, expected):
   """Using a Read Transform to read compressed text files."""
-  p = TestPipeline()
+  with TestPipeline() as p:
 
-  # [START model_textio_write_compressed]
-  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
-      '/path/to/input-*.csv.gz',
-      compression_type=beam.io.filesystem.CompressionTypes.GZIP)
-  # [END model_textio_write_compressed]
+    # [START model_textio_write_compressed]
+    lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+        '/path/to/input-*.csv.gz',
+        compression_type=beam.io.filesystem.CompressionTypes.GZIP)
+    # [END model_textio_write_compressed]
 
-  assert_that(lines, equal_to(expected))
-  p.visit(SnippetUtils.RenameFiles(renames))
-  p.run().wait_until_finish()
+    assert_that(lines, equal_to(expected))
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def model_datastoreio():
@@ -987,43 +1053,40 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  (p
-   | beam.Create(contents)
-   | CountWords()
-   | beam.io.WriteToText(output_path))
-  p.run()
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    (p
+     | beam.Create(contents)
+     | CountWords()
+     | beam.io.WriteToText(output_path))
 
 
 def model_multiple_pcollections_flatten(contents, output_path):
   """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
-  import apache_beam as beam
-  p = TestPipeline()  # Use TestPipeline for testing.
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
+  import apache_beam as beam
+  with TestPipeline() as p:  # Use TestPipeline for testing.
 
-  # Partition into deciles
-  partitioned = p | beam.Create(contents) | beam.Partition(partition_fn, 3)
-  pcoll1 = partitioned[0]
-  pcoll2 = partitioned[1]
-  pcoll3 = partitioned[2]
+    # Partition into deciles
+    partitioned = p | beam.Create(contents) | beam.Partition(partition_fn, 3)
+    pcoll1 = partitioned[0]
+    pcoll2 = partitioned[1]
+    pcoll3 = partitioned[2]
 
-  # Flatten them back into 1
+    # Flatten them back into 1
 
-  # A collection of PCollection objects can be represented simply
-  # as a tuple (or list) of PCollections.
-  # (The SDK for Python has no separate type to store multiple
-  # PCollection objects, whether containing the same or different
-  # types.)
-  # [START model_multiple_pcollections_flatten]
-  merged = (
-      (pcoll1, pcoll2, pcoll3)
-      # A list of tuples can be "piped" directly into a Flatten transform.
-      | beam.Flatten())
-  # [END model_multiple_pcollections_flatten]
-  merged | beam.io.WriteToText(output_path)
-
-  p.run()
+    # A collection of PCollection objects can be represented simply
+    # as a tuple (or list) of PCollections.
+    # (The SDK for Python has no separate type to store multiple
+    # PCollection objects, whether containing the same or different
+    # types.)
+    # [START model_multiple_pcollections_flatten]
+    merged = (
+        (pcoll1, pcoll2, pcoll3)
+        # A list of tuples can be "piped" directly into a Flatten transform.
+        | beam.Flatten())
+    # [END model_multiple_pcollections_flatten]
+    merged | beam.io.WriteToText(output_path)
 
 
 def model_multiple_pcollections_partition(contents, output_path):
@@ -1034,25 +1097,23 @@ def model_multiple_pcollections_partition(contents, output_path):
     """Assume i in [0,100)."""
     return i
   import apache_beam as beam
-  p = TestPipeline()  # Use TestPipeline for testing.
+  with TestPipeline() as p:  # Use TestPipeline for testing.
 
-  students = p | beam.Create(contents)
+    students = p | beam.Create(contents)
 
-  # [START model_multiple_pcollections_partition]
-  def partition_fn(student, num_partitions):
-    return int(get_percentile(student) * num_partitions / 100)
+    # [START model_multiple_pcollections_partition]
+    def partition_fn(student, num_partitions):
+      return int(get_percentile(student) * num_partitions / 100)
 
-  by_decile = students | beam.Partition(partition_fn, 10)
-  # [END model_multiple_pcollections_partition]
-  # [START model_multiple_pcollections_partition_40th]
-  fortieth_percentile = by_decile[4]
-  # [END model_multiple_pcollections_partition_40th]
+    by_decile = students | beam.Partition(partition_fn, 10)
+    # [END model_multiple_pcollections_partition]
+    # [START model_multiple_pcollections_partition_40th]
+    fortieth_percentile = by_decile[4]
+    # [END model_multiple_pcollections_partition_40th]
 
-  ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
-   | beam.Flatten()
-   | beam.io.WriteToText(output_path))
-
-  p.run()
+    ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
+     | beam.Flatten()
+     | beam.io.WriteToText(output_path))
 
 
 def model_group_by_key(contents, output_path):
@@ -1060,58 +1121,56 @@ def model_group_by_key(contents, output_path):
   import re
 
   import apache_beam as beam
-  p = TestPipeline()  # Use TestPipeline for testing.
-  words_and_counts = (
-      p
-      | beam.Create(contents)
-      | beam.FlatMap(lambda x: re.findall(r'\w+', x))
-      | 'one word' >> beam.Map(lambda w: (w, 1)))
-  # GroupByKey accepts a PCollection of (w, 1) and
-  # outputs a PCollection of (w, (1, 1, ...)).
-  # (A key/value pair is just a tuple in Python.)
-  # This is a somewhat forced example, since one could
-  # simply use beam.combiners.Count.PerElement here.
-  # [START model_group_by_key_transform]
-  grouped_words = words_and_counts | beam.GroupByKey()
-  # [END model_group_by_key_transform]
-  (grouped_words
-   | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
-   | beam.io.WriteToText(output_path))
-  p.run()
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    words_and_counts = (
+        p
+        | beam.Create(contents)
+        | beam.FlatMap(lambda x: re.findall(r'\w+', x))
+        | 'one word' >> beam.Map(lambda w: (w, 1)))
+    # GroupByKey accepts a PCollection of (w, 1) and
+    # outputs a PCollection of (w, (1, 1, ...)).
+    # (A key/value pair is just a tuple in Python.)
+    # This is a somewhat forced example, since one could
+    # simply use beam.combiners.Count.PerElement here.
+    # [START model_group_by_key_transform]
+    grouped_words = words_and_counts | beam.GroupByKey()
+    # [END model_group_by_key_transform]
+    (grouped_words
+     | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
+     | beam.io.WriteToText(output_path))
 
 
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
-  p = TestPipeline()  # Use TestPipeline for testing.
-  # [START model_group_by_key_cogroupbykey_tuple]
-  # Each data set is represented by key-value pairs in separate PCollections.
-  # Both data sets share a common key type (in this example str).
-  # The email_list contains values such as: ('joe', 'joe@example.com') with
-  # multiple possible values for each key.
-  # The phone_list contains values such as: ('mary': '111-222-3333') with
-  # multiple possible values for each key.
-  emails = p | 'email' >> beam.Create(email_list)
-  phones = p | 'phone' >> beam.Create(phone_list)
-  # The result PCollection contains one key-value element for each key in the
-  # input PCollections. The key of the pair will be the key from the input and
-  # the value will be a dictionary with two entries: 'emails' - an iterable of
-  # all values for the current key in the emails PCollection and 'phones': an
-  # iterable of all values for the current key in the phones PCollection.
-  # For instance, if 'emails' contained ('joe', 'joe@example.com') and
-  # ('joe', 'joe@gmail.com'), then 'result' will contain the element
-  # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
-  result = {'emails': emails, 'phones': phones} | beam.CoGroupByKey()
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    # [START model_group_by_key_cogroupbykey_tuple]
+    # Each data set is represented by key-value pairs in separate PCollections.
+    # Both data sets share a common key type (in this example str).
+    # The email_list contains values such as: ('joe', 'joe@example.com') with
+    # multiple possible values for each key.
+    # The phone_list contains values such as: ('mary': '111-222-3333') with
+    # multiple possible values for each key.
+    emails = p | 'email' >> beam.Create(email_list)
+    phones = p | 'phone' >> beam.Create(phone_list)
+    # The result PCollection contains one key-value element for each key in the
+    # input PCollections. The key of the pair will be the key from the input and
+    # the value will be a dictionary with two entries: 'emails' - an iterable of
+    # all values for the current key in the emails PCollection and 'phones': an
+    # iterable of all values for the current key in the phones PCollection.
+    # For instance, if 'emails' contained ('joe', 'joe@example.com') and
+    # ('joe', 'joe@gmail.com'), then 'result' will contain the element
+    # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
+    result = {'emails': emails, 'phones': phones} | beam.CoGroupByKey()
 
-  def join_info((name, info)):
-    return '; '.join(['%s' % name,
-                      '%s' % ','.join(info['emails']),
-                      '%s' % ','.join(info['phones'])])
+    def join_info((name, info)):
+      return '; '.join(['%s' % name,
+                        '%s' % ','.join(info['emails']),
+                        '%s' % ','.join(info['phones'])])
 
-  contact_lines = result | beam.Map(join_info)
-  # [END model_group_by_key_cogroupbykey_tuple]
-  contact_lines | beam.io.WriteToText(output_path)
-  p.run()
+    contact_lines = result | beam.Map(join_info)
+    # [END model_group_by_key_cogroupbykey_tuple]
+    contact_lines | beam.io.WriteToText(output_path)
 
 
 def model_join_using_side_inputs(
@@ -1121,35 +1180,34 @@ def model_join_using_side_inputs(
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  # [START model_join_using_side_inputs]
-  # This code performs a join by receiving the set of names as an input and
-  # passing PCollections that contain emails and phone numbers as side inputs
-  # instead of using CoGroupByKey.
-  names = p | 'names' >> beam.Create(name_list)
-  emails = p | 'email' >> beam.Create(email_list)
-  phones = p | 'phone' >> beam.Create(phone_list)
+  with TestPipeline() as p:  # Use TestPipeline for testing.
+    # [START model_join_using_side_inputs]
+    # This code performs a join by receiving the set of names as an input and
+    # passing PCollections that contain emails and phone numbers as side inputs
+    # instead of using CoGroupByKey.
+    names = p | 'names' >> beam.Create(name_list)
+    emails = p | 'email' >> beam.Create(email_list)
+    phones = p | 'phone' >> beam.Create(phone_list)
 
-  def join_info(name, emails, phone_numbers):
-    filtered_emails = []
-    for name_in_list, email in emails:
-      if name_in_list == name:
-        filtered_emails.append(email)
+    def join_info(name, emails, phone_numbers):
+      filtered_emails = []
+      for name_in_list, email in emails:
+        if name_in_list == name:
+          filtered_emails.append(email)
 
-    filtered_phone_numbers = []
-    for name_in_list, phone_number in phone_numbers:
-      if name_in_list == name:
-        filtered_phone_numbers.append(phone_number)
+      filtered_phone_numbers = []
+      for name_in_list, phone_number in phone_numbers:
+        if name_in_list == name:
+          filtered_phone_numbers.append(phone_number)
 
-    return '; '.join(['%s' % name,
-                      '%s' % ','.join(filtered_emails),
-                      '%s' % ','.join(filtered_phone_numbers)])
+      return '; '.join(['%s' % name,
+                        '%s' % ','.join(filtered_emails),
+                        '%s' % ','.join(filtered_phone_numbers)])
 
-  contact_lines = names | 'CreateContacts' >> beam.core.Map(
-      join_info, AsIter(emails), AsIter(phones))
-  # [END model_join_using_side_inputs]
-  contact_lines | beam.io.WriteToText(output_path)
-  p.run()
+    contact_lines = names | 'CreateContacts' >> beam.core.Map(
+        join_info, AsIter(emails), AsIter(phones))
+    # [END model_join_using_side_inputs]
+    contact_lines | beam.io.WriteToText(output_path)
 
 
 # [START model_library_transforms_keys]

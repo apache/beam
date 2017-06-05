@@ -176,7 +176,13 @@ public class GcsUtil {
       char c = src[i++];
       switch (c) {
         case '*':
-          dst.append(".*");
+          // One char lookahead for **
+          if (i < src.length && src[i] == '*') {
+            dst.append(".*");
+            ++i;
+          } else {
+            dst.append("[^/]*");
+          }
           break;
         case '?':
           dst.append("[^/]");

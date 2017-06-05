@@ -112,7 +112,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundleKey)
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
     DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
 

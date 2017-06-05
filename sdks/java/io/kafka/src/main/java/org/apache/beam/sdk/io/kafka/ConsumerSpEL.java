@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Map;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.expression.Expression;
@@ -51,12 +57,27 @@ class ConsumerSpEL {
   private Method timestampMethod;
   private boolean hasRecordTimestamp = false;
 
+  private Method offsetGetterMethod;
+  private Method offsetsForTimesMethod;
+  private boolean hasOffsetsForTimes = false;
+
   public ConsumerSpEL() {
     try {
+      // It is supported by Kafka Client 0.10.0.0 onwards.
       timestampMethod = ConsumerRecord.class.getMethod("timestamp", (Class<?>[]) null);
       hasRecordTimestamp = timestampMethod.getReturnType().equals(Long.TYPE);
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Timestamp for Kafka message is not available.");
+    }
+
+    try {
+      // It is supported by Kafka Client 0.10.1.0 onwards.
+      offsetGetterMethod = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp")
+          .getMethod("offset", (Class<?>[]) null);
+      offsetsForTimesMethod = Consumer.class.getMethod("offsetsForTimes", Map.class);
+      hasOffsetsForTimes = offsetsForTimesMethod.getReturnType().equals(Map.class);
+    } catch (NoSuchMethodException | SecurityException | ClassNotFoundException e) {
+      LOG.debug("OffsetsForTimes is not available.");
     }
   }
 
@@ -88,4 +109,39 @@ class ConsumerSpEL {
     }
     return timestamp;
   }
+
+  public boolean hasOffsetsForTimes() {
+    return hasOffsetsForTimes;
+  }
+
+  /**
+   * Look up the offset for the given partition by timestamp.
+   * Throws RuntimeException if there are no messages later than timestamp or if this partition
+   * does not support timestamp based offset.
+   */
+  @SuppressWarnings("unchecked")
+  public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
+
+    checkArgument(hasOffsetsForTimes,
+        "This Kafka Client must support Consumer.OffsetsForTimes().");
+
+    Map<TopicPartition, Long> timestampsToSearch =
+        ImmutableMap.of(topicPartition, time.getMillis());
+    try {
+      Map offsetsByTimes = (Map) offsetsForTimesMethod.invoke(consumer, timestampsToSearch);
+      Object offsetAndTimestamp = Iterables.getOnlyElement(offsetsByTimes.values());
+
+      if (offsetAndTimestamp == null) {
+        throw new RuntimeException("There are no messages has a timestamp that is greater than or "
+            + "equals to the target time or the message format version in this partition is "
+            + "before 0.10.0, topicPartition is: " + topicPartition);
+      } else {
+        return (long) offsetGetterMethod.invoke(offsetAndTimestamp);
+      }
+    } catch (IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException(e);
+    }
+
+  }
+
 }

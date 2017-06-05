@@ -208,6 +208,14 @@ public class DatastoreV1 {
   static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
+   * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
+   * exceeds this limit. This is set lower than the 10MB limit on the RPC, as this only accounts for
+   * the mutations themselves and not the CommitRequest wrapper around them.
+   */
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 5_000_000;
+
+  /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
    * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using
    * {@link DatastoreV1.Read#withProjectId}, {@link DatastoreV1.Read#withQuery},
@@ -1123,6 +1131,7 @@ public class DatastoreV1 {
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
+    private int mutationsSize = 0;  // Accumulated size of protos in mutations.
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -1152,7 +1161,14 @@ public class DatastoreV1 {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
+      Mutation write = c.element();
+      int size = write.getSerializedSize();
+      if (mutations.size() > 0
+          && mutationsSize + size >= DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT) {
+        flushBatch();
+      }
       mutations.add(c.element());
+      mutationsSize += size;
       if (mutations.size() >= DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT) {
         flushBatch();
       }
@@ -1203,6 +1219,7 @@ public class DatastoreV1 {
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
       mutations.clear();
+      mutationsSize = 0;
     }
 
     @Override

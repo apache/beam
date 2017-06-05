@@ -33,10 +33,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -180,16 +180,17 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @AutoValue
-  abstract static class BoundedSourceShard<T> {
+  abstract static class BoundedSourceShard<T> implements SourceShard<T> {
     static <T> BoundedSourceShard<T> of(BoundedSource<T> source) {
       return new AutoValue_BoundedReadEvaluatorFactory_BoundedSourceShard<>(source);
     }
 
-    abstract BoundedSource<T> getSource();
+    @Override
+    public abstract BoundedSource<T> getSource();
   }
 
   static class InputProvider<T>
-      implements RootInputProvider<T, BoundedSourceShard<T>, PBegin, Read.Bounded<T>> {
+      implements RootInputProvider<T, BoundedSourceShard<T>, PBegin> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -198,9 +199,10 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public Collection<CommittedBundle<BoundedSourceShard<T>>> getInitialInputs(
-        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform, int targetParallelism)
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform,
+        int targetParallelism)
         throws Exception {
-      BoundedSource<T> source = transform.getTransform().getSource();
+      BoundedSource<T> source = ReadTranslation.boundedSourceFromTransform(transform);
       PipelineOptions options = evaluationContext.getPipelineOptions();
       long estimatedBytes = source.getEstimatedSizeBytes(options);
       long bytesPerBundle = estimatedBytes / targetParallelism;

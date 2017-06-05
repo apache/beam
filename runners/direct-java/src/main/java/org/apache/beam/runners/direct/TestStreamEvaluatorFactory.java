@@ -22,12 +22,14 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.Message;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -180,7 +182,10 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
-    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+    static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
+
+    static class DirectTestStream<T>
+        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>, Message> {
       private final transient DirectRunner runner;
       private final TestStream<T> original;
 
@@ -197,12 +202,15 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
                 input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
             .setCoder(original.getValueCoder());
       }
+
+      @Override
+      public String getUrn() {
+        return DIRECT_TEST_STREAM_URN;
+      }
     }
   }
 
-  static class InputProvider<T>
-      implements RootInputProvider<
-          T, TestStreamIndex<T>, PBegin, DirectTestStreamFactory.DirectTestStream<T>> {
+  static class InputProvider<T> implements RootInputProvider<T, TestStreamIndex<T>, PBegin> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -211,15 +219,17 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public Collection<CommittedBundle<TestStreamIndex<T>>> getInitialInputs(
-        AppliedPTransform<PBegin, PCollection<T>, DirectTestStreamFactory.DirectTestStream<T>>
-            transform,
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform,
         int targetParallelism) {
+
+      // This will always be run on an execution-time transform, so it can be downcast
+      DirectTestStreamFactory.DirectTestStream<T> testStream =
+          (DirectTestStreamFactory.DirectTestStream<T>) transform.getTransform();
+
       CommittedBundle<TestStreamIndex<T>> initialBundle =
           evaluationContext
               .<TestStreamIndex<T>>createRootBundle()
-              .add(
-                  WindowedValue.valueInGlobalWindow(
-                      TestStreamIndex.of(transform.getTransform().original)))
+              .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(testStream.original)))
               .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
       return Collections.singleton(initialBundle);
     }

@@ -56,7 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.WindowingStrategies;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
@@ -124,7 +124,7 @@ public class DataflowPipelineTranslator {
 
   private static byte[] serializeWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
     try {
-      return WindowingStrategies.toProto(windowingStrategy).toByteArray();
+      return WindowingStrategyTranslation.toProto(windowingStrategy).toByteArray();
     } catch (Exception e) {
       throw new RuntimeException(
           String.format("Unable to format windowing strategy %s as bytes", windowingStrategy), e);
@@ -431,18 +431,18 @@ public class DataflowPipelineTranslator {
           transform,
           node.getFullName());
       LOG.debug("Translating {}", transform);
-      currentTransform = node.toAppliedPTransform();
+      currentTransform = node.toAppliedPTransform(getPipeline());
       translator.translate(transform, this);
       currentTransform = null;
     }
 
     @Override
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
-      producers.put(value, producer.toAppliedPTransform());
+      producers.put(value, producer.toAppliedPTransform(getPipeline()));
       LOG.debug("Checking translation of {}", value);
       if (!producer.isCompositeNode()) {
         // Primitive transforms are the only ones assigned step names.
-        asOutputReference(value, producer.toAppliedPTransform());
+        asOutputReference(value, producer.toAppliedPTransform(getPipeline()));
       }
     }
 

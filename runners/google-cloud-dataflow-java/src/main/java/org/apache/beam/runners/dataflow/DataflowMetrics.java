@@ -149,7 +149,7 @@ class DataflowMetrics extends MetricResults {
             || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
           // Skip distribution metrics, as these are not yet properly supported.
           LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
-              + "User Interface");
+              + " User Interface");
           continue;
         }
 
