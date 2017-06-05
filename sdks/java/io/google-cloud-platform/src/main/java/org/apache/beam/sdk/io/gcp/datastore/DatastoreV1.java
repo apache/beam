@@ -213,7 +213,7 @@ public class DatastoreV1 {
    * the mutations themselves and not the CommitRequest wrapper around them.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 5_000_000;
+  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
