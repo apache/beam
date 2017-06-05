@@ -81,8 +81,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     if (windowFieldIdx != -1) {
       upstream = upstream.apply("assignEventTimestamp", WithTimestamps
           .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
-          .setCoder(upstream.getCoder())
-          ;
+          .setCoder(upstream.getCoder());
     }
 
     PCollection<BeamSQLRow> windowStream = upstream.apply("window",
@@ -96,22 +95,19 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
                 windowFieldIdx, groupSet)))
-        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, upstream.getCoder()))
-        ;
+        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, upstream.getCoder()));
 
     PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
         .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create())
         .setCoder(KvCoder.<BeamSQLRow, Iterable<BeamSQLRow>>of(keyCoder,
-            IterableCoder.<BeamSQLRow>of(upstream.getCoder())))
-        ;
+            IterableCoder.<BeamSQLRow>of(upstream.getCoder())));
 
     BeamSqlRowCoder aggCoder = new BeamSqlRowCoder(exAggFieldsSchema());
     PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
         Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
                 BeamSQLRecordType.from(input.getRowType()))))
-        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, aggCoder))
-        ;
+        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, aggCoder));
 
     PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(

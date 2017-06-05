@@ -33,7 +33,7 @@ public class BeamSqlEnv {
   public static SchemaPlus schema;
   public static BeamQueryPlanner planner;
 
-  static{
+  static {
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(schema);
   }
@@ -60,5 +60,4 @@ public class BeamSqlEnv {
   public static BaseBeamTable findTable(String tableName){
     return planner.getSourceTables().get(tableName);
   }
-
 }

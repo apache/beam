@@ -34,7 +34,6 @@ public interface BeamRelNode extends RelNode {
    * A {@link BeamRelNode} is a recursive structure, the
    * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
    * algorithm.
-   *
    */
   PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections) throws Exception;
 }
