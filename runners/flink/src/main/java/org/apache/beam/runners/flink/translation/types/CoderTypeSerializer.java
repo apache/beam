@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.types;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.Objects;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -139,24 +140,28 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-    if (configSnapshot instanceof CoderTypeSerializerConfigSnapshot) {
-      if (coder.equals(((CoderTypeSerializerConfigSnapshot<?>) configSnapshot).coder)) {
-        return CompatibilityResult.compatible();
-      }
+    if (snapshotConfiguration().equals(configSnapshot)) {
+      return CompatibilityResult.compatible();
     }
     return CompatibilityResult.requiresMigration();
   }
 
   /**
-   *  TypeSerializerConfigSnapshot of CoderTypeSerializer.
+   *  TypeSerializerConfigSnapshot of CoderTypeSerializer. This uses the class name of the
+   *  {@link Coder} to determine compatibility. This is a bit crude but better than using
+   *  Java Serialization to (de)serialize the {@link Coder}.
    */
   public static class CoderTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot {
 
     private static final int VERSION = 1;
-    private Coder<T> coder;
+    private String coderName;
+
+    public CoderTypeSerializerConfigSnapshot() {
+      // empty constructor for satisfying IOReadableWritable which is used for deserialization
+    }
 
     public CoderTypeSerializerConfigSnapshot(Coder<T> coder) {
-      this.coder = coder;
+      this.coderName = coder.getClass().getCanonicalName();
     }
 
     @Override
@@ -175,13 +180,31 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
       CoderTypeSerializerConfigSnapshot<?> that = (CoderTypeSerializerConfigSnapshot<?>) o;
 
-      return coder != null ? coder.equals(that.coder) : that.coder == null;
+      return coderName != null ? coderName.equals(that.coderName) : that.coderName == null;
+    }
+
+    @Override
+    public void write(DataOutputView out) throws IOException {
+      super.write(out);
+      out.writeUTF(coderName);
+    }
+
+    @Override
+    public void read(DataInputView in) throws IOException {
+      super.read(in);
+      this.coderName = in.readUTF();
     }
 
     @Override
     public int hashCode() {
-      return coder.hashCode();
+      return Objects.hash(coderName);
     }
   }
 
+  @Override
+  public String toString() {
+    return "CoderTypeSerializer{"
+        + "coder=" + coder
+        + '}';
+  }
 }
