@@ -167,7 +167,7 @@ class BatchLoads<DestinationT>
 
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
-    final PCollectionView<String> jobIdTokenView =
+    final PCollection<String> jobIdToken =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
                 "CreateJobId",
@@ -175,28 +175,27 @@ class BatchLoads<DestinationT>
                     new SimpleFunction<String, String>() {
                       @Override
                       public String apply(String input) {
-                        String jobId = BigQueryHelpers.randomUUIDString();
-                        return jobId;
+                        return BigQueryHelpers.randomUUIDString();
                       }
-                    }))
-            .apply(View.<String>asSingleton());
+                    }));
+    final PCollectionView<String> jobIdTokenView = jobIdToken.apply(View.<String>asSingleton());
 
-    PCollectionView<String> tempFilePrefix =
-        p.apply("Create", Create.of((Void) null))
+
+    PCollectionView<String> tempFilePrefix = jobIdToken
             .apply(
                 "GetTempFilePrefix",
                 ParDo.of(
-                    new DoFn<Void, String>() {
+                    new DoFn<String, String>() {
                       @ProcessElement
                       public void getTempFilePrefix(ProcessContext c) {
                         String tempLocation = resolveTempLocation(
                             c.getPipelineOptions().getTempLocation(),
-                            "BigQueryWriteTemp", c.sideInput(jobIdTokenView));
+                            "BigQueryWriteTemp", c.element());
                         LOG.info("Writing BigQuery temporary files to {} before loading them.",
                             tempLocation);
                         c.output(tempLocation);
                       }
-                    }).withSideInputs(jobIdTokenView))
+                    }))
             .apply("TempFilePrefixView", View.<String>asSingleton());
 
     PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
