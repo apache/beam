@@ -24,7 +24,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -158,7 +158,7 @@ public class PipelineTranslation {
     // TODO: ParDoTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
     if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
       RunnerApi.ParDoPayload payload =
-          transformSpec.getParameter().unpack(RunnerApi.ParDoPayload.class);
+          RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
 
       List<PCollectionView<?>> views = new ArrayList<>();
       for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
@@ -182,7 +182,7 @@ public class PipelineTranslation {
     List<Coder<?>> additionalCoders = Collections.emptyList();
     if (transformSpec.getUrn().equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
       RunnerApi.CombinePayload payload =
-          transformSpec.getParameter().unpack(RunnerApi.CombinePayload.class);
+          RunnerApi.CombinePayload.parseFrom(transformSpec.getPayload());
       additionalCoders =
           (List)
               Collections.singletonList(
@@ -192,7 +192,7 @@ public class PipelineTranslation {
     RehydratedPTransform transform =
         RehydratedPTransform.of(
             transformSpec.getUrn(),
-            transformSpec.getParameter(),
+            transformSpec.getPayload(),
             additionalInputs,
             additionalCoders);
 
@@ -233,7 +233,7 @@ public class PipelineTranslation {
     public abstract String getUrn();
 
     @Nullable
-    public abstract Any getPayload();
+    public abstract ByteString getPayload();
 
     @Override
     public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
@@ -242,7 +242,7 @@ public class PipelineTranslation {
 
     public static RehydratedPTransform of(
         String urn,
-        Any payload,
+        ByteString payload,
         Map<TupleTag<?>, PValue> additionalInputs,
         List<Coder<?>> additionalCoders) {
       return new AutoValue_PipelineTranslation_RehydratedPTransform(

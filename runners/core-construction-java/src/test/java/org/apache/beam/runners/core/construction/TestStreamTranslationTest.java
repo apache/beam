@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -100,8 +101,7 @@ public class TestStreamTranslationTest {
 
       assertThat(spec.getUrn(), equalTo(TEST_STREAM_TRANSFORM_URN));
 
-      RunnerApi.TestStreamPayload payload =
-          spec.getParameter().unpack(RunnerApi.TestStreamPayload.class);
+      RunnerApi.TestStreamPayload payload = TestStreamPayload.parseFrom(spec.getPayload());
 
       verifyTestStreamEncoding(
           testStream, payload, RehydratedComponents.forComponents(components.toComponents()));

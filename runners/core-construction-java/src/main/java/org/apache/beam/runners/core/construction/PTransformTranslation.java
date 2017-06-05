@@ -21,7 +21,7 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -131,9 +131,9 @@ public class PTransformTranslation {
 
       if (rawPTransform.getUrn() != null) {
         FunctionSpec.Builder payload = FunctionSpec.newBuilder().setUrn(rawPTransform.getUrn());
-        @Nullable Any parameter = rawPTransform.getPayload();
+        @Nullable ByteString parameter = rawPTransform.getPayload();
         if (parameter != null) {
-          payload.setParameter(parameter);
+          payload.setPayload(parameter);
         }
         transformBuilder.setSpec(payload);
       }
@@ -224,7 +224,7 @@ public class PTransformTranslation {
     public abstract String getUrn();
 
     @Nullable
-    public Any getPayload() {
+    public ByteString getPayload() {
       return null;
     }
 
@@ -254,9 +254,9 @@ public class PTransformTranslation {
       FunctionSpec.Builder transformSpec =
           FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
 
-      Any payload = transform.getTransform().getPayload();
+      ByteString payload = transform.getTransform().getPayload();
       if (payload != null) {
-        transformSpec.setParameter(payload);
+        transformSpec.setPayload(payload);
       }
 
       // Transforms like Combine may have Coders that need to be added but do not
