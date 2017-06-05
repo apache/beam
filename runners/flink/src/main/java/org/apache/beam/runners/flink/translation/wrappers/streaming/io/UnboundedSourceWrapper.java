@@ -283,6 +283,8 @@ public class UnboundedSourceWrapper<
         }
       }
 
+      setNextWatermarkTimer(this.runtimeContext);
+
       // a flag telling us whether any of the localReaders had data
       // if no reader had data, sleep for bit
       boolean hadData = false;
