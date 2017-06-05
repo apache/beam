@@ -18,12 +18,13 @@
 package org.apache.beam.dsls.sql.rel;
 
 import com.google.common.base.Joiner;
-
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -40,18 +41,24 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
 
-    String sourceName = Joiner.on('.').join(getTable().getQualifiedName()).replace(".(STREAM)", "");
-
-    BaseBeamTable sourceTable = planCreator.getSourceTables().get(sourceName);
+    String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> sourceStream = sourceTable.buildIOReader(planCreator.getPipeline());
-
-    return sourceStream;
+    TupleTag<BeamSQLRow> sourceTupleTag = new TupleTag<BeamSQLRow>(sourceName);
+    if (inputPCollections.has(sourceTupleTag)) {
+      //choose PCollection from input PCollectionTuple if exists there.
+      PCollection<BeamSQLRow> sourceStream = inputPCollections
+          .get(new TupleTag<BeamSQLRow>(sourceName));
+      return sourceStream;
+    } else {
+      //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
+      BaseBeamTable sourceTable = BeamSqlEnv.findTable(sourceName);
+      return sourceTable.buildIOReader(inputPCollections.getPipeline());
+    }
   }
 
 }
