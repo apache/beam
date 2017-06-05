@@ -218,16 +218,16 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       def side_inputs(self):
         for transform in self.transforms:
           if transform.spec.urn == urns.PARDO_TRANSFORM:
-            payload = proto_utils.unpack_Any(
-                transform.spec.parameter, beam_runner_api_pb2.ParDoPayload)
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             for side_input in payload.side_inputs:
               yield transform.inputs[side_input]
 
       def has_as_main_input(self, pcoll):
         for transform in self.transforms:
           if transform.spec.urn == urns.PARDO_TRANSFORM:
-            payload = proto_utils.unpack_Any(
-                transform.spec.parameter, beam_runner_api_pb2.ParDoPayload)
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             local_side_inputs = payload.side_inputs
           else:
             local_side_inputs = {}
@@ -257,9 +257,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         transform = stage.transforms[0]
         if transform.spec.urn == urns.GROUP_BY_KEY_ONLY_TRANSFORM:
           # This is used later to correlate the read and write.
-          param = proto_utils.pack_Any(
-              wrappers_pb2.BytesValue(
-                  value=str("group:%s" % stage.name)))
+          param = str("group:%s" % stage.name)
           gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(
@@ -267,7 +265,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   inputs=transform.inputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
-                      parameter=param))],
+                      any_param=proto_utils.pack_Any(
+                          wrappers_pb2.BytesValue(value=param)),
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           yield gbk_write
@@ -279,7 +279,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      parameter=param))],
+                      any_param=proto_utils.pack_Any(
+                          wrappers_pb2.BytesValue(value=param)),
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
@@ -299,9 +301,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         transform = stage.transforms[0]
         if transform.spec.urn == urns.FLATTEN_TRANSFORM:
           # This is used later to correlate the read and writes.
-          param = proto_utils.pack_Any(
-              wrappers_pb2.BytesValue(
-                  value=str("materialize:%s" % transform.unique_name)))
+          param = str("materialize:%s" % transform.unique_name)
           output_pcoll_id, = transform.outputs.values()
           output_coder_id = pcollections[output_pcoll_id].coder_id
           flatten_writes = []
@@ -337,7 +337,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                     inputs={local_in: transcoded_pcollection},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        parameter=param))],
+                        any_param=proto_utils.pack_Any(
+                            wrappers_pb2.BytesValue(
+                                value=param)),
+                        payload=param))],
                 downstream_side_inputs=frozenset(),
                 must_follow=stage.must_follow)
             flatten_writes.append(flatten_write)
@@ -350,7 +353,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      parameter=param))],
+                      any_param=proto_utils.pack_Any(
+                          wrappers_pb2.BytesValue(
+                              value=param)),
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
@@ -439,9 +445,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
       # Now try to fuse away all pcollections.
       for pcoll, producer in producers_by_pcoll.items():
-        pcoll_as_param = proto_utils.pack_Any(
-            wrappers_pb2.BytesValue(
-                value=str("materialize:%s" % pcoll)))
+        pcoll_as_param = str("materialize:%s" % pcoll)
         write_pcoll = None
         for consumer in consumers_by_pcoll[pcoll]:
           producer = replacement(producer)
@@ -461,7 +465,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       inputs={'in': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          parameter=pcoll_as_param))])
+                          any_param=proto_utils.pack_Any(
+                              wrappers_pb2.BytesValue(
+                                  value=pcoll_as_param)),
+                          payload=pcoll_as_param))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
               read_pcoll = Stage(
@@ -471,7 +478,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       outputs={'out': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          parameter=pcoll_as_param))],
+                          any_param=proto_utils.pack_Any(
+                              wrappers_pb2.BytesValue(
+                                  value=pcoll_as_param)),
+                          payload=pcoll_as_param))],
                   must_follow={write_pcoll})
               fuse(read_pcoll, consumer)
 
@@ -567,8 +577,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       data_side_input = {}
       data_output = {}
       for transform in stage.transforms:
-        pcoll_id = proto_utils.unpack_Any(
-            transform.spec.parameter, wrappers_pb2.BytesValue).value
+        pcoll_id = transform.spec.payload
         if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                   bundle_processor.DATA_OUTPUT_URN):
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
@@ -580,9 +589,11 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           else:
             raise NotImplementedError
           if data_operation_spec:
-            transform.spec.parameter.CopyFrom(data_operation_spec)
+            transform.spec.payload = data_operation_spec
+            transform.spec.any_param.CopyFrom(data_operation_spec)
           else:
-            transform.spec.parameter.Clear()
+            transform.spec.payload = ""
+            transform.spec.any_param.Clear()
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
@@ -728,7 +739,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.DATA_OUTPUT_URN,
-            parameter=proto_utils.pack_Any(data_operation_spec))
+            any_param=proto_utils.pack_Any(data_operation_spec),
+            payload=data_operation_spec.SerializeToString() \
+                if data_operation_spec is not None else None)
 
       elif isinstance(operation, operation_specs.WorkerRead):
         # A Read from an in-memory source is done over the data plane.
@@ -742,19 +755,23 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.DATA_INPUT_URN,
-              parameter=proto_utils.pack_Any(data_operation_spec))
+              any_param=proto_utils.pack_Any(data_operation_spec),
+              payload=data_operation_spec.SerializeToString() \
+                  if data_operation_spec is not None else None)
 
         else:
           # Otherwise serialize the source and execute it there.
           # TODO: Use SDFs with an initial impulse.
           # The Dataflow runner harness strips the base64 encoding. do the same
           # here until we get the same thing back that we sent in.
+          source_bytes = base64.b64decode(
+              pickler.dumps(operation.source.source))
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.PYTHON_SOURCE_URN,
-              parameter=proto_utils.pack_Any(
+              any_param=proto_utils.pack_Any(
                   wrappers_pb2.BytesValue(
-                      value=base64.b64decode(
-                          pickler.dumps(operation.source.source)))))
+                      value=source_bytes)),
+              payload=source_bytes)
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
         # Record the contents of each side input for access via the state api.
@@ -773,8 +790,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.PYTHON_DOFN_URN,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
+            any_param=proto_utils.pack_Any(
+                wrappers_pb2.BytesValue(value=augmented_serialized_fn)),
+            payload=augmented_serialized_fn)
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         # Flatten is nice and simple.

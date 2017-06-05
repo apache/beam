@@ -46,6 +46,17 @@ def unpack_Any(any_msg, msg_class):
   return msg
 
 
+def parse_Bytes(bytes, msg_class):
+  """Parses the String of bytes into msg_class.
+
+  Returns the input bytes if msg_class is None."""
+  if msg_class is None:
+    return bytes
+  msg = msg_class()
+  msg.ParseFromString(bytes)
+  return msg
+
+
 def pack_Struct(**kwargs):
   """Returns a struct containing the values indicated by kwargs.
   """

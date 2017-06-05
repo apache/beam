@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.BytesValue;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -98,8 +97,7 @@ public class CreatePCollectionViewTranslationTest {
       PCollectionView<?> deserializedView =
           (PCollectionView<?>)
               SerializableUtils.deserializeFromByteArray(
-                  payload.getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-                  PCollectionView.class.getSimpleName());
+                  payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
 
       assertThat(
           deserializedView, Matchers.<PCollectionView<?>>equalTo(createViewTransform.getView()));
@@ -126,7 +124,7 @@ public class CreatePCollectionViewTranslationTest {
       PCollectionView<?> deserializedView =
           (PCollectionView<?>)
               SerializableUtils.deserializeFromByteArray(
-                  payload.getParameter().unpack(BytesValue.class).getValue().toByteArray(),
+                  payload.getPayload().toByteArray(),
                   PCollectionView.class.getSimpleName());
 
       assertThat(
