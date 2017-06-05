@@ -104,7 +104,8 @@ public class BeamFnDataGrpcMultiplexer {
               KV.of(data.getInstructionReference(), data.getTarget());
           CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = futureForKey(key);
           if (!consumer.isDone()) {
-            LOG.debug("Received data for key {} without consumer ready.", key);
+            LOG.debug("Received data for key {} without consumer ready. "
+                + "Waiting for consumer to be registered.", key);
           }
           consumer.get().accept(data);
           if (data.getData().isEmpty()) {
