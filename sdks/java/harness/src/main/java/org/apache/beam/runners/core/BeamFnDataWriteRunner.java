@@ -29,6 +29,7 @@ import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -51,13 +52,13 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
 
   public BeamFnDataWriteRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
-      BeamFnApi.Coder coderSpec,
+      RunnerApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getData().unpack(BeamFnApi.RemoteGrpcPort.class)
+    this.apiServiceDescriptor = functionSpec.getParameter().unpack(BeamFnApi.RemoteGrpcPort.class)
         .getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
@@ -70,8 +71,9 @@ public class BeamFnDataWriteRunner<InputT> {
                 CloudObject.fromSpec(
                     OBJECT_MAPPER.readValue(
                         coderSpec
-                            .getFunctionSpec()
-                            .getData()
+                            .getSpec()
+                            .getSpec()
+                            .getParameter()
                             .unpack(BytesValue.class)
                             .getValue()
                             .newInput(),
