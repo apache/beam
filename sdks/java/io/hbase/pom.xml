@@ -31,7 +31,7 @@
   <description>Library to read and write from/to HBase</description>
 
   <properties>
-    <hbase.version>1.2.5</hbase.version>
+    <hbase.version>1.2.6</hbase.version>
     <hbase.hadoop.version>2.5.1</hbase.hadoop.version>
   </properties>
 
