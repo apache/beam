@@ -24,11 +24,11 @@ import java.util.List;
 
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -48,7 +48,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   private final DoFnRunners.OutputManager outputManager;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
-  private final ExecutionContext.StepContext stepContext;
+  private final StepContext stepContext;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   public DoFnRunnerFactory(
@@ -58,7 +58,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       DoFnRunners.OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
-      ExecutionContext.StepContext stepContext,
+      StepContext stepContext,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = doFn;
     this.options = pipelineOptions;

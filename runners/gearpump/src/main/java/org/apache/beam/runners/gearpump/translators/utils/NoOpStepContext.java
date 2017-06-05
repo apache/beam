@@ -18,47 +18,16 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
-import java.io.IOException;
 import java.io.Serializable;
 
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * serializable {@link ExecutionContext.StepContext} that basically does nothing.
+ * serializable {@link StepContext} that basically does nothing.
  */
-public class NoOpStepContext implements ExecutionContext.StepContext, Serializable {
-
-  @Override
-  public String getStepName() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public String getTransformName() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void noteOutput(WindowedValue<?> output) {
-  }
-
-  @Override
-  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
-
-  }
-
-  @Override
-  public <T, W extends BoundedWindow> void writePCollectionViewData(TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data,
-      Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder) throws
-      IOException {
-  }
+public class NoOpStepContext implements StepContext, Serializable {
 
   @Override
   public StateInternals stateInternals() {

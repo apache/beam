@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
@@ -52,8 +53,8 @@ public class TranslationContext {
     this.pipelineOptions = pipelineOptions;
   }
 
-  public void setCurrentTransform(TransformHierarchy.Node treeNode) {
-    this.currentTransform = treeNode.toAppliedPTransform();
+  public void setCurrentTransform(TransformHierarchy.Node treeNode, Pipeline pipeline) {
+    this.currentTransform = treeNode.toAppliedPTransform(pipeline);
   }
 
   public GearpumpPipelineOptions getPipelineOptions() {

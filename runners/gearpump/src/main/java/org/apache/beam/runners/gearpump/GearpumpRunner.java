@@ -95,19 +95,22 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
    */
   private Config registerSerializers(Config config, Map<String, String> userSerializers) {
     Map<String, String> serializers = new HashMap<>();
+    serializers.put("org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow", "");
     serializers.put("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInSingleWindow", "");
+    serializers.put("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow", "");
+    serializers.put("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInMultipleWindows", "");
     serializers.put("org.apache.beam.sdk.transforms.windowing.PaneInfo", "");
     serializers.put("org.apache.beam.sdk.transforms.windowing.PaneInfo$Timing", "");
     serializers.put("org.joda.time.Instant", "");
     serializers.put("org.apache.beam.sdk.values.KV", "");
     serializers.put("org.apache.beam.sdk.transforms.windowing.IntervalWindow", "");
     serializers.put("org.apache.beam.sdk.values.TimestampedValue", "");
+
     if (userSerializers != null && !userSerializers.isEmpty()) {
       serializers.putAll(userSerializers);
     }
+
     return config.withValue(GEARPUMP_SERIALIZERS, ConfigValueFactory.fromMap(serializers));
   }
-
-
 
 }
