@@ -89,7 +89,7 @@ public class BeamFnControlClient {
   private class InboundObserver implements StreamObserver<BeamFnApi.InstructionRequest> {
     @Override
     public void onNext(BeamFnApi.InstructionRequest value) {
-      LOG.info("InstructionRequest received {}", value);
+      LOG.debug("Received InstructionRequest {}", value);
       Uninterruptibles.putUninterruptibly(bufferedInstructions, value);
     }
 
@@ -155,6 +155,7 @@ public class BeamFnControlClient {
   }
 
   public void sendInstructionResponse(BeamFnApi.InstructionResponse value) {
+    LOG.debug("Sending InstructionResponse {}", value);
     outboundObserver.onNext(value);
   }
 
