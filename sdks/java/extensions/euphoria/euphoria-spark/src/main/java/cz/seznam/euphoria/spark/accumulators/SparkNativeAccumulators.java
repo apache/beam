@@ -27,6 +27,7 @@ import org.apache.spark.util.AccumulatorV2;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Integrates the native Spark accumulators. Accumulators will be
@@ -99,11 +100,11 @@ public class SparkNativeAccumulators implements AccumulatorProvider, Serializabl
     private final Map<String, SparkAccumulator> accs;
 
     public SparkAccumulatorHolder() {
-      this.accs = new HashMap<>();
+      this.accs = new ConcurrentHashMap<>();
     }
 
     public SparkAccumulatorHolder(Map<String, SparkAccumulator> accs) {
-      this.accs = new HashMap<>(accs);
+      this.accs = new ConcurrentHashMap<>(accs);
     }
 
     @Override
