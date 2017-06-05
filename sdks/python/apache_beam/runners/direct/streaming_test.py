@@ -35,7 +35,8 @@ class StreamingTest(unittest.TestCase):
         .add_elements(['e'])
         .advance_processing_time(10)
         .advance_watermark_to(300)
-        .add_elements([window.TimestampedValue('late', 12)]))
+        .add_elements([window.TimestampedValue('late', 12)])
+        .add_elements([window.TimestampedValue('last', 310)]))
     p = beam.Pipeline(runner=DirectRunner())
     elements = p | test_stream
     groups = elements  | beam.Map(lambda x: ('k', x))| beam.WindowInto(window.FixedWindows(15)) | beam.GroupByKey()

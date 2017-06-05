@@ -312,7 +312,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
         result = evaluator.finish_bundle()
         result.logical_metric_updates = metrics_container.get_cumulative()
 
+      print 'self._evaluation_context.has_cache', self._evaluation_context.has_cache
       if self._evaluation_context.has_cache:
+        print 'result.uncommitted_output_bundles', result.uncommitted_output_bundles
         for uncommitted_bundle in result.uncommitted_output_bundles:
           self._evaluation_context.append_to_cache(
               self._applied_ptransform, uncommitted_bundle.tag,

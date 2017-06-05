@@ -33,6 +33,7 @@ from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
@@ -321,10 +322,12 @@ class _TestStreamEvaluator(_TransformEvaluator):
       raise ValueError('Invalid TestStream event: %s.' % event)
 
     unprocessed_bundle = None
+    hold = MAX_TIMESTAMP
     if self.current_index < len(self.test_stream.events) - 1:
       unprocessed_bundle = self._evaluation_context.create_bundle(
           self._applied_ptransform.inputs[0])
       unprocessed_bundle.add(GlobalWindows.windowed_value(self.current_index + 1, timestamp=watermark))
+      hold = watermark
 
 
 
@@ -332,7 +335,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
     return TransformResult(
         self._applied_ptransform, bundles, unprocessed_bundle, None, None, None,
-            None, None)
+            None, hold)
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -477,7 +480,6 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
     kv_type_hint = (
         self._applied_ptransform.transform.get_type_hints().input_types[0])
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
@@ -502,7 +504,9 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       kwi = KeyedWorkItem(k, elements=vs)
       bundle.add(GlobalWindows.windowed_value(kwi))
       bundles.append(bundle)
-
+    # if not bundles:
+    #   bundle = self._evaluation_context.create_keyed_bundle(self.output_pcollection, None)
+    #   bundles.append(bundle)
 
     return TransformResult(
         self._applied_ptransform, bundles, [], None, None, None, None, None)
@@ -545,6 +549,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.gabw_items = []
 
     # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    print 'GABW_TRANSFORM', self._applied_ptransform.transform, self._applied_ptransform.transform.get_type_hints(), self._applied_ptransform.transform.get_type_hints().input_types
     kv_type_hint = (
         self._applied_ptransform.transform.get_type_hints().input_types[0])
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])

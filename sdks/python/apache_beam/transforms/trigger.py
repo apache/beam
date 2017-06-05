@@ -36,6 +36,7 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 # AfterCount is experimental. No backwards compatibility guarantees.
 
@@ -836,6 +837,7 @@ def create_trigger_driver(windowing, is_batch=False, phased_combine_fn=None):
     driver = DefaultGlobalBatchTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing)
+  print 'DRIVER', driver
 
   if phased_combine_fn:
     # TODO(ccy): Refactor GeneralTriggerDriver to combine values eagerly using
@@ -1125,7 +1127,7 @@ class InMemoryUnmergedState(UnmergedState):
     for window, tagged_states in self.state.iteritems():
       # TODO: is this general enough?
       if 'watermark' in tagged_states:
-        hold = min(tagged_states['watermark']) - 1  # TODO: THIS SHOULD ACTUALLY BE 1 MICRO IF POSSIBLE
+        hold = min(tagged_states['watermark']) - TIME_GRANULARITY
         earliest_hold = min(earliest_hold, hold)
     return earliest_hold
 

@@ -1125,6 +1125,8 @@ class _GroupByKeyOnly(PTransform):
     return pvalue.PCollection(pcoll.pipeline)
 
 
+@typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
 
@@ -1132,6 +1134,10 @@ class _GroupAlsoByWindow(ParDo):
     super(_GroupAlsoByWindow, self).__init__(
         _GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
+
+  def expand(self, pcoll):
+    self._check_pcollection(pcoll)
+    return pvalue.PCollection(pcoll.pipeline)
 
 
 class _GroupAlsoByWindowDoFn(DoFn):
