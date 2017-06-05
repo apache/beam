@@ -21,11 +21,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,6 +48,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -88,7 +92,7 @@ public class UnboundedSourceWrapperTest {
      * If numSplits > numTasks the source has one source will manage multiple readers.
      */
     @Test
-    public void testReaders() throws Exception {
+    public void testValueEmission() throws Exception {
       final int numElements = 20;
       final Object checkpointLock = new Object();
       PipelineOptions options = PipelineOptionsFactory.create();
@@ -162,6 +166,106 @@ public class UnboundedSourceWrapperTest {
       }
       fail("Read terminated without producing expected number of outputs");
     }
+
+    /**
+     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source.
+     * If numSplits > numTasks the source has one source will manage multiple readers.
+     *
+     * <p>This test verifies that watermark are correctly forwarded.
+     */
+    @Test(timeout = 30_000)
+    public void testWatermarkEmission() throws Exception {
+      final int numElements = 500;
+      final Object checkpointLock = new Object();
+      PipelineOptions options = PipelineOptionsFactory.create();
+
+      // this source will emit exactly NUM_ELEMENTS across all parallel readers,
+      // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+      // elements later.
+      TestCountingSource source = new TestCountingSource(numElements);
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
+          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
+
+      assertEquals(numSplits, flinkWrapper.getSplitSources().size());
+
+      final StreamSource<WindowedValue<
+          ValueWithRecordId<KV<Integer, Integer>>>,
+          UnboundedSourceWrapper<
+              KV<Integer, Integer>,
+              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
+
+      final AbstractStreamOperatorTestHarness<
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> testHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              sourceOperator,
+              numTasks /* max parallelism */,
+              numTasks /* parallelism */,
+              0 /* subtask index */);
+
+      testHarness.setProcessingTime(Instant.now().getMillis());
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+
+      final ConcurrentLinkedQueue<Object> caughtExceptions = new ConcurrentLinkedQueue<>();
+
+      // use the AtomicBoolean just for the set()/get() functionality for communicating
+      // with the outer Thread
+      final AtomicBoolean seenWatermark = new AtomicBoolean(false);
+
+      new Thread() {
+        @Override
+        public void run() {
+          try {
+            testHarness.open();
+            sourceOperator.run(checkpointLock,
+                new TestStreamStatusMaintainer(),
+                new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+
+                  @Override
+                  public void emitWatermark(Watermark watermark) {
+                    if (watermark.getTimestamp() >= numElements / 2) {
+                      seenWatermark.set(true);
+                    }
+                  }
+
+                  @Override
+                  public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                  }
+
+                  @Override
+                  public void emitLatencyMarker(LatencyMarker latencyMarker) {
+                  }
+
+                  @Override
+                  public void collect(StreamRecord<WindowedValue<
+                      ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+                  }
+
+                  @Override
+                  public void close() {
+
+                  }
+                });
+          } catch (Exception e) {
+            System.out.println("Caught exception: " + e);
+            caughtExceptions.add(e);
+          }
+        }
+      }.start();
+
+      while (true) {
+        if (!caughtExceptions.isEmpty()) {
+          fail("Caught exception(s): " + Joiner.on(",").join(caughtExceptions));
+        }
+        if (seenWatermark.get()) {
+          break;
+        }
+        Thread.sleep(10);
+
+        // need to advance this so that the watermark timers in the source wrapper fire
+        testHarness.setProcessingTime(Instant.now().getMillis());
+      }
+    }
+
 
     /**
      * Verify that snapshot/restore work as expected. We bring up a source and cancel
