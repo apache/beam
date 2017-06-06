@@ -52,6 +52,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class JStormStateInternals<K> implements StateInternals {
 
+    private static final String STATE_INFO = "state-info:";
+
     @Nullable
     private final K key;
     private final IKvStoreManager kvStoreManager;
@@ -97,8 +99,9 @@ public class JStormStateInternals<K> implements StateInternals {
             @Override
             public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
                 try {
-                    return new JStormBagState<>(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, List<T>>getOrCreate(id));
+                    return new JStormBagState(
+                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(id),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
                 } catch (IOException e) {
                     throw new RuntimeException();
                 }
@@ -129,8 +132,10 @@ public class JStormStateInternals<K> implements StateInternals {
                     Coder<AccumT> accumCoder,
                     Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
                 try {
-                    BagState<AccumT> accumBagState = new JStormBagState<>(
-                        getKey(), namespace, kvStoreManager.<ComposedKey, List<AccumT>>getOrCreate(id));
+                    BagState<AccumT> accumBagState = new JStormBagState(
+                            getKey(), namespace,
+                            kvStoreManager.<ComposedKey, AccumT>getOrCreate(id),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
                     return new JStormCombiningState<>(accumBagState, combineFn);
                 } catch (IOException e) {
                     throw new RuntimeException();
@@ -153,10 +158,10 @@ public class JStormStateInternals<K> implements StateInternals {
                 StateSpec<WatermarkHoldState> spec,
                 final TimestampCombiner timestampCombiner) {
                 try {
-                    BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState<>(
-                            getKey(),
-                            namespace,
-                            kvStoreManager.<ComposedKey, List<Combine.Holder<Instant>>>getOrCreate(id));
+                    BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState(
+                            getKey(), namespace,
+                            kvStoreManager.<ComposedKey, Combine.Holder<Instant>>getOrCreate(id),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
 
                     Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
                             new BinaryCombineFn<Instant>() {
