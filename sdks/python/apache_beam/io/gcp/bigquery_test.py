@@ -870,7 +870,7 @@ class WriteToBigQuery(unittest.TestCase):
     self.assertTrue(client.tables.Get.called)
     self.assertTrue(client.tables.Insert.called)
 
-  def test_dofn_client_process_flush_not_called(self):
+  def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -902,8 +902,8 @@ class WriteToBigQuery(unittest.TestCase):
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    client.tabledata.InsertAll.return_value = \
-        bigquery.TableDataInsertAllResponse(insertErrors=[])
+    client.tabledata.InsertAll.return_value = (
+        bigquery.TableDataInsertAllResponse(insertErrors=[]))
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
@@ -954,6 +954,46 @@ class WriteToBigQuery(unittest.TestCase):
     fn.finish_bundle()
     # InsertRows called in finish bundle
     self.assertTrue(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_no_records(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+        bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema='month:INTEGER',
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows not called as batch size is not hit
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+    fn.finish_bundle()
+    # InsertRows not called in finish bundle as no records
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+  def test_simple_schema_parsing(self):
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
+        schema='s:STRING, n:INTEGER')
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    expected_table_schema = bigquery.TableSchema(
+        fields=[string_field, number_field])
+    self.assertEqual(expected_table_schema, table_schema)
 
 
 if __name__ == '__main__':
