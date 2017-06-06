@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -54,6 +55,9 @@ public class PTransformTranslation {
 
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
+
+  @Deprecated
+  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
 
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
@@ -123,7 +127,10 @@ public class PTransformTranslation {
   }
 
   /**
-   * Translates a non-composite {@link AppliedPTransform} into a runner API proto.
+   * Translates a composite {@link AppliedPTransform} into a runner API proto with no component
+   * transforms.
+   *
+   * <p>This should not be used when translating a {@link Pipeline}.
    *
    * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
    */
@@ -137,9 +144,11 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
+  /**
+   * Returns the URN for the transform if it is known, otherwise throws.
+   */
   public static String urnForTransform(PTransform<?, ?> transform) {
-    TransformPayloadTranslator translator =
-    KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
     if (translator == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
@@ -154,6 +163,7 @@ public class PTransformTranslation {
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
+
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
   }
