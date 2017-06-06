@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -123,7 +124,10 @@ public class PTransformTranslation {
   }
 
   /**
-   * Translates a non-composite {@link AppliedPTransform} into a runner API proto.
+   * Translates a composite {@link AppliedPTransform} into a runner API proto with no component
+   * transforms.
+   *
+   * <p>This should not be used when translating a {@link Pipeline}.
    *
    * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
    */
