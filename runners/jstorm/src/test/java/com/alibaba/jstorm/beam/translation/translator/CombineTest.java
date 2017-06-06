@@ -85,7 +85,7 @@ public class CombineTest implements Serializable {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
-        runTestSimpleCombine(TABLE, 20, Arrays.asList(KV.of("a", "114a"), KV.of("b", "113b")));
+        runTestSimpleCombine(TABLE, 20, Arrays.asList(KV.of("a", "114"), KV.of("b", "113")));
     }
 
     @Test
