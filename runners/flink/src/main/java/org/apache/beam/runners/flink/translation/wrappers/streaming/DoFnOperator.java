@@ -94,21 +94,21 @@ import org.joda.time.Instant;
  * Flink operator for executing {@link DoFn DoFns}.
  *
  * @param <InputT> the input type of the {@link DoFn}
- * @param <FnOutputT> the output type of the {@link DoFn}
+ * @param <OutputT> the output type of the {@link DoFn}
  * @param <OutputT> the output type of the operator, this can be different from the fn output
  *                 type when we have additional tagged outputs
  */
-public class DoFnOperator<InputT, FnOutputT, OutputT>
+public class DoFnOperator<InputT, OutputT>
     extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
       TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
     KeyGroupCheckpointedOperator, Triggerable<Object, TimerData> {
 
-  protected DoFn<InputT, FnOutputT> doFn;
+  protected DoFn<InputT, OutputT> doFn;
 
   protected final SerializedPipelineOptions serializedOptions;
 
-  protected final TupleTag<FnOutputT> mainOutputTag;
+  protected final TupleTag<OutputT> mainOutputTag;
   protected final List<TupleTag<?>> additionalOutputTags;
 
   protected final Collection<PCollectionView<?>> sideInputs;
@@ -118,8 +118,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected final OutputManagerFactory<OutputT> outputManagerFactory;
 
-  protected transient DoFnRunner<InputT, FnOutputT> doFnRunner;
-  protected transient PushbackSideInputDoFnRunner<InputT, FnOutputT> pushbackDoFnRunner;
+  protected transient DoFnRunner<InputT, OutputT> doFnRunner;
+  protected transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
 
   protected transient SideInputHandler sideInputHandler;
 
@@ -127,7 +127,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient DoFnRunners.OutputManager outputManager;
 
-  private transient DoFnInvoker<InputT, FnOutputT> doFnInvoker;
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   protected transient long currentInputWatermark;
 
@@ -156,10 +156,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   private transient Optional<Long> pushedBackWatermark;
 
   public DoFnOperator(
-      DoFn<InputT, FnOutputT> doFn,
+      DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputCoder,
-      TupleTag<FnOutputT> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
@@ -192,7 +192,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
   // the DoFn
-  protected DoFn<InputT, FnOutputT> getDoFn() {
+  protected DoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }
 
