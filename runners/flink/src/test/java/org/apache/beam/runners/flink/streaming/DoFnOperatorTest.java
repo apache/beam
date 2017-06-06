@@ -111,7 +111,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
         windowedValueCoder,
@@ -155,7 +155,7 @@ public class DoFnOperatorTest {
             .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()){})
             .build();
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(additionalOutput1, additionalOutput2),
         "stepName",
         windowedValueCoder,
@@ -223,7 +223,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<Integer, String> doFnOperator = new DoFnOperator<>(
         fn,
         "stepName",
         windowedValueCoder,
@@ -335,8 +335,7 @@ public class DoFnOperatorTest {
 
     TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<
-        KV<String, Integer>, KV<String, Integer>, KV<String, Integer>> doFnOperator =
+    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
@@ -433,7 +432,7 @@ public class DoFnOperatorTest {
       keyCoder = StringUtf8Coder.of();
     }
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
         windowedValueCoder,
