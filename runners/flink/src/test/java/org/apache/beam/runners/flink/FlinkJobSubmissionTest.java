@@ -34,6 +34,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -109,8 +113,17 @@ public class FlinkJobSubmissionTest implements Serializable {
     Configuration configuration = new Configuration();
 
     configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+    configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+    configuration.setInteger(JobManagerOptions.PORT, 6125);
 
-    LocalFlinkMiniCluster flinkMiniCluster = new LocalFlinkMiniCluster(configuration, false);
+    FlinkMiniCluster flinkMiniCluster = new LocalFlinkMiniCluster(
+        configuration,
+        HighAvailabilityServicesUtils.createHighAvailabilityServices(
+            configuration,
+            Executors.directExecutor(),
+            HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+        false);
+
     flinkMiniCluster.start();
 
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
@@ -162,6 +175,8 @@ public class FlinkJobSubmissionTest implements Serializable {
 
     PipelineResult.State state = job.waitUntilFinish();
     assertEquals(PipelineResult.State.CANCELLED, state);
+
+    flinkMiniCluster.shutdown();
   }
 
   @Test(timeout = 30_000)
@@ -197,8 +212,17 @@ public class FlinkJobSubmissionTest implements Serializable {
     Configuration configuration = new Configuration();
 
     configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+    configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+    configuration.setInteger(JobManagerOptions.PORT, 6124);
 
-    LocalFlinkMiniCluster flinkMiniCluster = new LocalFlinkMiniCluster(configuration, false);
+    FlinkMiniCluster flinkMiniCluster = new LocalFlinkMiniCluster(
+        configuration,
+        HighAvailabilityServicesUtils.createHighAvailabilityServices(
+            configuration,
+            Executors.directExecutor(),
+            HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+        false);
+
     flinkMiniCluster.start();
 
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
@@ -227,5 +251,7 @@ public class FlinkJobSubmissionTest implements Serializable {
 
     PipelineResult.State state = job.waitUntilFinish(Duration.standardSeconds(1));
     assertEquals(PipelineResult.State.RUNNING, state);
+
+    flinkMiniCluster.shutdown();
   }
 }

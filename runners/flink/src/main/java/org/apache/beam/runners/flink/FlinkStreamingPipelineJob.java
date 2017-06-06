@@ -167,7 +167,12 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     } catch (JobRetrievalException e) {
       return getState();
     } catch (JobExecutionException e) {
-      throw new RuntimeException("Job execution failed.", e);
+      // work around stupidity in JobClient
+      if (e.getMessage().contains("Interrupted while waiting for job completion")) {
+        return getState();
+      } else {
+        throw new RuntimeException("Job execution failed.", e);
+      }
     }
   }
 
@@ -191,7 +196,12 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     } catch (JobRetrievalException e) {
       return getState();
     } catch (JobExecutionException e) {
-      throw new RuntimeException("Job execution failed.", e);
+      // work around stupidity in JobClient
+      if (e.getMessage().contains("Interrupted while waiting for job completion")) {
+        return getState();
+      } else {
+        throw new RuntimeException("Job execution failed.", e);
+      }
     }
   }
 

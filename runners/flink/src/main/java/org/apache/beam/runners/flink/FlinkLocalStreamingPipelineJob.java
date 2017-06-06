@@ -33,9 +33,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobRetrievalException;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -90,12 +93,21 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
     configuration.setInteger(
         ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
+    configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+    configuration.setInteger(JobManagerOptions.PORT, 6123);
 
     if (LOG.isInfoEnabled()) {
       LOG.info("Running job on local embedded Flink mini cluster");
     }
 
-    flinkMiniCluster = new LocalFlinkMiniCluster(configuration, false);
+    flinkMiniCluster = new LocalFlinkMiniCluster(
+        configuration,
+        HighAvailabilityServicesUtils.createHighAvailabilityServices(
+            configuration,
+            Executors.directExecutor(),
+            HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+        false);
+
     flinkMiniCluster.start();
 
     // submit detached and get the JobId, so that we don't block
@@ -103,20 +115,21 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
     LOG.info("Submitted job with JobId {}", jobId);
 
+    final StandaloneClusterClient clusterClient;
+    try {
+      clusterClient = new StandaloneClusterClient(configuration);
+    } catch (Exception e) {
+      LOG.error("Error creating Cluster Client.", e);
+      return;
+    }
+
+
     // start a Thread that waits on the job and shuts down the mini cluster when
     // the job is done
     Thread shutdownTread = new Thread() {
       @Override
       public void run() {
         try {
-          StandaloneClusterClient clusterClient;
-          try {
-            clusterClient = new StandaloneClusterClient(flinkMiniCluster.configuration());
-          } catch (Exception e) {
-            LOG.error("Error creating Cluster Client.", e);
-            return;
-          }
-
           try {
             // this call will only return when the job finishes
             JobExecutionResult jobExecutionResult = clusterClient.retrieveJob(jobId);
@@ -124,7 +137,6 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
             synchronized (clusterShutdownLock) {
               finalAccumulators = jobExecutionResult.getAllAccumulatorResults();
               finalState = PipelineResult.State.DONE;
-              flinkMiniCluster.stop();
             }
           } catch (JobRetrievalException e) {
             // job could already be finished, try and get the accumulator results
@@ -141,7 +153,6 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
                 finalAccumulators = new HashMap<>();
                 finalState = PipelineResult.State.FAILED;
               }
-              flinkMiniCluster.stop();
             }
           } catch (JobExecutionException e) {
             LOG.error("Exception caught while waiting on job.", e);
@@ -152,11 +163,14 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
               } else {
                 finalState = PipelineResult.State.FAILED;
               }
-              flinkMiniCluster.stop();
             }
           }
         } finally {
-          flinkMiniCluster.shutdown();
+          try {
+            flinkMiniCluster.stop();
+          } catch (Exception e) {
+            LOG.error("Error while shutting down mini cluster.", e);
+          }
         }
       }
     };
