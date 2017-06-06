@@ -15,12 +15,12 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -39,13 +39,13 @@ public class SparkExecutorContext {
   private final DAG<Operator<?, ?>> dag;
   private final Map<Operator<?, ?>, JavaRDD<?>> outputs;
 
-  private final AccumulatorProvider.Factory accumulatorFactory;
+  private final SparkAccumulatorFactory accumulatorFactory;
   private final Settings settings;
 
 
   public SparkExecutorContext(JavaSparkContext env,
                               DAG<Operator<?, ?>> dag,
-                              AccumulatorProvider.Factory accumulatorFactory,
+                              SparkAccumulatorFactory accumulatorFactory,
                               Settings settings) {
     this.env = env;
     this.dag = dag;
@@ -121,7 +121,7 @@ public class SparkExecutorContext {
     }
   }
 
-  public AccumulatorProvider.Factory getAccumulatorFactory() {
+  public SparkAccumulatorFactory getAccumulatorFactory() {
     return accumulatorFactory;
   }
 
