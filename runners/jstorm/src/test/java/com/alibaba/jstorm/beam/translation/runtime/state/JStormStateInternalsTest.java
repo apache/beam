@@ -107,8 +107,10 @@ public class JStormStateInternalsTest {
         bagStateB.add(0);
         bagStateB.add(Integer.MIN_VALUE);
 
-        assertThat(bagStateA.read(), containsInAnyOrder(1, 0, Integer.MAX_VALUE));
-        assertThat(bagStateB.read(), containsInAnyOrder(0, Integer.MIN_VALUE));
+        Iterable<Integer> bagA = bagStateA.read();
+        Iterable<Integer> bagB = bagStateB.read();
+        assertThat(bagA, containsInAnyOrder(1, 0, Integer.MAX_VALUE));
+        assertThat(bagB, containsInAnyOrder(0, Integer.MIN_VALUE));
 
         bagStateA.clear();
         bagStateA.add(1);

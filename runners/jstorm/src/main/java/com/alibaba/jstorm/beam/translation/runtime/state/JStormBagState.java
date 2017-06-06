@@ -17,6 +17,7 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
+import avro.shaded.com.google.common.collect.Lists;
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
 import org.apache.beam.runners.core.StateNamespace;
@@ -25,8 +26,6 @@ import org.apache.beam.sdk.state.ReadableState;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -39,23 +38,27 @@ class JStormBagState<K, T> implements BagState<T> {
     @Nullable
     private final K key;
     private final StateNamespace namespace;
-    private final IKvStore<ComposedKey, List<T>> kvState;
+    private final IKvStore<ComposedKey, T> kvState;
+    private final IKvStore<ComposedKey, Object> stateInfoKvState;
+    private int elemIndex;
 
-    JStormBagState(@Nullable K key, StateNamespace namespace, IKvStore<ComposedKey, List<T>> kvState) {
+    public JStormBagState(@Nullable K key, StateNamespace namespace, IKvStore<ComposedKey, T> kvState,
+                           IKvStore<ComposedKey, Object> stateInfoKvState) throws IOException {
         this.key = key;
         this.namespace = checkNotNull(namespace, "namespace");
         this.kvState = checkNotNull(kvState, "kvState");
+        this.stateInfoKvState = checkNotNull(stateInfoKvState, "stateInfoKvState");
+
+        Integer index = (Integer) stateInfoKvState.get(getComposedKey());
+        this.elemIndex =  index != null ? ++index : 0;
     }
 
     @Override
     public void add(T input) {
         try {
-            List<T> values = kvState.get(getComposedKey());
-            if (values == null) {
-                values = new ArrayList<>();
-            }
-            values.add(input);
-            kvState.put(getComposedKey(), values);
+            kvState.put(getComposedKey(elemIndex), input);
+            stateInfoKvState.put(getComposedKey(), elemIndex);
+            elemIndex++;
         } catch (IOException e) {
             throw new RuntimeException();
         }
@@ -66,11 +69,7 @@ class JStormBagState<K, T> implements BagState<T> {
         return new ReadableState<Boolean>() {
             @Override
             public Boolean read() {
-                try {
-                    return kvState.get(getComposedKey()) == null;
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
+                return elemIndex <= 0;
             }
 
             @Override
@@ -84,12 +83,11 @@ class JStormBagState<K, T> implements BagState<T> {
     @Override
     public Iterable<T> read() {
         try {
-            List<T> values = kvState.get(getComposedKey());
-            if (values == null) {
-                return Collections.EMPTY_LIST;
-            } else {
-                return values;
+            List<T> values = Lists.newArrayList();
+            for (int i = 0; i < elemIndex; i++) {
+                values.add(kvState.get(getComposedKey(i)));
             }
+            return values;
         } catch (IOException e) {
             throw new RuntimeException();
         }
@@ -104,7 +102,11 @@ class JStormBagState<K, T> implements BagState<T> {
     @Override
     public void clear() {
         try {
-            kvState.remove(getComposedKey());
+            for (int i = 0; i < elemIndex; i++) {
+                kvState.remove(getComposedKey(i));
+            }
+            stateInfoKvState.remove(getComposedKey());
+            elemIndex = 0;
         } catch (IOException e) {
             throw new RuntimeException();
         }
@@ -112,5 +114,9 @@ class JStormBagState<K, T> implements BagState<T> {
 
     private ComposedKey getComposedKey() {
         return ComposedKey.of(key, namespace);
+    }
+
+    private ComposedKey getComposedKey(int elemIndex) {
+        return ComposedKey.of(key, namespace, elemIndex);
     }
 }
