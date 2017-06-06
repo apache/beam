@@ -559,7 +559,8 @@ service BeamFnState {
 
 message StateKey {
   message Runner {
-    // (Required) Opaque information supplied by the runner. 
+    // (Required) Opaque information supplied by the runner. Used to support
+    // remote references.
     bytes key = 1;
   }
 
@@ -578,7 +579,7 @@ message StateKey {
     // (Required) The id of the PTransform containing user state.
     string ptransform_id = 1;
     // (Required) The id of the user state.
-    string side_input_id = 2;
+    string user_state_id = 2;
     // (Required) The window encoded in a nested context. 
     bytes window = 3;
     // (Required) The key encoded in a nested context.
