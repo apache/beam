@@ -19,6 +19,9 @@
 
 from __future__ import absolute_import
 
+import glob
+import tempfile
+
 from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
@@ -26,12 +29,15 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.utils.annotations import experimental
 
 
 __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
+    # open_shards is internal and has no backwards compatibility guarantees.
+    'open_shards',
     ]
 
 
@@ -105,3 +111,13 @@ def assert_that(actual, matcher, label='assert_that'):
       return label
 
   actual | AssertThat()  # pylint: disable=expression-not-assigned
+
+
+@experimental()
+def open_shards(glob_pattern):
+  """Returns a composite file of all shards matching the given glob pattern."""
+  with tempfile.NamedTemporaryFile(delete=False) as f:
+    for shard in glob.glob(glob_pattern):
+      f.write(file(shard).read())
+    concatenated_file_name = f.name
+  return file(concatenated_file_name, 'rb')
