@@ -65,6 +65,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.util.OutputTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -110,7 +111,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
         windowedValueCoder,
@@ -123,7 +124,7 @@ public class DoFnOperatorTest {
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         null);
 
-    OneInputStreamOperatorTestHarness<WindowedValue<String>, String> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
     testHarness.open();
@@ -147,26 +148,27 @@ public class DoFnOperatorTest {
     TupleTag<String> mainOutput = new TupleTag<>("main-output");
     TupleTag<String> additionalOutput1 = new TupleTag<>("output-1");
     TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
-    ImmutableMap<TupleTag<?>, Integer> outputMapping = ImmutableMap.<TupleTag<?>, Integer>builder()
-        .put(mainOutput, 1)
-        .put(additionalOutput1, 2)
-        .put(additionalOutput2, 3)
-        .build();
+    ImmutableMap<TupleTag<?>, OutputTag<?>> outputMapping =
+        ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
+            .put(mainOutput, new OutputTag<String>(mainOutput.getId()){})
+            .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()){})
+            .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()){})
+            .build();
 
-    DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(additionalOutput1, additionalOutput2),
         "stepName",
         windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
-        new DoFnOperator.MultiOutputOutputManagerFactory(outputMapping),
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         null);
 
-    OneInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
     testHarness.open();
@@ -176,16 +178,25 @@ public class DoFnOperatorTest {
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("hello")));
 
     assertThat(
-        this.stripStreamRecordFromRawUnion(testHarness.getOutput()),
+        this.stripStreamRecord(testHarness.getOutput()),
         contains(
-            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("extra: one")),
-            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("extra: two")),
-            new RawUnionValue(1, WindowedValue.valueInGlobalWindow("got: hello")),
-            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("got: hello")),
-            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("got: hello"))));
+            WindowedValue.valueInGlobalWindow("got: hello")));
+
+    assertThat(
+        this.stripStreamRecord(testHarness.getSideOutput(outputMapping.get(additionalOutput1))),
+        contains(
+            WindowedValue.valueInGlobalWindow("extra: one"),
+            WindowedValue.valueInGlobalWindow("got: hello")));
+
+    assertThat(
+        this.stripStreamRecord(testHarness.getSideOutput(outputMapping.get(additionalOutput2))),
+        contains(
+            WindowedValue.valueInGlobalWindow("extra: two"),
+            WindowedValue.valueInGlobalWindow("got: hello")));
 
     testHarness.close();
   }
+
 
   @Test
   public void testLateDroppingForStatefulFn() throws Exception {
@@ -212,13 +223,13 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String, WindowedValue<String>> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<Integer, String> doFnOperator = new DoFnOperator<>(
         fn,
         "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<String>>(),
+        new DoFnOperator.DefaultOutputManagerFactory<String>(),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -324,15 +335,14 @@ public class DoFnOperatorTest {
 
     TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<
-        KV<String, Integer>, KV<String, Integer>, WindowedValue<KV<String, Integer>>> doFnOperator =
+    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
             windowedValueCoder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
-            new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<String, Integer>>>(),
+            new DoFnOperator.DefaultOutputManagerFactory<KV<String, Integer>>(),
             windowingStrategy,
             new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
             Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -422,7 +432,7 @@ public class DoFnOperatorTest {
       keyCoder = StringUtf8Coder.of();
     }
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
         windowedValueCoder,
@@ -435,8 +445,8 @@ public class DoFnOperatorTest {
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         keyCoder);
 
-    TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, String> testHarness =
-        new TwoInputStreamOperatorTestHarness<>(doFnOperator);
+    TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
+        testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
 
     if (keyed) {
       // we use a dummy key for the second input since it is considered to be broadcast
@@ -527,19 +537,19 @@ public class DoFnOperatorTest {
     });
   }
 
-  private Iterable<RawUnionValue> stripStreamRecordFromRawUnion(Iterable<Object> input) {
+  private Iterable<WindowedValue<String>> stripStreamRecord(Iterable<?> input) {
     return FluentIterable.from(input).filter(new Predicate<Object>() {
       @Override
       public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof RawUnionValue;
+        return o instanceof StreamRecord;
       }
-    }).transform(new Function<Object, RawUnionValue>() {
+    }).transform(new Function<Object, WindowedValue<String>>() {
       @Nullable
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})
-      public RawUnionValue apply(@Nullable Object o) {
-        if (o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof RawUnionValue) {
-          return (RawUnionValue) ((StreamRecord) o).getValue();
+      public WindowedValue<String> apply(@Nullable Object o) {
+        if (o instanceof StreamRecord) {
+          return (WindowedValue<String>) ((StreamRecord) o).getValue();
         }
         throw new RuntimeException("unreachable");
       }
