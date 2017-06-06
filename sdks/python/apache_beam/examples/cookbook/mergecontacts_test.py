@@ -93,8 +93,6 @@ class MergeContactsTest(unittest.TestCase):
     lines_in = tsv_data.strip().split('\n')
     lines_out = []
     for line in lines_in:
-      if not line:
-        continue
       name, email, phone, snailmail = line.split('\t')
       lines_out.append('\t'.join(
           [name,

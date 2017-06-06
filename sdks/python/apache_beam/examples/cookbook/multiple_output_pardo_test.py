@@ -38,9 +38,9 @@ class MultipleOutputParDo(unittest.TestCase):
       f.write(contents)
       return f.name
 
-  def get_wordcount_results(self, temp_path):
+  def get_wordcount_results(self, result_path):
     results = []
-    with open_shards(temp_path) as result_file:
+    with open_shards(result_path) as result_file:
       for line in result_file:
         match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
         if match is not None:

@@ -30,6 +30,7 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.utils.annotations import experimental
 
 
 __all__ = [
@@ -113,6 +114,7 @@ def assert_that(actual, matcher, label='assert_that'):
   actual | AssertThat()  # pylint: disable=expression-not-assigned
 
 
+@experimental()
 def open_shards(glob_pattern):
   """Returns a composite file of all shards matching the given glob pattern."""
   with tempfile.NamedTemporaryFile(delete=False) as f:
