@@ -18,6 +18,7 @@
 """Pipeline options obtained from command line parsing."""
 
 import argparse
+import warnings
 
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.options.value_provider import StaticValueProvider
@@ -278,12 +279,12 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
-  # TODO(BEAM-1265): Remove this error, once at least one runner supports
+  # TODO(BEAM-1265): Remove this warning, once at least one runner supports
   # streaming pipelines.
   def validate(self, validator):
     errors = []
     if self.view_as(StandardOptions).streaming:
-      errors.append('Streaming pipelines are not supported.')
+      warnings.warn('Streaming pipelines are not supported.')
     return errors
 
 
