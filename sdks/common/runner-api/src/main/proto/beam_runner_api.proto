@@ -220,6 +220,9 @@ message ParDoPayload {
 
   // (Optional) A mapping of local timer names to timer specifications.
   map<string, TimerSpec> timer_specs = 5;
+
+  // Whether the DoFn is splittable
+  bool splittable = 6;
 }
 
 // Parameters that a UDF might require.

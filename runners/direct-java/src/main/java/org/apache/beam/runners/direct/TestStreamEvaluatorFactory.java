@@ -22,7 +22,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.Message;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -185,7 +184,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
 
     static class DirectTestStream<T>
-        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>, Message> {
+        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>> {
       private final transient DirectRunner runner;
       private final TestStream<T> original;
 
