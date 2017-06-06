@@ -330,6 +330,37 @@
 
 <p>The <code class="highlighter-rouge">org.elasticsearch.hadoop.mr.EsInputFormat</code>’s <code class="highlighter-rouge">EsInputFormat</code> key class is <code class="highlighter-rouge">org.apache.hadoop.io.Text</code> <code class="highlighter-rouge">Text</code>, and its value class is <code class="highlighter-rouge">org.elasticsearch.hadoop.mr.LinkedMapWritable</code> <code class="highlighter-rouge">LinkedMapWritable</code>. Both key and value classes have Beam Coders.</p>
 
+<h3 id="hcatalog---hcatinputformat">HCatalog - HCatInputFormat</h3>
+
+<p>To read data using HCatalog, use <code class="highlighter-rouge">org.apache.hive.hcatalog.mapreduce.HCatInputFormat</code>, which needs the following properties to be set:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Configuration</span> <span class="n">hcatConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Configuration</span><span class="o">();</span>
+<span class="n">hcatConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"mapreduce.job.inputformat.class"</span><span class="o">,</span> <span class="n">HCatInputFormat</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">InputFormat</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">hcatConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"key.class"</span><span class="o">,</span> <span class="n">LongWritable</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Object</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">hcatConf</span><span class="o">.</span><span class="na">setClass</span><span class="o">(</span><span class="s">"value.class"</span><span class="o">,</span> <span class="n">HCatRecord</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Object</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">hcatConf</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="s">"hive.metastore.uris"</span><span class="o">,</span> <span class="s">"thrift://metastore-host:port"</span><span class="o">);</span>
+
+<span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">hive</span><span class="o">.</span><span class="na">hcatalog</span><span class="o">.</span><span class="na">mapreduce</span><span class="o">.</span><span class="na">HCatInputFormat</span><span class="o">.</span><span class="na">setInput</span><span class="o">(</span><span class="n">hcatConf</span><span class="o">,</span> <span class="s">"my_database"</span><span class="o">,</span> <span class="s">"my_table"</span><span class="o">,</span> <span class="s">"my_filter"</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support Hadoop InputFormat IO.</span>
+</code></pre>
+</div>
+
+<p>Call Read transform as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">HCatRecord</span><span class="o">&gt;&gt;</span> <span class="n">hcatData</span> <span class="o">=</span>
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
+  <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">HCatRecord</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">withConfiguration</span><span class="o">(</span><span class="n">hcatConf</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support Hadoop InputFormat IO.</span>
+</code></pre>
+</div>
+
     </div>
     <footer class="footer">
   <div class="footer__contained">
