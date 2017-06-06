@@ -64,7 +64,7 @@ class DataflowRunner(PipelineRunner):
   # a job submission and is used by the service to establish what features
   # are expected by the workers.
   BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
-  STREAMING_ENVIRONMENT_MAJOR_VERSION = '0'
+  STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
