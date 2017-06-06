@@ -208,7 +208,7 @@ public class TransformHierarchy {
   public Set<PValue> visit(PipelineVisitor visitor) {
     finishSpecifying();
     Set<PValue> visitedValues = new HashSet<>();
-    root.visit(visitor, visitedValues);
+    root.visit(visitor, visitedValues, new HashSet<Node>(), new HashSet<Node>());
     return visitedValues;
   }
 
@@ -503,10 +503,60 @@ public class TransformHierarchy {
     /**
      * Visit the transform node.
      *
+     * <p>The visit proceeds in the following order:
+     *
+     * <ul>
+     *   <li>Visit all input {@link PValue PValues} returned by the flattened expansion of {@link
+     *       Node#getInputs()}.
+     *   <li>If the node is a composite:
+     *       <ul>
+     *         <li>Enter the node via {@link PipelineVisitor#enterCompositeTransform(Node)}.
+     *         <li>If the result of {@link PipelineVisitor#enterCompositeTransform(Node)} was {@link
+     *             CompositeBehavior#ENTER_TRANSFORM}, visit each child node of this {@link Node}.
+     *         <li>Leave the node via {@link PipelineVisitor#leaveCompositeTransform(Node)}.
+     *       </ul>
+     *   <li>If the node is a primitive, visit it via {@link
+     *       PipelineVisitor#visitPrimitiveTransform(Node)}.
+     *   <li>Visit each {@link PValue} that was output by this node.
+     * </ul>
+     *
+     * <p>Additionally, the following ordering restrictions are observed:
+     *
+     * <ul>
+     *   <li>A {@link Node} will be visited after its enclosing node has been entered and before its
+     *       enclosing node has been left
+     *   <li>A {@link Node} will not be visited if any enclosing {@link Node} has returned {@link
+     *       CompositeBehavior#DO_NOT_ENTER_TRANSFORM} from the call to {@link
+     *       PipelineVisitor#enterCompositeTransform(Node)}.
+     *   <li>A {@link PValue} will only be visited after the {@link Node} that originally produced
+     *       it has been visited.
+     * </ul>
+     *
      * <p>Provides an ordered visit of the input values, the primitive transform (or child nodes for
      * composite transforms), then the output values.
      */
-    private void visit(PipelineVisitor visitor, Set<PValue> visitedValues) {
+    private void visit(
+        PipelineVisitor visitor,
+        Set<PValue> visitedValues,
+        Set<Node> visitedNodes,
+        Set<Node> skippedComposites) {
+      if (getEnclosingNode() != null && !visitedNodes.contains(getEnclosingNode())) {
+        // Recursively enter all enclosing nodes, as appropriate.
+        getEnclosingNode().visit(visitor, visitedValues, visitedNodes, skippedComposites);
+      }
+      // These checks occur after visiting the enclosing node to ensure that if this node has been
+      // visited while visiting the enclosing node the node is not revisited, or, if an enclosing
+      // Node is skipped, this node is also skipped.
+      if (!visitedNodes.add(this)) {
+        LOG.debug("Not revisiting previously visited node {}", this);
+        return;
+      } else if (childNodeOf(skippedComposites)) {
+        // This node is a child of a node that has been passed over via CompositeBehavior, and
+        // should also be skipped. All child nodes of a skipped composite should always be skipped.
+        LOG.debug("Not revisiting Node {} which is a child of a previously passed composite", this);
+        return;
+      }
+
       if (!finishedSpecifying) {
         finishSpecifying();
       }
@@ -514,22 +564,31 @@ public class TransformHierarchy {
       if (!isRootNode()) {
         // Visit inputs.
         for (PValue inputValue : inputs.values()) {
+          Node valueProducer = getProducer(inputValue);
+          if (!visitedNodes.contains(valueProducer)) {
+            valueProducer.visit(visitor, visitedValues, visitedNodes, skippedComposites);
+          }
           if (visitedValues.add(inputValue)) {
-            visitor.visitValue(inputValue, getProducer(inputValue));
+            LOG.debug("Visiting input value {}", inputValue);
+            visitor.visitValue(inputValue, valueProducer);
           }
         }
       }
 
       if (isCompositeNode()) {
+        LOG.debug("Visiting composite node {}", this);
         PipelineVisitor.CompositeBehavior recurse = visitor.enterCompositeTransform(this);
 
         if (recurse.equals(CompositeBehavior.ENTER_TRANSFORM)) {
           for (Node child : parts) {
-            child.visit(visitor, visitedValues);
+            child.visit(visitor, visitedValues, visitedNodes, skippedComposites);
           }
+        } else {
+          skippedComposites.add(this);
         }
         visitor.leaveCompositeTransform(this);
       } else {
+        LOG.debug("Visiting primitive node {}", this);
         visitor.visitPrimitiveTransform(this);
       }
 
@@ -538,10 +597,22 @@ public class TransformHierarchy {
         // Visit outputs.
         for (PValue pValue : outputs.values()) {
           if (visitedValues.add(pValue)) {
+            LOG.debug("Visiting output value {}", pValue);
             visitor.visitValue(pValue, this);
           }
         }
       }
+    }
+
+    private boolean childNodeOf(Set<Node> nodes) {
+      if (isRootNode()) {
+        return false;
+      }
+      Node parent = this.getEnclosingNode();
+      while (!parent.isRootNode() && !nodes.contains(parent)) {
+        parent = parent.getEnclosingNode();
+      }
+      return nodes.contains(parent);
     }
 
     /**
