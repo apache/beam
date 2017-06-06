@@ -253,8 +253,8 @@ public class TransformHierarchy {
                   PValue.class.getSimpleName(),
                   value.getValue()));
         }
-          for (Map.Entry<TupleTag<?>, PCollection<?>> valueComponent :
-              fullyExpand(value.getValue()).entrySet()) {
+        for (Map.Entry<TupleTag<?>, PCollection<?>> valueComponent :
+            fullyExpand(value.getValue()).entrySet()) {
           PCollection<?> previous = result.put(valueComponent.getKey(), valueComponent.getValue());
           checkArgument(
               previous == null,
