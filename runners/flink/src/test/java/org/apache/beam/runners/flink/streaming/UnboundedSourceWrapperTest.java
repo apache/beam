@@ -211,7 +211,7 @@ public class UnboundedSourceWrapperTest {
       // with the outer Thread
       final AtomicBoolean seenWatermark = new AtomicBoolean(false);
 
-      new Thread() {
+      Thread sourceThread = new Thread() {
         @Override
         public void run() {
           try {
@@ -250,7 +250,9 @@ public class UnboundedSourceWrapperTest {
             caughtExceptions.add(e);
           }
         }
-      }.start();
+      };
+
+      sourceThread.start();
 
       while (true) {
         if (!caughtExceptions.isEmpty()) {
@@ -264,6 +266,9 @@ public class UnboundedSourceWrapperTest {
         // need to advance this so that the watermark timers in the source wrapper fire
         testHarness.setProcessingTime(Instant.now().getMillis());
       }
+
+      sourceOperator.cancel();
+      sourceThread.join();
     }
 
 
