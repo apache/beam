@@ -62,7 +62,7 @@ class JuliaSetTest(unittest.TestCase):
     # Parse the results from the file, and ensure it was written in the proper
     # format.
     with open_shards(self.test_files['output_coord_file_name'] +
-              '-*-of-*') as result_file:
+                     '-*-of-*') as result_file:
       output_lines = result_file.readlines()
 
       # Should have a line for each x-coordinate.

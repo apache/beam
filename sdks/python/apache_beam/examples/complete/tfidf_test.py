@@ -78,8 +78,7 @@ class TfIdfTest(unittest.TestCase):
     # Parse result file and compare.
     results = []
     with open_shards(os.path.join(
-                         temp_folder,
-                         'result-*-of-*')) as result_file:
+        temp_folder, 'result-*-of-*')) as result_file:
       for line in result_file:
         match = re.search(EXPECTED_LINE_RE, line)
         logging.info('Result line: %s', line)
