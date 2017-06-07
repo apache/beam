@@ -322,7 +322,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(Create.Values.class),
-                new ReflectiveRootOverrideFactory(StreamingFnApiCreate.class, this)));
+                new StreamingFnApiCreateOverrideFactory()));
       }
       overridesBuilder
           .add(
@@ -440,15 +440,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
       PTransform<PInput, PCollection<T>> original = transform.getTransform();
-      PCollection<T> output =
-          (PCollection) Iterables.getOnlyElement(transform.getOutputs().values());
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
               .withArg(
                   (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
-              .withArg((Class<? super PCollection<T>>) output.getClass(), output)
               .build());
     }
 
@@ -826,10 +823,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingPubsubIORead(
-        DataflowRunner runner,
-        PubsubUnboundedSource transform,
-        PCollection<PubsubMessage> originalOutput) {
+    public StreamingPubsubIORead(DataflowRunner runner, PubsubUnboundedSource transform) {
       this.transform = transform;
     }
 
@@ -998,6 +992,31 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // ================================================================================
 
   /**
+   * A PTranform override factory which maps Create.Values PTransforms for streaming pipelines
+   * into a Dataflow specific variant.
+   */
+  private static class StreamingFnApiCreateOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> transform) {
+      Create.Values<T> original = transform.getTransform();
+      PCollection<T> output =
+          (PCollection) Iterables.getOnlyElement(transform.getOutputs().values());
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new StreamingFnApiCreate<>(original, output));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  /**
    * Specialized implementation for
    * {@link org.apache.beam.sdk.transforms.Create.Values Create.Values} for the Dataflow runner in
    * streaming mode over the Fn API.
@@ -1006,9 +1025,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final Create.Values<T> transform;
     private final PCollection<T> originalOutput;
 
-    /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingFnApiCreate(DataflowRunner runner,
+    private StreamingFnApiCreate(
         Create.Values<T> transform,
         PCollection<T> originalOutput) {
       this.transform = transform;
@@ -1033,7 +1050,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * A DoFn which stores encoded versions of elements and a representation of a Coder
      * capable of decoding those elements.
      *
-     * <p>TODO: Make this a SplittableDoFn.
+     * <p>TODO(BEAM-2422): Make this a SplittableDoFn.
      */
     private static class DecodeAndEmitDoFn<T> extends DoFn<byte[], T> {
       public static <T> DecodeAndEmitDoFn<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
@@ -1117,9 +1134,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingUnboundedRead(DataflowRunner runner,
-        Read.Unbounded<T> transform,
-        PCollection<T> originalOutput) {
+    public StreamingUnboundedRead(DataflowRunner runner, Read.Unbounded<T> transform) {
       this.source = transform.getSource();
     }
 
@@ -1234,9 +1249,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingBoundedRead(DataflowRunner runner,
-        Read.Bounded<T> transform,
-        PCollection<T> originalOutput) {
+    public StreamingBoundedRead(DataflowRunner runner, Read.Bounded<T> transform) {
       this.source = transform.getSource();
     }
 
