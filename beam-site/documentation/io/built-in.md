@@ -35,6 +35,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io">Google Cloud PubSub</a></p>
   </td>
   <td>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/hadoop/">Apache Hadoop InputFormat</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
@@ -71,10 +72,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
   <tr>
     <td>AMQP</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1237">BEAM-1237</a></td>
-  </tr>
-  <tr>
-    <td>Apache Cassandra</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-245">BEAM-245</a></td>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
