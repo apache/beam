@@ -64,6 +64,7 @@
   </dependencyManagement>
 
   <modules>
+    <module>cassandra</module>
     <module>common</module>
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
@@ -78,7 +79,6 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>xml</module>
-    <module>cassandra</module>
   </modules>
 
   <profiles>
