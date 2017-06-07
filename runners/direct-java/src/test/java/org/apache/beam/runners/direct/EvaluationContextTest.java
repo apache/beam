@@ -414,7 +414,7 @@ public class EvaluationContextTest {
         StepTransformResult.withoutHold(unboundedProducer).build());
     assertThat(context.isDone(), is(false));
 
-    for (AppliedPTransform<?, ?, ?> consumers : graph.getPrimitiveConsumers(created)) {
+    for (AppliedPTransform<?, ?, ?> consumers : graph.getPerElementConsumers(created)) {
       context.handleResult(
           committedBundle,
           ImmutableList.<TimerData>of(),
