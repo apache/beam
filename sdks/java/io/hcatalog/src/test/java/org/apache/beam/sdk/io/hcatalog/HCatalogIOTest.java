@@ -19,16 +19,16 @@ package org.apache.beam.sdk.io.hcatalog;
 
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE_NAME;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigProperties;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getDefaultHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getHCatRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.prepareTestData;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.reCreateTestTable;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.insertTestData;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -37,6 +37,7 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.BoundedHCatalogSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -48,7 +49,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hive.hcatalog.data.DefaultHCatRecord;
+import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.hamcrest.Matchers;
@@ -56,6 +57,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
@@ -68,7 +70,10 @@ import org.junit.runners.model.Statement;
 public class HCatalogIOTest implements Serializable {
 
   @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  public final transient TestPipeline defaultPipeline = TestPipeline.create();
+
+  @Rule
+  public final transient TestPipeline readAfterWritePipeline = TestPipeline.create();
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
@@ -79,9 +84,9 @@ public class HCatalogIOTest implements Serializable {
       return new Statement() {
         @Override
         public void evaluate() throws Throwable {
-          if (description.getAnnotation(TestDataSetupReqd.class) != null) {
+          if (description.getAnnotation(NeedsTestData.class) != null) {
             prepareTestData();
-          } else if (description.getAnnotation(TestDataInitializationReqd.class) != null) {
+          } else if (description.getAnnotation(NeedsEmptyTestTables.class) != null) {
             reCreateTestTable();
           }
           base.evaluate();
@@ -90,12 +95,16 @@ public class HCatalogIOTest implements Serializable {
     }
   };
 
+  @Rule
+  public final transient TemporaryFolder folder = new TemporaryFolder();
+
+  private final transient EmbeddedMetastoreService service;
   /**
    * Use this annotation to setup complete test data(table populated with records).
    */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.METHOD})
-  @interface TestDataSetupReqd {
+  @interface NeedsTestData {
   }
 
   /**
@@ -103,34 +112,37 @@ public class HCatalogIOTest implements Serializable {
    */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.METHOD})
-  @interface TestDataInitializationReqd {
+  @interface NeedsEmptyTestTables {
   }
 
+  public HCatalogIOTest() throws IOException {
+    folder.create();
+    service = new EmbeddedMetastoreService(folder.getRoot().getCanonicalPath());
+  }
 
   /**
    * Perform end-to-end test of Write-then-Read operation.
    */
   @Test
-  @TestDataInitializationReqd
-  public void testWriteWriteThenReadSuccess() throws Exception {
-    pipeline.apply(Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT)))
+  @NeedsEmptyTestTables
+  public void testWriteThenReadSuccess() throws Exception {
+    defaultPipeline.apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
     .apply(HCatalogIO.write()
-        .withConfigProperties(getConfigProperties())
+        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .withTable(TEST_TABLE_NAME));
+    defaultPipeline.run().waitUntilFinish();
 
-    pipeline.run();
-
-    PCollection<String> output = pipeline.apply(HCatalogIO.read()
-        .withConfigProperties(getConfigProperties())
+    PCollection<String> output = readAfterWritePipeline.apply(HCatalogIO.read()
+        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .withTable(HCatalogIOTestUtils.TEST_TABLE_NAME))
-        .apply(ParDo.<DefaultHCatRecord, String>of(new DoFn<DefaultHCatRecord, String>() {
+        .apply(ParDo.<HCatRecord, String>of(new DoFn<HCatRecord, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(c.element().get(0).toString());
           }
         }));
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
-    pipeline.run();
+    readAfterWritePipeline.run();
   }
 
   /**
@@ -141,11 +153,11 @@ public class HCatalogIOTest implements Serializable {
     thrown.expectCause(isA(UserCodeException.class));
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
-    pipeline.apply(Create.of(getDefaultHCatRecords(TEST_RECORDS_COUNT)))
+    defaultPipeline.apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
         .apply(HCatalogIO.write()
-            .withConfigProperties(getConfigProperties())
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
             .withTable("myowntable"));
-    pipeline.run();
+    defaultPipeline.run();
   }
 
   /**
@@ -155,7 +167,8 @@ public class HCatalogIOTest implements Serializable {
   public void testWriteFailureValidationTable() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("table"));
-    HCatalogIO.write().withConfigProperties(getConfigProperties()).validate(null);
+    HCatalogIO.write().withConfigProperties(getConfigPropertiesAsMap(
+        service.getHiveConf())).validate(null);
   }
 
   /**
@@ -173,11 +186,11 @@ public class HCatalogIOTest implements Serializable {
    */
   @Test
   public void testReadFailureTableDoesNotExist() throws Exception {
-    pipeline.apply(HCatalogIO.read()
-        .withConfigProperties(getConfigProperties())
+    defaultPipeline.apply(HCatalogIO.read()
+        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .withTable("myowntable"));
     thrown.expectCause(isA(NoSuchObjectException.class));
-    pipeline.run();
+    defaultPipeline.run();
   }
 
   /**
@@ -197,19 +210,20 @@ public class HCatalogIOTest implements Serializable {
   public void testReadFailureValidationTable() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage(containsString("table"));
-    HCatalogIO.read().withConfigProperties(getConfigProperties()).validate(null);
+    HCatalogIO.read().withConfigProperties(getConfigPropertiesAsMap(
+        service.getHiveConf())).validate(null);
   }
 
   /**
    * Test of Read using SourceTestUtils.readFromSource(..).
    */
   @Test
-  @TestDataSetupReqd
+  @NeedsTestData
   public void testReadFromSource() throws Exception {
     List<BoundedHCatalogSource> sourceList = getSourceList();
     List<String> recordsList = new ArrayList<String>();
     for (int i = 0; i < sourceList.size(); i++) {
-      List<DefaultHCatRecord> hcatRecordsList = SourceTestUtils.readFromSource(sourceList.get(i),
+      List<HCatRecord> hcatRecordsList = SourceTestUtils.readFromSource(sourceList.get(i),
         PipelineOptionsFactory.create());
       for (HCatRecord record : hcatRecordsList) {
         recordsList.add(record.get(0).toString());
@@ -223,21 +237,34 @@ public class HCatalogIOTest implements Serializable {
    * Test of Read using SourceTestUtils.assertSourcesEqualReferenceSource(..).
    */
   @Test
-  @TestDataSetupReqd
-  public void testSourcesEqualReferenceSource() throws Exception {
-    List<BoundedHCatalogSource> sourceList = getSourceList();
-    for (int i = 0; i < sourceList.size(); i++) {
-      SourceTestUtils.assertSourcesEqualReferenceSource(sourceList.get(i),
-          sourceList.get(i).split(-1, PipelineOptionsFactory.create()),
-          PipelineOptionsFactory.create());
-    }
+  @NeedsTestData
+  public void testSourceEqualsSplits() throws Exception {
+    final int numRows = 1500;
+    final int numSamples = 10;
+    final long bytesPerRow = 15;
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec = HCatalogIO.read()
+        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+        .withContext(context)
+        .withTable(TEST_TABLE_NAME);
+
+    BoundedHCatalogSource source = new BoundedHCatalogSource(spec);
+    List<BoundedSource<HCatRecord>> unSplitSource = source.split(-1,
+        PipelineOptionsFactory.create());
+    Assert.assertEquals(1, unSplitSource.size());
+    List<BoundedSource<HCatRecord>> splitSource = source.split(
+        numRows * bytesPerRow / numSamples,
+        PipelineOptionsFactory.create());
+    Assert.assertTrue(splitSource.size() >= 1);
+    SourceTestUtils.assertSourcesEqualReferenceSource(unSplitSource.get(0), splitSource,
+        PipelineOptionsFactory.create());
   }
 
   private List<BoundedHCatalogSource> getSourceList() throws Exception {
     List<BoundedHCatalogSource> sourceList = new ArrayList<BoundedHCatalogSource>();
-    ReaderContext context = getReaderContext(getConfigProperties());
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
     HCatalogIO.Read spec = HCatalogIO.read()
-        .withConfigProperties(getConfigProperties())
+        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .withContext(context)
         .withTable(TEST_TABLE_NAME);
 
@@ -247,4 +274,16 @@ public class HCatalogIOTest implements Serializable {
     }
     return sourceList;
   }
+
+  private void reCreateTestTable() throws CommandNeedRetryException {
+    service.executeQuery("drop table " + TEST_TABLE_NAME);
+    service.executeQuery("create table " + TEST_TABLE_NAME + "(mycol1 string,"
+        + "mycol2 int)");
+  }
+
+  private void prepareTestData() throws Exception {
+    reCreateTestTable();
+    insertTestData(getConfigPropertiesAsMap(service.getHiveConf()));
+  }
 }
+

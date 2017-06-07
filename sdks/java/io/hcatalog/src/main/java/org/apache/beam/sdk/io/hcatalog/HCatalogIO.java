@@ -23,8 +23,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -68,12 +71,12 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading using HCatalog</h3>
  *
- * <p>HCatalog source supports reading of DefaultHCatRecord from a HCatalog managed source,
- * for eg. Hive.</p>
+ * <p>HCatalog source supports reading of HCatRecord from a HCatalog managed source,
+ * for eg. Hive.
  *
  * <p>To configure a HCatalog source, you must specify a metastore URI and a table name.
  * Other optional parameters are database &amp; filter
- * For instance:</p>
+ * For instance:
  *
  * <pre>{@code
  * Map<String, String> configProperties = new HashMap<String, String>();
@@ -90,17 +93,17 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing using HCatalog</h3>
  *
- * <p>HCatalog sink supports writing of DefaultHCatRecord to a HCatalog managed source,
- * for eg. Hive.</p>
+ * <p>HCatalog sink supports writing of HCatRecord to a HCatalog managed source,
+ * for eg. Hive.
  *
  * <p>To configure a HCatalog sink, you must specify a metastore URI and a table name.
  * Other optional parameters are database, partition &amp; batchsize
  * The destination table should exist beforehand, the transform does not create a
  * new table if it does not exist
- * For instance:</p>
+ * For instance:
  *
  * <pre>{@code
- * * Map<String, String> configProperties = new HashMap<String, String>();
+ * Map<String, String> configProperties = new HashMap<String, String>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
@@ -138,12 +141,12 @@ public class HCatalogIO {
    */
   @VisibleForTesting
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<DefaultHCatRecord>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
     @Nullable abstract Map<String, String> getConfigProperties();
     @Nullable abstract String getDatabase();
     @Nullable abstract String getTable();
     @Nullable abstract String getFilter();
-    @Nullable abstract Coder<DefaultHCatRecord> getCoder();
+    @Nullable abstract Coder<HCatRecord> getCoder();
     @Nullable abstract ReaderContext getContext();
     @Nullable abstract Integer getSplitId();
 
@@ -155,7 +158,7 @@ public class HCatalogIO {
       abstract Builder setDatabase(String database);
       abstract Builder setTable(String table);
       abstract Builder setFilter(String filter);
-      abstract Builder setCoder(Coder<DefaultHCatRecord> coder);
+      abstract Builder setCoder(Coder<HCatRecord> coder);
       abstract Builder setSplitId(Integer splitId);
       abstract Builder setContext(ReaderContext context);
       abstract Read build();
@@ -166,7 +169,7 @@ public class HCatalogIO {
      * This is mandatory
      */
     public Read withConfigProperties(Map<String, String> configProperties) {
-      return toBuilder().setConfigProperties(configProperties)
+      return toBuilder().setConfigProperties(new HashMap<String, String> (configProperties))
           .build();
     }
 
@@ -204,7 +207,7 @@ public class HCatalogIO {
     }
 
     @Override
-    public PCollection<DefaultHCatRecord> expand(PBegin input) {
+    public PCollection<HCatRecord> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedHCatalogSource(this)));
     }
 
@@ -225,10 +228,10 @@ public class HCatalogIO {
   }
 
   /**
-   * A HCatalog {@link BoundedSource} reading {@link DefaultHCatRecord} from  a given instance.
+   * A HCatalog {@link BoundedSource} reading {@link HCatRecord} from  a given instance.
    */
   @VisibleForTesting
-  static class BoundedHCatalogSource extends BoundedSource<DefaultHCatRecord> {
+  static class BoundedHCatalogSource extends BoundedSource<HCatRecord> {
     private Read spec;
 
     BoundedHCatalogSource(Read spec) {
@@ -236,8 +239,18 @@ public class HCatalogIO {
     }
 
     @Override
-    public Coder<DefaultHCatRecord> getDefaultOutputCoder() {
-      return WritableCoder.of(DefaultHCatRecord.class);
+    public Coder<HCatRecord> getDefaultOutputCoder() {
+      return new WritableCoder<HCatRecord>(HCatRecord.class) {
+        //overriding the decode method to return an instance of DefaultHCatRecord
+        //as otherwise WritableCoder<HCatRecord> tries to instantiate HCatRecord which is abstract
+        //and throws an InstantiationException
+        @Override
+        public HCatRecord decode(InputStream inStream) throws IOException {
+          DefaultHCatRecord record = new DefaultHCatRecord();
+          record.readFields(new DataInputStream(inStream));
+          return record;
+        }
+      };
     }
 
     @Override
@@ -251,7 +264,7 @@ public class HCatalogIO {
     }
 
     @Override
-    public BoundedReader<DefaultHCatRecord> createReader(PipelineOptions options) {
+    public BoundedReader<HCatRecord> createReader(PipelineOptions options) {
       return new BoundedHCatalogReader(this);
     }
 
@@ -288,12 +301,14 @@ public class HCatalogIO {
      * @throws HCatException
      */
     @Override
-    public List<BoundedSource<DefaultHCatRecord>> split(long desiredBundleSizeBytes,
+    public List<BoundedSource<HCatRecord>> split(long desiredBundleSizeBytes,
                                                 PipelineOptions options) throws Exception {
       LOG.debug("desiredBundleSize {} bytes", desiredBundleSizeBytes);
-      List<BoundedSource<DefaultHCatRecord>> sources = new ArrayList<>();
+      List<BoundedSource<HCatRecord>> sources = new ArrayList<>();
       int desiredSplitCount = 1;
       long estimatedSizeBytes = getEstimatedSizeBytes(options);
+      LOG.debug("estimatedSizeBytes {} bytes", estimatedSizeBytes);
+      System.out.println("estimatedsize-" + estimatedSizeBytes);
       if (desiredBundleSizeBytes > 0 && estimatedSizeBytes > 0) {
         desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
       }
@@ -309,22 +324,19 @@ public class HCatalogIO {
     }
 
     private ReaderContext getReaderContext(long desiredSplitCount) throws HCatException {
+      Map<String, String> configProps = spec.getConfigProperties();
       ReadEntity entity = new ReadEntity.Builder().withDatabase(spec.getDatabase())
           .withTable(spec.getTable()).withFilter(spec.getFilter()).build();
-      Map<String, String> configProps = spec.getConfigProperties();
       //pass the 'desired' split count as an hint to the API
       configProps.put(HCatConstants.HCAT_DESIRED_PARTITION_NUM_SPLITS,
           String.valueOf(desiredSplitCount));
-      HCatReader masterReader = DataTransferFactory.getHCatReader(entity,
-          configProps);
-      ReaderContext readerContext = null;
-      readerContext = masterReader.prepareRead();
-      return readerContext;
+      return DataTransferFactory.getHCatReader(entity,
+          configProps).prepareRead();
     }
 
-    static class BoundedHCatalogReader extends BoundedSource.BoundedReader<DefaultHCatRecord> {
+    static class BoundedHCatalogReader extends BoundedSource.BoundedReader<HCatRecord> {
       private final BoundedHCatalogSource source;
-      private DefaultHCatRecord current;
+      private HCatRecord current;
       Iterator<HCatRecord> hcatIterator;
 
       public BoundedHCatalogReader(BoundedHCatalogSource boundedHiveSource) {
@@ -342,7 +354,7 @@ public class HCatalogIO {
       @Override
       public boolean advance() {
         if (hcatIterator.hasNext()) {
-          current = (DefaultHCatRecord) hcatIterator.next();
+          current = hcatIterator.next();
           return true;
         } else {
           current = null;
@@ -356,7 +368,7 @@ public class HCatalogIO {
       }
 
       @Override
-      public DefaultHCatRecord getCurrent() {
+      public HCatRecord getCurrent() {
         if (current == null) {
           throw new NoSuchElementException ("Current element is null");
         }
@@ -374,7 +386,7 @@ public class HCatalogIO {
    * A {@link PTransform} to write to a HCatalog managed source.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<DefaultHCatRecord>, PDone> {
+  public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
     @Nullable abstract Map<String, String> getConfigProperties();
     @Nullable abstract String getDatabase();
     @Nullable abstract String getTable();
@@ -398,7 +410,7 @@ public class HCatalogIO {
      * This is mandatory
      */
     public Write withConfigProperties(Map<String, String> configProperties) {
-      return toBuilder().setConfigProperties(Collections.unmodifiableMap(configProperties))
+      return toBuilder().setConfigProperties(new HashMap<String, String> (configProperties))
           .build();
     }
 
@@ -435,7 +447,7 @@ public class HCatalogIO {
     }
 
     @Override
-    public PDone expand(PCollection<DefaultHCatRecord> input) {
+    public PDone expand(PCollection<HCatRecord> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -446,7 +458,7 @@ public class HCatalogIO {
       checkNotNull(getTable(), "table");
     }
 
-    private static class WriteFn extends DoFn<DefaultHCatRecord, Void> {
+    private static class WriteFn extends DoFn<HCatRecord, Void> {
       private final Write spec;
       private WriterContext writerContext;
       private HCatWriter slaveWriter;
@@ -492,6 +504,9 @@ public class HCatalogIO {
       }
 
       private void flush() throws HCatException {
+        if (hCatRecordsBatch.isEmpty()) {
+          return;
+        }
         try {
           slaveWriter.write(hCatRecordsBatch.iterator());
           masterWriter.commit(writerContext);
@@ -510,8 +525,7 @@ public class HCatalogIO {
         WriteEntity entity = builder.withDatabase(spec.getDatabase()).withTable(spec.getTable())
             .withPartition(spec.getFilter()).build();
         masterWriter = DataTransferFactory.getHCatWriter(entity, spec.getConfigProperties());
-        WriterContext writerContext = masterWriter.prepareWrite();
-        return writerContext;
+        return masterWriter.prepareWrite();
       }
     }
   }

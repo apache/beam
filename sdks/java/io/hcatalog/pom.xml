@@ -32,6 +32,7 @@
 
   <properties>
     <hive.version>2.1.0</hive.version>
+    <apache.commons.version>2.5</apache.commons.version>
   </properties>
 
   <build>
@@ -60,6 +61,12 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${apache.commons.version}</version>
     </dependency>
 
     <dependency>
