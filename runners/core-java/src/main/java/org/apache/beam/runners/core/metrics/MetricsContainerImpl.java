@@ -31,7 +31,9 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
- * Holds the metrics for a single step and unit-of-commit (bundle).
+ * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
+ * value. Generally, this implementation should be used for a specific unit of commitment (bundle)
+ * that wishes to report the values since the start of the bundle (eg., for committed metrics).
  *
  * <p>This class is thread-safe. It is intended to be used with 1 (or more) threads are updating
  * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and
