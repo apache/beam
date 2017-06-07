@@ -35,7 +35,6 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -48,7 +47,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -117,7 +115,7 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     } finally {
       if (clusterClient != null) {
         try {
-          clusterClient.shutdown();
+//          clusterClient.shutdown();
         } catch (Exception e) {
           LOG.error("Error while shutting down cluster client.", e);
         }
@@ -226,7 +224,7 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
       return getState();
     } finally {
       try {
-        clusterClient.shutdown();
+//        clusterClient.shutdown();
       } catch (Exception e) {
         LOG.error("Error while shutting down cluster client.", e);
       }
