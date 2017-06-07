@@ -66,7 +66,7 @@ public class CreateTables<DestinationT>
       String partition) {
     this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations, partition);
   }
-  
+
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
@@ -86,7 +86,8 @@ public class CreateTables<DestinationT>
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-      return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations, partition);
+      return new CreateTables<DestinationT>(
+        createDisposition, bqServices, dynamicDestinations, partition);
   }
 
   @Override
@@ -129,7 +130,6 @@ public class CreateTables<DestinationT>
       TableSchema tableSchema)
       throws InterruptedException, IOException {
     String tableSpec = tableDestination.getTableSpec().split("\\$")[0];
-    
     TableReference tableReference = tableDestination.getTableReference();
     String tableDescription = tableDestination.getTableDescription();
     if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
@@ -139,18 +139,21 @@ public class CreateTables<DestinationT>
         // every thread from attempting a create and overwhelming our BigQuery quota.
         DatasetService datasetService = bqServices.getDatasetService(options);
 
-	TableReference shortened = tableReference.clone().setTableId(tableReference.getTableId().split("\\$")[0]);
+        TableReference shortened = tableReference
+                                    .clone()
+                                    .setTableId(tableReference
+                                    .getTableId()
+                                    .split("\\$")[0]);
         if (!createdTables.contains(tableSpec)) {
           if (datasetService.getTable(tableReference) == null) {
-	    Table table = new Table()
-		.setTableReference(shortened)
-		.setSchema(tableSchema)
-		.setDescription(tableDescription);
-
-	    if (partition != null) {
-		table.setTimePartitioning(BigQueryHelpers.fromJsonString(partition, TimePartitioning.class));
-	    }
-	      
+            Table table = new Table()
+                            .setTableReference(shortened)
+                            .setSchema(tableSchema)
+                            .setDescription(tableDescription);
+            if (partition != null) {
+              table.setTimePartitioning(
+                BigQueryHelpers.fromJsonString(partition, TimePartitioning.class));
+            }
             datasetService.createTable(table);
           }
           createdTables.add(tableSpec);

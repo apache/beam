@@ -853,10 +853,11 @@ public class BigQueryIO {
      * Allows newly created tables to include a {@link TimePartitioning} class.
      */
     public Write<T> withTimePartitioning(TimePartitioning partition) {
-      return withJsonTimePartitioning(StaticValueProvider.of(BigQueryHelpers.toJsonString(partition)));
+      return withJsonTimePartitioning(
+        StaticValueProvider.of(BigQueryHelpers.toJsonString(partition)));
     }
 
-    /** Allows TimePartition to be serialized */
+    /** Allows TimePartition to be serialized. */
     public Write<T> withJsonTimePartitioning(ValueProvider<String> partition) {
       return toBuilder().setJsonTimePartitioning(partition).build();
     }
@@ -995,10 +996,10 @@ public class BigQueryIO {
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
-	String part = null;
-	if (getJsonTimePartitioning() != null) {
-	    part = getJsonTimePartitioning().get();
-	}
+        String part = null;
+        if (getJsonTimePartitioning() != null) {
+          part = getJsonTimePartitioning().get();
+        }
         StreamingInserts<DestinationT> streamingInserts =
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, part);
         streamingInserts.setTestServices(getBigQueryServices());

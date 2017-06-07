@@ -464,12 +464,12 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteDynamicDestinationsBatch() throws Exception {
     writeDynamicDestinations(false);
   }
-  
+
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
     writeDynamicDestinations(true);
   }
-  
+
   public void writeDynamicDestinations(boolean streaming) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");

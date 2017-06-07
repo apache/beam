@@ -40,7 +40,7 @@ public class StreamingInserts<DestinationT>
   /** Constructor. */
   StreamingInserts(CreateDisposition createDisposition,
                    DynamicDestinations<?, DestinationT> dynamicDestinations,
-		   String partition) {
+                   String partition) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.partition = partition;
@@ -62,7 +62,7 @@ public class StreamingInserts<DestinationT>
         input.apply(
             "CreateTables",
             new CreateTables<DestinationT>(createDisposition, dynamicDestinations, partition)
-	    .withTestServices(bigQueryServices));
+              .withTestServices(bigQueryServices));
 
     return writes.apply(new StreamingWriteTables().withTestServices(bigQueryServices));
   }
