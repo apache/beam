@@ -47,6 +47,7 @@ class FlinkRemoteStreamingPipelineJob extends FlinkStreamingPipelineJob {
   private static final Logger LOG =
       LoggerFactory.getLogger(FlinkRemoteStreamingPipelineJob.class);
 
+  private final RemoteStreamEnvironment flinkEnv;
   private final JobID jobId;
   private final FiniteDuration clientTimeout = FiniteDuration.apply(10, "seconds");
   private final Configuration configuration;
@@ -54,6 +55,8 @@ class FlinkRemoteStreamingPipelineJob extends FlinkStreamingPipelineJob {
   public FlinkRemoteStreamingPipelineJob(
       FlinkPipelineOptions pipelineOptions,
       RemoteStreamEnvironment flinkEnv) throws Exception {
+
+    this.flinkEnv = flinkEnv;
 
     // transform the streaming program into a JobGraph
     StreamGraph streamGraph = flinkEnv.getStreamGraph();
@@ -65,14 +68,7 @@ class FlinkRemoteStreamingPipelineJob extends FlinkStreamingPipelineJob {
     configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, flinkEnv.getHost());
     configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, flinkEnv.getPort());
 
-    ClusterClient client;
-    try {
-      client = new StandaloneClusterClient(configuration);
-      client.setPrintStatusDuringExecution(flinkEnv.getConfig().isSysoutLoggingEnabled());
-    } catch (Exception e) {
-      throw new ProgramInvocationException(
-          "Cannot establish connection to JobManager: " + e.getMessage(), e);
-    }
+    ClusterClient client = getClusterClient();
 
     List<URL> stagingUrls = new LinkedList<>();
     if (stagingFiles != null) {
@@ -109,6 +105,18 @@ class FlinkRemoteStreamingPipelineJob extends FlinkStreamingPipelineJob {
       throw new ProgramInvocationException("The program execution failed" + term, e);
     } finally {
       client.shutdown();
+    }
+  }
+
+  @Override
+  protected ClusterClient getClusterClient() {
+    try {
+      ClusterClient client = new StandaloneClusterClient(configuration);
+      client.setPrintStatusDuringExecution(flinkEnv.getConfig().isSysoutLoggingEnabled());
+      return client;
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Cannot establish connection to JobManager: " + e.getMessage(), e);
     }
   }
 

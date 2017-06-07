@@ -30,15 +30,15 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -57,6 +57,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
       LoggerFactory.getLogger(FlinkLocalStreamingPipelineJob.class);
 
 
+  private final EmbeddedHaServices haServices;
   private final LocalFlinkMiniCluster flinkMiniCluster;
   private final JobID jobId;
   private final FiniteDuration clientTimeout = FiniteDuration.apply(10, "seconds");
@@ -93,19 +94,16 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
     configuration.setInteger(
         ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
-    configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-    configuration.setInteger(JobManagerOptions.PORT, 6123);
+
 
     if (LOG.isInfoEnabled()) {
       LOG.info("Running job on local embedded Flink mini cluster");
     }
 
+    haServices = new EmbeddedHaServices(Executors.directExecutor());
     flinkMiniCluster = new LocalFlinkMiniCluster(
         configuration,
-        HighAvailabilityServicesUtils.createHighAvailabilityServices(
-            configuration,
-            Executors.directExecutor(),
-            HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+        haServices,
         false);
 
     flinkMiniCluster.start();
@@ -115,14 +113,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
     LOG.info("Submitted job with JobId {}", jobId);
 
-    final StandaloneClusterClient clusterClient;
-    try {
-      clusterClient = new StandaloneClusterClient(configuration);
-    } catch (Exception e) {
-      LOG.error("Error creating Cluster Client.", e);
-      return;
-    }
-
+    final ClusterClient clusterClient = getClusterClient();
 
     // start a Thread that waits on the job and shuts down the mini cluster when
     // the job is done
@@ -168,6 +159,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
         } finally {
           try {
             flinkMiniCluster.stop();
+            haServices.closeAndCleanupAllData();
           } catch (Exception e) {
             LOG.error("Error while shutting down mini cluster.", e);
           }
@@ -176,6 +168,11 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
     };
     shutdownTread.setName("Beam Flink Runner Local Cluster Shutdown Thread");
     shutdownTread.start();
+  }
+
+  @Override
+  protected ClusterClient getClusterClient() {
+    return new StandaloneClusterClient(getConfiguration(), haServices);
   }
 
   @Override
@@ -231,7 +228,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
           } else {
             StandaloneClusterClient clusterClient;
             try {
-              clusterClient = new StandaloneClusterClient(getConfiguration());
+              clusterClient = new StandaloneClusterClient(getConfiguration(), haServices);
             } catch (Exception e) {
               throw new RuntimeException("Error retrieving cluster client.", e);
             }

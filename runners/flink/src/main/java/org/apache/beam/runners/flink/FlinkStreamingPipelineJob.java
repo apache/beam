@@ -34,6 +34,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobCancellationException;
@@ -81,13 +82,15 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
   protected abstract FiniteDuration getClientTimeout();
   protected abstract JobID getJobId();
 
+  protected abstract ClusterClient getClusterClient();
+
   @Override
   public State getState() {
-    StandaloneClusterClient clusterClient = null;
+    ClusterClient clusterClient = null;
     ActorGateway jobManagerGateway;
     try {
       try {
-        clusterClient = new StandaloneClusterClient(getConfiguration());
+        clusterClient = getClusterClient();
         jobManagerGateway = clusterClient.getJobManagerGateway();
 
       } catch (Exception e) {
@@ -127,12 +130,10 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
   public State waitUntilFinish(Duration duration) {
     final FiniteDuration testTimeout =
         new FiniteDuration(duration.getMillis(), TimeUnit.MILLISECONDS);
-    final Deadline deadline = testTimeout.fromNow();
 
-
-    StandaloneClusterClient clusterClient;
+    ClusterClient clusterClient;
     try {
-      clusterClient = new StandaloneClusterClient(getConfiguration());
+      clusterClient = getClusterClient();
     } catch (Exception e) {
       throw new RuntimeException("Error retrieving cluster client.", e);
     }
@@ -179,9 +180,9 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
   @Override
   public State waitUntilFinish() {
 
-    StandaloneClusterClient clusterClient;
+    ClusterClient clusterClient;
     try {
-      clusterClient = new StandaloneClusterClient(getConfiguration());
+      clusterClient = getClusterClient();
     } catch (Exception e) {
       throw new RuntimeException("Error retrieving cluster client.", e);
     }
@@ -207,10 +208,10 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
 
   @Override
   public State cancel() throws IOException {
-    StandaloneClusterClient clusterClient = null;
+    ClusterClient clusterClient = null;
     try {
       try {
-        clusterClient = new StandaloneClusterClient(getConfiguration());
+        clusterClient = getClusterClient();
 
       } catch (Exception e) {
         throw new RuntimeException("Error retrieving cluster client.", e);
@@ -239,9 +240,9 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     return new MetricResults() {
       @Override
       public MetricQueryResults queryMetrics(MetricsFilter filter) {
-        StandaloneClusterClient clusterClient;
+        ClusterClient clusterClient;
         try {
-          clusterClient = new StandaloneClusterClient(getConfiguration());
+          clusterClient = getClusterClient();
         } catch (Exception e) {
           throw new RuntimeException("Error retrieving cluster client.", e);
         }
