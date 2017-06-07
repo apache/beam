@@ -63,6 +63,7 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
 
   /**
    * Returns the default {@code Coder} to use for the data read from this source.
+   * @throws org.apache.beam.sdk.coders.CannotProvideCoderException if there is no default Coder.
    */
   public abstract Coder<T> getDefaultOutputCoder();
 
