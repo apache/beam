@@ -40,13 +40,15 @@ __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub',
 class ReadStringsFromPubSub(PTransform):
   """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub."""
 
-  def __init__(self, topic, subscription=None, id_label=None):
+  def __init__(self, topic=None, subscription=None, id_label=None):
     """Initializes ``ReadStringsFromPubSub``.
 
     Attributes:
-      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-      subscription: Optional existing Cloud Pub/Sub subscription to use in the
-        form "projects/<project>/subscriptions/<subscription>".
+      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
+        provided then subscription must be None.
+      subscription: Existing Cloud Pub/Sub subscription to use in the
+        form "projects/<project>/subscriptions/<subscription>". If provided then
+        topic must be None.
       id_label: The attribute on incoming Pub/Sub messages to use as a unique
         record identifier.  When specified, the value of this attribute (which
         can be any string that uniquely identifies the record) will be used for
@@ -55,6 +57,12 @@ class ReadStringsFromPubSub(PTransform):
         case, deduplication of the stream will be strictly best effort.
     """
     super(ReadStringsFromPubSub, self).__init__()
+    if topic and subscription:
+      raise ValueError("Only one of topic or subscription should be provided.")
+
+    if not (topic or subscription):
+      raise ValueError("Either a topic or subscription must be provided.")
+
     self._source = _PubSubPayloadSource(
         topic,
         subscription=subscription,
@@ -90,9 +98,11 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
   Attributes:
-    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    subscription: Optional existing Cloud Pub/Sub subscription to use in the
-      form "projects/<project>/subscriptions/<subscription>".
+    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
+      provided then topic must be None.
+    subscription: Existing Cloud Pub/Sub subscription to use in the
+      form "projects/<project>/subscriptions/<subscription>". If provided then
+      subscription must be None.
     id_label: The attribute on incoming Pub/Sub messages to use as a unique
       record identifier.  When specified, the value of this attribute (which can
       be any string that uniquely identifies the record) will be used for
@@ -101,7 +111,10 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
       case, deduplication of the stream will be strictly best effort.
   """
 
-  def __init__(self, topic, subscription=None, id_label=None):
+  def __init__(self, topic=None, subscription=None, id_label=None):
+    # we are using this coder explicitly for portability reasons of PubsubIO
+    # across implementations in languages.
+    self.coder = coders.BytesCoder()
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
@@ -131,6 +144,9 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
   """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
 
   def __init__(self, topic):
+    # we are using this coder explicitly for portability reasons of PubsubIO
+    # across implementations in languages.
+    self.coder = coders.BytesCoder()
     self.topic = topic
 
   @property
