@@ -577,10 +577,4 @@ public class DirectRunnerTest implements Serializable {
       return underlying.getDefaultOutputCoder();
     }
   }
-
-  @Test
-  public void testLatencyStuff() {
-    PCollection<Long> longs =
-        getPipeline().apply(GenerateSequence.from(0).withRate(10L, Duration.standardSeconds(1L)));
-  }
 }
