@@ -40,13 +40,15 @@ __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub',
 class ReadStringsFromPubSub(PTransform):
   """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub."""
 
-  def __init__(self, topic, subscription=None, id_label=None):
+  def __init__(self, topic=None, subscription=None, id_label=None):
     """Initializes ``ReadStringsFromPubSub``.
 
     Attributes:
-      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-      subscription: Optional existing Cloud Pub/Sub subscription to use in the
-        form "projects/<project>/subscriptions/<subscription>".
+      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
+        provided then subscription must be None.
+      subscription: Existing Cloud Pub/Sub subscription to use in the
+        form "projects/<project>/subscriptions/<subscription>". If provided then
+        topic must be None.
       id_label: The attribute on incoming Pub/Sub messages to use as a unique
         record identifier.  When specified, the value of this attribute (which
         can be any string that uniquely identifies the record) will be used for
@@ -55,8 +57,15 @@ class ReadStringsFromPubSub(PTransform):
         case, deduplication of the stream will be strictly best effort.
     """
     super(ReadStringsFromPubSub, self).__init__()
+    if topic and subscription:
+      raise ValueError("Only one of topic and subscription should be provided.")
+
+    if not (topic or subscription):
+      raise ValueError("Either a topic or subscription must be provided.")
+
     self._source = _PubSubPayloadSource(
-        topic,
+        coder=coders.BytesCoder(),
+        topic=topic,
         subscription=subscription,
         id_label=id_label)
 
@@ -78,7 +87,7 @@ class WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(WriteStringsToPubSub, self).__init__()
-    self._sink = _PubSubPayloadSink(topic)
+    self._sink = _PubSubPayloadSink(coders.BytesCoder(), topic)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
@@ -90,18 +99,22 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
   Attributes:
-    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    subscription: Optional existing Cloud Pub/Sub subscription to use in the
-      form "projects/<project>/subscriptions/<subscription>".
+    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
+      provided then topic must be None.
+    subscription: Existing Cloud Pub/Sub subscription to use in the
+      form "projects/<project>/subscriptions/<subscription>". If provided then
+      subscription must be None.
     id_label: The attribute on incoming Pub/Sub messages to use as a unique
       record identifier.  When specified, the value of this attribute (which can
       be any string that uniquely identifies the record) will be used for
       deduplication of messages.  If not provided, Dataflow cannot guarantee
       that no duplicate data will be delivered on the Pub/Sub stream. In this
       case, deduplication of the stream will be strictly best effort.
+    coder: The Coder to use for decoding incoming Pub/Sub messages.
   """
 
-  def __init__(self, topic, subscription=None, id_label=None):
+  def __init__(self, coder, topic=None, subscription=None, id_label=None):
+    self.coder = coder
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
@@ -130,7 +143,8 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
 class _PubSubPayloadSink(dataflow_io.NativeSink):
   """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
 
-  def __init__(self, topic):
+  def __init__(self, coder, topic):
+    self.coder = coder
     self.topic = topic
 
   @property
