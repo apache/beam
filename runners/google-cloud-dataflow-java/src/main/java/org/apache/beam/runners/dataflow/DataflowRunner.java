@@ -428,12 +428,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
       PTransform<PInput, PCollection<T>> original = transform.getTransform();
+      PCollection<T> output =
+          (PCollection) Iterables.getOnlyElement(transform.getOutputs().values());
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
           InstanceBuilder.ofType(replacement)
               .withArg(DataflowRunner.class, runner)
               .withArg(
                   (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
+              .withArg((Class<? super PCollection<T>>) output.getClass(), output)
               .build());
     }
 
@@ -809,11 +812,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends PTransform<PBegin, PCollection<PubsubMessage>> {
     private final PubsubUnboundedSource transform;
 
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
+    /** Builds an instance of this class from the overridden transform. */
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public StreamingPubsubIORead(
-        DataflowRunner runner, PubsubUnboundedSource transform) {
+        DataflowRunner runner,
+        PubsubUnboundedSource transform,
+        PCollection<PubsubMessage> originalOutput) {
       this.transform = transform;
     }
 
@@ -992,11 +996,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class StreamingUnboundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
 
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
+    /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingUnboundedRead(DataflowRunner runner, Read.Unbounded<T> transform) {
+    public StreamingUnboundedRead(DataflowRunner runner,
+        Read.Unbounded<T> transform,
+        PCollection<T> originalOutput) {
       this.source = transform.getSource();
     }
 
@@ -1111,7 +1115,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingBoundedRead(DataflowRunner runner, Read.Bounded<T> transform) {
+    public StreamingBoundedRead(DataflowRunner runner,
+        Read.Bounded<T> transform,
+        PCollection<T> originalOutput) {
       this.source = transform.getSource();
     }
 
