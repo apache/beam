@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
+import org.apache.gearpump.DefaultMessage;
 import org.apache.gearpump.Message;
 import org.apache.gearpump.streaming.source.DataSource;
 import org.apache.gearpump.streaming.source.Watermark;
@@ -77,9 +78,9 @@ public abstract class GearpumpSource<T> implements DataSource {
       if (available) {
         T data = reader.getCurrent();
         org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
-        message = Message.apply(
+        message = new DefaultMessage(
             WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
-            timestamp.getMillis());
+            TranslatorUtils.jodaTimeToJava8Time(timestamp));
       }
       available = reader.advance();
     } catch (Exception e) {

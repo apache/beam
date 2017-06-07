@@ -72,7 +72,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     JavaStream<WindowedValue<KV<K, List<V>>>> outputStream = inputStream
         .window(Windows.apply(
             new GearpumpWindowFn(windowFn.isNonMerging()),
-            EventTimeTrigger$.MODULE$, Discarding$.MODULE$), "assign_window")
+            EventTimeTrigger$.MODULE$, Discarding$.MODULE$, windowFn.toString()))
         .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
         .map(new KeyedByTimestamp<K, V>(windowFn, timestampCombiner), "keyed_by_timestamp")
         .fold(new Merge<>(windowFn, timestampCombiner), "merge")
@@ -85,7 +85,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
    * A transform used internally to translate Beam's Window to Gearpump's Window.
    */
   protected static class GearpumpWindowFn<T, W extends BoundedWindow>
-      implements WindowFunction<WindowedValue<T>>, Serializable {
+      implements WindowFunction, Serializable {
 
     private final boolean isNonMerging;
 
@@ -94,9 +94,14 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public Window[] apply(Context<WindowedValue<T>> context) {
+    public <T> Window[]  apply(Context<T> context) {
       try {
-        return toGearpumpWindows(context.element().getWindows().toArray(new BoundedWindow[0]));
+        Object element = context.element();
+        if (element instanceof TranslatorUtils.RawUnionValue) {
+          element = ((TranslatorUtils.RawUnionValue) element).getValue();
+        }
+        return toGearpumpWindows(((WindowedValue<T>) element).getWindows()
+            .toArray(new BoundedWindow[0]));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

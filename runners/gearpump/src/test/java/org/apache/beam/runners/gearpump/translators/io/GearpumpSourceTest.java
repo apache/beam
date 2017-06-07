@@ -32,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.gearpump.DefaultMessage;
 import org.apache.gearpump.Message;
 import org.apache.gearpump.streaming.source.Watermark;
 import org.junit.Assert;
@@ -77,7 +78,7 @@ public class GearpumpSourceTest {
       Assert.assertEquals(expectedWaterMark, sourceForTest.getWatermark());
 
       Message expectedMsg =
-          Message.apply(
+          new DefaultMessage(
               WindowedValue.timestampedValueInGlobalWindow(value, value.getTimestamp()),
               value.getTimestamp().getMillis());
       Message message = sourceForTest.read();

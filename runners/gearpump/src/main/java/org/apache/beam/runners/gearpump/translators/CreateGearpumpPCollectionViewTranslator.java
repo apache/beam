@@ -41,6 +41,6 @@ public class CreateGearpumpPCollectionViewTranslator<ElemT, ViewT> implements
     JavaStream<WindowedValue<List<ElemT>>> inputStream =
         context.getInputStream(context.getInput());
     PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
-    context.setOutputStream(view, inputStream);
+    context.setOutputStream(view.getPCollection(), inputStream);
   }
 }

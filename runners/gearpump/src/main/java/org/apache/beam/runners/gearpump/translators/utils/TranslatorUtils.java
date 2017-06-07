@@ -76,7 +76,7 @@ public class TranslatorUtils {
       JavaStream<WindowedValue<List<?>>> sideInputStream = context.getInputStream(
           tagToSideInput.getValue());
       mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(
-          tagToSideInput.getKey()), "map_to_RawUnionValue"), "merge_to_MainStream");
+          tagToSideInput.getKey()), "map_to_RawUnionValue"), 1, "merge_to_MainStream");
     }
     return mainStream;
   }

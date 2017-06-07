@@ -113,8 +113,8 @@ public class FlattenPCollectionsTranslatorTest {
     when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
     when(translationContext.getInputStream(mockCollection2)).thenReturn(javaStream2);
-    when(javaStream1.merge(javaStream2, transformName)).thenReturn(mergedStream);
-    when(javaStream2.merge(javaStream1, transformName)).thenReturn(mergedStream);
+    when(javaStream1.merge(javaStream2, 1, transformName)).thenReturn(mergedStream);
+    when(javaStream2.merge(javaStream1, 1, transformName)).thenReturn(mergedStream);
 
     when(translationContext.getOutput()).thenReturn(output);
 
@@ -144,6 +144,6 @@ public class FlattenPCollectionsTranslatorTest {
 
     translator.translate(transform, translationContext);
     verify(javaStream1).map(any(MapFunction.class), eq("dummy"));
-    verify(javaStream1).merge(any(JavaStream.class), eq(transformName));
+    verify(javaStream1).merge(any(JavaStream.class), eq(1), eq(transformName));
   }
 }

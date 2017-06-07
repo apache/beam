@@ -145,6 +145,7 @@ public class DoFnFunction<InputT, OutputT> extends
             Object emptyValue = WindowedValue.of(
                 Lists.newArrayList(), value.getTimestamp(), sideInputWindow, value.getPane());
             sideInputReader.addSideInputValue(sideInput, (WindowedValue<Iterable<?>>) emptyValue);
+            System.out.println(sideInput + " in " + sideInputWindow.toString() + " not ready");
           }
         }
       }

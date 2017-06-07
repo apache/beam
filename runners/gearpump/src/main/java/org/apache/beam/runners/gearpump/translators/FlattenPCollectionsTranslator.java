@@ -57,7 +57,7 @@ public class FlattenPCollectionsTranslator<T> implements
           inputStream = inputStream.map(new DummyFunction<T>(), "dummy");
         }
 
-        merged = merged.merge(inputStream, transform.getName());
+        merged = merged.merge(inputStream, 1, transform.getName());
       }
       unique.add(collection);
     }

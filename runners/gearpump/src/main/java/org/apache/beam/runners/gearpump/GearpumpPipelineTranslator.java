@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.KV;
@@ -143,7 +144,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.debug("visiting transform {}", node.getTransform());
+    LOG.info("visiting transform {}", node.getTransform());
     PTransform transform = node.getTransform();
     TransformTranslator translator = getTransformTranslator(transform.getClass());
     if (null == translator) {
@@ -345,6 +346,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
       return "StreamingViewAsList";
     }
   }
+
 
   private static class StreamingCombineGloballyAsSingletonView<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {

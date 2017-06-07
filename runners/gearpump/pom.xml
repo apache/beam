@@ -43,7 +43,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <gearpump.version>0.8.3</gearpump.version>
+    <gearpump.version>0.8.4-SNAPSHOT</gearpump.version>
   </properties>
 
   <profiles>
