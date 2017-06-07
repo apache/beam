@@ -23,6 +23,7 @@ import com.google.common.cache.LoadingCache;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,15 +64,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
 
-    @SuppressWarnings("unchecked")
-    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
-        parDoApplication =
-            (AppliedPTransform<
-                    PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>)
-                application;
-
-    ParDo.MultiOutput<InputT, OutputT> transform = parDoApplication.getTransform();
-    final DoFn<InputT, OutputT> doFn = transform.getFn();
+    final DoFn<InputT, OutputT> doFn =
+        (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(application);
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
@@ -81,9 +75,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 (PCollection<InputT>) inputBundle.getPCollection(),
                 inputBundle.getKey(),
                 doFn,
-                transform.getSideInputs(),
-                transform.getMainOutputTag(),
-                transform.getAdditionalOutputTags().getAll());
+                ParDoTranslation.getSideInputs(application),
+                (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(application),
+                ParDoTranslation.getAdditionalOutputTags(application).getAll());
     return evaluator;
   }
 
