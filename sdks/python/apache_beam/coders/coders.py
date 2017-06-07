@@ -286,6 +286,11 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:bytes',
+    }
+
   def __eq__(self, other):
     return type(self) == type(other)
 
