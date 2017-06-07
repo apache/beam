@@ -363,8 +363,13 @@ class FlinkStreamingTransformTranslators {
       Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newHashMap();
       for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
         if (!tagsToOutputTags.containsKey(entry.getKey())) {
-          tagsToOutputTags.put(entry.getKey(), new OutputTag<>(entry.getKey().getId(),
-              (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())));
+          tagsToOutputTags.put(
+              entry.getKey(),
+              new OutputTag<WindowedValue<?>>(
+                  entry.getKey().getId(),
+                  (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())
+              )
+          );
         }
       }
 
