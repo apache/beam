@@ -157,7 +157,10 @@ class PBegin(PValue):
   transforms. This allows us to have transforms that uniformly take PValue(s)
   as inputs.
   """
-  pass
+  @property
+  def windowing(self):
+    from apache_beam.transforms import core, window
+    return core.Windowing(window.GlobalWindows())
 
 
 class PDone(PValue):

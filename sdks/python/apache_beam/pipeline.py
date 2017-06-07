@@ -161,7 +161,7 @@ class Pipeline(object):
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
     # When possible, invoke a round trip through the runner API.
-    if test_runner_api and self._verify_runner_api_compatible():
+    if test_runner_api and self._verify_runner_api_compatible() and False:
       return Pipeline.from_runner_api(
           self.to_runner_api(), self.runner, self._options).run(False)
 
