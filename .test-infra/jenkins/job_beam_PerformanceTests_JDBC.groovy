@@ -35,7 +35,7 @@ job('beam_PerformanceTests_JDBC'){
     def pipelineArgs = [
         tempRoot: 'gs://temp-storage-for-end-to-end-tests',
         project: 'apache-beam-testing',
-        postgresServerName: '10.36.0.11',
+        postgresServerName: '10.36.0.19',
         postgresUsername: 'postgres',
         postgresDatabaseName: 'postgres',
         postgresPassword: 'uuinkks',
@@ -57,7 +57,4 @@ job('beam_PerformanceTests_JDBC'){
     ]
 
     common_job_properties.buildPerformanceTest(delegate, argMap)
-
-    // [BEAM-2141] Perf tests do not pass.
-    disabled()
 }
