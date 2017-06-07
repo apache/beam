@@ -102,7 +102,7 @@ class RunnerApiFn(object):
 
     Prefer overriding self.to_runner_api_parameter.
     """
-    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.runners.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
