@@ -228,9 +228,13 @@ class _TransformWatermarks(object):
       for input_bundle in self._pending:
         # TODO: Perhaps we can have the Bundle class keep track of the minimum
         # timestamp so we don't have to do an iteration here.
-        bundle_min_timestamp = min(wv.timestamp for wv in input_bundle.get_elements_iterable()) - TIME_GRANULARITY
-        if bundle_min_timestamp < pending_holder:
-          pending_holder = bundle_min_timestamp
+        try:
+          bundle_min_timestamp = min(wv.timestamp for wv in input_bundle.get_elements_iterable()) - TIME_GRANULARITY
+          if bundle_min_timestamp < pending_holder:
+            pending_holder = bundle_min_timestamp
+        except ValueError:
+          # Thrown by min when bundle is empty.
+          pass
         has_pending = True
       # if self._pending:
       #   pending_holder = WatermarkManager.WATERMARK_NEG_INF

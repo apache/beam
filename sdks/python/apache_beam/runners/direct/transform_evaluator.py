@@ -20,6 +20,9 @@
 from __future__ import absolute_import
 
 import collections
+import functools
+import random
+import time
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -37,6 +40,7 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import Timestamp
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
@@ -92,6 +96,7 @@ class TransformEvaluatorRegistry(object):
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
+        io.ReadStringsFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
@@ -297,7 +302,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
     assert isinstance(index, int)
     assert 0 <= index <= len(self.test_stream.events)
     self.current_index = index
-  
+
   def finish_bundle(self):
     assert len(self._outputs) == 1
     output_pcollection = list(self._outputs)[0]
@@ -316,7 +321,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
       assert event.new_watermark >= self.watermark
       watermark = event.new_watermark
     elif isinstance(event, ProcessingTimeEvent):
-      # TODO: advance processing time in the context's mock clock. 
+      # TODO: advance processing time in the context's mock clock.
       pass
     else:
       raise ValueError('Invalid TestStream event: %s.' % event)
@@ -336,6 +341,67 @@ class _TestStreamEvaluator(_TransformEvaluator):
     return TransformResult(
         self._applied_ptransform, bundles, unprocessed_bundle, None, None, None,
             None, hold)
+
+
+class _PubSubReadEvaluator(_TransformEvaluator):
+  """TransformEvaluator for PubSub read."""
+
+  def __init__(self, *args, **kwargs):
+    super(_PubSubReadEvaluator, self).__init__(*args, **kwargs)
+    source = self._applied_ptransform.transform._source
+    subscription_name = (
+        source.subscription or 'dataflow_%x' % random.randrange(1 << 32))
+    self._subscription = self.create_subscription(
+        source.topic, subscription_name)
+    if not source.subscription:
+      self._subscription.create()
+
+  _subscription_cache = {}
+  @classmethod
+  def create_subscription(cls, topic, subscription_name):
+    key = topic, subscription_name
+    if key not in cls._subscription_cache:
+      from google.cloud import pubsub
+      cls._subscription_cache[key] = (
+          pubsub.Client().topic(topic).subscription(subscription_name))
+    return cls._subscription_cache[key]
+
+  def __del__(self):
+    if not self._applied_ptransform.transform._source.subscription:
+      self._subscription.delete()
+
+  def start_bundle(self):
+    pass
+
+  def process_element(self, element):
+    pass
+
+  def finish_bundle(self):
+    data = self._read_from_pubsub()
+    if data:
+      output_pcollection = list(self._outputs)[0]
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      now = Timestamp.of(time.time())
+      for message_data in data:
+        bundle.output(GlobalWindows.windowed_value(message_data, timestamp=now))
+      bundles = [bundle]
+    else:
+      bundles = []
+
+    unprocessed_bundle = self._evaluation_context.create_bundle(
+        self._applied_ptransform.inputs[0])
+
+    return TransformResult(
+        self._applied_ptransform, bundles,
+        unprocessed_bundle, None, None, None, None,
+        Timestamp.of(time.time()))
+
+  def _read_from_pubsub(self):
+    results = self._subscription.pull(return_immediately=True)
+    if results:
+      # Direct runner has no retry.
+      self._subscription.acknowledge([ack_id for ack_id, message in results])
+    return [message.data for ack_id, message in results]
 
 
 class _FlattenEvaluator(_TransformEvaluator):
