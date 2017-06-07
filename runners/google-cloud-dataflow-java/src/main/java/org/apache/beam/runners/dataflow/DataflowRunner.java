@@ -1050,7 +1050,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * A DoFn which stores encoded versions of elements and a representation of a Coder
      * capable of decoding those elements.
      *
-     * <p>TODO(BEAM-2422): Make this a SplittableDoFn.
+     * <p>TODO: BEAM-2422 - Make this a SplittableDoFn.
      */
     private static class DecodeAndEmitDoFn<T> extends DoFn<byte[], T> {
       public static <T> DecodeAndEmitDoFn<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
