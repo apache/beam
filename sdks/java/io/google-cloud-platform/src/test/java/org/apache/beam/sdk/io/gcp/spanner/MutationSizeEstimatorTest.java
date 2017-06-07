@@ -135,4 +135,16 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(timestampArray), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(dateArray), is(48L));
   }
+
+  @Test
+  public void group() throws Exception {
+    Mutation int64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation float64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2.9).build();
+    Mutation bool = Mutation.newInsertOrUpdateBuilder("test").set("one").to(false).build();
+
+    MutationGroup group = MutationGroup.withPrimary(int64).attach(float64).attach(bool).build();
+
+    assertThat(MutationSizeEstimator.sizeOf(group), is(17L));
+  }
+
 }
