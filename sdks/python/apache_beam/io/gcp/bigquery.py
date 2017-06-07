@@ -1299,7 +1299,7 @@ class WriteToBigQuery(PTransform):
         create_disposition=self.create_disposition,
         write_disposition=self.write_disposition,
         client=self.test_client)
-    return pcoll | 'Write to BigQuery' >> ParDo(bigquery_write_fn)
+    return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
 
   def display_data(self):
     res = {}
