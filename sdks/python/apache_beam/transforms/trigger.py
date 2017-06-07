@@ -33,7 +33,7 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.runners.api import beam_runner_api_pb2
+from apache_beam.portability.runners.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 

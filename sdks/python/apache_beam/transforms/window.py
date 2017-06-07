@@ -55,8 +55,8 @@ from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
 from apache_beam.coders import coders
-from apache_beam.runners.api import beam_runner_api_pb2
-from apache_beam.runners.api import standard_window_fns_pb2
+from apache_beam.portability.runners.api import beam_runner_api_pb2
+from apache_beam.portability.runners.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns

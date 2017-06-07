@@ -25,6 +25,7 @@ import cPickle as pickle
 import google.protobuf
 
 from apache_beam.coders import coder_impl
+from apache_beam.portability.runners.api import beam_runner_api_pb2
 from apache_beam.utils import urns
 from apache_beam.utils import proto_utils
 
@@ -205,7 +206,6 @@ class Coder(object):
     """For internal use only; no backwards-compatibility guarantees.
     """
     # TODO(BEAM-115): Use specialized URNs and components.
-    from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
