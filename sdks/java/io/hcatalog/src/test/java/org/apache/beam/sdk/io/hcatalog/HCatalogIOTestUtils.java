@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;
@@ -44,7 +44,7 @@ import org.apache.hive.hcatalog.data.transfer.WriterContext;
 public class HCatalogIOTestUtils {
 
   static final String TEST_TABLE_NAME = "mytable";
-  static final int TEST_RECORDS_COUNT = 50;
+  static final int TEST_RECORDS_COUNT = 1000;
 
   /**
    * Returns values from a column of the table as a list of strings.
@@ -63,7 +63,7 @@ public class HCatalogIOTestUtils {
    * Returns a ReaderContext instance for the passed datastore config params.
    * @throws HCatException
    */
-   static ReaderContext getReaderContext(Map<String, String> config)
+  static ReaderContext getReaderContext(Map<String, String> config)
     throws HCatException {
     ReadEntity entity = new ReadEntity.Builder().withTable(TEST_TABLE_NAME).build();
     HCatReader reader = DataTransferFactory.getHCatReader(entity, config);
@@ -75,7 +75,7 @@ public class HCatalogIOTestUtils {
     * Returns a WriterContext instance for the passed datastore config params.
     * @throws HCatException
     */
-   static WriterContext getWriterContext(Map<String, String> config) throws HCatException {
+  static WriterContext getWriterContext(Map<String, String> config) throws HCatException {
       WriteEntity.Builder builder = new WriteEntity.Builder();
       WriteEntity entity = builder.withTable(TEST_TABLE_NAME).build();
       HCatWriter writer = DataTransferFactory.getHCatWriter(entity, config);
@@ -83,8 +83,8 @@ public class HCatalogIOTestUtils {
       return context;
     }
 
-   private static List<String> readRecords(ReaderContext cntxt, int splitId) throws
-   HCatException {
+   private static List<String> readRecords(ReaderContext cntxt, int splitId)
+       throws HCatException {
      List<String> records = new ArrayList<String>();
     HCatReader reader = DataTransferFactory.getHCatReader(cntxt, splitId);
     Iterator<HCatRecord> itr = reader.read();
@@ -131,7 +131,7 @@ public class HCatalogIOTestUtils {
    /**
     * Returns a list of HCatRecords of passed size.
     */
-   private static List<HCatRecord> getHCatRecords(int size) {
+   static List<HCatRecord> getHCatRecords(int size) {
      List<HCatRecord> expected = new ArrayList<HCatRecord>();
      for (int i = 0; i < size; i++) {
        expected.add(toHCatRecord(i));
@@ -140,34 +140,20 @@ public class HCatalogIOTestUtils {
    }
 
    /**
-    * Returns a list of DefaultHCatRecords of passed size.
-    */
-   static List<DefaultHCatRecord> getDefaultHCatRecords(int size) {
-     List<DefaultHCatRecord> expected = new ArrayList<DefaultHCatRecord>();
-     for (int i = 0; i < size; i++) {
-       expected.add(toHCatRecord(i));
-     }
-     return expected;
-   }
-   /**
     * Inserts data into test datastore.
     * @throws Exception
     */
-   static void prepareTestData() throws Exception {
-     reCreateTestTable();
-     Map<String, String> map = getConfigProperties();
-
-     WriterContext cntxt = getWriterContext(map);
-
+   static void insertTestData(Map<String, String> configMap) throws Exception {
+     WriterContext cntxt = getWriterContext(configMap);
      writeRecords(cntxt);
-     commitRecords(map, cntxt);
+     commitRecords(configMap, cntxt);
    }
 
    /**
-    * Returns config params for the test datastore.
+    * Returns config params for the test datastore as a Map.
     */
-   static Map<String, String> getConfigProperties() {
-     Iterator<Entry<String, String>> itr = EmbeddedMetastoreService.getHiveConf().iterator();
+   static Map<String, String> getConfigPropertiesAsMap(HiveConf hiveConf) {
+     Iterator<Entry<String, String>> itr = hiveConf.iterator();
      Map<String, String> map = new HashMap<String, String>();
      while (itr.hasNext()) {
        Entry<String, String> kv = itr.next();
@@ -176,15 +162,6 @@ public class HCatalogIOTestUtils {
      return map;
    }
 
-   /**
-    * Drops and re-creates a table by the name TEST_TABLE_NAME.
-    * @throws CommandNeedRetryException
-    */
-  static void reCreateTestTable() throws CommandNeedRetryException {
-   EmbeddedMetastoreService.executeQuery("drop table " + TEST_TABLE_NAME);
-   EmbeddedMetastoreService.executeQuery("create table " + TEST_TABLE_NAME + "(mycol1 string,"
-       + "mycol2 int)");
-  }
    /**
     * returns a DefaultHCatRecord instance for passed value.
     */
