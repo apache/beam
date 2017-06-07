@@ -59,7 +59,6 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -260,11 +259,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      return input
+      input
           .apply(ParDo.of(new WrapAsList<T>()))
-          .apply(CreateApexPCollectionView.<List<T>, T>of(transform.getView()))
-          // This PCollection should never receive input, and exists for types to line up.
-          .apply(Flatten.<T>iterables());
+          .apply(CreateApexPCollectionView.<List<T>, T>of(transform.getView()));
+      return input;
     }
 
     @Override
