@@ -63,21 +63,4 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     }
   }
 
-  ///////////////////////// Unsupported tests \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
-  @Override
-  public void testSet() {}
-
-  @Override
-  public void testSetIsEmpty() {}
-
-  @Override
-  public void testMergeSetIntoSource() {}
-
-  @Override
-  public void testMergeSetIntoNewNamespace() {}
-
-  @Override
-  public void testMap() {}
-
 }
