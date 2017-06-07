@@ -68,6 +68,8 @@ public class TranslationContext {
   public <OutputT> void setOutputStream(PValue output, JavaStream<OutputT> outputStream) {
     if (!streams.containsKey(output)) {
       streams.put(output, outputStream);
+    } else {
+      throw new RuntimeException("set stream for duplicated output " + output);
     }
   }
 

@@ -24,7 +24,6 @@ import com.google.common.collect.Lists;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -66,7 +65,6 @@ public class DoFnFunction<InputT, OutputT> extends
   private transient PushbackSideInputDoFnRunner<InputT, OutputT> doFnRunner;
   private transient SideInputHandler sideInputReader;
   private transient List<WindowedValue<InputT>> pushedBackValues;
-  private transient Map<PCollectionView<?>, List<WindowedValue<Iterable<?>>>> sideInputValues;
   private final Collection<PCollectionView<?>> sideInputs;
   private final Map<String, PCollectionView<?>> tagsToSideInputs;
   private final TupleTag<OutputT> mainOutput;
@@ -109,7 +107,6 @@ public class DoFnFunction<InputT, OutputT> extends
     doFnRunner = doFnRunnerFactory.createRunner(sideInputReader);
 
     pushedBackValues = new LinkedList<>();
-    sideInputValues = new HashMap<>();
     outputManager.setup(mainOutput, sideOutputs);
   }
 
@@ -132,25 +129,14 @@ public class DoFnFunction<InputT, OutputT> extends
       } else {
         // side input
         PCollectionView<?> sideInput = tagsToSideInputs.get(unionValue.getUnionTag());
-        WindowedValue<?> sideInputValue =
-            (WindowedValue<?>) unionValue.getValue();
-        Object value = sideInputValue.getValue();
-        if (!(value instanceof Iterable)) {
-          sideInputValue = sideInputValue.withValue(Lists.newArrayList(value));
-        }
-        if (!sideInputValues.containsKey(sideInput)) {
-          sideInputValues.put(sideInput, new LinkedList<WindowedValue<Iterable<?>>>());
-        }
-        sideInputValues.get(sideInput).add((WindowedValue<Iterable<?>>) sideInputValue);
+        WindowedValue<Iterable<?>> sideInputValue =
+            (WindowedValue<Iterable<?>>) unionValue.getValue();
+        sideInputReader.addSideInputValue(sideInput, sideInputValue);
       }
     }
 
+
     for (PCollectionView<?> sideInput: sideInputs) {
-      if (sideInputValues.containsKey(sideInput)) {
-        for (WindowedValue<Iterable<?>> value: sideInputValues.get(sideInput)) {
-          sideInputReader.addSideInputValue(sideInput, value);
-        }
-      }
       for (WindowedValue<InputT> value : pushedBackValues) {
         for (BoundedWindow win: value.getWindows()) {
           BoundedWindow sideInputWindow =
@@ -171,7 +157,6 @@ public class DoFnFunction<InputT, OutputT> extends
     }
     pushedBackValues.clear();
     Iterables.addAll(pushedBackValues, nextPushedBackValues);
-    sideInputValues.clear();
 
     doFnRunner.finishBundle();
 
