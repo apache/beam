@@ -34,9 +34,9 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class TestReadStringsFromPubSub(unittest.TestCase):
-  def test_expand(self):
+  def test_expand_with_topic(self):
     p = TestPipeline()
-    pcoll = p | ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
+    pcoll = p | ReadStringsFromPubSub('a_topic', None, 'a_label')
     # Ensure that the output type is str
     self.assertEqual(unicode, pcoll.element_type)
 
@@ -47,8 +47,32 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     # Ensure that the properties passed through correctly
     source = read_pcoll.producer.transform.source
     self.assertEqual('a_topic', source.topic)
+    self.assertEqual('a_label', source.id_label)
+
+  def test_expand_with_subscription(self):
+    p = TestPipeline()
+    pcoll = p | ReadStringsFromPubSub(None, 'a_subscription', 'a_label')
+    # Ensure that the output type is str
+    self.assertEqual(unicode, pcoll.element_type)
+
+    # Ensure that the type on the intermediate read output PCollection is bytes
+    read_pcoll = pcoll.producer.inputs[0]
+    self.assertEqual(bytes, read_pcoll.element_type)
+
+    # Ensure that the properties passed through correctly
+    source = read_pcoll.producer.transform.source
     self.assertEqual('a_subscription', source.subscription)
     self.assertEqual('a_label', source.id_label)
+
+  def test_expand_with_both_topic_and_subscription(self):
+    with self.assertRaisesRegexp(
+        ValueError, "Only one of topic or subscription should be provided."):
+      ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
+
+  def test_expand_with_no_topic_or_subscription(self):
+    with self.assertRaisesRegexp(
+        ValueError, "Either a topic or subscription must be provided."):
+      ReadStringsFromPubSub(None, None, 'a_label')
 
 
 class TestWriteStringsToPubSub(unittest.TestCase):
