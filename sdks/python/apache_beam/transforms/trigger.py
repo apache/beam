@@ -36,6 +36,7 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 # AfterCount is experimental. No backwards compatibility guarantees.
 
@@ -836,6 +837,7 @@ def create_trigger_driver(windowing, is_batch=False, phased_combine_fn=None):
     driver = DefaultGlobalBatchTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing)
+  print 'DRIVER', driver
 
   if phased_combine_fn:
     # TODO(ccy): Refactor GeneralTriggerDriver to combine values eagerly using
@@ -1043,7 +1045,7 @@ class GeneralTriggerDriver(TriggerDriver):
 class InMemoryUnmergedState(UnmergedState):
   """In-memory implementation of UnmergedState.
 
-  Used for batch and testing.
+  Used for the DirectRunner and testing.
   """
   def __init__(self, defensive_copy=True):
     # TODO(robertwb): Skip defensive_copy in production if it's too expensive.
@@ -1062,6 +1064,7 @@ class InMemoryUnmergedState(UnmergedState):
     return self.global_state.get(tag.tag, default)
 
   def set_timer(self, window, name, time_domain, timestamp):
+    print '[!!] set_timer', window, name, time_domain, timestamp
     self.timers[window][(name, time_domain)] = timestamp
 
   def clear_timer(self, window, name, time_domain):
@@ -1071,6 +1074,7 @@ class InMemoryUnmergedState(UnmergedState):
     return window_id
 
   def add_state(self, window, tag, value):
+    print '[!!] add_state', window, tag, value
     if self.defensive_copy:
       value = copy.deepcopy(value)
     if isinstance(tag, _ValueStateTag):
@@ -1102,18 +1106,33 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP):
     expired = []
     for window, timers in list(self.timers.items()):
+      # print '[IIII] window, timers:', window, timers
       for (name, time_domain), timestamp in list(timers.items()):
         if timestamp <= watermark:
           expired.append((window, (name, time_domain, timestamp)))
-          del timers[(name, time_domain)]
-      if not timers:
+          if clear:
+            del timers[(name, time_domain)]
+      if not timers and clear:
         del self.timers[window]
     return expired
+
+  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+    return self.get_timers(clear=True, watermark=watermark)
+
+  def get_earliest_hold(self):
+    earliest_hold = MAX_TIMESTAMP
+    for window, tagged_states in self.state.iteritems():
+      # TODO: is this general enough?
+      if 'watermark' in tagged_states:
+        hold = min(tagged_states['watermark']) - TIME_GRANULARITY
+        earliest_hold = min(earliest_hold, hold)
+    return earliest_hold
 
   def __repr__(self):
     state_str = '\n'.join('%s: %s' % (key, dict(state))
                           for key, state in self.state.items())
     return 'timers: %s\nstate: %s' % (dict(self.timers), state_str)
+

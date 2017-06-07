@@ -42,6 +42,7 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self._num_transforms = 0
 
   def visit_transform(self, applied_ptransform):
+    print 'VISIT', applied_ptransform, '; inputs:', applied_ptransform.inputs, '; parent:', applied_ptransform.parent
     inputs = list(applied_ptransform.inputs)
     if inputs:
       for input_value in inputs:
@@ -55,4 +56,5 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
     self._num_transforms += 1
     for side_input in applied_ptransform.side_inputs:
+      print 'VIEW', side_input
       self.views.append(side_input)

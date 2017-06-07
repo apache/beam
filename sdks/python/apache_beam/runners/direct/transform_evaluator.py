@@ -20,24 +20,69 @@
 from __future__ import absolute_import
 
 import collections
+import functools
+import random
+import time
 
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 import apache_beam.io as io
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import Timestamp
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
-from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.test_stream import ProcessingTimeEvent
+
+class RootBundleProvider(object):
+  """Provides bundles for the initial execution of a root transform."""
+  def __init__(self, evaluation_context, applied_ptransform):
+    self._evaluation_context = evaluation_context
+    self._applied_ptransform = applied_ptransform
+
+  def get_root_bundles(self):
+    raise NotImplementedError
+
+class DefaultRootBundleProvider(RootBundleProvider):
+  """Provides an empty bundle by default for root transforms."""
+
+  def get_root_bundles(self):
+    print 'WTF', self._applied_ptransform, self._applied_ptransform.inputs
+    # TODO: these are root bundles, they don't really need a producer... but apparently some inputs are not defined.
+    empty_bundle = (
+        self._evaluation_context.create_empty_committed_bundle(
+            self._applied_ptransform.inputs[0] if self._applied_ptransform.inputs else pvalue.PBegin(self._applied_ptransform.transform.pipeline)))
+    return [empty_bundle]
+
+class _TestStreamRootBundleProvider(RootBundleProvider):
+
+  def get_root_bundles(self):
+    test_stream = self._applied_ptransform.transform
+    bundles = []
+    if len(test_stream.events) > 0:
+      bundle = self._evaluation_context.create_bundle(
+          self._applied_ptransform.inputs[0])
+      # Explicitly set timestamp to MIN_TIMESTAMP to ensure that we hold the watermark.
+      bundle.add(GlobalWindows.windowed_value(0, timestamp=MIN_TIMESTAMP))
+      bundle.commit(None)
+      bundles.append(bundle)
+    return bundles
 
 
 class TransformEvaluatorRegistry(object):
@@ -51,10 +96,17 @@ class TransformEvaluatorRegistry(object):
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
+        io.ReadStringsFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        core._GroupAlsoByWindow: _GroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
+        TestStream: _TestStreamEvaluator,
+    }
+    self._root_bundle_providers = {
+        core.PTransform: DefaultRootBundleProvider,
+        TestStream: _TestStreamRootBundleProvider,
     }
 
   def for_application(
@@ -79,6 +131,18 @@ class TransformEvaluatorRegistry(object):
                      input_committed_bundle, side_inputs,
                      scoped_metrics_container)
 
+  def get_root_bundle_provider(self, applied_ptransform):
+    provider_cls = None
+    for cls in applied_ptransform.transform.__class__.mro():
+      provider_cls = self._root_bundle_providers.get(cls)
+      if provider_cls:
+        break
+    if not provider_cls:
+      raise NotImplementedError(
+          'Root provider for [%s] not implemented in runner %s' % (
+              type(applied_ptransform.transform), self))
+    return provider_cls(self._evaluation_context, applied_ptransform)
+
   def should_execute_serially(self, applied_ptransform):
     """Returns True if this applied_ptransform should run one bundle at a time.
 
@@ -98,6 +162,7 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
+    return False
     return isinstance(applied_ptransform.transform,
                       (core._GroupByKeyOnly, _NativeWrite))
 
@@ -113,7 +178,7 @@ class _TransformEvaluator(object):
     self._side_inputs = side_inputs
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
-        applied_ptransform)
+        applied_ptransform, input_committed_bundle.key)
     self.scoped_metrics_container = scoped_metrics_container
     with scoped_metrics_container:
       self.start_bundle()
@@ -178,7 +243,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not input_committed_bundle
+    # assert not input_committed_bundle, input_committed_bundle
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
@@ -207,7 +272,136 @@ class _BoundedReadEvaluator(_TransformEvaluator):
         bundles = _read_values_to_bundles(reader)
 
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
+
+
+class _TestStreamEvaluator(_TransformEvaluator):
+  """TransformEvaluator for the TestStream transform."""
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container):
+    # TODO: figure out why timers fire
+    # assert not input_committed_bundle, input_committed_bundle
+    assert not side_inputs
+    self.test_stream = applied_ptransform.transform
+    super(_TestStreamEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+
+  def start_bundle(self):
+    # TODO: currently, for the first pass through the TestStream, no elements
+    # are passed through--we can therefore assume that the current index is 0
+    # in this case; otherwise, the index will be stored on the process_element
+    # call.
+    self.current_index = -1
+    self.watermark = MIN_TIMESTAMP
+
+  def process_element(self, element):
+    index = element.value
+    self.watermark = element.timestamp
+    assert isinstance(index, int)
+    assert 0 <= index <= len(self.test_stream.events)
+    self.current_index = index
+
+  def finish_bundle(self):
+    assert len(self._outputs) == 1
+    output_pcollection = list(self._outputs)[0]
+
+    # TODO: move to process_element once we provide a root bundle.
+    bundles = []
+    event = self.test_stream.events[self.current_index]
+    watermark = self.watermark
+    if isinstance(event, ElementEvent):
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      for tv in event.timestamped_values:
+        bundle.output(
+            GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
+      bundles.append(bundle)
+    elif isinstance(event, WatermarkEvent):
+      assert event.new_watermark >= self.watermark
+      watermark = event.new_watermark
+    elif isinstance(event, ProcessingTimeEvent):
+      # TODO: advance processing time in the context's mock clock.
+      pass
+    else:
+      raise ValueError('Invalid TestStream event: %s.' % event)
+
+    unprocessed_bundle = None
+    hold = MAX_TIMESTAMP
+    if self.current_index < len(self.test_stream.events) - 1:
+      unprocessed_bundle = self._evaluation_context.create_bundle(
+          self._applied_ptransform.inputs[0])
+      unprocessed_bundle.add(GlobalWindows.windowed_value(self.current_index + 1, timestamp=watermark))
+      hold = watermark
+
+
+
+    print '[!] TestStream finish_bundle', self.current_index, event, unprocessed_bundle
+
+    return TransformResult(
+        self._applied_ptransform, bundles, unprocessed_bundle, None, None, None,
+            None, hold)
+
+
+class _PubSubReadEvaluator(_TransformEvaluator):
+  """TransformEvaluator for PubSub read."""
+
+  def __init__(self, *args, **kwargs):
+    super(_PubSubReadEvaluator, self).__init__(*args, **kwargs)
+    source = self._applied_ptransform.transform._source
+    subscription_name = (
+        source.subscription or 'dataflow_%x' % random.randrange(1 << 32))
+    self._subscription = self.create_subscription(
+        source.topic, subscription_name)
+    if not source.subscription:
+      self._subscription.create()
+
+  _subscription_cache = {}
+  @classmethod
+  def create_subscription(cls, topic, subscription_name):
+    key = topic, subscription_name
+    if key not in cls._subscription_cache:
+      from google.cloud import pubsub
+      cls._subscription_cache[key] = (
+          pubsub.Client().topic(topic).subscription(subscription_name))
+    return cls._subscription_cache[key]
+
+  def __del__(self):
+    if not self._applied_ptransform.transform._source.subscription:
+      self._subscription.delete()
+
+  def start_bundle(self):
+    pass
+
+  def process_element(self, element):
+    pass
+
+  def finish_bundle(self):
+    data = self._read_from_pubsub()
+    if data:
+      output_pcollection = list(self._outputs)[0]
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      now = Timestamp.of(time.time())
+      for message_data in data:
+        bundle.output(GlobalWindows.windowed_value(message_data, timestamp=now))
+      bundles = [bundle]
+    else:
+      bundles = []
+
+    unprocessed_bundle = self._evaluation_context.create_bundle(
+        self._applied_ptransform.inputs[0])
+
+    return TransformResult(
+        self._applied_ptransform, bundles,
+        unprocessed_bundle, None, None, None, None,
+        Timestamp.of(time.time()))
+
+  def _read_from_pubsub(self):
+    results = self._subscription.pull(return_immediately=True)
+    if results:
+      # Direct runner has no retry.
+      self._subscription.acknowledge([ack_id for ack_id, message in results])
+    return [message.data for ack_id, message in results]
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -231,7 +425,7 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
 
 
 class _TaggedReceivers(dict):
@@ -282,6 +476,7 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
   def start_bundle(self):
     transform = self._applied_ptransform.transform
+    print 'TRANSFORMSI', transform, 'SIDE INPUTS', self._side_inputs
 
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
     for output_tag in self._applied_ptransform.outputs:
@@ -320,21 +515,23 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, result_counters, None,
-        self._tagged_receivers.undeclared_in_memory_tag_values)
+        self._applied_ptransform, bundles, [], None, None, None, result_counters,
+        None, self._tagged_receivers.undeclared_in_memory_tag_values)
+
+class KeyedWorkItem(object):
+  def __init__(self, key, timers=None, elements=None):
+    self.key = key
+    self.timers = timers
+    self.elements = elements
+
+  def __repr__(self):
+    return '<KeyedWorkItem key: %s, timers: %s, elements: %s>' % (self.key, self.timers, self.elements)
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   """TransformEvaluator for _GroupByKeyOnly transform."""
 
   MAX_ELEMENT_PER_BUNDLE = None
-
-  class _GroupByKeyOnlyEvaluatorState(object):
-
-    def __init__(self):
-      # output: {} key -> [values]
-      self.output = collections.defaultdict(list)
-      self.completed = False
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
@@ -343,66 +540,128 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
 
-  @property
-  def _is_final_bundle(self):
-    return (self._execution_context.watermarks.input_watermark
-            == WatermarkManager.WATERMARK_POS_INF)
-
   def start_bundle(self):
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state
-                  else _GroupByKeyOnlyEvaluator._GroupByKeyOnlyEvaluatorState())
+    self.gbk_items = collections.defaultdict(list)
 
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
     kv_type_hint = (
         self._applied_ptransform.transform.get_type_hints().input_types[0])
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
 
   def process_element(self, element):
-    assert not self.state.completed
+    # print '[!] GBK process_element', element
     if (isinstance(element, WindowedValue)
         and isinstance(element.value, collections.Iterable)
         and len(element.value) == 2):
       k, v = element.value
-      self.state.output[self.key_coder.encode(k)].append(v)
+      self.gbk_items[self.key_coder.encode(k)].append(v)
     else:
       raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
                            'windowed key-value pairs. Instead received: %r.'
                            % element)
 
   def finish_bundle(self):
-    if self._is_final_bundle:
-      if self.state.completed:
-        # Ignore empty bundles after emitting output. (This may happen because
-        # empty bundles do not affect input watermarks.)
-        bundles = []
-      else:
-        gbk_result = (
-            map(GlobalWindows.windowed_value, (
-                (self.key_coder.decode(k), v)
-                for k, v in self.state.output.iteritems())))
-
-        def len_element_fn(element):
-          _, v = element.value
-          return len(v)
-
-        bundles = self._split_list_into_bundles(
-            self.output_pcollection, gbk_result,
-            _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
-
-      self.state.completed = True
-      state = self.state
-      hold = WatermarkManager.WATERMARK_POS_INF
-    else:
-      bundles = []
-      state = self.state
-      hold = WatermarkManager.WATERMARK_NEG_INF
+    bundles = []
+    for encoded_k, vs in self.gbk_items.iteritems():
+      k = self.key_coder.decode(encoded_k)
+      bundle = self._evaluation_context.create_keyed_bundle(self.output_pcollection, k)
+      kwi = KeyedWorkItem(k, elements=vs)
+      bundle.add(GlobalWindows.windowed_value(kwi))
+      bundles.append(bundle)
+    # if not bundles:
+    #   bundle = self._evaluation_context.create_keyed_bundle(self.output_pcollection, None)
+    #   bundles.append(bundle)
 
     return TransformResult(
-        self._applied_ptransform, bundles, state, None, None, hold)
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
+
+class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
+  """TransformEvaluator for GroupByKeyOnly transform."""
+
+  MAX_ELEMENT_PER_BUNDLE = None
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container):
+    assert not side_inputs
+    super(_GroupAlsoByWindowEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+
+  #   self.driver = create_trigger_driver(self.windowing)
+  #   self.state_type = InMemoryUnmergedState
+
+  # def process(self, element):
+  #   k, vs = element
+  #   state = self.state_type()
+  #   # TODO(robertwb): Conditionally process in smaller chunks.
+  #   for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+  #     yield wvalue.with_value((k, wvalue.value))
+  #   while state.timers:
+  #     fired = state.get_and_clear_timers()
+  #     for timer_window, (name, time_domain, fire_time) in fired:
+  #       for wvalue in self.driver.process_timer(
+  #           timer_window, name, time_domain, fire_time, state):
+  #         yield wvalue.with_value((k, wvalue.value))
+  def start_bundle(self):
+    assert len(self._outputs) == 1
+    self.output_pcollection = list(self._outputs)[0]
+
+    self.state = self._execution_context.get_step_context().get_state()
+
+    self.driver = create_trigger_driver(self._applied_ptransform.transform.windowing)
+
+    self.gabw_items = []
+
+    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
+    print 'GABW_TRANSFORM', self._applied_ptransform.transform, self._applied_ptransform.transform.get_type_hints(), self._applied_ptransform.transform.get_type_hints().input_types
+    kv_type_hint = (
+        self._applied_ptransform.transform.get_type_hints().input_types[0])
+    self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+    # print 'GABW KEY_CODER', self.key_coder
+
+  def process_element(self, element):
+    kwi = element.value
+    print '[!] GABW process_element', element, kwi
+    assert isinstance(kwi, KeyedWorkItem), (element, kwi)
+    k, timers, vs = kwi.key, kwi.timers, kwi.elements
+    encoded_k = self.key_coder.encode(k)
+    state = self.state
+
+    print '[!] GABW current input watermark:', self._execution_context.watermarks.input_watermark
+    fired = state.get_and_clear_timers(
+      self._execution_context.watermarks.input_watermark)
+    print '[!!!] fired', fired
+    for timer_window, (name, time_domain, fire_time) in fired:
+      for wvalue in self.driver.process_timer(
+          timer_window, name, time_domain, fire_time, state):
+        # print '[!!] wvalue.value', wvalue.value
+        self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+
+    # TODO(robertwb): Conditionally process in smaller chunks.
+    if vs:
+      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
+        self.gabw_items.append(wvalue.with_value((k, wvalue.value)))
+    # while state.timers:
+    #   fired = state.get_and_clear_timers()
+    #   for timer_window, (name, time_domain, fire_time) in fired:
+    #     for wvalue in self.driver.process_timer(
+    #         timer_window, name, time_domain, fire_time, state):
+    #       yield wvalue.with_value((k, wvalue.value))
+
+  def finish_bundle(self):
+    print '[!] GABW_OUTPUT', self.gabw_items
+    bundle = self._evaluation_context.create_bundle(
+        self.output_pcollection)
+    for item in self.gabw_items:  # TODO
+      bundle.add(item)
+    bundles = []
+    if self.gabw_items:
+      bundles = [bundle]
+    hold = self.state.get_earliest_hold()
+    return TransformResult(
+        self._applied_ptransform, bundles, [], self.state, None, None, None, hold)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
@@ -430,8 +689,8 @@ class _NativeWriteEvaluator(_TransformEvaluator):
 
   def start_bundle(self):
     # state: [values]
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else [])
+    self.state = (self._execution_context.legacy_existing_state
+                  if self._execution_context.legacy_existing_state else [])
 
   def process_element(self, element):
     self.state.append(element)
@@ -459,4 +718,4 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, [], state, None, None, hold)
+        self._applied_ptransform, [], [], None, state, None, None, hold)

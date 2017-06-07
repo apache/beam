@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import collections
 import logging
 
+import apache_beam as beam
+from apache_beam import pvalue
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
@@ -55,6 +57,37 @@ class DirectRunner(PipelineRunner):
           transform.fn, transform.args, transform.kwargs)
     except NotImplementedError:
       return transform.expand(pcoll)
+
+  def apply_GroupAlsoByWindow(self, transform, pcoll):
+    transform._check_pcollection(pcoll)
+    return pvalue.PCollection(pcoll.pipeline)
+
+  def apply_ReadStringsFromPubSub(self, transform, pcoll):
+    # Execute this as a native transform.
+    return pvalue.PCollection(pcoll.pipeline)
+
+  def apply_WriteStringsToPubSub(self, transform, pcoll):
+    from google.cloud import pubsub
+    topic_name = transform._sink.topic
+    class WriteToPubSub(beam.DoFn):
+      _topic = None
+      def start_bundle(self):
+        if self._topic is None:
+          self._topic = pubsub.Client().topic(topic_name)
+        self._buffer = []
+      def process(self, elem):
+        self._buffer.append(elem.encode('utf-8'))
+        if len(self._buffer) >= 100:
+          self._flush()
+      def finish_bundle(self):
+        self._flush()
+      def _flush(self):
+        if self._buffer:
+          with self._topic.batch() as batch:
+            for datum in self._buffer:
+              batch.publish(datum)
+          self._buffer = []
+    return pcoll | beam.ParDo(WriteToPubSub())
 
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

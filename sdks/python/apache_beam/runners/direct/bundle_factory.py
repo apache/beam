@@ -38,7 +38,10 @@ class BundleFactory(object):
     self._stacked = stacked
 
   def create_bundle(self, output_pcollection):
-    return _Bundle(output_pcollection, self._stacked)
+    return _Bundle(output_pcollection, None, stacked=self._stacked)
+
+  def create_keyed_bundle(self, output_pcollection, key):
+    return _Bundle(output_pcollection, key, stacked=self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
     bundle = self.create_bundle(output_pcollection)
@@ -107,13 +110,17 @@ class _Bundle(object):
         yield WindowedValue(v, self._initial_windowed_value.timestamp,
                             self._initial_windowed_value.windows)
 
-  def __init__(self, pcollection, stacked=True):
-    assert isinstance(pcollection, pvalue.PCollection)
+  def __init__(self, pcollection, key, stacked=True):
+    assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
+    self.key = key
     self._elements = []
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
+
+  def __repr__(self):
+    return '<Bundle %s %s>' % (self._pcollection, self._elements)
 
   def get_elements_iterable(self, make_copy=False):
     """Returns iterable elements.
@@ -183,6 +190,7 @@ class _Bundle(object):
       self._elements.append(element)
 
   def output(self, element):
+    assert isinstance(element, WindowedValue)
     self.add(element)
 
   def commit(self, synchronized_processing_time):

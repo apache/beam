@@ -27,22 +27,60 @@ from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
+
+
+
+
+class DirectUnmergedState(InMemoryUnmergedState):
+  def __init__(self):
+    super(DirectUnmergedState, self).__init__()
+    self.new_timers = []
+
+  def set_timer(self, window, name, time_domain, timestamp):
+    print '[!!] set_timer', window, name, time_domain, timestamp
+    super(DirectUnmergedState, self).set_timer(window, name, time_domain, timestamp)
+
+  def clear_timer(self, window, name, time_domain):
+    print '[!!] clear_timer', window, name, time_domain
+    # TODO(ccy): this is not implemented, but is not strictly necessary as it is an optimization
+    super(DirectUnmergedState, self).clear_timer(window, name, time_domain)
+
+
+
+class StepContext(object):
+  def __init__(self, execution_context):
+    self._execution_context = execution_context
+    self._state = None
+
+  def get_state(self):
+    # TODO(ccy): consider using copy on write semantics so that work items can be retried.
+    if not self._state:
+      if self._execution_context.existing_state:
+        self._state = self._execution_context.existing_state
+      else:
+        self._state = DirectUnmergedState()
+    return self._state
+
 
 
 class _ExecutionContext(object):
 
-  def __init__(self, watermarks, existing_state):
-    self._watermarks = watermarks
-    self._existing_state = existing_state
+  def __init__(self, applied_ptransform, watermarks, existing_state, legacy_existing_state, key):
+    self.applied_ptransform = applied_ptransform
+    self.watermarks = watermarks
+    self.existing_state = existing_state
+    self.legacy_existing_state = legacy_existing_state
+    self.key = key
+    # TODO(ccy): key, clock as first arguments for consistency with Java.
+    self._step_context = None
 
-  @property
-  def watermarks(self):
-    return self._watermarks
+  def get_step_context(self):
+    if not self._step_context:
+      self._step_context = StepContext(self)
+    return self._step_context
 
-  @property
-  def existing_state(self):
-    return self._existing_state
 
 
 class _SideInputView(object):
@@ -79,16 +117,20 @@ class _SideInputsContainer(object):
   def add_values(self, side_input, values):
     with self._lock:
       view = self._views[side_input]
+      if view.has_result:
+        print 'ERROR!!! VIEW ALREADY HAS RESULT', side_input, values
       assert not view.has_result
       view.elements.extend(values)
 
   def finalize_value_and_get_tasks(self, side_input):
+    print '***** FINALIZE VIEWWWWW', side_input
     with self._lock:
       view = self._views[side_input]
       assert not view.has_result
       assert view.value is None
       assert view.callable_queue is not None
       view.value = self._pvalue_to_value(side_input, view.elements)
+      print 'result', view.elements, view.value
       view.elements = None
       result = tuple(view.callable_queue)
       for task in result:
@@ -145,11 +187,16 @@ class EvaluationContext(object):
     self._pcollection_to_views = collections.defaultdict(list)
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
+    import pprint
+    print 'PCOLLECTION TO VIEWS'
+    pprint.pprint(self._pcollection_to_views)
 
     # AppliedPTransform -> Evaluator specific state objects
-    self._application_state_interals = {}
+    self._legacy_existing_state = {}
+    # AppliedPTransform -> {key -> DirectUnmergedState objects}; todo: rename
+    self._transform_keyed_states = self._initialize_transform_states(root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
-        Clock(), root_transforms, value_to_consumers)
+        Clock(), root_transforms, value_to_consumers, self._transform_keyed_states)
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
@@ -157,6 +204,15 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+  
+  def _initialize_transform_states(self, root_transforms, value_to_consumers):
+    transform_keyed_states = {}
+    for transform in root_transforms:
+      transform_keyed_states[transform] = {}
+    for consumers in value_to_consumers.values():
+      for consumer in consumers:
+        transform_keyed_states[consumer] = {}
+    return transform_keyed_states
 
   def use_pvalue_cache(self, cache):
     assert not self._cache
@@ -199,31 +255,48 @@ class EvaluationContext(object):
       the committed bundles contained within the handled result.
     """
     with self._lock:
-      committed_bundles = self._commit_bundles(
-          result.uncommitted_output_bundles)
+      committed_bundles, unprocessed_bundle = self._commit_bundles(
+          result.uncommitted_output_bundles,
+          result.unprocessed_bundle)
       self._watermark_manager.update_watermarks(
-          completed_bundle, result.transform, completed_timers,
+          completed_bundle, unprocessed_bundle, result.transform, completed_timers,
           committed_bundles, result.watermark_hold)
 
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
 
+      print 'HANDLE RESULT COMMITED', committed_bundles, result.uncommitted_output_bundles, result.unprocessed_bundle
       # If the result is for a view, update side inputs container.
       if (result.uncommitted_output_bundles
           and result.uncommitted_output_bundles[0].pcollection
           in self._pcollection_to_views):
+        print '***** HI I AM A VIEW', result.uncommitted_output_bundles[0].pcollection, committed_bundles
         for view in self._pcollection_to_views[
             result.uncommitted_output_bundles[0].pcollection]:
           for committed_bundle in committed_bundles:
+            print 'ADD TO VIEW', committed_bundle.get_elements_iterable(make_copy=True)
             # side_input must be materialized.
             self._side_inputs_container.add_values(
                 view,
                 committed_bundle.get_elements_iterable(make_copy=True))
-          if (self.get_execution_context(result.transform)
-              .watermarks.input_watermark
-              == WatermarkManager.WATERMARK_POS_INF):
+          completed = True
+          print 'STUFF', self._transform_keyed_states[result.transform]
+          watermarks = self._watermark_manager.get_watermarks(result.transform)
+          if watermarks._pending:
+            completed = False
+          print 'WATERMARKS', watermarks, watermarks._pending
+          for key in self._transform_keyed_states[result.transform]:
+            if (self.get_execution_context(result.transform, key).watermarks.input_watermark
+                < WatermarkManager.WATERMARK_POS_INF or
+                self.get_execution_context(result.transform, key).watermarks._pending):
+              print '&&& COMPLETED FALSE', result.transform, key, self.get_execution_context(result.transform, key).watermarks._pending
+              completed = False
+          if completed:
+            print '***** HI I AM COMPLETED', result.uncommitted_output_bundles[0].pcollection
             self._pending_unblocked_tasks.extend(
                 self._side_inputs_container.finalize_value_and_get_tasks(view))
+          else:
+            print '***** HI I AM *NOT* COMPLETED', result.uncommitted_output_bundles[0].pcollection
 
       if result.counters:
         for counter in result.counters:
@@ -231,7 +304,12 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
-      self._application_state_interals[result.transform] = result.state
+      self._legacy_existing_state[result.transform] = result.legacy_state
+      if not result.state:
+        if completed_bundle.key in self._transform_keyed_states[result.transform]:
+          del self._transform_keyed_states[result.transform][completed_bundle.key]
+      else:
+        self._transform_keyed_states[result.transform][completed_bundle.key] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -244,23 +322,32 @@ class EvaluationContext(object):
           executor_service.submit(task)
         self._pending_unblocked_tasks = []
 
-  def _commit_bundles(self, uncommitted_bundles):
+  def _commit_bundles(self, uncommitted_output_bundles, unprocessed_bundle):
     """Commits bundles and returns a immutable set of committed bundles."""
-    for in_progress_bundle in uncommitted_bundles:
+    for in_progress_bundle in uncommitted_output_bundles:
       producing_applied_ptransform = in_progress_bundle.pcollection.producer
       watermarks = self._watermark_manager.get_watermarks(
           producing_applied_ptransform)
       in_progress_bundle.commit(watermarks.synchronized_processing_output_time)
-    return tuple(uncommitted_bundles)
+    if unprocessed_bundle:
+      unprocessed_bundle.commit(None)
+    return tuple(uncommitted_output_bundles), unprocessed_bundle
 
-  def get_execution_context(self, applied_ptransform):
+  def get_execution_context(self, applied_ptransform, key):
     return _ExecutionContext(
+        applied_ptransform,
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_interals.get(applied_ptransform))
+        self._transform_keyed_states[applied_ptransform].get(key),
+        self._legacy_existing_state.get(applied_ptransform),
+        key)
 
   def create_bundle(self, output_pcollection):
     """Create an uncommitted bundle for the specified PCollection."""
     return self._bundle_factory.create_bundle(output_pcollection)
+
+  def create_keyed_bundle(self, output_pcollection, key):
+    """Create an uncommitted bundle for the specified PCollection."""
+    return self._bundle_factory.create_keyed_bundle(output_pcollection, key)
 
   def create_empty_committed_bundle(self, output_pcollection):
     """Create empty bundle useful for triggering evaluation."""
@@ -290,6 +377,7 @@ class EvaluationContext(object):
 
   def _is_transform_done(self, transform):
     tw = self._watermark_manager.get_watermarks(transform)
+    print '[!!] TRANSFORM_DONE?', transform, 'IWM', tw.input_watermark,'OWM', tw.output_watermark, tw.output_watermark == WatermarkManager.WATERMARK_POS_INF, tw._pending
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
   def get_value_or_schedule_after_output(self, side_input, task):

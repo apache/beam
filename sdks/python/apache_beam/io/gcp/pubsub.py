@@ -28,6 +28,9 @@ from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import core
+from apache_beam.transforms import window
+from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.display import DisplayDataItem
@@ -60,10 +63,13 @@ class ReadStringsFromPubSub(PTransform):
         subscription=subscription,
         id_label=id_label)
 
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
+
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
-    pcoll = pcoll | 'decode string' >> ParDo(_decodeUtf8String)
+    pcoll = pcoll | 'decode string' >> Map(_decodeUtf8String)
     pcoll.element_type = unicode
     return pcoll
 
@@ -81,7 +87,7 @@ class WriteStringsToPubSub(PTransform):
     self._sink = _PubSubPayloadSink(topic)
 
   def expand(self, pcoll):
-    pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
+    pcoll = pcoll | 'encode string' >> Map(_encodeUtf8String)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
