@@ -1,0 +1,1 @@
+mvn dependency:sources -DdownloadSources=true eclipse:eclipse
