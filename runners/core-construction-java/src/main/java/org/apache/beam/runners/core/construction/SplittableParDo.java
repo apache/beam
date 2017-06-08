@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +27,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTrans
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -103,11 +105,34 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forJavaParDo(
       ParDo.MultiOutput<InputT, OutputT> parDo) {
     checkArgument(parDo != null, "parDo must not be null");
+    checkArgument(
+        DoFnSignatures.getSignature(parDo.getFn().getClass()).processElement().isSplittable(),
+        "fn must be a splittable DoFn");
     return new SplittableParDo(
         parDo.getFn(),
         parDo.getMainOutputTag(),
         parDo.getSideInputs(),
         parDo.getAdditionalOutputTags());
+  }
+
+  /**
+   * Creates the transform for a {@link ParDo}-compatible {@link AppliedPTransform}.
+   *
+   * <p>The input may generally be a deserialized transform so it may not actually be a {@link
+   * ParDo}. Instead {@link ParDoTranslation} will be used to extract fields.
+   */
+  public static SplittableParDo<?, ?, ?> forAppliedParDo(AppliedPTransform<?, ?, ?> parDo) {
+    checkArgument(parDo != null, "parDo must not be null");
+
+    try {
+      return new SplittableParDo<>(
+          ParDoTranslation.getDoFn(parDo),
+          (TupleTag) ParDoTranslation.getMainOutputTag(parDo),
+          ParDoTranslation.getSideInputs(parDo),
+          ParDoTranslation.getAdditionalOutputTags(parDo));
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
+    }
   }
 
   @Override
