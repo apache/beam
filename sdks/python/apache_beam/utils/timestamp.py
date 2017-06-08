@@ -208,3 +208,6 @@ class Duration(object):
   def __mod__(self, other):
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
+
+
+TIME_GRANULARITY = Duration(micros=1)

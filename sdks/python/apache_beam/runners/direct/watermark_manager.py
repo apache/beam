@@ -25,6 +25,7 @@ from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 
 class WatermarkManager(object):
@@ -193,9 +194,14 @@ class _TransformWatermarks(object):
 
   def refresh(self):
     with self._lock:
-      pending_holder = (WatermarkManager.WATERMARK_NEG_INF
-                        if self._pending else
-                        WatermarkManager.WATERMARK_POS_INF)
+      pending_holder = WatermarkManager.WATERMARK_POS_INF
+      for input_bundle in self._pending:
+        # TODO(ccy): we can have the Bundle class keep track of the minimum
+        # timestamp so we don't have to do an iteration here.
+        for wv in input_bundle.get_elements_iterable():
+          advanceable_timestamp = wv.timestamp - TIME_GRANULARITY
+          if advanceable_timestamp < pending_holder:
+            pending_holder = advanceable_timestamp
 
       input_watermarks = [
           tw.output_watermark for tw in self._input_transform_watermarks]
