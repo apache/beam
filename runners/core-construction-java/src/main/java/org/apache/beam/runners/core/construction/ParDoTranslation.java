@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 
@@ -262,12 +263,19 @@ public class ParDoTranslation {
     ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
 
     List<PCollectionView<?>> views = new ArrayList<>();
-    for (Map.Entry<String, SideInput> sideInput : payload.getSideInputsMap().entrySet()) {
+    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+      String sideInputTag = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> originalPCollection =
+          checkNotNull(
+              (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
+              "no input with tag %s",
+              sideInputTag);
       views.add(
           viewFromProto(
-              application.getPipeline(),
-              sideInput.getValue(),
-              sideInput.getKey(),
+              sideInput,
+              sideInputTag,
+              originalPCollection,
               parDoProto,
               sdkComponents.toComponents()));
     }

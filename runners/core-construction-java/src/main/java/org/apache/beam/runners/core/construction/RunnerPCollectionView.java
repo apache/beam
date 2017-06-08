@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
@@ -93,5 +94,20 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   public Map<TupleTag<?>, PValue> expand() {
     throw new UnsupportedOperationException(String.format(
         "A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionView)) {
+      return false;
+    }
+    @SuppressWarnings("unchecked")
+    PCollectionView<?> otherView = (PCollectionView<?>) other;
+    return tag.equals(otherView.getTagInternal());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(tag);
   }
 }
