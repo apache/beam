@@ -33,6 +33,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /**
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to
@@ -75,9 +77,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   @Override
   public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("read",
-            KafkaIO.<byte[], byte[]>read().withBootstrapServers(bootstrapServers).withTopics(topics)
-                .updateConsumerProperties(configUpdates).withKeyCoder(ByteArrayCoder.of())
-                .withValueCoder(ByteArrayCoder.of()).withoutMetadata())
+            KafkaIO.<byte[], byte[]>read()
+                .withBootstrapServers(bootstrapServers)
+                .withTopics(topics)
+                .updateConsumerProperties(configUpdates)
+                .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+                .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+                .withoutMetadata())
             .apply("in_format", getPTransformForInput());
   }
 
@@ -90,9 +96,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
       @Override
       public PDone expand(PCollection<BeamSQLRow> input) {
         return input.apply("out_reformat", getPTransformForOutput()).apply("persistent",
-            KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
-                .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
-                .withValueCoder(ByteArrayCoder.of()));
+            KafkaIO.<byte[], byte[]>write()
+                .withBootstrapServers(bootstrapServers)
+                .withTopic(topics.get(0))
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer(ByteArraySerializer.class));
       }
     };
   }

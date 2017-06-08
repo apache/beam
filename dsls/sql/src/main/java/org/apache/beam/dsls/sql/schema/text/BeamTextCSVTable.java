@@ -58,7 +58,7 @@ public class BeamTextCSVTable extends BeamTextTable {
 
   @Override
   public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply("decodeRecord", TextIO.Read.from(filePattern))
+    return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine",
             new BeamTextCSVTableIOReader(beamSqlRecordType, filePattern, csvFormat));
   }
