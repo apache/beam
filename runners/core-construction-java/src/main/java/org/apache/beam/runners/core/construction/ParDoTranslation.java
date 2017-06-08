@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 
@@ -39,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -266,6 +269,32 @@ public class ParDoTranslation {
       views.add(
           fromProto(
               sideInput.getValue(), sideInput.getKey(), parDoProto, sdkComponents.toComponents()));
+    }
+    return views;
+  }
+
+  /** */
+  public static List<PCollectionView<?>> getSideInputsWithOriginalPCollections(
+      AppliedPTransform<?, ?, ?> application) throws IOException {
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform parDoProto =
+        PTransformTranslation.toProto(application, sdkComponents);
+    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
+
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+      String sideInputTag = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> originalPCollection =
+          checkNotNull((PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)));
+      views.add(
+          fromProtoAndPCollection(
+              sideInput,
+              sideInputTag,
+              originalPCollection,
+              parDoProto,
+              sdkComponents.toComponents()));
     }
     return views;
   }
@@ -500,6 +529,21 @@ public class ParDoTranslation {
   public static PCollectionView<?> fromProto(
       SideInput sideInput, String id, RunnerApi.PTransform parDoTransform, Components components)
       throws IOException {
+    return fromProtoAndPCollection(sideInput, id, null, parDoTransform, components);
+  }
+
+  /**
+   * Create a {@link PCollectionView} from a side input spec and an already-deserialized
+   * {@link PCollection} that should be wired up.
+   */
+  public static PCollectionView<?> fromProtoAndPCollection(
+      SideInput sideInput,
+      String id,
+      @Nullable PCollection<?> pCollection,
+      RunnerApi.PTransform parDoTransform,
+      Components components)
+      throws IOException {
+    checkNotNull(id);
     TupleTag<?> tag = new TupleTag<>(id);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
@@ -525,6 +569,7 @@ public class ParDoTranslation {
 
     PCollectionView<?> view =
         new RunnerPCollectionView<>(
+            pCollection,
             (TupleTag<Iterable<WindowedValue<?>>>) tag,
             (ViewFn<Iterable<WindowedValue<?>>, ?>) viewFn,
             windowMappingFn,

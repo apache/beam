@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -73,9 +72,14 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
                   PCollection<? extends InputT>, PCollectionTuple,
                   PTransform<PCollection<? extends InputT>, PCollectionTuple>>
               application) {
-    return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(application),
-        getReplacementForApplication(application));
+
+    try {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(application),
+          getReplacementForApplication(application));
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -83,31 +87,22 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       AppliedPTransform<
               PCollection<? extends InputT>, PCollectionTuple,
               PTransform<PCollection<? extends InputT>, PCollectionTuple>>
-          application) {
+          application)
+      throws IOException {
 
-    DoFn<InputT, OutputT> fn;
-    try {
-      fn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(application);
-    } catch (IOException exc) {
-      throw new RuntimeException(exc);
-    }
+    DoFn<InputT, OutputT> fn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(application);
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+
     if (signature.processElement().isSplittable()) {
       return (PTransform) SplittableParDo.forAppliedParDo(application);
     } else if (signature.stateDeclarations().size() > 0
         || signature.timerDeclarations().size() > 0) {
-
-      MultiOutput<InputT, OutputT> transform =
-          (MultiOutput<InputT, OutputT>) application.getTransform();
-
-      // Based on the fact that the signature is stateful, DoFnSignatures ensures
-      // that it is also keyed
       return new GbkThenStatefulParDo(
           fn,
-          transform.getMainOutputTag(),
-          transform.getAdditionalOutputTags(),
-          transform.getSideInputs());
+          ParDoTranslation.getMainOutputTag(application),
+          ParDoTranslation.getAdditionalOutputTags(application),
+          ParDoTranslation.getSideInputsWithOriginalPCollections(application));
     } else {
       return application.getTransform();
     }
