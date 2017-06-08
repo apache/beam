@@ -49,7 +49,7 @@ public class StreamingInserts<DestinationT>
   private StreamingInserts(CreateDisposition createDisposition,
                           DynamicDestinations<?, DestinationT> dynamicDestinations,
                           BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy, 
+                          InsertRetryPolicy retryPolicy,
                           String partition) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -62,13 +62,13 @@ public class StreamingInserts<DestinationT>
    * Specify a retry policy for failed inserts.
    */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
-    return new StreamingInserts<DestinationT>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
+    return new StreamingInserts<>(
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, partition);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
-    return new StreamingInserts<DestinationT>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
+    return new StreamingInserts<>(
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, partition);  }
 
 
   @Override
