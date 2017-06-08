@@ -19,39 +19,47 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Base class for all unary functions such as
- * ABS, SQRT, LN, LOG10, EXP, CEIL, FLOOR, RAND, ACOS,
- * ASIN, ATAN, COS, COT, DEGREES, RADIANS, SIGN, SIN, TAN.
+ * Base class for all binary functions such as
+ * POWER, MOD, RAND_INTEGER, ATAN2, ROUND, TRUNCATE.
  */
-public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
+public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
 
-  public BeamSqlMathUnaryExpression(List<BeamSqlExpression> operands) {
+  public BeamSqlMathBinaryExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.ANY);
   }
 
   @Override public boolean accept() {
-    boolean acceptance = false;
-
-    if (numberOfOperands() == 1 && SqlTypeName.NUMERIC_TYPES.contains(opType(0))) {
-      acceptance = true;
-    }
-    return acceptance;
+    return numberOfOperands() == 2 && isOperandNumeric(opType(0)) && isOperandNumeric(opType(1));
   }
 
   @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSQLRow inputRecord) {
-    BeamSqlExpression operand = op(0);
-    return calculate(operand.evaluate(inputRecord));
+    BeamSqlExpression leftOp = op(0);
+    BeamSqlExpression rightOp = op(1);
+    return calculate(leftOp.evaluate(inputRecord), rightOp.evaluate(inputRecord));
   }
 
   /**
-   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}.
-   * */
+   * The base method for implementation of math binary functions.
+   *
+   * @param leftOp {@link BeamSqlPrimitive}
+   * @param rightOp {@link BeamSqlPrimitive}
+   * @return {@link BeamSqlPrimitive}
+   */
+  public abstract BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
+      BeamSqlPrimitive rightOp);
 
-  public abstract BeamSqlPrimitive calculate(BeamSqlPrimitive op);
+  /**
+   * The method to check whether operands are numeric or not.
+   * @param opType
+   */
+  public boolean isOperandNumeric(SqlTypeName opType) {
+    return SqlTypeName.NUMERIC_TYPES.contains(opType);
+  }
 }

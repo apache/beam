@@ -23,7 +23,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-
 /**
  * {@code BeamSqlMathUnaryExpression} for 'SQRT' function.
  */

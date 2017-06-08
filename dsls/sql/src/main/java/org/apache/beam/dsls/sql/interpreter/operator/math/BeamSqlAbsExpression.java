@@ -25,7 +25,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-
 /**
  * {@code BeamSqlMathUnaryExpression} for 'ABS' function.
  */
