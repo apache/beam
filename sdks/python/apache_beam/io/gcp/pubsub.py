@@ -58,14 +58,13 @@ class ReadStringsFromPubSub(PTransform):
     """
     super(ReadStringsFromPubSub, self).__init__()
     if topic and subscription:
-      raise ValueError("Only one of topic and subscription should be provided.")
+      raise ValueError("Only one of topic or subscription should be provided.")
 
     if not (topic or subscription):
       raise ValueError("Either a topic or subscription must be provided.")
 
     self._source = _PubSubPayloadSource(
-        coder=coders.BytesCoder(),
-        topic=topic,
+        topic,
         subscription=subscription,
         id_label=id_label)
 
@@ -87,7 +86,7 @@ class WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(WriteStringsToPubSub, self).__init__()
-    self._sink = _PubSubPayloadSink(coders.BytesCoder(), topic)
+    self._sink = _PubSubPayloadSink(topic)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
@@ -110,11 +109,12 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
       deduplication of messages.  If not provided, Dataflow cannot guarantee
       that no duplicate data will be delivered on the Pub/Sub stream. In this
       case, deduplication of the stream will be strictly best effort.
-    coder: The Coder to use for decoding incoming Pub/Sub messages.
   """
 
-  def __init__(self, coder, topic=None, subscription=None, id_label=None):
-    self.coder = coder
+  def __init__(self, topic=None, subscription=None, id_label=None):
+    # we are using this coder explicitly for portability reasons of PubsubIO
+    # across implementations in languages.
+    self.coder = coders.BytesCoder()
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
@@ -143,8 +143,10 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
 class _PubSubPayloadSink(dataflow_io.NativeSink):
   """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
 
-  def __init__(self, coder, topic):
-    self.coder = coder
+  def __init__(self, topic):
+    # we are using this coder explicitly for portability reasons of PubsubIO
+    # across implementations in languages.
+    self.coder = coders.BytesCoder()
     self.topic = topic
 
   @property

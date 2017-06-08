@@ -21,7 +21,6 @@ import logging
 import unittest
 
 import hamcrest as hc
-from apache_beam import coders
 
 from apache_beam.io.gcp.pubsub import _decodeUtf8String
 from apache_beam.io.gcp.pubsub import _encodeUtf8String
@@ -65,6 +64,17 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     self.assertEqual('a_subscription', source.subscription)
     self.assertEqual('a_label', source.id_label)
 
+  def test_expand_with_both_topic_and_subscription(self):
+    with self.assertRaisesRegexp(
+        ValueError, "Only one of topic or subscription should be provided."):
+      ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
+
+  def test_expand_with_no_topic_or_subscription(self):
+    with self.assertRaisesRegexp(
+        ValueError, "Either a topic or subscription must be provided."):
+      ReadStringsFromPubSub(None, None, 'a_label')
+
+
 class TestWriteStringsToPubSub(unittest.TestCase):
   def test_expand(self):
     p = TestPipeline()
@@ -82,8 +92,7 @@ class TestWriteStringsToPubSub(unittest.TestCase):
 
 class TestPubSubSource(unittest.TestCase):
   def test_display_data(self):
-    source = _PubSubPayloadSource(coders.BytesCoder(),
-                                  'a_topic', 'a_subscription', 'a_label')
+    source = _PubSubPayloadSource('a_topic', 'a_subscription', 'a_label')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic'),
@@ -93,7 +102,7 @@ class TestPubSubSource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_display_data_no_subscription(self):
-    source = _PubSubPayloadSource(coders.BytesCoder(), 'a_topic')
+    source = _PubSubPayloadSource('a_topic')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic')]
@@ -103,7 +112,7 @@ class TestPubSubSource(unittest.TestCase):
 
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
-    sink = _PubSubPayloadSink(coders.BytesCoder(), 'a_topic')
+    sink = _PubSubPayloadSink('a_topic')
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic')]
