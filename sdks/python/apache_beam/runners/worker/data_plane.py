@@ -167,12 +167,18 @@ class _GrpcDataChannel(DataChannel):
         yield data
 
   def output_stream(self, instruction_id, target):
+    # TODO: Return an output stream that sends data
+    # to the Runner once a fixed size buffer is full.
+    # Currently we buffer all the data before sending
+    # any messages.
     def add_to_send_queue(data):
-      self._to_send.put(
-          beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              target=target,
-              data=data))
+      if data:
+        self._to_send.put(
+            beam_fn_api_pb2.Elements.Data(
+                instruction_reference=instruction_id,
+                target=target,
+                data=data))
+      # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
