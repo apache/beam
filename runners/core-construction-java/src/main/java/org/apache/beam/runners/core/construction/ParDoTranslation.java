@@ -34,9 +34,11 @@ import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -215,9 +218,56 @@ public class ParDoTranslation {
     return doFnAndMainOutputTagFromProto(payload.getDoFn()).getDoFn();
   }
 
+  public static DoFn<?, ?> getDoFn(AppliedPTransform<?, ?, ?> application) throws IOException {
+    return getDoFn(getParDoPayload(application));
+  }
+
   public static TupleTag<?> getMainOutputTag(ParDoPayload payload)
       throws InvalidProtocolBufferException {
     return doFnAndMainOutputTagFromProto(payload.getDoFn()).getMainOutputTag();
+  }
+
+  public static TupleTag<?> getMainOutputTag(AppliedPTransform<?, ?, ?> application)
+      throws IOException {
+    return getMainOutputTag(getParDoPayload(application));
+  }
+
+  public static TupleTagList getAdditionalOutputTags(AppliedPTransform<?, ?, ?> application)
+      throws IOException {
+
+    RunnerApi.PTransform protoTransform =
+        PTransformTranslation.toProto(application, SdkComponents.create());
+
+    ParDoPayload payload = protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
+
+    TupleTag<?> mainOutputTag = getMainOutputTag(payload);
+
+    Set<String> outputTags = protoTransform.getOutputsMap().keySet();
+
+    outputTags = Sets.difference(outputTags, Collections.singleton(mainOutputTag.getId()));
+
+    ArrayList<TupleTag<?>> additionalOutputTags = new ArrayList<>();
+    for (String outputTag : outputTags) {
+      additionalOutputTags.add(new TupleTag<>(outputTag));
+    }
+    return TupleTagList.of(additionalOutputTags);
+  }
+
+  public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
+      throws IOException {
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform parDoProto =
+        PTransformTranslation.toProto(application, sdkComponents);
+    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
+
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, SideInput> sideInput : payload.getSideInputsMap().entrySet()) {
+      views.add(
+          fromProto(
+              sideInput.getValue(), sideInput.getKey(), parDoProto, sdkComponents.toComponents()));
+    }
+    return views;
   }
 
   public static RunnerApi.PCollection getMainInput(
