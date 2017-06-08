@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"regexp"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
-	"log"
-	"os"
-	"regexp"
 )
 
 var (
@@ -87,8 +88,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running pingpong")
 
@@ -108,7 +108,7 @@ func main() {
 	textio.Write(p, *output, small2)
 	textio.Write(p, *output, big2)
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

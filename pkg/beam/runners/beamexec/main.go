@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/harness"
-	"log"
-	"time"
 )
 
 var (
@@ -31,11 +32,14 @@ var (
 // both aspects when imported. It would no longer be available by default.
 
 // Init is the hook that all user code must call, for now.
-func Init(ctx context.Context) {
+func Init() {
 	if !*worker {
 		return
 	}
 
+	// Since Init() is hijacking main, it's appropriate to do as main
+	// does, and establish the background context here.
+	ctx := context.Background()
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		log.Fatalf("Worker failed: %v", err)
 	}
@@ -52,6 +56,8 @@ var runners = map[string]func(context.Context, *beam.Pipeline) error{
 	"dataflow": dataflow.Execute,
 }
 
+// Register associates the name with the supplied runner, making it available
+// to execute a pipeline.
 func Register(name string, fn func(context.Context, *beam.Pipeline) error) {
 	if _, ok := runners[name]; ok {
 		panic(fmt.Sprintf("runner %v already defined", name))

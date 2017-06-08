@@ -31,8 +31,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running autocomplete")
 
@@ -48,7 +47,7 @@ func main() {
 	})
 	debug.Print(p, hits)
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

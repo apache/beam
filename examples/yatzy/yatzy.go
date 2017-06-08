@@ -95,8 +95,7 @@ func evalFn(_ string, a, b, c, d, e int) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -112,7 +111,7 @@ func main() {
 		beam.SideInput{Input: roll(p)},
 	)
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

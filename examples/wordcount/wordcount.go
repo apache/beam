@@ -6,14 +6,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"regexp"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
-	"log"
-	"os"
-	"regexp"
 )
 
 // Options used purely at pipeline construction-time can just be flags.
@@ -43,8 +44,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running wordcount")
 
@@ -58,7 +58,7 @@ func main() {
 	formatted := beam.ParDo(p, formatFn, counted)
 	debug.Print(p, formatted)
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
