@@ -54,6 +54,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpressi
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
@@ -173,6 +174,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           return new BeamSqlAbsExpression(subExps);
         case "SQRT":
           return new BeamSqlSqrtExpression(subExps);
+        case "ROUND":
+          return new BeamSqlRoundExpression(subExps);
 
         // string operators
         case "||":
