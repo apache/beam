@@ -170,6 +170,7 @@
     <module>sdks/java/build-tools</module>
     <module>sdks</module>
     <module>runners</module>
+    <module>dsls</module>
     <module>examples</module>
     <!-- sdks/java/javadoc builds project-wide Javadoc. It has to run last. -->
     <module>sdks/java/javadoc</module>

@@ -1,0 +1,179 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.dsls.sql.rel;
+
+import java.util.List;
+import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.Util;
+import org.joda.time.Duration;
+
+/**
+ * {@link BeamRelNode} to replace a {@link Aggregate} node.
+ *
+ */
+public class BeamAggregationRel extends Aggregate implements BeamRelNode {
+  private int windowFieldIdx = -1;
+  private WindowFn<BeamSQLRow, BoundedWindow> windowFn;
+  private Trigger trigger;
+  private Duration allowedLatence = Duration.ZERO;
+
+  public BeamAggregationRel(RelOptCluster cluster, RelTraitSet traits
+      , RelNode child, boolean indicator,
+      ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls
+      , WindowFn windowFn, Trigger trigger, int windowFieldIdx, Duration allowedLatence) {
+    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    this.windowFn = windowFn;
+    this.trigger = trigger;
+    this.windowFieldIdx = windowFieldIdx;
+    this.allowedLatence = allowedLatence;
+  }
+
+  @Override
+  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+      throws Exception {
+    RelNode input = getInput();
+    String stageName = BeamSQLRelUtils.getStageName(this);
+
+    PCollection<BeamSQLRow> upstream =
+        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
+    if (windowFieldIdx != -1) {
+      upstream = upstream.apply("assignEventTimestamp", WithTimestamps
+          .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
+          .setCoder(upstream.getCoder());
+    }
+
+    PCollection<BeamSQLRow> windowStream = upstream.apply("window",
+        Window.<BeamSQLRow>into(windowFn)
+        .triggering(trigger)
+        .withAllowedLateness(allowedLatence)
+        .accumulatingFiredPanes());
+
+    BeamSqlRowCoder keyCoder = new BeamSqlRowCoder(exKeyFieldsSchema(input.getRowType()));
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply("exGroupBy",
+        WithKeys
+            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
+                windowFieldIdx, groupSet)))
+        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, upstream.getCoder()));
+
+    PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
+        .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create())
+        .setCoder(KvCoder.<BeamSQLRow, Iterable<BeamSQLRow>>of(keyCoder,
+            IterableCoder.<BeamSQLRow>of(upstream.getCoder())));
+
+    BeamSqlRowCoder aggCoder = new BeamSqlRowCoder(exAggFieldsSchema());
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
+        Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
+            new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
+                BeamSQLRecordType.from(input.getRowType()))))
+        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, aggCoder));
+
+    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
+        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
+            BeamSQLRecordType.from(getRowType()), getAggCallList())));
+    mergedStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
+
+    return mergedStream;
+  }
+
+  /**
+   * Type of sub-rowrecord used as Group-By keys.
+   */
+  private BeamSQLRecordType exKeyFieldsSchema(RelDataType relDataType) {
+    BeamSQLRecordType inputRecordType = BeamSQLRecordType.from(relDataType);
+    BeamSQLRecordType typeOfKey = new BeamSQLRecordType();
+    for (int i : groupSet.asList()) {
+      if (i != windowFieldIdx) {
+        typeOfKey.addField(inputRecordType.getFieldsName().get(i),
+            inputRecordType.getFieldsType().get(i));
+      }
+    }
+    return typeOfKey;
+  }
+
+  /**
+   * Type of sub-rowrecord, that represents the list of aggregation fields.
+   */
+  private BeamSQLRecordType exAggFieldsSchema() {
+    BeamSQLRecordType typeOfAggFields = new BeamSQLRecordType();
+    for (AggregateCall ac : getAggCallList()) {
+      typeOfAggFields.addField(ac.name, ac.type.getSqlTypeName());
+    }
+    return typeOfAggFields;
+  }
+
+  @Override
+  public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator
+      , ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
+    return new BeamAggregationRel(getCluster(), traitSet, input, indicator
+        , groupSet, groupSets, aggCalls, windowFn, trigger, windowFieldIdx, allowedLatence);
+  }
+
+  public void setWindowFn(WindowFn windowFn) {
+    this.windowFn = windowFn;
+  }
+
+  public void setTrigger(Trigger trigger) {
+    this.trigger = trigger;
+  }
+
+  public RelWriter explainTerms(RelWriter pw) {
+    // We skip the "groups" element if it is a singleton of "group".
+    pw.item("group", groupSet)
+        .itemIf("window", windowFn, windowFn != null)
+        .itemIf("trigger", trigger, trigger != null)
+        .itemIf("event_time", windowFieldIdx, windowFieldIdx != -1)
+        .itemIf("groups", groupSets, getGroupType() != Group.SIMPLE)
+        .itemIf("indicator", indicator, indicator)
+        .itemIf("aggs", aggCalls, pw.nest());
+    if (!pw.nest()) {
+      for (Ord<AggregateCall> ord : Ord.zip(aggCalls)) {
+        pw.item(Util.first(ord.e.name, "agg#" + ord.i), ord.e);
+      }
+    }
+    return pw;
+  }
+
+}
