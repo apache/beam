@@ -157,6 +157,113 @@ class Pipeline(object):
     """Returns the root transform of the transform stack."""
     return self.transforms_stack[0]
 
+  def _remove_labels_recursively(self, applied_transform):
+    for part in applied_transform.parts:
+      if part.full_label in self.applied_labels:
+        self.applied_labels.remove(part.full_label)
+      if part.parts:
+        for part2 in part.parts:
+          self._remove_labels_recursively(part2)
+
+  def _replace(self, override):
+
+    assert isinstance(override, PTransformOverride)
+    matcher = override.get_matcher()
+
+    output_map = {}
+
+    class OutputVisitor(PipelineVisitor): # pylint: disable=used-before-assignment
+
+      def __init__(self, pipeline, applied_labels):
+        self.pipeline = pipeline
+        self._applied_labels = applied_labels
+
+      def _replace_if_needed(self, transform_node):
+        if matcher.match(transform_node):
+          replacement_transform = override.get_replacement_transform(
+              transform_node.transform)
+          inputs = transform_node.inputs
+          # We only support replacing single-input PTransforms.
+          assert len(inputs) == 1
+          transform_node.transform = replacement_transform
+          self.pipeline.transforms_stack.append(transform_node)
+
+          # Keeping the same label for the replaced node but recursively
+          # removing labels of child transforms since they will be replaced
+          # during the expand below.
+          self.pipeline._remove_labels_recursively(transform_node)
+
+          new_output = replacement_transform.expand(inputs[0])
+
+          # Recording updated outputs. This cannot be done in the same visor
+          # since if we dynamically update output type here, we'll run into
+          # errors when visiting child nodes.
+          output_map[transform_node.outputs[None]] = new_output
+
+          self.pipeline.transforms_stack.pop()
+
+      def enter_composite_transform(self, transform_node):
+        self._replace_if_needed(transform_node)
+
+      def visit_transform(self, transform_node):
+        self._replace_if_needed(transform_node)
+
+    self.visit(OutputVisitor(self, self.applied_labels))
+
+    # Adjusting inputs and outputs
+    class OutputUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+
+      def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+      def visit_transform(self, transform_node):
+        if transform_node.outputs[None] in output_map:
+          transform_node.replace_output(
+              output_map[transform_node.outputs[None]])
+
+        replace_input = False
+        for input in transform_node.inputs:
+          if input in output_map:
+            replace_input = True
+            break
+
+        if replace_input:
+          transform_node.inputs = [
+              input if not input in output_map else output_map[input]
+              for input in transform_node.inputs]
+
+    self.visit(OutputUpdater(self))
+
+  def _check_replacement(self, override):
+    matcher = override.get_matcher()
+
+    class Visitor(PipelineVisitor):
+      def visit_transform(self, transform_node):
+        if matcher.match(transform_node):
+          raise RuntimeError('Transform node %r was not replaced as expected.',
+                             transform_node)
+
+    self.visit(Visitor())
+
+  def replace_all(self, replacements):
+    """ Dynamically replaces PTransforms in the currently populated hierarchy.
+
+     Currently this only works for replacements where input and output types
+     are exactly the same.
+     TODO: Update this to also work for transform overrides where input and
+     output types are different.
+
+    Args:
+      replacements a list of PTransformOverride objects.
+    """
+    for override in replacements:
+      assert isinstance(override, PTransformOverride)
+      self._replace(override)
+
+    # Checking if the transforms have been successfully replaced.
+    for override in replacements:
+      self._check_replacement(override)
+
   def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
@@ -441,6 +548,20 @@ class AppliedPTransform(object):
       for side_input in self.side_inputs:
         real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
+  def replace_output(self, output, tag=None):
+    """Replaces the output defined by the given tag with the given output.
+
+    Args:
+      output: replacement output
+      tag: tag of the output to be replaced.
+    """
+    if isinstance(output, pvalue.DoOutputsTuple):
+      self.replace_output(output[output._main_tag])
+    elif isinstance(output, pvalue.PValue):
+      self.outputs[tag] = output
+    else:
+      raise TypeError("Unexpected output type: %s" % output)
+
   def add_output(self, output, tag=None):
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[output._main_tag])
@@ -564,3 +685,43 @@ class AppliedPTransform(object):
           pc.tag = tag
     result.update_input_refcounts()
     return result
+
+
+class PTransformMatcher(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A mather for AppliedPTransform objects."""
+
+  def match(self, applied_ptransform):
+    # Returns true or false
+    raise NotImplementedError
+
+
+class PTransformOverride(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Gives a PTransformMatcher and replacements for matching PTransforms.
+
+  TODO: Update this to support cases where input and/our output types are
+  different.
+  """
+
+  def get_matcher(self):
+    """Gives a matcher that will be used to to perform this override.
+
+    Returns:
+      a PTransformMatcher object.
+    """
+    raise NotImplementedError
+
+  def get_replacement_transform(self, ptransform):
+    """Provides a runner specific override for a given PTransform.
+
+    Args:
+      ptransform: PTransform to be replaced.
+    Returns:
+      A PTransform that will be the replacement for the PTransform given as an
+      argument.
+    """
+    # Returns a PTransformReplacement
+    raise NotImplementedError

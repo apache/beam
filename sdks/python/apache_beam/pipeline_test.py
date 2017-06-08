@@ -28,9 +28,12 @@ import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import PTransformMatcher
+from apache_beam.pipeline import PTransformOverride
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pvalue import AsSingleton
+from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -73,6 +76,18 @@ class FakeSource(NativeSource):
 
   def reader(self):
     return FakeSource._Reader(self._vals)
+
+
+class DoubleParDo(beam.PTransform):
+  def expand(self, input):
+    return input | 'Inner' >> beam.Map(lambda a: a * 2)
+
+
+class TripleParDo(beam.PTransform):
+  def expand(self, input):
+    # Keeping labels the same intentionally to make sure that there is no label
+    # conflict due to replacement.
+    return input | 'Inner' >> beam.Map(lambda a: a * 3)
 
 
 class PipelineTest(unittest.TestCase):
@@ -284,6 +299,29 @@ class PipelineTest(unittest.TestCase):
   # def test_eager_pipeline(self):
   #   p = Pipeline('EagerRunner')
   #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
+
+  def test_ptransform_overrides(self):
+
+    class MyParDoMatcher(PTransformMatcher):
+
+      def match(self, applied_ptransform):
+        if isinstance(applied_ptransform.transform, DoubleParDo):
+          return True
+
+    class MyParDoOverride(PTransformOverride):
+
+      def get_matcher(self):
+        return MyParDoMatcher()
+
+      def get_replacement_transform(self, ptransform):
+        if isinstance(ptransform, DoubleParDo):
+          return TripleParDo()
+        raise ValueError('Unsupported type of transform: %r', ptransform)
+
+    DirectRunner.PTRANSFORM_OVERRIDES.append(MyParDoOverride())
+    with Pipeline() as p:
+      pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
+      assert_that(pcoll, equal_to([3, 6, 9]))
 
 
 class DoFnTest(unittest.TestCase):
