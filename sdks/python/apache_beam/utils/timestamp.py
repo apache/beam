@@ -210,4 +210,6 @@ class Duration(object):
     return Duration(micros=self.micros % other.micros)
 
 
+# The minimum granularity / interval expressible in a Timestamp / Duration
+# object.
 TIME_GRANULARITY = Duration(micros=1)
