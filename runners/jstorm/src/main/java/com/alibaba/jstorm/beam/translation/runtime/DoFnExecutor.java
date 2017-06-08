@@ -26,6 +26,7 @@ import com.alibaba.jstorm.beam.translation.runtime.timer.JStormTimerInternals;
 
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.metric.MetricClient;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -72,7 +73,10 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            executorsBolt.processExecutorElem(tag, output);
+            WindowedValue immutableValue = output.getValue() instanceof Iterable ?
+                    output.withValue(ImmutableList.copyOf((Iterable) output.getValue())) :
+                    output;
+            executorsBolt.processExecutorElem(tag, immutableValue);
         }
     }
 
@@ -94,7 +98,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected DoFn<InputT, OutputT> doFn;
     private final Coder<WindowedValue<InputT>> inputCoder;
     protected DoFnInvoker<InputT, OutputT> doFnInvoker;
-    protected DoFnExecutorOutputManager outputManager;
+    protected OutputManager outputManager;
     protected WindowingStrategy<?, ?> windowingStrategy;
     private final TupleTag<InputT> mainInputTag;
     protected Collection<PCollectionView<?>> sideInputs;

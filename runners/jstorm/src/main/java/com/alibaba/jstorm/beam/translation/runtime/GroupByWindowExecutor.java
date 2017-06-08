@@ -17,6 +17,7 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime;
 
+import java.io.Serializable;
 import java.util.List;
 
 import com.alibaba.jstorm.beam.translation.runtime.state.JStormStateInternals;
@@ -56,6 +57,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
     private static final long serialVersionUID = -7563050475488610553L;
 
+    private class GroupByWindowOutputManager implements DoFnRunners.OutputManager, Serializable {
+
+        @Override
+        public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+            KV kv = (KV) output.getValue();
+            KV immutableKv = kv.getValue() instanceof Iterable ?
+                    KV.of(kv.getKey(), ImmutableList.copyOf((Iterable) kv.getValue())) :
+                    kv;
+            executorsBolt.processExecutorElem(tag, (WindowedValue<T>) output.withValue(immutableKv));
+        }
+    }
+
     private KvCoder<K, V> inputKvCoder;
     private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
 
@@ -69,6 +82,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
         // The doFn will be created when runtime. Just pass "null" here
         super(stepName, description, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
 
+        this.outputManager = new GroupByWindowOutputManager();
         UserGraphContext userGraphContext = context.getUserGraphContext();
         PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) userGraphContext.getInput();
         this.inputKvCoder = (KvCoder<K, V>) input.getCoder();
