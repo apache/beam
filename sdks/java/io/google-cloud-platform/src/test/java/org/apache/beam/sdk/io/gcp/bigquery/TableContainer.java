@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableRow;
-
 import java.util.ArrayList;
 import java.util.List;
 

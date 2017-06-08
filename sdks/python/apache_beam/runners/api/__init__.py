@@ -15,16 +15,7 @@
 # limitations under the License.
 #
 
-"""Checked in to avoid protoc dependency for Python development.
+"""For internal use only; no backwards-compatibility guarantees.
 
-Regenerate files with::
-
-    protoc -I../common/runner-api/src/main/proto/ \
-        --python_out=apache_beam/runners/api/ \
-        ../common/runner-api/src/main/proto/*.proto
-
-    protoc -I../common/{fn,runner}-api/src/main/proto/ \
-        --python_out=apache_beam/runners/api/ \
-        --grpc_python_out=apache_beam/runners/api/ \
-        ../common/fn-api/src/main/proto/*.proto
+Automatically generated when running setup.py sdist or build[_py].
 """

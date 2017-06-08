@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -27,8 +29,6 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.state.State;
 
 /**
  * Interface for invoking the {@code DoFn} processing methods.
@@ -41,10 +41,10 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeSetup();
 
   /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
-  void invokeStartBundle(DoFn<InputT, OutputT>.Context c);
+  void invokeStartBundle(DoFn<InputT, OutputT>.StartBundleContext c);
 
   /** Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}. */
-  void invokeFinishBundle(DoFn<InputT, OutputT>.Context c);
+  void invokeFinishBundle(DoFn<InputT, OutputT>.FinishBundleContext c);
 
   /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
@@ -100,8 +100,11 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     BoundedWindow window();
 
-    /** Provide a {@link DoFn.Context} to use with the given {@link DoFn}. */
-    DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn);
+    /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link DoFn.FinishBundleContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.ProcessContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn);
@@ -135,7 +138,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      return null;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
       return null;
     }
 

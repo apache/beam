@@ -56,15 +56,6 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
         new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
   }
 
-  /**
-   * Returns the first element in this set if it is non-empty,
-   * otherwise returns {@code null}.
-   */
-  public static <T> List<Object> getInstanceComponents(
-      Set<T> exampleValue) {
-    return getInstanceComponentsHelper(exampleValue);
-  }
-
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 

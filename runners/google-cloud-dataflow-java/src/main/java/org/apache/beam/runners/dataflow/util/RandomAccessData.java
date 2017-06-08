@@ -30,10 +30,10 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -55,11 +55,17 @@ public class RandomAccessData {
    *
    * <p>This coder does not support encoding positive infinity.
    */
-  public static class RandomAccessDataCoder extends CustomCoder<RandomAccessData> {
+  public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
 
     public static RandomAccessDataCoder of() {
       return INSTANCE;
+    }
+
+    @Override
+    public void encode(RandomAccessData value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Coder.Context.NESTED);
     }
 
     @Override
@@ -72,6 +78,11 @@ public class RandomAccessData {
         VarInt.encode(value.size, outStream);
       }
       value.writeTo(outStream, 0, value.size);
+    }
+
+    @Override
+    public RandomAccessData decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
@@ -96,22 +107,17 @@ public class RandomAccessData {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(
-        RandomAccessData value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(RandomAccessData value) {
       return true;
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value, Coder.Context context)
+    protected long getEncodedElementByteSize(RandomAccessData value)
         throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      long size = 0;
-      if (!context.isWholeStream) {
-        size += VarInt.getLength(value.size);
-      }
-      return size + value.size;
+      return VarInt.getLength(value.size) + value.size;
     }
   }
 
@@ -344,7 +350,7 @@ public class RandomAccessData {
 
     // Try to double the size of the buffer, if thats not enough, just use the new capacity.
     // Note that we use Math.min(long, long) to not cause overflow on the multiplication.
-    int newCapacity = (int) Math.min(Integer.MAX_VALUE, buffer.length * 2L);
+    int newCapacity = (int) Math.min(Integer.MAX_VALUE - 8, buffer.length * 2L);
     if (newCapacity < minCapacity) {
         newCapacity = minCapacity;
     }

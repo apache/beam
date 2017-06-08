@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.core.BaseExecutionContext;
-import org.apache.beam.runners.core.ExecutionContext;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 
@@ -30,12 +30,12 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
-class DirectExecutionContext
-    extends BaseExecutionContext<DirectStepContext> {
+class DirectExecutionContext {
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals existingState;
   private final TransformWatermarks watermarks;
+  private Map<String, DirectStepContext> cachedStepContexts = new LinkedHashMap<>();
 
   public DirectExecutionContext(
       Clock clock,
@@ -48,23 +48,30 @@ class DirectExecutionContext
     this.watermarks = watermarks;
   }
 
-  @Override
-  protected DirectStepContext createStepContext(String stepName, String transformName) {
-    return new DirectStepContext(this, stepName, transformName);
+  private DirectStepContext createStepContext() {
+    return new DirectStepContext();
+  }
+
+  /**
+   * Returns the {@link StepContext} associated with the given step.
+   */
+  public DirectStepContext getStepContext(String stepName) {
+    DirectStepContext context = cachedStepContexts.get(stepName);
+    if (context == null) {
+      context = createStepContext();
+      cachedStepContexts.put(stepName, context);
+    }
+    return context;
   }
 
   /**
    * Step Context for the {@link DirectRunner}.
    */
-  public class DirectStepContext
-      extends BaseExecutionContext.StepContext {
+  public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
 
-    public DirectStepContext(
-        ExecutionContext executionContext, String stepName, String transformName) {
-      super(executionContext, stepName, transformName);
-    }
+    public DirectStepContext() { }
 
     @Override
     public CopyOnAccessInMemoryStateInternals<?> stateInternals() {

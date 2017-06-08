@@ -23,8 +23,8 @@ import logging
 import Queue as queue
 import threading
 
-import grpc
 from concurrent import futures
+import grpc
 
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
@@ -38,6 +38,8 @@ from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
+
+# This module is experimental. No backwards-compatibility guarantees.
 
 
 def streaming_rpc_handler(cls, method_name):

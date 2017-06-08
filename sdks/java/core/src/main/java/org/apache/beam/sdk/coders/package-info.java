@@ -27,7 +27,7 @@
  * machines.
  *
  * <p>Exactly when PCollection elements are encoded during execution depends on which
- * {@link org.apache.beam.sdk.runners.PipelineRunner} is being used and how that runner
+ * {@link org.apache.beam.sdk.PipelineRunner} is being used and how that runner
  * chooses to execute the pipeline. As such, Beam requires that all PCollections have an
  * appropriate Coder in case it becomes necessary. In many cases, the Coder can be inferred from
  * the available Java type

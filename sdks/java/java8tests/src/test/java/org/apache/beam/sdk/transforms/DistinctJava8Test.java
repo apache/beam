@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -89,13 +88,6 @@ public class DistinctJava8Test {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder for RemoveRepresentativeDupes");
-    thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage(
-        containsString("Building a Coder using a registered CoderFactory failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the @DefaultCoder annotation failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     // Thrown when applying a transform to the internal WithKeys that withRepresentativeValueFn is
     // implemented with

@@ -28,4 +28,5 @@ class CloudObjectKinds {
   static final String KIND_PAIR = "kind:pair";
   static final String KIND_STREAM = "kind:stream";
   static final String KIND_WINDOWED_VALUE = "kind:windowed_value";
+  static final String KIND_BYTES = "kind:bytes";
 }

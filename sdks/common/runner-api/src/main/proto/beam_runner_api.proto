@@ -220,6 +220,9 @@ message ParDoPayload {
 
   // (Optional) A mapping of local timer names to timer specifications.
   map<string, TimerSpec> timer_specs = 5;
+
+  // Whether the DoFn is splittable
+  bool splittable = 6;
 }
 
 // Parameters that a UDF might require.
@@ -247,11 +250,39 @@ message Parameter {
 }
 
 message StateSpec {
-  // TODO: AST for state spec
+  oneof spec {
+    ValueStateSpec value_spec = 1;
+    BagStateSpec bag_spec = 2;
+    CombiningStateSpec combining_spec = 3;
+    MapStateSpec map_spec = 4;
+    SetStateSpec set_spec = 5;
+  }
+}
+
+message ValueStateSpec {
+  string coder_id = 1;
+}
+
+message BagStateSpec {
+  string element_coder_id = 1;
+}
+
+message CombiningStateSpec {
+  string accumulator_coder_id = 1;
+  SdkFunctionSpec combine_fn = 2;
+}
+
+message MapStateSpec {
+  string key_coder_id = 1;
+  string value_coder_id = 2;
+}
+
+message SetStateSpec {
+  string element_coder_id = 1;
 }
 
 message TimerSpec {
-  // TODO: AST for timer spec
+  TimeDomain time_domain = 1;
 }
 
 enum IsBounded {
@@ -295,6 +326,50 @@ message CombinePayload {
   // (Optional) A mapping of local input names to side inputs, describing
   // the expected access pattern.
   map<string, SideInput> side_inputs = 4;
+}
+
+// The payload for the test-only primitive TestStream
+message TestStreamPayload {
+
+  // (Required) the coder for elements in the TestStream events
+  string coder_id = 1;
+
+  repeated Event events = 2;
+
+  message Event {
+    oneof event {
+      AdvanceWatermark watermark_event = 1;
+      AdvanceProcessingTime processing_time_event = 2;
+      AddElements element_event = 3;
+    }
+
+    message AdvanceWatermark {
+      int64 new_watermark = 1;
+    }
+
+    message AdvanceProcessingTime {
+      int64 advance_duration = 1;
+    }
+
+    message AddElements {
+      repeated TimestampedElement elements = 1;
+    }
+  }
+
+  message TimestampedElement {
+    bytes encoded_element = 1;
+    int64 timestamp = 2;
+  }
+}
+// The payload for the special-but-not-primitive WriteFiles transform.
+message WriteFilesPayload {
+
+  // (Required) The SdkFunctionSpec of the FileBasedSink.
+  SdkFunctionSpec sink = 1;
+
+  bool windowed_writes = 2;
+
+  bool runner_determined_sharding = 3;
 }
 
 // A coder, the binary format for serialization and deserialization of data in

@@ -37,13 +37,6 @@ public class VarLongCoder extends StructuredCoder<Long> {
     return INSTANCE;
   }
 
-  /**
-   * Returns an empty list. {@link VarLongCoder} has no components.
-   */
-  public static <T> List<Object> getInstanceComponents(T ignored) {
-    return Collections.emptyList();
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   private static final VarLongCoder INSTANCE = new VarLongCoder();
@@ -52,7 +45,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   private VarLongCoder() {}
 
   @Override
-  public void encode(Long value, OutputStream outStream, Context context)
+  public void encode(Long value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
@@ -61,7 +54,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   }
 
   @Override
-  public Long decode(InputStream inStream, Context context)
+  public Long decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return VarInt.decodeLong(inStream);
@@ -96,7 +89,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
    * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Long value) {
     return true;
   }
 
@@ -106,7 +99,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Long value, Context context)
+  protected long getEncodedElementByteSize(Long value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

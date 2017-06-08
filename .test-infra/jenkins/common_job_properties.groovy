@@ -24,14 +24,25 @@ class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
   static void setTopLevelWebsiteJobProperties(context) {
-    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
+    setTopLevelJobProperties(
+            context,
+            'beam-site',
+            'asf-site',
+            'beam',
+            30)
   }
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(context,
-                                           String defaultBranch = 'master',
-                                           int defaultTimeout = 100) {
-    setTopLevelJobProperties(context, 'beam', defaultBranch, defaultTimeout)
+                                           String branch = 'master',
+                                           int timeout = 100,
+                                           String jenkinsExecutorLabel = 'beam') {
+    setTopLevelJobProperties(
+            context,
+            'beam',
+            branch,
+            jenkinsExecutorLabel,
+            timeout)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
@@ -39,6 +50,7 @@ class common_job_properties {
   private static void setTopLevelJobProperties(context,
                                                String repositoryName,
                                                String defaultBranch,
+                                               String jenkinsExecutorLabel,
                                                int defaultTimeout) {
 
     // GitHub project.
@@ -49,9 +61,8 @@ class common_job_properties {
     // Set JDK version.
     context.jdk('JDK 1.8 (latest)')
 
-    // Restrict this project to run only on Jenkins executors dedicated to the
-    // Apache Beam project.
-    context.label('beam')
+    // Restrict this project to run only on Jenkins executors as specified
+    context.label(jenkinsExecutorLabel)
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
@@ -64,7 +75,7 @@ class common_job_properties {
         remote {
           url('https://github.com/apache/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
+                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
         branch('${sha1}')
         extensions {
@@ -163,8 +174,8 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context) {
-    context.mavenInstallation('Maven 3.3.3')
+  static void setMavenConfig(context, mavenInstallation='Maven 3.3.3') {
+    context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
     // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
@@ -177,7 +188,9 @@ class common_job_properties {
     // Disable archiving the built artifacts by default, as this is slow and flaky.
     // We can usually recreate them easily, and we can also opt-in individual jobs
     // to artifact archiving.
-    context.archivingDisabled(true)
+    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
+      context.archivingDisabled(true)
+    }
   }
 
   // Sets common config for PreCommit jobs.

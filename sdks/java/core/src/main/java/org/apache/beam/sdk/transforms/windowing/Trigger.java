@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.joda.time.Instant;
 
@@ -117,8 +118,10 @@ public abstract class Trigger implements Serializable {
   protected abstract Trigger getContinuationTrigger(List<Trigger> continuationTriggers);
 
   /**
-   * Returns a bound in event time by which this trigger would have fired at least once for a given
-   * window had there been input data.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns a bound in event time by which this trigger would have fired at least once for a
+   * given window had there been input data.
    *
    * <p>For triggers that do not fire based on the watermark advancing, returns {@link
    * BoundedWindow#TIMESTAMP_MAX_VALUE}.
@@ -126,9 +129,15 @@ public abstract class Trigger implements Serializable {
    * <p>This estimate may be used, for example, to determine that there are no elements in a
    * side-input window, which causes the default value to be used instead.
    */
+  @Internal
   public abstract Instant getWatermarkThatGuaranteesFiring(BoundedWindow window);
 
-  /** Returns whether this performs the same triggering as the given {@link Trigger}. */
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns whether this performs the same triggering as the given {@link Trigger}.
+   */
+  @Internal
   public boolean isCompatible(Trigger other) {
     if (!getClass().equals(other.getClass())) {
       return false;
@@ -208,9 +217,12 @@ public abstract class Trigger implements Serializable {
   }
 
   /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
    * {@link Trigger Triggers} that are guaranteed to fire at most once should extend {@link
    * OnceTrigger} rather than the general {@link Trigger} class to indicate that behavior.
    */
+  @Internal
   public abstract static class OnceTrigger extends Trigger {
     protected OnceTrigger(List<Trigger> subTriggers) {
       super(subTriggers);

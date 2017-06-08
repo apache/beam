@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -62,13 +63,12 @@ public class GcsFileSystemTest {
   public transient ExpectedException thrown = ExpectedException.none();
   @Mock
   private GcsUtil mockGcsUtil;
-  private GcsOptions gcsOptions;
   private GcsFileSystem gcsFileSystem;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    gcsOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    GcsOptions gcsOptions = PipelineOptionsFactory.as(GcsOptions.class);
     gcsOptions.setGcsUtil(mockGcsUtil);
     gcsFileSystem = new GcsFileSystem(gcsOptions);
   }
@@ -214,20 +214,14 @@ public class GcsFileSystemTest {
     gcsFileSystem.expand(GcsPath.fromUri("gs://testbucket/testdirectory/otherfile"));
   }
 
-  // Patterns that contain recursive wildcards ('**') are not supported.
-  @Test
-  public void testRecursiveGlobExpansionFails() throws IOException {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unsupported wildcard usage");
-    gcsFileSystem.expand(GcsPath.fromUri("gs://testbucket/test**"));
-  }
-
   @Test
   public void testMatchNonGlobs() throws Exception {
     List<StorageObjectOrIOException> items = new ArrayList<>();
     // Files within the directory
     items.add(StorageObjectOrIOException.create(
         createStorageObject("gs://testbucket/testdirectory/file1name", 1L /* fileSize */)));
+    items.add(StorageObjectOrIOException.create(
+        createStorageObject("gs://testbucket/testdirectory/dir2name/", 0L /* fileSize */)));
     items.add(StorageObjectOrIOException.create(new FileNotFoundException()));
     items.add(StorageObjectOrIOException.create(new IOException()));
     items.add(StorageObjectOrIOException.create(
@@ -235,6 +229,7 @@ public class GcsFileSystemTest {
 
     List<GcsPath> gcsPaths = ImmutableList.of(
         GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+        GcsPath.fromUri("gs://testbucket/testdirectory/dir2name/"),
         GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
         GcsPath.fromUri("gs://testbucket/testdirectory/file3name"),
         GcsPath.fromUri("gs://testbucket/testdirectory/file4name"));
@@ -242,23 +237,28 @@ public class GcsFileSystemTest {
     when(mockGcsUtil.getObjects(eq(gcsPaths))).thenReturn(items);
     List<MatchResult> matchResults = gcsFileSystem.matchNonGlobs(gcsPaths);
 
-    assertEquals(4, matchResults.size());
+    assertEquals(5, matchResults.size());
     assertThat(
         ImmutableList.of("gs://testbucket/testdirectory/file1name"),
         contains(toFilenames(matchResults.get(0)).toArray()));
-    assertEquals(Status.NOT_FOUND, matchResults.get(1).status());
-    assertEquals(Status.ERROR, matchResults.get(2).status());
+    assertThat(
+        ImmutableList.of("gs://testbucket/testdirectory/dir2name/"),
+        contains(toFilenames(matchResults.get(1)).toArray()));
+    assertEquals(Status.NOT_FOUND, matchResults.get(2).status());
+    assertEquals(Status.ERROR, matchResults.get(3).status());
     assertThat(
         ImmutableList.of("gs://testbucket/testdirectory/file4name"),
-        contains(toFilenames(matchResults.get(3)).toArray()));
+        contains(toFilenames(matchResults.get(4)).toArray()));
   }
 
   private StorageObject createStorageObject(String gcsFilename, long fileSize) {
     GcsPath gcsPath = GcsPath.fromUri(gcsFilename);
+    // Google APIs will use null for empty files.
+    @Nullable BigInteger size = (fileSize == 0) ? null : BigInteger.valueOf(fileSize);
     return new StorageObject()
         .setBucket(gcsPath.getBucket())
         .setName(gcsPath.getObject())
-        .setSize(BigInteger.valueOf(fileSize));
+        .setSize(size);
   }
 
   private List<String> toFilenames(MatchResult matchResult) throws IOException {

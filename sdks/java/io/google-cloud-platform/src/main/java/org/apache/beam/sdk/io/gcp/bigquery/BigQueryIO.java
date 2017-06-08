@@ -39,17 +39,21 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
@@ -63,12 +67,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -520,18 +521,13 @@ public class BigQueryIO {
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
-              Collection<String> extractFiles = null;
               if (extractJob != null) {
-                extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
-              } else {
-                IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-                Collection<String> dirMatch = factory.match(extractDestinationDir);
-                if (!dirMatch.isEmpty()) {
-                  extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                List<ResourceId> extractFiles =
+                    getExtractFilePaths(extractDestinationDir, extractJob);
+                if (extractFiles != null && !extractFiles.isEmpty()) {
+                  FileSystems.delete(extractFiles,
+                      MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
-              }
-              if (extractFiles != null && !extractFiles.isEmpty()) {
-                IOChannelUtils.getFactory(extractFiles.iterator().next()).remove(extractFiles);
               }
             }
           };
@@ -583,7 +579,7 @@ public class BigQueryIO {
     return String.format("%s/%s", extractDestinationDir, "*.avro");
   }
 
-  static List<String> getExtractFilePaths(String extractDestinationDir, Job extractJob)
+  static List<ResourceId> getExtractFilePaths(String extractDestinationDir, Job extractJob)
       throws IOException {
     JobStatistics jobStats = extractJob.getStatistics();
     List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
@@ -597,11 +593,13 @@ public class BigQueryIO {
     }
     long filesCount = counts.get(0);
 
-    ImmutableList.Builder<String> paths = ImmutableList.builder();
-    IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+    ImmutableList.Builder<ResourceId> paths = ImmutableList.builder();
+    ResourceId extractDestinationDirResourceId =
+        FileSystems.matchNewResource(extractDestinationDir, true /* isDirectory */);
     for (long i = 0; i < filesCount; ++i) {
-      String filePath =
-          factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
+      ResourceId filePath = extractDestinationDirResourceId.resolve(
+          String.format("%012d%s", i, ".avro"),
+          ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
       paths.add(filePath);
     }
     return paths.build();
@@ -643,7 +641,6 @@ public class BigQueryIO {
   public static <T> Write<T> write() {
     return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
-        .setTableDescription("")
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
@@ -661,21 +658,6 @@ public class BigQueryIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
-    @VisibleForTesting
-    // Maximum number of files in a single partition.
-    static final int MAX_NUM_FILES = 10000;
-
-    @VisibleForTesting
-    // Maximum number of bytes in a single partition -- 11 TiB just under BQ's 12 TiB limit.
-    static final long MAX_SIZE_BYTES = 11 * (1L << 40);
-
-    // The maximum number of retry jobs.
-    static final int MAX_RETRY_JOBS = 3;
-
-    // The maximum number of retries to poll the status of a job.
-    // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
-    static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
-
     @Nullable abstract ValueProvider<String> getJsonTableRef();
     @Nullable abstract SerializableFunction<ValueInSingleWindow<T>, TableDestination>
       getTableFunction();
@@ -686,10 +668,13 @@ public class BigQueryIO {
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
-    abstract String getTableDescription();
+    @Nullable abstract String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
+    @Nullable abstract Integer getMaxFilesPerBundle();
+    @Nullable abstract Long getMaxFileSize();
+    @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
     abstract Builder<T> toBuilder();
 
@@ -707,6 +692,9 @@ public class BigQueryIO {
       abstract Builder<T> setTableDescription(String tableDescription);
       abstract Builder<T> setValidate(boolean validate);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setMaxFilesPerBundle(Integer maxFilesPerBundle);
+      abstract Builder<T> setMaxFileSize(Long maxFileSize);
+      abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
       abstract Write<T> build();
     }
@@ -875,6 +863,17 @@ public class BigQueryIO {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
+    /** Specfies a policy for handling failed inserts.
+     *
+     * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
+     * collections are written using batch load jobs, so we don't get per-element failures.
+     * Unbounded collections are written using streaming inserts, so we have access to per-element
+     * insert results.
+     */
+    public Write<T> withFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+      return toBuilder().setFailedInsertRetryPolicy(retryPolicy).build();
+    }
+
     /** Disables BigQuery table validation. */
     public Write<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
@@ -885,10 +884,40 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
+    @VisibleForTesting
+    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+      return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
+    }
+
+    @VisibleForTesting
+    Write<T> withMaxFileSize(long maxFileSize) {
+      return toBuilder().setMaxFileSize(maxFileSize).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
 
+      // The user specified a table.
+      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
+        TableReference table = getTableWithDefaultProject(options).get();
+        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
+        // Check for destination table presence and emptiness for early failure notification.
+        // Note that a presence check can fail when the table or dataset is created by an earlier
+        // stage of the pipeline. For these cases the #withoutValidation method can be used to
+        // disable the check.
+        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
+        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+          BigQueryHelpers.verifyTablePresence(datasetService, table);
+        }
+        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
+          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+        }
+      }
+    }
+
+    @Override
+    public WriteResult expand(PCollection<T> input) {
       // We must have a destination to write to!
       checkState(
           getTableFunction() != null || getJsonTableRef() != null
@@ -917,29 +946,8 @@ public class BigQueryIO {
       checkArgument(2
               > Iterables.size(Iterables.filter(allSchemaArgs, Predicates.notNull())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
-          + "be set");
+              + "be set");
 
-      // The user specified a table.
-      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
-        TableReference table = getTableWithDefaultProject(options).get();
-        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-        // Check for destination table presence and emptiness for early failure notification.
-        // Note that a presence check can fail when the table or dataset is created by an earlier
-        // stage of the pipeline. For these cases the #withoutValidation method can be used to
-        // disable the check.
-        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
-        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-          BigQueryHelpers.verifyTablePresence(datasetService, table);
-        }
-        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
-        }
-      }
-    }
-
-    @Override
-    public WriteResult expand(PCollection<T> input) {
-      validate(input.getPipeline().getOptions());
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
@@ -987,10 +995,14 @@ public class BigQueryIO {
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
         StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations);
-        streamingInserts.setTestServices(getBigQueryServices());
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
+                .withInsertRetryPolicy(getFailedInsertRetryPolicy())
+                .withTestServices((getBigQueryServices()));
         return rowsWithDestination.apply(streamingInserts);
       } else {
+        checkArgument(getFailedInsertRetryPolicy() == null,
+            "Record-insert retry policies are not supported when using BigQuery load jobs.");
+
         BatchLoads<DestinationT> batchLoads = new BatchLoads<>(
             getWriteDisposition(),
             getCreateDisposition(),
@@ -998,6 +1010,12 @@ public class BigQueryIO {
             dynamicDestinations,
             destinationCoder);
         batchLoads.setTestServices(getBigQueryServices());
+        if (getMaxFilesPerBundle() != null) {
+          batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
+        }
+        if (getMaxFileSize() != null) {
+          batchLoads.setMaxFileSize(getMaxFileSize());
+        }
         return rowsWithDestination.apply(batchLoads);
       }
     }
@@ -1031,8 +1049,8 @@ public class BigQueryIO {
                   .withLabel("Table WriteDisposition"))
           .addIfNotDefault(DisplayData.item("validation", getValidate())
               .withLabel("Validation Enabled"), true)
-          .addIfNotDefault(DisplayData.item("tableDescription", getTableDescription())
-                  .withLabel("Table Description"), "");
+          .addIfNotNull(DisplayData.item("tableDescription", getTableDescription())
+                  .withLabel("Table Description"));
     }
 
     /**

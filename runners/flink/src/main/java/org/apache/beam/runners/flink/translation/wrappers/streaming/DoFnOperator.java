@@ -19,11 +19,11 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,10 +32,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -57,19 +58,17 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkS
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.KeyGroupCheckpointedOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -88,27 +87,28 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
 
 /**
  * Flink operator for executing {@link DoFn DoFns}.
  *
  * @param <InputT> the input type of the {@link DoFn}
- * @param <FnOutputT> the output type of the {@link DoFn}
+ * @param <OutputT> the output type of the {@link DoFn}
  * @param <OutputT> the output type of the operator, this can be different from the fn output
  *                 type when we have additional tagged outputs
  */
-public class DoFnOperator<InputT, FnOutputT, OutputT>
-    extends AbstractStreamOperator<OutputT>
-    implements OneInputStreamOperator<WindowedValue<InputT>, OutputT>,
-      TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, OutputT>,
+public class DoFnOperator<InputT, OutputT>
+    extends AbstractStreamOperator<WindowedValue<OutputT>>
+    implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
+      TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
     KeyGroupCheckpointedOperator, Triggerable<Object, TimerData> {
 
-  protected DoFn<InputT, FnOutputT> doFn;
+  protected DoFn<InputT, OutputT> doFn;
 
   protected final SerializedPipelineOptions serializedOptions;
 
-  protected final TupleTag<FnOutputT> mainOutputTag;
+  protected final TupleTag<OutputT> mainOutputTag;
   protected final List<TupleTag<?>> additionalOutputTags;
 
   protected final Collection<PCollectionView<?>> sideInputs;
@@ -118,8 +118,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected final OutputManagerFactory<OutputT> outputManagerFactory;
 
-  protected transient DoFnRunner<InputT, FnOutputT> doFnRunner;
-  protected transient PushbackSideInputDoFnRunner<InputT, FnOutputT> pushbackDoFnRunner;
+  protected transient DoFnRunner<InputT, OutputT> doFnRunner;
+  protected transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
 
   protected transient SideInputHandler sideInputHandler;
 
@@ -127,9 +127,11 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient DoFnRunners.OutputManager outputManager;
 
-  private transient DoFnInvoker<InputT, FnOutputT> doFnInvoker;
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   protected transient long currentInputWatermark;
+
+  protected transient long currentSideInputWatermark;
 
   protected transient long currentOutputWatermark;
 
@@ -154,10 +156,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   private transient Optional<Long> pushedBackWatermark;
 
   public DoFnOperator(
-      DoFn<InputT, FnOutputT> doFn,
+      DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputCoder,
-      TupleTag<FnOutputT> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
@@ -184,13 +186,13 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
-  private ExecutionContext.StepContext createStepContext() {
+  private org.apache.beam.runners.core.StepContext createStepContext() {
     return new StepContext();
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
   // the DoFn
-  protected DoFn<InputT, FnOutputT> getDoFn() {
+  protected DoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }
 
@@ -198,8 +200,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public void open() throws Exception {
     super.open();
 
-    currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = Long.MIN_VALUE;
+    setCurrentInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    setCurrentSideInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
@@ -250,7 +253,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     doFnInvoker.invokeSetup();
 
-    ExecutionContext.StepContext stepContext = createStepContext();
+    org.apache.beam.runners.core.StepContext stepContext = createStepContext();
 
     doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
@@ -310,6 +313,21 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public void close() throws Exception {
     super.close();
+
+    // sanity check: these should have been flushed out by +Inf watermarks
+    if (pushbackStateInternals != null) {
+      BagState<WindowedValue<InputT>> pushedBack =
+          pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+      if (pushedBackContents != null) {
+        if (!Iterables.isEmpty(pushedBackContents)) {
+          String pushedBackString = Joiner.on(",").join(pushedBackContents);
+          throw new RuntimeException(
+              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+        }
+      }
+    }
     doFnInvoker.invokeTeardown();
   }
 
@@ -428,19 +446,28 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
+    // We do the check here because we are guaranteed to at least get the +Inf watermark on the
+    // main input when the job finishes.
+    if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // this means we will never see any more side input
+      // we also do the check here because we might have received the side-input MAX watermark
+      // before receiving any main-input data
+      emitAllPushedBackData();
+    }
+
     if (keyCoder == null) {
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
       long potentialOutputWatermark =
           Math.min(getPushbackWatermarkHold(), currentInputWatermark);
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
     } else {
       // fireTimers, so we need startBundle.
       pushbackDoFnRunner.startBundle();
 
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
 
       // hold back by the pushed back values waiting for side inputs
       long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
@@ -454,7 +481,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
 
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
       pushbackDoFnRunner.finishBundle();
@@ -463,7 +490,43 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    // ignore watermarks from the side-input input
+    setCurrentSideInputWatermark(mark.getTimestamp());
+    if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // this means we will never see any more side input
+      emitAllPushedBackData();
+
+      // maybe output a new watermark
+      processWatermark1(new Watermark(currentInputWatermark));
+    }
+  }
+
+  /**
+   * Emits all pushed-back data. This should be used once we know that there will not be
+   * any future side input, i.e. that there is no point in waiting.
+   */
+  private void emitAllPushedBackData() throws Exception {
+    pushbackDoFnRunner.startBundle();
+
+    BagState<WindowedValue<InputT>> pushedBack =
+        pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+    if (pushedBackContents != null) {
+      for (WindowedValue<InputT> elem : pushedBackContents) {
+
+        // we need to set the correct key in case the operator is
+        // a (keyed) window operator
+        setKeyContextElement1(new StreamRecord<>(elem));
+
+        doFnRunner.processElement(elem);
+      }
+    }
+
+    pushedBack.clear();
+
+    setPushedBackWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+
+    pushbackDoFnRunner.finishBundle();
   }
 
   @Override
@@ -583,12 +646,24 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         timerData.getTimestamp(), timerData.getDomain());
   }
 
+  private void setCurrentInputWatermark(long currentInputWatermark) {
+    this.currentInputWatermark = currentInputWatermark;
+  }
+
+  private void setCurrentSideInputWatermark(long currentInputWatermark) {
+    this.currentSideInputWatermark = currentInputWatermark;
+  }
+
+  private void setCurrentOutputWatermark(long currentOutputWatermark) {
+    this.currentOutputWatermark = currentOutputWatermark;
+  }
+
   /**
    * Factory for creating an {@link DoFnRunners.OutputManager} from
    * a Flink {@link Output}.
    */
   interface OutputManagerFactory<OutputT> extends Serializable {
-    DoFnRunners.OutputManager create(Output<StreamRecord<OutputT>> output);
+    DoFnRunners.OutputManager create(Output<StreamRecord<WindowedValue<OutputT>>> output);
   }
 
   /**
@@ -599,14 +674,15 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public static class DefaultOutputManagerFactory<OutputT>
       implements OutputManagerFactory<OutputT> {
     @Override
-    public DoFnRunners.OutputManager create(final Output<StreamRecord<OutputT>> output) {
+    public DoFnRunners.OutputManager create(
+        final Output<StreamRecord<WindowedValue<OutputT>>> output) {
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
           // with tagged outputs we can't get around this because we don't
           // know our own output type...
           @SuppressWarnings("unchecked")
-          OutputT castValue = (OutputT) value;
+          WindowedValue<OutputT> castValue = (WindowedValue<OutputT>) value;
           output.collect(new StreamRecord<>(castValue));
         }
       };
@@ -618,22 +694,34 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
    * {@link DoFnRunners.OutputManager} that can write to multiple logical
    * outputs by unioning them in a {@link RawUnionValue}.
    */
-  public static class MultiOutputOutputManagerFactory
-      implements OutputManagerFactory<RawUnionValue> {
+  public static class MultiOutputOutputManagerFactory<OutputT>
+      implements OutputManagerFactory<OutputT> {
 
-    Map<TupleTag<?>, Integer> mapping;
+    private TupleTag<?> mainTag;
+    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
 
-    public MultiOutputOutputManagerFactory(Map<TupleTag<?>, Integer> mapping) {
+    public MultiOutputOutputManagerFactory(
+        TupleTag<?> mainTag,
+        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping) {
+      this.mainTag = mainTag;
       this.mapping = mapping;
     }
 
     @Override
-    public DoFnRunners.OutputManager create(final Output<StreamRecord<RawUnionValue>> output) {
+    public DoFnRunners.OutputManager create(
+        final Output<StreamRecord<WindowedValue<OutputT>>> output) {
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
-          int intTag = mapping.get(tag);
-          output.collect(new StreamRecord<>(new RawUnionValue(intTag, value)));
+          if (tag.equals(mainTag)) {
+            @SuppressWarnings("unchecked")
+            WindowedValue<OutputT> outputValue = (WindowedValue<OutputT>) value;
+            output.collect(new StreamRecord<>(outputValue));
+          } else {
+            @SuppressWarnings("unchecked")
+            OutputTag<WindowedValue<T>> outputTag = (OutputTag) mapping.get(tag);
+            output.<WindowedValue<T>>collect(outputTag, new StreamRecord<>(value));
+          }
         }
       };
     }
@@ -643,33 +731,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
    * {@link StepContext} for running {@link DoFn DoFns} on Flink. This does not allow
    * accessing state or timer internals.
    */
-  protected class StepContext implements ExecutionContext.StepContext {
-
-    @Override
-    public String getStepName() {
-      return null;
-    }
-
-    @Override
-    public String getTransformName() {
-      return null;
-    }
-
-    @Override
-    public void noteOutput(WindowedValue<?> output) {}
-
-    @Override
-    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
-
-    @Override
-    public <T, W extends BoundedWindow> void writePCollectionViewData(
-        TupleTag<?> tag,
-        Iterable<WindowedValue<T>> data,
-        Coder<Iterable<WindowedValue<T>>> dataCoder,
-        W window,
-        Coder<W> windowCoder) throws IOException {
-      throw new UnsupportedOperationException("Writing side-input data is not supported.");
-    }
+  protected class StepContext implements org.apache.beam.runners.core.StepContext {
 
     @Override
     public StateInternals stateInternals() {

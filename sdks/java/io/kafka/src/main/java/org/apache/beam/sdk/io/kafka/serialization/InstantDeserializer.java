@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.io.kafka.serialization;
 
 import java.util.Map;
-
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.joda.time.Instant;

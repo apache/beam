@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -68,8 +70,10 @@ import org.apache.beam.sdk.values.PDone;
  * {@link TextIO.Write#withWindowedWrites()} will cause windowing and triggering to be
  * preserved. When producing windowed writes, the number of output shards must be set explicitly
  * using {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a
- * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
- * set, and unique windows and triggers must produce unique filenames.
+ * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} can also be
+ * set in case you need better control over naming files created by unique windows.
+ * {@link DefaultFilenamePolicy} policy for producing unique filenames might not be appropriate
+ * for your use case.
  *
  * <p>Any existing files with the same names as generated output files will be overwritten.
  *
@@ -306,6 +310,7 @@ public class TextIO {
      * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
      * not be set.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
       return toResource(StaticValueProvider.of(filenamePrefix));
     }
@@ -326,6 +331,7 @@ public class TextIO {
     /**
      * Like {@link #to(ResourceId)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
@@ -434,7 +440,7 @@ public class TextIO {
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
         usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
       WriteFiles<String> write =
           WriteFiles.to(

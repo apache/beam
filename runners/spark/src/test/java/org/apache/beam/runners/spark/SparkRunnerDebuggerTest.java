@@ -27,6 +27,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -48,7 +50,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
-import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -57,15 +58,9 @@ import org.junit.Test;
  */
 public class SparkRunnerDebuggerTest {
 
-  @Rule
-  public final PipelineRule batchPipelineRule = PipelineRule.batch();
-
-  @Rule
-  public final PipelineRule streamingPipelineRule = PipelineRule.streaming();
-
   @Test
   public void debugBatchPipeline() {
-    TestSparkPipelineOptions options = batchPipelineRule.getOptions();
+    PipelineOptions options = PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
     options.setRunner(SparkRunnerDebugger.class);
 
     Pipeline pipeline = Pipeline.create(options);
@@ -111,7 +106,9 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugStreamingPipeline() {
-    TestSparkPipelineOptions options = streamingPipelineRule.getOptions();
+    TestSparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setForceStreaming(true);
     options.setRunner(SparkRunnerDebugger.class);
 
     Pipeline pipeline = Pipeline.create(options);
@@ -145,7 +142,7 @@ public class SparkRunnerDebuggerTest {
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
         + "_.groupByKey()\n"
         + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Keys$1())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
         + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 

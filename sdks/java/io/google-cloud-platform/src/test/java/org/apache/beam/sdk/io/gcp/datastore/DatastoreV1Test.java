@@ -26,6 +26,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
@@ -640,6 +641,41 @@ public class DatastoreV1Test {
       commitRequest.addAllMutations(mutations.subList(start, end));
       // Verify all the batch requests were made with the expected mutations.
       verify(mockDatastore, times(1)).commit(commitRequest.build());
+      start = end;
+    }
+  }
+
+  /**
+   * Tests {@link DatastoreWriterFn} with large entities that need to be split into more batches.
+   */
+  @Test
+  public void testDatatoreWriterFnWithLargeEntities() throws Exception {
+    List<Mutation> mutations = new ArrayList<>();
+    int propertySize = 900_000;
+    for (int i = 0; i < 12; ++i) {
+      Entity.Builder entity = Entity.newBuilder().setKey(makeKey("key" + i, i + 1));
+      entity.putProperties("long", makeValue(new String(new char[propertySize])
+            ).setExcludeFromIndexes(true).build());
+      mutations.add(makeUpsert(entity.build()).build());
+    }
+
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
+        null, mockDatastoreFactory);
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBundle(mutations);
+
+    // This test is over-specific currently; it requires that we split the 12 entity writes into 3
+    // requests, but we only need each CommitRequest to be less than 10MB in size.
+    int propertiesPerRpc = DATASTORE_BATCH_UPDATE_BYTES_LIMIT / propertySize;
+    int start = 0;
+    while (start < mutations.size()) {
+      int end = Math.min(mutations.size(), start + propertiesPerRpc);
+      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      commitRequest.addAllMutations(mutations.subList(start, end));
+      // Verify all the batch requests were made with the expected mutations.
+      verify(mockDatastore).commit(commitRequest.build());
       start = end;
     }
   }

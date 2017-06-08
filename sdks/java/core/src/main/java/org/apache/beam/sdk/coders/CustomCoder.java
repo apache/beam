@@ -22,19 +22,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An abstract base class for writing a {@link Coder} class that encodes itself via Java
- * serialization.
+ * An abstract base class that implements all methods of {@link Coder} except {@link Coder#encode}
+ * and {@link Coder#decode}.
  *
- * <p>To complete an implementation, subclasses must implement {@link Coder#encode}
- * and {@link Coder#decode} methods.
- *
- * <p>Not to be confused with {@link SerializableCoder} that encodes objects that implement the
- * {@link Serializable} interface.
- *
- * @param <T> the type of elements handled by this coder
+ * @param <T> the type of values being encoded and decoded
  */
-public abstract class CustomCoder<T> extends StructuredCoder<T>
-    implements Serializable {
+public abstract class CustomCoder<T> extends Coder<T> implements Serializable {
+
   /**
    * {@inheritDoc}.
    *
@@ -42,14 +36,6 @@ public abstract class CustomCoder<T> extends StructuredCoder<T>
    */
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return Collections.emptyList();
-  }
-
-  /**
-   * Returns an empty list. A {@link CustomCoder} by default will not have component coders that are
-   * used for inference.
-   */
-  public static <T> List<Object> getInstanceComponents(T exampleValue) {
     return Collections.emptyList();
   }
 
@@ -68,5 +54,5 @@ public abstract class CustomCoder<T> extends StructuredCoder<T>
 
   // This coder inherits isRegisterByteSizeObserverCheap,
   // getEncodedElementByteSize and registerByteSizeObserver
-  // from StructuredCoder. Override if we can do better.
+  // from Coder. Override if we can do better.
 }

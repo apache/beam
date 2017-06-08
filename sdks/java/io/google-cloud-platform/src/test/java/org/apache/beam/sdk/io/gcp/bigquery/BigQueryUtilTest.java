@@ -49,6 +49,9 @@ import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -391,16 +394,18 @@ public class BigQueryUtilTest {
         .parseTableSpec("project:dataset.table");
     DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
 
-    List<TableRow> rows = new ArrayList<>();
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (int i = 0; i < 25; ++i) {
-      rows.add(rawRow("foo", 1234));
+      rows.add(ValueInSingleWindow.of(rawRow("foo", 1234), GlobalWindow.TIMESTAMP_MAX_VALUE,
+          GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
       ids.add(new String());
     }
 
     long totalBytes = 0;
     try {
-      totalBytes = datasetService.insertAll(ref, rows, ids);
+      totalBytes = datasetService.insertAll(ref, rows, ids, InsertRetryPolicy.alwaysRetry(),
+          null);
     } finally {
       verifyInsertAll(5);
       // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"

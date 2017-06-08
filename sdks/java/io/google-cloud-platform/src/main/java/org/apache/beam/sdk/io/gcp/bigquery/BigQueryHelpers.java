@@ -27,7 +27,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,13 +34,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
-
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
 public class BigQueryHelpers {
@@ -309,14 +307,9 @@ public class BigQueryHelpers {
 
   static String resolveTempLocation(
       String tempLocationDir, String bigQueryOperationName, String stepUuid) {
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocationDir);
-      return factory.resolve(
-          factory.resolve(tempLocationDir, bigQueryOperationName),  stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve temp destination directory in %s",
-              tempLocationDir), e);
-    }
+    return FileSystems.matchNewResource(tempLocationDir, true)
+        .resolve(bigQueryOperationName, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+        .resolve(stepUuid, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+        .toString();
   }
 }

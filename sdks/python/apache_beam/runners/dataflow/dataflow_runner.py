@@ -25,7 +25,9 @@ import logging
 import threading
 import time
 import traceback
+import urllib
 
+import apache_beam as beam
 from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
@@ -43,7 +45,10 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.utils.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StandardOptions
+
+
+__all__ = ['DataflowRunner']
 
 
 class DataflowRunner(PipelineRunner):
@@ -59,8 +64,8 @@ class DataflowRunner(PipelineRunner):
   # Environment version information. It is passed to the service during a
   # a job submission and is used by the service to establish what features
   # are expected by the workers.
-  BATCH_ENVIRONMENT_MAJOR_VERSION = '5'
-  STREAMING_ENVIRONMENT_MAJOR_VERSION = '0'
+  BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
+  STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -157,7 +162,7 @@ class DataflowRunner(PipelineRunner):
 
     class GroupByKeyInputVisitor(PipelineVisitor):
       """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
+      a `GroupByKey` or `_GroupByKeyOnly` with a `KV` type.
 
       TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
@@ -166,8 +171,8 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam import GroupByKey, GroupByKeyOnly
-        if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
+        from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
+        if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
           pcoll = transform_node.inputs[0]
           input_type = pcoll.element_type
           # If input_type is not specified, then treat it as `Any`.
@@ -374,6 +379,23 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
+  def apply_WriteToBigQuery(self, transform, pcoll):
+    standard_options = pcoll.pipeline._options.view_as(StandardOptions)
+    if standard_options.streaming:
+      if (transform.write_disposition ==
+          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
+        raise RuntimeError('Can not use write truncation mode in streaming')
+      return self.apply_PTransform(transform, pcoll)
+    else:
+      return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
+          beam.io.BigQuerySink(
+              transform.table_reference.tableId,
+              transform.table_reference.datasetId,
+              transform.table_reference.projectId,
+              transform.schema,
+              transform.create_disposition,
+              transform.write_disposition))
+
   def apply_GroupByKey(self, transform, pcoll):
     # Infer coder of parent.
     #
@@ -413,7 +435,9 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     windowing = transform_node.transform.get_windowing(
         transform_node.inputs)
-    step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(windowing))
+    step.add_property(
+        PropertyNames.SERIALIZED_FN,
+        self.serialize_windowing_strategy(windowing))
 
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
@@ -592,8 +616,8 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSource is currently available for use only in '
-                         'streaming pipelines.')
+        raise ValueError('PubSubPayloadSource is currently available for use '
+                         'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.source.topic)
       if transform.source.subscription:
         step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION,
@@ -674,8 +698,8 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSink is currently available for use only in '
-                         'streaming pipelines.')
+        raise ValueError('PubSubPayloadSink is currently available for use '
+                         'only in streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.topic)
     else:
       raise ValueError(
@@ -693,6 +717,40 @@ class DataflowRunner(PipelineRunner):
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+
+  @classmethod
+  def serialize_windowing_strategy(cls, windowing):
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    context = pipeline_context.PipelineContext()
+    windowing_proto = windowing.to_runner_api(context)
+    return cls.byte_array_to_json_string(
+        beam_runner_api_pb2.MessageWithComponents(
+            components=context.to_runner_api(),
+            windowing_strategy=windowing_proto).SerializeToString())
+
+  @classmethod
+  def deserialize_windowing_strategy(cls, serialized_data):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.transforms.core import Windowing
+    proto = beam_runner_api_pb2.MessageWithComponents()
+    proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
+    return Windowing.from_runner_api(
+        proto.windowing_strategy,
+        pipeline_context.PipelineContext(proto.components))
+
+  @staticmethod
+  def byte_array_to_json_string(raw_bytes):
+    """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
+    return urllib.quote(raw_bytes)
+
+  @staticmethod
+  def json_string_to_byte_array(encoded_string):
+    """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
+    return urllib.unquote(encoded_string)
 
 
 class DataflowPipelineResult(PipelineResult):

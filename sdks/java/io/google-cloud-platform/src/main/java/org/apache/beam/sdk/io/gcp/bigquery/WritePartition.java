@@ -22,9 +22,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -36,9 +33,11 @@ import org.apache.beam.sdk.values.TupleTag;
  * tablespec and the list of files corresponding to each partition of that table.
  */
 class WritePartition<DestinationT>
-    extends DoFn<String, KV<ShardedKey<DestinationT>, List<String>>> {
+    extends DoFn<Void, KV<ShardedKey<DestinationT>, List<String>>> {
   private final boolean singletonTable;
-  private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final PCollectionView<String> tempFilePrefix;
+  private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
@@ -74,8 +73,8 @@ class WritePartition<DestinationT>
     // Check to see whether we can add to this partition without exceeding the maximum partition
     // size.
     boolean canAccept(int numFiles, long numBytes) {
-      return this.numFiles + numFiles <= Write.MAX_NUM_FILES
-          && this.byteSize + numBytes <= Write.MAX_SIZE_BYTES;
+      return this.numFiles + numFiles <= BatchLoads.MAX_NUM_FILES
+          && this.byteSize + numBytes <= BatchLoads.MAX_SIZE_BYTES;
     }
   }
 
@@ -102,11 +101,15 @@ class WritePartition<DestinationT>
 
   WritePartition(
       boolean singletonTable,
-      PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      PCollectionView<String> tempFilePrefix,
+      PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
     this.singletonTable = singletonTable;
-    this.resultsView = resultsView;
+    this.dynamicDestinations = dynamicDestinations;
+    this.results = results;
+    this.tempFilePrefix = tempFilePrefix;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
   }
@@ -114,21 +117,20 @@ class WritePartition<DestinationT>
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     List<WriteBundlesToFiles.Result<DestinationT>> results =
-        Lists.newArrayList(c.sideInput(resultsView));
+        Lists.newArrayList(c.sideInput(this.results));
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
     if (results.isEmpty() && singletonTable) {
-        TableRowWriter writer = new TableRowWriter(c.element());
-        writer.open(UUID.randomUUID().toString());
-        TableRowWriter.Result writerResult = writer.close();
-        // Return a null destination in this case - the constant DynamicDestinations class will
-        // resolve it to the singleton output table.
-        results.add(
-            new Result<DestinationT>(
-                writerResult.resourceId.toString(),
-                writerResult.byteSize,
-                null));
+      String tempFilePrefix = c.sideInput(this.tempFilePrefix);
+      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+      writer.close();
+      TableRowWriter.Result writerResult = writer.getResult();
+      // Return a null destination in this case - the constant DynamicDestinations class will
+      // resolve it to the singleton output table.
+      results.add(
+          new Result<>(writerResult.resourceId.toString(), writerResult.byteSize,
+              dynamicDestinations.getDestination(null)));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();

@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class ElasticsearchIOIT {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOIT.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOIT.class);
   private static TransportClient client;
   private static IOTestPipelineOptions options;
   private static ElasticsearchIO.ConnectionConfiguration readConnectionConfiguration;
@@ -142,7 +142,7 @@ public class ElasticsearchIOIT {
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
-    LOGGER.info("Estimated size: {}", estimatedSize);
+    LOG.info("Estimated size: {}", estimatedSize);
     assertThat(
         "Wrong estimated size bellow minimum",
         estimatedSize,

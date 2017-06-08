@@ -24,7 +24,7 @@
   <parent>
     <artifactId>beam-runners-parent</artifactId>
     <groupId>org.apache.beam</groupId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -70,6 +70,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
@@ -87,6 +92,12 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -114,6 +125,5 @@
       <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
 </project>

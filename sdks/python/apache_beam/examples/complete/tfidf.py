@@ -32,8 +32,8 @@ import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.pvalue import AsSingleton
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 def read_documents(pipeline, uris):
@@ -191,17 +191,16 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # Read documents specified by the uris command line option.
-  pcoll = read_documents(p, glob.glob(known_args.uris))
-  # Compute TF-IDF information for each word.
-  output = pcoll | TfIdf()
-  # Write the output using a "Write" transform that has side effects.
-  # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(known_args.output)
-  # Execute the pipeline and wait until it is completed.
-  p.run().wait_until_finish()
+    # Read documents specified by the uris command line option.
+    pcoll = read_documents(p, glob.glob(known_args.uris))
+    # Compute TF-IDF information for each word.
+    output = pcoll | TfIdf()
+    # Write the output using a "Write" transform that has side effects.
+    # pylint: disable=expression-not-assigned
+    output | 'write' >> WriteToText(known_args.output)
+    # Execute the pipeline and wait until it is completed.
 
 
 if __name__ == '__main__':

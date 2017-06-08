@@ -102,7 +102,7 @@ public class Metrics {
   }
 
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
-  private static class DelegatingCounter implements Counter, Serializable {
+  private static class DelegatingCounter implements Metric, Counter, Serializable {
     private final MetricName name;
 
     private DelegatingCounter(MetricName name) {
@@ -140,7 +140,7 @@ public class Metrics {
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
-  private static class DelegatingDistribution implements Distribution, Serializable {
+  private static class DelegatingDistribution implements Metric, Distribution, Serializable {
     private final MetricName name;
 
     private DelegatingDistribution(MetricName name) {
@@ -163,7 +163,7 @@ public class Metrics {
   /**
    * Implementation of {@link Gauge} that delegates to the instance for the current context.
    */
-  private static class DelegatingGauge implements Gauge, Serializable {
+  private static class DelegatingGauge implements Metric, Gauge, Serializable {
     private final MetricName name;
 
     private DelegatingGauge(MetricName name) {

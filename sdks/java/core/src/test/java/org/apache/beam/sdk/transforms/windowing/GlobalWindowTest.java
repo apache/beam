@@ -35,7 +35,7 @@ public class GlobalWindowTest {
     CountingOutputStream out = new CountingOutputStream(ByteStreams.nullOutputStream());
     GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.OUTER);
     assertEquals(0, out.getCount());
-    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.NESTED);
+    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out);
     assertEquals(0, out.getCount());
   }
 

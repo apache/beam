@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -77,8 +77,6 @@
                     org.apache.beam.runners.spark.UsesCheckpointRecovery
                   </groups>
                   <excludedGroups>
-                    org.apache.beam.sdk.testing.UsesStatefulParDo,
-                    org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
                     org.apache.beam.sdk.testing.UsesTestStream
@@ -190,11 +188,6 @@
       <artifactId>joda-time</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
       <scope>provided</scope>
@@ -220,6 +213,10 @@
       <artifactId>scala-library</artifactId>
       <version>2.10.5</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-runner-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -333,9 +330,6 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <excludedGroups>
-              org.apache.beam.runners.spark.UsesCheckpointRecovery
-            </excludedGroups>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>
@@ -344,6 +338,50 @@
               <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
             </systemPropertyVariables>
           </configuration>
+          <executions>
+            <execution>
+              <id>default-test</id>
+              <goals>
+                <goal>test</goal>
+              </goals>
+              <configuration>
+                <excludedGroups>
+                  org.apache.beam.runners.spark.UsesCheckpointRecovery,
+                  org.apache.beam.runners.spark.StreamingTest
+                </excludedGroups>
+                <systemPropertyVariables>
+                  <beamTestPipelineOptions>
+                    [
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                    ]
+                  </beamTestPipelineOptions>
+                </systemPropertyVariables>
+              </configuration>
+            </execution>
+            <execution>
+              <id>streaming-tests</id>
+              <phase>test</phase>
+              <goals>
+                <goal>test</goal>
+              </goals>
+              <configuration>
+                <groups>
+                  org.apache.beam.runners.spark.StreamingTest
+                </groups>
+                <systemPropertyVariables>
+                  <beamTestPipelineOptions>
+                    [
+                    "--runner=TestSparkRunner",
+                    "--forceStreaming=true",
+                    "--enableSparkMetricSinks=true"
+                    ]
+                  </beamTestPipelineOptions>
+                </systemPropertyVariables>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

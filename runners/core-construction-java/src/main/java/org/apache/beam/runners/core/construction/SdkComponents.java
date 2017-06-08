@@ -22,23 +22,31 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
-class SdkComponents {
+public class SdkComponents {
   private final RunnerApi.Components.Builder componentsBuilder;
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds;
@@ -52,6 +60,50 @@ class SdkComponents {
   /** Create a new {@link SdkComponents} with no components. */
   static SdkComponents create() {
     return new SdkComponents();
+  }
+
+  public static RunnerApi.Pipeline translatePipeline(Pipeline pipeline) {
+    final SdkComponents components = create();
+    final Collection<String> rootIds = new HashSet<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =
+              ArrayListMultimap.create();
+
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (node.isRootNode()) {
+              for (AppliedPTransform<?, ?, ?> pipelineRoot : children.get(node)) {
+                rootIds.add(components.getExistingPTransformId(pipelineRoot));
+              }
+            } else {
+              children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
+              try {
+                components.registerPTransform(
+                    node.toAppliedPTransform(getPipeline()), children.get(node));
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
+            try {
+              components.registerPTransform(
+                  node.toAppliedPTransform(getPipeline()),
+                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+            } catch (IOException e) {
+              throw new IllegalStateException(e);
+            }
+          }
+        });
+    // TODO: Display Data
+    return RunnerApi.Pipeline.newBuilder()
+        .setComponents(components.toComponents())
+        .addAllRootTransformIds(rootIds)
+        .build();
   }
 
   private SdkComponents() {
@@ -79,7 +131,8 @@ class SdkComponents {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
+    componentsBuilder.putTransforms(name, PTransformTranslation
+        .toProto(appliedPTransform, children, this));
     return name;
   }
 
@@ -124,7 +177,8 @@ class SdkComponents {
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
-    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
+    componentsBuilder.putPcollections(
+        uniqueName, PCollectionTranslation.toProto(pCollection, this));
     return uniqueName;
   }
 
@@ -146,7 +200,7 @@ class SdkComponents {
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
     RunnerApi.WindowingStrategy windowingStrategyProto =
-        WindowingStrategies.toProto(windowingStrategy, this);
+        WindowingStrategyTranslation.toProto(windowingStrategy, this);
     componentsBuilder.putWindowingStrategies(name, windowingStrategyProto);
     return name;
   }
@@ -168,7 +222,7 @@ class SdkComponents {
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(Equivalence.identity().wrap(coder), name);
-    RunnerApi.Coder coderProto = Coders.toProto(coder, this);
+    RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
     return name;
   }

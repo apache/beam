@@ -48,13 +48,14 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
+import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -278,7 +279,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
       final String bucketName =
           "dataflow-staging-" + region + "-" + projectNumber;
-      LOG.info("No staging location provided, attempting to use default bucket: {}",
+      LOG.info("No tempLocation specified, attempting to use default bucket: {}",
           bucketName);
       Bucket bucket = new Bucket()
           .setName(bucketName)
@@ -306,7 +307,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         throw new RuntimeException(
             "Unable to determine the owner of the default bucket at gs://" + bucketName, e);
       }
-      return "gs://" + bucketName;
+      return "gs://" + bucketName + "/temp/";
     }
 
     /**
@@ -319,7 +320,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       return getProjectNumber(
           projectId,
           crmClient,
-          BACKOFF_FACTORY.backoff(),
+          BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()),
           Sleeper.DEFAULT);
     }
 

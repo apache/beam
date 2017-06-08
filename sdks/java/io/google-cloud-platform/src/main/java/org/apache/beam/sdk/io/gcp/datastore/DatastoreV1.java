@@ -32,9 +32,6 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
@@ -69,6 +66,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -88,8 +86,11 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -192,7 +193,7 @@ import org.slf4j.LoggerFactory;
  * by providing the host port information through {@code withLocalhost("host:port"} for all the
  * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
- * @see org.apache.beam.sdk.runners.PipelineRunner
+ * @see PipelineRunner
  */
 public class DatastoreV1 {
 
@@ -205,6 +206,14 @@ public class DatastoreV1 {
    */
   @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+
+  /**
+   * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
+   * exceeds this limit. This is set lower than the 10MB limit on the RPC, as this only accounts for
+   * the mutations themselves and not the CommitRequest wrapper around them.
+   */
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 5_000_000;
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
@@ -704,7 +713,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
       }
 
@@ -748,7 +757,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
@@ -821,7 +830,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
       }
@@ -1122,6 +1131,7 @@ public class DatastoreV1 {
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
+    private int mutationsSize = 0;  // Accumulated size of protos in mutations.
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -1145,20 +1155,27 @@ public class DatastoreV1 {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
+      Mutation write = c.element();
+      int size = write.getSerializedSize();
+      if (mutations.size() > 0
+          && mutationsSize + size >= DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT) {
+        flushBatch();
+      }
       mutations.add(c.element());
+      mutationsSize += size;
       if (mutations.size() >= DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT) {
         flushBatch();
       }
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       if (!mutations.isEmpty()) {
         flushBatch();
       }
@@ -1202,6 +1219,7 @@ public class DatastoreV1 {
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
       mutations.clear();
+      mutationsSize = 0;
     }
 
     @Override

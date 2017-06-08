@@ -31,10 +31,13 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,7 +46,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -158,12 +160,11 @@ public class TFRecordIO {
       if (getValidate()) {
         checkState(getFilepattern().isAccessible(), "Cannot validate with a RVP.");
         try {
+          MatchResult matches = FileSystems.match(getFilepattern().get());
           checkState(
-              !IOChannelUtils.getFactory(getFilepattern().get())
-                  .match(getFilepattern().get())
-                  .isEmpty(),
+              !matches.metadata().isEmpty(),
               "Unable to find any files matching %s",
-              getFilepattern());
+              getFilepattern().get());
         } catch (IOException e) {
           throw new IllegalStateException(
               String.format("Failed to validate %s", getFilepattern().get()), e);
@@ -278,6 +279,7 @@ public class TFRecordIO {
      *
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId outputResource) {
       return toResource(StaticValueProvider.of(outputResource));
     }
@@ -285,6 +287,7 @@ public class TFRecordIO {
     /**
      * Like {@link #to(ResourceId)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> outputResource) {
       return toBuilder().setOutputPrefix(outputResource).build();
     }
@@ -556,7 +559,7 @@ public class TFRecordIO {
       super(
           outputPrefix,
           DefaultFilenamePolicy.constructUsingStandardParameters(
-              outputPrefix, shardTemplate, suffix),
+              outputPrefix, shardTemplate, suffix, false),
           writableByteChannelFactory(compressionType));
     }
 
@@ -568,7 +571,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public FileBasedWriteOperation<byte[]> createWriteOperation() {
+    public WriteOperation<byte[]> createWriteOperation() {
       return new TFRecordWriteOperation(this);
     }
 
@@ -588,29 +591,29 @@ public class TFRecordIO {
     }
 
     /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
-     * FileBasedWriteOperation} for TFRecord files.
+     * A {@link WriteOperation
+     * WriteOperation} for TFRecord files.
      */
-    private static class TFRecordWriteOperation extends FileBasedWriteOperation<byte[]> {
+    private static class TFRecordWriteOperation extends WriteOperation<byte[]> {
       private TFRecordWriteOperation(TFRecordSink sink) {
         super(sink);
       }
 
       @Override
-      public FileBasedWriter<byte[]> createWriter() throws Exception {
+      public Writer<byte[]> createWriter() throws Exception {
         return new TFRecordWriter(this);
       }
     }
 
     /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
+     * A {@link Writer Writer}
      * for TFRecord files.
      */
-    private static class TFRecordWriter extends FileBasedWriter<byte[]> {
+    private static class TFRecordWriter extends Writer<byte[]> {
       private WritableByteChannel outChannel;
       private TFRecordCodec codec;
 
-      private TFRecordWriter(FileBasedWriteOperation<byte[]> writeOperation) {
+      private TFRecordWriter(WriteOperation<byte[]> writeOperation) {
         super(writeOperation, MimeTypes.BINARY);
       }
 

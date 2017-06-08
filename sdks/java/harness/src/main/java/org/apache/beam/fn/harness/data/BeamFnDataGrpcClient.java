@@ -78,7 +78,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer) {
-    LOG.debug("Registering consumer instruction {} for target {}",
+    LOG.debug("Registering consumer for instruction {} and target {}",
         inputLocation.getKey(),
         inputLocation.getValue());
 
@@ -106,6 +106,9 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
+    LOG.debug("Creating output consumer for instruction {} and target {}",
+        outputLocation.getKey(),
+        outputLocation.getValue());
     return new BeamFnDataBufferingOutboundObserver<>(
         options, outputLocation, coder, client.getOutboundObserver());
   }

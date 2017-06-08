@@ -38,13 +38,14 @@ import static org.mockito.Mockito.withSettings;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.Sum;
@@ -69,13 +70,11 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -146,7 +145,8 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
             AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
@@ -171,8 +171,7 @@ public class ReduceFnRunnerTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4);
 
-    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
-        MetricName.named(ReduceFnRunner.class,
+    long droppedElements = container.getCounter(MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(1, droppedElements);
@@ -424,7 +423,8 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
@@ -453,7 +453,7 @@ public class ReduceFnRunnerTest {
     // Holding for the end-of-window transition.
     assertEquals(new Instant(9), tester.getWatermarkHold());
     // Nothing dropped.
-    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    long droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -515,7 +515,7 @@ public class ReduceFnRunnerTest {
     // Because we're about to expire the window, we output it.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     injectElement(tester, 8);
-    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -1084,7 +1084,8 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
         WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
@@ -1098,7 +1099,7 @@ public class ReduceFnRunnerTest {
         // assigned to [-30, 70), [0, 100), [30, 130)
         TimestampedValue.of(12, new Instant(40)));
 
-    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    long droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -1110,7 +1111,7 @@ public class ReduceFnRunnerTest {
         // but [-30, 70) is closed by the trigger
         TimestampedValue.of(14, new Instant(60)));
 
-    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -1121,7 +1122,7 @@ public class ReduceFnRunnerTest {
     // but they are all closed
     tester.injectElements(TimestampedValue.of(16, new Instant(40)));
 
-    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -1130,7 +1131,8 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testIdempotentEmptyPanesDiscarding() throws Exception {
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1171,7 +1173,7 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    long droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
@@ -1180,7 +1182,8 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testIdempotentEmptyPanesAccumulating() throws Exception {
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1223,7 +1226,7 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+    long droppedElements = container.getCounter(
         MetricName.named(ReduceFnRunner.class,
             ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();

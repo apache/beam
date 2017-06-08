@@ -31,11 +31,13 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -60,7 +62,7 @@ import org.slf4j.LoggerFactory;
  */
 public class UnboundedSourceWrapper<
     OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-    extends RichParallelSourceFunction<WindowedValue<OutputT>>
+    extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
     implements ProcessingTimeCallback, StoppableFunction,
     CheckpointListener, CheckpointedFunction {
 
@@ -113,7 +115,7 @@ public class UnboundedSourceWrapper<
    * Make it a field so that we can access it in {@link #onProcessingTime(long)} for emitting
    * watermarks.
    */
-  private transient SourceContext<WindowedValue<OutputT>> context;
+  private transient SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> context;
 
   /**
    * Pending checkpoints which have not been acknowledged yet.
@@ -210,14 +212,17 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
+  public void run(SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx) throws Exception {
 
     context = ctx;
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
-    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
-        new ReaderInvocationUtil<>(serializedOptions.getPipelineOptions(), metricContainer);
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
+    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
+        new ReaderInvocationUtil<>(
+            stepName,
+            serializedOptions.getPipelineOptions(),
+            metricContainer);
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
@@ -279,6 +284,8 @@ public class UnboundedSourceWrapper<
         }
       }
 
+      setNextWatermarkTimer(this.runtimeContext);
+
       // a flag telling us whether any of the localReaders had data
       // if no reader had data, sleep for bit
       boolean hadData = false;
@@ -306,17 +313,19 @@ public class UnboundedSourceWrapper<
    * Emit the current element from the given Reader. The reader is guaranteed to have data.
    */
   private void emitElement(
-      SourceContext<WindowedValue<OutputT>> ctx,
+      SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx,
       UnboundedSource.UnboundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
     synchronized (ctx.getCheckpointLock()) {
 
       OutputT item = reader.getCurrent();
+      byte[] recordId = reader.getCurrentRecordId();
       Instant timestamp = reader.getCurrentTimestamp();
 
-      WindowedValue<OutputT> windowedValue =
-          WindowedValue.of(item, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+      WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
+          WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
+              GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
       ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
     }
   }
@@ -428,6 +437,10 @@ public class UnboundedSourceWrapper<
           }
         }
         context.emitWatermark(new Watermark(watermarkMillis));
+
+        if (watermarkMillis >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+          this.isRunning = false;
+        }
       }
       setNextWatermarkTimer(this.runtimeContext);
     }

@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -57,6 +56,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -79,7 +79,7 @@ public class TransformHierarchyTest implements Serializable {
 
   @Before
   public void setup() {
-    hierarchy = new TransformHierarchy(pipeline);
+    hierarchy = new TransformHierarchy();
   }
 
   @Test
@@ -145,7 +145,8 @@ public class TransformHierarchyTest implements Serializable {
     final PCollectionList<Long> appended =
         pcList.and(
             PCollection.<Long>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED));
+                    pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+                .setName("prim"));
     hierarchy.pushNode(
         "AddPc",
         pcList,

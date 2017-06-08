@@ -68,6 +68,24 @@ import copy
 import types
 
 
+__all__ = [
+    'Any',
+    'Union',
+    'Optional',
+    'Tuple',
+    'Tuple',
+    'List',
+    'KV',
+    'Dict',
+    'Set',
+    'Iterable',
+    'Iterator',
+    'Generator',
+    'WindowedValue',
+    'TypeVariable',
+]
+
+
 # A set of the built-in Python types we don't support, guiding the users
 # to templated (upper-case) versions instead.
 DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)

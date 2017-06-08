@@ -22,6 +22,7 @@ import tempfile
 import unittest
 
 from apache_beam.examples.cookbook import group_with_coder
+from apache_beam.testing.util import open_shards
 
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
@@ -50,10 +51,10 @@ class GroupWithCoderTest(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_RECORDS)
     group_with_coder.run([
         '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path]).wait_until_finish()
+        '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
-    with open(temp_path + '.result-00000-of-00001') as result_file:
+    with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
         name, points = line.split(',')
         results.append((name, int(points)))
@@ -71,10 +72,10 @@ class GroupWithCoderTest(unittest.TestCase):
     group_with_coder.run([
         '--no_pipeline_type_check',
         '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path]).wait_until_finish()
+        '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
-    with open(temp_path + '.result-00000-of-00001') as result_file:
+    with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
         name, points = line.split(',')
         results.append((name, int(points)))

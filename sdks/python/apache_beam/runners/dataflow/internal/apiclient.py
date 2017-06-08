@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Dataflow client utility functions."""
+""" For internal use only. No backwards compatibility guarantees.
+
+Dataflow client utility functions."""
 
 import codecs
 import getpass
@@ -42,10 +44,10 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
-from apache_beam.utils.pipeline_options import DebugOptions
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.pipeline_options import WorkerOptions
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 
 
 class Step(object):
@@ -143,7 +145,7 @@ class Environment(object):
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:
-      job_type = 'PYTHON_STREAMING'
+      job_type = 'FNAPI_STREAMING'
     else:
       job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
@@ -197,6 +199,8 @@ class Environment(object):
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
       pool.network = self.worker_options.network
+    if self.worker_options.subnetwork:
+      pool.subnetwork = self.worker_options.subnetwork
     if self.worker_options.worker_harness_container_image:
       pool.workerHarnessContainerImage = (
           self.worker_options.worker_harness_container_image)
@@ -411,8 +415,7 @@ class DataflowApplicationClient(object):
       if e.status_code in reportable_errors:
         raise IOError(('Could not upload to GCS path %s: %s. Please verify '
                        'that credentials are valid and that you have write '
-                       'access to the specified path. Stale credentials can be '
-                       'refreshed by executing "gcloud auth login".') %
+                       'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
     logging.info('Completed GCS upload to %s', gcs_location)

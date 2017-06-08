@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
+__all__ = ['CompressionTypes', 'CompressedFile', 'FileMetadata', 'FileSystem',
+           'MatchResult']
+
 
 class CompressionTypes(object):
   """Enum-like class representing known compression types."""
@@ -424,6 +427,22 @@ class FileSystem(object):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     return compression_type
+
+  @classmethod
+  def get_all_subclasses(cls):
+    """Get all the subclasses of the FileSystem class
+    """
+    all_subclasses = []
+    for subclass in cls.__subclasses__():
+      all_subclasses.append(subclass)
+      all_subclasses.extend(subclass.get_all_subclasses())
+    return all_subclasses
+
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    raise NotImplementedError
 
   @abc.abstractmethod
   def join(self, basepath, *paths):

@@ -107,7 +107,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
-
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
   private static final String[] EMPTY = new String[] {};
@@ -313,7 +312,8 @@ public class TextIOTest {
     p.run();
 
     assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
-        firstNonNull(write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE));
+        firstNonNull(write.getShardTemplate(),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
   public static void assertOutputFiles(
@@ -338,7 +338,7 @@ public class TextIOTest {
             new File(
                 rootLocation.toString(),
                 DefaultFilenamePolicy.constructName(
-                    outputName, shardNameTemplate, "", i, numShards)));
+                    outputName, shardNameTemplate, "", i, numShards, null, null)));
       }
     }
 
@@ -1103,5 +1103,6 @@ public class TextIOTest {
     assertThat(splits, hasSize(equalTo(1)));
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
+
 }
 

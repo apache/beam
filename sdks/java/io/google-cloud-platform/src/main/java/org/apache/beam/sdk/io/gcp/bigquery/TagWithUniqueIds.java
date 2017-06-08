@@ -40,7 +40,7 @@ class TagWithUniqueIds
   private transient long sequenceNo = 0L;
 
   @StartBundle
-  public void startBundle(Context context) {
+  public void startBundle() {
     randomUUID = UUID.randomUUID().toString();
   }
 

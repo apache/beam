@@ -62,4 +62,9 @@ public interface ApexPipelineOptions extends PipelineOptions, java.io.Serializab
   @Default.String("classpath:/beam-runners-apex.properties")
   String getConfigFile();
 
+  @Description("configure whether to perform ParDo fusion")
+  void setParDoFusionEnabled(boolean enabled);
+
+  @Default.Boolean(true)
+  boolean isParDoFusionEnabled();
 }

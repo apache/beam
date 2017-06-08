@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import java.util.Collections;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -30,24 +31,31 @@ import org.apache.beam.sdk.values.TupleTag;
 /**
  * The result of a {@link BigQueryIO.Write} transform.
  */
-final class WriteResult implements POutput {
-
+public final class WriteResult implements POutput {
   private final Pipeline pipeline;
+  private final TupleTag<TableRow> failedInsertsTag;
+  private final PCollection<TableRow> failedInserts;
 
-  /**
-   * Creates a {@link WriteResult} in the given {@link Pipeline}.
-   */
-  static WriteResult in(Pipeline pipeline) {
-    return new WriteResult(pipeline);
+  /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
+  static WriteResult in(
+      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
+    return new WriteResult(pipeline, failedInsertsTag, failedInserts);
   }
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return Collections.emptyMap();
+    return ImmutableMap.<TupleTag<?>, PValue>of(failedInsertsTag, failedInserts);
   }
 
-  private WriteResult(Pipeline pipeline) {
+  private WriteResult(
+      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
     this.pipeline = pipeline;
+    this.failedInsertsTag = failedInsertsTag;
+    this.failedInserts = failedInserts;
+  }
+
+  public PCollection<TableRow> getFailedInserts() {
+    return failedInserts;
   }
 
   @Override
@@ -55,23 +63,7 @@ final class WriteResult implements POutput {
     return pipeline;
   }
 
-  /**
-   * Records that this {@link WriteResult} is an output with the given name of the given {@link
-   * AppliedPTransform}.
-   *
-   * <p>By default, does nothing.
-   *
-   * <p>To be invoked only by {@link POutput#recordAsOutput} implementations. Not to be invoked
-   * directly by user code.
-   */
   @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {}
-
-  /**
-   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
-   * to do nothing. Override if your {@link PValue} requires
-   * finalization.
-   */
-  @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

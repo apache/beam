@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+"""For internal use only; no backwards-compatibility guarantees."""
+
 from google.protobuf import any_pb2
 from google.protobuf import struct_pb2
 
@@ -51,3 +53,9 @@ def pack_Struct(**kwargs):
   for key, value in kwargs.items():
     msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
+
+
+def from_micros(cls, micros):
+  result = cls()
+  result.FromMicroseconds(micros)
+  return result
