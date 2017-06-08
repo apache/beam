@@ -35,7 +35,7 @@ import org.apache.hadoop.hive.ql.session.SessionState;
  * https://github.com/apache/hive/blob/master/hcatalog/core/src/test/java/org/apache/hive/hcatalog/mapreduce
  * /HCatBaseTest.java </a>
  */
-public final class EmbeddedMetastoreService implements AutoCloseable {
+final class EmbeddedMetastoreService implements AutoCloseable {
   private final Driver driver;
   private final HiveConf hiveConf;
   private final SessionState sessionState;
@@ -57,7 +57,6 @@ public final class EmbeddedMetastoreService implements AutoCloseable {
     hiveConf.setVar(HiveConf.ConfVars.POSTEXECHOOKS, "");
     hiveConf.setBoolVar(HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY, false);
     hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, testWarehouseDirPath);
-    hiveConf.setVar(HiveConf.ConfVars.HIVEMAPREDMODE, "nonstrict");
     hiveConf.setBoolVar(HiveConf.ConfVars.HIVEOPTIMIZEMETADATAQUERIES, true);
     hiveConf.setVar(
         HiveConf.ConfVars.HIVE_AUTHORIZATION_MANAGER,
