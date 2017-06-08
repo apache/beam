@@ -1027,7 +1027,7 @@ public class BigtableIO {
             "{}: Failed to interpolate key for fraction {}.", rangeTracker.getRange(), fraction, e);
         return null;
       }
-      LOG.debug(
+      LOG.info(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
       BigtableSource primary;
       BigtableSource residual;

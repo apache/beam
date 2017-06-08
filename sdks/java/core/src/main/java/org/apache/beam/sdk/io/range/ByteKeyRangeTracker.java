@@ -71,6 +71,10 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
         "Trying to return record which is before the last-returned record");
 
     if (position == null) {
+      LOG.info(
+          "Adjusting range start from {} to {} as position of first returned record",
+          range.getStartKey(),
+          recordStart);
       range = range.withStartKey(recordStart);
     }
     position = recordStart;
@@ -87,6 +91,15 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
 
   @Override
   public synchronized boolean trySplitAtPosition(ByteKey splitPosition) {
+    // Sanity check.
+    if (!range.containsKey(splitPosition)) {
+      LOG.warn(
+          "{}: Rejecting split request at {} because it is not within the range.",
+          this,
+          splitPosition);
+      return false;
+    }
+
     // Unstarted.
     if (position == null) {
       LOG.warn(
@@ -103,15 +116,6 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
           this,
           splitPosition,
           position);
-      return false;
-    }
-
-    // Sanity check.
-    if (!range.containsKey(splitPosition)) {
-      LOG.warn(
-          "{}: Rejecting split request at {} because it is not within the range.",
-          this,
-          splitPosition);
       return false;
     }
 
