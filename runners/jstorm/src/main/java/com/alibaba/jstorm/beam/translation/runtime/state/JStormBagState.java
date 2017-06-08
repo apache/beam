@@ -17,16 +17,18 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
-import avro.shaded.com.google.common.collect.Lists;
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.List;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -34,6 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * JStorm implementation of {@link BagState}.
  */
 class JStormBagState<K, T> implements BagState<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(JStormBagState.class);
 
     @Nullable
     private final K key;
@@ -82,15 +85,17 @@ class JStormBagState<K, T> implements BagState<T> {
 
     @Override
     public Iterable<T> read() {
-        try {
+        /*try {
             List<T> values = Lists.newArrayList();
             for (int i = 0; i < elemIndex; i++) {
                 values.add(kvState.get(getComposedKey(i)));
             }
+            LOG.info("read: values={}, elemIndex={}, key={}, instanceId={}", values, elemIndex, getComposedKey(), instanceId);
             return values;
         } catch (IOException e) {
             throw new RuntimeException();
-        }
+        }*/
+        return new BagStateIterable(elemIndex);
     }
 
     @Override
@@ -118,5 +123,65 @@ class JStormBagState<K, T> implements BagState<T> {
 
     private ComposedKey getComposedKey(int elemIndex) {
         return ComposedKey.of(key, namespace, elemIndex);
+    }
+
+    private class BagStateIterable implements Iterable<T> {
+
+        private class BagStateIterator implements Iterator<T> {
+            private final int size;
+            private int cursor = 0;
+
+            BagStateIterator() {
+                Integer s = null;
+                try {
+                    s = (Integer) stateInfoKvState.get(getComposedKey());
+                } catch (IOException e) {
+                    LOG.error("Failed to get elemIndex for key={}", getComposedKey());
+                }
+                this.size = s != null ? ++s : 0;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return cursor < size;
+            }
+
+            @Override
+            public T next() {
+                if (cursor >= size) {
+                    throw new NoSuchElementException();
+                }
+
+                T value = null;
+                try {
+                    value = kvState.get(getComposedKey(cursor));
+                } catch (IOException e) {
+                    LOG.error("Failed to read composed key-[{}]", getComposedKey(cursor));
+                }
+                cursor++;
+                return value;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        private final int size;
+
+        BagStateIterable(int size) {
+            this.size = size;
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return new BagStateIterator();
+        }
+
+        @Override
+        public String toString() {
+            return String.format("BagStateIterable: composedKey=%s", getComposedKey());
+        }
     }
 }
