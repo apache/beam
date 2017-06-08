@@ -53,7 +53,10 @@ import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.hamcrest.Matchers;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -95,10 +98,10 @@ public class HCatalogIOTest implements Serializable {
     }
   };
 
-  @Rule
-  public final transient TemporaryFolder folder = new TemporaryFolder();
+  @ClassRule
+  public static final transient TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-  private final transient EmbeddedMetastoreService service;
+  private static transient EmbeddedMetastoreService service;
   /**
    * Use this annotation to setup complete test data(table populated with records).
    */
@@ -115,9 +118,15 @@ public class HCatalogIOTest implements Serializable {
   @interface NeedsEmptyTestTables {
   }
 
-  public HCatalogIOTest() throws IOException {
-    folder.create();
-    service = new EmbeddedMetastoreService(folder.getRoot().getCanonicalPath());
+  @BeforeClass
+  public static void setupEmbeddedMetastoreService () throws IOException {
+    service = new EmbeddedMetastoreService(TMP_FOLDER.getRoot().getAbsolutePath());
+  }
+
+  @AfterClass
+  public static void shutdownEmbeddedMetastoreService () throws Exception {
+    service.executeQuery("drop table " + TEST_TABLE_NAME);
+    service.shutDownServiceQuietly();
   }
 
   /**

@@ -35,6 +35,8 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
@@ -118,7 +120,7 @@ import org.slf4j.LoggerFactory;
  *       assumes a default batch size of 1024 if none specified
  * }</pre>
  */
-
+@Experimental
 public class HCatalogIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(HCatalogIO.class);
@@ -308,7 +310,6 @@ public class HCatalogIO {
       int desiredSplitCount = 1;
       long estimatedSizeBytes = getEstimatedSizeBytes(options);
       LOG.debug("estimatedSizeBytes {} bytes", estimatedSizeBytes);
-      System.out.println("estimatedsize-" + estimatedSizeBytes);
       if (desiredBundleSizeBytes > 0 && estimatedSizeBytes > 0) {
         desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
       }

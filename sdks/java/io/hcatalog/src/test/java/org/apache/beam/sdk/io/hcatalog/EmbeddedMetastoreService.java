@@ -39,10 +39,13 @@ public final class EmbeddedMetastoreService {
 
   private final Driver driver;
   private final HiveConf hiveConf;
+  private final SessionState sessionState;
+  private String baseDirPath;
 
   EmbeddedMetastoreService(String baseDirPath) throws IOException {
 
     String hiveDirPath, testDataDirPath, testWarehouseDirPath;
+    this.baseDirPath = baseDirPath;
     hiveDirPath = makePathASafeFileName(baseDirPath + "/hive");
     testDataDirPath = makePathASafeFileName(hiveDirPath + "/data/"
     + EmbeddedMetastoreService.class.getCanonicalName()
@@ -56,17 +59,13 @@ public final class EmbeddedMetastoreService {
         + "/derby.log"));
     hiveConf = constructHiveConf(testWarehouseDirPath);
     driver = new Driver(getHiveConf());
-    SessionState.start(new CliSessionState(getHiveConf()));
+    sessionState = SessionState.start(new CliSessionState(getHiveConf()));
   }
 
   private void setupWorkspace(String... dirPaths) throws IOException {
     for (String eachDirPath : dirPaths) {
       File fsDir = new File(eachDirPath);
       fsDir.mkdir();
-      //the embedded service creates files inside these directories during execution
-      //fsDir.deleteOnExit() does not delete the directory as it is not empty
-      //hence using a better API to delete the folder recursively
-      FileUtils.forceDeleteOnExit(fsDir);
     }
   }
 
@@ -98,5 +97,18 @@ public final class EmbeddedMetastoreService {
           "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd."
           + "SQLStdHiveAuthorizerFactory");
     return hiveConf;
+  }
+
+  /**
+   * Shuts down the service, quietly.
+   */
+  public void shutDownServiceQuietly() {
+    try {
+      driver.close();
+      sessionState.close();
+      FileUtils.forceDeleteOnExit(new File(baseDirPath));
+    } catch (Exception e) {
+      //do nothing, return quietly
+    }
   }
 }
