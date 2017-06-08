@@ -55,6 +55,6 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSQLRow>
         BeamSQLRow row = ctx.element();
         ctx.output(beamSQLRow2CsvLine(row, csvFormat));
       }
-    })).apply(TextIO.Write.to(filePattern));
+    })).apply(TextIO.write().to(filePattern));
   }
 }
