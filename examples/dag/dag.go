@@ -71,8 +71,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running dag")
 
@@ -92,7 +91,7 @@ func main() {
 	textio.Write(p, *output, small)
 	textio.Write(p, *output, big)
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

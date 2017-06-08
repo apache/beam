@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
+	"os"
+	"strings"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
-	"log"
-	"os"
-	"strings"
 )
 
 var (
@@ -39,8 +40,7 @@ func leaf(p *beam.Pipeline) beam.PCollection {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running forest")
 
@@ -51,7 +51,7 @@ func main() {
 		debug.Print(p, count.Dedup(p, t))
 	}
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

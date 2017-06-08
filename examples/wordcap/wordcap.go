@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
+	"os"
+	"regexp"
+	"strings"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
-	"log"
-	"os"
-	"regexp"
-	"strings"
 )
 
 var (
@@ -29,8 +30,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	beamexec.Init(ctx)
+	beamexec.Init()
 
 	log.Print("Running wordcap")
 
@@ -51,7 +51,7 @@ func main() {
 	}
 	debug.Print(p, cap) // Debug helper.
 
-	if err := beamexec.Run(ctx, p); err != nil {
+	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
