@@ -104,7 +104,7 @@ class WatermarkManager(object):
         completed_committed_bundle, unprocessed_bundle, applied_ptransform,
         timer_update, outputs)
     tw = self.get_watermarks(applied_ptransform)
-    tw.hold(earliest_hold)
+    tw.hold(completed_committed_bundle.key, earliest_hold)
     self._refresh_watermarks(applied_ptransform)
 
   def _update_pending(self, input_committed_bundle, unprocessed_bundle,
@@ -171,7 +171,9 @@ class _TransformWatermarks(object):
     self._input_transform_watermarks = []
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
-    self._earliest_hold = WatermarkManager.WATERMARK_POS_INF
+    # TODO(ccy): in the future, we should integrate this with holds in the
+    # Timer / State API.
+    self._keyed_earliest_holds = {}
     self._pending = set()  # Scheduled bundles targeted for this transform.
     self._fired_timers = False
     self._lock = threading.Lock()
@@ -200,11 +202,13 @@ class _TransformWatermarks(object):
     with self._lock:
       return self._output_watermark
 
-  def hold(self, value):
+  def hold(self, key, value):
     with self._lock:
-      if value is None:
-        value = WatermarkManager.WATERMARK_POS_INF
-      self._earliest_hold = value
+      if value is None or value == WatermarkManager.WATERMARK_POS_INF:
+        if key in self._keyed_earliest_holds:
+          del self._keyed_earliest_holds[key]
+      else:
+        self._keyed_earliest_holds[key] = value
 
   def add_pending(self, pending):
     with self._lock:
@@ -245,6 +249,10 @@ class _TransformWatermarks(object):
       #   print '~~~~~~~~WHSTATE [key=', unused_key, ']', state
       #   earliest_watermark_hold = state.get_earliest_hold()
       #   print 'holds [current watermark =', self._input_watermark, ']:', state.get_earliest_hold()
+      earliest_hold = WatermarkManager.WATERMARK_POS_INF
+      for unused_key, hold in self._keyed_earliest_holds.iteritems():
+        if hold - TIME_GRANULARITY < earliest_hold:
+          earliest_hold = hold - TIME_GRANULARITY
 
 
       input_watermarks = [
@@ -257,7 +265,7 @@ class _TransformWatermarks(object):
       # # TODO: clean this up.
       # middle_watermark_thing = max(self._input_watermark,
       #                             min(pending_holder, producer_watermark))
-      new_output_watermark = min(self._input_watermark, self._earliest_hold)
+      new_output_watermark = min(self._input_watermark, earliest_hold)
       print '[!] ', self._label, 'INPUT', self._input_watermark, 'OUTPUT', new_output_watermark
       print '    input watermark details: pending_holder', pending_holder, 'producer_watermark', producer_watermark
 
