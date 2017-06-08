@@ -326,11 +326,12 @@ def get_coder_from_spec(coder_spec):
     assert len(coder_spec['component_encodings']) == 2
     value_coder, window_coder = [
         get_coder_from_spec(c) for c in coder_spec['component_encodings']]
-    return coders.WindowedValueCoder(value_coder, window_coder=window_coder)
+    return coders.coders.WindowedValueCoder(
+        value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:interval_window':
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
-    return coders.IntervalWindowCoder()
+    return coders.coders.IntervalWindowCoder()
   elif coder_spec['@type'] == 'kind:global_window':
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
