@@ -136,7 +136,7 @@ public class PipelineOptionsTest {
 
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
@@ -157,7 +157,7 @@ public class PipelineOptionsTest {
   @Test
   public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
-    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
@@ -173,13 +173,12 @@ public class PipelineOptionsTest {
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 
     @SuppressWarnings("unchecked")
-    DoFnOperator<Object, Object, Object> deserialized =
-        (DoFnOperator<Object, Object, Object>) SerializationUtils.deserialize(serialized);
+    DoFnOperator<Object, Object> deserialized = SerializationUtils.deserialize(serialized);
 
     TypeInformation<WindowedValue<Object>> typeInformation = TypeInformation.of(
         new TypeHint<WindowedValue<Object>>() {});
 
-    OneInputStreamOperatorTestHarness<WindowedValue<Object>, Object> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<Object>, WindowedValue<Object>> testHarness =
         new OneInputStreamOperatorTestHarness<>(deserialized,
             typeInformation.createSerializer(new ExecutionConfig()));
 

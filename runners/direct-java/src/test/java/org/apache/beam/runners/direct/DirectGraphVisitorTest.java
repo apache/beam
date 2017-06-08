@@ -78,6 +78,9 @@ public class DirectGraphVisitorTest implements Serializable {
             .apply(View.<String>asList());
     PCollectionView<Object> singletonView =
         p.apply("singletonCreate", Create.<Object>of(1, 2, 3)).apply(View.<Object>asSingleton());
+    p.replaceAll(
+        DirectRunner.fromOptions(TestPipeline.testingPipelineOptions())
+            .defaultTransformOverrides());
     p.traverseTopologically(visitor);
     assertThat(
         visitor.getGraph().getViews(),

@@ -24,8 +24,8 @@ from __future__ import print_function
 import logging
 import unittest
 
-import grpc
 from concurrent import futures
+import grpc
 
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle

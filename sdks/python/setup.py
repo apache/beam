@@ -125,14 +125,18 @@ GCP_REQUIREMENTS = [
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
-  # See https://issues.apache.org/jira/browse/BEAM-2366
-  # pylint: disable=wrong-import-position
-  import gen_protos
-  class cmd(original_cmd, object):
-    def run(self):
-      gen_protos.generate_proto_files()
-      super(cmd, self).run()
-  return cmd
+  try:
+    # See https://issues.apache.org/jira/browse/BEAM-2366
+    # pylint: disable=wrong-import-position
+    import gen_protos
+    class cmd(original_cmd, object):
+      def run(self):
+        gen_protos.generate_proto_files()
+        super(cmd, self).run()
+    return cmd
+  except ImportError:
+    warnings.warn("Could not import gen_protos, skipping proto generation.")
+    return original_cmd
 
 
 setuptools.setup(

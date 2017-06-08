@@ -33,6 +33,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
+
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -52,6 +53,9 @@ import org.junit.runners.JUnit4;
 /** End-to-end test of Cloud Spanner Sink. */
 @RunWith(JUnit4.class)
 public class SpannerWriteIT {
+
+  private static final int MAX_DB_NAME_LENGTH = 30;
+
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   /** Pipeline options for this test. */
@@ -66,10 +70,10 @@ public class SpannerWriteIT {
     String getInstanceId();
     void setInstanceId(String value);
 
-    @Description("Database ID to write to in Spanner")
+    @Description("Database ID prefix to write to in Spanner")
     @Default.String("beam-testdb")
-    String getDatabaseId();
-    void setDatabaseId(String value);
+    String getDatabaseIdPrefix();
+    void setDatabaseIdPrefix(String value);
 
     @Description("Table name")
     @Default.String("users")
@@ -80,6 +84,7 @@ public class SpannerWriteIT {
   private Spanner spanner;
   private DatabaseAdminClient databaseAdminClient;
   private SpannerTestPipelineOptions options;
+  private String databaseName;
 
   @Before
   public void setUp() throws Exception {
@@ -88,15 +93,17 @@ public class SpannerWriteIT {
 
     spanner = SpannerOptions.newBuilder().setProjectId(options.getProjectId()).build().getService();
 
+    databaseName = generateDatabaseName();
+
     databaseAdminClient = spanner.getDatabaseAdminClient();
 
     // Delete database if exists.
-    databaseAdminClient.dropDatabase(options.getInstanceId(), options.getDatabaseId());
+    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
 
     Operation<Database, CreateDatabaseMetadata> op =
         databaseAdminClient.createDatabase(
             options.getInstanceId(),
-            options.getDatabaseId(),
+            databaseName,
             Collections.singleton(
                 "CREATE TABLE "
                     + options.getTable()
@@ -107,6 +114,13 @@ public class SpannerWriteIT {
     op.waitFor();
   }
 
+  private String generateDatabaseName() {
+    String random = RandomStringUtils
+        .randomAlphanumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
+        .toLowerCase();
+    return options.getDatabaseIdPrefix() + "-" + random;
+  }
+
   @Test
   public void testWrite() throws Exception {
     p.apply(GenerateSequence.from(0).to(100))
@@ -115,13 +129,13 @@ public class SpannerWriteIT {
             SpannerIO.write()
                 .withProjectId(options.getProjectId())
                 .withInstanceId(options.getInstanceId())
-                .withDatabaseId(options.getDatabaseId()));
+                .withDatabaseId(databaseName));
 
     p.run();
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(
             DatabaseId.of(
-                options.getProjectId(), options.getInstanceId(), options.getDatabaseId()));
+                options.getProjectId(), options.getInstanceId(), databaseName));
 
     ResultSet resultSet =
         databaseClient
@@ -134,7 +148,7 @@ public class SpannerWriteIT {
 
   @After
   public void tearDown() throws Exception {
-    databaseAdminClient.dropDatabase(options.getInstanceId(), options.getDatabaseId());
+    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
     spanner.closeAsync().get();
   }
 
@@ -151,7 +165,7 @@ public class SpannerWriteIT {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
       Long key = c.element();
       builder.set("Key").to(key);
-      builder.set("Value").to(RandomStringUtils.random(valueSize, true, true));
+      builder.set("Value").to(RandomStringUtils.randomAlphabetic(valueSize));
       Mutation mutation = builder.build();
       c.output(mutation);
     }

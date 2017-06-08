@@ -440,7 +440,7 @@ public class TextIO {
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
         usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
       WriteFiles<String> write =
           WriteFiles.to(

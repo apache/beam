@@ -84,7 +84,7 @@ public class BeamFnDataGrpcMultiplexer {
       KV<String, BeamFnApi.Target> key) {
     return consumers.computeIfAbsent(
         key,
-        (KV<String, BeamFnApi.Target> providedKey) -> new CompletableFuture<>());
+        (KV<String, BeamFnApi.Target> unused) -> new CompletableFuture<>());
   }
 
   /**
@@ -102,7 +102,12 @@ public class BeamFnDataGrpcMultiplexer {
         try {
           KV<String, BeamFnApi.Target> key =
               KV.of(data.getInstructionReference(), data.getTarget());
-          futureForKey(key).get().accept(data);
+          CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = futureForKey(key);
+          if (!consumer.isDone()) {
+            LOG.debug("Received data for key {} without consumer ready. "
+                + "Waiting for consumer to be registered.", key);
+          }
+          consumer.get().accept(data);
           if (data.getData().isEmpty()) {
             consumers.remove(key);
           }

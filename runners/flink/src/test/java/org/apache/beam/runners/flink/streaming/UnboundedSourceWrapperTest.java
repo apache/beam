@@ -20,49 +20,39 @@ package org.apache.beam.runners.flink.streaming;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.OutputTag;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.mockito.Matchers;
 
 /**
  * Tests for {@link UnboundedSourceWrapper}.
@@ -102,7 +92,7 @@ public class UnboundedSourceWrapperTest {
      * If numSplits > numTasks the source has one source will manage multiple readers.
      */
     @Test
-    public void testReaders() throws Exception {
+    public void testValueEmission() throws Exception {
       final int numElements = 20;
       final Object checkpointLock = new Object();
       PipelineOptions options = PipelineOptionsFactory.create();
@@ -122,16 +112,30 @@ public class UnboundedSourceWrapperTest {
               KV<Integer, Integer>,
               TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-      setupSourceOperator(sourceOperator, numTasks);
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          testHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              sourceOperator,
+              numTasks /* max parallelism */,
+              numTasks /* parallelism */,
+              0 /* subtask index */);
+
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
       try {
-        sourceOperator.open();
+        testHarness.open();
         sourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -164,6 +168,111 @@ public class UnboundedSourceWrapperTest {
     }
 
     /**
+     * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source.
+     * If numSplits > numTasks the source has one source will manage multiple readers.
+     *
+     * <p>This test verifies that watermark are correctly forwarded.
+     */
+    @Test(timeout = 30_000)
+    public void testWatermarkEmission() throws Exception {
+      final int numElements = 500;
+      final Object checkpointLock = new Object();
+      PipelineOptions options = PipelineOptionsFactory.create();
+
+      // this source will emit exactly NUM_ELEMENTS across all parallel readers,
+      // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+      // elements later.
+      TestCountingSource source = new TestCountingSource(numElements);
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
+          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
+
+      assertEquals(numSplits, flinkWrapper.getSplitSources().size());
+
+      final StreamSource<WindowedValue<
+          ValueWithRecordId<KV<Integer, Integer>>>,
+          UnboundedSourceWrapper<
+              KV<Integer, Integer>,
+              TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
+
+      final AbstractStreamOperatorTestHarness<
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> testHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              sourceOperator,
+              numTasks /* max parallelism */,
+              numTasks /* parallelism */,
+              0 /* subtask index */);
+
+      testHarness.setProcessingTime(Instant.now().getMillis());
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+
+      final ConcurrentLinkedQueue<Object> caughtExceptions = new ConcurrentLinkedQueue<>();
+
+      // use the AtomicBoolean just for the set()/get() functionality for communicating
+      // with the outer Thread
+      final AtomicBoolean seenWatermark = new AtomicBoolean(false);
+
+      Thread sourceThread = new Thread() {
+        @Override
+        public void run() {
+          try {
+            testHarness.open();
+            sourceOperator.run(checkpointLock,
+                new TestStreamStatusMaintainer(),
+                new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+
+                  @Override
+                  public void emitWatermark(Watermark watermark) {
+                    if (watermark.getTimestamp() >= numElements / 2) {
+                      seenWatermark.set(true);
+                    }
+                  }
+
+                  @Override
+                  public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                  }
+
+                  @Override
+                  public void emitLatencyMarker(LatencyMarker latencyMarker) {
+                  }
+
+                  @Override
+                  public void collect(StreamRecord<WindowedValue<
+                      ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+                  }
+
+                  @Override
+                  public void close() {
+
+                  }
+                });
+          } catch (Exception e) {
+            System.out.println("Caught exception: " + e);
+            caughtExceptions.add(e);
+          }
+        }
+      };
+
+      sourceThread.start();
+
+      while (true) {
+        if (!caughtExceptions.isEmpty()) {
+          fail("Caught exception(s): " + Joiner.on(",").join(caughtExceptions));
+        }
+        if (seenWatermark.get()) {
+          break;
+        }
+        Thread.sleep(10);
+
+        // need to advance this so that the watermark timers in the source wrapper fire
+        testHarness.setProcessingTime(Instant.now().getMillis());
+      }
+
+      sourceOperator.cancel();
+      sourceThread.join();
+    }
+
+
+    /**
      * Verify that snapshot/restore work as expected. We bring up a source and cancel
      * after seeing a certain number of elements. Then we snapshot that source,
      * bring up a completely new source that we restore from the snapshot and verify
@@ -191,35 +300,34 @@ public class UnboundedSourceWrapperTest {
               TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
 
-      OperatorStateStore backend = mock(OperatorStateStore.class);
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          testHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              sourceOperator,
+              numTasks /* max parallelism */,
+              numTasks /* parallelism */,
+              0 /* subtask index */);
 
-      TestingListState<KV<UnboundedSource, TestCountingSource.CounterMark>>
-          listState = new TestingListState<>();
-
-      when(backend.getOperatorState(Matchers.any(ListStateDescriptor.class)))
-          .thenReturn(listState);
-
-      StateInitializationContext initializationContext = mock(StateInitializationContext.class);
-
-      when(initializationContext.getOperatorStateStore()).thenReturn(backend);
-      when(initializationContext.isRestored()).thenReturn(false, true);
-
-      flinkWrapper.initializeState(initializationContext);
-
-      setupSourceOperator(sourceOperator, numTasks);
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
       final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
 
       boolean readFirstBatchOfElements = false;
 
       try {
-        sourceOperator.open();
+        testHarness.open();
         sourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -250,21 +358,12 @@ public class UnboundedSourceWrapperTest {
       assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
       // draw a snapshot
-      flinkWrapper.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
-
-      // test snapshot offsets
-      assertEquals(flinkWrapper.getLocalSplitSources().size(),
-          listState.getList().size());
-      int totalEmit = 0;
-      for (KV<UnboundedSource, TestCountingSource.CounterMark> kv : listState.get()) {
-        totalEmit += kv.getValue().current + 1;
-      }
-      assertEquals(numElements / 2, totalEmit);
+      OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
 
       // test that finalizeCheckpoint on CheckpointMark is called
       final ArrayList<Integer> finalizeList = new ArrayList<>();
       TestCountingSource.setFinalizeTracker(finalizeList);
-      flinkWrapper.notifyCheckpointComplete(0);
+      testHarness.notifyOfCompletedCheckpoint(0);
       assertEquals(flinkWrapper.getLocalSplitSources().size(), finalizeList.size());
 
       // create a completely new source but restore from the snapshot
@@ -282,22 +381,37 @@ public class UnboundedSourceWrapperTest {
               TestCountingSource.CounterMark>> restoredSourceOperator =
           new StreamSource<>(restoredFlinkWrapper);
 
-      setupSourceOperator(restoredSourceOperator, numTasks);
+      // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          restoredTestHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              restoredSourceOperator,
+              numTasks /* max parallelism */,
+              1 /* parallelism */,
+              0 /* subtask index */);
+
+      restoredTestHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
       // restore snapshot
-      restoredFlinkWrapper.initializeState(initializationContext);
+      restoredTestHarness.initializeState(snapshot);
 
       boolean readSecondBatchOfElements = false;
 
       // run again and verify that we see the other elements
       try {
-        restoredSourceOperator.open();
+        restoredTestHarness.open();
         restoredSourceOperator.run(checkpointLock,
+            new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
               public void emitWatermark(Watermark watermark) {
+              }
+
+              @Override
+              public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+                collect((StreamRecord) streamRecord);
               }
 
               @Override
@@ -324,7 +438,9 @@ public class UnboundedSourceWrapperTest {
         readSecondBatchOfElements = true;
       }
 
-      assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+      assertEquals(
+          Math.max(1, numSplits / numTasks),
+          restoredFlinkWrapper.getLocalSplitSources().size());
 
       assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
 
@@ -343,68 +459,57 @@ public class UnboundedSourceWrapperTest {
           return null;
         }
       };
+
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
           new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
 
-      OperatorStateStore backend = mock(OperatorStateStore.class);
+      StreamSource<
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+          UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          sourceOperator = new StreamSource<>(flinkWrapper);
 
-      TestingListState<KV<UnboundedSource, TestCountingSource.CounterMark>>
-          listState = new TestingListState<>();
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          testHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              sourceOperator,
+              numTasks /* max parallelism */,
+              numTasks /* parallelism */,
+              0 /* subtask index */);
 
-      when(backend.getOperatorState(Matchers.any(ListStateDescriptor.class)))
-          .thenReturn(listState);
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
-      StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+      testHarness.open();
 
-      when(initializationContext.getOperatorStateStore()).thenReturn(backend);
-      when(initializationContext.isRestored()).thenReturn(false, true);
-
-      flinkWrapper.initializeState(initializationContext);
-
-      StreamSource sourceOperator = new StreamSource<>(flinkWrapper);
-      setupSourceOperator(sourceOperator, numTasks);
-      sourceOperator.open();
-
-      flinkWrapper.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
-
-      assertEquals(0, listState.getList().size());
+      OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
 
       UnboundedSourceWrapper<
           KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-          new UnboundedSourceWrapper<>("stepName", options, new TestCountingSource(numElements),
-              numSplits);
+          new UnboundedSourceWrapper<>(
+              "stepName", options, new TestCountingSource(numElements), numSplits);
 
-      StreamSource restoredSourceOperator = new StreamSource<>(flinkWrapper);
-      setupSourceOperator(restoredSourceOperator, numTasks);
-      sourceOperator.open();
+      StreamSource<
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+          UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+          restoredSourceOperator =
+          new StreamSource<>(restoredFlinkWrapper);
 
-      restoredFlinkWrapper.initializeState(initializationContext);
+      // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          restoredTestHarness =
+          new AbstractStreamOperatorTestHarness<>(
+              restoredSourceOperator,
+              numTasks /* max parallelism */,
+              1 /* parallelism */,
+              0 /* subtask index */);
 
-      assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+      restoredTestHarness.setup();
+      restoredTestHarness.initializeState(snapshot);
+      restoredTestHarness.open();
 
-    }
+      // when the source checkpointed a null we don't re-initialize the splits, that is we
+      // will have no splits.
+      assertEquals(0, restoredFlinkWrapper.getLocalSplitSources().size());
 
-    @SuppressWarnings("unchecked")
-    private static <T> void setupSourceOperator(StreamSource<T, ?> operator, int numSubTasks) {
-      ExecutionConfig executionConfig = new ExecutionConfig();
-      StreamConfig cfg = new StreamConfig(new Configuration());
-
-      cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
-
-      Environment env = new DummyEnvironment("MockTwoInputTask", numSubTasks, 0);
-
-      StreamTask<?, ?> mockTask = mock(StreamTask.class);
-      when(mockTask.getName()).thenReturn("Mock Task");
-      when(mockTask.getCheckpointLock()).thenReturn(new Object());
-      when(mockTask.getConfiguration()).thenReturn(cfg);
-      when(mockTask.getEnvironment()).thenReturn(env);
-      when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-      when(mockTask.getAccumulatorMap())
-          .thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
-      TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
-      when(mockTask.getProcessingTimeService()).thenReturn(testProcessingTimeService);
-
-      operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
     }
 
     /**
@@ -437,29 +542,20 @@ public class UnboundedSourceWrapperTest {
 
   }
 
-  private static final class TestingListState<T> implements ListState<T> {
-
-    private final List<T> list = new ArrayList<>();
-
-    @Override
-    public void clear() {
-      list.clear();
-    }
+  private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
+    StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
 
     @Override
-    public Iterable<T> get() throws Exception {
-      return list;
+    public void toggleStreamStatus(StreamStatus streamStatus) {
+      if (!currentStreamStatus.equals(streamStatus)) {
+        currentStreamStatus = streamStatus;
+      }
     }
 
     @Override
-    public void add(T value) throws Exception {
-      list.add(value);
+    public StreamStatus getStreamStatus() {
+      return currentStreamStatus;
     }
-
-    public List<T> getList() {
-      return list;
-    }
-
   }
 
 }

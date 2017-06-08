@@ -53,3 +53,9 @@ def pack_Struct(**kwargs):
   for key, value in kwargs.items():
     msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
+
+
+def from_micros(cls, micros):
+  result = cls()
+  result.FromMicroseconds(micros)
+  return result

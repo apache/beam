@@ -92,17 +92,17 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
           .<Class<? extends PTransform>, PTransformTranslation.TransformPayloadTranslator>builder()
           .put(
               DirectGroupByKey.DirectGroupByKeyOnly.class,
-              new PTransformTranslation.RawPTransformTranslator<>())
+              new PTransformTranslation.RawPTransformTranslator())
           .put(
               DirectGroupByKey.DirectGroupAlsoByWindow.class,
               new PTransformTranslation.RawPTransformTranslator())
           .put(
               ParDoMultiOverrideFactory.StatefulParDo.class,
-              new PTransformTranslation.RawPTransformTranslator<>())
+              new PTransformTranslation.RawPTransformTranslator())
           .put(
               ViewOverrideFactory.WriteView.class,
-              new PTransformTranslation.RawPTransformTranslator<>())
-          .put(DirectTestStream.class, new PTransformTranslation.RawPTransformTranslator<>())
+              new PTransformTranslation.RawPTransformTranslator())
+          .put(DirectTestStream.class, new PTransformTranslation.RawPTransformTranslator())
           .put(
               SplittableParDoViaKeyedWorkItems.ProcessElements.class,
               new SplittableParDoProcessElementsTranslator())

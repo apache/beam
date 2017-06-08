@@ -75,7 +75,7 @@ class common_job_properties {
         remote {
           url('https://github.com/apache/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
+                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
         branch('${sha1}')
         extensions {
@@ -188,7 +188,9 @@ class common_job_properties {
     // Disable archiving the built artifacts by default, as this is slow and flaky.
     // We can usually recreate them easily, and we can also opt-in individual jobs
     // to artifact archiving.
-    context.archivingDisabled(true)
+    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
+      context.archivingDisabled(true)
+    }
   }
 
   // Sets common config for PreCommit jobs.

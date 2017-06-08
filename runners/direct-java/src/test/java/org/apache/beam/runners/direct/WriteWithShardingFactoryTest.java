@@ -129,15 +129,20 @@ public class WriteWithShardingFactoryTest {
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
     ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
-    FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
-        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
-    WriteFiles<Object> original = WriteFiles.to(
-        new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
-          @Override
-          public WriteOperation<Object> createWriteOperation() {
-            throw new IllegalArgumentException("Should not be used");
-          }
-        });
+    FilenamePolicy policy =
+        DefaultFilenamePolicy.constructUsingStandardParameters(
+            StaticValueProvider.of(outputDirectory),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
+            "",
+            false);
+    WriteFiles<Object> original =
+        WriteFiles.to(
+            new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
+              @Override
+              public WriteOperation<Object> createWriteOperation() {
+                throw new IllegalArgumentException("Should not be used");
+              }
+            });
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 

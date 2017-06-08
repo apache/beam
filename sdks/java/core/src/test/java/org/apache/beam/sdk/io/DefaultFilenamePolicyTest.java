@@ -18,10 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.DefaultFilenamePolicy.constructName;
-import static org.apache.beam.sdk.io.DefaultFilenamePolicy.isWindowedTemplate;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,36 +33,25 @@ public class DefaultFilenamePolicyTest {
   @Test
   public void testConstructName() {
     assertEquals("output-001-of-123.txt",
-        constructName("output", "-SSS-of-NNN", ".txt", 1, 123));
+        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, null, null));
 
     assertEquals("out.txt/part-00042",
-        constructName("out.txt", "/part-SSSSS", "", 42, 100));
+        constructName("out.txt", "/part-SSSSS", "", 42, 100, null, null));
 
     assertEquals("out.txt",
-        constructName("ou", "t.t", "xt", 1, 1));
+        constructName("ou", "t.t", "xt", 1, 1, null, null));
 
     assertEquals("out0102shard.txt",
-        constructName("out", "SSNNshard", ".txt", 1, 2));
+        constructName("out", "SSNNshard", ".txt", 1, 2, null, null));
 
     assertEquals("out-2/1.part-1-of-2.txt",
-        constructName("out", "-N/S.part-S-of-N", ".txt", 1, 2));
+        constructName("out", "-N/S.part-S-of-N", ".txt", 1, 2, null, null));
   }
 
   @Test
   public void testConstructNameWithLargeShardCount() {
     assertEquals("out-100-of-5000.txt",
-        constructName("out", "-SS-of-NN", ".txt", 100, 5000));
-  }
-
-  @Test
-  public void testIsWindowedTemplate(){
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-P-W"));
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-W"));
-    assertTrue(isWindowedTemplate("-SSS-of-NNN-P"));
-    assertTrue(isWindowedTemplate("W-SSS-of-NNN"));
-
-    assertFalse(isWindowedTemplate("-SSS-of-NNN"));
-    assertFalse(isWindowedTemplate("-SSS-of-lp"));
+        constructName("out", "-SS-of-NN", ".txt", 100, 5000, null, null));
   }
 
   @Test

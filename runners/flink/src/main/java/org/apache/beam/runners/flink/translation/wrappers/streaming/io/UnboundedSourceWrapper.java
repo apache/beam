@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -283,6 +284,8 @@ public class UnboundedSourceWrapper<
         }
       }
 
+      setNextWatermarkTimer(this.runtimeContext);
+
       // a flag telling us whether any of the localReaders had data
       // if no reader had data, sleep for bit
       boolean hadData = false;
@@ -434,6 +437,10 @@ public class UnboundedSourceWrapper<
           }
         }
         context.emitWatermark(new Watermark(watermarkMillis));
+
+        if (watermarkMillis >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+          this.isRunning = false;
+        }
       }
       setNextWatermarkTimer(this.runtimeContext);
     }

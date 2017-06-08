@@ -35,7 +35,8 @@ from google.protobuf import wrappers_pb2
 from apache_beam.coders import coder_impl
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.internal import pickler
-from apache_beam.runners.dataflow.native_io import iobase
+from apache_beam.io import iobase
+from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.utils import counters
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import operation_specs
@@ -126,7 +127,8 @@ class DataInputOperation(RunnerIOOperation):
 # custom sources without forcing intermediate materialization.  This seems very
 # related to the desire to inject key and window preserving [Splittable]DoFns
 # into the view computation.
-class SideInputSource(iobase.NativeSource, iobase.NativeSourceReader):
+class SideInputSource(native_iobase.NativeSource,
+                      native_iobase.NativeSourceReader):
   """A 'source' for reading side inputs via state API calls.
   """
 

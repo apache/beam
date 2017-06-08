@@ -22,12 +22,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Any;
-import com.google.protobuf.Message;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -49,6 +50,13 @@ public class PTransformTranslation {
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
   public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
   public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
+  public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
+
+  // Less well-known. And where shall these live?
+  public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
+
+  @Deprecated
+  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
 
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
@@ -106,7 +114,20 @@ public class PTransformTranslation {
     // TODO: Display Data
 
     PTransform<?, ?> transform = appliedPTransform.getTransform();
-    if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
+    // A RawPTransform directly vends its payload. Because it will generally be
+    // a subclass, we cannot do dictionary lookup in KNOWN_PAYLOAD_TRANSLATORS.
+    if (transform instanceof RawPTransform) {
+      RawPTransform<?, ?> rawPTransform = (RawPTransform<?, ?>) transform;
+
+      if (rawPTransform.getUrn() != null) {
+        FunctionSpec.Builder payload = FunctionSpec.newBuilder().setUrn(rawPTransform.getUrn());
+        @Nullable Any parameter = rawPTransform.getPayload();
+        if (parameter != null) {
+          payload.setParameter(parameter);
+        }
+        transformBuilder.setSpec(payload);
+      }
+    } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
               .get(transform.getClass())
@@ -117,13 +138,48 @@ public class PTransformTranslation {
     return transformBuilder.build();
   }
 
+  /**
+   * Translates a composite {@link AppliedPTransform} into a runner API proto with no component
+   * transforms.
+   *
+   * <p>This should not be used when translating a {@link Pipeline}.
+   *
+   * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
+   */
+  static RunnerApi.PTransform toProto(
+      AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
+    return toProto(
+        appliedPTransform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components);
+  }
+
   private static String toProto(TupleTag<?> tag) {
     return tag.getId();
   }
 
+  /**
+   * Returns the URN for the transform if it is known, otherwise {@code null}.
+   */
+  @Nullable
+  public static String urnForTransformOrNull(PTransform<?, ?> transform) {
+
+    // A RawPTransform directly vends its URN. Because it will generally be
+    // a subclass, we cannot do dictionary lookup in KNOWN_PAYLOAD_TRANSLATORS.
+    if (transform instanceof RawPTransform) {
+      return ((RawPTransform) transform).getUrn();
+    }
+
+    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+    if (translator == null) {
+      return null;
+    }
+    return translator.getUrn(transform);
+  }
+
+  /**
+   * Returns the URN for the transform if it is known, otherwise throws.
+   */
   public static String urnForTransform(PTransform<?, ?> transform) {
-    TransformPayloadTranslator translator =
-    KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
     if (translator == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
@@ -138,6 +194,7 @@ public class PTransformTranslation {
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
+
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
   }
@@ -150,13 +207,14 @@ public class PTransformTranslation {
    * fully expanded in the pipeline proto.
    */
   public abstract static class RawPTransform<
-          InputT extends PInput, OutputT extends POutput, PayloadT extends Message>
+          InputT extends PInput, OutputT extends POutput>
       extends PTransform<InputT, OutputT> {
 
+    @Nullable
     public abstract String getUrn();
 
     @Nullable
-    PayloadT getPayload() {
+    public Any getPayload() {
       return null;
     }
   }
@@ -164,24 +222,29 @@ public class PTransformTranslation {
   /**
    * A translator that uses the explicit URN and payload from a {@link RawPTransform}.
    */
-  public static class RawPTransformTranslator<PayloadT extends Message>
-      implements TransformPayloadTranslator<RawPTransform<?, ?, PayloadT>> {
+  public static class RawPTransformTranslator
+      implements TransformPayloadTranslator<RawPTransform<?, ?>> {
     @Override
-    public String getUrn(RawPTransform<?, ?, PayloadT> transform) {
+    public String getUrn(RawPTransform<?, ?> transform) {
       return transform.getUrn();
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, RawPTransform<?, ?, PayloadT>> transform,
+        AppliedPTransform<?, ?, RawPTransform<?, ?>> transform,
         SdkComponents components) {
-      PayloadT payload = transform.getTransform().getPayload();
+
+      // Anonymous composites have no spec
+      if (transform.getTransform().getUrn() == null) {
+        return null;
+      }
 
       FunctionSpec.Builder transformSpec =
           FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
 
+      Any payload = transform.getTransform().getPayload();
       if (payload != null) {
-        transformSpec.setParameter(Any.pack(payload));
+        transformSpec.setParameter(payload);
       }
 
       return transformSpec.build();

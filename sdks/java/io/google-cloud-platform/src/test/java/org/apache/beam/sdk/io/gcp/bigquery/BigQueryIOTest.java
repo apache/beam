@@ -35,12 +35,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatistics4;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -126,6 +128,7 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
@@ -599,6 +602,59 @@ public class BigQueryIOTest implements Serializable {
       assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
     }
+  }
+
+  @Test
+  public void testRetryPolicy() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(datasetService);
+
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+    TableRow row3 = new TableRow().set("name", "c").set("number", "3");
+
+    TableDataInsertAllResponse.InsertErrors ephemeralError =
+        new TableDataInsertAllResponse.InsertErrors().setErrors(
+            ImmutableList.of(new ErrorProto().setReason("timeout")));
+    TableDataInsertAllResponse.InsertErrors persistentError =
+        new TableDataInsertAllResponse.InsertErrors().setErrors(
+            ImmutableList.of(new ErrorProto().setReason("invalidQuery")));
+
+    datasetService.failOnInsert(
+        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        row1, ImmutableList.of(ephemeralError, ephemeralError),
+        row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    PCollection<TableRow> failedRows =
+        p.apply(Create.of(row1, row2, row3))
+            .setIsBoundedInternal(IsBounded.UNBOUNDED)
+            .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(new TableSchema().setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+            .withTestServices(fakeBqServices)
+            .withoutValidation()).getFailedInserts();
+    // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
+    // failed rows.
+    PAssert.that(failedRows).containsInAnyOrder(row2);
+    p.run();
+
+    // Only row1 and row3 were successfully inserted.
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row3));
+
   }
 
   @Test
@@ -1741,20 +1797,23 @@ public class BigQueryIOTest implements Serializable {
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
-
-    List<ShardedKey<String>> expectedPartitions = Lists.newArrayList();
+    DynamicDestinations<String, TableDestination> dynamicDestinations =
+        new DynamicDestinationsHelpers.ConstantTableDestinations<>(
+            StaticValueProvider.of("SINGLETON"), "");
+    List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
-      expectedPartitions.add(ShardedKey.<String>of(null, 1));
+      expectedPartitions.add(ShardedKey.<TableDestination>of(
+          new TableDestination("SINGLETON", ""), 1));
     } else {
       for (int i = 0; i < numTables; ++i) {
         for (int j = 1; j <= expectedNumPartitionsPerTable; ++j) {
           String tableName = String.format("project-id:dataset-id.tables%05d", i);
-          expectedPartitions.add(ShardedKey.of(tableName, j));
+          expectedPartitions.add(ShardedKey.of(new TableDestination(tableName, ""), j));
         }
       }
     }
 
-    List<WriteBundlesToFiles.Result<String>> files = Lists.newArrayList();
+    List<WriteBundlesToFiles.Result<TableDestination>> files = Lists.newArrayList();
     Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.tables%05d", i);
@@ -1766,36 +1825,36 @@ public class BigQueryIOTest implements Serializable {
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
-        files.add(new Result<>(fileName, fileSize, tableName));
+        files.add(new Result<>(fileName, fileSize, new TableDestination(tableName, "")));
       }
     }
 
-    TupleTag<KV<ShardedKey<String>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<ShardedKey<String>, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<ShardedKey<String>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<ShardedKey<String>, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
 
-    PCollectionView<Iterable<WriteBundlesToFiles.Result<String>>> resultsView =
+    PCollectionView<Iterable<WriteBundlesToFiles.Result<TableDestination>>> resultsView =
         p.apply(
                 Create.of(files)
-                    .withCoder(WriteBundlesToFiles.ResultCoder.of(StringUtf8Coder.of())))
-            .apply(View.<WriteBundlesToFiles.Result<String>>asIterable());
+                    .withCoder(WriteBundlesToFiles.ResultCoder.of(TableDestinationCoder.of())))
+            .apply(View.<WriteBundlesToFiles.Result<TableDestination>>asIterable());
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
         p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
 
-    WritePartition<String> writePartition =
-        new WritePartition<>(
-            isSingleton, tempFilePrefixView, resultsView, multiPartitionsTag, singlePartitionTag);
+    WritePartition<TableDestination> writePartition =
+        new WritePartition<>(isSingleton, dynamicDestinations, tempFilePrefixView,
+            resultsView, multiPartitionsTag, singlePartitionTag);
 
-    DoFnTester<Void, KV<ShardedKey<String>, List<String>>> tester =
+    DoFnTester<Void, KV<ShardedKey<TableDestination>, List<String>>> tester =
         DoFnTester.of(writePartition);
     tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
     tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
     tester.processElement(null);
 
-    List<KV<ShardedKey<String>, List<String>>> partitions;
+    List<KV<ShardedKey<TableDestination>, List<String>>> partitions;
     if (expectedNumPartitionsPerTable > 1) {
       partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {
@@ -1803,10 +1862,10 @@ public class BigQueryIOTest implements Serializable {
     }
 
 
-    List<ShardedKey<String>> partitionsResult = Lists.newArrayList();
+    List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
     Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<String>, List<String>> partition : partitions) {
-      String table = partition.getKey().getKey();
+    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
+      String table = partition.getKey().getKey().getTableSpec();
       partitionsResult.add(partition.getKey());
       List<String> tableFilesResult = filesPerTableResult.get(table);
       if (tableFilesResult == null) {

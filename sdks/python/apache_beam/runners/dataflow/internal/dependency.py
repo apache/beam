@@ -73,7 +73,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 # Update this version to the next version whenever there is a change that will
 # require changes to the execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170518'
+BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170601'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -181,7 +181,12 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
           staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
         logging.info('Downloading extra package: %s locally before staging',
                      package)
-        _dependency_file_copy(package, staging_temp_dir)
+        if os.path.isfile(staging_temp_dir):
+          local_file_path = staging_temp_dir
+        else:
+          _, last_component = FileSystems.split(package)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
+        _dependency_file_copy(package, local_file_path)
       else:
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '

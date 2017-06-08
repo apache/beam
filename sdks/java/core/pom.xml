@@ -305,6 +305,13 @@
       <artifactId>beam-sdks-common-fn-api</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
+      <exclusions>
+        <!-- We only rely on the standard_coders.yaml -->
+        <exclusion>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-sdks-common-runner-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

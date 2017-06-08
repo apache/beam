@@ -379,7 +379,8 @@ public class JmsIO {
 
   }
 
-  private static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
+  @VisibleForTesting
+  static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
 
     private UnboundedJmsSource source;
     private JmsCheckpointMark checkpointMark;
@@ -421,7 +422,7 @@ public class JmsIO {
       }
 
       try {
-        this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
       } catch (Exception e) {
         throw new IOException("Error creating JMS session", e);
       }

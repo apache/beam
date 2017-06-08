@@ -676,6 +676,7 @@ public class BigQueryIO {
     abstract BigQueryServices getBigQueryServices();
     @Nullable abstract Integer getMaxFilesPerBundle();
     @Nullable abstract Long getMaxFileSize();
+    @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
     abstract Builder<T> toBuilder();
 
@@ -696,6 +697,7 @@ public class BigQueryIO {
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Builder<T> setMaxFilesPerBundle(Integer maxFilesPerBundle);
       abstract Builder<T> setMaxFileSize(Long maxFileSize);
+      abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
       abstract Write<T> build();
     }
@@ -877,6 +879,17 @@ public class BigQueryIO {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
+    /** Specfies a policy for handling failed inserts.
+     *
+     * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
+     * collections are written using batch load jobs, so we don't get per-element failures.
+     * Unbounded collections are written using streaming inserts, so we have access to per-element
+     * insert results.
+     */
+    public Write<T> withFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+      return toBuilder().setFailedInsertRetryPolicy(retryPolicy).build();
+    }
+
     /** Disables BigQuery table validation. */
     public Write<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
@@ -951,6 +964,7 @@ public class BigQueryIO {
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
               + "be set");
 
+
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
         if (getJsonTableRef() != null) {
@@ -1001,10 +1015,14 @@ public class BigQueryIO {
           part = getJsonTimePartitioning().get();
         }
         StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, part);
-        streamingInserts.setTestServices(getBigQueryServices());
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations, part)
+                .withInsertRetryPolicy(getFailedInsertRetryPolicy())
+                .withTestServices((getBigQueryServices()));
         return rowsWithDestination.apply(streamingInserts);
       } else {
+        checkArgument(getFailedInsertRetryPolicy() == null,
+            "Record-insert retry policies are not supported when using BigQuery load jobs.");
+
         BatchLoads<DestinationT> batchLoads = new BatchLoads<>(
             getWriteDisposition(),
             getCreateDisposition(),

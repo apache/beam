@@ -312,7 +312,8 @@ public class TextIOTest {
     p.run();
 
     assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
-        firstNonNull(write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE));
+        firstNonNull(write.getShardTemplate(),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
   public static void assertOutputFiles(
@@ -337,7 +338,7 @@ public class TextIOTest {
             new File(
                 rootLocation.toString(),
                 DefaultFilenamePolicy.constructName(
-                    outputName, shardNameTemplate, "", i, numShards)));
+                    outputName, shardNameTemplate, "", i, numShards, null, null)));
       }
     }
 
