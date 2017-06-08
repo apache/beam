@@ -29,7 +29,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import ParDo
+from apache_beam.transforms import Map
 from apache_beam.transforms.display import DisplayDataItem
 
 
@@ -71,7 +71,7 @@ class ReadStringsFromPubSub(PTransform):
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
-    pcoll = pcoll | 'decode string' >> ParDo(_decodeUtf8String)
+    pcoll = pcoll | 'DecodeString' >> Map(lambda b: b.decode('utf-8'))
     pcoll.element_type = unicode
     return pcoll
 
@@ -89,7 +89,7 @@ class WriteStringsToPubSub(PTransform):
     self._sink = _PubSubPayloadSink(topic)
 
   def expand(self, pcoll):
-    pcoll = pcoll | 'encode string' >> ParDo(_encodeUtf8String)
+    pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -160,16 +160,6 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
   def writer(self):
     raise NotImplementedError(
         'PubSubPayloadSink is not supported in local execution.')
-
-
-def _decodeUtf8String(encoded_value):
-  """Decodes a string in utf-8 format from bytes"""
-  return encoded_value.decode('utf-8')
-
-
-def _encodeUtf8String(value):
-  """Encodes a string in utf-8 format to bytes"""
-  return value.encode('utf-8')
 
 
 class PubSubSource(dataflow_io.NativeSource):
