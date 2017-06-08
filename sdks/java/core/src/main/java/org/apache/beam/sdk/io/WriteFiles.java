@@ -32,6 +32,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
@@ -293,6 +294,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private class WriteWindowedBundles extends DoFn<T, FileResult> {
     private final TupleTag<KV<Integer, T>> unwrittedRecordsTag;
     private Map<KV<BoundedWindow, PaneInfo>, Writer<T>> windowedWriters;
+    int spilledShardNum = UNKNOWN_SHARDNUM;
 
     WriteWindowedBundles(TupleTag<KV<Integer, T>> unwrittedRecordsTag) {
       this.unwrittedRecordsTag = unwrittedRecordsTag;
@@ -326,8 +328,12 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
           windowedWriters.put(key, writer);
           LOG.debug("Done opening writer");
         } else {
-          c.output(unwrittedRecordsTag, KV.of(
-              ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR), c.element()));
+          if (spilledShardNum == UNKNOWN_SHARDNUM) {
+            spilledShardNum = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
+          } else {
+            spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
+          }
+          c.output(unwrittedRecordsTag, KV.of(spilledShardNum, c.element()));
           return;
         }
       }
@@ -548,10 +554,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       if (windowedWrites) {
-        TupleTag<FileResult> writtenRecordsTag =
-            new TupleTag<FileResult>("writtenRecordsTag") {};
-        TupleTag<KV<Integer, T>> unwrittedRecordsTag =
-            new TupleTag<KV<Integer, T>>("unwrittenRecordsTag") {};
+        TupleTag<FileResult> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
+        TupleTag<KV<Integer, T>> unwrittedRecordsTag = new TupleTag<>("unwrittenRecordsTag");
         PCollectionTuple writeTuple = input.apply("WriteWindowedBundles", ParDo.of(
             new WriteWindowedBundles(unwrittedRecordsTag))
             .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
@@ -562,6 +566,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         PCollection<FileResult> writtenGroupedFiles =
             writeTuple
                 .get(unwrittedRecordsTag)
+                .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
                 .apply("GroupUnwritten", GroupByKey.<Integer, T>create())
                 .apply("WriteUnwritten", ParDo.of(
                     new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE)))

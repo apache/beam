@@ -220,10 +220,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
    * iteration order based on the order at which elements are added to it.
    */
   @SuppressWarnings("rawtypes")
-  private List<PTransformOverride> defaultTransformOverrides() {
+  @VisibleForTesting
+  List<PTransformOverride> defaultTransformOverrides() {
     TestPipelineOptions testOptions = options.as(TestPipelineOptions.class);
-    ImmutableList.Builder<PTransformOverride> builder =
-     ImmutableList.<PTransformOverride>builder();
+    ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     if (!testOptions.isUnitTest()) {
       builder.add(
           PTransformOverride.of(
