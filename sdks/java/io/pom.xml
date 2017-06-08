@@ -79,6 +79,7 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>xml</module>
+    <module>cassandra</module>
   </modules>
 
   <profiles>
