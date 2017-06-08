@@ -74,6 +74,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 public class CoGroupByKey<K> extends
     PTransform<KeyedPCollectionTuple<K>,
                PCollection<KV<K, CoGbkResult>>> {
+
   /**
    * Returns a {@code CoGroupByKey<K>} {@code PTransform}.
    *
