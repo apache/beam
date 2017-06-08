@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,7 +153,6 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
           unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     }
-
   }
 
   private static class CreateApexPCollectionViewTranslator<ElemT, ViewT>
@@ -162,11 +160,10 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public void translate(CreateApexPCollectionView<ElemT, ViewT> transform,
-        TranslationContext context) {
-      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
-      context.addView(view);
-      LOG.debug("view {}", view.getName());
+    public void translate(
+        CreateApexPCollectionView<ElemT, ViewT> transform, TranslationContext context) {
+      context.addView(transform.getView());
+      LOG.debug("view {}", transform.getView().getName());
     }
   }
 
@@ -177,9 +174,8 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     @Override
     public void translate(
         CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context) {
-      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
-      context.addView(view);
-      LOG.debug("view {}", view.getName());
+      context.addView(transform.getView());
+      LOG.debug("view {}", transform.getView().getName());
     }
   }
 

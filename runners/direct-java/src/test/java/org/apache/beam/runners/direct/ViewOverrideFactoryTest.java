@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -63,11 +62,11 @@ public class ViewOverrideFactoryTest implements Serializable {
     PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>>
+    PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
         replacementTransform =
             factory.getReplacementTransform(
                 AppliedPTransform
-                    .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                    .<PCollection<Integer>, PCollection<Integer>,
                         CreatePCollectionView<Integer, List<Integer>>>
                         of(
                             "foo",
@@ -75,12 +74,7 @@ public class ViewOverrideFactoryTest implements Serializable {
                             view.expand(),
                             CreatePCollectionView.<Integer, List<Integer>>of(view),
                             p));
-    PCollectionView<List<Integer>> afterReplacement =
-        ints.apply(replacementTransform.getTransform());
-    assertThat(
-        "The CreatePCollectionView replacement should return the same View",
-        afterReplacement,
-        equalTo(view));
+    ints.apply(replacementTransform.getTransform());
 
     PCollection<Set<Integer>> outputViewContents =
         p.apply("CreateSingleton", Create.of(0))
@@ -104,10 +98,10 @@ public class ViewOverrideFactoryTest implements Serializable {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>> replacement =
+    PTransformReplacement<PCollection<Integer>, PCollection<Integer>> replacement =
         factory.getReplacementTransform(
             AppliedPTransform
-                .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                .<PCollection<Integer>, PCollection<Integer>,
                     CreatePCollectionView<Integer, List<Integer>>>
                     of(
                         "foo",

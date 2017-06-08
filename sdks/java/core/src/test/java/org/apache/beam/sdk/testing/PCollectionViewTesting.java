@@ -22,7 +22,9 @@ import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -348,6 +351,11 @@ public final class PCollectionViewTesting {
           .add("tag", tag)
           .add("viewFn", viewFn)
           .toString();
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return Collections.<TupleTag<?>, PValue>singletonMap(tag, pCollection);
     }
   }
 }

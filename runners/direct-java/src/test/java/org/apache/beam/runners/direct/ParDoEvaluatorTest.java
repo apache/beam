@@ -149,6 +149,7 @@ public class ParDoEvaluatorTest {
                 Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
 
+    DirectGraphs.performDirectOverrides(p);
     @SuppressWarnings("unchecked")
     AppliedPTransform<PCollection<Integer>, ?, ?> transform =
         (AppliedPTransform<PCollection<Integer>, ?, ?>) DirectGraphs.getProducer(output);
