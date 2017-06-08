@@ -168,11 +168,13 @@ class _GrpcDataChannel(DataChannel):
 
   def output_stream(self, instruction_id, target):
     def add_to_send_queue(data):
-      self._to_send.put(
-          beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              target=target,
-              data=data))
+      if data:
+        self._to_send.put(
+            beam_fn_api_pb2.Elements.Data(
+                instruction_reference=instruction_id,
+                target=target,
+                data=data))
+      # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
