@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -26,6 +27,7 @@ import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,28 +64,42 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollectionTuple,
+        PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
   @Override
   public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
-              transform) {
+                  PCollection<? extends InputT>, PCollectionTuple,
+                  PTransform<PCollection<? extends InputT>, PCollectionTuple>>
+              application) {
     return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        getReplacementTransform(transform.getTransform()));
+        PTransformReplacements.getSingletonMainInput(application),
+        getReplacementForApplication(application));
   }
 
   @SuppressWarnings("unchecked")
-  private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
-      MultiOutput<InputT, OutputT> transform) {
+  private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementForApplication(
+      AppliedPTransform<
+              PCollection<? extends InputT>, PCollectionTuple,
+              PTransform<PCollection<? extends InputT>, PCollectionTuple>>
+          application) {
 
-    DoFn<InputT, OutputT> fn = transform.getFn();
+    DoFn<InputT, OutputT> fn;
+    try {
+      fn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(application);
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
+    }
+
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
-      return (PTransform) SplittableParDo.forJavaParDo(transform);
+      return (PTransform) SplittableParDo.forAppliedParDo(application);
     } else if (signature.stateDeclarations().size() > 0
         || signature.timerDeclarations().size() > 0) {
+
+      MultiOutput<InputT, OutputT> transform =
+          (MultiOutput<InputT, OutputT>) application.getTransform();
 
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
@@ -93,7 +109,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
           transform.getAdditionalOutputTags(),
           transform.getSideInputs());
     } else {
-      return transform;
+      return application.getTransform();
     }
   }
 
