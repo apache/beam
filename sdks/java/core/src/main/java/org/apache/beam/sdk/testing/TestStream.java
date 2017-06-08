@@ -271,6 +271,18 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     return events;
   }
 
+  /**
+   * <b>For internal use only. No backwards-compatibility guarantees.</b>
+   *
+   * <p>Builder a test stream directly from events. No validation is performed on
+   * watermark monotonicity, etc. This is assumed to be a previously-serialized
+   * {@link TestStream} transform that is correct by construction.
+   */
+  @Internal
+  public static <T> TestStream<T> fromRawEvents(Coder<T> coder, List<Event<T>> events) {
+    return new TestStream<>(coder, events);
+  }
+
   @Override
   public boolean equals(Object other) {
     if (!(other instanceof TestStream)) {
