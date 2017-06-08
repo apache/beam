@@ -62,12 +62,12 @@ public class StreamingInserts<DestinationT>
    * Specify a retry policy for failed inserts.
    */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
-    return new StreamingInserts<>(
+    return new StreamingInserts<DestinationT>(
         createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
-    return new StreamingInserts<>(
+    return new StreamingInserts<DestinationT>(
         createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
 
 
