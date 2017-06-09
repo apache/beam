@@ -28,12 +28,9 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.CombiningState;
-import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -43,7 +40,11 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Iterator;
+import java.util.Map;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -153,5 +154,42 @@ public class JStormStateInternalsTest {
         assertEquals(Integer.MIN_VALUE, watermarkHoldState.read().getMillis());
         watermarkHoldState.add(new Instant(Integer.MAX_VALUE));
         assertEquals(Integer.MIN_VALUE, watermarkHoldState.read().getMillis());
+    }
+
+    @Test
+    public void testMapState() throws Exception {
+        MapState<Integer, Integer> mapStateA = jstormStateInternals.state(
+                StateNamespaces.global(), StateTags.map("state-id-a", BigEndianIntegerCoder.of(), BigEndianIntegerCoder.of()));
+        mapStateA.put(1, 1);
+        mapStateA.put(2, 22);
+        mapStateA.put(1, 12);
+
+        Iterable<Integer> keys = mapStateA.keys().read();
+        Iterable<Integer> values = mapStateA.values().read();
+        assertThat(keys, containsInAnyOrder(1, 2));
+        assertThat(values, containsInAnyOrder(12, 22));
+
+        Iterable<Map.Entry<Integer, Integer>> entries =  mapStateA.entries().read();
+        Iterator<Map.Entry<Integer, Integer>> itr = entries.iterator();
+        Map.Entry<Integer, Integer> entry = itr.next();
+        assertEquals((long) entry.getKey(), 1l);
+        assertEquals((long) entry.getValue(), 12l);
+        entry = itr.next();
+        assertEquals((long) entry.getKey(), 2l);
+        assertEquals((long) entry.getValue(), 22l);
+        assertEquals(false, itr.hasNext());
+
+        mapStateA.remove(1);
+        keys = mapStateA.keys().read();
+        values = mapStateA.values().read();
+        assertThat(keys, containsInAnyOrder(2));
+        assertThat(values, containsInAnyOrder(22));
+
+        entries =  mapStateA.entries().read();
+        itr = entries.iterator();
+        entry = itr.next();
+        assertEquals((long) entry.getKey(), 2l);
+        assertEquals((long) entry.getValue(), 22l);
+        assertEquals(false, itr.hasNext());
     }
 }
