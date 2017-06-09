@@ -20,10 +20,10 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
-from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.portability import maptask_executor_runner_test
 
 
-class FnApiRunnerTest(maptask_executor_runner.MapTaskExecutorRunner):
+class FnApiRunnerTest(maptask_executor_runner_test.MapTaskExecutorRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
