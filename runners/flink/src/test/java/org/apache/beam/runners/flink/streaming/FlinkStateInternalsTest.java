@@ -63,18 +63,21 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     }
   }
 
-  @Override
-  protected boolean isReuseInstances() {
-    return false;
-  }
+  ///////////////////////// Unsupported tests \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   @Override
-  protected boolean isTestSetState() {
-    return false;
-  }
+  public void testSet() {}
 
   @Override
-  protected boolean isTestMapState() {
-    return false;
-  }
+  public void testSetIsEmpty() {}
+
+  @Override
+  public void testMergeSetIntoSource() {}
+
+  @Override
+  public void testMergeSetIntoNewNamespace() {}
+
+  @Override
+  public void testMap() {}
+
 }

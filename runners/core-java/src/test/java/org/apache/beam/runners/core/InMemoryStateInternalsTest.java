@@ -17,33 +17,58 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.junit.Assert.assertThat;
+
+import org.apache.beam.sdk.state.State;
+import org.hamcrest.Matchers;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Suite;
 
 /**
  * Tests for {@link InMemoryStateInternals}. This is based on {@link StateInternalsTest}.
  */
-@RunWith(JUnit4.class)
-public class InMemoryStateInternalsTest extends StateInternalsTest {
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+    InMemoryStateInternalsTest.StandardStateInternalsTests.class,
+    InMemoryStateInternalsTest.OtherTests.class
+})
+public class InMemoryStateInternalsTest {
 
-  @Override
-  protected StateInternals createStateInternals() {
-    return new InMemoryStateInternals<>("dummyKey");
+  /**
+   * A standard StateInternals test.
+   */
+  @RunWith(JUnit4.class)
+  public static class StandardStateInternalsTests extends StateInternalsTest {
+    @Override
+    protected StateInternals createStateInternals() {
+      return new InMemoryStateInternals<>("dummyKey");
+    }
   }
 
-  @Override
-  protected boolean isReuseInstances() {
-    return true;
-  }
+  /**
+   * A specific test of InMemoryStateInternals.
+   */
+  @RunWith(JUnit4.class)
+  public static class OtherTests {
 
-  @Override
-  protected boolean isTestSetState() {
-    return true;
-  }
+    StateInternals underTest = new InMemoryStateInternals<>("dummyKey");
 
-  @Override
-  protected boolean isTestMapState() {
-    return true;
+    @Test
+    public void testSameInstance() {
+      assertSameInstance(StateInternalsTest.STRING_VALUE_ADDR);
+      assertSameInstance(StateInternalsTest.SUM_INTEGER_ADDR);
+      assertSameInstance(StateInternalsTest.STRING_BAG_ADDR);
+      assertSameInstance(StateInternalsTest.STRING_SET_ADDR);
+      assertSameInstance(StateInternalsTest.STRING_MAP_ADDR);
+      assertSameInstance(StateInternalsTest.WATERMARK_EARLIEST_ADDR);
+    }
+
+    private <T extends State> void assertSameInstance(StateTag<T> address) {
+      assertThat(underTest.state(StateInternalsTest.NAMESPACE_1, address),
+          Matchers.sameInstance(underTest.state(StateInternalsTest.NAMESPACE_1, address)));
+    }
   }
 
 }

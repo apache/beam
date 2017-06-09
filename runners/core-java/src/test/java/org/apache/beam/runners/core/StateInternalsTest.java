@@ -26,7 +26,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -45,7 +44,6 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -57,22 +55,22 @@ import org.junit.Test;
 public abstract class StateInternalsTest {
 
   private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
-  private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
+  static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
 
-  private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
+  static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  private static final StateTag<CombiningState<Integer, int[], Integer>>
+  static final StateTag<CombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
-  private static final StateTag<BagState<String>> STRING_BAG_ADDR =
+  static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
-  private static final StateTag<SetState<String>> STRING_SET_ADDR =
+  static final StateTag<SetState<String>> STRING_SET_ADDR =
       StateTags.set("stringSet", StringUtf8Coder.of());
-  private static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
+  static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
       StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
-  private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
+  static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
   private static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
@@ -80,39 +78,23 @@ public abstract class StateInternalsTest {
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
 
   private StateInternals underTest;
-  private boolean reuseInstances;
-  private boolean testSetState;
-  private boolean testMapState;
 
   @Before
   public void setUp() {
     this.underTest = createStateInternals();
-    this.reuseInstances = isReuseInstances();
-    this.testSetState = isTestSetState();
-    this.testMapState = isTestMapState();
   }
 
   protected abstract StateInternals createStateInternals();
-
-  protected abstract boolean isReuseInstances();
-
-  protected abstract boolean isTestSetState();
-
-  protected abstract boolean isTestMapState();
-
-  private <T> Matcher<T> sameInstanceOrEquals(T t) {
-    return reuseInstances ? Matchers.sameInstance(t) : equalTo(t);
-  }
 
   @Test
   public void testValue() throws Exception {
     ValueState<String> value = underTest.state(NAMESPACE_1, STRING_VALUE_ADDR);
 
     // State instances are cached, but depend on the namespace.
-    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
     assertThat(
         underTest.state(NAMESPACE_2, STRING_VALUE_ADDR),
-        Matchers.not(sameInstanceOrEquals(value)));
+        Matchers.not(equalTo(value)));
 
     assertThat(value.read(), Matchers.nullValue());
     value.write("hello");
@@ -122,7 +104,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), Matchers.nullValue());
-    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, STRING_VALUE_ADDR), equalTo(value));
   }
 
   @Test
@@ -142,7 +124,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
-    assertThat(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), equalTo(value));
   }
 
   @Test
@@ -195,8 +177,6 @@ public abstract class StateInternalsTest {
   @Test
   public void testSet() throws Exception {
 
-    assumeTrue(testSetState);
-
     SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
 
     // State instances are cached, but depend on the namespace.
@@ -235,14 +215,12 @@ public abstract class StateInternalsTest {
     // clear
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
-    assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, STRING_SET_ADDR), equalTo(value));
 
   }
 
   @Test
   public void testSetIsEmpty() throws Exception {
-
-    assumeTrue(testSetState);
 
     SetState<String> value = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
 
@@ -257,8 +235,6 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testMergeSetIntoSource() throws Exception {
-
-    assumeTrue(testSetState);
 
     SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
     SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
@@ -277,8 +253,6 @@ public abstract class StateInternalsTest {
 
   @Test
   public void testMergeSetIntoNewNamespace() throws Exception {
-
-    assumeTrue(testSetState);
 
     SetState<String> set1 = underTest.state(NAMESPACE_1, STRING_SET_ADDR);
     SetState<String> set2 = underTest.state(NAMESPACE_2, STRING_SET_ADDR);
@@ -350,8 +324,6 @@ public abstract class StateInternalsTest {
   @Test
   public void testMap() throws Exception {
 
-    assumeTrue(testMapState);
-
     MapState<String, Integer> value = underTest.state(NAMESPACE_1, STRING_MAP_ADDR);
 
     // State instances are cached, but depend on the namespace.
@@ -399,7 +371,7 @@ public abstract class StateInternalsTest {
     // clear
     value.clear();
     assertThat(value.entries().read(), Matchers.emptyIterable());
-    assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
   }
 
   @Test
@@ -420,7 +392,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), equalTo(0));
-    assertThat(underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR), equalTo(value));
   }
 
   @Test
@@ -499,7 +471,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), equalTo(null));
-    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), equalTo(value));
   }
 
   @Test
@@ -523,7 +495,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), equalTo(null));
-    assertThat(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), equalTo(value));
   }
 
   @Test
@@ -540,7 +512,7 @@ public abstract class StateInternalsTest {
 
     value.clear();
     assertThat(value.read(), equalTo(null));
-    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), sameInstanceOrEquals(value));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), equalTo(value));
   }
 
   @Test
