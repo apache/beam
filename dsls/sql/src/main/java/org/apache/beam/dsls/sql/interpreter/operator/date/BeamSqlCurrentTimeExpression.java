@@ -27,7 +27,7 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for CURRENT_TIME & CURRENT_TIMESTAMP.
+ * {@code BeamSqlExpression} for CURRENT_TIME and CURRENT_TIMESTAMP.
  *
  * <p>Returns the current time in the session time zone, in a value of datatype
  * TIMESTAMP WITH TIME ZONE.
