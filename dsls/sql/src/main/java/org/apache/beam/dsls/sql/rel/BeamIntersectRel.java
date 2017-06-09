@@ -43,8 +43,8 @@ public class BeamIntersectRel extends Intersect implements BeamRelNode {
       List<RelNode> inputs,
       boolean all) {
     super(cluster, traits, inputs, all);
-    delegate = new BeamSetOperatorRelBase(BeamSetOperatorRelBase.OpType.INTERSECT,
-        inputs, all);
+    delegate = new BeamSetOperatorRelBase(this,
+        BeamSetOperatorRelBase.OpType.INTERSECT, inputs, all);
   }
 
   @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {

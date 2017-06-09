@@ -23,8 +23,7 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.transform.BeamSQLRow2KvFn;
-import org.apache.beam.dsls.sql.transform.SetOperatorFilteringDoFn;
+import org.apache.beam.dsls.sql.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -51,10 +50,14 @@ public class BeamSetOperatorRelBase {
     MINUS
   }
 
+  private BeamRelNode beamRelNode;
   private List<RelNode> inputs;
   private boolean all;
   private OpType opType;
-  public BeamSetOperatorRelBase(OpType opType, List<RelNode> inputs, boolean all) {
+
+  public BeamSetOperatorRelBase(BeamRelNode beamRelNode, OpType opType,
+      List<RelNode> inputs, boolean all) {
+    this.beamRelNode = beamRelNode;
     this.opType = opType;
     this.inputs = inputs;
     this.all = all;
@@ -78,28 +81,18 @@ public class BeamSetOperatorRelBase {
     final TupleTag<BeamSQLRow> leftTag = new TupleTag<>();
     final TupleTag<BeamSQLRow> rightTag = new TupleTag<>();
 
-    boolean useEmptyRow;
-    switch (opType) {
-      case INTERSECT:
-      case UNION:
-        useEmptyRow = !all;
-        break;
-      case MINUS:
-        useEmptyRow = false;
-        break;
-      default:
-        throw new IllegalArgumentException("Unexpected set operator type: " + opType);
-    }
-
     // co-group
+    String stageName = BeamSQLRelUtils.getStageName(beamRelNode);
     PCollection<KV<BeamSQLRow, CoGbkResult>> coGbkResultCollection = KeyedPCollectionTuple
         .of(leftTag, leftRows.apply(
-            "CreateLeftIndex", MapElements.via(new BeamSQLRow2KvFn(useEmptyRow))))
+            stageName + "_CreateLeftIndex", MapElements.via(
+                new BeamSetOperatorsTransforms.BeamSQLRow2KvFn())))
         .and(rightTag, rightRows.apply(
-            "CreateRightIndex", MapElements.via(new BeamSQLRow2KvFn(useEmptyRow))))
+            stageName + "_CreateRightIndex", MapElements.via(
+                new BeamSetOperatorsTransforms.BeamSQLRow2KvFn())))
         .apply(CoGroupByKey.<BeamSQLRow>create());
     PCollection<BeamSQLRow> ret = coGbkResultCollection
-        .apply(ParDo.of(new SetOperatorFilteringDoFn(leftTag, rightTag,
+        .apply(ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(leftTag, rightTag,
             opType, all)));
     return ret;
   }

@@ -41,7 +41,8 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
   public BeamMinusRel(RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs,
       boolean all) {
     super(cluster, traits, inputs, all);
-    delegate = new BeamSetOperatorRelBase(BeamSetOperatorRelBase.OpType.MINUS, inputs, all);
+    delegate = new BeamSetOperatorRelBase(this,
+        BeamSetOperatorRelBase.OpType.MINUS, inputs, all);
   }
 
   @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {

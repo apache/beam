@@ -68,7 +68,8 @@ public class BeamUnionRel extends Union implements BeamRelNode {
       List<RelNode> inputs,
       boolean all) {
     super(cluster, traits, inputs, all);
-    this.delegate = new BeamSetOperatorRelBase(BeamSetOperatorRelBase.OpType.UNION,
+    this.delegate = new BeamSetOperatorRelBase(this,
+        BeamSetOperatorRelBase.OpType.UNION,
         inputs, all);
   }
 
