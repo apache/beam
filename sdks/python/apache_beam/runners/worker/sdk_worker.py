@@ -359,7 +359,7 @@ class SdkWorker(object):
               source=SideInputSource(
                   self.state_handler,
                   beam_fn_api_pb2.StateKey(
-                      function_spec_reference=si.view_fn.id),
+                      key=si.view_fn.id.encode('utf-8')),
                   coder=unpack_and_deserialize_py_fn(si.view_fn)))
         output_tags = list(transform.outputs.keys())
         spec = operation_specs.WorkerDoFn(
