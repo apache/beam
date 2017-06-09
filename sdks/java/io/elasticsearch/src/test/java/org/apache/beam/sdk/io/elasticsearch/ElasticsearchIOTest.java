@@ -39,11 +39,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeBuilder;
 import org.hamcrest.CustomMatcher;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -74,9 +74,10 @@ public class ElasticsearchIOTest implements Serializable {
   private static final long BATCH_SIZE_BYTES = 2048L;
 
   private static Node node;
+  private static RestClient restClient;
   private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration;
 
-  @ClassRule public static TemporaryFolder folder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
@@ -91,8 +92,8 @@ public class ElasticsearchIOTest implements Serializable {
             .put("cluster.name", "beam")
             .put("http.enabled", "true")
             .put("node.data", "true")
-            .put("path.data", folder.getRoot().getPath())
-            .put("path.home", folder.getRoot().getPath())
+            .put("path.data", TEMPORARY_FOLDER.getRoot().getPath())
+            .put("path.home", TEMPORARY_FOLDER.getRoot().getPath())
             .put("node.name", "beam")
             .put("network.host", ES_IP)
             .put("http.port", esHttpPort)
@@ -100,27 +101,29 @@ public class ElasticsearchIOTest implements Serializable {
             // had problems with some jdk, embedded ES was too slow for bulk insertion,
             // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
             .put("threadpool.bulk.queue_size", 100);
-    node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
+    node = new Node(settingsBuilder.build());
     LOG.info("Elasticsearch node created");
     node.start();
     connectionConfiguration =
       ElasticsearchIO.ConnectionConfiguration.create(
         new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
+    restClient = connectionConfiguration.createClient();
   }
 
   @AfterClass
-  public static void afterClass() {
+  public static void afterClass() throws IOException{
+    restClient.close();
     node.close();
   }
 
   @Before
   public void before() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(ES_INDEX, node.client());
+    ElasticSearchIOTestUtils.deleteIndex(ES_INDEX, restClient);
   }
 
   @Test
   public void testSizes() throws Exception {
-    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -134,7 +137,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testRead() throws Exception {
-    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
 
     PCollection<String> output =
         pipeline.apply(
@@ -150,7 +153,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testReadWithQuery() throws Exception {
-    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
 
     String query =
         "{\n"
@@ -185,7 +188,7 @@ public class ElasticsearchIOTest implements Serializable {
     pipeline.run();
 
     long currentNumDocs =
-        ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(ES_INDEX, ES_TYPE, node.client());
+        ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs(ES_INDEX, ES_TYPE, restClient);
     assertEquals(NUM_DOCS, currentNumDocs);
 
     QueryBuilder queryBuilder = QueryBuilders.queryStringQuery("Einstein").field("scientist");
@@ -258,9 +261,8 @@ public class ElasticsearchIOTest implements Serializable {
       if ((numDocsProcessed % 100) == 0) {
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
-        long currentNumDocs =
-            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(
-                ES_INDEX, ES_TYPE, node.client());
+        long currentNumDocs = ElasticSearchIOTestUtils
+            .refreshIndexAndGetCurrentNumDocs(ES_INDEX, ES_TYPE, restClient);
         if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
           assertEquals(
@@ -304,8 +306,8 @@ public class ElasticsearchIOTest implements Serializable {
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
         long currentNumDocs =
-            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(
-                ES_INDEX, ES_TYPE, node.client());
+            ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs(
+                ES_INDEX, ES_TYPE, restClient);
         if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
           /* bundle end */
           assertThat(
@@ -327,7 +329,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testSplit() throws Exception {
-    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
