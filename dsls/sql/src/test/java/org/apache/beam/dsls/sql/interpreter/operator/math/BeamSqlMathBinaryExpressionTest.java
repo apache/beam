@@ -64,13 +64,13 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSQLFnExecutorTestBase {
   }
 
   @Test public void testRoundFunction() {
-    // operands are of type long, int, tinyint
+    // test round functions with operands of type bigint, int,
+    // tinyint, smallint, double, decimal
     List<BeamSqlExpression> operands = new ArrayList<>();
-
+    // round(double, double) => double
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.0));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
     assertEquals(2.0, new BeamSqlRoundExpression(operands).evaluate(record).getValue());
-    // operands are of type decimal, double, big decimal
     // round(integer,integer) => integer
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
@@ -109,7 +109,6 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSQLFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 3.78683686458));
     assertEquals(4.0, new BeamSqlRoundExpression(operands).evaluate(record).getValue());
 
-    //378.683686458
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 378.683686458));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, -2));
@@ -124,10 +123,10 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSQLFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.2));
-    assertEquals(2,
-        new BeamSqlRoundExpression(operands).evaluate(record).getValue());
+    assertEquals(2, new BeamSqlRoundExpression(operands).evaluate(record).getValue());
 
     // operand with a BeamSqlInputRefExpression
+    // to select a column value from row of a record
     operands.clear();
     BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
     operands.add(ref0);
