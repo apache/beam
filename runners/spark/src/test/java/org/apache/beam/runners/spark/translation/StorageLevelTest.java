@@ -58,12 +58,12 @@ public class StorageLevelTest {
 
   @Test
   public void test() throws Exception {
-    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
+    PCollection<String> pCollection = pipeline.apply("CreateFoo", Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
     // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
     // That's why we are using Count fn on the PCollection.
-    pCollection.apply(Count.<String>globally());
+    pCollection.apply("CountAll", Count.<String>globally());
 
     PCollection<String> output = pCollection.apply(new StorageLevelPTransform());
 
