@@ -23,7 +23,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * An primitive operation for direct field extraction.
  */
-public class BeamSqlInputRefExpression extends BeamSqlExpression{
+public class BeamSqlInputRefExpression extends BeamSqlExpression {
   private int inputRef;
 
   public BeamSqlInputRefExpression(SqlTypeName sqlTypeName, int inputRef) {
@@ -33,14 +33,11 @@ public class BeamSqlInputRefExpression extends BeamSqlExpression{
 
   @Override
   public boolean accept() {
-    // TODO Auto-generated method stub
-    return false;
+    return true;
   }
 
   @Override
   public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
   }
-
-
 }

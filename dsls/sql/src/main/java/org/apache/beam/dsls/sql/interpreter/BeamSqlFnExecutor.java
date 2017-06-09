@@ -293,7 +293,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
     if (ret != null && !ret.accept()) {
       throw new IllegalStateException(ret.getClass().getSimpleName()
-          + " does not accept the operands: " + rexNode);
+          + " does not accept the operands.(" + rexNode + ")");
     }
 
     return ret;
