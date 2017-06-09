@@ -18,6 +18,7 @@
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
 import com.alibaba.jstorm.cache.IKvStore;
+import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.slf4j.Logger;
@@ -30,9 +31,13 @@ import java.util.Map;
 public class JStormMapState<K, V> implements MapState<K, V> {
     private static final Logger LOG = LoggerFactory.getLogger(JStormMapState.class);
 
+    private final K key;
+    private final StateNamespace namespace;
     private IKvStore<K, V> kvStore;
 
-    public JStormMapState(IKvStore<K, V> kvStore) {
+    public JStormMapState(K key, StateNamespace namespace, IKvStore<K, V> kvStore) {
+        this.key = key;
+        this.namespace = namespace;
         this.kvStore = kvStore;
     }
 
@@ -52,7 +57,9 @@ public class JStormMapState<K, V> implements MapState<K, V> {
             V value = kvStore.get(var1);
             if (value == null) {
                 kvStore.put(var1, var2);
-                ret = new MapReadableState(var1, kvStore);
+                ret = new MapReadableState<>(null);
+            } else {
+                ret = new MapReadableState<>(value);
             }
         } catch (IOException e) {
             reportError(String.format("Failed to putIfAbsent key=%s, value=%s", var1, var2), e);
@@ -71,28 +78,52 @@ public class JStormMapState<K, V> implements MapState<K, V> {
 
     @Override
     public ReadableState<V> get(K var1) {
-        return new MapReadableState(var1, kvStore);
+        ReadableState<V> ret = new MapReadableState<>(null);
+        try {
+            ret = new MapReadableState(kvStore.get(var1));
+        } catch (IOException e) {
+            reportError(String.format("Failed to get value for key=%s", var1), e);
+        }
+        return ret;
     }
 
     @Override
     public ReadableState<Iterable<K>> keys() {
-        throw new UnsupportedOperationException();
+        ReadableState<Iterable<K>> ret = new MapReadableState<>(null);
+        try {
+            ret = new MapReadableState<>(kvStore.keys());
+        } catch (IOException e) {
+            reportError(String.format("Failed to get keys"), e);
+        }
+        return ret;
     }
 
     @Override
     public ReadableState<Iterable<V>> values() {
-        throw new UnsupportedOperationException();
+        ReadableState<Iterable<V>> ret = new MapReadableState<>(null);
+        try {
+            ret = new MapReadableState<>(kvStore.values());
+        } catch (IOException e) {
+            reportError(String.format("Failed to get values"), e);
+        }
+        return ret;
     }
 
     @Override
     public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
-        throw new UnsupportedOperationException();
+        ReadableState<Iterable<Map.Entry<K, V>>> ret = new MapReadableState<>(null);
+        try {
+            ret = new MapReadableState<>(kvStore.entries());
+        } catch (IOException e) {
+            reportError(String.format("Failed to get values"), e);
+        }
+        return ret;
     }
 
     @Override
     public void clear() {
         try {
-            Collection<K> keys = kvStore.listKeys();
+            Iterable<K> keys = kvStore.keys();
             kvStore.removeBatch(keys);
         } catch (IOException e) {
             reportError(String.format("Failed to clear map state"), e);
@@ -104,28 +135,20 @@ public class JStormMapState<K, V> implements MapState<K, V> {
         throw new RuntimeException(errorInfo);
     }
 
-    private class MapReadableState implements ReadableState<V> {
-        private IKvStore<K, V> kvStore;
-        private K key;
+    private class MapReadableState<T> implements ReadableState<T> {
+        private T value;
 
-        public MapReadableState(K key, IKvStore<K, V> kvStore) {
-            this.key = key;
-            this.kvStore = kvStore;
+        public MapReadableState(T value) {
+            this.value = value;
         }
 
         @Override
-        public V read() {
-            V ret = null;
-            try {
-                ret = kvStore.get(key);
-            } catch (IOException e) {
-                reportError(String.format("Failed to read later, key=%s", key), e);
-            }
-            return ret;
+        public T read() {
+            return value;
         }
 
         @Override
-        public ReadableState<V> readLater() {
+        public ReadableState<T> readLater() {
             return this;
         }
     }
