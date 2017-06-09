@@ -351,10 +351,12 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     source = self._applied_ptransform.transform._source
     subscription_name = (
         source.subscription or 'dataflow_%x' % random.randrange(1 << 32))
-    self._subscription = self.create_subscription(
-        source.topic, subscription_name)
-    if not source.subscription:
-      self._subscription.create()
+    self._subscription = self._execution_context.legacy_existing_state
+    if not self._subscription:
+      self._subscription = self.create_subscription(
+          source.topic, subscription_name)
+      if not source.subscription:
+        self._subscription.create()
 
   _subscription_cache = {}
   @classmethod
@@ -363,12 +365,14 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if key not in cls._subscription_cache:
       from google.cloud import pubsub
       cls._subscription_cache[key] = (
-          pubsub.Client().topic(topic).subscription(subscription_name))
+          pubsub.Client().topic(topic).subscription(subscription_name, ack_deadline=30))
     return cls._subscription_cache[key]
 
-  def __del__(self):
-    if not self._applied_ptransform.transform._source.subscription:
-      self._subscription.delete()
+  # TODO(ccy): this should be run when we terminate execution, but not when
+  # this specific evaluator instance is deleted.
+  # def __del__(self):
+  #   if not self._applied_ptransform.transform._source.subscription:
+  #     self._subscription.delete()
 
   def start_bundle(self):
     pass
@@ -393,15 +397,15 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
     return TransformResult(
         self._applied_ptransform, bundles,
-        unprocessed_bundle, None, None, None, None,
+        unprocessed_bundle, None, self._subscription, None, None,
         Timestamp.of(time.time()))
 
   def _read_from_pubsub(self):
-    results = self._subscription.pull(return_immediately=True)
-    if results:
-      # Direct runner has no retry.
-      self._subscription.acknowledge([ack_id for ack_id, message in results])
-    return [message.data for ack_id, message in results]
+    from google.cloud import pubsub
+    print 'READ FROM PUBSUB'
+    with pubsub.subscription.AutoAck(self._subscription, return_immediately=True, max_messages=10) as results:
+      print 'DONE READ FROM PUBSUB'
+      return [message.data for ack_id, message in results.items()]
 
 
 class _FlattenEvaluator(_TransformEvaluator):
