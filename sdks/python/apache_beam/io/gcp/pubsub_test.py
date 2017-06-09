@@ -22,8 +22,6 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam.io.gcp.pubsub import _decodeUtf8String
-from apache_beam.io.gcp.pubsub import _encodeUtf8String
 from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
 from apache_beam.io.gcp.pubsub import _PubSubPayloadSource
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
@@ -118,14 +116,6 @@ class TestPubSubSink(unittest.TestCase):
         DisplayDataItemMatcher('topic', 'a_topic')]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-
-class TestEncodeDecodeUtf8String(unittest.TestCase):
-  def test_encode(self):
-    self.assertEqual(b'test_data', _encodeUtf8String('test_data'))
-
-  def test_decode(self):
-    self.assertEqual('test_data', _decodeUtf8String(b'test_data'))
 
 
 if __name__ == '__main__':
