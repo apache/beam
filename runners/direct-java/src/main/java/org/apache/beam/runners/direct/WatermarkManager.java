@@ -54,6 +54,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -62,7 +63,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
@@ -831,11 +831,11 @@ class WatermarkManager {
 
   private Collection<Watermark> getInputProcessingWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
-    Map<TupleTag<?>, PValue> inputs = transform.getInputs();
+    Collection<PValue> inputs = TransformInputs.nonAdditionalInputs(transform);
     if (inputs.isEmpty()) {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs.values()) {
+    for (PValue pvalue : inputs) {
       Watermark producerOutputWatermark =
           getValueWatermark(pvalue).synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
@@ -845,11 +845,11 @@ class WatermarkManager {
 
   private List<Watermark> getInputWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWatermarksBuilder = ImmutableList.builder();
-    Map<TupleTag<?>, PValue> inputs = transform.getInputs();
+    Collection< PValue> inputs = TransformInputs.nonAdditionalInputs(transform);
     if (inputs.isEmpty()) {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs.values()) {
+    for (PValue pvalue : inputs) {
       Watermark producerOutputWatermark = getValueWatermark(pvalue).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
@@ -987,7 +987,7 @@ class WatermarkManager {
     // refresh.
     for (CommittedBundle<?> bundle : result.getOutputs()) {
       for (AppliedPTransform<?, ?, ?> consumer :
-          graph.getPrimitiveConsumers(bundle.getPCollection())) {
+          graph.getPerElementConsumers(bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
       }
@@ -1035,7 +1035,7 @@ class WatermarkManager {
     if (updateResult.isAdvanced()) {
       Set<AppliedPTransform<?, ?, ?>> additionalRefreshes = new HashSet<>();
       for (PValue outputPValue : toRefresh.getOutputs().values()) {
-        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue));
+        additionalRefreshes.addAll(graph.getPerElementConsumers(outputPValue));
       }
       return additionalRefreshes;
     }

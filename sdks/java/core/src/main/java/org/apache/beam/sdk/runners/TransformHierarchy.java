@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
@@ -71,7 +70,7 @@ public class TransformHierarchy {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
-    root = new Node(null, null, "", null);
+    root = new Node();
     current = root;
   }
 
@@ -297,10 +296,18 @@ public class TransformHierarchy {
     boolean finishedSpecifying = false;
 
     /**
+     * Creates the root-level node. The root level node has a null enclosing node, a null transform,
+     * an empty map of inputs, and a name equal to the empty string.
+     */
+    private Node() {
+      this.enclosingNode = null;
+      this.transform = null;
+      this.fullName = "";
+      this.inputs = Collections.emptyMap();
+    }
+
+    /**
      * Creates a new Node with the given parent and transform.
-     *
-     * <p>EnclosingNode and transform may both be null for a root-level node, which holds all other
-     * nodes.
      *
      * @param enclosingNode the composite node containing this node
      * @param transform the PTransform tracked by this node
@@ -308,14 +315,17 @@ public class TransformHierarchy {
      * @param input the unexpanded input to the transform
      */
     private Node(
-        @Nullable Node enclosingNode,
-        @Nullable PTransform<?, ?> transform,
+        Node enclosingNode,
+        PTransform<?, ?> transform,
         String fullName,
-        @Nullable PInput input) {
+        PInput input) {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
-      this.inputs = input == null ? Collections.<TupleTag<?>, PValue>emptyMap() : input.expand();
+      ImmutableMap.Builder<TupleTag<?>, PValue> inputs = ImmutableMap.builder();
+      inputs.putAll(input.expand());
+      inputs.putAll(transform.getAdditionalInputs());
+      this.inputs = inputs.build();
     }
 
     /**

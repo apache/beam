@@ -117,6 +117,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator =
         delegateFactory.createEvaluator(
             (AppliedPTransform) application,
+            (PCollection) inputBundle.getPCollection(),
             inputBundle.getKey(),
             doFn,
             application.getTransform().getUnderlyingParDo().getSideInputs(),
