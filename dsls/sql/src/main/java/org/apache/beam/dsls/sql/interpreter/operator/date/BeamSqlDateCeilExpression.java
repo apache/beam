@@ -45,7 +45,6 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
   @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     Date date = opValueEvaluated(0, inputRecord);
     long time = date.getTime();
-    time -= 8 * 3600;
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();
 
     long newTime = DateTimeUtils.unixTimestampCeil(unit, time);

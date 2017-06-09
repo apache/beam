@@ -39,7 +39,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyE
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpression;
@@ -332,14 +331,6 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlCurrentDateExpression);
-
-    // CURRENT_TIMESTAMP
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_TIMESTAMP,
-        Arrays.<RexNode>asList(
-        )
-    );
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlCurrentTimestampExpression);
 
     // LOCALTIME
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIME,

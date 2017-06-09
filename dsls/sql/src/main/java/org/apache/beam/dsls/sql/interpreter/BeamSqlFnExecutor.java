@@ -48,7 +48,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyE
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpression;
@@ -211,11 +210,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "LOCALTIMESTAMP":
           return new BeamSqlLocalTimestampExpression(subExps);
         case "CURRENT_TIME":
+        case "CURRENT_TIMESTAMP":
           return new BeamSqlCurrentTimeExpression();
         case "CURRENT_DATE":
           return new BeamSqlCurrentDateExpression();
-        case "CURRENT_TIMESTAMP":
-          return new BeamSqlCurrentTimestampExpression();
 
 
         case "CASE":
