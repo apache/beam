@@ -26,6 +26,7 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -51,32 +53,45 @@ public class WriteFilesTranslation {
   public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
       "urn:beam:file_based_sink:javasdk:0.1";
 
+  public static final String CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN =
+      "urn:beam:file_based_sink_format_function:javasdk:0.1";
+
   @VisibleForTesting
-  static WriteFilesPayload toProto(WriteFiles<?> transform) {
+  static WriteFilesPayload toProto(WriteFiles<?, ?, ?> transform) {
     return WriteFilesPayload.newBuilder()
         .setSink(toProto(transform.getSink()))
+        .setFormatFunction(toProto(transform.getFormatFunction()))
         .setWindowedWrites(transform.isWindowedWrites())
         .setRunnerDeterminedSharding(
             transform.getNumShards() == null && transform.getSharding() == null)
         .build();
   }
 
-  private static SdkFunctionSpec toProto(FileBasedSink<?> sink) {
+  private static SdkFunctionSpec toProto(FileBasedSink<?, ?> sink) {
+    return toProto(CUSTOM_JAVA_FILE_BASED_SINK_URN, sink);
+  }
+
+  private static SdkFunctionSpec toProto(SerializableFunction<?, ?> serializableFunction) {
+    return toProto(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN, serializableFunction);
+  }
+
+  private static SdkFunctionSpec toProto(String urn, Serializable serializable) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()
-                .setUrn(CUSTOM_JAVA_FILE_BASED_SINK_URN)
+                .setUrn(urn)
                 .setParameter(
                     Any.pack(
                         BytesValue.newBuilder()
                             .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(sink)))
+                                ByteString.copyFrom(
+                                    SerializableUtils.serializeToByteArray(serializable)))
                             .build())))
         .build();
   }
 
   @VisibleForTesting
-  static FileBasedSink<?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
+  static FileBasedSink<?, ?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
     checkArgument(
         sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_URN),
         "Cannot extract %s instance from %s with URN %s",
@@ -87,16 +102,44 @@ public class WriteFilesTranslation {
     byte[] serializedSink =
         sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
 
-    return (FileBasedSink<?>)
+    return (FileBasedSink<?, ?>)
         SerializableUtils.deserializeFromByteArray(
             serializedSink, FileBasedSink.class.getSimpleName());
   }
 
-  public static <T> FileBasedSink<T> getSink(
-      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+  @VisibleForTesting
+  static <InputT, OutputT> SerializableFunction<InputT, OutputT> formatFunctionFromProto(
+      SdkFunctionSpec sinkProto) throws IOException {
+    checkArgument(
+        sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN),
+        "Cannot extract %s instance from %s with URN %s",
+        SerializableFunction.class.getSimpleName(),
+        FunctionSpec.class.getSimpleName(),
+        sinkProto.getSpec().getUrn());
+
+    byte[] serializedFunction =
+        sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+
+    return (SerializableFunction<InputT, OutputT>)
+        SerializableUtils.deserializeFromByteArray(
+            serializedFunction, FileBasedSink.class.getSimpleName());
+  }
+
+  public static <UserT, DestinationT, OutputT> FileBasedSink<OutputT, DestinationT> getSink(
+      AppliedPTransform<PCollection<UserT>, PDone, ? extends PTransform<PCollection<UserT>, PDone>>
           transform)
       throws IOException {
-    return (FileBasedSink<T>) sinkFromProto(getWriteFilesPayload(transform).getSink());
+    return (FileBasedSink<OutputT, DestinationT>)
+        sinkFromProto(getWriteFilesPayload(transform).getSink());
+  }
+
+  public static <InputT, OutputT> SerializableFunction<InputT, OutputT> getFormatFunction(
+      AppliedPTransform<
+              PCollection<InputT>, PDone, ? extends PTransform<PCollection<InputT>, PDone>>
+          transform)
+      throws IOException {
+    return formatFunctionFromProto(
+        getWriteFilesPayload(transform).<InputT, OutputT>getFormatFunction());
   }
 
   public static <T> boolean isWindowedWrites(
@@ -124,15 +167,15 @@ public class WriteFilesTranslation {
         .unpack(WriteFilesPayload.class);
   }
 
-  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?>> {
+  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
     @Override
-    public String getUrn(WriteFiles<?> transform) {
+    public String getUrn(WriteFiles<?, ?, ?> transform) {
       return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, WriteFiles<?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, WriteFiles<?, ?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(toProto(transform.getTransform())))

@@ -52,7 +52,6 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
 
-
 /**
  * Test {@link SparkRunnerDebugger} with different pipelines.
  */
@@ -85,17 +84,20 @@ public class SparkRunnerDebuggerTest {
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
         .apply(TextIO.write().to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
-    final String expectedPipeline = "sparkContext.parallelize(Arrays.asList(...))\n"
-        + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
-        + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
-        + "_.groupByKey()\n"
-        + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
-        + "_.mapPartitions(new org.apache.beam.runners.spark"
-        + ".SparkRunnerDebuggerTest$PlusOne())\n"
-        + "sparkContext.union(...)\n"
-        + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
-        + "_.<org.apache.beam.sdk.io.AutoValue_TextIO_Write>";
+    final String expectedPipeline =
+        "sparkContext.parallelize(Arrays.asList(...))\n"
+            + "_.mapPartitions("
+            + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
+            + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
+            + "_.groupByKey()\n"
+            + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
+            + "_.mapPartitions(new org.apache.beam.runners.spark"
+            + ".SparkRunnerDebuggerTest$PlusOne())\n"
+            + "sparkContext.union(...)\n"
+            + "_.mapPartitions("
+            + "new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
+            + "_.<org.apache.beam.sdk.io.TextIO$Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
         (SparkRunnerDebugger.DebugSparkPipelineResult) pipeline.run();
