@@ -18,9 +18,9 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -55,7 +55,7 @@ import org.joda.time.Duration;
  */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private int windowFieldIdx = -1;
-  private WindowFn<BeamSQLRow, BoundedWindow> windowFn;
+  private WindowFn<BeamSqlRow, BoundedWindow> windowFn;
   private Trigger trigger;
   private Duration allowedLatence = Duration.ZERO;
 
@@ -71,48 +71,48 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
     RelNode input = getInput();
-    String stageName = BeamSQLRelUtils.getStageName(this);
+    String stageName = BeamSqlRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream =
-        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
+    PCollection<BeamSqlRow> upstream =
+        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
     if (windowFieldIdx != -1) {
       upstream = upstream.apply("assignEventTimestamp", WithTimestamps
-          .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
+          .<BeamSqlRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
           .setCoder(upstream.getCoder());
     }
 
-    PCollection<BeamSQLRow> windowStream = upstream.apply("window",
-        Window.<BeamSQLRow>into(windowFn)
+    PCollection<BeamSqlRow> windowStream = upstream.apply("window",
+        Window.<BeamSqlRow>into(windowFn)
         .triggering(trigger)
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
     BeamSqlRowCoder keyCoder = new BeamSqlRowCoder(exKeyFieldsSchema(input.getRowType()));
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply("exGroupBy",
+    PCollection<KV<BeamSqlRow, BeamSqlRow>> exGroupByStream = windowStream.apply("exGroupBy",
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
                 windowFieldIdx, groupSet)))
-        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, upstream.getCoder()));
+        .setCoder(KvCoder.<BeamSqlRow, BeamSqlRow>of(keyCoder, upstream.getCoder()));
 
-    PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
-        .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create())
-        .setCoder(KvCoder.<BeamSQLRow, Iterable<BeamSQLRow>>of(keyCoder,
-            IterableCoder.<BeamSQLRow>of(upstream.getCoder())));
+    PCollection<KV<BeamSqlRow, Iterable<BeamSqlRow>>> groupedStream = exGroupByStream
+        .apply("groupBy", GroupByKey.<BeamSqlRow, BeamSqlRow>create())
+        .setCoder(KvCoder.<BeamSqlRow, Iterable<BeamSqlRow>>of(keyCoder,
+            IterableCoder.<BeamSqlRow>of(upstream.getCoder())));
 
     BeamSqlRowCoder aggCoder = new BeamSqlRowCoder(exAggFieldsSchema());
-    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
-        Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
+    PCollection<KV<BeamSqlRow, BeamSqlRow>> aggregatedStream = groupedStream.apply("aggregation",
+        Combine.<BeamSqlRow, BeamSqlRow, BeamSqlRow>groupedValues(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
-                BeamSQLRecordType.from(input.getRowType()))))
-        .setCoder(KvCoder.<BeamSQLRow, BeamSQLRow>of(keyCoder, aggCoder));
+                BeamSqlRecordType.from(input.getRowType()))))
+        .setCoder(KvCoder.<BeamSqlRow, BeamSqlRow>of(keyCoder, aggCoder));
 
-    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
+    PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply("mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
-            BeamSQLRecordType.from(getRowType()), getAggCallList())));
-    mergedStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
+            BeamSqlRecordType.from(getRowType()), getAggCallList())));
+    mergedStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
 
     return mergedStream;
   }
@@ -120,9 +120,9 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   /**
    * Type of sub-rowrecord used as Group-By keys.
    */
-  private BeamSQLRecordType exKeyFieldsSchema(RelDataType relDataType) {
-    BeamSQLRecordType inputRecordType = BeamSQLRecordType.from(relDataType);
-    BeamSQLRecordType typeOfKey = new BeamSQLRecordType();
+  private BeamSqlRecordType exKeyFieldsSchema(RelDataType relDataType) {
+    BeamSqlRecordType inputRecordType = BeamSqlRecordType.from(relDataType);
+    BeamSqlRecordType typeOfKey = new BeamSqlRecordType();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
         typeOfKey.addField(inputRecordType.getFieldsName().get(i),
@@ -135,8 +135,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   /**
    * Type of sub-rowrecord, that represents the list of aggregation fields.
    */
-  private BeamSQLRecordType exAggFieldsSchema() {
-    BeamSQLRecordType typeOfAggFields = new BeamSQLRecordType();
+  private BeamSqlRecordType exAggFieldsSchema() {
+    BeamSqlRecordType typeOfAggFields = new BeamSqlRecordType();
     for (AggregateCall ac : getAggCallList()) {
       typeOfAggFields.addField(ac.name, ac.type.getSqlTypeName());
     }

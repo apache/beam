@@ -56,10 +56,10 @@ public class BeamSqlRowCoderTest {
       }
     };
 
-    BeamSQLRecordType beamSQLRecordType = BeamSQLRecordType.from(
+    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(
         protoRowType.apply(new JavaTypeFactoryImpl(
         RelDataTypeSystem.DEFAULT)));
-    BeamSQLRow row = new BeamSQLRow(beamSQLRecordType);
+    BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
     row.addField("col_tinyint", Byte.valueOf("1"));
     row.addField("col_smallint", Short.valueOf("1"));
     row.addField("col_integer", 1);

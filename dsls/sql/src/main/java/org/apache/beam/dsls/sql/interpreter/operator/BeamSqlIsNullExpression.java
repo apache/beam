@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -44,7 +44,7 @@ public class BeamSqlIsNullExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSQLRow inputRecord) {
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
     Object leftValue = operands.get(0).evaluate(inputRecord).getValue();
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue == null);
   }

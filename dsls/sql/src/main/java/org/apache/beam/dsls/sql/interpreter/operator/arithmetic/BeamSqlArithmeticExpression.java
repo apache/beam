@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -55,7 +55,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
   /**
    * https://dev.mysql.com/doc/refman/5.7/en/arithmetic-functions.html.
    */
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSQLRow inputRecord) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
     BeamSqlExpression leftOp = operands.get(0);
     BeamSqlExpression rightOp = operands.get(1);
 
@@ -78,7 +78,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     }
   }
 
-  private double getDouble(BeamSQLRow inputRecord, BeamSqlExpression op) {
+  private double getDouble(BeamSqlRow inputRecord, BeamSqlExpression op) {
     Object raw = op.evaluate(inputRecord).getValue();
     Double ret = null;
     if (SqlTypeName.NUMERIC_TYPES.contains(op.getOutputType())) {

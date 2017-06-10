@@ -18,8 +18,8 @@
 package org.apache.beam.dsls.sql.example;
 
 import org.apache.beam.dsls.sql.BeamSql;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,28 +45,28 @@ public class BeamSqlExample {
     Pipeline p = Pipeline.create(options);
 
     //define the input row format
-    BeamSQLRecordType type = new BeamSQLRecordType();
+    BeamSqlRecordType type = new BeamSqlRecordType();
     type.addField("c1", SqlTypeName.INTEGER);
     type.addField("c2", SqlTypeName.VARCHAR);
     type.addField("c3", SqlTypeName.DOUBLE);
-    BeamSQLRow row = new BeamSQLRow(type);
+    BeamSqlRow row = new BeamSqlRow(type);
     row.addField(0, 1);
     row.addField(1, "row");
     row.addField(2, 1.0);
 
     //create a source PCollection with Create.of();
-    PCollection<BeamSQLRow> inputTable = PBegin.in(p).apply(Create.of(row)
+    PCollection<BeamSqlRow> inputTable = PBegin.in(p).apply(Create.of(row)
         .withCoder(new BeamSqlRowCoder(type)));
 
     //run a simple SQL query over input PCollection;
     String sql = "select c2, c3 from TABLE_A where c1=1";
-    PCollection<BeamSQLRow> outputStream = inputTable.apply(BeamSql.simpleQuery(sql));
+    PCollection<BeamSqlRow> outputStream = inputTable.apply(BeamSql.simpleQuery(sql));
 
     //log out the output record;
     outputStream.apply("log_result",
-        MapElements.<BeamSQLRow, Void>via(new SimpleFunction<BeamSQLRow, Void>() {
+        MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
       @Override
-      public Void apply(BeamSQLRow input) {
+      public Void apply(BeamSqlRow input) {
         LOG.info(input.valueInString());
         return null;
       }

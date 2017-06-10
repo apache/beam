@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -57,7 +57,7 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     String targetStr = opValueEvaluated(0, inputRecord);
     String containingStr = opValueEvaluated(1, inputRecord);
     int from = -1;

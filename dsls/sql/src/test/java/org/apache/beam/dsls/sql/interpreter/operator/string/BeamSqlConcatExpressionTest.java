@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -34,7 +34,7 @@ import org.junit.Test;
 /**
  * Test for BeamSqlConcatExpression.
  */
-public class BeamSqlConcatExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlConcatExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test public void accept() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
