@@ -171,8 +171,11 @@ class Pipeline(object):
     matcher = override.get_matcher()
 
     output_map = {}
+    output_replacements = {}
+    input_replacements = {}
 
-    class OutputVisitor(PipelineVisitor): # pylint: disable=used-before-assignment
+    class TransformUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+      """"A visitor that replaces the matching PTransforms."""
 
       def __init__(self, pipeline, applied_labels):
         self.pipeline = pipeline
@@ -183,7 +186,12 @@ class Pipeline(object):
           replacement_transform = override.get_replacement_transform(
               transform_node.transform)
           inputs = transform_node.inputs
-          # We only support replacing single-input PTransforms.
+          # TODO:  Support replacing PTransforms with multiple inputs.
+          if len(inputs) > 1:
+            raise NotImplementedError(
+                'PTransform overriding is only supported for PTransforms that '
+                'have a single input. Tried to replace %r that has %d inputs',
+                transform_node, len(inputs))
           assert len(inputs) == 1
           transform_node.transform = replacement_transform
           self.pipeline.transforms_stack.append(transform_node)
@@ -194,8 +202,11 @@ class Pipeline(object):
           self.pipeline._remove_labels_recursively(transform_node)
 
           new_output = replacement_transform.expand(inputs[0])
+          if new_output.producer is None:
+            # When current transform is a primitive, we set the producer here.
+            new_output.producer = transform_node
 
-          # Recording updated outputs. This cannot be done in the same visor
+          # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
           # errors when visiting child nodes.
           output_map[transform_node.outputs[None]] = new_output
@@ -208,17 +219,29 @@ class Pipeline(object):
       def visit_transform(self, transform_node):
         self._replace_if_needed(transform_node)
 
-    self.visit(OutputVisitor(self, self.applied_labels))
+    self.visit(TransformUpdater(self, self.applied_labels))
 
     # Adjusting inputs and outputs
-    class OutputUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+    class InputOutputUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+      """"A visitor that records input and output values to be replaced.
+
+      Input and output values that should be updated are recorded in maps
+      input_replacements and output_replacements respectively.
+
+      We cannot update input and output values while visiting since that results
+      in validation errors.
+      """
 
       def __init__(self, pipeline):
         self.pipeline = pipeline
 
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
       def visit_transform(self, transform_node):
-        if transform_node.outputs[None] in output_map:
-          transform_node.replace_output(
+        if (None in transform_node.outputs and
+            transform_node.outputs[None] in output_map):
+          output_replacements[transform_node] = (
               output_map[transform_node.outputs[None]])
 
         replace_input = False
@@ -228,22 +251,29 @@ class Pipeline(object):
             break
 
         if replace_input:
-          transform_node.inputs = [
+          new_input = [
               input if not input in output_map else output_map[input]
               for input in transform_node.inputs]
+          input_replacements[transform_node] = new_input
 
-    self.visit(OutputUpdater(self))
+    self.visit(InputOutputUpdater(self))
+
+    for transform in output_replacements:
+      transform.replace_output(output_replacements[transform])
+
+    for transform in input_replacements:
+      transform.inputs = input_replacements[transform]
 
   def _check_replacement(self, override):
     matcher = override.get_matcher()
 
-    class Visitor(PipelineVisitor):
+    class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
         if matcher.match(transform_node):
           raise RuntimeError('Transform node %r was not replaced as expected.',
                              transform_node)
 
-    self.visit(Visitor())
+    self.visit(ReplacementValidator())
 
   def replace_all(self, replacements):
     """ Dynamically replaces PTransforms in the currently populated hierarchy.
@@ -260,7 +290,10 @@ class Pipeline(object):
       assert isinstance(override, PTransformOverride)
       self._replace(override)
 
-    # Checking if the transforms have been successfully replaced.
+    # Checking if the PTransforms have been successfully replaced. This will
+    # result in a failure if a PTransform that was replaced in a given override
+    # gets re-added in a subsequent override. This is not allowed and ordering
+    # of PTransformOverride objects in 'replacements' is important.
     for override in replacements:
       self._check_replacement(override)
 

@@ -46,7 +46,9 @@ class DirectRunner(PipelineRunner):
   # using DirectRunner.
   # Currently this only works for overrides where the input and output types do
   # not change.
-  PTRANSFORM_OVERRIDES = []
+  # For internal SDK use only. This should not be updated by Beam pipeline
+  # authors.
+  _PTRANSFORM_OVERRIDES = []
 
   def __init__(self):
     self._cache = None
@@ -66,7 +68,7 @@ class DirectRunner(PipelineRunner):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(DirectRunner.PTRANSFORM_OVERRIDES)
+    pipeline.replace_all(DirectRunner._PTRANSFORM_OVERRIDES)
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.

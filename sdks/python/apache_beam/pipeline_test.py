@@ -318,7 +318,8 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r', ptransform)
 
-    DirectRunner.PTRANSFORM_OVERRIDES.append(MyParDoOverride())
+    # Using following private variable for testing.
+    DirectRunner._PTRANSFORM_OVERRIDES.append(MyParDoOverride())
     with Pipeline() as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))
