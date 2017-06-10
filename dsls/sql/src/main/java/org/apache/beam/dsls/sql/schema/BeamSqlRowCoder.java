@@ -35,10 +35,10 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- *  A {@link Coder} encodes {@link BeamSQLRow}.
+ *  A {@link Coder} encodes {@link BeamSqlRow}.
  */
-public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
-  private BeamSQLRecordType tableSchema;
+public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
+  private BeamSqlRecordType tableSchema;
 
   private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
 
@@ -49,12 +49,12 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
   private static final InstantCoder instantCoder = InstantCoder.of();
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
 
-  public BeamSqlRowCoder(BeamSQLRecordType tableSchema) {
+  public BeamSqlRowCoder(BeamSqlRecordType tableSchema) {
     this.tableSchema = tableSchema;
   }
 
   @Override
-  public void encode(BeamSQLRow value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(BeamSqlRow value, OutputStream outStream) throws CoderException, IOException {
     listCoder.encode(value.getNullFields(), outStream);
 
     for (int idx = 0; idx < value.size(); ++idx) {
@@ -105,10 +105,10 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
   }
 
   @Override
-  public BeamSQLRow decode(InputStream inStream) throws CoderException, IOException {
+  public BeamSqlRow decode(InputStream inStream) throws CoderException, IOException {
     List<Integer> nullFields = listCoder.decode(inStream);
 
-    BeamSQLRow record = new BeamSQLRow(tableSchema);
+    BeamSqlRow record = new BeamSqlRow(tableSchema);
     record.setNullFields(nullFields);
 
     for (int idx = 0; idx < tableSchema.size(); ++idx) {
@@ -162,7 +162,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSQLRow> {
     return record;
   }
 
-  public BeamSQLRecordType getTableSchema() {
+  public BeamSqlRecordType getTableSchema() {
     return tableSchema;
   }
 

@@ -30,8 +30,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Utilities for {@code BeamRelNode}.
  */
-public class BeamSQLRelUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamSQLRelUtils.class);
+public class BeamSqlRelUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRelUtils.class);
 
   private static final AtomicInteger sequence = new AtomicInteger(0);
   private static final AtomicInteger classSequence = new AtomicInteger(0);

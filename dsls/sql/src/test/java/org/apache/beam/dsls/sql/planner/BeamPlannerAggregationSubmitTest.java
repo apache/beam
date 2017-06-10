@@ -25,8 +25,8 @@ import java.util.Arrays;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -56,7 +56,7 @@ public class BeamPlannerAggregationSubmitTest {
 
   @Before
   public void prepare() throws ParseException {
-    MockedBeamSQLTable.CONTENT.clear();
+    MockedBeamSqlTable.CONTENT.clear();
   }
 
   private static BaseBeamTable getOrderTable() throws ParseException {
@@ -69,29 +69,29 @@ public class BeamPlannerAggregationSubmitTest {
       }
     };
 
-    BeamSQLRecordType dataType = BeamSQLRecordType.from(
+    BeamSqlRecordType dataType = BeamSqlRecordType.from(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
-    BeamSQLRow row1 = new BeamSQLRow(dataType);
+    BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 1);
     row1.addField(2, format.parse("2017-01-01 01:02:03"));
 
-    BeamSQLRow row2 = new BeamSQLRow(dataType);
+    BeamSqlRow row2 = new BeamSqlRow(dataType);
     row2.addField(0, 12345L);
     row2.addField(1, 0);
     row2.addField(2, format.parse("2017-01-01 01:03:04"));
 
-    BeamSQLRow row3 = new BeamSQLRow(dataType);
+    BeamSqlRow row3 = new BeamSqlRow(dataType);
     row3.addField(0, 12345L);
     row3.addField(1, 0);
     row3.addField(2, format.parse("2017-01-01 02:03:04"));
 
-    BeamSQLRow row4 = new BeamSQLRow(dataType);
+    BeamSqlRow row4 = new BeamSqlRow(dataType);
     row4.addField(0, 2132L);
     row4.addField(1, 0);
     row4.addField(2, format.parse("2017-01-01 03:04:05"));
 
-    return new MockedBeamSQLTable(protoRowType).withInputRecords(
+    return new MockedBeamSqlTable(protoRowType).withInputRecords(
         Arrays.asList(row1
             , row2, row3, row4
             ));
@@ -108,7 +108,7 @@ public class BeamPlannerAggregationSubmitTest {
             .add("size", SqlTypeName.BIGINT).build();
       }
     };
-    return new MockedBeamSQLTable(protoRowType);
+    return new MockedBeamSqlTable(protoRowType);
   }
 
 
@@ -124,8 +124,8 @@ public class BeamPlannerAggregationSubmitTest {
 
     pipeline.run().waitUntilFinish();
 
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    BeamSQLRow result = MockedBeamSQLTable.CONTENT.peek();
+    Assert.assertTrue(MockedBeamSqlTable.CONTENT.size() == 1);
+    BeamSqlRow result = MockedBeamSqlTable.CONTENT.peek();
     Assert.assertEquals(1, result.getInteger(0));
     Assert.assertEquals(format.parse("2017-01-01 01:00:00"), result.getDate(1));
     Assert.assertEquals(1L, result.getLong(2));
@@ -141,8 +141,8 @@ public class BeamPlannerAggregationSubmitTest {
 
     pipeline.run().waitUntilFinish();
 
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
+    Assert.assertTrue(MockedBeamSqlTable.CONTENT.size() == 1);
     Assert.assertEquals("site_id=0,agg_hour=null,size=3",
-        MockedBeamSQLTable.CONTENT.peek().valueInString());
+        MockedBeamSqlTable.CONTENT.peek().valueInString());
   }
 }

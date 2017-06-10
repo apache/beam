@@ -17,13 +17,13 @@
  */
 package org.apache.beam.dsls.sql.rel;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutor;
-import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutor;
+import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.dsls.sql.transform.BeamSQLFilterFn;
+import org.apache.beam.dsls.sql.transform.BeamSqlFilterFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -50,20 +50,20 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
 
     RelNode input = getInput();
-    String stageName = BeamSQLRelUtils.getStageName(this);
+    String stageName = BeamSqlRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream =
-        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
+    PCollection<BeamSqlRow> upstream =
+        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
 
-    BeamSQLExpressionExecutor executor = new BeamSQLFnExecutor(this);
+    BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(this);
 
-    PCollection<BeamSQLRow> filterStream = upstream.apply(stageName,
-        ParDo.of(new BeamSQLFilterFn(getRelTypeName(), executor)));
-    filterStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
+    PCollection<BeamSqlRow> filterStream = upstream.apply(stageName,
+        ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
+    filterStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
 
     return filterStream;
   }

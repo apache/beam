@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -34,7 +34,7 @@ import org.junit.Test;
 /**
  * Tests for {@code BeamSqlArithmeticExpression}.
  */
-public class BeamSqlArithmeticExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test public void testAccept_normal() {
     List<BeamSqlExpression> operands = new ArrayList<>();

@@ -23,8 +23,8 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.planner.BeamRelDataTypeSystem;
 import org.apache.beam.dsls.sql.planner.BeamRuleSets;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -46,9 +46,9 @@ import org.apache.calcite.tools.RelBuilder;
 import org.junit.BeforeClass;
 
 /**
- * base class to test {@link BeamSQLFnExecutor} and subclasses of {@link BeamSqlExpression}.
+ * base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}.
  */
-public class BeamSQLFnExecutorTestBase {
+public class BeamSqlFnExecutorTestBase {
   public static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
   public static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
 
@@ -56,8 +56,8 @@ public class BeamSQLFnExecutorTestBase {
       RelDataTypeSystem.DEFAULT);
   public static RelDataType relDataType;
 
-  public static BeamSQLRecordType beamRecordType;
-  public static BeamSQLRow record;
+  public static BeamSqlRecordType beamRecordType;
+  public static BeamSqlRow record;
 
   public static RelBuilder relBuilder;
 
@@ -69,8 +69,8 @@ public class BeamSQLFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    beamRecordType = BeamSQLRecordType.from(relDataType);
-    record = new BeamSQLRow(beamRecordType);
+    beamRecordType = BeamSqlRecordType.from(relDataType);
+    record = new BeamSqlRow(beamRecordType);
 
     record.addField(0, 1234567L);
     record.addField(1, 0);

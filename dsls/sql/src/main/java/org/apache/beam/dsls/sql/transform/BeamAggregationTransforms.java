@@ -26,8 +26,8 @@ import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -46,11 +46,11 @@ public class BeamAggregationTransforms implements Serializable{
   /**
    * Merge KV to single record.
    */
-  public static class MergeAggregationRecord extends DoFn<KV<BeamSQLRow, BeamSQLRow>, BeamSQLRow> {
-    private BeamSQLRecordType outRecordType;
+  public static class MergeAggregationRecord extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
+    private BeamSqlRecordType outRecordType;
     private List<String> aggFieldNames;
 
-    public MergeAggregationRecord(BeamSQLRecordType outRecordType, List<AggregateCall> aggList) {
+    public MergeAggregationRecord(BeamSqlRecordType outRecordType, List<AggregateCall> aggList) {
       this.outRecordType = outRecordType;
       this.aggFieldNames = new ArrayList<>();
       for (AggregateCall ac : aggList) {
@@ -60,10 +60,10 @@ public class BeamAggregationTransforms implements Serializable{
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      BeamSQLRow outRecord = new BeamSQLRow(outRecordType);
+      BeamSqlRow outRecord = new BeamSqlRow(outRecordType);
       outRecord.updateWindowRange(c.element().getKey(), window);
 
-      KV<BeamSQLRow, BeamSQLRow> kvRecord = c.element();
+      KV<BeamSqlRow, BeamSqlRow> kvRecord = c.element();
       for (String f : kvRecord.getKey().getDataType().getFieldsName()) {
         outRecord.addField(f, kvRecord.getKey().getFieldValue(f));
       }
@@ -81,7 +81,7 @@ public class BeamAggregationTransforms implements Serializable{
    * extract group-by fields.
    */
   public static class AggregationGroupByKeyFn
-      implements SerializableFunction<BeamSQLRow, BeamSQLRow> {
+      implements SerializableFunction<BeamSqlRow, BeamSqlRow> {
     private List<Integer> groupByKeys;
 
     public AggregationGroupByKeyFn(int windowFieldIdx, ImmutableBitSet groupSet) {
@@ -94,9 +94,9 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public BeamSQLRow apply(BeamSQLRow input) {
-      BeamSQLRecordType typeOfKey = exTypeOfKeyRecord(input.getDataType());
-      BeamSQLRow keyOfRecord = new BeamSQLRow(typeOfKey);
+    public BeamSqlRow apply(BeamSqlRow input) {
+      BeamSqlRecordType typeOfKey = exTypeOfKeyRecord(input.getDataType());
+      BeamSqlRow keyOfRecord = new BeamSqlRow(typeOfKey);
       keyOfRecord.updateWindowRange(input, null);
 
       for (int idx = 0; idx < groupByKeys.size(); ++idx) {
@@ -105,8 +105,8 @@ public class BeamAggregationTransforms implements Serializable{
       return keyOfRecord;
     }
 
-    private BeamSQLRecordType exTypeOfKeyRecord(BeamSQLRecordType dataType) {
-      BeamSQLRecordType typeOfKey = new BeamSQLRecordType();
+    private BeamSqlRecordType exTypeOfKeyRecord(BeamSqlRecordType dataType) {
+      BeamSqlRecordType typeOfKey = new BeamSqlRecordType();
       for (int idx : groupByKeys) {
         typeOfKey.addField(dataType.getFieldsName().get(idx), dataType.getFieldsType().get(idx));
       }
@@ -118,7 +118,7 @@ public class BeamAggregationTransforms implements Serializable{
   /**
    * Assign event timestamp.
    */
-  public static class WindowTimestampFn implements SerializableFunction<BeamSQLRow, Instant> {
+  public static class WindowTimestampFn implements SerializableFunction<BeamSqlRow, Instant> {
     private int windowFieldIdx = -1;
 
     public WindowTimestampFn(int windowFieldIdx) {
@@ -127,7 +127,7 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public Instant apply(BeamSQLRow input) {
+    public Instant apply(BeamSqlRow input) {
       return new Instant(input.getDate(windowFieldIdx).getTime());
     }
   }
@@ -142,8 +142,8 @@ public class BeamAggregationTransforms implements Serializable{
    *   3). SUM/AVG works for INT, LONG, FLOAT, DOUBLE, DECIMAL, SMALLINT, TINYINT;<br>
    *
    */
-  public static class AggregationCombineFn extends CombineFn<BeamSQLRow, BeamSQLRow, BeamSQLRow> {
-    private BeamSQLRecordType aggDataType;
+  public static class AggregationCombineFn extends CombineFn<BeamSqlRow, BeamSqlRow, BeamSqlRow> {
+    private BeamSqlRecordType aggDataType;
 
     private int countIndex = -1;
 
@@ -151,8 +151,8 @@ public class BeamAggregationTransforms implements Serializable{
     List<BeamSqlExpression> aggElementExpressions;
 
     public AggregationCombineFn(List<AggregateCall> aggregationCalls,
-        BeamSQLRecordType sourceRowRecordType) {
-      this.aggDataType = new BeamSQLRecordType();
+        BeamSqlRecordType sourceRowRecordType) {
+      this.aggDataType = new BeamSqlRecordType();
       this.aggFunctions = new ArrayList<>();
       this.aggElementExpressions = new ArrayList<>();
 
@@ -254,8 +254,8 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public BeamSQLRow createAccumulator() {
-      BeamSQLRow initialRecord = new BeamSQLRow(aggDataType);
+    public BeamSqlRow createAccumulator() {
+      BeamSqlRow initialRecord = new BeamSqlRow(aggDataType);
       for (int idx = 0; idx < aggElementExpressions.size(); ++idx) {
         BeamSqlExpression ex = aggElementExpressions.get(idx);
         String aggFnName = aggFunctions.get(idx);
@@ -351,8 +351,8 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public BeamSQLRow addInput(BeamSQLRow accumulator, BeamSQLRow input) {
-      BeamSQLRow deltaRecord = new BeamSQLRow(aggDataType);
+    public BeamSqlRow addInput(BeamSqlRow accumulator, BeamSqlRow input) {
+      BeamSqlRow deltaRecord = new BeamSqlRow(aggDataType);
       for (int idx = 0; idx < aggElementExpressions.size(); ++idx) {
         BeamSqlExpression ex = aggElementExpressions.get(idx);
         String aggFnName = aggFunctions.get(idx);
@@ -468,11 +468,11 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public BeamSQLRow mergeAccumulators(Iterable<BeamSQLRow> accumulators) {
-      BeamSQLRow deltaRecord = new BeamSQLRow(aggDataType);
+    public BeamSqlRow mergeAccumulators(Iterable<BeamSqlRow> accumulators) {
+      BeamSqlRow deltaRecord = new BeamSqlRow(aggDataType);
 
       while (accumulators.iterator().hasNext()) {
-        BeamSQLRow sa = accumulators.iterator().next();
+        BeamSqlRow sa = accumulators.iterator().next();
         for (int idx = 0; idx < aggElementExpressions.size(); ++idx) {
           BeamSqlExpression ex = aggElementExpressions.get(idx);
           String aggFnName = aggFunctions.get(idx);
@@ -575,8 +575,8 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     @Override
-    public BeamSQLRow extractOutput(BeamSQLRow accumulator) {
-      BeamSQLRow finalRecord = new BeamSQLRow(aggDataType);
+    public BeamSqlRow extractOutput(BeamSqlRow accumulator) {
+      BeamSqlRow finalRecord = new BeamSqlRow(aggDataType);
       for (int idx = 0; idx < aggElementExpressions.size(); ++idx) {
         BeamSqlExpression ex = aggElementExpressions.get(idx);
         String aggFnName = aggFunctions.get(idx);

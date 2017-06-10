@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -48,7 +48,7 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSQLRow> compilePipeline(String sqlStatement) throws Exception{
+  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement) throws Exception{
     PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
         .as(PipelineOptions.class); // FlinkPipelineOptions.class
     options.setJobName("BeamPlanCreator");
@@ -60,9 +60,9 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSQLRow> compilePipeline(String sqlStatement, Pipeline basePipeline)
+  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline)
       throws Exception{
-    PCollection<BeamSQLRow> resultStream =
+    PCollection<BeamSqlRow> resultStream =
         BeamSqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline);
     return resultStream;
   }

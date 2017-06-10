@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.planner;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
@@ -36,7 +36,7 @@ public class BeamPlannerSubmitTest extends BasePlanner {
 
   @Before
   public void prepare() {
-    MockedBeamSQLTable.CONTENT.clear();
+    MockedBeamSqlTable.CONTENT.clear();
   }
 
   @Test
@@ -45,12 +45,12 @@ public class BeamPlannerSubmitTest extends BasePlanner {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
 
-    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.peek().valueInString()
+    Assert.assertTrue(MockedBeamSqlTable.CONTENT.size() == 1);
+    Assert.assertTrue(MockedBeamSqlTable.CONTENT.peek().valueInString()
         .contains("order_id=12345,site_id=0,price=20.5,order_time="));
   }
 }

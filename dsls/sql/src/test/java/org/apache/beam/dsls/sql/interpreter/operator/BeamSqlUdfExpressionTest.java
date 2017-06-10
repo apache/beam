@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,7 +27,7 @@ import org.junit.Test;
 /**
  * Test for BeamSqlUdfExpression.
  */
-public class BeamSqlUdfExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlUdfExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testUdf() throws NoSuchMethodException, SecurityException {

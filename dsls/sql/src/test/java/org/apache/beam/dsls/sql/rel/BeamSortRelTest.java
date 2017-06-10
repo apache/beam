@@ -25,8 +25,8 @@ import java.util.Iterator;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -41,12 +41,12 @@ public class BeamSortRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  private static MockedBeamSQLTable subOrderRamTable = MockedBeamSQLTable.of(
+  private static MockedBeamSqlTable subOrderRamTable = MockedBeamSqlTable.of(
       SqlTypeName.BIGINT, "order_id",
       SqlTypeName.INTEGER, "site_id",
       SqlTypeName.DOUBLE, "price");
 
-  private static MockedBeamSQLTable orderDetailTable = MockedBeamSQLTable
+  private static MockedBeamSqlTable orderDetailTable = MockedBeamSqlTable
       .of(SqlTypeName.BIGINT, "order_id",
           SqlTypeName.INTEGER, "site_id",
           SqlTypeName.DOUBLE, "price",
@@ -75,7 +75,7 @@ public class BeamSortRelTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -83,12 +83,12 @@ public class BeamSortRelTest {
             1L, 1, 2.0,
             2L, 4, 3.0,
             2L, 1, 4.0
-        ).getInputRecords(), MockedBeamSQLTable.CONTENT);
+        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test
   public void testOrderBy_nullsFirst() throws Exception {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSqlTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -98,7 +98,7 @@ public class BeamSortRelTest {
             2L, 1, 3.0,
             2L, null, 4.0,
             5L, 5, 5.0));
-    BeamSqlEnv.registerTable("SUB_ORDER_RAM", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("SUB_ORDER_RAM", MockedBeamSqlTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price"));
@@ -112,7 +112,7 @@ public class BeamSortRelTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -121,12 +121,12 @@ public class BeamSortRelTest {
             1L, 2, 1.0,
             2L, null, 4.0,
             2L, 1, 3.0
-        ).getInputRecords(), MockedBeamSQLTable.CONTENT);
+        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test
   public void testOrderBy_nullsLast() throws Exception {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSqlTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -136,7 +136,7 @@ public class BeamSortRelTest {
             2L, 1, 3.0,
             2L, null, 4.0,
             5L, 5, 5.0));
-    BeamSqlEnv.registerTable("SUB_ORDER_RAM", MockedBeamSQLTable
+    BeamSqlEnv.registerTable("SUB_ORDER_RAM", MockedBeamSqlTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price"));
@@ -150,7 +150,7 @@ public class BeamSortRelTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -159,7 +159,7 @@ public class BeamSortRelTest {
             1L, null, 2.0,
             2L, 1, 3.0,
             2L, null, 4.0
-        ).getInputRecords(), MockedBeamSQLTable.CONTENT);
+        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test
@@ -173,7 +173,7 @@ public class BeamSortRelTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -182,7 +182,7 @@ public class BeamSortRelTest {
             6L, 6, 6.0,
             7L, 7, 7.0,
             8L, 8888, 8.0
-        ).getInputRecords(), MockedBeamSQLTable.CONTENT);
+        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test
@@ -196,7 +196,7 @@ public class BeamSortRelTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -211,7 +211,7 @@ public class BeamSortRelTest {
             8L, 8888, 8.0,
             8L, 999, 9.0,
             10L, 100, 10.0
-        ).getInputRecords(), MockedBeamSQLTable.CONTENT);
+        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test(expected = BeamSqlUnsupportedException.class)
@@ -230,14 +230,14 @@ public class BeamSortRelTest {
   public void prepare() {
     BeamSqlEnv.registerTable("ORDER_DETAILS", orderDetailTable);
     BeamSqlEnv.registerTable("SUB_ORDER_RAM", subOrderRamTable);
-    MockedBeamSQLTable.CONTENT.clear();
+    MockedBeamSqlTable.CONTENT.clear();
   }
 
-  private void assertEquals(Collection<BeamSQLRow> rows1, Collection<BeamSQLRow> rows2) {
+  private void assertEquals(Collection<BeamSqlRow> rows1, Collection<BeamSqlRow> rows2) {
     Assert.assertEquals(rows1.size(), rows2.size());
 
-    Iterator<BeamSQLRow> it1 = rows1.iterator();
-    Iterator<BeamSQLRow> it2 = rows2.iterator();
+    Iterator<BeamSqlRow> it1 = rows1.iterator();
+    Iterator<BeamSqlRow> it2 = rows2.iterator();
     while (it1.hasNext()) {
       Assert.assertEquals(it1.next(), it2.next());
     }
