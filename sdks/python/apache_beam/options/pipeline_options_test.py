@@ -192,47 +192,52 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--redefined_flag'])
     self.assertTrue(options.get_all_options()['redefined_flag'])
 
+  # TODO(BEAM-1319): Require unique names only within a test.
+  # For now, <file name acronym>_vp_arg<number> will be the convention
+  # to name value-provider arguments in tests, as opposed to
+  # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
+  # The number will grow per file as tests are added.
   def test_value_provider_options(self):
     class UserOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
-            '--vp_arg',
+            '--pot_vp_arg1',
             help='This flag is a value provider')
 
         parser.add_value_provider_argument(
-            '--vp_arg2',
+            '--pot_vp_arg2',
             default=1,
             type=int)
 
         parser.add_argument(
-            '--non_vp_arg',
+            '--pot_non_vp_arg1',
             default=1,
             type=int
         )
 
     # Provide values: if not provided, the option becomes of the type runtime vp
-    options = UserOptions(['--vp_arg', 'hello'])
-    self.assertIsInstance(options.vp_arg, StaticValueProvider)
-    self.assertIsInstance(options.vp_arg2, RuntimeValueProvider)
-    self.assertIsInstance(options.non_vp_arg, int)
+    options = UserOptions(['--pot_vp_arg1', 'hello'])
+    self.assertIsInstance(options.pot_vp_arg1, StaticValueProvider)
+    self.assertIsInstance(options.pot_vp_arg2, RuntimeValueProvider)
+    self.assertIsInstance(options.pot_non_vp_arg1, int)
 
     # Values can be overwritten
-    options = UserOptions(vp_arg=5,
-                          vp_arg2=StaticValueProvider(value_type=str,
-                                                      value='bye'),
-                          non_vp_arg=RuntimeValueProvider(
+    options = UserOptions(pot_vp_arg1=5,
+                          pot_vp_arg2=StaticValueProvider(value_type=str,
+                                                          value='bye'),
+                          pot_non_vp_arg1=RuntimeValueProvider(
                               option_name='foo',
                               value_type=int,
                               default_value=10))
-    self.assertEqual(options.vp_arg, 5)
-    self.assertTrue(options.vp_arg2.is_accessible(),
-                    '%s is not accessible' % options.vp_arg2)
-    self.assertEqual(options.vp_arg2.get(), 'bye')
-    self.assertFalse(options.non_vp_arg.is_accessible())
+    self.assertEqual(options.pot_vp_arg1, 5)
+    self.assertTrue(options.pot_vp_arg2.is_accessible(),
+                    '%s is not accessible' % options.pot_vp_arg2)
+    self.assertEqual(options.pot_vp_arg2.get(), 'bye')
+    self.assertFalse(options.pot_non_vp_arg1.is_accessible())
 
     with self.assertRaises(RuntimeError):
-      options.non_vp_arg.get()
+      options.pot_non_vp_arg1.get()
 
 
 if __name__ == '__main__':
