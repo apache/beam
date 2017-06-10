@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -31,7 +31,7 @@ import org.junit.Test;
 /**
  * Test for {@link BeamSqlMathUnaryExpression}.
  */
-public class BeamSqlMathUnaryExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test public void testForGreaterThanOneOperands() {
     List<BeamSqlExpression> operands = new ArrayList<>();

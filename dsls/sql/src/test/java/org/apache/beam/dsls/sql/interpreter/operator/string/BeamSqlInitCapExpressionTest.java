@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -32,7 +32,7 @@ import org.junit.Test;
 /**
  * Test of BeamSqlInitCapExpression.
  */
-public class BeamSqlInitCapExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlInitCapExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();

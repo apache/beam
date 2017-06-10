@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -45,7 +45,7 @@ public class BeamSqlOrExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSQLRow inputRecord) {
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
       BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);

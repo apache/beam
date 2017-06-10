@@ -23,8 +23,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,17 +42,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * A mock table use to check input/output.
  *
  */
-public class MockedBeamSQLTable extends BaseBeamTable {
+public class MockedBeamSqlTable extends BaseBeamTable {
 
-  public static final ConcurrentLinkedQueue<BeamSQLRow> CONTENT = new ConcurrentLinkedQueue<>();
+  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
 
-  private List<BeamSQLRow> inputRecords;
+  private List<BeamSqlRow> inputRecords;
 
-  public MockedBeamSQLTable(RelProtoDataType protoRowType) {
+  public MockedBeamSqlTable(RelProtoDataType protoRowType) {
     super(protoRowType);
   }
 
-  public MockedBeamSQLTable withInputRecords(List<BeamSQLRow> inputRecords){
+  public MockedBeamSqlTable withInputRecords(List<BeamSqlRow> inputRecords){
     this.inputRecords = inputRecords;
     return this;
   }
@@ -81,7 +81,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
    *       10L, 100, 10.0, new Date())
    * }</pre>
    */
-  public static MockedBeamSQLTable of(final Object... args){
+  public static MockedBeamSqlTable of(final Object... args){
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
@@ -100,19 +100,19 @@ public class MockedBeamSQLTable extends BaseBeamTable {
       }
     };
 
-    List<BeamSQLRow> rows = new ArrayList<>();
-    BeamSQLRecordType beamSQLRecordType = BeamSQLRecordType.from(
+    List<BeamSqlRow> rows = new ArrayList<>();
+    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     int fieldCount = beamSQLRecordType.size();
 
     for (int i = fieldCount * 2; i < args.length; i += fieldCount) {
-      BeamSQLRow row = new BeamSQLRow(beamSQLRecordType);
+      BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
       for (int j = 0; j < fieldCount; j++) {
         row.addField(j, args[i + j]);
       }
       rows.add(row);
     }
-    return new MockedBeamSQLTable(protoRowType).withInputRecords(rows);
+    return new MockedBeamSqlTable(protoRowType).withInputRecords(rows);
   }
 
   @Override
@@ -121,16 +121,16 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply(Create.of(inputRecords));
   }
 
   @Override
-  public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
     return new OutputStore();
   }
 
-  public List<BeamSQLRow> getInputRecords() {
+  public List<BeamSqlRow> getInputRecords() {
     return inputRecords;
   }
 
@@ -138,11 +138,11 @@ public class MockedBeamSQLTable extends BaseBeamTable {
    * Keep output in {@code CONTENT} for validation.
    *
    */
-  public static class OutputStore extends PTransform<PCollection<BeamSQLRow>, PDone> {
+  public static class OutputStore extends PTransform<PCollection<BeamSqlRow>, PDone> {
 
     @Override
-    public PDone expand(PCollection<BeamSQLRow> input) {
-      input.apply(ParDo.of(new DoFn<BeamSQLRow, Void>() {
+    public PDone expand(PCollection<BeamSqlRow> input) {
+      input.apply(ParDo.of(new DoFn<BeamSqlRow, Void>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
           CONTENT.add(c.element());

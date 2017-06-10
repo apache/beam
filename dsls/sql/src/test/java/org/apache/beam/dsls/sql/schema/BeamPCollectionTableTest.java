@@ -50,11 +50,11 @@ public class BeamPCollectionTableTest extends BasePlanner{
       }
     };
 
-    BeamSQLRow row = new BeamSQLRow(BeamSQLRecordType.from(
+    BeamSqlRow row = new BeamSqlRow(BeamSqlRecordType.from(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY)));
     row.addField(0, 1);
     row.addField(1, "hello world.");
-    PCollection<BeamSQLRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
+    PCollection<BeamSqlRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
     BeamSqlEnv.registerTable("COLLECTION_TABLE",
         new BeamPCollectionTable(inputStream, protoRowType));
   }
@@ -62,7 +62,7 @@ public class BeamPCollectionTableTest extends BasePlanner{
   @Test
   public void testSelectFromPCollectionTable() throws Exception{
     String sql = "select c1, c2 from COLLECTION_TABLE";
-    PCollection<BeamSQLRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> outputStream = BeamSqlCli.compilePipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
   }

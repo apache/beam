@@ -39,11 +39,11 @@ import org.apache.calcite.schema.Statistics;
 public abstract class BaseBeamTable implements ScannableTable, Serializable {
   private RelDataType relDataType;
 
-  protected BeamSQLRecordType beamSqlRecordType;
+  protected BeamSqlRecordType beamSqlRecordType;
 
   public BaseBeamTable(RelProtoDataType protoRowType) {
     this.relDataType = protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY);
-    this.beamSqlRecordType = BeamSQLRecordType.from(relDataType);
+    this.beamSqlRecordType = BeamSqlRecordType.from(relDataType);
   }
 
   /**
@@ -56,13 +56,13 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
    * create a {@code PCollection<BeamSQLRow>} from source.
    *
    */
-  public abstract PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline);
+  public abstract PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline);
 
   /**
    * create a {@code IO.write()} instance to write to target.
    *
    */
-  public abstract PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter();
+  public abstract PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter();
 
   @Override
   public Enumerable<Object[]> scan(DataContext root) {

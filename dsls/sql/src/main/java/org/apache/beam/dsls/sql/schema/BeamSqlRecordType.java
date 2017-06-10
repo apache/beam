@@ -28,19 +28,19 @@ import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Field type information in {@link BeamSQLRow}.
+ * Field type information in {@link BeamSqlRow}.
  *
  */
 //@DefaultCoder(BeamSQLRecordTypeCoder.class)
-public class BeamSQLRecordType implements Serializable {
+public class BeamSqlRecordType implements Serializable {
   private List<String> fieldsName = new ArrayList<>();
   private List<SqlTypeName> fieldsType = new ArrayList<>();
 
   /**
    * Generate from {@link RelDataType} which is used to create table.
    */
-  public static BeamSQLRecordType from(RelDataType tableInfo) {
-    BeamSQLRecordType record = new BeamSQLRecordType();
+  public static BeamSqlRecordType from(RelDataType tableInfo) {
+    BeamSqlRecordType record = new BeamSqlRecordType();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
       record.fieldsName.add(f.getName());
       record.fieldsType.add(f.getType().getSqlTypeName());

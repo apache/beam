@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.rel;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,11 +37,11 @@ import org.junit.Test;
 public class BeamValuesRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static MockedBeamSQLTable stringTable = MockedBeamSQLTable
+  private static MockedBeamSqlTable stringTable = MockedBeamSqlTable
       .of(SqlTypeName.VARCHAR, "name",
           SqlTypeName.VARCHAR, "description");
 
-  private static MockedBeamSQLTable intTable = MockedBeamSQLTable
+  private static MockedBeamSqlTable intTable = MockedBeamSqlTable
       .of(SqlTypeName.INTEGER, "c0",
           SqlTypeName.INTEGER, "c1");
 
@@ -49,8 +49,8 @@ public class BeamValuesRelTest {
   public void testValues() throws Exception {
     String sql = "insert into string_table(name, description) values "
         + "('hello', 'world'), ('james', 'bond')";
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.VARCHAR, "name",
         SqlTypeName.VARCHAR, "description",
         "hello", "world",
@@ -61,8 +61,8 @@ public class BeamValuesRelTest {
   @Test
   public void testValues_castInt() throws Exception {
     String sql = "insert into int_table (c0, c1) values(cast(1 as int), cast(2 as int))";
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "c0",
         SqlTypeName.INTEGER, "c1",
         1, 2
@@ -73,8 +73,8 @@ public class BeamValuesRelTest {
   @Test
   public void testValues_onlySelect() throws Exception {
     String sql = "select 1, '1'";
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
         SqlTypeName.INTEGER, "EXPR$0",
         SqlTypeName.CHAR, "EXPR$1",
         1, "1"
@@ -90,6 +90,6 @@ public class BeamValuesRelTest {
 
   @Before
   public void prepare() {
-    MockedBeamSQLTable.CONTENT.clear();
+    MockedBeamSqlTable.CONTENT.clear();
   }
 }

@@ -26,9 +26,9 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.UnsupportedDataTypeException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -123,10 +123,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+  @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
     RelNode input = getInput();
-    PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
+    PCollection<BeamSqlRow> upstream = BeamSqlRelUtils.getBeamRelInput(input)
         .buildBeamPipeline(inputPCollections);
     Type windowType = upstream.getWindowingStrategy().getWindowFn()
         .getWindowTypeDescriptor().getType();
@@ -135,24 +135,24 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
     }
 
-    BeamSQLRowComparator comparator = new BeamSQLRowComparator(fieldIndices, orientation,
+    BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
         nullsFirst);
     // first find the top (offset + count)
-    PCollection<List<BeamSQLRow>> rawStream =
+    PCollection<List<BeamSqlRow>> rawStream =
         upstream.apply("extractTopOffsetAndFetch",
             Top.of(startIndex + count, comparator).withoutDefaults())
-        .setCoder(ListCoder.<BeamSQLRow>of(upstream.getCoder()));
+        .setCoder(ListCoder.<BeamSqlRow>of(upstream.getCoder()));
 
     // strip the `leading offset`
     if (startIndex > 0) {
       rawStream = rawStream.apply("stripLeadingOffset", ParDo.of(
-          new SubListFn<BeamSQLRow>(startIndex, startIndex + count)))
-          .setCoder(ListCoder.<BeamSQLRow>of(upstream.getCoder()));
+          new SubListFn<BeamSqlRow>(startIndex, startIndex + count)))
+          .setCoder(ListCoder.<BeamSqlRow>of(upstream.getCoder()));
     }
 
-    PCollection<BeamSQLRow> orderedStream = rawStream.apply(
-        "flatten", Flatten.<BeamSQLRow>iterables());
-    orderedStream.setCoder(new BeamSqlRowCoder(BeamSQLRecordType.from(getRowType())));
+    PCollection<BeamSqlRow> orderedStream = rawStream.apply(
+        "flatten", Flatten.<BeamSqlRow>iterables());
+    orderedStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
 
     return orderedStream;
   }
@@ -177,12 +177,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSQLRowComparator implements Comparator<BeamSQLRow>, Serializable {
+  private static class BeamSqlRowComparator implements Comparator<BeamSqlRow>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
 
-    public BeamSQLRowComparator(List<Integer> fieldsIndices,
+    public BeamSqlRowComparator(List<Integer> fieldsIndices,
         List<Boolean> orientation,
         List<Boolean> nullsFirst) {
       this.fieldsIndices = fieldsIndices;
@@ -190,7 +190,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(BeamSQLRow row1, BeamSQLRow row2) {
+    @Override public int compare(BeamSqlRow row1, BeamSqlRow row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;

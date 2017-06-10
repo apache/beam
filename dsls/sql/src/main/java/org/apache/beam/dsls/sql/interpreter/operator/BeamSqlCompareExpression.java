@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.List;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -49,7 +49,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSQLRow inputRecord) {
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
     Object leftValue = operands.get(0).evaluate(inputRecord).getValue();
     Object rightValue = operands.get(1).evaluate(inputRecord).getValue();
     switch (operands.get(0).outputType) {

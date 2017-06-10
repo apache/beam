@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +26,7 @@ import org.junit.Test;
  * Test cases for {@link BeamSqlIsNullExpression} and
  * {@link BeamSqlIsNotNullExpression}.
  */
-public class BeamNullExperssionTest extends BeamSQLFnExecutorTestBase {
+public class BeamNullExperssionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testIsNull() {

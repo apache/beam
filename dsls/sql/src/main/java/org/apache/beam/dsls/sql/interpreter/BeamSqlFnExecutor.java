@@ -58,7 +58,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpressi
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -72,13 +72,13 @@ import org.apache.calcite.util.NlsString;
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
  * {@code BeamSQLFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
- * which can be evaluated against the {@link BeamSQLRow}.
+ * which can be evaluated against the {@link BeamSqlRow}.
  *
  */
-public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
+public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   protected List<BeamSqlExpression> exps;
 
-  public BeamSQLFnExecutor(BeamRelNode relNode) {
+  public BeamSqlFnExecutor(BeamRelNode relNode) {
     this.exps = new ArrayList<>();
     if (relNode instanceof BeamFilterRel) {
       BeamFilterRel filterNode = (BeamFilterRel) relNode;
@@ -220,7 +220,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
   }
 
   @Override
-  public List<Object> execute(BeamSQLRow inputRecord) {
+  public List<Object> execute(BeamSqlRow inputRecord) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
       results.add(exp.evaluate(inputRecord).getValue());

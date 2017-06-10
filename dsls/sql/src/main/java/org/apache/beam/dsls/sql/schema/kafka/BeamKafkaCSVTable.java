@@ -22,8 +22,8 @@ import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSQLRow;
 
 import java.util.List;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -50,33 +50,33 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   @Override
-  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>>
+  public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSqlRow>>
       getPTransformForInput() {
     return new CsvRecorderDecoder(beamSqlRecordType, csvFormat);
   }
 
   @Override
-  public PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>>
+  public PTransform<PCollection<BeamSqlRow>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput() {
     return new CsvRecorderEncoder(beamSqlRecordType, csvFormat);
   }
 
   /**
-   * A PTransform to convert {@code KV<byte[], byte[]>} to {@link BeamSQLRow}.
+   * A PTransform to convert {@code KV<byte[], byte[]>} to {@link BeamSqlRow}.
    *
    */
   public static class CsvRecorderDecoder
-      extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>> {
-    private BeamSQLRecordType recordType;
+      extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSqlRow>> {
+    private BeamSqlRecordType recordType;
     private CSVFormat format;
-    public CsvRecorderDecoder(BeamSQLRecordType recordType, CSVFormat format) {
+    public CsvRecorderDecoder(BeamSqlRecordType recordType, CSVFormat format) {
       this.recordType = recordType;
       this.format = format;
     }
 
     @Override
-    public PCollection<BeamSQLRow> expand(PCollection<KV<byte[], byte[]>> input) {
-      return input.apply("decodeRecord", ParDo.of(new DoFn<KV<byte[], byte[]>, BeamSQLRow>() {
+    public PCollection<BeamSqlRow> expand(PCollection<KV<byte[], byte[]>> input) {
+      return input.apply("decodeRecord", ParDo.of(new DoFn<KV<byte[], byte[]>, BeamSqlRow>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
           String rowInString = new String(c.element().getValue());
@@ -87,24 +87,24 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   /**
-   * A PTransform to convert {@link BeamSQLRow} to {@code KV<byte[], byte[]>}.
+   * A PTransform to convert {@link BeamSqlRow} to {@code KV<byte[], byte[]>}.
    *
    */
   public static class CsvRecorderEncoder
-      extends PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>> {
-    private BeamSQLRecordType recordType;
+      extends PTransform<PCollection<BeamSqlRow>, PCollection<KV<byte[], byte[]>>> {
+    private BeamSqlRecordType recordType;
     private CSVFormat format;
-    public CsvRecorderEncoder(BeamSQLRecordType recordType, CSVFormat format) {
+    public CsvRecorderEncoder(BeamSqlRecordType recordType, CSVFormat format) {
       this.recordType = recordType;
       this.format = format;
     }
 
     @Override
-    public PCollection<KV<byte[], byte[]>> expand(PCollection<BeamSQLRow> input) {
-      return input.apply("encodeRecord", ParDo.of(new DoFn<BeamSQLRow, KV<byte[], byte[]>>() {
+    public PCollection<KV<byte[], byte[]>> expand(PCollection<BeamSqlRow> input) {
+      return input.apply("encodeRecord", ParDo.of(new DoFn<BeamSqlRow, KV<byte[], byte[]>>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
-          BeamSQLRow in = c.element();
+          BeamSqlRow in = c.element();
           c.output(KV.of(new byte[] {}, beamSQLRow2CsvLine(in, format).getBytes()));
         }
       }));

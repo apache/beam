@@ -19,14 +19,14 @@ package org.apache.beam.dsls.sql.interpreter;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 
 /**
  * {@code BeamSQLExpressionExecutor} fills the gap between relational
  * expressions in Calcite SQL and executable code.
  *
  */
-public interface BeamSQLExpressionExecutor extends Serializable {
+public interface BeamSqlExpressionExecutor extends Serializable {
 
   /**
    * invoked before data processing.
@@ -34,10 +34,10 @@ public interface BeamSQLExpressionExecutor extends Serializable {
   void prepare();
 
   /**
-   * apply transformation to input record {@link BeamSQLRow}.
+   * apply transformation to input record {@link BeamSqlRow}.
    *
    */
-  List<Object> execute(BeamSQLRow inputRecord);
+  List<Object> execute(BeamSqlRow inputRecord);
 
   void close();
 }

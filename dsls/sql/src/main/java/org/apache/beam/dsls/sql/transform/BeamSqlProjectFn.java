@@ -18,10 +18,10 @@
 package org.apache.beam.dsls.sql.transform;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -31,13 +31,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * {@code BeamSQLProjectFn} is the executor for a {@link BeamProjectRel} step.
  *
  */
-public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
+public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
   private String stepName;
-  private BeamSQLExpressionExecutor executor;
-  private BeamSQLRecordType outputRecordType;
+  private BeamSqlExpressionExecutor executor;
+  private BeamSqlRecordType outputRecordType;
 
-  public BeamSQLProjectFn(String stepName, BeamSQLExpressionExecutor executor,
-      BeamSQLRecordType outputRecordType) {
+  public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
+      BeamSqlRecordType outputRecordType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -51,10 +51,10 @@ public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamSQLRow inputRecord = c.element();
+    BeamSqlRow inputRecord = c.element();
     List<Object> results = executor.execute(inputRecord);
 
-    BeamSQLRow outRow = new BeamSQLRow(outputRecordType);
+    BeamSqlRow outRow = new BeamSqlRow(outputRecordType);
     outRow.updateWindowRange(inputRecord, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {

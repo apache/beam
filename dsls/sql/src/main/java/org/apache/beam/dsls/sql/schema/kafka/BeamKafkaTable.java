@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -68,14 +68,14 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     return BeamIOType.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>>
+  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSqlRow>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>>
+  public abstract PTransform<PCollection<BeamSqlRow>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
-  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("read",
             KafkaIO.<byte[], byte[]>read()
                 .withBootstrapServers(bootstrapServers)
@@ -88,13 +88,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   }
 
   @Override
-  public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
     checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return new PTransform<PCollection<BeamSQLRow>, PDone>() {
+    return new PTransform<PCollection<BeamSqlRow>, PDone>() {
       @Override
-      public PDone expand(PCollection<BeamSQLRow> input) {
+      public PDone expand(PCollection<BeamSqlRow> input) {
         return input.apply("out_reformat", getPTransformForOutput()).apply("persistent",
             KafkaIO.<byte[], byte[]>write()
                 .withBootstrapServers(bootstrapServers)

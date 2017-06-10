@@ -31,13 +31,13 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
-  private PCollection<BeamSQLRow> upstream;
+  private PCollection<BeamSqlRow> upstream;
 
   protected BeamPCollectionTable(RelProtoDataType protoRowType) {
     super(protoRowType);
   }
 
-  public BeamPCollectionTable(PCollection<BeamSQLRow> upstream, RelProtoDataType protoRowType){
+  public BeamPCollectionTable(PCollection<BeamSqlRow> upstream, RelProtoDataType protoRowType){
     this(protoRowType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
@@ -50,12 +50,12 @@ public class BeamPCollectionTable extends BaseBeamTable {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     return upstream;
   }
 
   @Override
-  public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
     throw new BeamInvalidOperatorException("cannot use [BeamPCollectionTable] as target");
   }
 

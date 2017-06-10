@@ -33,8 +33,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,7 +69,7 @@ public class BeamTextCSVTableTest {
   private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
-  private static List<BeamSQLRow> testDataRows = new ArrayList<BeamSQLRow>() {{
+  private static List<BeamSqlRow> testDataRows = new ArrayList<BeamSqlRow>() {{
     for (Object[] data : testData) {
       add(buildRow(data));
     }
@@ -80,7 +80,7 @@ public class BeamTextCSVTableTest {
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamSQLRow> rows = new BeamTextCSVTable(buildRowType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildRowType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
@@ -92,7 +92,7 @@ public class BeamTextCSVTableTest {
             .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamSQLRow> rows = new BeamTextCSVTable(buildRowType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildRowType(),
         writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
 
     // confirm the two reads match
@@ -165,11 +165,11 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamSQLRecordType buildBeamSQLRecordType() {
-    return BeamSQLRecordType.from(buildRelDataType());
+  private static BeamSqlRecordType buildBeamSQLRecordType() {
+    return BeamSqlRecordType.from(buildRelDataType());
   }
 
-  private static BeamSQLRow buildRow(Object[] data) {
-    return new BeamSQLRow(buildBeamSQLRecordType(), Arrays.asList(data));
+  private static BeamSqlRow buildRow(Object[] data) {
+    return new BeamSqlRow(buildBeamSQLRecordType(), Arrays.asList(data));
   }
 }

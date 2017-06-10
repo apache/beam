@@ -35,11 +35,11 @@ import org.apache.commons.csv.CSVRecord;
  * Utility methods for working with {@code BeamTable}.
  */
 public final class BeamTableUtils {
-  public static BeamSQLRow csvLine2BeamSQLRow(
+  public static BeamSqlRow csvLine2BeamSQLRow(
       CSVFormat csvFormat,
       String line,
-      BeamSQLRecordType beamSqlRecordType) {
-    BeamSQLRow row = new BeamSQLRow(beamSqlRecordType);
+      BeamSqlRecordType beamSqlRecordType) {
+    BeamSqlRow row = new BeamSqlRow(beamSqlRecordType);
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
@@ -61,7 +61,7 @@ public final class BeamTableUtils {
     return row;
   }
 
-  public static String beamSQLRow2CsvLine(BeamSQLRow row, CSVFormat csvFormat) {
+  public static String beamSQLRow2CsvLine(BeamSqlRow row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.size(); i++) {
@@ -74,7 +74,7 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, Object rawObj) {
+  public static void addFieldWithAutoTypeCasting(BeamSqlRow row, int idx, Object rawObj) {
     if (rawObj == null) {
       row.addField(idx, rawObj);
       return;
