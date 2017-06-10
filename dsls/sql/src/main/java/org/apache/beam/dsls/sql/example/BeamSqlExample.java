@@ -29,6 +29,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,16 +60,30 @@ public class BeamSqlExample {
     PCollection<BeamSqlRow> inputTable = PBegin.in(p).apply(Create.of(row)
         .withCoder(new BeamSqlRowCoder(type)));
 
-    //run a simple SQL query over input PCollection;
-    String sql = "select c2, c3 from TABLE_A where c1=1";
-    PCollection<BeamSqlRow> outputStream = inputTable.apply(BeamSql.simpleQuery(sql));
+    //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
+    PCollection<BeamSqlRow> outputStream = inputTable.apply(
+        BeamSql.simpleQuery("select c2, c3 from TABLE_A where c1=1"));
 
     //log out the output record;
     outputStream.apply("log_result",
         MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
+      public Void apply(BeamSqlRow input) {
+        System.out.println("TABLE_A: " + input);
+        return null;
+      }
+    }));
+
+    //Case 2. run the query with BeamSql.query
+    PCollection<BeamSqlRow> outputStream2 =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_B"), inputTable)
+        .apply(BeamSql.query("select c2, c3 from TABLE_B where c1=1"));
+
+    //log out the output record;
+    outputStream2.apply("log_result",
+        MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
       @Override
       public Void apply(BeamSqlRow input) {
-        LOG.info(input.valueInString());
+        System.out.println("TABLE_B: " + input);
         return null;
       }
     }));
