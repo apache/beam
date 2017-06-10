@@ -20,9 +20,9 @@ package org.apache.beam.dsls.sql.rel;
 import com.google.common.base.Joiner;
 import java.util.List;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
+import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
@@ -57,14 +57,14 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
    * which is the persisted PCollection.
    */
   @Override
-  public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
 
     RelNode input = getInput();
-    String stageName = BeamSQLRelUtils.getStageName(this);
+    String stageName = BeamSqlRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream =
-        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
+    PCollection<BeamSqlRow> upstream =
+        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 

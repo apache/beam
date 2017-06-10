@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -38,7 +38,7 @@ public class BeamSqlInputRefExpression extends BeamSqlExpression{
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
+  public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
   }
 

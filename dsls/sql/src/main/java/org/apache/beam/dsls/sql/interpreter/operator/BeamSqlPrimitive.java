@@ -24,13 +24,13 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
- * It holds the value, and return it directly during {@link #evaluate(BeamSQLRow)}.
+ * It holds the value, and return it directly during {@link #evaluate(BeamSqlRow)}.
  *
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression{
@@ -141,7 +141,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(BeamSQLRow inputRecord) {
+  public BeamSqlPrimitive<T> evaluate(BeamSqlRow inputRecord) {
     return this;
   }
 

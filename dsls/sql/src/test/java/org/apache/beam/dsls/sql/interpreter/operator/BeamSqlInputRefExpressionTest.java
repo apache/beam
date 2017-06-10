@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +26,7 @@ import org.junit.Test;
 /**
  * Test cases for {@link BeamSqlInputRefExpression}.
  */
-public class BeamSqlInputRefExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testRefInRange() {

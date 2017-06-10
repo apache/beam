@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -76,14 +76,14 @@ public class BeamSql {
    * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
    *
    * <p>The returned {@link PTransform} can be applied to a {@link PCollectionTuple} representing
-   * all the input tables and results in a {@code PCollection<BeamSQLRow>} representing the output
+   * all the input tables and results in a {@code PCollection<BeamSqlRow>} representing the output
    * table. The {@link PCollectionTuple} contains the mapping from {@code table names} to
-   * {@code PCollection<BeamSQLRow>}, each representing an input table.
+   * {@code PCollection<BeamSqlRow>}, each representing an input table.
    *
    * <p>It is an error to apply a {@link PCollectionTuple} missing any {@code table names}
    * referenced within the query.
    */
-  public static PTransform<PCollectionTuple, PCollection<BeamSQLRow>> query(String sqlQuery) {
+  public static PTransform<PCollectionTuple, PCollection<BeamSqlRow>> query(String sqlQuery) {
     return new QueryTransform(sqlQuery);
 
   }
@@ -94,7 +94,7 @@ public class BeamSql {
    * <p>This is a simplified form of {@link #query(String)} where the query must reference
    * a single input table.
    */
-  public static PTransform<PCollection<BeamSQLRow>, PCollection<BeamSQLRow>>
+  public static PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>>
   simpleQuery(String sqlQuery) throws Exception {
     return new SimpleQueryTransform(sqlQuery);
   }
@@ -102,14 +102,14 @@ public class BeamSql {
   /**
    * A {@link PTransform} representing an execution plan for a SQL query.
    */
-  public static class QueryTransform extends PTransform<PCollectionTuple, PCollection<BeamSQLRow>> {
+  public static class QueryTransform extends PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
     private String sqlQuery;
     public QueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
     }
 
     @Override
-    public PCollection<BeamSQLRow> expand(PCollectionTuple input) {
+    public PCollection<BeamSqlRow> expand(PCollectionTuple input) {
       BeamRelNode beamRelNode = null;
       try {
         beamRelNode = BeamSqlEnv.planner.convertToBeamRel(sqlQuery);
@@ -130,7 +130,7 @@ public class BeamSql {
    * a single table.
    */
   public static class SimpleQueryTransform
-      extends PTransform<PCollection<BeamSQLRow>, PCollection<BeamSQLRow>> {
+      extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
     private String sqlQuery;
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
@@ -141,7 +141,7 @@ public class BeamSql {
     }
 
     @Override
-    public PCollection<BeamSQLRow> expand(PCollection<BeamSQLRow> input) {
+    public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
         sqlNode = BeamSqlEnv.planner.parseQuery(sqlQuery);
@@ -156,7 +156,7 @@ public class BeamSql {
         String tableName = select.getFrom().toString();
         BeamSqlEnv.registerTable(tableName,
             new BeamPCollectionTable(input, inputCoder.getTableSchema().toRelDataType()));
-        return PCollectionTuple.of(new TupleTag<BeamSQLRow>(tableName), input)
+        return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
             .apply(BeamSql.query(sqlQuery));
       } else {
         throw new BeamSqlUnsupportedException(sqlNode.toString());

@@ -55,9 +55,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Unit test cases for {@link BeamSQLFnExecutor}.
+ * Unit test cases for {@link BeamSqlFnExecutor}.
  */
-public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testBeamFilterRel() {
@@ -73,7 +73,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
     BeamFilterRel beamFilterRel = new BeamFilterRel(cluster, RelTraitSet.createEmpty(), null,
         condition);
 
-    BeamSQLFnExecutor executor = new BeamSQLFnExecutor(beamFilterRel);
+    BeamSqlFnExecutor executor = new BeamSqlFnExecutor(beamFilterRel);
     executor.prepare();
 
     Assert.assertEquals(1, executor.exps.size());
@@ -107,7 +107,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
     BeamRelNode relNode = new BeamProjectRel(cluster, RelTraitSet.createEmpty(),
         relBuilder.values(relDataType, 1234567L, 0, 8.9, null).build(),
         rexBuilder.identityProjects(relDataType), relDataType);
-    BeamSQLFnExecutor executor = new BeamSQLFnExecutor(relNode);
+    BeamSqlFnExecutor executor = new BeamSqlFnExecutor(relNode);
 
     executor.prepare();
     Assert.assertEquals(4, executor.exps.size());
@@ -135,7 +135,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
         rexBuilder.makeBigintLiteral(new BigDecimal(1L)),
         rexBuilder.makeBigintLiteral(new BigDecimal(1L))
     ));
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
 
     assertTrue(exp.getClass().equals(clazz));
   }
@@ -149,7 +149,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("world")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlConcatExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.POSITION,
@@ -158,7 +158,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("worldhello")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlPositionExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.POSITION,
@@ -168,7 +168,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlPositionExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CHAR_LENGTH,
@@ -176,7 +176,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("hello")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlCharLengthExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.UPPER,
@@ -184,7 +184,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("hello")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlUpperExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOWER,
@@ -192,7 +192,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("HELLO")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlLowerExpression);
 
 
@@ -201,7 +201,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("hello")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlInitCapExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.TRIM,
@@ -211,7 +211,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("HELLO")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlTrimExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.SUBSTRING,
@@ -220,7 +220,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlSubstringExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.SUBSTRING,
@@ -230,7 +230,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlSubstringExpression);
 
 
@@ -241,7 +241,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlOverlayExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.OVERLAY,
@@ -252,7 +252,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlOverlayExpression);
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
@@ -262,7 +262,7 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
             rexBuilder.makeLiteral("HELLO")
         )
     );
-    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlCaseExpression);
   }
 }

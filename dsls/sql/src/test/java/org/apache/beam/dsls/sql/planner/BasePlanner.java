@@ -23,8 +23,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -54,33 +54,33 @@ public class BasePlanner {
       }
     };
 
-    BeamSQLRecordType dataType = BeamSQLRecordType.from(
+    BeamSqlRecordType dataType = BeamSqlRecordType.from(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
-    BeamSQLRow row1 = new BeamSQLRow(dataType);
+    BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 0);
     row1.addField(2, 10.5);
     row1.addField(3, new Date());
 
-    BeamSQLRow row2 = new BeamSQLRow(dataType);
+    BeamSqlRow row2 = new BeamSqlRow(dataType);
     row2.addField(0, 12345L);
     row2.addField(1, 1);
     row2.addField(2, 20.5);
     row2.addField(3, new Date());
 
-    BeamSQLRow row3 = new BeamSQLRow(dataType);
+    BeamSqlRow row3 = new BeamSqlRow(dataType);
     row3.addField(0, 12345L);
     row3.addField(1, 0);
     row3.addField(2, 20.5);
     row3.addField(3, new Date());
 
-    BeamSQLRow row4 = new BeamSQLRow(dataType);
+    BeamSqlRow row4 = new BeamSqlRow(dataType);
     row4.addField(0, null);
     row4.addField(1, null);
     row4.addField(2, 20.5);
     row4.addField(3, new Date());
 
-    return new MockedBeamSQLTable(protoRowType).withInputRecords(
+    return new MockedBeamSqlTable(protoRowType).withInputRecords(
         Arrays.asList(row1, row2, row3, row4));
   }
 
