@@ -282,6 +282,16 @@ public class PCollectionViews {
             }
           }));
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof ListViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return ListViewFn.class.hashCode();
+    }
   }
 
   /**

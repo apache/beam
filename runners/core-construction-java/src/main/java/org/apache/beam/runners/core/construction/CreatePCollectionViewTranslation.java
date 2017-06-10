@@ -56,8 +56,8 @@ public class CreatePCollectionViewTranslation {
   @Deprecated
   public static <ElemT, ViewT> PCollectionView<ViewT> getView(
       AppliedPTransform<
-              PCollection<ElemT>, PCollectionView<ViewT>,
-              PTransform<PCollection<ElemT>, PCollectionView<ViewT>>>
+              PCollection<ElemT>, PCollection<ElemT>,
+              PTransform<PCollection<ElemT>, PCollection<ElemT>>>
           application)
       throws IOException {
 

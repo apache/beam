@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
+
 import com.google.auto.service.AutoService;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
@@ -33,6 +36,8 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -55,6 +60,48 @@ public class TestStreamTranslation {
     }
 
     return builder.build();
+  }
+
+  private static TestStream<?> fromProto(
+      RunnerApi.TestStreamPayload testStreamPayload, RunnerApi.Components components)
+      throws IOException {
+
+    Coder<Object> coder =
+        (Coder<Object>)
+            CoderTranslation.fromProto(
+                components.getCodersOrThrow(testStreamPayload.getCoderId()), components);
+
+    List<TestStream.Event<Object>> events = new ArrayList<>();
+
+    for (RunnerApi.TestStreamPayload.Event event : testStreamPayload.getEventsList()) {
+      events.add(fromProto(event, coder));
+    }
+    return TestStream.fromRawEvents(coder, events);
+  }
+
+  /**
+   * Converts an {@link AppliedPTransform}, which may be a rehydrated transform or an original
+   * {@link TestStream}, to a {@link TestStream}.
+   */
+  public static <T> TestStream<T> getTestStream(
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> application)
+      throws IOException {
+    // For robustness, we don't take this shortcut:
+    // if (application.getTransform() instanceof TestStream) {
+    //   return application.getTransform()
+    // }
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform transformProto = PTransformTranslation.toProto(application, sdkComponents);
+    checkArgument(
+        TEST_STREAM_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
+        "Attempt to get %s from a transform with wrong URN %s",
+        TestStream.class.getSimpleName(),
+        transformProto.getSpec().getUrn());
+    RunnerApi.TestStreamPayload testStreamPayload =
+        transformProto.getSpec().getParameter().unpack(RunnerApi.TestStreamPayload.class);
+
+    return (TestStream<T>) fromProto(testStreamPayload, sdkComponents.toComponents());
   }
 
   static <T> RunnerApi.TestStreamPayload.Event toProto(TestStream.Event<T> event, Coder<T> coder)
@@ -130,7 +177,7 @@ public class TestStreamTranslation {
   static class TestStreamTranslator implements TransformPayloadTranslator<TestStream<?>> {
     @Override
     public String getUrn(TestStream<?> transform) {
-      return PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
+      return TEST_STREAM_TRANSFORM_URN;
     }
 
     @Override

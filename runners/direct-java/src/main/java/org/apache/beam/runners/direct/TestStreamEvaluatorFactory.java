@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.testing.TestStream;
@@ -160,7 +162,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   static class DirectTestStreamFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> {
     private final DirectRunner runner;
 
     DirectTestStreamFactory(DirectRunner runner) {
@@ -169,10 +172,17 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(),
-          new DirectTestStream<T>(runner, transform.getTransform()));
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform) {
+      try {
+        return PTransformReplacement.of(
+            transform.getPipeline().begin(),
+            new DirectTestStream<T>(runner, TestStreamTranslation.getTestStream(transform)));
+      } catch (IOException exc) {
+        throw new RuntimeException(
+            String.format(
+                "Transform could not be converted to %s", TestStream.class.getSimpleName()),
+            exc);
+      }
     }
 
     @Override
