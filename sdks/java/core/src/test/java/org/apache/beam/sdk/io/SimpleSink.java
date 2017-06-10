@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -27,7 +29,9 @@ import org.apache.beam.sdk.util.MimeTypes;
  * A simple {@link FileBasedSink} that writes {@link String} values as lines with
  * header and footer.
  */
-class SimpleSink extends FileBasedSink<String> {
+class SimpleSink extends FileBasedSink<String, Void> {
+  private DynamicDestinations<String, Void> dynamicDestinations;
+
   public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix) {
     this(baseOutputDirectory, prefix, template, suffix, CompressionType.UNCOMPRESSED);
   }
@@ -36,8 +40,9 @@ class SimpleSink extends FileBasedSink<String> {
                     WritableByteChannelFactory writableByteChannelFactory) {
     super(
         StaticValueProvider.of(baseOutputDirectory),
-        new DefaultFilenamePolicy(StaticValueProvider.of(prefix), template, suffix),
         writableByteChannelFactory);
+    dynamicDestinations = new ConstantFilenamePolicy<>(
+        DefaultFilenamePolicy.fromConfig(new Config(prefix, template, suffix)));
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
@@ -49,13 +54,18 @@ class SimpleSink extends FileBasedSink<String> {
     return new SimpleWriteOperation(this);
   }
 
-  static final class SimpleWriteOperation extends WriteOperation<String> {
-    public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
-      super(sink, tempOutputDirectory);
+  public DynamicDestinations<String, Void> getDynamicDestinations() {
+    return dynamicDestinations;
+  }
+
+  static final class SimpleWriteOperation extends WriteOperation<String, Void> {
+    public SimpleWriteOperation(SimpleSink sink,
+                                ResourceId tempOutputDirectory) {
+      super(sink, sink.dynamicDestinations, tempOutputDirectory);
     }
 
     public SimpleWriteOperation(SimpleSink sink) {
-      super(sink);
+      super(sink, sink.dynamicDestinations);
     }
 
     @Override
@@ -64,7 +74,7 @@ class SimpleSink extends FileBasedSink<String> {
     }
   }
 
-  static final class SimpleWriter extends Writer<String> {
+  static final class SimpleWriter extends Writer<String, Void> {
     static final String HEADER = "header";
     static final String FOOTER = "footer";
 

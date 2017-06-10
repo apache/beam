@@ -103,7 +103,7 @@ public class FileBasedSinkTest {
 
     SimpleSink.SimpleWriter writer =
         buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
-    writer.openUnwindowed(testUid, -1);
+    writer.openUnwindowed(testUid, -1, null);
     for (String value : values) {
       writer.write(value);
     }
@@ -198,13 +198,14 @@ public class FileBasedSinkTest {
       throws Exception {
     int numFiles = temporaryFiles.size();
 
-    List<FileResult> fileResults = new ArrayList<>();
+    List<FileResult<Void>> fileResults = new ArrayList<>();
     // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
       fileResults.add(
-          new FileResult(
+          new FileResult<Void>(
               LocalResources.fromFile(temporaryFiles.get(i), false),
               WriteFiles.UNKNOWN_SHARDNUM,
+              null,
               null,
               null));
     }
@@ -213,7 +214,7 @@ public class FileBasedSinkTest {
 
     ResourceId outputDirectory = writeOp.getSink().getBaseOutputDirectoryProvider().get();
     for (int i = 0; i < numFiles; i++) {
-      ResourceId outputFilename = writeOp.getSink().getFilenamePolicy()
+      ResourceId outputFilename = writeOp.getDynamicDestinations().getFilenamePolicy(null)
           .unwindowedFilename(outputDirectory, new Context(i, numFiles), "");
       assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
@@ -234,7 +235,7 @@ public class FileBasedSinkTest {
     SimpleSink sink =
         new SimpleSink(getBaseOutputDirectory(), prefix, "", "");
 
-    WriteOperation<String> writeOp =
+    WriteOperation<String, Void> writeOp =
         new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
 
     List<File> temporaryFiles = new ArrayList<>();
@@ -293,7 +294,7 @@ public class FileBasedSinkTest {
       List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
       inputFilePaths.put(LocalResources.fromFile(inputTmpFile, false),
-          writeOp.getSink().getFilenamePolicy()
+          writeOp.getDynamicDestinations().getFilenamePolicy(null)
               .unwindowedFilename(outputDirectory, new Context(i, inputFilenames.size()), ""));
     }
 
@@ -327,7 +328,7 @@ public class FileBasedSinkTest {
     ResourceId root = getBaseOutputDirectory();
 
     SimpleSink sink = new SimpleSink(root, "file", ".SSSSS.of.NNNNN", ".test");
-    FilenamePolicy policy = sink.getFilenamePolicy();
+    FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected = Arrays.asList(
         root.resolve("file.00000.of.00003.test", StandardResolveOptions.RESOLVE_FILE),
@@ -361,11 +362,11 @@ public class FileBasedSinkTest {
     ResourceId output = root.resolve("file-03.test", StandardResolveOptions.RESOLVE_FILE);
     // More than one shard does.
     try {
-      Iterable<FileResult> results =
+      Iterable<FileResult<Void>> results =
           Lists.newArrayList(
-              new FileResult(temp1, 1, null, null),
-              new FileResult(temp2, 1, null, null),
-              new FileResult(temp3, 1, null, null));
+              new FileResult<Void>(temp1, 1, null, null, null),
+              new FileResult<Void>(temp2, 1, null, null, null),
+              new FileResult<Void>(temp3, 1, null, null, null));
       writeOp.buildOutputFilenames(results);
       fail("Should have failed.");
     } catch (IllegalStateException exn) {
@@ -380,7 +381,7 @@ public class FileBasedSinkTest {
     List<ResourceId> actual;
     ResourceId root = getBaseOutputDirectory();
     SimpleSink sink = new SimpleSink(root, "file", "-SSSSS-of-NNNNN", "");
-    FilenamePolicy policy = sink.getFilenamePolicy();
+    FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected = Arrays.asList(
         root.resolve("file-00000-of-00003", StandardResolveOptions.RESOLVE_FILE),
@@ -486,10 +487,10 @@ public class FileBasedSinkTest {
   public void testFileBasedWriterWithWritableByteChannelFactory() throws Exception {
     final String testUid = "testId";
     ResourceId root = getBaseOutputDirectory();
-    WriteOperation<String> writeOp =
+    WriteOperation<String, Void> writeOp =
         new SimpleSink(root, "file", "-SS-of-NN", "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation();
-    final Writer<String> writer = writeOp.createWriter();
+    final Writer<String, Void> writer = writeOp.createWriter();
     final ResourceId expectedFile =
         writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
 
@@ -503,7 +504,7 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.openUnwindowed(testUid, -1);
+    writer.openUnwindowed(testUid, -1, null);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();

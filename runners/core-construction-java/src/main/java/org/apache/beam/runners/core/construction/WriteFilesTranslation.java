@@ -52,7 +52,7 @@ public class WriteFilesTranslation {
       "urn:beam:file_based_sink:javasdk:0.1";
 
   @VisibleForTesting
-  static WriteFilesPayload toProto(WriteFiles<?> transform) {
+  static WriteFilesPayload toProto(WriteFiles<?, ?> transform) {
     return WriteFilesPayload.newBuilder()
         .setSink(toProto(transform.getSink()))
         .setWindowedWrites(transform.isWindowedWrites())
@@ -61,7 +61,7 @@ public class WriteFilesTranslation {
         .build();
   }
 
-  private static SdkFunctionSpec toProto(FileBasedSink<?> sink) {
+  private static SdkFunctionSpec toProto(FileBasedSink<?, ?> sink) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()
@@ -76,7 +76,7 @@ public class WriteFilesTranslation {
   }
 
   @VisibleForTesting
-  static FileBasedSink<?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
+  static FileBasedSink<?, ?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
     checkArgument(
         sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_URN),
         "Cannot extract %s instance from %s with URN %s",
@@ -87,16 +87,17 @@ public class WriteFilesTranslation {
     byte[] serializedSink =
         sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
 
-    return (FileBasedSink<?>)
+    return (FileBasedSink<?, ?>)
         SerializableUtils.deserializeFromByteArray(
             serializedSink, FileBasedSink.class.getSimpleName());
   }
 
-  public static <T> FileBasedSink<T> getSink(
+  public static <T, DestinationT> FileBasedSink<T, DestinationT> getSink(
       AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
           transform)
       throws IOException {
-    return (FileBasedSink<T>) sinkFromProto(getWriteFilesPayload(transform).getSink());
+    return (FileBasedSink<T, DestinationT>) sinkFromProto(
+        getWriteFilesPayload(transform).getSink());
   }
 
   public static <T> boolean isWindowedWrites(
@@ -124,15 +125,15 @@ public class WriteFilesTranslation {
         .unpack(WriteFilesPayload.class);
   }
 
-  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?>> {
+  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?>> {
     @Override
-    public String getUrn(WriteFiles<?> transform) {
+    public String getUrn(WriteFiles<?, ?> transform) {
       return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, WriteFiles<?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, WriteFiles<?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(toProto(transform.getTransform())))

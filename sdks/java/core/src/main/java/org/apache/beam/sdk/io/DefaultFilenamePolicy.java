@@ -20,16 +20,27 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -54,7 +65,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   private static final Logger LOG = LoggerFactory.getLogger(DefaultFilenamePolicy.class);
 
-  /** The default sharding name template used in {@link #constructUsingStandardParameters}. */
+  /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
   /** The default windowed sharding name template used when writing windowed files.
@@ -71,43 +82,92 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    */
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+|W|P)");
 
+  public static class Config {
+    private ValueProvider<String> prefix;
+    private String shardTemplate;
+    private String suffix;
+
+    public Config(ValueProvider<String> prefix, String shardTemplate, String suffix) {
+      this.prefix = prefix;
+      this.shardTemplate = shardTemplate;
+      this.suffix = suffix;
+    }
+
+    public Config(String prefix, String shardTemplate, String suffix) {
+      this(StaticValueProvider.of(prefix), shardTemplate, suffix);
+    }
+
+    /**
+     * A helper function to construct a {@link DefaultFilenamePolicy.Config} using the standard
+     * filename parameters, namely a provided {@link ResourceId} for the output prefix, and
+     * possibly-null shard name template and suffix.
+     *
+     * <p>Any filename component of the provided resource will be used as the filename prefix.
+     *
+     * <p>If provided, the shard name template will be used; otherwise {@link
+     * #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} will be used for non-windowed file names and {@link
+     * #DEFAULT_WINDOWED_SHARD_TEMPLATE} will be used for windowed file names.
+     *
+     * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
+     */
+    public static Config fromStandardParameters(
+        ValueProvider<ResourceId> outputPrefix,
+        @Nullable String shardTemplate,
+        @Nullable String filenameSuffix,
+        boolean windowedWrites) {
+      // Pick the appropriate default policy based on whether windowed writes are being performed.
+      String defaultTemplate =
+          windowedWrites ? DEFAULT_WINDOWED_SHARD_TEMPLATE : DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
+      return new Config(
+          NestedValueProvider.of(outputPrefix, new ExtractFilename()),
+          firstNonNull(shardTemplate, defaultTemplate),
+          firstNonNull(filenameSuffix, ""));
+    }
+  }
+
+  public static class ConfigCoder extends AtomicCoder<Config> {
+    private static final ConfigCoder INSTANCE = new ConfigCoder();
+    private Coder<String> stringCoder = StringUtf8Coder.of();
+
+    public static ConfigCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(Config value, OutputStream outStream)
+        throws IOException {
+      if (value == null) {
+        throw new CoderException("cannot encode a null value");
+      }
+      stringCoder.encode(value.prefix.get().toString(), outStream);
+      stringCoder.encode(value.shardTemplate, outStream);
+      stringCoder.encode(value.suffix, outStream);
+    }
+
+    @Override
+    public Config decode(InputStream inStream) throws IOException {
+      String prefix = stringCoder.decode(inStream);
+      String shardTemplate = stringCoder.decode(inStream);
+      String suffix = stringCoder.decode(inStream);
+      return new Config(prefix, shardTemplate, suffix);
+    }
+  }
+
   /**
    * Constructs a new {@link DefaultFilenamePolicy}.
    *
    * @see DefaultFilenamePolicy for more information on the arguments to this function.
    */
   @VisibleForTesting
-  DefaultFilenamePolicy(ValueProvider<String> prefix, String shardTemplate, String suffix) {
-    this.prefix = prefix;
-    this.shardTemplate = shardTemplate;
-    this.suffix = suffix;
+  DefaultFilenamePolicy(Config config) {
+    this.prefix = config.prefix;
+    this.shardTemplate = config.shardTemplate;
+    this.suffix = config.suffix;
   }
 
-  /**
-   * A helper function to construct a {@link DefaultFilenamePolicy} using the standard filename
-   * parameters, namely a provided {@link ResourceId} for the output prefix, and possibly-null
-   * shard name template and suffix.
-   *
-   * <p>Any filename component of the provided resource will be used as the filename prefix.
-   *
-   * <p>If provided, the shard name template will be used; otherwise
-   * {@link #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} will be used for non-windowed file names and
-   * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE} will be used for windowed file names.
-   *
-   * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
-   */
-  public static DefaultFilenamePolicy constructUsingStandardParameters(
-      ValueProvider<ResourceId> outputPrefix,
-      @Nullable String shardTemplate,
-      @Nullable String filenameSuffix,
-      boolean windowedWrites) {
-    // Pick the appropriate default policy based on whether windowed writes are being performed.
-    String defaultTemplate =
-        windowedWrites ? DEFAULT_WINDOWED_SHARD_TEMPLATE : DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
-    return new DefaultFilenamePolicy(
-        NestedValueProvider.of(outputPrefix, new ExtractFilename()),
-        firstNonNull(shardTemplate, defaultTemplate),
-        firstNonNull(filenameSuffix, ""));
+
+  public static DefaultFilenamePolicy fromConfig(Config config) {
+    return new DefaultFilenamePolicy(config);
   }
 
   private final ValueProvider<String> prefix;

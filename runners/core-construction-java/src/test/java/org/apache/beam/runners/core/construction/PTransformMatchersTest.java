@@ -537,16 +537,16 @@ public class PTransformMatchersTest implements Serializable {
   public void writeWithRunnerDeterminedSharding() {
     ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
     FilenamePolicy policy =
-        DefaultFilenamePolicy.constructUsingStandardParameters(
+        DefaultFilenamePolicy.fromConfig(DefaultFilenamePolicy.Config.fromStandardParameters(
             StaticValueProvider.of(outputDirectory),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",
-            false);
-    WriteFiles<Integer> write =
+            false));
+    WriteFiles<Integer, Void> write =
         WriteFiles.to(
-            new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
+            new FileBasedSink<Integer, Void>(StaticValueProvider.of(outputDirectory)) {
               @Override
-              public WriteOperation<Integer> createWriteOperation() {
+              public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;
               }
             });
@@ -554,13 +554,13 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    WriteFiles<Integer> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer, Void> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    WriteFiles<Integer> withCustomSharding =
+    WriteFiles<Integer, Void> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -568,8 +568,8 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer>>of(
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer, Void>>of(
         "WriteFiles",
         Collections.<TupleTag<?>, PValue>emptyMap(),
         Collections.<TupleTag<?>, PValue>emptyMap(),

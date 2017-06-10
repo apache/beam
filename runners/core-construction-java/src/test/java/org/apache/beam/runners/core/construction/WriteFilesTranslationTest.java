@@ -26,6 +26,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileSystems;
@@ -56,8 +57,8 @@ public class WriteFilesTranslationTest {
   @RunWith(Parameterized.class)
   public static class TestWriteFilesPayloadTranslation {
     @Parameters(name = "{index}: {0}")
-    public static Iterable<WriteFiles<?>> data() {
-      return ImmutableList.<WriteFiles<?>>of(
+    public static Iterable<WriteFiles<?, Void>> data() {
+      return ImmutableList.<WriteFiles<?, Void>>of(
           WriteFiles.to(new DummySink()),
           WriteFiles.to(new DummySink()).withWindowedWrites(),
           WriteFiles.to(new DummySink()).withNumShards(17),
@@ -65,7 +66,7 @@ public class WriteFilesTranslationTest {
     }
 
     @Parameter(0)
-    public WriteFiles<String> writeFiles;
+    public WriteFiles<String, Void> writeFiles;
 
     public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
@@ -80,7 +81,7 @@ public class WriteFilesTranslationTest {
       assertThat(payload.getWindowedWrites(), equalTo(writeFiles.isWindowedWrites()));
 
       assertThat(
-          (FileBasedSink<String>) WriteFilesTranslation.sinkFromProto(payload.getSink()),
+          (FileBasedSink<String, Void>) WriteFilesTranslation.sinkFromProto(payload.getSink()),
           equalTo(writeFiles.getSink()));
     }
 
@@ -89,8 +90,8 @@ public class WriteFilesTranslationTest {
       PCollection<String> input = p.apply(Create.of("hello"));
       PDone output = input.apply(writeFiles);
 
-      AppliedPTransform<PCollection<String>, PDone, WriteFiles<String>> appliedPTransform =
-          AppliedPTransform.<PCollection<String>, PDone, WriteFiles<String>>of(
+      AppliedPTransform<PCollection<String>, PDone, WriteFiles<String, Void>> appliedPTransform =
+          AppliedPTransform.of(
               "foo", input.expand(), output.expand(), writeFiles, p);
 
       assertThat(
@@ -101,7 +102,8 @@ public class WriteFilesTranslationTest {
           WriteFilesTranslation.isWindowedWrites(appliedPTransform),
           equalTo(writeFiles.isWindowedWrites()));
 
-      assertThat(WriteFilesTranslation.getSink(appliedPTransform), equalTo(writeFiles.getSink()));
+      assertThat(WriteFilesTranslation.<String, Void>getSink(appliedPTransform),
+          equalTo(writeFiles.getSink()));
     }
   }
 
@@ -109,16 +111,15 @@ public class WriteFilesTranslationTest {
    * A simple {@link FileBasedSink} for testing serialization/deserialization. Not mocked to avoid
    * any issues serializing mocks.
    */
-  private static class DummySink extends FileBasedSink<String> {
+  private static class DummySink extends FileBasedSink<String, Void> {
 
     DummySink() {
       super(
-          StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)),
-          new DummyFilenamePolicy());
+          StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)));
     }
 
     @Override
-    public WriteOperation<String> createWriteOperation() {
+    public WriteOperation<String, Void> createWriteOperation() {
       return new DummyWriteOperation(this);
     }
 
@@ -130,8 +131,7 @@ public class WriteFilesTranslationTest {
 
       DummySink that = (DummySink) other;
 
-      return getFilenamePolicy().equals(((DummySink) other).getFilenamePolicy())
-          && getBaseOutputDirectoryProvider().isAccessible()
+      return getBaseOutputDirectoryProvider().isAccessible()
           && that.getBaseOutputDirectoryProvider().isAccessible()
           && getBaseOutputDirectoryProvider()
               .get()
@@ -142,20 +142,19 @@ public class WriteFilesTranslationTest {
     public int hashCode() {
       return Objects.hash(
           DummySink.class,
-          getFilenamePolicy(),
           getBaseOutputDirectoryProvider().isAccessible()
               ? getBaseOutputDirectoryProvider().get()
               : null);
     }
   }
 
-  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<String> {
-    public DummyWriteOperation(FileBasedSink<String> sink) {
-      super(sink);
+  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<String, Void> {
+    public DummyWriteOperation(FileBasedSink<String, Void> sink) {
+      super(sink, new ConstantFilenamePolicy<String>(new DummyFilenamePolicy()));
     }
 
     @Override
-    public FileBasedSink.Writer<String> createWriter() throws Exception {
+    public FileBasedSink.Writer<String, Void> createWriter() throws Exception {
       throw new UnsupportedOperationException("Should never be called.");
     }
   }

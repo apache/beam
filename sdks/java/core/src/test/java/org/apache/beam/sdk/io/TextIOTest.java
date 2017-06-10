@@ -72,13 +72,19 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -272,6 +278,78 @@ public class TextIOTest {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("TextIO.Read should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
+  }
+
+  static class TestDynamicDestinations extends DynamicDestinations<String, String> {
+    ResourceId baseDir;
+
+    TestDynamicDestinations(Path baseDir) {
+      this.baseDir = FileSystems.matchNewResource(baseDir.toString(), true);
+    }
+
+    @Override
+    public String getDestination(String element) {
+      // Destination is based on first character of string.
+      return element.substring(0, 1);
+    }
+
+    @Override
+    public String getDefaultDestination() {
+      return "";
+    }
+
+    @Nullable
+    @Override
+    public Coder<String> getDestinationCoder() {
+      return StringUtf8Coder.of();
+    }
+
+    @Override
+    public FilenamePolicy getFilenamePolicy(String destination) {
+      DefaultFilenamePolicy.Config config = DefaultFilenamePolicy.Config.fromStandardParameters(
+          StaticValueProvider.of(baseDir.resolve("file_" + destination + ".txt",
+              StandardResolveOptions.RESOLVE_FILE)),
+          null, null, false);
+      return DefaultFilenamePolicy.fromConfig(config);
+    }
+  }
+
+  class StartsWith implements Predicate<String> {
+    String prefix;
+    StartsWith(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean apply(@Nullable String input) {
+      return input.startsWith(prefix);
+    }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testDynamicDestinations() throws Exception {
+    Path baseDir = Files.createTempDirectory(tempFolder, "testDynamicDestinations");
+
+    List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
+    PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
+    input.apply(TextIO.write()
+        .to(baseDir.toString())
+        .withDynamicDestinations(new TestDynamicDestinations(baseDir)));
+    p.run();
+
+    assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("a")),
+        String.class),
+        null, null, 0, baseDir, "file_a.txt",
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+    assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("b")),
+        String.class),
+        null, null, 0, baseDir, "file_b.txt",
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+    assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("c")),
+        String.class),
+        null, null, 0, baseDir, "file_c.txt",
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
   }
 
   private void runTestWrite(String[] elems) throws Exception {

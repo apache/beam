@@ -118,7 +118,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
-public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
+public abstract class FileBasedSink<T, DestinationT> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /**
@@ -211,6 +211,36 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * {@link CompressionType#UNCOMPRESSED}.
    */
   private final WritableByteChannelFactory writableByteChannelFactory;
+
+  /**
+   */
+  public abstract static class DynamicDestinations<T, DestinationT> implements Serializable {
+    /**
+     * Returns an object that represents at a high level the destination being written to. May not
+     * return null.
+     */
+    public abstract DestinationT getDestination(T element);
+
+    /**
+     * Returns the default destination. This is used for collections that have no elements as the
+     * destination to write empty files to.
+     */
+    public abstract DestinationT getDefaultDestination();
+
+    /**
+     * Returns the coder for {@link DestinationT}.
+     * (INFER)
+     */
+    @Nullable
+    public Coder<DestinationT> getDestinationCoder() {
+      return null;
+    }
+
+    /**
+     * Converts a destination into a {@link DestinationT}. May not return null.
+     */
+    public abstract FilenamePolicy getFilenamePolicy(DestinationT destination);
+  }
 
   /**
    * A naming policy for output files.
@@ -318,8 +348,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
   }
 
-  /** The policy used to generate names of files to be produced. */
-  private final FilenamePolicy filenamePolicy;
   /** The directory to which files will be written. */
   private final ValueProvider<ResourceId> baseOutputDirectoryProvider;
 
@@ -328,8 +356,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
-      ValueProvider<ResourceId> baseOutputDirectoryProvider, FilenamePolicy filenamePolicy) {
-    this(baseOutputDirectoryProvider, filenamePolicy, CompressionType.UNCOMPRESSED);
+      ValueProvider<ResourceId> baseOutputDirectoryProvider) {
+    this(baseOutputDirectoryProvider, CompressionType.UNCOMPRESSED);
   }
 
   private static class ExtractDirectory implements SerializableFunction<ResourceId, ResourceId> {
@@ -345,11 +373,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> baseOutputDirectoryProvider,
-      FilenamePolicy filenamePolicy,
       WritableByteChannelFactory writableByteChannelFactory) {
     this.baseOutputDirectoryProvider =
         NestedValueProvider.of(baseOutputDirectoryProvider, new ExtractDirectory());
-    this.filenamePolicy = filenamePolicy;
     this.writableByteChannelFactory = writableByteChannelFactory;
   }
 
@@ -362,26 +388,16 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     return baseOutputDirectoryProvider;
   }
 
-  /**
-   * Returns the policy by which files will be named inside of the base output directory. Note that
-   * the {@link FilenamePolicy} may itself specify one or more inner directories before each output
-   * file, say when writing windowed outputs in a {@code output/YYYY/MM/DD/file.txt} format.
-   */
-  @Experimental(Kind.FILESYSTEM)
-  public final FilenamePolicy getFilenamePolicy() {
-    return filenamePolicy;
-  }
-
   public void validate(PipelineOptions options) {}
 
   /**
    * Return a subclass of {@link WriteOperation} that will manage the write
    * to the sink.
    */
-  public abstract WriteOperation<T> createWriteOperation();
+  public abstract WriteOperation<T, DestinationT> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
-    getFilenamePolicy().populateDisplayData(builder);
+ //   getFilenamePolicy().populateDisplayData(builder);
   }
 
   /**
@@ -424,11 +440,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    *
    * @param <T> the type of values written to the sink.
    */
-  public abstract static class WriteOperation<T> implements Serializable {
+  public abstract static class WriteOperation<T, DestinationT> implements Serializable {
     /**
      * The Sink that this WriteOperation will write to.
      */
-    protected final FileBasedSink<T> sink;
+    protected final FileBasedSink<T, DestinationT> sink;
 
     /** Directory for temporary output files. */
     protected final ValueProvider<ResourceId> tempDirectory;
@@ -444,6 +460,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       return tempDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
+    DynamicDestinations<T, DestinationT> dynamicDestinations;
+
     /**
      * Constructs a WriteOperation using the default strategy for generating a temporary
      * directory from the base output filename.
@@ -453,8 +471,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
-    public WriteOperation(FileBasedSink<T> sink) {
-      this(sink, NestedValueProvider.of(
+    public WriteOperation(FileBasedSink<T, DestinationT> sink,
+                          DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      this(sink, dynamicDestinations, NestedValueProvider.of(
           sink.getBaseOutputDirectoryProvider(), new TemporaryDirectoryBuilder()));
     }
 
@@ -485,13 +504,17 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * @param tempDirectory the base directory to be used for temporary output files.
      */
     @Experimental(Kind.FILESYSTEM)
-    public WriteOperation(FileBasedSink<T> sink, ResourceId tempDirectory) {
-      this(sink, StaticValueProvider.of(tempDirectory));
+    public WriteOperation(FileBasedSink<T, DestinationT> sink,
+                          DynamicDestinations<T, DestinationT> dynamicDestinations,
+                          ResourceId tempDirectory) {
+      this(sink, dynamicDestinations, StaticValueProvider.of(tempDirectory));
     }
 
-    private WriteOperation(
-        FileBasedSink<T> sink, ValueProvider<ResourceId> tempDirectory) {
+    private WriteOperation(FileBasedSink<T, DestinationT> sink,
+                           DynamicDestinations<T, DestinationT> dynamicDestinations,
+        ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
+      this.dynamicDestinations = checkNotNull(dynamicDestinations);
       this.tempDirectory = tempDirectory;
       this.windowedWrites = false;
     }
@@ -500,13 +523,20 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * Clients must implement to return a subclass of {@link Writer}. This
      * method must not mutate the state of the object.
      */
-    public abstract Writer<T> createWriter() throws Exception;
+    public abstract Writer<T, DestinationT> createWriter() throws Exception;
 
     /**
      * Indicates that the operation will be performing windowed writes.
      */
     public void setWindowedWrites(boolean windowedWrites) {
       this.windowedWrites = windowedWrites;
+    }
+
+    /**
+     * Return the {@link DynamicDestinations} used.
+     */
+    public DynamicDestinations<T, DestinationT> getDynamicDestinations() {
+      return dynamicDestinations;
     }
 
     /**
@@ -523,7 +553,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public void finalize(Iterable<FileResult> writerResults) throws Exception {
+    public void finalize(Iterable<FileResult<DestinationT>> writerResults) throws Exception {
       // Collect names of temporary files and rename them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
@@ -542,17 +572,16 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     @Experimental(Kind.FILESYSTEM)
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
-        Iterable<FileResult> writerResults) {
+        Iterable<FileResult<DestinationT>> writerResults) {
       int numShards = Iterables.size(writerResults);
       Map<ResourceId, ResourceId> outputFilenames = new HashMap<>();
 
-      FilenamePolicy policy = getSink().getFilenamePolicy();
       ResourceId baseOutputDir = getSink().getBaseOutputDirectoryProvider().get();
 
       // Either all results have a shard number set (if the sink is configured with a fixed
       // number of shards), or they all don't (otherwise).
       Boolean isShardNumberSetEverywhere = null;
-      for (FileResult result : writerResults) {
+      for (FileResult<DestinationT> result : writerResults) {
         boolean isShardNumberSetHere = (result.getShard() != UNKNOWN_SHARDNUM);
         if (isShardNumberSetEverywhere == null) {
           isShardNumberSetEverywhere = isShardNumberSetHere;
@@ -568,7 +597,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         isShardNumberSetEverywhere = true;
       }
 
-      List<FileResult> resultsWithShardNumbers = Lists.newArrayList();
+      List<FileResult<DestinationT>> resultsWithShardNumbers = Lists.newArrayList();
       if (isShardNumberSetEverywhere) {
         resultsWithShardNumbers = Lists.newArrayList(writerResults);
       } else {
@@ -577,11 +606,12 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         // case of triggers, the list of FileResult objects in the Finalize iterable is not
         // deterministic, and might change over retries. This breaks the assumption below that
         // sorting the FileResult objects provides idempotency.
-        List<FileResult> sortedByTempFilename =
+        List<FileResult<DestinationT>> sortedByTempFilename =
             Ordering.from(
-                new Comparator<FileResult>() {
+                new Comparator<FileResult<DestinationT>>() {
                   @Override
-                  public int compare(FileResult first, FileResult second) {
+                  public int compare(FileResult<DestinationT> first,
+                                     FileResult<DestinationT> second) {
                     String firstFilename = first.getTempFilename().toString();
                     String secondFilename = second.getTempFilename().toString();
                     return firstFilename.compareTo(secondFilename);
@@ -593,13 +623,13 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         }
       }
 
-      for (FileResult result : resultsWithShardNumbers) {
+      for (FileResult<DestinationT> result : resultsWithShardNumbers) {
         checkArgument(
             result.getShard() != UNKNOWN_SHARDNUM, "Should have set shard number on %s", result);
         outputFilenames.put(
             result.getTempFilename(),
             result.getDestinationFile(
-                policy, baseOutputDir, numShards, getSink().getExtension()));
+                dynamicDestinations, baseOutputDir, numShards, getSink().getExtension()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
@@ -701,7 +731,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Returns the FileBasedSink for this write operation.
      */
-    public FileBasedSink<T> getSink() {
+    public FileBasedSink<T, DestinationT> getSink() {
       return sink;
     }
 
@@ -742,10 +772,10 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    *
    * @param <T> the type of values to write.
    */
-  public abstract static class Writer<T> {
+  public abstract static class Writer<T, DestinationT> {
     private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
 
-    private final WriteOperation<T> writeOperation;
+    private final WriteOperation<T, DestinationT> writeOperation;
 
     /** Unique id for this output bundle. */
     private String id;
@@ -753,6 +783,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private BoundedWindow window;
     private PaneInfo paneInfo;
     private int shard = -1;
+    private DestinationT destination;
 
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
@@ -775,7 +806,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Construct a new {@link Writer} that will produce files of the given MIME type.
      */
-    public Writer(WriteOperation<T> writeOperation, String mimeType) {
+    public Writer(WriteOperation<T, DestinationT> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
@@ -818,12 +849,13 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * id populated for the case of static sharding. In cases where the runner is dynamically
      * picking sharding, shard might be set to -1.
      */
-    public final void openWindowed(String uId, BoundedWindow window, PaneInfo paneInfo, int shard)
+    public final void openWindowed(String uId, BoundedWindow window, PaneInfo paneInfo, int shard,
+                                   DestinationT destinationT)
         throws Exception {
       if (!getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openWindowed called a non-windowed sink.");
       }
-      open(uId, window, paneInfo, shard);
+      open(uId, window, paneInfo, shard, destination);
     }
 
     /**
@@ -835,11 +867,12 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * Similar to {@link #openWindowed} however for the case where unwindowed writes were
      * requested.
      */
-    public final void openUnwindowed(String uId, int shard) throws Exception {
+    public final void openUnwindowed(String uId, int shard,
+                                     DestinationT destination) throws Exception {
       if (getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openUnwindowed called a windowed sink.");
       }
-      open(uId, null, null, shard);
+      open(uId, null, null, shard, destination);
     }
 
     // Helper function to close a channel, on exception cases.
@@ -858,11 +891,13 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private void open(String uId,
                       @Nullable BoundedWindow window,
                       @Nullable PaneInfo paneInfo,
-                      int shard) throws Exception {
+                      int shard,
+                      DestinationT destination) throws Exception {
       this.id = uId;
       this.window = window;
       this.paneInfo = paneInfo;
       this.shard = shard;
+      this.destination = destination;
       ResourceId tempDirectory = getWriteOperation().tempDirectory.get();
       outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
       verifyNotNull(
@@ -908,7 +943,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /** Closes the channel and returns the bundle result. */
-    public final FileResult close() throws Exception {
+    public final FileResult<DestinationT> close() throws Exception {
       checkState(outputFile != null, "FileResult.close cannot be called with a null outputFile");
 
       LOG.debug("Writing footer to {}.", outputFile);
@@ -938,7 +973,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
       }
 
-      FileResult result = new FileResult(outputFile, shard, window, paneInfo);
+      FileResult<DestinationT> result = new FileResult<>(
+          outputFile, shard, window, paneInfo, destination);
       LOG.debug("Result for bundle {}: {}", this.id, outputFile);
       return result;
     }
@@ -946,7 +982,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Return the WriteOperation that this Writer belongs to.
      */
-    public WriteOperation<T> getWriteOperation() {
+    public WriteOperation<T, DestinationT> getWriteOperation() {
       return writeOperation;
     }
   }
@@ -955,18 +991,21 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * Result of a single bundle write. Contains the filename produced by the bundle, and if known
    * the final output filename.
    */
-  public static final class FileResult {
+  public static final class FileResult<DestinationT> {
     private final ResourceId tempFilename;
     private final int shard;
     private final BoundedWindow window;
     private final PaneInfo paneInfo;
+    private final DestinationT destination;
 
     @Experimental(Kind.FILESYSTEM)
-    public FileResult(ResourceId tempFilename, int shard, BoundedWindow window, PaneInfo paneInfo) {
+    public FileResult(ResourceId tempFilename, int shard, BoundedWindow window, PaneInfo
+        paneInfo, DestinationT destination) {
       this.tempFilename = tempFilename;
       this.shard = shard;
       this.window = window;
       this.paneInfo = paneInfo;
+      this.destination = destination;
     }
 
     @Experimental(Kind.FILESYSTEM)
@@ -978,8 +1017,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       return shard;
     }
 
-    public FileResult withShard(int shard) {
-      return new FileResult(tempFilename, shard, window, paneInfo);
+    public FileResult<DestinationT> withShard(int shard) {
+      return new FileResult<>(tempFilename, shard, window, paneInfo, destination);
     }
 
     public BoundedWindow getWindow() {
@@ -990,11 +1029,17 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       return paneInfo;
     }
 
+    public DestinationT getDestination() {
+      return destination;
+    }
+
     @Experimental(Kind.FILESYSTEM)
-    public ResourceId getDestinationFile(FilenamePolicy policy, ResourceId outputDirectory,
-                                         int numShards, String extension) {
+    public ResourceId getDestinationFile(DynamicDestinations<?, DestinationT> dynamicDestinations,
+                                         ResourceId outputDirectory, int numShards,
+                                         String extension) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);
       checkArgument(numShards > 0);
+      FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
       if (getWindow() != null) {
         return policy.windowedFilename(outputDirectory, new WindowedContext(
             getWindow(), getPaneInfo(), getShard(), numShards), extension);
@@ -1017,19 +1062,23 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * A coder for {@link FileResult} objects.
    */
-  public static final class FileResultCoder extends StructuredCoder<FileResult> {
+  public static final class FileResultCoder<DestinationT>
+      extends StructuredCoder<FileResult<DestinationT>> {
     private static final Coder<String> FILENAME_CODER = StringUtf8Coder.of();
     private static final Coder<Integer> SHARD_CODER = VarIntCoder.of();
     private static final Coder<PaneInfo> PANE_INFO_CODER = NullableCoder.of(PaneInfoCoder.INSTANCE);
-
     private final Coder<BoundedWindow> windowCoder;
+    private final Coder<DestinationT> destinationCoder;
 
-    protected FileResultCoder(Coder<BoundedWindow> windowCoder) {
+    protected FileResultCoder(Coder<BoundedWindow> windowCoder,
+                              Coder<DestinationT> destinationCoder) {
       this.windowCoder = NullableCoder.of(windowCoder);
+      this.destinationCoder = destinationCoder;
     }
 
-    public static FileResultCoder of(Coder<BoundedWindow> windowCoder) {
-      return new FileResultCoder(windowCoder);
+    public static <DestinationT> FileResultCoder<DestinationT> of(
+        Coder<BoundedWindow> windowCoder, Coder<DestinationT> destinationCoder) {
+      return new FileResultCoder<>(windowCoder, destinationCoder);
     }
 
     @Override
@@ -1038,7 +1087,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     @Override
-    public void encode(FileResult value, OutputStream outStream)
+    public void encode(FileResult<DestinationT> value, OutputStream outStream)
         throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
@@ -1047,17 +1096,18 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       windowCoder.encode(value.getWindow(), outStream);
       PANE_INFO_CODER.encode(value.getPaneInfo(), outStream);
       SHARD_CODER.encode(value.getShard(), outStream);
+      destinationCoder.encode(value.getDestination(), outStream);
     }
 
     @Override
-    public FileResult decode(InputStream inStream)
-        throws IOException {
+    public FileResult<DestinationT> decode(InputStream inStream) throws IOException {
       String tempFilename = FILENAME_CODER.decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PANE_INFO_CODER.decode(inStream);
       int shard = SHARD_CODER.decode(inStream);
-      return new FileResult(FileSystems.matchNewResource(tempFilename, false /* isDirectory */),
-          shard, window, paneInfo);
+      DestinationT destination = destinationCoder.decode(inStream);
+      return new FileResult<>(FileSystems.matchNewResource(tempFilename,
+          false /* isDirectory */), shard, window, paneInfo, destination);
     }
 
     @Override
@@ -1066,6 +1116,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       windowCoder.verifyDeterministic();
       PANE_INFO_CODER.verifyDeterministic();
       SHARD_CODER.verifyDeterministic();
+      destinationCoder.verifyDeterministic();
     }
   }
 
