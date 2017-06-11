@@ -189,12 +189,16 @@ abstract class FlinkStreamingPipelineJob implements PipelineResult {
     try {
       // this will block until the job is finished
       clusterClient.retrieveJob(getJobId());
+      System.out.println("JOB DONE");
       return State.DONE;
     } catch (JobCancellationException e) {
+      System.out.println("JOB CANCELLED");
       return State.CANCELLED;
     } catch (JobRetrievalException e) {
+      System.out.println("JOB RETRIEVAL EXCEPTION " + e);
       return getState();
     } catch (JobExecutionException e) {
+      System.out.println("JOB EXECUTION EXCEOPTION");
       // work around stupidity in JobClient
       if (e.getMessage().contains("Interrupted while waiting for job completion")) {
         return getState();

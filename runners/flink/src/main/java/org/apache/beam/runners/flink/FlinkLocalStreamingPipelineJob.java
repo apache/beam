@@ -22,14 +22,15 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -79,15 +80,17 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
    */
   private volatile State finalState = null;
 
+  private volatile Exception finalException = null;
+
   public FlinkLocalStreamingPipelineJob(
       FlinkPipelineOptions pipelineOptions,
-      LocalStreamEnvironment flinkEnv) throws Exception {
+      final LocalStreamEnvironment flinkEnv) throws Exception {
 
     // transform the streaming program into a JobGraph
     StreamGraph streamGraph = flinkEnv.getStreamGraph();
     streamGraph.setJobName(pipelineOptions.getJobName());
 
-    JobGraph jobGraph = streamGraph.getJobGraph();
+    final JobGraph jobGraph = streamGraph.getJobGraph();
 
     Configuration configuration = new Configuration();
     configuration.addAll(jobGraph.getJobConfiguration());
@@ -108,44 +111,51 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
     flinkMiniCluster.start();
 
-    // submit detached and get the JobId, so that we don't block
-    jobId = flinkMiniCluster.submitJobDetached(jobGraph).getJobID();
-
-    LOG.info("Submitted job with JobId {}", jobId);
+    jobId = jobGraph.getJobID();
+    LOG.info("Submitting job with JobId {}", jobId);
 
     final ClusterClient clusterClient = getClusterClient();
+
+    final Object jobStartLock = new Object();
+    final AtomicBoolean inClusterLock = new AtomicBoolean(false);
 
     // start a Thread that waits on the job and shuts down the mini cluster when
     // the job is done
     Thread shutdownTread = new Thread() {
       @Override
       public void run() {
-        try {
+        synchronized (clusterShutdownLock) {
+          synchronized (jobStartLock) {
+            inClusterLock.set(true);
+            jobStartLock.notifyAll();
+          }
+
           try {
             // this call will only return when the job finishes
-            JobExecutionResult jobExecutionResult = clusterClient.retrieveJob(jobId);
+            JobSubmissionResult jobSubmissionResult =
+                flinkMiniCluster.submitJobAndWait(
+                    jobGraph, flinkEnv.getConfig().isSysoutLoggingEnabled());
 
-            synchronized (clusterShutdownLock) {
-              finalAccumulators = jobExecutionResult.getAllAccumulatorResults();
-              finalState = PipelineResult.State.DONE;
-            }
+            finalAccumulators =
+                jobSubmissionResult.getJobExecutionResult().getAllAccumulatorResults();
+            finalState = PipelineResult.State.DONE;
           } catch (JobRetrievalException e) {
+            System.out.println("JOB RET EX: " + e);
             // job could already be finished, try and get the accumulator results
-            synchronized (clusterShutdownLock) {
-              try {
-                finalAccumulators = clusterClient.getAccumulators(
-                    getJobId(), Thread.currentThread().getContextClassLoader());
-                finalState = FlinkLocalStreamingPipelineJob.this.getState();
-              } catch (Exception e1) {
-                LOG.error(
-                    "Error while getting accumulator results for (possibly) finished job.", e1);
-                // set to an empty map so the the code in #metrics() doesn't try to fetch
-                // accumulators
-                finalAccumulators = new HashMap<>();
-                finalState = PipelineResult.State.FAILED;
-              }
+            try {
+              finalAccumulators = clusterClient.getAccumulators(
+                  getJobId(), Thread.currentThread().getContextClassLoader());
+              finalState = FlinkLocalStreamingPipelineJob.this.getState();
+            } catch (Exception e1) {
+              LOG.error(
+                  "Error while getting accumulator results for (possibly) finished job.", e1);
+              // set to an empty map so the the code in #metrics() doesn't try to fetch
+              // accumulators
+              finalAccumulators = new HashMap<>();
+              finalState = PipelineResult.State.FAILED;
             }
           } catch (JobExecutionException e) {
+            System.out.println("JOB EX EX: " + e);
             LOG.error("Exception caught while waiting on job.", e);
             synchronized (clusterShutdownLock) {
               finalAccumulators = new HashMap<>();
@@ -154,20 +164,29 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
               } else {
                 finalState = PipelineResult.State.FAILED;
               }
+              finalException = e;
             }
-          }
-        } finally {
-          try {
-            flinkMiniCluster.stop();
-            haServices.closeAndCleanupAllData();
           } catch (Exception e) {
-            LOG.error("Error while shutting down mini cluster.", e);
+            System.out.println("JOB EX RANDOM: " + e);
+          } finally {
+            try {
+              flinkMiniCluster.stop();
+              haServices.closeAndCleanupAllData();
+            } catch (Exception e) {
+              LOG.error("Error while shutting down mini cluster.", e);
+            }
           }
         }
       }
     };
     shutdownTread.setName("Beam Flink Runner Local Cluster Shutdown Thread");
     shutdownTread.start();
+
+    synchronized (jobStartLock) {
+      if (!inClusterLock.get()) {
+        jobStartLock.wait();
+      }
+    }
   }
 
   @Override
@@ -197,18 +216,28 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    if (finalState != null) {
-      return finalState;
+    synchronized (clusterShutdownLock) {
+      if (finalException != null) {
+        throw new RuntimeException(finalException);
+      }
+      if (finalState != null) {
+        return finalState;
+      }
+      return super.waitUntilFinish(duration);
     }
-    return super.waitUntilFinish(duration);
   }
 
   @Override
   public State waitUntilFinish() {
-    if (finalState != null) {
-      return finalState;
+    synchronized (clusterShutdownLock) {
+      if (finalException != null) {
+        throw new RuntimeException(finalException);
+      }
+      if (finalState != null) {
+        return finalState;
+      }
+      return super.waitUntilFinish();
     }
-    return super.waitUntilFinish();
   }
 
   @Override
@@ -221,14 +250,11 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
         synchronized (clusterShutdownLock) {
           if (finalAccumulators != null) {
             // return the final accumulators we got before the cluster shut down
-            return asAttemptedOnlyMetricResults(
-                (MetricsContainerStepMap) finalAccumulators.
-                    get(FlinkMetricContainer.ACCUMULATOR_NAME))
-                .queryMetrics(filter);
+            return createAttemptedOnlyMetricResult(finalAccumulators).queryMetrics(filter);
           } else {
-            StandaloneClusterClient clusterClient;
+            ClusterClient clusterClient;
             try {
-              clusterClient = new StandaloneClusterClient(getConfiguration(), haServices);
+              clusterClient = getClusterClient();
             } catch (Exception e) {
               throw new RuntimeException("Error retrieving cluster client.", e);
             }
@@ -237,15 +263,7 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
               Map<String, Object> accumulators = clusterClient.getAccumulators(
                   getJobId(), Thread.currentThread().getContextClassLoader());
 
-              // at the beginning it can happen that accumulators are not yet available
-              if (accumulators.isEmpty()) {
-                return asAttemptedOnlyMetricResults(new MetricsContainerStepMap())
-                    .queryMetrics(filter);
-              }
-
-              return asAttemptedOnlyMetricResults(
-                  (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME))
-                  .queryMetrics(filter);
+              return createAttemptedOnlyMetricResult(accumulators).queryMetrics(filter);
             } catch (Exception e) {
               throw new RuntimeException("Could not retrieve Accumulators from JobManager.", e);
             }
@@ -253,6 +271,16 @@ class FlinkLocalStreamingPipelineJob extends FlinkStreamingPipelineJob {
         }
       }
     };
+  }
+
+  private static MetricResults createAttemptedOnlyMetricResult(Map<String, Object> accumulators) {
+    if (accumulators.containsKey(FlinkMetricContainer.ACCUMULATOR_NAME)) {
+      return asAttemptedOnlyMetricResults(
+          (MetricsContainerStepMap) accumulators.
+              get(FlinkMetricContainer.ACCUMULATOR_NAME));
+    } else {
+      return asAttemptedOnlyMetricResults(new MetricsContainerStepMap());
+    }
   }
 
 
