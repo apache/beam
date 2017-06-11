@@ -65,7 +65,7 @@ public class BeamTransformBaseTest {
   }
 
   /**
-   * create a {@code BeamSQLRecordType} for given column metadata.
+   * create a {@code BeamSqlRecordType} for given column metadata.
    */
   public static BeamSqlRecordType initTypeOfSqlRow(List<KV<String, SqlTypeName>> columnMetadata){
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();

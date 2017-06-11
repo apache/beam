@@ -63,7 +63,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
    * <p>e.g.
    *
    * <pre>{@code
-   * MockedBeamSQLTable
+   * MockedBeamSqlTable
    *   .of(SqlTypeName.BIGINT, "order_id",
    *       SqlTypeName.INTEGER, "site_id",
    *       SqlTypeName.DOUBLE, "price",

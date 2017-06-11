@@ -165,11 +165,11 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamSqlRecordType buildBeamSQLRecordType() {
+  private static BeamSqlRecordType buildBeamSqlRecordType() {
     return BeamSqlRecordType.from(buildRelDataType());
   }
 
   private static BeamSqlRow buildRow(Object[] data) {
-    return new BeamSqlRow(buildBeamSQLRecordType(), Arrays.asList(data));
+    return new BeamSqlRow(buildBeamSqlRecordType(), Arrays.asList(data));
   }
 }

@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.schema.kafka;
 
 import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSQLRow2CsvLine;
-import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSQLRow;
+import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSqlRow;
 
 import java.util.List;
 
@@ -80,7 +80,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
         @ProcessElement
         public void processElement(ProcessContext c) {
           String rowInString = new String(c.element().getValue());
-          c.output(csvLine2BeamSQLRow(format, rowInString, recordType));
+          c.output(csvLine2BeamSqlRow(format, rowInString, recordType));
         }
       }));
     }

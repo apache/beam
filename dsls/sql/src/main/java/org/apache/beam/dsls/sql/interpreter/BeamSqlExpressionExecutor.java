@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 
 /**
- * {@code BeamSQLExpressionExecutor} fills the gap between relational
+ * {@code BeamSqlExpressionExecutor} fills the gap between relational
  * expressions in Calcite SQL and executable code.
  *
  */

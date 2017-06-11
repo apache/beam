@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  *
- * {@code BeamSQLProjectFn} is the executor for a {@link BeamProjectRel} step.
+ * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
  *
  */
 public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {

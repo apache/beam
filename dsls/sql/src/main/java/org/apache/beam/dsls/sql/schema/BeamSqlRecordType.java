@@ -31,7 +31,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Field type information in {@link BeamSqlRow}.
  *
  */
-//@DefaultCoder(BeamSQLRecordTypeCoder.class)
 public class BeamSqlRecordType implements Serializable {
   private List<String> fieldsName = new ArrayList<>();
   private List<SqlTypeName> fieldsType = new ArrayList<>();

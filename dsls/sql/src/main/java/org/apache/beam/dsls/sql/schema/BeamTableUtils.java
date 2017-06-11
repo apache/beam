@@ -35,7 +35,7 @@ import org.apache.commons.csv.CSVRecord;
  * Utility methods for working with {@code BeamTable}.
  */
 public final class BeamTableUtils {
-  public static BeamSqlRow csvLine2BeamSQLRow(
+  public static BeamSqlRow csvLine2BeamSqlRow(
       CSVFormat csvFormat,
       String line,
       BeamSqlRecordType beamSqlRecordType) {

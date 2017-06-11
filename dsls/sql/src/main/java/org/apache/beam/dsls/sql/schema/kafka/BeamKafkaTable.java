@@ -38,7 +38,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /**
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to
- * extend to convert between {@code BeamSQLRow} and {@code KV<byte[], byte[]>}.
+ * extend to convert between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  *
  */
 public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {

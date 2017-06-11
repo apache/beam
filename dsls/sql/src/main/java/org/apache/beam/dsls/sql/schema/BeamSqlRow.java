@@ -334,7 +334,7 @@ public class BeamSqlRow implements Serializable {
 
   @Override
   public String toString() {
-    return "BeamSQLRow [nullFields=" + nullFields + ", dataValues=" + dataValues + ", dataType="
+    return "BeamSqlRow [nullFields=" + nullFields + ", dataValues=" + dataValues + ", dataType="
         + dataType + ", windowStart=" + windowStart + ", windowEnd=" + windowEnd + "]";
   }
 

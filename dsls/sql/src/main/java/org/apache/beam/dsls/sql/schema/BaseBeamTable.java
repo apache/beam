@@ -53,7 +53,7 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
   public abstract BeamIOType getSourceType();
 
   /**
-   * create a {@code PCollection<BeamSQLRow>} from source.
+   * create a {@code PCollection<BeamSqlRow>} from source.
    *
    */
   public abstract PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline);

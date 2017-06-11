@@ -24,7 +24,7 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * {@code BeamSQLFilterFn} is the executor for a {@link BeamFilterRel} step.
+ * {@code BeamSqlFilterFn} is the executor for a {@link BeamFilterRel} step.
  *
  */
 public class BeamSqlFilterFn extends DoFn<BeamSqlRow, BeamSqlRow> {

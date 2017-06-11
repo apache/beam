@@ -76,9 +76,9 @@ public class BeamSql {
    * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
    *
    * <p>The returned {@link PTransform} can be applied to a {@link PCollectionTuple} representing
-   * all the input tables and results in a {@code PCollection<BeamSQLRow>} representing the output
+   * all the input tables and results in a {@code PCollection<BeamSqlRow>} representing the output
    * table. The {@link PCollectionTuple} contains the mapping from {@code table names} to
-   * {@code PCollection<BeamSQLRow>}, each representing an input table.
+   * {@code PCollection<BeamSqlRow>}, each representing an input table.
    *
    * <p>It is an error to apply a {@link PCollectionTuple} missing any {@code table names}
    * referenced within the query.

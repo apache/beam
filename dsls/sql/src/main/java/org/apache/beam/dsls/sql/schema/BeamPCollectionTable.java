@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.rel.type.RelProtoDataType;
 
 /**
- * {@code BeamPCollectionTable} converts a {@code PCollection<BeamSQLRow>} as a virtual table,
+ * {@code BeamPCollectionTable} converts a {@code PCollection<BeamSqlRow>} as a virtual table,
  * then a downstream query can query directly.
  */
 public class BeamPCollectionTable extends BaseBeamTable {

@@ -71,7 +71,7 @@ import org.apache.calcite.util.NlsString;
 
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
- * {@code BeamSQLFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
+ * {@code BeamSqlFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
  * which can be evaluated against the {@link BeamSqlRow}.
  *
  */
