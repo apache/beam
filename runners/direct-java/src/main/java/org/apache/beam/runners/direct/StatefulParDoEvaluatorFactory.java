@@ -98,7 +98,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       throws Exception {
 
     final DoFn<KV<K, InputT>, OutputT> doFn =
-        application.getTransform().getUnderlyingParDo().getFn();
+        application.getTransform().getDoFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // If the DoFn is stateful, schedule state clearing.
@@ -120,9 +120,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             (PCollection) inputBundle.getPCollection(),
             inputBundle.getKey(),
             doFn,
-            application.getTransform().getUnderlyingParDo().getSideInputs(),
-            application.getTransform().getUnderlyingParDo().getMainOutputTag(),
-            application.getTransform().getUnderlyingParDo().getAdditionalOutputTags().getAll());
+            application.getTransform().getSideInputs(),
+            application.getTransform().getMainOutputTag(),
+            application.getTransform().getAdditionalOutputTags().getAll());
 
     return new StatefulParDoEvaluator<>(delegateEvaluator);
   }
@@ -152,12 +152,11 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                   transformOutputWindow
                       .getTransform()
                       .getTransform()
-                      .getUnderlyingParDo()
                       .getMainOutputTag());
       WindowingStrategy<?, ?> windowingStrategy = pc.getWindowingStrategy();
       BoundedWindow window = transformOutputWindow.getWindow();
       final DoFn<?, ?> doFn =
-          transformOutputWindow.getTransform().getTransform().getUnderlyingParDo().getFn();
+          transformOutputWindow.getTransform().getTransform().getDoFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
       final DirectStepContext stepContext =
