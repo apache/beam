@@ -18,7 +18,7 @@
 
 package org.apache.beam.dsls.sql.schema.text;
 
-import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSQLRow2CsvLine;
+import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSqlRow2CsvLine;
 
 import java.io.Serializable;
 
@@ -53,7 +53,7 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSqlRow>
 
       @ProcessElement public void processElement(ProcessContext ctx) {
         BeamSqlRow row = ctx.element();
-        ctx.output(beamSQLRow2CsvLine(row, csvFormat));
+        ctx.output(beamSqlRow2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.write().to(filePattern));
   }

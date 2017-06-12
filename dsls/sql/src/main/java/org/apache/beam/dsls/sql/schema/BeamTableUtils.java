@@ -61,7 +61,7 @@ public final class BeamTableUtils {
     return row;
   }
 
-  public static String beamSQLRow2CsvLine(BeamSqlRow row, CSVFormat csvFormat) {
+  public static String beamSqlRow2CsvLine(BeamSqlRow row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.size(); i++) {
