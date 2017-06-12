@@ -406,7 +406,7 @@ public class TransformHierarchy {
       return fullName;
     }
 
-    /** Returns the transform input, in unexpanded form. */
+    /** Returns the transform input, in fully expanded form. */
     public Map<TupleTag<?>, PValue> getInputs() {
       return inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
     }
