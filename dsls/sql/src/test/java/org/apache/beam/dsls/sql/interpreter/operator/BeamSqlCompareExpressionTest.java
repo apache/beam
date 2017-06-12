@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Arrays;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +26,7 @@ import org.junit.Test;
 /**
  * Test cases for the collections of {@link BeamSqlCompareExpression}.
  */
-public class BeamSqlCompareExpressionTest extends BeamSQLFnExecutorTestBase {
+public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testEqual() {

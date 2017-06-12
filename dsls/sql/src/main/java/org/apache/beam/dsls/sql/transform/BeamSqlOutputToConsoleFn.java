@@ -17,18 +17,18 @@
  */
 package org.apache.beam.dsls.sql.transform;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * A test PTransform to display output in console.
  *
  */
-public class BeamSQLOutputToConsoleFn extends DoFn<BeamSQLRow, Void> {
+public class BeamSqlOutputToConsoleFn extends DoFn<BeamSqlRow, Void> {
 
   private String stepName;
 
-  public BeamSQLOutputToConsoleFn(String stepName) {
+  public BeamSqlOutputToConsoleFn(String stepName) {
     super();
     this.stepName = stepName;
   }

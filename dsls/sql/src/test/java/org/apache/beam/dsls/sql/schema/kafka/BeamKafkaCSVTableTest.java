@@ -21,8 +21,8 @@ package org.apache.beam.dsls.sql.schema.kafka;
 import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -45,8 +45,8 @@ import org.junit.Test;
 public class BeamKafkaCSVTableTest {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
-  public static BeamSQLRow row1 = new BeamSQLRow(genRowType());
-  public static BeamSQLRow row2 = new BeamSQLRow(genRowType());
+  public static BeamSqlRow row1 = new BeamSqlRow(genRowType());
+  public static BeamSqlRow row2 = new BeamSqlRow(genRowType());
 
   @BeforeClass
   public static void setUp() {
@@ -60,7 +60,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   @Test public void testCsvRecorderDecoder() throws Exception {
-    PCollection<BeamSQLRow> result = pipeline
+    PCollection<BeamSqlRow> result = pipeline
         .apply(
             Create.of("1,\"1\",1.0", "2,2,2.0")
         )
@@ -75,7 +75,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   @Test public void testCsvRecorderEncoder() throws Exception {
-    PCollection<BeamSQLRow> result = pipeline
+    PCollection<BeamSqlRow> result = pipeline
         .apply(
             Create.of(row1, row2)
         )
@@ -90,8 +90,8 @@ public class BeamKafkaCSVTableTest {
     pipeline.run();
   }
 
-  private static BeamSQLRecordType genRowType() {
-    return BeamSQLRecordType.from(
+  private static BeamSqlRecordType genRowType() {
+    return BeamSqlRecordType.from(
         new RelProtoDataType() {
           @Override public RelDataType apply(RelDataTypeFactory a0) {
             return a0.builder()

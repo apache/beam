@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.List;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -49,7 +49,7 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
       if (opValueEvaluated(i, inputRecord)) {
         return BeamSqlPrimitive.of(

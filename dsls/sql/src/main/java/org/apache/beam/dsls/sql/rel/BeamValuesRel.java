@@ -23,9 +23,9 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,17 +57,17 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   }
 
-  @Override public PCollection<BeamSQLRow> buildBeamPipeline(PCollectionTuple inputPCollections)
+  @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
       throws Exception {
-    List<BeamSQLRow> rows = new ArrayList<>(tuples.size());
-    String stageName = BeamSQLRelUtils.getStageName(this);
+    List<BeamSqlRow> rows = new ArrayList<>(tuples.size());
+    String stageName = BeamSqlRelUtils.getStageName(this);
     if (tuples.isEmpty()) {
       throw new IllegalStateException("Values with empty tuples!");
     }
 
-    BeamSQLRecordType beamSQLRecordType = BeamSQLRecordType.from(this.getRowType());
+    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(this.getRowType());
     for (ImmutableList<RexLiteral> tuple : tuples) {
-      BeamSQLRow row = new BeamSQLRow(beamSQLRecordType);
+      BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
       for (int i = 0; i < tuple.size(); i++) {
         BeamTableUtils.addFieldWithAutoTypeCasting(row, i, tuple.get(i).getValue());
       }
