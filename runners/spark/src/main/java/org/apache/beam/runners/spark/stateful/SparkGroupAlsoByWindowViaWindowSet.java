@@ -104,12 +104,13 @@ public class SparkGroupAlsoByWindowViaWindowSet {
 
   public static <K, InputT, W extends BoundedWindow>
       JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> groupAlsoByWindow(
-          JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
+          final JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> inputDStream,
           final Coder<K> keyCoder,
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,
           final SparkRuntimeContext runtimeContext,
-          final List<Integer> sourceIds) {
+          final List<Integer> sourceIds,
+          final Long batchDurationMillis) {
 
     final IterableCoder<WindowedValue<InputT>> itrWvCoder = IterableCoder.of(wvCoder);
     final Coder<InputT> iCoder = ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder();
@@ -239,7 +240,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
 
                       SparkStateInternals<K> stateInternals;
                       SparkTimerInternals timerInternals = SparkTimerInternals.forStreamFromSources(
-                          sourceIds, GlobalWatermarkHolder.get());
+                          sourceIds, GlobalWatermarkHolder.get(batchDurationMillis));
                       // get state(internals) per key.
                       if (prevStateAndTimersOpt.isEmpty()) {
                         // no previous state.
