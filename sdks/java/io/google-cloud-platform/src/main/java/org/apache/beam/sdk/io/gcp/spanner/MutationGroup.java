@@ -50,11 +50,6 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
       this.builder = ImmutableList.<Mutation>builder().add(primary);
     }
 
-    public Builder attach(Mutation m) {
-      this.builder.add(m);
-      return this;
-    }
-
     public Builder attach(Iterable<Mutation> mutations) {
       this.builder.addAll(mutations);
       return this;
