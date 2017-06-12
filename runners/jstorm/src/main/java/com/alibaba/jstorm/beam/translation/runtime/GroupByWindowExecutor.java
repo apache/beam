@@ -23,6 +23,7 @@ import java.util.List;
 import com.alibaba.jstorm.beam.translation.runtime.state.JStormStateInternals;
 import com.alibaba.jstorm.beam.translation.runtime.timer.JStormTimerInternals;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
@@ -51,11 +52,15 @@ import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.TranslationContext.UserGraphContext;
 import com.alibaba.jstorm.beam.translation.util.DefaultStepContext;
 import com.alibaba.jstorm.beam.util.RunnerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
     private static final long serialVersionUID = -7563050475488610553L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(GroupByWindowExecutor.class);
 
     private class GroupByWindowOutputManager implements DoFnRunners.OutputManager, Serializable {
 
@@ -63,7 +68,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
             KV kv = (KV) output.getValue();
             KV immutableKv = kv.getValue() instanceof Iterable ?
-                    KV.of(kv.getKey(), ImmutableList.copyOf((Iterable) kv.getValue())) :
+                    KV.of(kv.getKey(), Lists.newArrayList((Iterable) kv.getValue())) :
                     kv;
             executorsBolt.processExecutorElem(tag, (WindowedValue<T>) output.withValue(immutableKv));
         }
