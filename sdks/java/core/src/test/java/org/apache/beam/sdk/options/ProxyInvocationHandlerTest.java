@@ -44,6 +44,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -1018,5 +1020,15 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("value")));
+  }
+
+  private static class CapturesOptions implements Serializable {
+    PipelineOptions options = PipelineOptionsFactory.create();
+  }
+
+  @Test
+  public void testOptionsAreNotSerializable() {
+    expectedException.expectCause(Matchers.<Throwable>instanceOf(NotSerializableException.class));
+    SerializableUtils.clone(new CapturesOptions());
   }
 }
