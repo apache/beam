@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
@@ -359,10 +360,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     protected boolean shouldDefer(TransformHierarchy.Node node) {
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
-      if (node.getInputs().size() != 1) {
+      Collection<PValue> nonAdditionalInputs =
+          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform(getPipeline()));
+      if (nonAdditionalInputs.size() != 1) {
         return false;
       }
-      PValue input = Iterables.getOnlyElement(node.getInputs().values());
+      PValue input = Iterables.getOnlyElement(nonAdditionalInputs);
       if (!(input instanceof PCollection)
           || ((PCollection) input).getWindowingStrategy().getWindowFn().isNonMerging()) {
         return false;
