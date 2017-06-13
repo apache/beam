@@ -54,6 +54,7 @@ import tempfile
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pvalue import PCollection
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
@@ -190,7 +191,8 @@ class Pipeline(object):
           if len(inputs) > 1:
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
-                'have a single input. Tried to replace %r that has %d inputs',
+                'have a single input. Tried to replace input of '
+                'AppliedPTransform %r that has %d inputs',
                 transform_node, len(inputs))
           transform_node.transform = replacement_transform
           self.pipeline.transforms_stack.append(transform_node)
@@ -208,18 +210,14 @@ class Pipeline(object):
           # We only support replacing transforms with a single output with
           # another transform that produces a single output.
           # TODO: Support replacing PTransforms with multiple outputs.
-          if len(transform_node.outputs) > 1:
+          if (len(transform_node.outputs) > 1 or
+              not isinstance(transform_node.outputs[None], PCollection) or
+              not isinstance(new_output, PCollection)):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
-                'has a single output. Tried to replace %r that has %d outputs.'
-                , transform_node, len(transform_node.outputs))
-
-          if type(new_output) is tuple:
-            raise NotImplementedError(
-                'PTransform overriding is only supported for PTransforms that '
-                'has a single output. Tried to replace %r with a transform '
-                'that produced %d outputs.'
-                , transform_node, len(new_output))
+                'have a single output. Tried to replace output of '
+                'AppliedPTransform %r with %r.'
+                , transform_node, new_output)
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into

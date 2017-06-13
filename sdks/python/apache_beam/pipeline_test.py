@@ -301,16 +301,13 @@ class PipelineTest(unittest.TestCase):
 
   def test_ptransform_overrides(self):
 
-    class MyParDoMatcher(object):
-
-      def __call__(self, applied_ptransform):
-        if isinstance(applied_ptransform.transform, DoubleParDo):
-          return True
+    def my_par_do_matcher(applied_ptransform):
+      return isinstance(applied_ptransform.transform, DoubleParDo)
 
     class MyParDoOverride(PTransformOverride):
 
       def get_matcher(self):
-        return MyParDoMatcher()
+        return my_par_do_matcher
 
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
