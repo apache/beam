@@ -32,11 +32,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 
 /**
- * Repersent a generic ROW record in Beam SQL.
+ * Represent a generic ROW record in Beam SQL.
  *
  */
 public class BeamSqlRow implements Serializable {
-
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
   private BeamSqlRecordType dataType;

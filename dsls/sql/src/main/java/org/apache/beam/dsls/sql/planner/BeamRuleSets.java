@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+
 import java.util.Iterator;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -26,8 +27,11 @@ import org.apache.beam.dsls.sql.rule.BeamAggregationRule;
 import org.apache.beam.dsls.sql.rule.BeamFilterRule;
 import org.apache.beam.dsls.sql.rule.BeamIOSinkRule;
 import org.apache.beam.dsls.sql.rule.BeamIOSourceRule;
+import org.apache.beam.dsls.sql.rule.BeamIntersectRule;
+import org.apache.beam.dsls.sql.rule.BeamMinusRule;
 import org.apache.beam.dsls.sql.rule.BeamProjectRule;
 import org.apache.beam.dsls.sql.rule.BeamSortRule;
+import org.apache.beam.dsls.sql.rule.BeamUnionRule;
 import org.apache.beam.dsls.sql.rule.BeamValuesRule;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
@@ -42,7 +46,8 @@ public class BeamRuleSets {
   private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet
       .<RelOptRule>builder().add(BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE,
           BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE,
-          BeamAggregationRule.INSTANCE, BeamSortRule.INSTANCE, BeamValuesRule.INSTANCE)
+          BeamAggregationRule.INSTANCE, BeamSortRule.INSTANCE, BeamValuesRule.INSTANCE,
+          BeamIntersectRule.INSTANCE, BeamMinusRule.INSTANCE, BeamUnionRule.INSTANCE)
       .build();
 
   public static RuleSet[] getRuleSets() {
