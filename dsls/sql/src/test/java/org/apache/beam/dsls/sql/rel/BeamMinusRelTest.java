@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.rel;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,7 +36,7 @@ import org.junit.Test;
 public class BeamMinusRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private MockedBeamSQLTable orderDetailsTable1 = MockedBeamSQLTable
+  private MockedBeamSqlTable orderDetailsTable1 = MockedBeamSqlTable
       .of(SqlTypeName.BIGINT, "order_id",
           SqlTypeName.INTEGER, "site_id",
           SqlTypeName.DOUBLE, "price",
@@ -47,7 +47,7 @@ public class BeamMinusRelTest {
           4L, 4, 4.0
       );
 
-  private MockedBeamSQLTable orderDetailsTable2 = MockedBeamSQLTable
+  private MockedBeamSqlTable orderDetailsTable2 = MockedBeamSqlTable
       .of(SqlTypeName.BIGINT, "order_id",
           SqlTypeName.INTEGER, "site_id",
           SqlTypeName.DOUBLE, "price",
@@ -60,7 +60,7 @@ public class BeamMinusRelTest {
   public void setUp() {
     BeamSqlEnv.registerTable("ORDER_DETAILS1", orderDetailsTable1);
     BeamSqlEnv.registerTable("ORDER_DETAILS2", orderDetailsTable2);
-    MockedBeamSQLTable.CONTENT.clear();
+    MockedBeamSqlTable.CONTENT.clear();
   }
 
   @Test
@@ -72,9 +72,9 @@ public class BeamMinusRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
         SqlTypeName.BIGINT, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.DOUBLE, "price",
@@ -93,11 +93,11 @@ public class BeamMinusRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
     PAssert.that(rows).satisfies(new CheckSize(2));
 
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSQLTable.of(
+        MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",

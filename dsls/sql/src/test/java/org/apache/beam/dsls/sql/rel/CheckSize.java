@@ -18,21 +18,21 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Assert;
 
 /**
  * Utility class to check size of BeamSQLRow iterable.
  */
-public class CheckSize implements SerializableFunction<Iterable<BeamSQLRow>, Void> {
+public class CheckSize implements SerializableFunction<Iterable<BeamSqlRow>, Void> {
   private int size;
   public CheckSize(int size) {
     this.size = size;
   }
-  @Override public Void apply(Iterable<BeamSQLRow> input) {
+  @Override public Void apply(Iterable<BeamSqlRow> input) {
     int count = 0;
-    for (BeamSQLRow row : input) {
+    for (BeamSqlRow row : input) {
       count++;
     }
     Assert.assertEquals(size, count);

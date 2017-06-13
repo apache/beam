@@ -45,7 +45,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class MockedBeamSqlTable extends BaseBeamTable {
   public static final AtomicInteger COUNTER = new AtomicInteger();
-  public static final ConcurrentLinkedQueue<BeamSQLRow> CONTENT = new ConcurrentLinkedQueue<>();
+  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
 
   private List<BeamSqlRow> inputRecords;
 
@@ -122,7 +122,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
   }
 
   @Override
-  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply(
         "MockedBeamSQLTable_Reader_" + COUNTER.incrementAndGet(), Create.of(inputRecords));
   }

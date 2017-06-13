@@ -24,8 +24,8 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
-import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -45,7 +45,7 @@ public class BeamSetOperatorRelBaseTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   public static final Date THE_DATE = new Date();
-  private static MockedBeamSQLTable orderDetailsTable = MockedBeamSQLTable
+  private static MockedBeamSqlTable orderDetailsTable = MockedBeamSqlTable
       .of(SqlTypeName.BIGINT, "order_id",
           SqlTypeName.INTEGER, "site_id",
           SqlTypeName.DOUBLE, "price",
@@ -71,9 +71,9 @@ public class BeamSetOperatorRelBaseTest {
         + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
 
-    PCollection<BeamSQLRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
-    List<BeamSQLRow> expRows =
-        MockedBeamSQLTable.of(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    List<BeamSqlRow> expRows =
+        MockedBeamSqlTable.of(
         SqlTypeName.BIGINT, "order_id",
         SqlTypeName.INTEGER, "site_id",
         SqlTypeName.BIGINT, "cnt",
@@ -104,16 +104,16 @@ public class BeamSetOperatorRelBaseTest {
     pipeline.run();
   }
 
-  static class ToString extends DoFn<BeamSQLRow, String> {
+  static class ToString extends DoFn<BeamSqlRow, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().valueInString());
     }
   }
 
-  static List<String> toString (List<BeamSQLRow> rows) {
+  static List<String> toString (List<BeamSqlRow> rows) {
     List<String> strs = new ArrayList<>();
-    for (BeamSQLRow row : rows) {
+    for (BeamSqlRow row : rows) {
       strs.add(row.valueInString());
     }
 
