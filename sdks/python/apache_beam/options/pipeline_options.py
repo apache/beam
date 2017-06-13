@@ -278,11 +278,6 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
-  def validate(self, validator):
-    errors = []
-    # TODO: add validation as necessary.
-    return errors
-
 
 class TypeOptions(PipelineOptions):
 
