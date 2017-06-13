@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.apex.translation.utils;
+package org.apache.beam.runners.spark.stateful;
 
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ApexStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
+ * Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}.
  */
-public class ApexStateInternalsTest extends StateInternalsTest {
+@RunWith(JUnit4.class)
+public class SparkStateInternalsTest extends StateInternalsTest {
 
   @Override
   protected StateInternals createStateInternals() {
-    return new ApexStateInternals.ApexStateBackend()
-        .newStateInternalsFactory(StringUtf8Coder.of())
-        .stateInternalsForKey("dummyKey");
+    return SparkStateInternals.forKey("dummyKey");
   }
 
   ///////////////////////// Unsupported tests \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
