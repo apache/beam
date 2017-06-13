@@ -492,7 +492,7 @@ class Pipeline(object):
   def to_runner_api(self):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
@@ -692,7 +692,7 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     def transform_to_runner_api(transform, context):
       if transform is None:

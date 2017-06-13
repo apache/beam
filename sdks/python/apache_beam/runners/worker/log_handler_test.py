@@ -22,7 +22,7 @@ import unittest
 from concurrent import futures
 import grpc
 
-from apache_beam.portability.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import log_handler
 
 

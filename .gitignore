@@ -25,7 +25,7 @@ sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
-sdks/python/apache_beam/portability/runners/api/*pb2*.*
+sdks/python/apache_beam/portability/api/*pb2*.*
 
 # Ignore IntelliJ files.
 .idea/
