@@ -28,7 +28,6 @@ import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
-from apache_beam.pipeline import PTransformMatcher
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
@@ -302,9 +301,9 @@ class PipelineTest(unittest.TestCase):
 
   def test_ptransform_overrides(self):
 
-    class MyParDoMatcher(PTransformMatcher):
+    class MyParDoMatcher(object):
 
-      def match(self, applied_ptransform):
+      def __call__(self, applied_ptransform):
         if isinstance(applied_ptransform.transform, DoubleParDo):
           return True
 

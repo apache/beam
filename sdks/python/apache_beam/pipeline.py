@@ -45,6 +45,7 @@ Typical usage:
 
 from __future__ import absolute_import
 
+import abc
 import collections
 import logging
 import os
@@ -177,12 +178,11 @@ class Pipeline(object):
     class TransformUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
       """"A visitor that replaces the matching PTransforms."""
 
-      def __init__(self, pipeline, applied_labels):
+      def __init__(self, pipeline):
         self.pipeline = pipeline
-        self._applied_labels = applied_labels
 
       def _replace_if_needed(self, transform_node):
-        if matcher.match(transform_node):
+        if matcher(transform_node):
           replacement_transform = override.get_replacement_transform(
               transform_node.transform)
           inputs = transform_node.inputs
@@ -192,7 +192,6 @@ class Pipeline(object):
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace %r that has %d inputs',
                 transform_node, len(inputs))
-          assert len(inputs) == 1
           transform_node.transform = replacement_transform
           self.pipeline.transforms_stack.append(transform_node)
 
@@ -205,6 +204,22 @@ class Pipeline(object):
           if new_output.producer is None:
             # When current transform is a primitive, we set the producer here.
             new_output.producer = transform_node
+
+          # We only support replacing transforms with a single output with
+          # another transform that produces a single output.
+          # TODO: Support replacing PTransforms with multiple outputs.
+          if len(transform_node.outputs) > 1:
+            raise NotImplementedError(
+                'PTransform overriding is only supported for PTransforms that '
+                'has a single output. Tried to replace %r that has %d outputs.'
+                , transform_node, len(transform_node.outputs))
+
+          if type(new_output) is tuple:
+            raise NotImplementedError(
+                'PTransform overriding is only supported for PTransforms that '
+                'has a single output. Tried to replace %r with a transform '
+                'that produced %d outputs.'
+                , transform_node, len(new_output))
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
@@ -219,7 +234,7 @@ class Pipeline(object):
       def visit_transform(self, transform_node):
         self._replace_if_needed(transform_node)
 
-    self.visit(TransformUpdater(self, self.applied_labels))
+    self.visit(TransformUpdater(self))
 
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
@@ -269,7 +284,7 @@ class Pipeline(object):
 
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
-        if matcher.match(transform_node):
+        if matcher(transform_node):
           raise RuntimeError('Transform node %r was not replaced as expected.',
                              transform_node)
 
@@ -720,33 +735,27 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformMatcher(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  A mather for AppliedPTransform objects."""
-
-  def match(self, applied_ptransform):
-    # Returns true or false
-    raise NotImplementedError
-
-
 class PTransformOverride(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Gives a PTransformMatcher and replacements for matching PTransforms.
+  Gives a matcher and replacements for matching PTransforms.
 
   TODO: Update this to support cases where input and/our output types are
   different.
   """
+  __metaclass__ = abc.ABCMeta
 
+  @abc.abstractmethod
   def get_matcher(self):
     """Gives a matcher that will be used to to perform this override.
 
     Returns:
-      a PTransformMatcher object.
+      a callable that takes an AppliedPTransform as a parameter and returns a
+      boolean as a result.
     """
     raise NotImplementedError
 
+  @abc.abstractmethod
   def get_replacement_transform(self, ptransform):
     """Provides a runner specific override for a given PTransform.
 
