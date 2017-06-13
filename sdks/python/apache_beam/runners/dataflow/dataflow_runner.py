@@ -31,6 +31,7 @@ import apache_beam as beam
 from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.pvalue import AsSideInput
@@ -369,6 +370,73 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     return step
+
+  def apply_Create(self, transform, pcoll):
+    standard_options = pcoll.pipeline._options.view_as(StandardOptions)  # pylint: disable=protected-access
+    if standard_options.streaming:
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.core import DoFn, PTransform
+      from apache_beam.transforms.core import Windowing
+      from apache_beam.transforms.window import GlobalWindows
+
+      class DecodeAndEmitDoFn(DoFn):
+        """A DoFn which stores encoded versions of elements.
+
+        It also stores a Coder to decode and emit those elements.
+        TODO: BEAM-2422 - Make this a SplittableDoFn.
+        """
+
+        def __init__(self, encoded_values, coder):
+          self.encoded_values = encoded_values
+          self.coder = coder
+
+        def process(self, unused_element):
+          for encoded_value in self.encoded_values:
+            yield self.coder.decode(encoded_value)
+
+      class Impulse(PTransform):
+        """The Dataflow specific override for the impulse primitive."""
+
+        def expand(self, pbegin):
+          assert isinstance(pbegin, pvalue.PBegin)
+          return pvalue.PCollection(pbegin.pipeline)
+
+        def get_windowing(self, inputs):
+          return Windowing(GlobalWindows())
+
+        def infer_output_type(self, unused_input_type):
+          return bytes
+
+      values_coder = typecoders.registry.get_coder(transform.get_output_type())
+      encoded_values = map(values_coder.encode, transform.value)
+      return (pcoll
+              | 'Impulse' >> Impulse()
+              | 'Decode Values' >> beam.ParDo(
+                  DecodeAndEmitDoFn(encoded_values, values_coder)
+                  .with_output_types(transform.get_output_type())))
+    else:
+      return self.apply_PTransform(transform, pcoll)
+
+  def run_Impulse(self, transform_node):
+    standard_options = (
+        transform_node.outputs[None].pipeline.options.view_as(StandardOptions))
+    if standard_options.streaming:
+      step = self._add_step(
+          TransformNames.READ, transform_node.full_label, transform_node)
+      step.add_property(PropertyNames.FORMAT, 'pubsub')
+      step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
+
+      step.encoding = self._get_encoded_output_coder(transform_node)
+      step.add_property(
+          PropertyNames.OUTPUT_INFO,
+          [{PropertyNames.USER_NAME: (
+              '%s.%s' % (
+                  transform_node.full_label, PropertyNames.OUT)),
+            PropertyNames.ENCODING: step.encoding,
+            PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    else:
+      ValueError('Impulse source for batch pipelines has not been defined.')
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,

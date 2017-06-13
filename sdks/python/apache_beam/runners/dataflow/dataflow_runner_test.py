@@ -111,6 +111,22 @@ class DataflowRunnerTest(unittest.TestCase):
     remote_runner.job = apiclient.Job(p._options)
     super(DataflowRunner, remote_runner).run(p)
 
+  def test_streaming_create_translation(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append("--streaming")
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+    remote_runner.job = apiclient.Job(p._options)
+    super(DataflowRunner, remote_runner).run(p)
+    job_dict = json.loads(str(remote_runner.job))
+    self.assertEqual(len(job_dict[u'steps']), 2)
+
+    self.assertEqual(job_dict[u'steps'][0][u'kind'], u'ParallelRead')
+    self.assertEqual(
+        job_dict[u'steps'][0][u'properties'][u'pubsub_subscription'],
+        '_starting_signal/')
+    self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
+
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
