@@ -131,19 +131,19 @@ public class WriteFilesTranslationTest {
 
       DummySink that = (DummySink) other;
 
-      return getBaseOutputDirectoryProvider().isAccessible()
-          && that.getBaseOutputDirectoryProvider().isAccessible()
-          && getBaseOutputDirectoryProvider()
+      return getTempDirectoryProvider().isAccessible()
+          && that.getTempDirectoryProvider().isAccessible()
+          && getTempDirectoryProvider()
               .get()
-              .equals(that.getBaseOutputDirectoryProvider().get());
+              .equals(that.getTempDirectoryProvider().get());
     }
 
     @Override
     public int hashCode() {
       return Objects.hash(
           DummySink.class,
-          getBaseOutputDirectoryProvider().isAccessible()
-              ? getBaseOutputDirectoryProvider().get()
+          getTempDirectoryProvider().isAccessible()
+              ? getTempDirectoryProvider().get()
               : null);
     }
   }
@@ -161,14 +161,13 @@ public class WriteFilesTranslationTest {
 
   private static class DummyFilenamePolicy extends FilenamePolicy {
     @Override
-    public ResourceId windowedFilename(
-        ResourceId outputDirectory, WindowedContext c, String extension) {
+    public ResourceId windowedFilename(WindowedContext c, String extension) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 
     @Nullable
     @Override
-    public ResourceId unwindowedFilename(ResourceId outputDirectory, Context c, String extension) {
+    public ResourceId unwindowedFilename(Context c, String extension) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 

@@ -42,7 +42,7 @@ class SimpleSink extends FileBasedSink<String, Void> {
         StaticValueProvider.of(baseOutputDirectory),
         writableByteChannelFactory);
     dynamicDestinations = new ConstantFilenamePolicy<>(
-        DefaultFilenamePolicy.fromConfig(new Config(prefix, template, suffix)));
+        DefaultFilenamePolicy.fromConfig(new Config(baseOutputDirectory, template, suffix)));
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {

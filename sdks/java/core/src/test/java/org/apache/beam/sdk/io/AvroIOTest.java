@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -276,36 +277,38 @@ public class AvroIOTest {
   }
 
   private static class WindowedFilenamePolicy extends FilenamePolicy {
-    final String outputFilePrefix;
+    final ResourceId outputFilePrefix;
 
-    WindowedFilenamePolicy(String outputFilePrefix) {
+    WindowedFilenamePolicy(ResourceId outputFilePrefix) {
       this.outputFilePrefix = outputFilePrefix;
     }
 
     @Override
-    public ResourceId windowedFilename(
-        ResourceId outputDirectory, WindowedContext input, String extension) {
+    public ResourceId windowedFilename(WindowedContext input, String extension) {
+      String filenamePrefix = outputFilePrefix.isDirectory()
+          ? "" : firstNonNull(outputFilePrefix.getFilename(), "");
+
       String filename = String.format(
           "%s-%s-%s-of-%s-pane-%s%s%s",
-          outputFilePrefix,
+          filenamePrefix,
           input.getWindow(),
           input.getShardNumber(),
           input.getNumShards() - 1,
           input.getPaneInfo().getIndex(),
           input.getPaneInfo().isLast() ? "-final" : "",
           extension);
-      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+      return outputFilePrefix.getCurrentDirectory().resolve(filename,
+          StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public ResourceId unwindowedFilename(
-        ResourceId outputDirectory, Context input, String extension) {
+    public ResourceId unwindowedFilename(Context input, String extension) {
       throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("fileNamePrefix", outputFilePrefix)
+      builder.add(DisplayData.item("fileNamePrefix", outputFilePrefix.toString())
           .withLabel("File Name Prefix"));
     }
   }
@@ -359,7 +362,8 @@ public class AvroIOTest {
         Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
         .advanceWatermarkToInfinity();
 
-    FilenamePolicy policy = new WindowedFilenamePolicy(baseFilename);
+    FilenamePolicy policy = new WindowedFilenamePolicy(
+        FileBasedSink.convertToFileResourceIfPossible(baseFilename));
     windowedAvroWritePipeline
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
@@ -494,13 +498,13 @@ public class AvroIOTest {
       expectedFiles.add(
           new File(
               DefaultFilenamePolicy.constructName(
-                  outputFilePrefix,
+                  FileBasedSink.convertToFileResourceIfPossible(outputFilePrefix),
                   shardNameTemplate,
                   "" /* no suffix */,
                   i,
                   numShards,
                   null,
-                  null)));
+                  null).toString()));
     }
 
     List<String> actualElements = new ArrayList<>();

@@ -212,10 +212,9 @@ public class FileBasedSinkTest {
 
     writeOp.finalize(fileResults);
 
-    ResourceId outputDirectory = writeOp.getSink().getBaseOutputDirectoryProvider().get();
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename = writeOp.getDynamicDestinations().getFilenamePolicy(null)
-          .unwindowedFilename(outputDirectory, new Context(i, numFiles), "");
+          .unwindowedFilename(new Context(i, numFiles), "");
       assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
@@ -273,8 +272,6 @@ public class FileBasedSinkTest {
   @Test
   public void testCopyToOutputFiles() throws Exception {
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
-    ResourceId outputDirectory = writeOp.getSink().getBaseOutputDirectoryProvider().get();
-
     List<String> inputFilenames = Arrays.asList("input-1", "input-2", "input-3");
     List<String> inputContents = Arrays.asList("1", "2", "3");
     List<String> expectedOutputFilenames = Arrays.asList(
@@ -295,7 +292,7 @@ public class FileBasedSinkTest {
       writeFile(lines, inputTmpFile);
       inputFilePaths.put(LocalResources.fromFile(inputTmpFile, false),
           writeOp.getDynamicDestinations().getFilenamePolicy(null)
-              .unwindowedFilename(outputDirectory, new Context(i, inputFilenames.size()), ""));
+              .unwindowedFilename(new Context(i, inputFilenames.size()), ""));
     }
 
     // Copy input files to output files.
@@ -312,7 +309,7 @@ public class FileBasedSinkTest {
       ResourceId outputDirectory, FilenamePolicy policy, int numFiles) {
     List<ResourceId> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      filenames.add(policy.unwindowedFilename(outputDirectory, new Context(i, numFiles), ""));
+      filenames.add(policy.unwindowedFilename(new Context(i, numFiles), ""));
     }
     return filenames;
   }

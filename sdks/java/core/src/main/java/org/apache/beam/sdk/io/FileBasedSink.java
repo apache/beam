@@ -325,8 +325,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * for different windows and panes.
      */
     @Experimental(Kind.FILESYSTEM)
-    public abstract ResourceId windowedFilename(
-        ResourceId outputDirectory, WindowedContext c, String extension);
+    public abstract ResourceId windowedFilename(WindowedContext c, String extension);
 
     /**
      * When a sink has not requested windowed or triggered output, this method will be invoked to
@@ -338,8 +337,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * to generate unique and consistent filenames.
      */
     @Experimental(Kind.FILESYSTEM)
-    @Nullable public abstract ResourceId unwindowedFilename(
-        ResourceId outputDirectory, Context c, String extension);
+    @Nullable public abstract ResourceId unwindowedFilename(Context c, String extension);
 
     /**
      * Populates the display data.
@@ -349,15 +347,15 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   }
 
   /** The directory to which files will be written. */
-  private final ValueProvider<ResourceId> baseOutputDirectoryProvider;
+  private final ValueProvider<ResourceId> tempDirectoryProvider;
 
   /**
    * Construct a {@link FileBasedSink} with the given filename policy, producing uncompressed files.
    */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
-      ValueProvider<ResourceId> baseOutputDirectoryProvider) {
-    this(baseOutputDirectoryProvider, CompressionType.UNCOMPRESSED);
+      ValueProvider<ResourceId> tempDirectoryProvider) {
+    this(tempDirectoryProvider, CompressionType.UNCOMPRESSED);
   }
 
   private static class ExtractDirectory implements SerializableFunction<ResourceId, ResourceId> {
@@ -372,10 +370,10 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
-      ValueProvider<ResourceId> baseOutputDirectoryProvider,
+      ValueProvider<ResourceId> tempDirectoryProvider,
       WritableByteChannelFactory writableByteChannelFactory) {
-    this.baseOutputDirectoryProvider =
-        NestedValueProvider.of(baseOutputDirectoryProvider, new ExtractDirectory());
+    this.tempDirectoryProvider =
+        NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
     this.writableByteChannelFactory = writableByteChannelFactory;
   }
 
@@ -384,8 +382,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    * {@link FilenamePolicy}.
    */
   @Experimental(Kind.FILESYSTEM)
-  public ValueProvider<ResourceId> getBaseOutputDirectoryProvider() {
-    return baseOutputDirectoryProvider;
+  public ValueProvider<ResourceId> getTempDirectoryProvider() {
+    return tempDirectoryProvider;
   }
 
   public void validate(PipelineOptions options) {}
@@ -425,13 +423,9 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    * For example, if tempDirectory is "gs://my-bucket/my_temp_output", the output for a
    * bundle with bundle id 15723 will be "gs://my-bucket/my_temp_output/15723".
    *
-   * <p>Final output files are written to baseOutputFilename with the format
-   * {@code {baseOutputFilename}-0000i-of-0000n.{extension}} where n is the total number of bundles
-   * written and extension is the file extension. Both baseOutputFilename and extension are required
-   * constructor arguments.
-   *
-   * <p>Subclass implementations can change the file naming template by supplying a value for
-   * fileNamingTemplate.
+   * <p>Final output files are written to the location specified by the
+   * {@link FilenamePolicy}. If no filename policy is specified, then the
+   * {@link DefaultFilenamePolicy} will be used.
    *
    * <p>Note that in the case of permanent failure of a bundle's write, no clean up of temporary
    * files will occur.
@@ -466,15 +460,16 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * Constructs a WriteOperation using the default strategy for generating a temporary
      * directory from the base output filename.
      *
-     * <p>Default is a uniquely named sibling of baseOutputFilename, e.g. if baseOutputFilename is
-     * /path/to/foo, the temporary directory will be /path/to/temp-beam-foo-$date.
+     * <p>Default is a uniquely named subdirectory of the provided tempDirectory, e.g. if
+     * tempDirectory is /path/to/foo/, the temporary directory will be
+     * /path/to/foo/temp-beam-foo-$date.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
     public WriteOperation(FileBasedSink<T, DestinationT> sink,
                           DynamicDestinations<T, DestinationT> dynamicDestinations) {
       this(sink, dynamicDestinations, NestedValueProvider.of(
-          sink.getBaseOutputDirectoryProvider(), new TemporaryDirectoryBuilder()));
+          sink.getTempDirectoryProvider(), new TemporaryDirectoryBuilder()));
     }
 
     private static class TemporaryDirectoryBuilder
@@ -490,10 +485,10 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       private final Long tempId = TEMP_COUNT.getAndIncrement();
 
       @Override
-      public ResourceId apply(ResourceId baseOutputDirectory) {
+      public ResourceId apply(ResourceId tempDirectory) {
         // Temp directory has a timestamp and a unique ID
         String tempDirName = String.format(".temp-beam-%s-%s", timestamp, tempId);
-        return baseOutputDirectory.resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY);
+        return tempDirectory.resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY);
       }
     }
 
@@ -576,8 +571,6 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       int numShards = Iterables.size(writerResults);
       Map<ResourceId, ResourceId> outputFilenames = new HashMap<>();
 
-      ResourceId baseOutputDir = getSink().getBaseOutputDirectoryProvider().get();
-
       // Either all results have a shard number set (if the sink is configured with a fixed
       // number of shards), or they all don't (otherwise).
       Boolean isShardNumberSetEverywhere = null;
@@ -629,7 +622,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
         outputFilenames.put(
             result.getTempFilename(),
             result.getDestinationFile(
-                dynamicDestinations, baseOutputDir, numShards, getSink().getExtension()));
+                dynamicDestinations, numShards, getSink().getExtension()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
@@ -645,9 +638,11 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      *
      * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
      *
-     * <p>Files will be named according to the file naming template. The order of the output files
-     * will be the same as the sorted order of the input filenames.  In other words, if the input
-     * filenames are ["C", "A", "B"], baseOutputFilename is "file", the extension is ".txt", and
+     * <p>Files will be named according to the {@link FilenamePolicy}. The
+     * order of theoutput files
+     * will be the same as the sorted order of the input filenames.  In other words (when using
+     * {@link DefaultFilenamePolicy}), if the input filenames are ["C", "A", "B"],
+     * baseOutputFilename is "file", the extension is ".txt", and
      * the fileNamingTemplate is "-SSS-of-NNN", the contents of A will be copied to
      * file-000-of-003.txt, the contents of B will be copied to file-001-of-003.txt, etc.
      *
@@ -1035,17 +1030,16 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
 
     @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(DynamicDestinations<?, DestinationT> dynamicDestinations,
-                                         ResourceId outputDirectory, int numShards,
+                                         int numShards,
                                          String extension) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);
       checkArgument(numShards > 0);
       FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
       if (getWindow() != null) {
-        return policy.windowedFilename(outputDirectory, new WindowedContext(
+        return policy.windowedFilename(new WindowedContext(
             getWindow(), getPaneInfo(), getShard(), numShards), extension);
       } else {
-        return policy.unwindowedFilename(outputDirectory, new Context(getShard(), numShards),
-            extension);
+        return policy.unwindowedFilename(new Context(getShard(), numShards), extension);
       }
     }
 

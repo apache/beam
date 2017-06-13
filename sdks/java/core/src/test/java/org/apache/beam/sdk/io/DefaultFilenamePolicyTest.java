@@ -32,66 +32,89 @@ public class DefaultFilenamePolicyTest {
 
   @Test
   public void testConstructName() {
-    assertEquals("output-001-of-123.txt",
-        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/output-001-of-123.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/output", false),
+            "-SSS-of-NNN", ".txt", 1, 123, null, null));
 
-    assertEquals("out.txt/part-00042",
-        constructName("out.txt", "/part-SSSSS", "", 42, 100, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/out.txt/part-00042", false),
+        constructName(FileSystems.matchNewResource("path/to/out.txt", false),
+            "/part-SSSSS", "", 42, 100, null, null));
 
-    assertEquals("out.txt",
-        constructName("ou", "t.t", "xt", 1, 1, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/out.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/ou", false),
+            "t.t", "xt", 1, 1, null, null));
 
-    assertEquals("out0102shard.txt",
-        constructName("out", "SSNNshard", ".txt", 1, 2, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/out0102shard.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/out", false),
+            "SSNNshard", ".txt", 1, 2, null, null));
 
-    assertEquals("out-2/1.part-1-of-2.txt",
-        constructName("out", "-N/S.part-S-of-N", ".txt", 1, 2, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/out-2/1.part-1-of-2.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/out", false),
+            "-N/S.part-S-of-N", ".txt", 1, 2, null, null));
   }
 
   @Test
   public void testConstructNameWithLargeShardCount() {
-    assertEquals("out-100-of-5000.txt",
-        constructName("out", "-SS-of-NN", ".txt", 100, 5000, null, null));
+    assertEquals(FileSystems.matchNewResource("out-100-of-5000.txt", false),
+        constructName(FileSystems.matchNewResource("out", false),
+            "-SS-of-NN", ".txt", 100, 5000, null, null));
   }
 
   @Test
   public void testConstructWindowedName() {
-    assertEquals("output-001-of-123.txt",
-        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/output-001-of-123.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/output", false),
+            "-SSS-of-NNN", ".txt", 1, 123, null, null));
 
-    assertEquals("output-001-of-123-PPP-W.txt",
-        constructName("output", "-SSS-of-NNN-PPP-W", ".txt", 1, 123, null, null));
+    assertEquals(FileSystems.matchNewResource("path/to/output-001-of-123-PPP-W.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/output", false),
+            "-SSS-of-NNN-PPP-W", ".txt", 1, 123, null, null));
 
-    assertEquals("out.txt/part-00042-myPaneStr-myWindowStr",
-        constructName("out.txt", "/part-SSSSS-P-W", "", 42, 100, "myPaneStr",
+    assertEquals(FileSystems.matchNewResource("path/to/out"
+            + ".txt/part-00042-myPaneStr-myWindowStr", false),
+        constructName(FileSystems.matchNewResource("path/to/out.txt", false),
+            "/part-SSSSS-P-W", "", 42, 100, "myPaneStr",
             "myWindowStr"));
 
-    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, "myPaneStr2",
+    assertEquals(FileSystems.matchNewResource("path/to/out.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/ou", false),
+            "t.t", "xt", 1, 1, "myPaneStr2",
         "anotherWindowStr"));
 
-    assertEquals("out0102shard-oneMoreWindowStr-anotherPaneStr.txt",
-        constructName("out", "SSNNshard-W-P", ".txt", 1, 2, "anotherPaneStr",
+    assertEquals(FileSystems.matchNewResource(
+        "path/to/out0102shard-oneMoreWindowStr-anotherPaneStr.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/out", false),
+            "SSNNshard-W-P", ".txt", 1, 2, "anotherPaneStr",
             "oneMoreWindowStr"));
 
-    assertEquals("out-2/1.part-1-of-2-slidingWindow1-myPaneStr3-windowslidingWindow1-"
-        + "panemyPaneStr3.txt",
-        constructName("out", "-N/S.part-S-of-N-W-P-windowW-paneP", ".txt", 1, 2, "myPaneStr3",
+    assertEquals(FileSystems.matchNewResource(
+        "out-2/1.part-1-of-2-slidingWindow1-myPaneStr3-windowslidingWindow1-"
+        + "panemyPaneStr3.txt", false),
+        constructName(FileSystems.matchNewResource("out", false),
+            "-N/S.part-S-of-N-W-P-windowW-paneP", ".txt", 1, 2, "myPaneStr3",
         "slidingWindow1"));
 
     // test first/last pane
-    assertEquals("out.txt/part-00042-myWindowStr-pane-11-true-false",
-        constructName("out.txt", "/part-SSSSS-W-P", "", 42, 100, "pane-11-true-false",
+    assertEquals(FileSystems.matchNewResource("out"
+            + ".txt/part-00042-myWindowStr-pane-11-true-false", false),
+        constructName(FileSystems.matchNewResource("out.txt", false),
+            "/part-SSSSS-W-P", "", 42, 100, "pane-11-true-false",
             "myWindowStr"));
 
-    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, "pane",
+    assertEquals(FileSystems.matchNewResource("path/to/out.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/ou", false),
+            "t.t", "xt", 1, 1, "pane",
         "anotherWindowStr"));
 
-    assertEquals("out0102shard-oneMoreWindowStr-pane--1-false-false-pane--1-false-false.txt",
-        constructName("out", "SSNNshard-W-P-P", ".txt", 1, 2, "pane--1-false-false",
+    assertEquals(FileSystems.matchNewResource(
+        "out0102shard-oneMoreWindowStr-pane--1-false-false-pane--1-false-false.txt", false),
+        constructName(FileSystems.matchNewResource("out", false),
+            "SSNNshard-W-P-P", ".txt", 1, 2, "pane--1-false-false",
             "oneMoreWindowStr"));
 
-    assertEquals("out-2/1.part-1-of-2-sWindow1-winsWindow1-ppaneL.txt",
-        constructName("out",
+    assertEquals(FileSystems.matchNewResource(
+        "path/to/out-2/1.part-1-of-2-sWindow1-winsWindow1-ppaneL.txt", false),
+        constructName(FileSystems.matchNewResource("path/to/out", false),
         "-N/S.part-S-of-N-W-winW-pP", ".txt", 1, 2, "paneL", "sWindow1"));
   }
 

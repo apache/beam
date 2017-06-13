@@ -78,7 +78,6 @@ import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -283,8 +282,8 @@ public class TextIOTest {
   static class TestDynamicDestinations extends DynamicDestinations<String, String> {
     ResourceId baseDir;
 
-    TestDynamicDestinations(Path baseDir) {
-      this.baseDir = FileSystems.matchNewResource(baseDir.toString(), true);
+    TestDynamicDestinations(ResourceId baseDir) {
+      this.baseDir = baseDir;
     }
 
     @Override
@@ -329,26 +328,27 @@ public class TextIOTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testDynamicDestinations() throws Exception {
-    Path baseDir = Files.createTempDirectory(tempFolder, "testDynamicDestinations");
+    ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
+        tempFolder, "testDynamicDestinations").toString(), true);
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
     input.apply(TextIO.write()
-        .to(baseDir.toString())
+        .to(FileSystems.matchNewResource(baseDir.toString(), true))
         .withDynamicDestinations(new TestDynamicDestinations(baseDir)));
     p.run();
 
     assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("a")),
         String.class),
-        null, null, 0, baseDir, "file_a.txt",
+        null, null, 0, baseDir.resolve("file_a.txt", StandardResolveOptions.RESOLVE_FILE),
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
     assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("b")),
         String.class),
-        null, null, 0, baseDir, "file_b.txt",
+        null, null, 0, baseDir.resolve("file_b.txt", StandardResolveOptions.RESOLVE_FILE),
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
     assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("c")),
         String.class),
-        null, null, 0, baseDir, "file_c.txt",
+        null, null, 0, baseDir.resolve("file_c.txt", StandardResolveOptions.RESOLVE_FILE),
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
   }
 
@@ -369,7 +369,8 @@ public class TextIOTest {
       String[] elems, String header, String footer, int numShards) throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
-    String baseFilename = baseDir.resolve(outputName).toString();
+    ResourceId baseFilename = FileBasedSink.convertToFileResourceIfPossible(
+        baseDir.resolve(outputName).toString());
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
@@ -389,7 +390,7 @@ public class TextIOTest {
 
     p.run();
 
-    assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
+    assertOutputFiles(elems, header, footer, numShards, baseFilename,
         firstNonNull(write.getShardTemplate(),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
@@ -399,13 +400,12 @@ public class TextIOTest {
       final String header,
       final String footer,
       int numShards,
-      Path rootLocation,
-      String outputName,
+      ResourceId outputPrefix,
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
-      String pattern = rootLocation.toAbsolutePath().resolve(outputName + "*").toString();
+      String pattern = outputPrefix.toString() + "*";
       List<MatchResult> matches = FileSystems.match(Collections.singletonList(pattern));
       for (Metadata expectedFile : Iterables.getOnlyElement(matches).metadata()) {
         expectedFiles.add(new File(expectedFile.resourceId().toString()));
@@ -414,9 +414,8 @@ public class TextIOTest {
       for (int i = 0; i < numShards; i++) {
         expectedFiles.add(
             new File(
-                rootLocation.toString(),
-                DefaultFilenamePolicy.constructName(
-                    outputName, shardNameTemplate, "", i, numShards, null, null)));
+                DefaultFilenamePolicy.constructName(outputPrefix, shardNameTemplate,
+                    "", i, numShards, null, null).toString()));
       }
     }
 
@@ -534,13 +533,15 @@ public class TextIOTest {
   public void testWriteWithWritableByteChannelFactory() throws Exception {
     Coder<String> coder = StringUtf8Coder.of();
     String outputName = "file.txt";
-    Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
+    ResourceId baseDir = FileSystems.matchNewResource(
+        Files.createTempDirectory(tempFolder, "testwrite").toString(), true);
 
     PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write write = TextIO.write().to(baseDir.resolve(outputName).toString())
+    TextIO.Write write = TextIO.write().to(baseDir.resolve(
+        outputName, StandardResolveOptions.RESOLVE_FILE).toString())
         .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
@@ -554,8 +555,9 @@ public class TextIOTest {
       drunkElems.add(elem);
       drunkElems.add(elem);
     }
-    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
-        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardTemplate());
+    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1,
+        baseDir.resolve(outputName + writableByteChannelFactory.getFilenameSuffix(),
+            StandardResolveOptions.RESOLVE_FILE), write.getShardTemplate());
   }
 
   @Test

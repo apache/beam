@@ -83,10 +83,10 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
    */
   public static class PerWindowFiles extends FilenamePolicy {
 
-    private final String prefix;
+    private final ResourceId baseFilename;
 
-    public PerWindowFiles(String prefix) {
-      this.prefix = prefix;
+    public PerWindowFiles(ResourceId baseFilename) {
+      this.baseFilename = baseFilename;
     }
 
     public String filenamePrefixForWindow(IntervalWindow window) {
