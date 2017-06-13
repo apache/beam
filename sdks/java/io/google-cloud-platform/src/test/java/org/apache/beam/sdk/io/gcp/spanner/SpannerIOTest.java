@@ -114,6 +114,28 @@ public class SpannerIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void singleMutationGroupPipeline() throws Exception {
+    Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
+    Mutation three = Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build();
+    PCollection<MutationGroup> mutations = pipeline
+        .apply(Create.<MutationGroup>of(g(one, two, three)));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .grouped());
+    pipeline.run();
+    verify(serviceFactory.mockSpanner())
+        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(argThat(new IterableOfSize(3)));
+  }
+
+  @Test
   public void batching() throws Exception {
     MutationGroup one = g(Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build());
     MutationGroup two = g(Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build());
