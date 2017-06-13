@@ -33,7 +33,7 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.portability.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs

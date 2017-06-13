@@ -430,7 +430,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     cls._known_urns[urn] = parameter_type, constructor
 
   def to_runner_api(self, context):
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,

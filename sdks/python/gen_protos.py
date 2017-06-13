@@ -35,7 +35,7 @@ BEAM_PROTO_PATHS = [
   os.path.join('..', 'common', 'fn-api', 'src', 'main', 'proto')
 ]
 
-PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'runners', 'api')
+PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
 
 
 def generate_proto_files():

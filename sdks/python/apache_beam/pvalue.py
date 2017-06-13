@@ -128,7 +128,7 @@ class PCollection(PValue):
     return _InvalidUnpickledPCollection, ()
 
   def to_runner_api(self, context):
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     from apache_beam.internal import pickler
     return beam_runner_api_pb2.PCollection(
         unique_name='%d%s.%s' % (
