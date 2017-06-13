@@ -33,36 +33,24 @@ import java.util.List;
 public final class MutationGroup implements Serializable, Iterable<Mutation> {
   private final ImmutableList<Mutation> mutations;
 
-  public static Builder withPrimary(Mutation primary) {
-    return new Builder(primary);
+  /**
+   * Creates a new group.
+   *
+   * @param primary a primary mutation.
+   * @param other other mutations, usually interleaved in parent.
+   * @return new mutation group.
+   */
+  public static MutationGroup create(Mutation primary, Mutation... other) {
+    return create(primary, Arrays.asList(other));
+  }
+
+  public static MutationGroup create(Mutation primary, Iterable<Mutation> other) {
+    return new MutationGroup(ImmutableList.<Mutation>builder().add(primary).addAll(other).build());
   }
 
   @Override
   public Iterator<Mutation> iterator() {
     return mutations.iterator();
-  }
-
-  /** Builder for {@link org.apache.beam.sdk.io.gcp.spanner.MutationGroup}. */
-  public static class Builder {
-    private final ImmutableList.Builder<Mutation> builder;
-
-    private Builder(Mutation primary) {
-      this.builder = ImmutableList.<Mutation>builder().add(primary);
-    }
-
-    public Builder attach(Iterable<Mutation> mutations) {
-      this.builder.addAll(mutations);
-      return this;
-    }
-
-    public Builder attach(Mutation... mutations) {
-      this.builder.addAll(Arrays.asList(mutations));
-      return this;
-    }
-
-    public MutationGroup build() {
-      return new MutationGroup(builder.build());
-    }
   }
 
   private MutationGroup(ImmutableList<Mutation> mutations) {

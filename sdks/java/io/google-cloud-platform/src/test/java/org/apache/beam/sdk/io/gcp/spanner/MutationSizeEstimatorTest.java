@@ -142,7 +142,7 @@ public class MutationSizeEstimatorTest {
     Mutation float64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2.9).build();
     Mutation bool = Mutation.newInsertOrUpdateBuilder("test").set("one").to(false).build();
 
-    MutationGroup group = MutationGroup.withPrimary(int64).attach(float64).attach(bool).build();
+    MutationGroup group = MutationGroup.create(int64, float64, bool);
 
     assertThat(MutationSizeEstimator.sizeOf(group), is(17L));
   }

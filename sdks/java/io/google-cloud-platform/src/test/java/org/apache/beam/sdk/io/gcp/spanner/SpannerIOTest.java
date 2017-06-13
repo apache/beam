@@ -291,6 +291,6 @@ public class SpannerIOTest implements Serializable {
   }
 
   private static MutationGroup g(Mutation m, Mutation... other) {
-    return MutationGroup.withPrimary(m).attach(other).build();
+    return MutationGroup.create(m, other);
   }
 }

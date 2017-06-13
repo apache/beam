@@ -261,7 +261,7 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Mutation value = c.element();
-      c.output(MutationGroup.withPrimary(value).build());
+      c.output(MutationGroup.create(value));
     }
   }
 
