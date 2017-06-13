@@ -412,4 +412,13 @@
     <!-- PTransforms do not actually support serialization. -->
   </Match>
 
+  <Match>
+    <Class name="org.apache.beam.sdk.options.ProxyInvocationHandler"/>
+    <Field name="~.*"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+      ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
+      exception in writeObject()
+    -->
+  </Match>
 </FindBugsFilter>
