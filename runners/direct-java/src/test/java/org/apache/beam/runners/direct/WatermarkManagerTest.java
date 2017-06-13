@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -318,7 +319,7 @@ public class WatermarkManagerTest implements Serializable {
         TimerUpdate.empty(),
         CommittedResult.create(
             StepTransformResult.withoutHold(graph.getProducer(created)).build(),
-            root.withElements(Collections.<WindowedValue<Void>>emptyList()),
+            Optional.<CommittedBundle<?>>absent(),
             Collections.singleton(createBundle),
             EnumSet.allOf(OutputType.class)),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -332,7 +333,7 @@ public class WatermarkManagerTest implements Serializable {
         TimerUpdate.empty(),
         CommittedResult.create(
             StepTransformResult.withoutHold(theFlatten).build(),
-            createBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Optional.<CommittedBundle<?>>absent(),
             Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.allOf(OutputType.class)),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -345,7 +346,7 @@ public class WatermarkManagerTest implements Serializable {
         TimerUpdate.empty(),
         CommittedResult.create(
             StepTransformResult.withoutHold(theFlatten).build(),
-            createBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Optional.<CommittedBundle<?>>absent(),
             Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.allOf(OutputType.class)),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -1501,9 +1502,15 @@ public class WatermarkManagerTest implements Serializable {
       AppliedPTransform<?, ?, ?> transform,
       @Nullable CommittedBundle<?> unprocessedBundle,
       Iterable<? extends CommittedBundle<?>> bundles) {
+    Optional<? extends CommittedBundle<?>> unprocessedElements;
+    if (unprocessedBundle == null || Iterables.isEmpty(unprocessedBundle.getElements())) {
+      unprocessedElements = Optional.absent();
+    } else {
+      unprocessedElements = Optional.of(unprocessedBundle);
+    }
     return CommittedResult.create(
         StepTransformResult.withoutHold(transform).build(),
-        unprocessedBundle,
+        unprocessedElements,
         bundles,
         Iterables.isEmpty(bundles)
             ? EnumSet.noneOf(OutputType.class)
