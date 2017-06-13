@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
@@ -78,19 +79,23 @@ public class DoFnSignatures {
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
           Parameter.WindowParameter.class,
+          Parameter.PipelineOptionsParameter.class,
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
-              Parameter.ProcessContextParameter.class, Parameter.RestrictionTrackerParameter.class);
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.ProcessContextParameter.class,
+              Parameter.RestrictionTrackerParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_PARAMETERS =
           ImmutableList.of(
               Parameter.OnTimerContextParameter.class,
               Parameter.WindowParameter.class,
+              Parameter.PipelineOptionsParameter.class,
               Parameter.TimerParameter.class,
               Parameter.StateParameter.class);
 
@@ -185,6 +190,15 @@ public class DoFnSignatures {
     public boolean hasWindowParameter() {
       return Iterables.any(
           extraParameters, Predicates.instanceOf(WindowParameter.class));
+    }
+
+    /**
+     * Indicates whether a {@link Parameter.PipelineOptionsParameter} is
+     * known in this context.
+     */
+    public boolean hasPipelineOptionsParamter() {
+      return Iterables.any(
+          extraParameters, Predicates.instanceOf(Parameter.PipelineOptionsParameter.class));
     }
 
     /** The window type, if any, used by this method. */
@@ -789,6 +803,12 @@ public class DoFnSignatures {
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
+    } else if (PipelineOptions.class.equals(rawType)) {
+      methodErrors.checkArgument(
+          !methodContext.hasPipelineOptionsParamter(),
+          "Multiple %s parameters",
+          PipelineOptions.class.getSimpleName());
+      return Parameter.pipelineOptions();
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasRestrictionTrackerParameter(),
