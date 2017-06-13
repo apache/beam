@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -158,12 +159,9 @@ class EvaluationContext {
     } else {
       outputTypes.add(OutputType.BUNDLE);
     }
-    CommittedResult committedResult = CommittedResult.create(result,
-        completedBundle == null
-            ? null
-            : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
-        committedBundles,
-        outputTypes);
+    CommittedResult committedResult =
+        CommittedResult.create(
+            result, getUnprocessedInput(completedBundle, result), committedBundles, outputTypes);
     // Update state internals
     CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
@@ -185,6 +183,22 @@ class EvaluationContext {
         committedResult,
         result.getWatermarkHold());
     return committedResult;
+  }
+
+  /**
+   * Returns an {@link Optional} containing a bundle which contains all of the unprocessed elements
+   * that were not processed from the {@code completedBundle}. If all of the elements of the {@code
+   * completedBundle} were processed, or if {@code completedBundle} is null, returns an absent
+   * {@link Optional}.
+   */
+  private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
+      @Nullable CommittedBundle<?> completedBundle, TransformResult<?> result) {
+    if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
+      return Optional.absent();
+    }
+    CommittedBundle<?> residual =
+        completedBundle.withElements((Iterable) result.getUnprocessedElements());
+    return Optional.of(residual);
   }
 
   private Iterable<? extends CommittedBundle<?>> commitBundles(

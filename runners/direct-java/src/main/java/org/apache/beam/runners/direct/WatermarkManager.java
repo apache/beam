@@ -994,9 +994,9 @@ class WatermarkManager {
     }
 
     TransformWatermarks completedTransform = transformToWatermarks.get(result.getTransform());
-    if (input != null) {
+    if (result.getUnprocessedInputs().isPresent()) {
       // Add the unprocessed inputs
-      completedTransform.addPending(result.getUnprocessedInputs());
+      completedTransform.addPending(result.getUnprocessedInputs().get());
     }
     completedTransform.updateTimers(timerUpdate);
     if (input != null) {
