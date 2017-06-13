@@ -188,7 +188,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new SplittableParDo<>(transform.getTransform()));
+          SplittableParDo.forJavaParDo(transform.getTransform()));
     }
 
     @Override

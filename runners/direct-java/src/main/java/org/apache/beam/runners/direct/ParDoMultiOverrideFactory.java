@@ -81,7 +81,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     DoFn<InputT, OutputT> fn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
-      return new SplittableParDo(transform);
+      return (PTransform) SplittableParDo.forJavaParDo(transform);
     } else if (signature.stateDeclarations().size() > 0
         || signature.timerDeclarations().size() > 0) {
 
