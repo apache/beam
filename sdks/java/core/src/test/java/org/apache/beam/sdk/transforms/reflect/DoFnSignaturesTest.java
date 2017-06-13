@@ -29,6 +29,7 @@ import static org.junit.Assert.fail;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -326,6 +327,34 @@ public class DoFnSignaturesTest {
     assertThat(
         sig.onTimerMethods().get(timerId).extraParameters().get(0),
         instanceOf(WindowParameter.class));
+  }
+
+  @Test
+  public void testPipelineOptionsParameter() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(new DoFn<String, String>() {
+          @ProcessElement
+          public void process(ProcessContext c, PipelineOptions options) {}
+        }.getClass());
+
+    assertThat(
+        sig.processElement().extraParameters(),
+        Matchers.<Parameter>hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
+  }
+
+  interface SubPipelineOptions extends PipelineOptions {}
+
+  @Test
+  public void testPipelineOptionsSubclassParameter() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(new DoFn<String, String>() {
+          @ProcessElement
+          public void process(ProcessContext c, SubPipelineOptions options) {}
+        }.getClass());
+
+    assertThat(
+        sig.processElement().extraParameters(),
+        Matchers.<Parameter>hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
   }
 
   @Test

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
@@ -193,6 +194,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((StateParameter) this);
       } else if (this instanceof TimerParameter) {
         return cases.dispatch((TimerParameter) this);
+      } else if (this instanceof PipelineOptionsParameter) {
+        return cases.dispatch((PipelineOptionsParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -212,6 +215,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(RestrictionTrackerParameter p);
       ResultT dispatch(StateParameter p);
       ResultT dispatch(TimerParameter p);
+      ResultT dispatch(PipelineOptionsParameter p);
 
       /**
        * A base class for a visitor with a default method for cases it is not interested in.
@@ -259,6 +263,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(TimerParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(PipelineOptionsParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -287,6 +296,12 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
     }
 
+    /** Returns a {@link PipelineOptionsParameter}. */
+    public static PipelineOptionsParameter pipelineOptions(
+        TypeDescriptor<? extends PipelineOptions> pipelineOptionsT) {
+      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter(pipelineOptionsT);
+    }
+
     /**
      * Returns a {@link RestrictionTrackerParameter}.
      */
@@ -306,6 +321,15 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}.
+     */
+    @AutoValue
+    public abstract static class PipelineOptionsParameter extends Parameter {
+      PipelineOptionsParameter() {}
+      public abstract TypeDescriptor<? extends PipelineOptions> pipelineOptionsT();
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of type {@link DoFn.StartBundleContext}.
      *
      * <p>All such descriptors are equal.
@@ -314,6 +338,7 @@ public abstract class DoFnSignature {
     public abstract static class StartBundleContextParameter extends Parameter {
       StartBundleContextParameter() {}
     }
+
     /**
      * Descriptor for a {@link Parameter} of type {@link DoFn.FinishBundleContext}.
      *

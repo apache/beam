@@ -62,6 +62,8 @@ import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
@@ -2941,5 +2943,66 @@ public class ParDoTest implements Serializable {
                 }));
 
     // If it doesn't crash, we made it!
+  }
+
+  /** A {@link PipelineOptions} subclass for testing passing to a {@link DoFn}. */
+  public interface MyOptions extends PipelineOptions {
+    @Default.String("fake option")
+    String getFakeOption();
+    void setFakeOption(String value);
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testPipelineOptionsParameter() {
+    PCollection<String> results = pipeline
+        .apply(Create.of(1))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, String>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, MyOptions options) {
+                    c.output(options.getFakeOption());
+                  }
+                }));
+
+    String testOptionValue = "not fake anymore";
+    pipeline.getOptions().as(MyOptions.class).setFakeOption(testOptionValue);
+    PAssert.that(results).containsInAnyOrder("not fake anymore");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testPipelineOptionsParameterOnTimer() {
+    final String timerId = "thisTimer";
+
+    PCollection<String> results =
+        pipeline
+            .apply(Create.of(KV.of(0, 0)))
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<Integer, Integer>, String>() {
+                      @TimerId(timerId)
+                      private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                      @ProcessElement
+                      public void process(
+                          ProcessContext c, BoundedWindow w, @TimerId(timerId) Timer timer) {
+                        timer.set(w.maxTimestamp());
+                      }
+
+                      @OnTimer(timerId)
+                      public void onTimer(OnTimerContext c, MyOptions options) {
+                        c.output(options.getFakeOption());
+                      }
+                    }));
+
+    String testOptionValue = "not fake anymore";
+    pipeline.getOptions().as(MyOptions.class).setFakeOption(testOptionValue);
+    PAssert.that(results).containsInAnyOrder("not fake anymore");
+
+    pipeline.run();
   }
 }
