@@ -96,7 +96,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
-    invoker.invokeProcessElement(
+    DoFn.ProcessContinuation cont = invoker.invokeProcessElement(
         new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
           @Override
           public DoFn<InputT, OutputT>.ProcessContext processContext(
@@ -155,10 +155,37 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 "Access to timers not supported in Splittable DoFn");
           }
         });
-
+    // TODO: verify that if there was a failed tryClaim() call, then cont.shouldResume() is false.
+    // Currently we can't verify this because there are no hooks into tryClaim().
+    // See https://issues.apache.org/jira/browse/BEAM-2607
+    RestrictionT residual = processContext.extractCheckpoint();
+    if (cont.shouldResume()) {
+      if (residual == null) {
+        // No checkpoint had been taken by the runner while the ProcessElement call ran, however
+        // the call says that not the whole restriction has been processed. So we need to take
+        // a checkpoint now: checkpoint() guarantees that the primary restriction describes exactly
+        // the work that was done in the current ProcessElement call, and returns a residual
+        // restriction that describes exactly the work that wasn't done in the current call.
+        residual = tracker.checkpoint();
+      } else {
+        // A checkpoint was taken by the runner, and then the ProcessElement call returned resume()
+        // without making more tryClaim() calls (since no tryClaim() calls can succeed after
+        // checkpoint(), and since if it had made a failed tryClaim() call, it should have returned
+        // stop()).
+        // This means that the resulting primary restriction and the taken checkpoint already
+        // accurately describe respectively the work that was and wasn't done in the current
+        // ProcessElement call.
+        // In other words, if we took a checkpoint *after* ProcessElement completed (like in the
+        // branch above), it would have been equivalent to this one.
+      }
+    } else {
+      // The ProcessElement call returned stop() - that means the tracker's current restriction
+      // has been fully processed by the call. A checkpoint may or may not have been taken in
+      // "residual"; if it was, then we'll need to process it; if no, then we don't - nothing
+      // special needs to be done.
+    }
     tracker.checkDone();
-    return new Result(
-        processContext.extractCheckpoint(), processContext.getLastReportedWatermark());
+    return new Result(residual, cont, processContext.getLastReportedWatermark());
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {

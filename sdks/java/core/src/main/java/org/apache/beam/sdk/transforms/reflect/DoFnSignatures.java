@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
@@ -440,6 +442,8 @@ public class DoFnSignatures {
    * <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link
    *     DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, use that. Only one of
    *     these must be specified.
+   * <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
+   *     unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
    * <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
    *     {@link DoFn.UnboundedPerElement}, this is an error.
    * </ol>
@@ -465,7 +469,10 @@ public class DoFnSignatures {
     }
     if (processElement.isSplittable()) {
       if (isBounded == null) {
-        isBounded = PCollection.IsBounded.BOUNDED;
+        isBounded =
+            processElement.hasReturnValue()
+                ? PCollection.IsBounded.UNBOUNDED
+                : PCollection.IsBounded.BOUNDED;
       }
     } else {
       errors.checkArgument(
@@ -474,6 +481,7 @@ public class DoFnSignatures {
               + ((isBounded == PCollection.IsBounded.BOUNDED)
                   ? DoFn.BoundedPerElement.class.getSimpleName()
                   : DoFn.UnboundedPerElement.class.getSimpleName()));
+      checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }
     return isBounded;
@@ -710,8 +718,10 @@ public class DoFnSignatures {
       TypeDescriptor<?> outputT,
       FnAnalysisContext fnContext) {
     errors.checkArgument(
-        void.class.equals(m.getReturnType()),
-        "Must return void");
+        void.class.equals(m.getReturnType())
+            || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
+        "Must return void or %s",
+        DoFn.ProcessContinuation.class.getSimpleName());
 
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
@@ -751,7 +761,11 @@ public class DoFnSignatures {
     }
 
     return DoFnSignature.ProcessElementMethod.create(
-        m, methodContext.getExtraParameters(), trackerT, windowT);
+        m,
+        methodContext.getExtraParameters(),
+        trackerT,
+        windowT,
+        DoFn.ProcessContinuation.class.equals(m.getReturnType()));
   }
 
   private static void checkParameterOneOf(
