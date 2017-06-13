@@ -197,8 +197,8 @@ public class SpannerIO {
     /**
      * Same transform but can be applied to {@link PCollection} of {@link MutationGroup}.
      */
-    public WriteGroup grouped() {
-      return new WriteGroup(this);
+    public WriteGrouped grouped() {
+      return new WriteGrouped(this);
     }
 
     @VisibleForTesting
@@ -244,10 +244,10 @@ public class SpannerIO {
   }
 
   /** Same as {@link Write} but supports grouped mutations. */
-  public static class WriteGroup extends PTransform<PCollection<MutationGroup>, PDone> {
+  public static class WriteGrouped extends PTransform<PCollection<MutationGroup>, PDone> {
     private final Write spec;
 
-    public WriteGroup(Write spec) {
+    public WriteGrouped(Write spec) {
       this.spec = spec;
     }
 
