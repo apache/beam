@@ -18,9 +18,9 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -40,6 +40,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -64,7 +66,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
-  private final ParDo.MultiOutput<InputT, OutputT> parDo;
+
+  private final DoFn<InputT, OutputT> doFn;
+  private final List<PCollectionView<?>> sideInputs;
+  private final TupleTag<OutputT> mainOutputTag;
+  private final TupleTagList additionalOutputTags;
 
   public static final String SPLITTABLE_PROCESS_URN =
       "urn:beam:runners_core:transforms:splittable_process:v1";
@@ -75,24 +81,39 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static final String SPLITTABLE_GBKIKWI_URN =
       "urn:beam:runners_core:transforms:splittable_gbkikwi:v1";
 
+  private SplittableParDo(
+      DoFn<InputT, OutputT> doFn,
+      TupleTag<OutputT> mainOutputTag,
+      List<PCollectionView<?>> sideInputs,
+      TupleTagList additionalOutputTags) {
+    checkArgument(
+        DoFnSignatures.getSignature(doFn.getClass()).processElement().isSplittable(),
+        "fn must be a splittable DoFn");
+    this.doFn = doFn;
+    this.mainOutputTag = mainOutputTag;
+    this.sideInputs = sideInputs;
+    this.additionalOutputTags = additionalOutputTags;
+  }
+
   /**
-   * Creates the transform for the given original multi-output {@link ParDo}.
+   * Creates a {@link SplittableParDo} from an original Java {@link ParDo}.
    *
    * @param parDo The splittable {@link ParDo} transform.
    */
-  public SplittableParDo(ParDo.MultiOutput<InputT, OutputT> parDo) {
-    checkNotNull(parDo, "parDo must not be null");
-    this.parDo = parDo;
-    checkArgument(
-        DoFnSignatures.getSignature(parDo.getFn().getClass()).processElement().isSplittable(),
-        "fn must be a splittable DoFn");
+  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forJavaParDo(
+      ParDo.MultiOutput<InputT, OutputT> parDo) {
+    checkArgument(parDo != null, "parDo must not be null");
+    return new SplittableParDo(
+        parDo.getFn(),
+        parDo.getMainOutputTag(),
+        parDo.getSideInputs(),
+        parDo.getAdditionalOutputTags());
   }
 
   @Override
   public PCollectionTuple expand(PCollection<InputT> input) {
-    DoFn<InputT, OutputT> fn = parDo.getFn();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.invokerFor(fn)
+        DoFnInvokers.invokerFor(doFn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
@@ -100,9 +121,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         input
             .apply(
                 "Pair with initial restriction",
-                ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(fn)))
+                ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(doFn)))
             .setCoder(splitCoder)
-            .apply("Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(fn)))
+            .apply(
+                "Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(doFn)))
             .setCoder(splitCoder)
             // ProcessFn requires all input elements to be in a single window and have a single
             // element per work item. This must precede the unique keying so each key has a single
@@ -115,13 +137,18 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     return keyedRestrictions.apply(
         "ProcessKeyedElements",
         new ProcessKeyedElements<>(
-            fn,
+            doFn,
             input.getCoder(),
             restrictionCoder,
             (WindowingStrategy<InputT, ?>) input.getWindowingStrategy(),
-            parDo.getSideInputs(),
-            parDo.getMainOutputTag(),
-            parDo.getAdditionalOutputTags()));
+            sideInputs,
+            mainOutputTag,
+            additionalOutputTags));
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    return PCollectionViews.toAdditionalInputs(sideInputs);
   }
 
   /**
@@ -228,6 +255,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
 
     @Override

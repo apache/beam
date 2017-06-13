@@ -381,7 +381,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
           transform) {
       return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform),
-          new SplittableParDo<>(transform.getTransform()));
+          SplittableParDo.forJavaParDo(transform.getTransform()));
     }
 
     @Override
