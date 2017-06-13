@@ -24,7 +24,7 @@ import sys
 import grpc
 from google.protobuf import text_format
 
-from apache_beam.portability.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 

@@ -25,7 +25,7 @@ import cPickle as pickle
 import google.protobuf
 
 from apache_beam.coders import coder_impl
-from apache_beam.portability.runners.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import urns
 from apache_beam.utils import proto_utils
 

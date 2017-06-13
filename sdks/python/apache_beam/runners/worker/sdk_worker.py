@@ -38,7 +38,7 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.utils import counters
-from apache_beam.portability.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 
