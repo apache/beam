@@ -29,10 +29,12 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -88,6 +90,11 @@ import org.slf4j.LoggerFactory;
  *   <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
  *       rolled back.
  * </ul>
+ *
+ * <p>Use {@link MutationGroup} to ensure that a small set mutations is bundled together. It is
+ * guaranteed that mutations in a group are submitted in the same transaction. Build
+ * {@link SpannerIO.Write} transform, and call {@link Write#grouped()} method. It will return a
+ * transformation that can be applied to a PCollection of MutationGroup.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
@@ -187,6 +194,13 @@ public class SpannerIO {
       return toBuilder().setDatabaseId(databaseId).build();
     }
 
+    /**
+     * Same transform but can be applied to {@link PCollection} of {@link MutationGroup}.
+     */
+    public WriteGrouped grouped() {
+      return new WriteGrouped(this);
+    }
+
     @VisibleForTesting
     Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       return toBuilder().setServiceFactory(serviceFactory).build();
@@ -204,7 +218,9 @@ public class SpannerIO {
 
     @Override
     public PDone expand(PCollection<Mutation> input) {
-      input.apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteFn(this)));
+      input
+          .apply("To mutation group", ParDo.of(new ToMutationGroupFn()))
+          .apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -227,15 +243,37 @@ public class SpannerIO {
     }
   }
 
+  /** Same as {@link Write} but supports grouped mutations. */
+  public static class WriteGrouped extends PTransform<PCollection<MutationGroup>, PDone> {
+    private final Write spec;
+
+    public WriteGrouped(Write spec) {
+      this.spec = spec;
+    }
+
+    @Override public PDone expand(PCollection<MutationGroup> input) {
+      input.apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(spec)));
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  private static class ToMutationGroupFn extends DoFn<Mutation, MutationGroup> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      Mutation value = c.element();
+      c.output(MutationGroup.create(value));
+    }
+  }
+
   /** Batches together and writes mutations to Google Cloud Spanner. */
   @VisibleForTesting
-  static class SpannerWriteFn extends DoFn<Mutation, Void> {
-    private static final Logger LOG = LoggerFactory.getLogger(SpannerWriteFn.class);
+  static class SpannerWriteGroupFn extends DoFn<MutationGroup, Void> {
+    private static final Logger LOG = LoggerFactory.getLogger(SpannerWriteGroupFn.class);
     private final Write spec;
     private transient Spanner spanner;
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
-    private List<Mutation> mutations;
+    private List<MutationGroup> mutations;
     private long batchSizeBytes = 0;
 
     private static final int MAX_RETRIES = 5;
@@ -244,8 +282,7 @@ public class SpannerIO {
             .withMaxRetries(MAX_RETRIES)
             .withInitialBackoff(Duration.standardSeconds(5));
 
-    @VisibleForTesting
-    SpannerWriteFn(Write spec) {
+    @VisibleForTesting SpannerWriteGroupFn(Write spec) {
       this.spec = spec;
     }
 
@@ -261,7 +298,7 @@ public class SpannerIO {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Mutation m = c.element();
+      MutationGroup m = c.element();
       mutations.add(m);
       batchSizeBytes += MutationSizeEstimator.sizeOf(m);
       if (batchSizeBytes >= spec.getBatchSizeBytes()) {
@@ -319,7 +356,7 @@ public class SpannerIO {
       while (true) {
         // Batch upsert rows.
         try {
-          dbClient.writeAtLeastOnce(mutations);
+          dbClient.writeAtLeastOnce(Iterables.concat(mutations));
 
           // Break if the commit threw no exception.
           break;
