@@ -32,6 +32,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.broadcast.Broadcast;
@@ -40,7 +41,6 @@ import org.apache.spark.storage.BlockManager;
 import org.apache.spark.storage.BlockResult;
 import org.apache.spark.storage.BlockStore;
 import org.apache.spark.storage.StorageLevel;
-import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.joda.time.Instant;
@@ -56,8 +56,8 @@ public class GlobalWatermarkHolder {
   private static final Map<Integer, Queue<SparkWatermarks>> sourceTimes = new HashMap<>();
   private static final BlockId WATERMARKS_BLOCK_ID = BlockId.apply("broadcast_0WATERMARKS");
 
+  private static Map<Integer, SparkWatermarks> driverWatermarks = null;
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
-  private static boolean synchronizeAccess = false;
 
   public static void add(int sourceId, SparkWatermarks sparkWatermarks) {
     Queue<SparkWatermarks> timesQueue = sourceTimes.get(sourceId);
@@ -85,26 +85,18 @@ public class GlobalWatermarkHolder {
    */
   @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
-    if (synchronizeAccess) {
-      // synchronize in local mode to avoid race condition with updates in advance() method.
-      synchronized (GlobalWatermarkHolder.class) {
-        return getWatermarks(cacheInterval);
-      }
+    if (driverWatermarks != null) {
+      // if we are executing in local mode simply return the local values.
+      return driverWatermarks;
     } else {
-      // no need to synchronize when running on a remote executor.
-      return getWatermarks(cacheInterval);
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Map<Integer, SparkWatermarks> getWatermarks(Long cacheInterval) {
-    if (watermarkCache == null) {
-      initWatermarkCache(cacheInterval);
-    }
-    try {
-      return watermarkCache.get("SINGLETON");
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
+      if (watermarkCache == null) {
+        initWatermarkCache(cacheInterval);
+      }
+      try {
+        return watermarkCache.get("SINGLETON");
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -187,13 +179,13 @@ public class GlobalWatermarkHolder {
 
       // update the watermarks broadcast only if something has changed.
       if (!newValues.isEmpty()) {
+        driverWatermarks = newValues;
         blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
         blockManager.putSingle(
             WATERMARKS_BLOCK_ID,
             newValues,
             StorageLevel.MEMORY_ONLY(),
             true);
-        String breaK = "point";
       }
     }
   }
@@ -201,7 +193,7 @@ public class GlobalWatermarkHolder {
   @VisibleForTesting
   public static synchronized void clear() {
     sourceTimes.clear();
-    synchronizeAccess = true;
+    driverWatermarks = null;
     SparkEnv sparkEnv = SparkEnv.get();
     if (sparkEnv != null) {
       BlockManager blockManager = sparkEnv.blockManager();
@@ -251,12 +243,6 @@ public class GlobalWatermarkHolder {
 
   /** Advance the WMs onBatchCompleted event. */
   public static class WatermarksListener extends JavaStreamingListener {
-    private final JavaStreamingContext jssc;
-
-    public WatermarksListener(JavaStreamingContext jssc) {
-      this.jssc = jssc;
-    }
-
     @Override
     public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {
       GlobalWatermarkHolder.advance();
@@ -267,7 +253,7 @@ public class GlobalWatermarkHolder {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Map<Integer, SparkWatermarks> load(String key) throws Exception {
+    public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
       Option<BlockResult> blockResultOption =
           SparkEnv.get().blockManager().getRemote(WATERMARKS_BLOCK_ID);
       if (blockResultOption.isDefined()) {
