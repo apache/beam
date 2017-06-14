@@ -26,6 +26,8 @@ import zlib
 import logging
 import time
 
+from apache_beam.utils.plugin import BeamPlugin
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
@@ -409,7 +411,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(object):
+class FileSystem(BeamPlugin):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
@@ -427,16 +429,6 @@ class FileSystem(object):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     return compression_type
-
-  @classmethod
-  def get_all_subclasses(cls):
-    """Get all the subclasses of the FileSystem class
-    """
-    all_subclasses = []
-    for subclass in cls.__subclasses__():
-      all_subclasses.append(subclass)
-      all_subclasses.extend(subclass.get_all_subclasses())
-    return all_subclasses
 
   @classmethod
   def scheme(cls):
