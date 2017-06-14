@@ -552,20 +552,18 @@ public class TFRecordIO {
    */
   @VisibleForTesting
   static class TFRecordSink extends FileBasedSink<byte[], Void> {
-    private DynamicDestinations<byte[], Void> dynamicDestinations;
     @VisibleForTesting
     TFRecordSink(
         ValueProvider<ResourceId> outputPrefix,
         @Nullable String shardTemplate,
         @Nullable String suffix,
         TFRecordIO.CompressionType compressionType) {
-      super(outputPrefix, writableByteChannelFactory(compressionType));
-
-      this.dynamicDestinations =
-          new ConstantFilenamePolicy<>(
-              DefaultFilenamePolicy.fromConfig(
-                  DefaultFilenamePolicy.Config.fromStandardParameters(
-                      outputPrefix, shardTemplate, suffix, false)));
+      super(outputPrefix,
+          new ConstantFilenamePolicy<byte[]>(
+          DefaultFilenamePolicy.fromConfig(
+              DefaultFilenamePolicy.Config.fromStandardParameters(
+                  outputPrefix, shardTemplate, suffix, false))),
+                  writableByteChannelFactory(compressionType));
     }
 
     private static class ExtractDirectory implements SerializableFunction<ResourceId, ResourceId> {
@@ -577,7 +575,7 @@ public class TFRecordIO {
 
     @Override
     public WriteOperation<byte[], Void> createWriteOperation() {
-      return new TFRecordWriteOperation(this, dynamicDestinations);
+      return new TFRecordWriteOperation(this);
     }
 
     private static WritableByteChannelFactory writableByteChannelFactory(
@@ -600,10 +598,8 @@ public class TFRecordIO {
      * WriteOperation} for TFRecord files.
      */
     private static class TFRecordWriteOperation extends WriteOperation<byte[], Void> {
-      private TFRecordWriteOperation(
-          TFRecordSink sink,
-          DynamicDestinations<byte[], Void> dynamicDestinations) {
-        super(sink, dynamicDestinations);
+      private TFRecordWriteOperation(TFRecordSink sink) {
+        super(sink);
       }
 
       @Override

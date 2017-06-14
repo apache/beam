@@ -116,7 +116,8 @@ public class WriteFilesTranslationTest {
 
     DummySink() {
       super(
-          StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)));
+          StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)),
+          new ConstantFilenamePolicy<String>(new DummyFilenamePolicy()));
     }
 
     @Override
@@ -151,7 +152,7 @@ public class WriteFilesTranslationTest {
 
   private static class DummyWriteOperation extends FileBasedSink.WriteOperation<String, Void> {
     public DummyWriteOperation(FileBasedSink<String, Void> sink) {
-      super(sink, new ConstantFilenamePolicy<String>(new DummyFilenamePolicy()));
+      super(sink);
     }
 
     @Override

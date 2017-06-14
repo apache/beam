@@ -205,6 +205,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     }
   }
 
+  private final DynamicDestinations<T, DestinationT> dynamicDestinations;
+
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
    * underlying channel. The default is to not compress the output using
@@ -240,6 +242,12 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * Converts a destination into a {@link DestinationT}. May not return null.
      */
     public abstract FilenamePolicy getFilenamePolicy(DestinationT destination);
+
+    /**
+    * Populates the display data.
+     */
+    public void populateDisplayData(DisplayData.Builder builder) {
+    }
   }
 
   /**
@@ -363,8 +371,9 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    * files.
    */
   @Experimental(Kind.FILESYSTEM)
-  public FileBasedSink(ValueProvider<ResourceId> tempDirectoryProvider) {
-    this(tempDirectoryProvider, CompressionType.UNCOMPRESSED);
+  public FileBasedSink(ValueProvider<ResourceId> tempDirectoryProvider,
+                       DynamicDestinations<T, DestinationT> dynamicDestinations) {
+    this(tempDirectoryProvider, dynamicDestinations, CompressionType.UNCOMPRESSED);
 
   }
 
@@ -374,10 +383,19 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
+      DynamicDestinations<T, DestinationT> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     this.tempDirectoryProvider =
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
+    this.dynamicDestinations = checkNotNull(dynamicDestinations);
     this.writableByteChannelFactory = writableByteChannelFactory;
+  }
+
+  /**
+   * Return the {@link DynamicDestinations} used.
+   */
+  public DynamicDestinations<T, DestinationT> getDynamicDestinations() {
+    return dynamicDestinations;
   }
 
   /**
@@ -398,7 +416,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   public abstract WriteOperation<T, DestinationT> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
- //   getFilenamePolicy().populateDisplayData(builder);
+    getDynamicDestinations().populateDisplayData(builder);
   }
 
   /**
@@ -457,8 +475,6 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       return tempDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
-    DynamicDestinations<T, DestinationT> dynamicDestinations;
-
     /**
      * Constructs a WriteOperation using the default strategy for generating a temporary
      * directory from the base output filename.
@@ -469,9 +485,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
-    public WriteOperation(FileBasedSink<T, DestinationT> sink,
-                          DynamicDestinations<T, DestinationT> dynamicDestinations) {
-      this(sink, dynamicDestinations, NestedValueProvider.of(
+    public WriteOperation(FileBasedSink<T, DestinationT> sink) {
+      this(sink, NestedValueProvider.of(
           sink.getTempDirectoryProvider(), new TemporaryDirectoryBuilder()));
     }
 
@@ -504,16 +519,13 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      */
     @Experimental(Kind.FILESYSTEM)
     public WriteOperation(FileBasedSink<T, DestinationT> sink,
-                          DynamicDestinations<T, DestinationT> dynamicDestinations,
                           ResourceId tempDirectory) {
-      this(sink, dynamicDestinations, StaticValueProvider.of(tempDirectory));
+      this(sink, StaticValueProvider.of(tempDirectory));
     }
 
     private WriteOperation(FileBasedSink<T, DestinationT> sink,
-                           DynamicDestinations<T, DestinationT> dynamicDestinations,
         ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
-      this.dynamicDestinations = checkNotNull(dynamicDestinations);
       this.tempDirectory = tempDirectory;
       this.windowedWrites = false;
     }
@@ -531,12 +543,6 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
       this.windowedWrites = windowedWrites;
     }
 
-    /**
-     * Return the {@link DynamicDestinations} used.
-     */
-    public DynamicDestinations<T, DestinationT> getDynamicDestinations() {
-      return dynamicDestinations;
-    }
 
     /**
      * Finalizes writing by copying temporary output files to their final location and optionally
@@ -626,7 +632,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
         outputFilenames.put(
             result.getTempFilename(),
             result.getDestinationFile(
-                dynamicDestinations, numShards, getSink().getWritableByteChannelFactory()));
+                getSink().getDynamicDestinations(), numShards,
+                getSink().getWritableByteChannelFactory()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();

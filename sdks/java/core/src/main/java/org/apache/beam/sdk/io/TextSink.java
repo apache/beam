@@ -37,7 +37,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
   @Nullable private final String header;
   @Nullable private final String footer;
-  DynamicDestinations<String, DestinationT> dynamicDestinations;
 
   TextSink(
       ValueProvider<ResourceId> baseOutputFilename,
@@ -45,14 +44,13 @@ class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       @Nullable String header,
       @Nullable String footer,
       WritableByteChannelFactory writableByteChannelFactory) {
-    super(baseOutputFilename, writableByteChannelFactory);
+    super(baseOutputFilename, dynamicDestinations, writableByteChannelFactory);
     this.header = header;
     this.footer = footer;
-    this.dynamicDestinations = dynamicDestinations;
   }
   @Override
   public WriteOperation<String, DestinationT> createWriteOperation() {
-    return new TextWriteOperation<>(this, dynamicDestinations, header, footer);
+    return new TextWriteOperation<>(this, header, footer);
   }
 
   /** A {@link WriteOperation WriteOperation} for text files. */
@@ -62,10 +60,9 @@ class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
     @Nullable private final String footer;
 
     private TextWriteOperation(TextSink sink,
-                               DynamicDestinations<String, DestinationT> dynamicDestinations,
                                @Nullable String header,
                                @Nullable String footer) {
-      super(sink, dynamicDestinations);
+      super(sink);
       this.header = header;
       this.footer = footer;
     }

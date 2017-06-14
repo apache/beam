@@ -39,6 +39,7 @@ import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
@@ -138,7 +139,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
 
     PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
-            new FileBasedSink<Object, Void>(StaticValueProvider.of(outputDirectory)) {
+            new FileBasedSink<Object, Void>(StaticValueProvider.of(outputDirectory),
+            new ConstantFilenamePolicy<>(null)) {
               @Override
               public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");

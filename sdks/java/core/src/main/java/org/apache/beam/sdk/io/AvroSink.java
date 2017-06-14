@@ -36,7 +36,6 @@ class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
   private final AvroCoder<T> coder;
   private final SerializableAvroCodecFactory codec;
   private final ImmutableMap<String, Object> metadata;
-  private DynamicDestinations<T, DestinationT> dynamicDestinations;
 
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
@@ -45,16 +44,15 @@ class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
       SerializableAvroCodecFactory codec,
       ImmutableMap<String, Object> metadata) {
     // Avro handle compression internally using the codec.
-    super(outputPrefix, CompressionType.UNCOMPRESSED);
+    super(outputPrefix, dynamicDestinations, CompressionType.UNCOMPRESSED);
     this.coder = coder;
     this.codec = codec;
     this.metadata = metadata;
-    this.dynamicDestinations = dynamicDestinations;
   }
 
   @Override
   public WriteOperation<T, DestinationT> createWriteOperation() {
-    return new AvroWriteOperation<>(this, dynamicDestinations, coder, codec, metadata);
+    return new AvroWriteOperation<>(this, coder, codec, metadata);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
@@ -64,11 +62,10 @@ class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
     private final ImmutableMap<String, Object> metadata;
 
     private AvroWriteOperation(AvroSink<T, DestinationT> sink,
-                               DynamicDestinations<T, DestinationT> dynamicDestinations,
                                AvroCoder<T> coder,
                                SerializableAvroCodecFactory codec,
                                ImmutableMap<String, Object> metadata) {
-      super(sink, dynamicDestinations);
+      super(sink);
       this.coder = coder;
       this.codec = codec;
       this.metadata = metadata;

@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ConfigCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /**
  */
@@ -56,6 +57,14 @@ public class DynamicDestinationHelpers {
     @Override
     public FilenamePolicy getFilenamePolicy(Void destination) {
       return filenamePolicy;
+    }
+
+    /**
+     * Populates the display data.
+     */
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      filenamePolicy.populateDisplayData(builder);
     }
   }
 

@@ -40,14 +40,14 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
 
   private final XmlIO.Write<T> spec;
 
-  private DefaultFilenamePolicy makeFilenamePolicy() {
+  private static <T> DefaultFilenamePolicy makeFilenamePolicy(XmlIO.Write<T> spec) {
      return DefaultFilenamePolicy.fromConfig(
          DefaultFilenamePolicy.Config.fromStandardParameters(spec.getFilenamePrefix(),
          ShardNameTemplate.INDEX_OF_MAX, XML_EXTENSION, false));
   }
 
   XmlSink(XmlIO.Write<T> spec) {
-    super(spec.getFilenamePrefix());
+    super(spec.getFilenamePrefix(), new ConstantFilenamePolicy<T>(makeFilenamePolicy(spec)));
     this.spec = spec;
   }
 
@@ -82,7 +82,7 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
    */
   protected static final class XmlWriteOperation<T> extends WriteOperation<T, Void> {
     public XmlWriteOperation(XmlSink<T> sink) {
-      super(sink, new ConstantFilenamePolicy<T>(sink.makeFilenamePolicy()));
+      super(sink);
     }
 
     /**

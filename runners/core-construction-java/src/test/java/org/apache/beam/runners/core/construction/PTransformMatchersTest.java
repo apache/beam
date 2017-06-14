@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.LocalResources;
@@ -544,7 +545,8 @@ public class PTransformMatchersTest implements Serializable {
             false));
     WriteFiles<Integer, Void> write =
         WriteFiles.to(
-            new FileBasedSink<Integer, Void>(StaticValueProvider.of(outputDirectory)) {
+            new FileBasedSink<Integer, Void>(StaticValueProvider.of(outputDirectory),
+            new ConstantFilenamePolicy<Integer>(null)) {
               @Override
               public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;

@@ -347,8 +347,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       // destinations go to different writers.
       // In the case of unwindowed writes, the window and the pane will always be the same, and
       // the map will only have a single element.
-      DestinationT destination =
-          writeOperation.getDynamicDestinations().getDestination(c.element());
+      DestinationT destination = sink.getDynamicDestinations().getDestination(c.element());
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<T, DestinationT> writer = writers.get(key);
       if (writer == null) {
@@ -506,8 +505,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
       } else {
         shardNumber = (shardNumber + 1) % shardCount;
       }
-      DestinationT destination = writeOperation.getDynamicDestinations().getDestination(
-          context.element());
+      DestinationT destination = sink.getDynamicDestinations().getDestination(context.element());
       context.output(KV.of(ShardedKey.of(destination, shardNumber), context.element()));
     }
   }
@@ -562,8 +560,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> shardedWindowCoder =
         (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
-    Coder<DestinationT> destinationCoder =
-        writeOperation.getDynamicDestinations().getDestinationCoder();
+    Coder<DestinationT> destinationCoder = sink.getDynamicDestinations().getDestinationCoder();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>(
@@ -686,7 +683,7 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
                 for (int i = 0; i < extraShardsNeeded; ++i) {
                   Writer<T, DestinationT> writer = writeOperation.createWriter();
                   writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
-                      writeOperation.getDynamicDestinations().getDefaultDestination());
+                      sink.getDynamicDestinations().getDefaultDestination());
                   FileResult<DestinationT> emptyWrite = writer.close();
                   results.add(emptyWrite);
                 }

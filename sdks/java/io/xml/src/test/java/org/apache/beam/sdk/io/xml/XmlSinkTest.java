@@ -197,8 +197,8 @@ public class XmlSinkTest {
         .withRecordClass(Integer.class);
 
     DisplayData displayData = DisplayData.from(write);
-
-    assertThat(displayData, hasDisplayItem("filenamePattern", "file-SSSSS-of-NNNNN.xml"));
+    assertThat(displayData, hasDisplayItem("filenamePattern", "/path/to/file-SSSSS-of-NNNNN"
+     + ".xml"));
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));
     assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
   }

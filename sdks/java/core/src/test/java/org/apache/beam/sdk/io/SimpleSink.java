@@ -31,8 +31,6 @@ import org.apache.beam.sdk.util.MimeTypes;
  * header and footer.
  */
 class SimpleSink extends FileBasedSink<String, Void> {
-  private DynamicDestinations<String, Void> dynamicDestinations;
-
   public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix) {
     this(baseOutputDirectory, prefix, template, suffix, CompressionType.UNCOMPRESSED);
   }
@@ -41,11 +39,11 @@ class SimpleSink extends FileBasedSink<String, Void> {
                     WritableByteChannelFactory writableByteChannelFactory) {
     super(
         StaticValueProvider.of(baseOutputDirectory),
+        new ConstantFilenamePolicy<String>(
+            DefaultFilenamePolicy.fromConfig(new Config(
+                baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
+                template, suffix))),
         writableByteChannelFactory);
-    dynamicDestinations = new ConstantFilenamePolicy<>(
-        DefaultFilenamePolicy.fromConfig(new Config(
-            baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
-            template, suffix)));
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
@@ -57,18 +55,14 @@ class SimpleSink extends FileBasedSink<String, Void> {
     return new SimpleWriteOperation(this);
   }
 
-  public DynamicDestinations<String, Void> getDynamicDestinations() {
-    return dynamicDestinations;
-  }
-
   static final class SimpleWriteOperation extends WriteOperation<String, Void> {
     public SimpleWriteOperation(SimpleSink sink,
                                 ResourceId tempOutputDirectory) {
-      super(sink, sink.dynamicDestinations, tempOutputDirectory);
+      super(sink, tempOutputDirectory);
     }
 
     public SimpleWriteOperation(SimpleSink sink) {
-      super(sink, sink.dynamicDestinations);
+      super(sink);
     }
 
     @Override

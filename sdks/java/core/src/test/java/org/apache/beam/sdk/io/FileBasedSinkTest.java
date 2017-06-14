@@ -213,7 +213,7 @@ public class FileBasedSinkTest {
     writeOp.finalize(fileResults);
 
     for (int i = 0; i < numFiles; i++) {
-      ResourceId outputFilename = writeOp.getDynamicDestinations().getFilenamePolicy(null)
+      ResourceId outputFilename = writeOp.getSink().getDynamicDestinations().getFilenamePolicy(null)
           .unwindowedFilename(new Context(i, numFiles), CompressionType.UNCOMPRESSED);
       assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
@@ -291,7 +291,7 @@ public class FileBasedSinkTest {
       List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
       inputFilePaths.put(LocalResources.fromFile(inputTmpFile, false),
-          writeOp.getDynamicDestinations().getFilenamePolicy(null)
+          writeOp.getSink().getDynamicDestinations().getFilenamePolicy(null)
               .unwindowedFilename(new Context(i, inputFilenames.size()),
               CompressionType.UNCOMPRESSED));
     }
