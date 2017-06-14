@@ -20,6 +20,7 @@ package org.apache.beam.dsls.sql.interpreter;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -55,6 +56,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlPositionExpre
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlSubstringExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlTrimExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpression;
+import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -249,7 +251,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
         Arrays.asList(
             rexBuilder.makeLiteral("hello"),
             rexBuilder.makeLiteral("worldhello"),
-            rexBuilder.makeBigintLiteral(BigDecimal.ZERO)
+            rexBuilder.makeCast(BeamQueryPlanner.TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER),
+                rexBuilder.makeBigintLiteral(BigDecimal.ONE))
         )
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
