@@ -20,7 +20,9 @@
 
 import unittest
 
-from apache_beam import error, pvalue
+from apache_beam import Create
+from apache_beam import error
+from apache_beam import pvalue
 from apache_beam.runners.dataflow.native_io.iobase import (
     _dict_printable_fields,
     _NativeWrite,
@@ -28,10 +30,12 @@ from apache_beam.runners.dataflow.native_io.iobase import (
     DynamicSplitRequest,
     DynamicSplitResultWithPosition,
     NativeSink,
+    NativeSinkWriter,
     NativeSource,
     ReaderPosition,
     ReaderProgress
 )
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -153,6 +157,39 @@ class TestNativeSink(unittest.TestCase):
 
     fake_sink = FakeSink()
     self.assertEqual(fake_sink.__repr__(), "<FakeSink ['validate=False']>")
+
+  def test_on_direct_runner(self):
+    class FakeSink(NativeSink):
+      """A fake sink outputing a number of elements."""
+
+      def __init__(self):
+        self.written_values = []
+        self.writer_instance = FakeSinkWriter(self.written_values)
+
+      def writer(self):
+        return self.writer_instance
+
+    class FakeSinkWriter(NativeSinkWriter):
+      """A fake sink writer for testing."""
+
+      def __init__(self, written_values):
+        self.written_values = written_values
+
+      def __enter__(self):
+        return self
+
+      def __exit__(self, *unused_args):
+        pass
+
+      def Write(self, value):
+        self.written_values.append(value)
+
+    p = TestPipeline()
+    sink = FakeSink()
+    p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
+    p.run()
+
+    self.assertEqual(['a', 'b', 'c'], sink.written_values)
 
 
 class Test_NativeWrite(unittest.TestCase):
