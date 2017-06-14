@@ -231,7 +231,7 @@
   </dependencyManagement>
 
   <properties>
-    <euphoria.version>0.7.0-SNAPSHOT</euphoria.version>
+    <euphoria.version>0.7.1-SNAPSHOT</euphoria.version>
     <flink.version>1.2.1</flink.version>
     <spark.version>2.1.0</spark.version>
     <kafka.version>0.10.1.0</kafka.version>

@@ -33,7 +33,7 @@ The best way to use Euphoria is by adding the following Maven dependency to your
 <dependency>
   <groupId>cz.seznam.euphoria</groupId>
   <artifactId>euphoria-core</artifactId>
-  <version>0.6.0</version>
+  <version>0.7.0</version>
 </dependency>
 ```
 You may want to add additional modules, such as support of various engines or I/O data sources/sinks. For more details read the [Maven Dependencies](https://github.com/seznam/euphoria/wiki/Maven-dependencies) wiki page.
