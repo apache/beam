@@ -55,8 +55,8 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -284,7 +284,8 @@ public class AvroIOTest {
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext input, String extension) {
+    public ResourceId windowedFilename(WindowedContext input,
+    FileMetadataProvider fileMetadataProvider) {
       String filenamePrefix = outputFilePrefix.isDirectory()
           ? "" : firstNonNull(outputFilePrefix.getFilename(), "");
 
@@ -296,13 +297,13 @@ public class AvroIOTest {
           input.getNumShards() - 1,
           input.getPaneInfo().getIndex(),
           input.getPaneInfo().isLast() ? "-final" : "",
-          extension);
+          fileMetadataProvider.getSuggestedFilenameSuffix());
       return outputFilePrefix.getCurrentDirectory().resolve(filename,
           StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context input, String extension) {
+    public ResourceId unwindowedFilename(Context input, FileMetadataProvider fileMetadataProvider) {
       throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 

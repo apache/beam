@@ -173,7 +173,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     }
 
     @Override
-    public String getFilenameSuffix() {
+    public String getSuggestedFilenameSuffix() {
       return filenameSuffix;
     }
 
@@ -317,27 +317,29 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     /**
      * When a sink has requested windowed or triggered output, this method will be invoked to return
      * the file {@link ResourceId resource} to be created given the base output directory and a
-     * (possibly empty) extension from {@link FileBasedSink} configuration
-     * (e.g., {@link CompressionType}).
+     * {@link FileMetadataProvider} containing information about the file, including a suggested
+     * extension (e.g. coming from {@link CompressionType}).
      *
      * <p>The {@link WindowedContext} object gives access to the window and pane,
      * as well as sharding information. The policy must return unique and consistent filenames
      * for different windows and panes.
      */
     @Experimental(Kind.FILESYSTEM)
-    public abstract ResourceId windowedFilename(WindowedContext c, String extension);
+    public abstract ResourceId windowedFilename(WindowedContext c,
+                                                FileMetadataProvider fileMetadataProvider);
 
     /**
      * When a sink has not requested windowed or triggered output, this method will be invoked to
      * return the file {@link ResourceId resource} to be created given the base output directory and
-     * a (possibly empty) extension applied by additional {@link FileBasedSink} configuration
-     * (e.g., {@link CompressionType}).
+     * a {@link FileMetadataProvider} containing information about the file, including a suggested
+     *  (e.g. coming from {@link CompressionType}).
      *
      * <p>The {@link Context} object only provides sharding information, which is used by the policy
      * to generate unique and consistent filenames.
      */
     @Experimental(Kind.FILESYSTEM)
-    @Nullable public abstract ResourceId unwindowedFilename(Context c, String extension);
+    @Nullable public abstract ResourceId unwindowedFilename(
+    Context c, FileMetadataProvider fileMetadataProvider);
 
     /**
      * Populates the display data.
@@ -622,7 +624,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
         outputFilenames.put(
             result.getTempFilename(),
             result.getDestinationFile(
-                dynamicDestinations, numShards, getSink().getExtension()));
+                dynamicDestinations, numShards, getSink().getWritableByteChannelFactory()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
@@ -744,13 +746,9 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     }
   }
 
-  /** Returns the extension that will be written to the produced files. */
-  protected final String getExtension() {
-    String extension = MoreObjects.firstNonNull(writableByteChannelFactory.getFilenameSuffix(), "");
-    if (!extension.isEmpty() && !extension.startsWith(".")) {
-      extension = "." + extension;
-    }
-    return extension;
+  /** Returns {@link WriteOperation} used. */
+  protected final WritableByteChannelFactory getWritableByteChannelFactory() {
+    return writableByteChannelFactory;
   }
 
   /**
@@ -1031,15 +1029,15 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(DynamicDestinations<?, DestinationT> dynamicDestinations,
                                          int numShards,
-                                         String extension) {
+                                         FileMetadataProvider fileMetadataProvider) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);
       checkArgument(numShards > 0);
       FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
       if (getWindow() != null) {
         return policy.windowedFilename(new WindowedContext(
-            getWindow(), getPaneInfo(), getShard(), numShards), extension);
+            getWindow(), getPaneInfo(), getShard(), numShards), fileMetadataProvider);
       } else {
-        return policy.unwindowedFilename(new Context(getShard(), numShards), extension);
+        return policy.unwindowedFilename(new Context(getShard(), numShards), fileMetadataProvider);
       }
     }
 
@@ -1115,21 +1113,9 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   }
 
   /**
-   * Implementations create instances of {@link WritableByteChannel} used by {@link FileBasedSink}
-   * and related classes to allow <em>decorating</em>, or otherwise transforming, the raw data that
-   * would normally be written directly to the {@link WritableByteChannel} passed into
-   * {@link WritableByteChannelFactory#create(WritableByteChannel)}.
-   *
-   * <p>Subclasses should override {@link #toString()} with something meaningful, as it is used when
-   * building {@link DisplayData}.
+   * Provides information about the generated files, such as mime type and the default suffix.
    */
-  public interface WritableByteChannelFactory extends Serializable {
-    /**
-     * @param channel the {@link WritableByteChannel} to wrap
-     * @return the {@link WritableByteChannel} to be used during output
-     */
-    WritableByteChannel create(WritableByteChannel channel) throws IOException;
-
+  public interface FileMetadataProvider extends Serializable {
     /**
      * Returns the MIME type that should be used for the files that will hold the output data. May
      * return {@code null} if this {@code WritableByteChannelFactory} does not meaningfully change
@@ -1146,6 +1132,24 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
      */
     @Nullable
-    String getFilenameSuffix();
+    String getSuggestedFilenameSuffix();
+  }
+
+  /**
+   * Implementations create instances of {@link WritableByteChannel} used by {@link FileBasedSink}
+   * and related classes to allow <em>decorating</em>, or otherwise transforming, the raw data that
+   * would normally be written directly to the {@link WritableByteChannel} passed into
+   * {@link WritableByteChannelFactory#create(WritableByteChannel)}.
+   *
+   * <p>Subclasses should override {@link #toString()} with something meaningful, as it is used when
+   * building {@link DisplayData}.
+   */
+  public interface WritableByteChannelFactory extends FileMetadataProvider {
+    /**
+     * @param channel the {@link WritableByteChannel} to wrap
+     * @return the {@link WritableByteChannel} to be used during output
+     */
+    WritableByteChannel create(WritableByteChannel channel) throws IOException;
+
   }
 }

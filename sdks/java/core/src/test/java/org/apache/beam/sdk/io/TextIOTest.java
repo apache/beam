@@ -556,7 +556,7 @@ public class TextIOTest {
       drunkElems.add(elem);
     }
     assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1,
-        baseDir.resolve(outputName + writableByteChannelFactory.getFilenameSuffix(),
+        baseDir.resolve(outputName + writableByteChannelFactory.getSuggestedFilenameSuffix(),
             StandardResolveOptions.RESOLVE_FILE), write.getShardTemplate());
   }
 

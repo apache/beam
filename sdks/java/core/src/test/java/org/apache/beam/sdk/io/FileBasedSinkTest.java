@@ -214,7 +214,7 @@ public class FileBasedSinkTest {
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename = writeOp.getDynamicDestinations().getFilenamePolicy(null)
-          .unwindowedFilename(new Context(i, numFiles), "");
+          .unwindowedFilename(new Context(i, numFiles), CompressionType.UNCOMPRESSED);
       assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
@@ -292,7 +292,8 @@ public class FileBasedSinkTest {
       writeFile(lines, inputTmpFile);
       inputFilePaths.put(LocalResources.fromFile(inputTmpFile, false),
           writeOp.getDynamicDestinations().getFilenamePolicy(null)
-              .unwindowedFilename(new Context(i, inputFilenames.size()), ""));
+              .unwindowedFilename(new Context(i, inputFilenames.size()),
+              CompressionType.UNCOMPRESSED));
     }
 
     // Copy input files to output files.
@@ -309,7 +310,8 @@ public class FileBasedSinkTest {
       ResourceId outputDirectory, FilenamePolicy policy, int numFiles) {
     List<ResourceId> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      filenames.add(policy.unwindowedFilename(new Context(i, numFiles), ""));
+      filenames.add(policy.unwindowedFilename(new Context(i, numFiles),
+      CompressionType.UNCOMPRESSED));
     }
     return filenames;
   }

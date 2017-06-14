@@ -28,6 +28,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -161,13 +162,14 @@ public class WriteFilesTranslationTest {
 
   private static class DummyFilenamePolicy extends FilenamePolicy {
     @Override
-    public ResourceId windowedFilename(WindowedContext c, String extension) {
+    public ResourceId windowedFilename(WindowedContext c,
+    FileMetadataProvider fileMetadataProvider) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 
     @Nullable
     @Override
-    public ResourceId unwindowedFilename(Context c, String extension) {
+    public ResourceId unwindowedFilename(Context c, FileMetadataProvider fileMetadataProvider) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 

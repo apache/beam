@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -228,18 +229,25 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   @Nullable
-  public ResourceId unwindowedFilename(Context context, String extension) {
-    return constructName(baseFilename.get(), shardTemplate, suffix + extension,
-        context.getShardNumber(), context.getNumShards(), null, null);
+  public ResourceId unwindowedFilename(Context context, FileMetadataProvider fileMetadataProvider) {
+    return constructName(
+        baseFilename.get(),
+        shardTemplate,
+        suffix + fileMetadataProvider.getSuggestedFilenameSuffix(),
+        context.getShardNumber(),
+        context.getNumShards(),
+        null,
+        null);
   }
 
   @Override
-  public ResourceId windowedFilename(WindowedContext context, String extension) {
+  public ResourceId windowedFilename(WindowedContext context, FileMetadataProvider fileMetadataProvider) {
     final PaneInfo paneInfo = context.getPaneInfo();
     String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(context.getWindow());
-    return constructName(baseFilename.get(), shardTemplate, suffix + extension,
-        context.getShardNumber(), context.getNumShards(), paneStr, windowStr);
+    return constructName(baseFilename.get(), shardTemplate,
+    suffix + fileMetadataProvider.getSuggestedFilenameSuffix(), context.getShardNumber(),
+    context.getNumShards(), paneStr, windowStr);
   }
 
   /*
