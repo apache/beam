@@ -94,6 +94,9 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
 
         config.putAll(options.getTopologyConfig());
 
+        // Setup config for runtime env
+        config.put("worker.external", "beam");
+
         return config;
     }
 

@@ -192,4 +192,28 @@ public class JStormStateInternalsTest {
         assertEquals((long) entry.getValue(), 22l);
         assertEquals(false, itr.hasNext());
     }
+
+    @Test
+    public void testMassiveDataOfBagState() {
+        BagState<Integer> bagStateA = jstormStateInternals.state(
+                StateNamespaces.global(), StateTags.bag("state-id-a", BigEndianIntegerCoder.of()));
+
+        int count = 10000;
+        int n = 1;
+        while(n <= count) {
+            bagStateA.add(n);
+            n++;
+        }
+
+        int readCount = 0;
+        int readN = 0;
+        Iterator<Integer> itr = bagStateA.read().iterator();
+        while(itr.hasNext()) {
+            readN += itr.next();
+            readCount++;
+        }
+
+        assertEquals((long) readN, ((1 + count) * count) / 2);
+        assertEquals((long) readCount, count);
+    }
 }

@@ -63,7 +63,7 @@ class JStormBagState<K, T> implements BagState<T> {
             stateInfoKvState.put(getComposedKey(), elemIndex);
             elemIndex++;
         } catch (IOException e) {
-            throw new RuntimeException();
+            throw new RuntimeException(e.getCause());
         }
     }
 
@@ -85,16 +85,6 @@ class JStormBagState<K, T> implements BagState<T> {
 
     @Override
     public Iterable<T> read() {
-        /*try {
-            List<T> values = Lists.newArrayList();
-            for (int i = 0; i < elemIndex; i++) {
-                values.add(kvState.get(getComposedKey(i)));
-            }
-            LOG.info("read: values={}, elemIndex={}, key={}, instanceId={}", values, elemIndex, getComposedKey(), instanceId);
-            return values;
-        } catch (IOException e) {
-            throw new RuntimeException();
-        }*/
         return new BagStateIterable(elemIndex);
     }
 
@@ -113,7 +103,7 @@ class JStormBagState<K, T> implements BagState<T> {
             stateInfoKvState.remove(getComposedKey());
             elemIndex = 0;
         } catch (IOException e) {
-            throw new RuntimeException();
+            throw new RuntimeException(e.getCause());
         }
     }
 
