@@ -105,7 +105,8 @@ public class ApexStateInternalsTest {
 
     @Test
     public void testSerialization() throws Exception {
-      ApexStateInternals.ApexStateInternalsFactory<String> sif = new ApexStateInternals.ApexStateBackend().
+      ApexStateInternals.ApexStateInternalsFactory<String> sif =
+          new ApexStateInternals.ApexStateBackend().
           newStateInternalsFactory(StringUtf8Coder.of());
       ApexStateInternals<String> keyAndState = sif.stateInternalsForKey("dummy");
 
