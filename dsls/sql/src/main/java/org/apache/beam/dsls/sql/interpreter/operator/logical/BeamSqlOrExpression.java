@@ -15,29 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+package org.apache.beam.dsls.sql.interpreter.operator.logical;
 
+import java.util.List;
+
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * An primitive operation for direct field extraction.
+ * {@code BeamSqlExpression} for 'OR' operation.
  */
-public class BeamSqlInputRefExpression extends BeamSqlExpression {
-  private int inputRef;
-
-  public BeamSqlInputRefExpression(SqlTypeName sqlTypeName, int inputRef) {
-    super(null, sqlTypeName);
-    this.inputRef = inputRef;
+public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
+  public BeamSqlOrExpression(List<BeamSqlExpression> operands) {
+    super(operands);
   }
 
   @Override
-  public boolean accept() {
-    return true;
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
+    boolean result = false;
+    for (BeamSqlExpression exp : operands) {
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);
+        result = result || expOut.getValue();
+        if (result) {
+          break;
+        }
+    }
+    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, result);
   }
 
-  @Override
-  public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
-  }
 }
