@@ -17,6 +17,8 @@
  */
 package org.apache.beam.dsls.sql;
 
+import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
+
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
@@ -25,9 +27,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.tools.ValidationException;
 
 /**
  * {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client.
@@ -38,9 +37,8 @@ public class BeamSqlCli {
   /**
    * Returns a human readable representation of the query execution plan.
    */
-  public static String explainQuery(String sqlString)
-      throws ValidationException, RelConversionException, SqlParseException {
-    BeamRelNode exeTree = BeamSqlEnv.planner.convertToBeamRel(sqlString);
+  public static String explainQuery(String sqlString) throws Exception {
+    BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -63,8 +61,7 @@ public class BeamSqlCli {
   public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline)
       throws Exception{
     PCollection<BeamSqlRow> resultStream =
-        BeamSqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline);
+        planner.compileBeamPipeline(sqlStatement, basePipeline);
     return resultStream;
   }
-
 }
