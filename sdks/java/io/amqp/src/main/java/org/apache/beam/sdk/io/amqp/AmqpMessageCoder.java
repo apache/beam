@@ -24,7 +24,7 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.qpid.proton.amqp.messaging.AmqpValue;
+import org.apache.commons.io.IOUtils;
 import org.apache.qpid.proton.message.Message;
 
 /**
@@ -40,14 +40,16 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
 
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
-    String body = new AmqpValue(value.getBody()).toString();
-    stringCoder.encode(body, outStream);
+    byte[] data = new byte[16384];
+    value.encode(data, 0, data.length);
+    outStream.write(data);
   }
 
   @Override
   public Message decode(InputStream inStream) throws CoderException, IOException {
     Message message = Message.Factory.create();
-    message.setBody(new AmqpValue(stringCoder.decode(inStream)));
+    byte[] data = IOUtils.toByteArray(inStream);
+    message.decode(data, 0, data.length);
     return message;
   }
 
