@@ -65,6 +65,145 @@
       </dependencies>
     </profile>
 
+    <!--
+        This profile invokes PerfKitBenchmarker, which does benchmarking of
+        the IO ITs. The arguments passed to it allow it to invoke mvn again
+        with the desired benchmark.
+
+        To invoke this, run:
+
+        mvn verify -Dio-it-suite -pl sdks/java/io/jdbc
+            -DpkbLocation="path-to-pkb.py" \
+            -DintegrationTestPipelineOptions='["-tempRoot=gs://bucket/staging"]'
+    -->
+    <profile>
+      <id>io-it-suite</id>
+      <activation>
+        <property><name>io-it-suite</name></property>
+      </activation>
+      <properties>
+      <!-- This is based on the location of the current pom relative to the root
+           See discussion in BEAM-2460 -->
+        <beamRootProjectDir>${project.parent.parent.parent.parent.basedir}</beamRootProjectDir>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.gmaven</groupId>
+            <artifactId>groovy-maven-plugin</artifactId>
+            <version>${groovy-maven-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>find-supported-python-for-compile</id>
+                <phase>initialize</phase>
+                <goals>
+                  <goal>execute</goal>
+                </goals>
+                <configuration>
+                  <source>${beamRootProjectDir}/sdks/python/findSupportedPython.groovy</source>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${maven-exec-plugin.version}</version>
+            <executions>
+              <execution>
+                <phase>verify</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <executable>${python.interpreter.bin}</executable>
+              <arguments>
+                <argument>${pkbLocation}</argument>
+                <argument>-benchmarks=beam_integration_benchmark</argument>
+                <argument>-beam_it_profile=io-it</argument>
+                <argument>-beam_location=${beamRootProjectDir}</argument>
+                <argument>-beam_prebuilt=true</argument>
+                <argument>-beam_sdk=java</argument>
+                <argument>-kubeconfig=${kubeconfig}</argument>
+                <argument>-kubectl=${kubectl}</argument>
+                <!-- runner overrides, controlled via forceDirectRunner -->
+                <argument>${pkbBeamRunnerProfile}</argument>
+                <argument>${pkbBeamRunnerOption}</argument>
+                <!-- specific to this IO -->
+                <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config.yml</argument>
+                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml</argument>
+                <argument>-beam_it_module=sdks/java/io/jdbc</argument>
+                <argument>-beam_it_class=org.apache.beam.sdk.io.jdbc.JdbcIOIT</argument>
+                <!-- arguments typically defined by user -->
+                <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
+              </arguments>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>${surefire-plugin.version}</version>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+      io-it-suite overrides part of io-it-suite, allowing users to run tests
+      when they are on a separate network from the kubernetes cluster by
+      creating a LoadBalancer service.
+    -->
+    <profile>
+      <id>io-it-suite-local</id>
+      <activation><property><name>io-it-suite-local</name></property></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${maven-exec-plugin.version}</version>
+            <executions>
+              <execution>
+                <phase>verify</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <executable>${python.interpreter.bin}</executable>
+              <arguments>
+                <argument>${pkbLocation}</argument>
+                <argument>-benchmarks=beam_integration_benchmark</argument>
+                <argument>-beam_it_profile=io-it</argument>
+                <argument>-beam_location=${beamRootProjectDir}</argument>
+                <argument>-beam_prebuilt=true</argument>
+                <argument>-beam_sdk=java</argument>
+                <argument>-kubeconfig=${kubeconfig}</argument>
+                <argument>-kubectl=${kubectl}</argument>
+                <!-- runner overrides, controlled via forceDirectRunner -->
+                <argument>${pkbBeamRunnerProfile}</argument>
+                <argument>${pkbBeamRunnerOption}</argument>
+                <!-- specific to this IO -->
+                <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config-local.yml</argument>
+                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml,${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
+                <argument>-beam_it_module=sdks/java/io/jdbc</argument>
+                <argument>-beam_it_class=org.apache.beam.sdk.io.jdbc.JdbcIOIT</argument>
+                <!-- arguments typically defined by user -->
+                <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
+              </arguments>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
     <!-- Include the Google Cloud Dataflow runner -P dataflow-runner -->
     <profile>
       <id>dataflow-runner</id>
