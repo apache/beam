@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.example;
 
+import java.sql.Types;
 import org.apache.beam.dsls.sql.BeamSql;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -31,7 +32,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,9 +48,9 @@ public class BeamSqlExample {
 
     //define the input row format
     BeamSqlRecordType type = new BeamSqlRecordType();
-    type.addField("c1", SqlTypeName.INTEGER);
-    type.addField("c2", SqlTypeName.VARCHAR);
-    type.addField("c3", SqlTypeName.DOUBLE);
+    type.addField("c1", Types.INTEGER);
+    type.addField("c2", Types.VARCHAR);
+    type.addField("c3", Types.DOUBLE);
     BeamSqlRow row = new BeamSqlRow(type);
     row.addField(0, 1);
     row.addField(1, "row");

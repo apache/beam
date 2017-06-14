@@ -18,11 +18,14 @@
 package org.apache.beam.dsls.sql.schema.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -32,7 +35,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
@@ -47,13 +49,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(RelProtoDataType protoRowType) {
-    super(protoRowType);
+  protected BeamKafkaTable(BeamSqlRecordType beamSqlRecordType) {
+    super(beamSqlRecordType);
   }
 
-  public BeamKafkaTable(RelProtoDataType protoRowType, String bootstrapServers,
+  public BeamKafkaTable(BeamSqlRecordType beamSqlRecordType, String bootstrapServers,
       List<String> topics) {
-    super(protoRowType);
+    super(beamSqlRecordType);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }

@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * define table schema, to map with Beam IO components.
- *
+ * Utility classes.
  */
-package org.apache.beam.dsls.sql.schema;
+package org.apache.beam.dsls.sql.utils;

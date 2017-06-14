@@ -22,7 +22,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.calcite.rel.type.RelProtoDataType;
 
 /**
  * {@code BeamPCollectionTable} converts a {@code PCollection<BeamSqlRow>} as a virtual table,
@@ -32,12 +31,13 @@ public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
   private PCollection<BeamSqlRow> upstream;
 
-  protected BeamPCollectionTable(RelProtoDataType protoRowType) {
-    super(protoRowType);
+  protected BeamPCollectionTable(BeamSqlRecordType beamSqlRecordType) {
+    super(beamSqlRecordType);
   }
 
-  public BeamPCollectionTable(PCollection<BeamSqlRow> upstream, RelProtoDataType protoRowType){
-    this(protoRowType);
+  public BeamPCollectionTable(PCollection<BeamSqlRow> upstream,
+      BeamSqlRecordType beamSqlRecordType){
+    this(beamSqlRecordType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;

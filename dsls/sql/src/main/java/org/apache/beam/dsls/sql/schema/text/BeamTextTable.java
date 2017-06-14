@@ -22,19 +22,16 @@ import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 
 /**
  * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
  */
 public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
   protected String filePattern;
-  protected BeamTextTable(RelProtoDataType protoRowType) {
-    super(protoRowType);
-  }
 
-  protected BeamTextTable(RelProtoDataType protoDataType, String filePattern) {
-    super(protoDataType);
+  protected BeamTextTable(BeamSqlRecordType beamSqlRecordType, String filePattern) {
+    super(beamSqlRecordType);
     this.filePattern = filePattern;
   }
 
