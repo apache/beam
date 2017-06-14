@@ -247,6 +247,41 @@ class SetupTest(unittest.TestCase):
             'The --setup_file option expects the full path to a file named '
             'setup.py instead of '))
 
+  def test_with_bootstrap_script(self):
+    try:
+      staging_dir = tempfile.mkdtemp()
+      source_dir = tempfile.mkdtemp()
+
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).bootstrap_script = os.path.join(
+          source_dir, dependency.BOOTSTRAP_SCRIPT)
+      self.create_temp_file(
+          os.path.join(source_dir, dependency.BOOTSTRAP_SCRIPT), 'nothing')
+      self.assertEqual(
+          [dependency.BOOTSTRAP_SCRIPT],
+          dependency.stage_job_resources(options))
+      self.assertTrue(
+          os.path.isfile(
+              os.path.join(staging_dir, dependency.BOOTSTRAP_SCRIPT)))
+    finally:
+      shutil.rmtree(staging_dir)
+      shutil.rmtree(source_dir)
+
+  def test_bootstrap_script_not_present(self):
+    staging_dir = tempfile.mkdtemp()
+    with self.assertRaises(RuntimeError) as cm:
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).bootstrap_script = 'nosuchfile'
+      dependency.stage_job_resources(options)
+    self.assertEqual(
+        cm.exception.message,
+        'The file %s cannot be found. It was specified in the '
+        '--bootstrap_script command line option.' % 'nosuchfile')
+
   def override_file_copy(self, expected_from_path, expected_to_dir):
     def file_copy(from_path, to_path):
       if not from_path.endswith(names.PICKLED_MAIN_SESSION_FILE):

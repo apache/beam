@@ -536,6 +536,13 @@ class SetupOptions(PipelineOptions):
          'avoiding extra downloads for existing packages. Typically the '
          'file is named requirements.txt.'))
     parser.add_argument(
+        '--bootstrap_script',
+        default=None,
+        help=
+        ('Bootstrap the python process before executing any code by executing '
+         'this script, the user can add variables or imports to the global'
+         'scope here.'))
+    parser.add_argument(
         '--requirements_cache',
         default=None,
         help=

@@ -78,6 +78,7 @@ BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170601'
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
+BOOTSTRAP_SCRIPT = 'bootstrap_script.py'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
@@ -315,6 +316,21 @@ def stage_job_resources(
       file_copy(pkg, FileSystems.join(google_cloud_options.staging_location,
                                       os.path.basename(pkg)))
       resources.append(os.path.basename(pkg))
+
+  # Stage a bootstrap script file if present.
+  if setup_options.bootstrap_script is not None:
+    if not os.path.isfile(setup_options.bootstrap_script):
+      raise RuntimeError('The file %s cannot be found. It was specified in the '
+                         '--bootstrap_script command line option.' %
+                         setup_options.bootstrap_script)
+    if not setup_options.bootstrap_script.endswith('.py'):
+      raise RuntimeError('The --bootstrap_script option expects the '
+                         'full path to a .py file' %
+                         setup_options.bootstrap_script)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   BOOTSTRAP_SCRIPT)
+    file_copy(setup_options.bootstrap_script, staged_path)
+    resources.append(BOOTSTRAP_SCRIPT)
 
   # Handle a setup file if present.
   # We will build the setup package locally and then copy it to the staging
