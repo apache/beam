@@ -32,6 +32,17 @@
   <description>Beam SDK Java IO provides different connectivity components
   (sources and sinks) to consume and produce data from systems.</description>
 
+  <properties>
+    <!-- standard binary for kubectl -->
+    <kubectl>kubectl</kubectl>
+    <!-- the standard location for kubernete's config file -->
+    <kubeconfig>${user.home}/.kube/config</kubeconfig>
+    <!-- Necessary to make sure that integration with perfkit in io-it-suite works -->
+    <integrationTestPipelineOptions></integrationTestPipelineOptions>
+    <pkbBeamRunnerProfile></pkbBeamRunnerProfile>
+    <pkbBeamRunnerOption></pkbBeamRunnerOption>
+  </properties>
+
   <modules>
     <module>amqp</module>
     <module>cassandra</module>
@@ -81,10 +92,35 @@
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>${surefire-plugin.version}</version>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
         </plugins>
       </build>
       <properties>
         <skipITs>false</skipITs>
+      </properties>
+    </profile>
+
+    <!-- this profile is for use with io-it-suite -->
+    <profile>
+      <id>forceDirectRunner</id>
+      <activation>
+        <property>
+          <name>forceDirectRunner</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- These intentionally have a hanging equals sign so that an empty
+             string is passed to pkb. Passing "" will cause e.g. -P"" to
+             get added to the mvn command line -->
+        <pkbBeamRunnerProfile>-beam_runner_profile=</pkbBeamRunnerProfile>
+        <pkbBeamRunnerOption>-beam_runner_option=</pkbBeamRunnerOption>
       </properties>
     </profile>
   </profiles>
