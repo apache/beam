@@ -110,6 +110,15 @@ public class BeamSql {
 
     @Override
     public PCollection<BeamSqlRow> expand(PCollectionTuple input) {
+      //register tables
+      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
+        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
+        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
+
+        BeamSqlEnv.registerTable(sourceTag.getId(),
+            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema().toRelDataType()));
+      }
+
       BeamRelNode beamRelNode = null;
       try {
         beamRelNode = BeamSqlEnv.planner.convertToBeamRel(sqlQuery);
@@ -149,13 +158,10 @@ public class BeamSql {
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
-      BeamSqlRowCoder inputCoder = (BeamSqlRowCoder) input.getCoder();
 
       if (sqlNode instanceof SqlSelect) {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
-        BeamSqlEnv.registerTable(tableName,
-            new BeamPCollectionTable(input, inputCoder.getTableSchema().toRelDataType()));
         return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
             .apply(BeamSql.query(sqlQuery));
       } else {
