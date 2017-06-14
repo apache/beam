@@ -241,7 +241,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   }
 
   @Override
-  public ResourceId windowedFilename(WindowedContext context, FileMetadataProvider fileMetadataProvider) {
+  public ResourceId windowedFilename(
+      WindowedContext context, FileMetadataProvider fileMetadataProvider) {
     final PaneInfo paneInfo = context.getPaneInfo();
     String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(context.getWindow());

@@ -25,6 +25,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -34,18 +35,19 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
-class XmlSink<T> extends FileBasedSink<T> {
+class XmlSink<T> extends FileBasedSink<T, Void> {
   private static final String XML_EXTENSION = ".xml";
 
   private final XmlIO.Write<T> spec;
 
-  private static DefaultFilenamePolicy makeFilenamePolicy(XmlIO.Write<?> spec) {
-    return DefaultFilenamePolicy.constructUsingStandardParameters(
-        spec.getFilenamePrefix(), ShardNameTemplate.INDEX_OF_MAX, XML_EXTENSION, false);
+  private DefaultFilenamePolicy makeFilenamePolicy() {
+     return DefaultFilenamePolicy.fromConfig(
+         DefaultFilenamePolicy.Config.fromStandardParameters(spec.getFilenamePrefix(),
+         ShardNameTemplate.INDEX_OF_MAX, XML_EXTENSION, false));
   }
 
   XmlSink(XmlIO.Write<T> spec) {
-    super(spec.getFilenamePrefix(), makeFilenamePolicy(spec));
+    super(spec.getFilenamePrefix());
     this.spec = spec;
   }
 
@@ -78,9 +80,9 @@ class XmlSink<T> extends FileBasedSink<T> {
   /**
    * {@link WriteOperation} for XML {@link FileBasedSink}s.
    */
-  protected static final class XmlWriteOperation<T> extends WriteOperation<T> {
+  protected static final class XmlWriteOperation<T> extends WriteOperation<T, Void> {
     public XmlWriteOperation(XmlSink<T> sink) {
-      super(sink);
+      super(sink, new ConstantFilenamePolicy<T>(sink.makeFilenamePolicy()));
     }
 
     /**
@@ -115,7 +117,7 @@ class XmlSink<T> extends FileBasedSink<T> {
   /**
    * A {@link Writer} that can write objects as XML elements.
    */
-  protected static final class XmlWriter<T> extends Writer<T> {
+  protected static final class XmlWriter<T> extends Writer<T, Void> {
     final Marshaller marshaller;
     private OutputStream os = null;
 

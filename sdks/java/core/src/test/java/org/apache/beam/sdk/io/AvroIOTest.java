@@ -54,7 +54,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -576,16 +575,5 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
-  }
-
-  @Test
-  public void testWindowedWriteRequiresFilenamePolicy() {
-    PCollection<String> emptyInput = p.apply(Create.empty(StringUtf8Coder.of()));
-    AvroIO.Write write = AvroIO.write(String.class).to("/tmp/some/file").withWindowedWrites();
-
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage(
-        "When using windowed writes, a filename policy must be set via withFilenamePolicy()");
-    emptyInput.apply(write);
   }
 }

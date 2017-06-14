@@ -417,6 +417,8 @@ public class WriteFiles<T, DestinationT> extends PTransform<PCollection<T>, PDon
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       // In a sharded write, single input element represents one shard. We can open and close
       // the writer in each call to processElement.
+      // TODO: This forces us to shuffle the entire destination on each element. We could instead
+      // just shuffle a hash, and keep a (small) map of writers->destination here.
       DestinationT destination = c.element().getKey().getKey();
       int shard = c.element().getKey().getShardNumber();
       LOG.info("Opening writer for write operation {}", writeOperation);

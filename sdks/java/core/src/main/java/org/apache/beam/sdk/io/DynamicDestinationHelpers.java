@@ -21,7 +21,6 @@ package org.apache.beam.sdk.io;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ConfigCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -60,6 +59,10 @@ public class DynamicDestinationHelpers {
     }
   }
 
+  /**
+   * A base class for a {@link DynamicDestinations} object that returns differently-configured
+   * instances of {@link DefaultFilenamePolicy}.
+   */
   public abstract static class DefaultDynamicDestinations<T>
       extends DynamicDestinations<T, DefaultFilenamePolicy.Config> {
     @Nullable
@@ -71,29 +74,6 @@ public class DynamicDestinationHelpers {
     @Override
     public FilenamePolicy getFilenamePolicy(DefaultFilenamePolicy.Config config) {
       return DefaultFilenamePolicy.fromConfig(config);
-    }
-  }
-
-  public static class ConstantDefaultDynamicDestinations<T> extends DefaultDynamicDestinations<T> {
-    private Config config;
-
-    public ConstantDefaultDynamicDestinations(Config config) {
-      this.config = config;
-    }
-
-    @Override
-    public Config getDestination(T element) {
-      return config;
-    }
-
-    @Override
-    public Config getDefaultDestination() {
-      return config;
-    }
-
-    @Override
-    public FilenamePolicy getFilenamePolicy(Config config) {
-      return super.getFilenamePolicy(config);
     }
   }
 }

@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -42,7 +43,9 @@ class SimpleSink extends FileBasedSink<String, Void> {
         StaticValueProvider.of(baseOutputDirectory),
         writableByteChannelFactory);
     dynamicDestinations = new ConstantFilenamePolicy<>(
-        DefaultFilenamePolicy.fromConfig(new Config(baseOutputDirectory, template, suffix)));
+        DefaultFilenamePolicy.fromConfig(new Config(
+            baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
+            template, suffix)));
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
