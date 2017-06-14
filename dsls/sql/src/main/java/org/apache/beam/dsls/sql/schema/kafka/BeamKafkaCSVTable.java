@@ -29,7 +29,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -38,14 +37,14 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class BeamKafkaCSVTable extends BeamKafkaTable {
   private CSVFormat csvFormat;
-  public BeamKafkaCSVTable(RelProtoDataType protoRowType, String bootstrapServers,
+  public BeamKafkaCSVTable(BeamSqlRecordType beamSqlRecordType, String bootstrapServers,
       List<String> topics) {
-    this(protoRowType, bootstrapServers, topics, CSVFormat.DEFAULT);
+    this(beamSqlRecordType, bootstrapServers, topics, CSVFormat.DEFAULT);
   }
 
-  public BeamKafkaCSVTable(RelProtoDataType protoRowType, String bootstrapServers,
+  public BeamKafkaCSVTable(BeamSqlRecordType beamSqlRecordType, String bootstrapServers,
       List<String> topics, CSVFormat format) {
-    super(protoRowType, bootstrapServers, topics);
+    super(beamSqlRecordType, bootstrapServers, topics);
     this.csvFormat = format;
   }
 

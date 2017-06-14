@@ -20,12 +20,6 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Field type information in {@link BeamSqlRow}.
@@ -33,39 +27,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class BeamSqlRecordType implements Serializable {
   private List<String> fieldsName = new ArrayList<>();
-  private List<SqlTypeName> fieldsType = new ArrayList<>();
+  private List<Integer> fieldsType = new ArrayList<>();
 
-  /**
-   * Generate from {@link RelDataType} which is used to create table.
-   */
-  public static BeamSqlRecordType from(RelDataType tableInfo) {
-    BeamSqlRecordType record = new BeamSqlRecordType();
-    for (RelDataTypeField f : tableInfo.getFieldList()) {
-      record.fieldsName.add(f.getName());
-      record.fieldsType.add(f.getType().getSqlTypeName());
-    }
-    return record;
-  }
-
-  public void addField(String fieldName, SqlTypeName fieldType) {
+  public void addField(String fieldName, Integer fieldType) {
     fieldsName.add(fieldName);
     fieldsType.add(fieldType);
-  }
-
-  /**
-   * Create an instance of {@link RelDataType} so it can be used to create a table.
-   */
-  public RelProtoDataType toRelDataType() {
-    return new RelProtoDataType() {
-      @Override
-      public RelDataType apply(RelDataTypeFactory a) {
-        FieldInfoBuilder builder = a.builder();
-        for (int idx = 0; idx < fieldsName.size(); ++idx) {
-          builder.add(fieldsName.get(idx), fieldsType.get(idx));
-        }
-        return builder.build();
-      }
-    };
   }
 
   public int size() {
@@ -80,11 +46,11 @@ public class BeamSqlRecordType implements Serializable {
     this.fieldsName = fieldsName;
   }
 
-  public List<SqlTypeName> getFieldsType() {
+  public List<Integer> getFieldsType() {
     return fieldsType;
   }
 
-  public void setFieldsType(List<SqlTypeName> fieldsType) {
+  public void setFieldsType(List<Integer> fieldsType) {
     this.fieldsType = fieldsType;
   }
 

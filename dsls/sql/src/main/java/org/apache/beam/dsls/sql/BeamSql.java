@@ -17,6 +17,9 @@
  */
 package org.apache.beam.dsls.sql;
 
+import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
+import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
+
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -71,6 +74,7 @@ p.run().waitUntilFinish();
  */
 @Experimental
 public class BeamSql {
+
   /**
    * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
    *
@@ -101,7 +105,8 @@ public class BeamSql {
   /**
    * A {@link PTransform} representing an execution plan for a SQL query.
    */
-  public static class QueryTransform extends PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
+  private static class QueryTransform extends
+      PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
     private String sqlQuery;
     public QueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
@@ -114,13 +119,13 @@ public class BeamSql {
         PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
         BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
 
-        BeamSqlEnv.registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema().toRelDataType()));
+        registerTable(sourceTag.getId(),
+            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
       }
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = BeamSqlEnv.planner.convertToBeamRel(sqlQuery);
+        beamRelNode = planner.convertToBeamRel(sqlQuery);
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -137,7 +142,7 @@ public class BeamSql {
    * A {@link PTransform} representing an execution plan for a SQL query referencing
    * a single table.
    */
-  public static class SimpleQueryTransform
+  private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
     private String sqlQuery;
     public SimpleQueryTransform(String sqlQuery) {
@@ -152,8 +157,8 @@ public class BeamSql {
     public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
-        sqlNode = BeamSqlEnv.planner.parseQuery(sqlQuery);
-        BeamSqlEnv.planner.getPlanner().close();
+        sqlNode = planner.parseQuery(sqlQuery);
+        planner.getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
