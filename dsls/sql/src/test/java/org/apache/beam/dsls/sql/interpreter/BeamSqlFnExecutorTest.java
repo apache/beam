@@ -20,7 +20,6 @@ package org.apache.beam.dsls.sql.interpreter;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;

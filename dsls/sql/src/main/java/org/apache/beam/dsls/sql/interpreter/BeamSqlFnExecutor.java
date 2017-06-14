@@ -135,6 +135,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         //     node.getType().getSqlTypeName() = INTEGER (the display type)
         //     node.getSqlTypeName() = DECIMAL (the actual internal storage format)
         // So we need to do a convert here.
+        // check RexBuilder#makeLiteral for more information.
         SqlTypeName realType = node.getType().getSqlTypeName();
         Object realValue = value;
         if (type == SqlTypeName.DECIMAL) {
@@ -155,6 +156,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
             default:
               throw new IllegalStateException("type/realType mismatch: "
                   + type + " VS " + realType);
+          }
+        } else if (type == SqlTypeName.DOUBLE) {
+          Double rawValue = (Double) value;
+          if (realType == SqlTypeName.FLOAT) {
+            realValue = rawValue.floatValue();
           }
         }
         return BeamSqlPrimitive.of(realType, realValue);
