@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
-import static org.apache.beam.runners.core.StateInternalsTest.NAMESPACE_1;
-import static org.apache.beam.runners.core.StateInternalsTest.NAMESPACE_2;
-import static org.apache.beam.runners.core.StateInternalsTest.STRING_BAG_ADDR;
 import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayInputStream;
@@ -29,6 +26,10 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaceForTest;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.BagState;
@@ -44,7 +45,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.hamcrest.Matchers;
-import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,7 +63,7 @@ import org.junit.runners.Suite;
 public class FlinkKeyGroupStateInternalsTest {
 
   /**
-   * A standard StateInternals test.
+   * A standard StateInternals test. Just test BagState.
    */
   @RunWith(JUnit4.class)
   public static class StandardStateInternalsTests extends StateInternalsTest {
@@ -72,81 +73,90 @@ public class FlinkKeyGroupStateInternalsTest {
           getKeyedStateBackend(2, new KeyGroupRange(0, 1));
       return new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
     }
-    ///////////////////////// Unsupported tests \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     @Override
+    @Ignore
     public void testValue() {}
 
     @Override
+    @Ignore
     public void testSet() {}
 
     @Override
+    @Ignore
     public void testSetIsEmpty() {}
 
     @Override
+    @Ignore
     public void testMergeSetIntoSource() {}
 
     @Override
+    @Ignore
     public void testMergeSetIntoNewNamespace() {}
 
     @Override
+    @Ignore
     public void testMap() {}
 
     @Override
+    @Ignore
     public void testCombiningValue() {}
 
     @Override
+    @Ignore
     public void testCombiningIsEmpty() {}
 
     @Override
+    @Ignore
     public void testMergeCombiningValueIntoSource() {}
 
     @Override
+    @Ignore
     public void testMergeCombiningValueIntoNewNamespace() {}
 
     @Override
+    @Ignore
     public void testWatermarkEarliestState() {}
 
     @Override
+    @Ignore
     public void testWatermarkLatestState() {}
 
     @Override
+    @Ignore
     public void testWatermarkEndOfWindowState() {}
 
     @Override
+    @Ignore
     public void testWatermarkStateIsEmpty() {}
 
     @Override
+    @Ignore
     public void testMergeEarliestWatermarkIntoSource() {}
 
     @Override
+    @Ignore
     public void testMergeLatestWatermarkIntoSource() {}
 
     @Override
+    @Ignore
     public void testSetReadable() {}
 
     @Override
+    @Ignore
     public void testMapReadable() {}
   }
 
   /**
-   * A specific test of InMemoryStateInternals.
+   * A specific test of FlinkKeyGroupStateInternalsTest.
    */
   @RunWith(JUnit4.class)
   public static class OtherTests {
 
-    FlinkKeyGroupStateInternals<String> underTest;
-    private KeyedStateBackend keyedStateBackend;
-
-    @Before
-    public void initStateInternals() {
-      try {
-        keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 1));
-        underTest = new FlinkKeyGroupStateInternals<>(StringUtf8Coder.of(), keyedStateBackend);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
+    private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
+    private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
+    private static final StateTag<BagState<String>> STRING_BAG_ADDR =
+        StateTags.bag("stringBag", StringUtf8Coder.of());
 
     @Test
     public void testKeyGroupAndCheckpoint() throws Exception {
@@ -158,7 +168,8 @@ public class FlinkKeyGroupStateInternalsTest {
           CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "22222222"));
       FlinkKeyGroupStateInternals<String> allState;
       {
-        KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 1));
+        KeyedStateBackend<ByteBuffer> keyedStateBackend =
+            getKeyedStateBackend(2, new KeyGroupRange(0, 1));
         allState = new FlinkKeyGroupStateInternals<>(
             StringUtf8Coder.of(), keyedStateBackend);
         BagState<String> valueForNamespace0 = allState.state(NAMESPACE_1, STRING_BAG_ADDR);
@@ -181,7 +192,8 @@ public class FlinkKeyGroupStateInternalsTest {
       DataInputStream in0 = new DataInputStream(
           new ByteArrayInputStream(out0.toByteArray()));
       {
-        KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 0));
+        KeyedStateBackend<ByteBuffer> keyedStateBackend =
+            getKeyedStateBackend(2, new KeyGroupRange(0, 0));
         FlinkKeyGroupStateInternals<String> state0 =
             new FlinkKeyGroupStateInternals<>(
                 StringUtf8Coder.of(), keyedStateBackend);
@@ -197,7 +209,8 @@ public class FlinkKeyGroupStateInternalsTest {
       DataInputStream in1 = new DataInputStream(
           new ByteArrayInputStream(out1.toByteArray()));
       {
-        KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(1, 1));
+        KeyedStateBackend<ByteBuffer> keyedStateBackend =
+            getKeyedStateBackend(2, new KeyGroupRange(1, 1));
         FlinkKeyGroupStateInternals<String> state1 =
             new FlinkKeyGroupStateInternals<>(
                 StringUtf8Coder.of(), keyedStateBackend);
@@ -210,7 +223,8 @@ public class FlinkKeyGroupStateInternalsTest {
 
       // 2. scale down
       {
-        KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 1));
+        KeyedStateBackend<ByteBuffer> keyedStateBackend =
+            getKeyedStateBackend(2, new KeyGroupRange(0, 1));
         FlinkKeyGroupStateInternals<String> newAllState = new FlinkKeyGroupStateInternals<>(
             StringUtf8Coder.of(), keyedStateBackend);
         in0.reset();
@@ -226,7 +240,7 @@ public class FlinkKeyGroupStateInternalsTest {
 
   }
 
-  private static KeyedStateBackend getKeyedStateBackend(int numberOfKeyGroups,
+  private static KeyedStateBackend<ByteBuffer> getKeyedStateBackend(int numberOfKeyGroups,
                                                    KeyGroupRange keyGroupRange) {
     MemoryStateBackend backend = new MemoryStateBackend();
     try {

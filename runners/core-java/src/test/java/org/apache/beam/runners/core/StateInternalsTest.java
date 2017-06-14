@@ -55,27 +55,27 @@ import org.junit.Test;
  */
 public abstract class StateInternalsTest {
 
-  public static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
-  public static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
-  public static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
-  public static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
+  private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
+  private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
+  private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
+  private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
 
-  public static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
+  private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  public static final StateTag<CombiningState<Integer, int[], Integer>>
+  private static final StateTag<CombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
-  public static final StateTag<BagState<String>> STRING_BAG_ADDR =
+  private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
-  public static final StateTag<SetState<String>> STRING_SET_ADDR =
+  private static final StateTag<SetState<String>> STRING_SET_ADDR =
       StateTags.set("stringSet", StringUtf8Coder.of());
-  public static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
+  private static final StateTag<MapState<String, Integer>> STRING_MAP_ADDR =
       StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
-  public static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
+  private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
-  public static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
+  private static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
-  public static final StateTag<WatermarkHoldState> WATERMARK_EOW_ADDR =
+  private static final StateTag<WatermarkHoldState> WATERMARK_EOW_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
 
   private StateInternals underTest;

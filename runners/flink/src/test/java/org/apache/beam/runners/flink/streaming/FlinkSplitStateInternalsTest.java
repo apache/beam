@@ -23,6 +23,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkS
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,66 +48,84 @@ public class FlinkSplitStateInternalsTest extends StateInternalsTest {
     }
   }
 
-  ///////////////////////// Unsupported tests \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
   @Override
+  @Ignore
   public void testMergeBagIntoSource() {}
 
   @Override
+  @Ignore
   public void testMergeBagIntoNewNamespace() {}
 
   @Override
+  @Ignore
   public void testValue() {}
 
   @Override
+  @Ignore
   public void testSet() {}
 
   @Override
+  @Ignore
   public void testSetIsEmpty() {}
 
   @Override
+  @Ignore
   public void testMergeSetIntoSource() {}
 
   @Override
+  @Ignore
   public void testMergeSetIntoNewNamespace() {}
 
   @Override
+  @Ignore
   public void testMap() {}
 
   @Override
+  @Ignore
   public void testCombiningValue() {}
 
   @Override
+  @Ignore
   public void testCombiningIsEmpty() {}
 
   @Override
+  @Ignore
   public void testMergeCombiningValueIntoSource() {}
 
   @Override
+  @Ignore
   public void testMergeCombiningValueIntoNewNamespace() {}
 
   @Override
+  @Ignore
   public void testWatermarkEarliestState() {}
 
   @Override
+  @Ignore
   public void testWatermarkLatestState() {}
 
   @Override
+  @Ignore
   public void testWatermarkEndOfWindowState() {}
 
   @Override
+  @Ignore
   public void testWatermarkStateIsEmpty() {}
 
   @Override
+  @Ignore
   public void testMergeEarliestWatermarkIntoSource() {}
 
   @Override
+  @Ignore
   public void testMergeLatestWatermarkIntoSource() {}
 
   @Override
+  @Ignore
   public void testSetReadable() {}
 
   @Override
+  @Ignore
   public void testMapReadable() {}
 
 }
