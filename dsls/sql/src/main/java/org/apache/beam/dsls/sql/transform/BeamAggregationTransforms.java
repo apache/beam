@@ -27,6 +27,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -163,7 +164,7 @@ public class BeamAggregationTransforms implements Serializable{
         //verify it's supported.
         verifySupportedAggregation(ac);
 
-        aggDataType.addField(ac.name, ac.type.getSqlTypeName());
+        aggDataType.addField(ac.name, CalciteUtils.getJavaSqlType(ac.type.getSqlTypeName()));
 
         SqlAggFunction aggFn = ac.getAggregation();
         switch (aggFn.getName()) {
@@ -178,7 +179,7 @@ public class BeamAggregationTransforms implements Serializable{
         case "AVG":
           int refIndex = ac.getArgList().get(0);
           aggElementExpressions.add(new BeamSqlInputRefExpression(
-              sourceRowRecordType.getFieldsType().get(refIndex), refIndex));
+              CalciteUtils.getFieldType(sourceRowRecordType, refIndex), refIndex));
           if ("AVG".equals(aggFn.getName())) {
             hasAvg = true;
           }
@@ -191,7 +192,8 @@ public class BeamAggregationTransforms implements Serializable{
       }
       // add a COUNT holder if only have AVG
       if (hasAvg && !hasCount) {
-        aggDataType.addField("__COUNT", SqlTypeName.BIGINT);
+        aggDataType.addField("__COUNT",
+            CalciteUtils.getJavaSqlType(SqlTypeName.BIGINT));
 
         aggFunctions.add("COUNT");
         aggElementExpressions.add(BeamSqlPrimitive.<Long>of(SqlTypeName.BIGINT, 1L));

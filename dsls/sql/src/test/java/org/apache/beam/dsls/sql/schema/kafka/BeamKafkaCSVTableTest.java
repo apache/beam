@@ -23,6 +23,7 @@ import java.io.Serializable;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -91,16 +92,14 @@ public class BeamKafkaCSVTableTest {
   }
 
   private static BeamSqlRecordType genRowType() {
-    return BeamSqlRecordType.from(
-        new RelProtoDataType() {
-          @Override public RelDataType apply(RelDataTypeFactory a0) {
-            return a0.builder()
-                .add("order_id", SqlTypeName.BIGINT)
-                .add("site_id", SqlTypeName.INTEGER)
-                .add("price", SqlTypeName.DOUBLE)
-                .build();
-          }
-        }.apply(BeamQueryPlanner.TYPE_FACTORY));
+    return CalciteUtils.buildRecordType(new RelProtoDataType() {
+
+      @Override public RelDataType apply(RelDataTypeFactory a0) {
+        return a0.builder().add("order_id", SqlTypeName.BIGINT)
+            .add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE).build();
+      }
+    }.apply(BeamQueryPlanner.TYPE_FACTORY));
   }
 
   private static class String2KvBytes extends DoFn<String, KV<byte[], byte[]>>

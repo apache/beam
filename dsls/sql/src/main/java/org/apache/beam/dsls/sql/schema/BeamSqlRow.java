@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -81,7 +82,7 @@ public class BeamSqlRow implements Serializable {
       }
     }
 
-    SqlTypeName fieldType = dataType.getFieldsType().get(index);
+    SqlTypeName fieldType = CalciteUtils.getFieldType(dataType, index);
     switch (fieldType) {
       case INTEGER:
         if (!(fieldValue instanceof Integer)) {
@@ -201,7 +202,7 @@ public class BeamSqlRow implements Serializable {
     }
 
     Object fieldValue = dataValues.get(fieldIdx);
-    SqlTypeName fieldType = dataType.getFieldsType().get(fieldIdx);
+    SqlTypeName fieldType = CalciteUtils.getFieldType(dataType, fieldIdx);
 
     switch (fieldType) {
       case INTEGER:

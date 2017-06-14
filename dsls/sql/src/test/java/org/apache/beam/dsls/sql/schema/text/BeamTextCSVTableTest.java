@@ -35,6 +35,7 @@ import java.util.List;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -80,19 +81,20 @@ public class BeamTextCSVTableTest {
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildRowType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRecordType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
   }
 
   @Test public void testBuildIOWriter() {
-    new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader(pipeline)
-        .apply(new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath())
+    new BeamTextCSVTable(buildBeamSqlRecordType(),
+        readerSourceFile.getAbsolutePath()).buildIOReader(pipeline)
+        .apply(new BeamTextCSVTable(buildBeamSqlRecordType(), writerTargetFile.getAbsolutePath())
             .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildRowType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRecordType(),
         writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
 
     // confirm the two reads match
@@ -166,7 +168,7 @@ public class BeamTextCSVTableTest {
   }
 
   private static BeamSqlRecordType buildBeamSqlRecordType() {
-    return BeamSqlRecordType.from(buildRelDataType());
+    return CalciteUtils.buildRecordType(buildRelDataType());
   }
 
   private static BeamSqlRow buildRow(Object[] data) {

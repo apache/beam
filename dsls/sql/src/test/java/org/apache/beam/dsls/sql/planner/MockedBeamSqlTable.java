@@ -26,6 +26,7 @@ import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -49,8 +50,8 @@ public class MockedBeamSqlTable extends BaseBeamTable {
 
   private List<BeamSqlRow> inputRecords;
 
-  public MockedBeamSqlTable(RelProtoDataType protoRowType) {
-    super(protoRowType);
+  public MockedBeamSqlTable(BeamSqlRecordType beamSqlRecordType) {
+    super(beamSqlRecordType);
   }
 
   public MockedBeamSqlTable withInputRecords(List<BeamSqlRow> inputRecords){
@@ -102,8 +103,8 @@ public class MockedBeamSqlTable extends BaseBeamTable {
     };
 
     List<BeamSqlRow> rows = new ArrayList<>();
-    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(
-        protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+    BeamSqlRecordType beamSQLRecordType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     int fieldCount = beamSQLRecordType.size();
 
     for (int i = fieldCount * 2; i < args.length; i += fieldCount) {
@@ -113,7 +114,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
       }
       rows.add(row);
     }
-    return new MockedBeamSqlTable(protoRowType).withInputRecords(rows);
+    return new MockedBeamSqlTable(beamSQLRecordType).withInputRecords(rows);
   }
 
   @Override

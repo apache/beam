@@ -25,9 +25,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -149,7 +149,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
     PCollection<BeamSqlRow> orderedStream = rawStream.apply(
         "flatten", Flatten.<BeamSqlRow>iterables());
-    orderedStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
+    orderedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.buildRecordType(getRowType())));
 
     return orderedStream;
   }
@@ -191,7 +191,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = row1.getDataType().getFieldsType().get(fieldIndex);
+        SqlTypeName fieldType = CalciteUtils.getFieldType(row1.getDataType(), fieldIndex);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         if (row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {

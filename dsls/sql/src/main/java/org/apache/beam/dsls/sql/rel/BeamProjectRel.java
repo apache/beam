@@ -22,10 +22,10 @@ import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.transform.BeamSqlProjectFn;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -72,8 +72,9 @@ public class BeamProjectRel extends Project implements BeamRelNode {
     BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(this);
 
     PCollection<BeamSqlRow> projectStream = upstream.apply(stageName, ParDo
-        .of(new BeamSqlProjectFn(getRelTypeName(), executor, BeamSqlRecordType.from(rowType))));
-    projectStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
+        .of(new BeamSqlProjectFn(getRelTypeName(), executor,
+            CalciteUtils.buildRecordType(rowType))));
+    projectStream.setCoder(new BeamSqlRowCoder(CalciteUtils.buildRecordType(getRowType())));
 
     return projectStream;
   }

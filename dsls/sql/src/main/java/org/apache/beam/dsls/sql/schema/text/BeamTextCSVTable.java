@@ -18,6 +18,7 @@
 
 package org.apache.beam.dsls.sql.schema.text;
 
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -25,7 +26,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.commons.csv.CSVFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,13 +46,13 @@ public class BeamTextCSVTable extends BeamTextTable {
   /**
    * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
    */
-  public BeamTextCSVTable(RelProtoDataType protoDataType, String filePattern)  {
-    this(protoDataType, filePattern, CSVFormat.DEFAULT);
+  public BeamTextCSVTable(BeamSqlRecordType beamSqlRecordType, String filePattern)  {
+    this(beamSqlRecordType, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(RelProtoDataType protoDataType, String filePattern,
+  public BeamTextCSVTable(BeamSqlRecordType beamSqlRecordType, String filePattern,
       CSVFormat csvFormat) {
-    super(protoDataType, filePattern);
+    super(beamSqlRecordType, filePattern);
     this.csvFormat = csvFormat;
   }
 

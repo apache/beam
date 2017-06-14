@@ -21,6 +21,7 @@ import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.BasePlanner;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
@@ -49,14 +50,16 @@ public class BeamPCollectionTableTest extends BasePlanner{
             .add("c2", SqlTypeName.VARCHAR).build();
       }
     };
+    BeamSqlRecordType dataType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
 
-    BeamSqlRow row = new BeamSqlRow(BeamSqlRecordType.from(
+    BeamSqlRow row = new BeamSqlRow(CalciteUtils.buildRecordType(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY)));
     row.addField(0, 1);
     row.addField(1, "hello world.");
     PCollection<BeamSqlRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
     BeamSqlEnv.registerTable("COLLECTION_TABLE",
-        new BeamPCollectionTable(inputStream, protoRowType));
+        new BeamPCollectionTable(inputStream, dataType));
   }
 
   @Test

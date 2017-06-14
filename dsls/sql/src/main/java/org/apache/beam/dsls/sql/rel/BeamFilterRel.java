@@ -20,10 +20,10 @@ package org.apache.beam.dsls.sql.rel;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.transform.BeamSqlFilterFn;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -63,7 +63,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
     PCollection<BeamSqlRow> filterStream = upstream.apply(stageName,
         ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
-    filterStream.setCoder(new BeamSqlRowCoder(BeamSqlRecordType.from(getRowType())));
+    filterStream.setCoder(new BeamSqlRowCoder(CalciteUtils.buildRecordType(getRowType())));
 
     return filterStream;
   }

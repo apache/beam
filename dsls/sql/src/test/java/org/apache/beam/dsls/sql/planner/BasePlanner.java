@@ -17,15 +17,18 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
+import static org.apache.beam.dsls.sql.BeamSqlCli.registerTable;
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.dsls.sql.BeamSqlEnv;
+
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -40,9 +43,9 @@ import org.junit.BeforeClass;
 public class BasePlanner {
   @BeforeClass
   public static void prepareClass() {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", getTable());
-    BeamSqlEnv.registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
-    BeamSqlEnv.registerTable("SUB_ORDER_RAM", getTable());
+    registerTable("ORDER_DETAILS", getTable());
+    registerTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    registerTable("SUB_ORDER_RAM", getTable());
   }
 
   private static BaseBeamTable getTable() {
@@ -54,8 +57,8 @@ public class BasePlanner {
       }
     };
 
-    BeamSqlRecordType dataType = BeamSqlRecordType.from(
-        protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+    BeamSqlRecordType dataType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 0);
@@ -80,7 +83,7 @@ public class BasePlanner {
     row4.addField(2, 20.5);
     row4.addField(3, new Date());
 
-    return new MockedBeamSqlTable(protoRowType).withInputRecords(
+    return new MockedBeamSqlTable(dataType).withInputRecords(
         Arrays.asList(row1, row2, row3, row4));
   }
 
@@ -93,10 +96,13 @@ public class BasePlanner {
       }
     };
 
+    BeamSqlRecordType dataType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+
     Map<String, Object> consumerPara = new HashMap<String, Object>();
     consumerPara.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
 
-    return new BeamKafkaCSVTable(protoRowType, bootstrapServer, Arrays.asList(topic))
+    return new BeamKafkaCSVTable(dataType, bootstrapServer, Arrays.asList(topic))
         .updateConsumerProperties(consumerPara);
   }
 }

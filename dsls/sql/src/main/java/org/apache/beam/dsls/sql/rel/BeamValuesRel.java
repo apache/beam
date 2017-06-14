@@ -28,6 +28,7 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -65,7 +66,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       throw new IllegalStateException("Values with empty tuples!");
     }
 
-    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(this.getRowType());
+    BeamSqlRecordType beamSQLRecordType = CalciteUtils.buildRecordType(this.getRowType());
     for (ImmutableList<RexLiteral> tuple : tuples) {
       BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
       for (int i = 0; i < tuple.size(); i++) {

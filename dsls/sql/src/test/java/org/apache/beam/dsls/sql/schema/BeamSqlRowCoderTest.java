@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -56,7 +57,7 @@ public class BeamSqlRowCoderTest {
       }
     };
 
-    BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.from(
+    BeamSqlRecordType beamSQLRecordType = CalciteUtils.buildRecordType(
         protoRowType.apply(new JavaTypeFactoryImpl(
         RelDataTypeSystem.DEFAULT)));
     BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);

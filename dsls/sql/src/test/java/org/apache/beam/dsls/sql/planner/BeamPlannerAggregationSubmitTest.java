@@ -27,6 +27,7 @@ import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -69,8 +70,8 @@ public class BeamPlannerAggregationSubmitTest {
       }
     };
 
-    BeamSqlRecordType dataType = BeamSqlRecordType.from(
-        protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+    BeamSqlRecordType dataType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 1);
@@ -91,7 +92,7 @@ public class BeamPlannerAggregationSubmitTest {
     row4.addField(1, 0);
     row4.addField(2, format.parse("2017-01-01 03:04:05"));
 
-    return new MockedBeamSqlTable(protoRowType).withInputRecords(
+    return new MockedBeamSqlTable(dataType).withInputRecords(
         Arrays.asList(row1
             , row2, row3, row4
             ));
@@ -108,7 +109,10 @@ public class BeamPlannerAggregationSubmitTest {
             .add("size", SqlTypeName.BIGINT).build();
       }
     };
-    return new MockedBeamSqlTable(protoRowType);
+    BeamSqlRecordType dataType = CalciteUtils
+        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+
+    return new MockedBeamSqlTable(dataType);
   }
 
 
