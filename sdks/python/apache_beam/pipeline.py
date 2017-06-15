@@ -515,7 +515,18 @@ class Pipeline(object):
     p.applied_labels = set([
         t.unique_name for t in proto.components.transforms.values()])
     for id in proto.components.pcollections:
-      context.pcollections.get_by_id(id).pipeline = p
+      pcollection = context.pcollections.get_by_id(id)
+      pcollection.pipeline = p
+
+    # Inject PBegin input where necessary.
+    from apache_beam.io.iobase import Read
+    from apache_beam.transforms.core import Create
+    has_pbegin = [Read, Create]
+    for id in proto.components.transforms:
+      transform = context.transforms.get_by_id(id)
+      if not transform.inputs and transform.transform.__class__ in has_pbegin:
+        transform.inputs = (pvalue.PBegin(p),)
+
     return p
 
 
