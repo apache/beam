@@ -186,7 +186,6 @@
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
-    <module>integration</module>
     <!-- sdks/java/javadoc builds project-wide Javadoc. It has to run last. -->
     <module>sdks/java/javadoc</module>
   </modules>
