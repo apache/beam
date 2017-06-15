@@ -23,8 +23,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -105,7 +103,8 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
         return BeamSqlPrimitive.of(outputType, ret);
 
       default:
-        throw new BeamSqlUnsupportedException("Extract for time unit: " + unit + " not supported!");
+        throw new UnsupportedOperationException(
+            "Extract for time unit: " + unit + " not supported!");
     }
   }
 }

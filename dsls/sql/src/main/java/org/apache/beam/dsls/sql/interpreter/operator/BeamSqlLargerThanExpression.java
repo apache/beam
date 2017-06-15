@@ -18,7 +18,6 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 
 /**
  * {@code BeamSqlExpression} for {@code >} operation.
@@ -36,7 +35,7 @@ public class BeamSqlLargerThanExpression extends BeamSqlCompareExpression {
 
   @Override
   public Boolean compare(Boolean leftValue, Boolean rightValue) {
-    throw new BeamInvalidOperatorException("> is not supported for Boolean.");
+    throw new IllegalArgumentException("> is not supported for Boolean.");
   }
 
   @Override

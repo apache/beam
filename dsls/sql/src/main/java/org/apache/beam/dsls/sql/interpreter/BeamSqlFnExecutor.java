@@ -21,8 +21,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
@@ -103,8 +101,8 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         exps.add(buildExpression(rexNode));
       }
     } else {
-      throw new BeamSqlUnsupportedException(
-          String.format("%s is not supported yet", relNode.getClass().toString()));
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported yet!", relNode.getClass().toString()));
     }
   }
 
@@ -318,12 +316,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
             ret = new BeamSqlUdfExpression(fn.method, subExps,
               ((RexCall) rexNode).type.getSqlTypeName());
         } else {
-          throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
+          throw new UnsupportedOperationException("Operator: " + opName + " is not supported yet!");
         }
       }
     } else {
-      throw new BeamSqlUnsupportedException(
-          String.format("%s is not supported yet", rexNode.getClass().toString()));
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported yet!", rexNode.getClass().toString()));
     }
 
     if (ret != null && !ret.accept()) {

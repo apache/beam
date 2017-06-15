@@ -18,7 +18,6 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -69,7 +68,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
       return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN,
           compare((CharSequence) leftValue, (CharSequence) rightValue));
     default:
-      throw new BeamSqlUnsupportedException(toString());
+      throw new UnsupportedOperationException(toString());
     }
   }
 

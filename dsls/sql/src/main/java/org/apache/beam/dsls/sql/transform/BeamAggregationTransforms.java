@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
@@ -207,7 +206,7 @@ public class BeamAggregationTransforms implements Serializable{
     private void verifySupportedAggregation(AggregateCall ac) {
       //donot support DISTINCT
       if (ac.isDistinct()) {
-        throw new BeamSqlUnsupportedException("DISTINCT is not supported yet.");
+        throw new UnsupportedOperationException("DISTINCT is not supported yet.");
       }
       String aggFnName = ac.getAggregation().getName();
       switch (aggFnName) {
@@ -221,7 +220,7 @@ public class BeamAggregationTransforms implements Serializable{
             .asList(SqlTypeName.INTEGER, SqlTypeName.BIGINT, SqlTypeName.FLOAT, SqlTypeName.DOUBLE,
                 SqlTypeName.SMALLINT, SqlTypeName.TINYINT)
             .contains(ac.type.getSqlTypeName())) {
-          throw new BeamSqlUnsupportedException(
+          throw new UnsupportedOperationException(
               "SUM only support for INT, LONG, FLOAT, DOUBLE, SMALLINT, TINYINT");
         }
         break;
@@ -232,7 +231,7 @@ public class BeamAggregationTransforms implements Serializable{
         if (!Arrays.asList(SqlTypeName.INTEGER, SqlTypeName.BIGINT, SqlTypeName.FLOAT,
             SqlTypeName.DOUBLE, SqlTypeName.SMALLINT, SqlTypeName.TINYINT,
             SqlTypeName.TIMESTAMP).contains(ac.type.getSqlTypeName())) {
-          throw new BeamSqlUnsupportedException("MAX/MIN only support for INT, LONG, FLOAT,"
+          throw new UnsupportedOperationException("MAX/MIN only support for INT, LONG, FLOAT,"
               + " DOUBLE, SMALLINT, TINYINT, TIMESTAMP");
         }
         break;
@@ -243,12 +242,12 @@ public class BeamAggregationTransforms implements Serializable{
             .asList(SqlTypeName.INTEGER, SqlTypeName.BIGINT, SqlTypeName.FLOAT, SqlTypeName.DOUBLE,
                 SqlTypeName.SMALLINT, SqlTypeName.TINYINT)
             .contains(ac.type.getSqlTypeName())) {
-          throw new BeamSqlUnsupportedException(
+          throw new UnsupportedOperationException(
               "AVG only support for INT, LONG, FLOAT, DOUBLE, SMALLINT, TINYINT");
         }
         break;
       default:
-        throw new BeamSqlUnsupportedException(
+        throw new UnsupportedOperationException(
             String.format("[%s] is not supported.", aggFnName));
       }
     }
