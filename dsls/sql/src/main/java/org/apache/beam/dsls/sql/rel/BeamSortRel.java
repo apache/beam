@@ -149,7 +149,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
     PCollection<BeamSqlRow> orderedStream = rawStream.apply(
         "flatten", Flatten.<BeamSqlRow>iterables());
-    orderedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.buildRecordType(getRowType())));
+    orderedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return orderedStream;
   }

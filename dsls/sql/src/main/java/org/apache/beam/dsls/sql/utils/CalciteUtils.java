@@ -21,7 +21,6 @@ package org.apache.beam.dsls.sql.utils;
 import java.sql.Types;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -33,42 +32,42 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Utility methods for Calcite related operations.
  */
 public class CalciteUtils {
-  private static final Map<Integer, SqlTypeName> SQL_TYPE_MAPPING = new HashMap<>();
-  private static final Map<SqlTypeName, Integer> INVERSED_SQL_TYPE_MAPPING = new HashMap<>();
+  private static final Map<Integer, SqlTypeName> JAVA_TO_CALCITE_MAPPING = new HashMap<>();
+  private static final Map<SqlTypeName, Integer> CALCITE_TO_JAVA_MAPPING = new HashMap<>();
   static {
-    SQL_TYPE_MAPPING.put(Types.TINYINT, SqlTypeName.TINYINT);
-    SQL_TYPE_MAPPING.put(Types.SMALLINT, SqlTypeName.SMALLINT);
-    SQL_TYPE_MAPPING.put(Types.INTEGER, SqlTypeName.INTEGER);
-    SQL_TYPE_MAPPING.put(Types.BIGINT, SqlTypeName.BIGINT);
+    JAVA_TO_CALCITE_MAPPING.put(Types.TINYINT, SqlTypeName.TINYINT);
+    JAVA_TO_CALCITE_MAPPING.put(Types.SMALLINT, SqlTypeName.SMALLINT);
+    JAVA_TO_CALCITE_MAPPING.put(Types.INTEGER, SqlTypeName.INTEGER);
+    JAVA_TO_CALCITE_MAPPING.put(Types.BIGINT, SqlTypeName.BIGINT);
 
-    SQL_TYPE_MAPPING.put(Types.FLOAT, SqlTypeName.FLOAT);
-    SQL_TYPE_MAPPING.put(Types.DOUBLE, SqlTypeName.DOUBLE);
+    JAVA_TO_CALCITE_MAPPING.put(Types.FLOAT, SqlTypeName.FLOAT);
+    JAVA_TO_CALCITE_MAPPING.put(Types.DOUBLE, SqlTypeName.DOUBLE);
 
-    SQL_TYPE_MAPPING.put(Types.DECIMAL, SqlTypeName.DECIMAL);
+    JAVA_TO_CALCITE_MAPPING.put(Types.DECIMAL, SqlTypeName.DECIMAL);
 
-    SQL_TYPE_MAPPING.put(Types.CHAR, SqlTypeName.CHAR);
-    SQL_TYPE_MAPPING.put(Types.VARCHAR, SqlTypeName.VARCHAR);
+    JAVA_TO_CALCITE_MAPPING.put(Types.CHAR, SqlTypeName.CHAR);
+    JAVA_TO_CALCITE_MAPPING.put(Types.VARCHAR, SqlTypeName.VARCHAR);
 
-    SQL_TYPE_MAPPING.put(Types.TIME, SqlTypeName.TIME);
-    SQL_TYPE_MAPPING.put(Types.TIMESTAMP, SqlTypeName.TIMESTAMP);
+    JAVA_TO_CALCITE_MAPPING.put(Types.TIME, SqlTypeName.TIME);
+    JAVA_TO_CALCITE_MAPPING.put(Types.TIMESTAMP, SqlTypeName.TIMESTAMP);
 
-    for (Map.Entry<Integer, SqlTypeName> pair : SQL_TYPE_MAPPING.entrySet()) {
-      INVERSED_SQL_TYPE_MAPPING.put(pair.getValue(), pair.getKey());
+    for (Map.Entry<Integer, SqlTypeName> pair : JAVA_TO_CALCITE_MAPPING.entrySet()) {
+      CALCITE_TO_JAVA_MAPPING.put(pair.getValue(), pair.getKey());
     }
   }
 
   /**
    * Get the corresponding {@code SqlTypeName} for an integer sql type.
    */
-  public static SqlTypeName getSqlTypeName(int type) {
-    return SQL_TYPE_MAPPING.get(type);
+  public static SqlTypeName toCalciteType(int type) {
+    return JAVA_TO_CALCITE_MAPPING.get(type);
   }
 
   /**
    * Get the integer sql type from Calcite {@code SqlTypeName}.
    */
-  public static Integer getJavaSqlType(SqlTypeName typeName) {
-    return INVERSED_SQL_TYPE_MAPPING.get(typeName);
+  public static Integer toJavaType(SqlTypeName typeName) {
+    return CALCITE_TO_JAVA_MAPPING.get(typeName);
   }
 
   /**
@@ -76,17 +75,17 @@ public class CalciteUtils {
    * @return
    */
   public static SqlTypeName getFieldType(BeamSqlRecordType schema, int index) {
-    return getSqlTypeName(schema.getFieldsType().get(index));
+    return toCalciteType(schema.getFieldsType().get(index));
   }
 
   /**
    * Generate {@code BeamSqlRecordType} from {@code RelDataType} which is used to create table.
    */
-  public static BeamSqlRecordType buildRecordType(RelDataType tableInfo) {
+  public static BeamSqlRecordType toBeamRecordType(RelDataType tableInfo) {
     BeamSqlRecordType record = new BeamSqlRecordType();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
       record.getFieldsName().add(f.getName());
-      record.getFieldsType().add(getJavaSqlType(f.getType().getSqlTypeName()));
+      record.getFieldsType().add(toJavaType(f.getType().getSqlTypeName()));
     }
     return record;
   }
@@ -94,13 +93,13 @@ public class CalciteUtils {
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toRelDataType(final BeamSqlRecordType that) {
+  public static RelProtoDataType toCalciteRecordType(final BeamSqlRecordType that) {
     return new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a) {
         RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
         for (int idx = 0; idx < that.getFieldsName().size(); ++idx) {
-          builder.add(that.getFieldsName().get(idx), getSqlTypeName(that.getFieldsType().get(idx)));
+          builder.add(that.getFieldsName().get(idx), toCalciteType(that.getFieldsType().get(idx)));
         }
         return builder.build();
       }

@@ -66,7 +66,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       throw new IllegalStateException("Values with empty tuples!");
     }
 
-    BeamSqlRecordType beamSQLRecordType = CalciteUtils.buildRecordType(this.getRowType());
+    BeamSqlRecordType beamSQLRecordType = CalciteUtils.toBeamRecordType(this.getRowType());
     for (ImmutableList<RexLiteral> tuple : tuples) {
       BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
       for (int i = 0; i < tuple.size(); i++) {

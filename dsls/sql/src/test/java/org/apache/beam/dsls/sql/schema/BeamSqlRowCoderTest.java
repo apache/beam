@@ -57,7 +57,7 @@ public class BeamSqlRowCoderTest {
       }
     };
 
-    BeamSqlRecordType beamSQLRecordType = CalciteUtils.buildRecordType(
+    BeamSqlRecordType beamSQLRecordType = CalciteUtils.toBeamRecordType(
         protoRowType.apply(new JavaTypeFactoryImpl(
         RelDataTypeSystem.DEFAULT)));
     BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);

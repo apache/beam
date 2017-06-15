@@ -58,7 +58,7 @@ public class BasePlanner {
     };
 
     BeamSqlRecordType dataType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 0);
@@ -97,7 +97,7 @@ public class BasePlanner {
     };
 
     BeamSqlRecordType dataType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
 
     Map<String, Object> consumerPara = new HashMap<String, Object>();
     consumerPara.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");

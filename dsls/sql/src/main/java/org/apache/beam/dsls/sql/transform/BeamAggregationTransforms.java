@@ -164,7 +164,7 @@ public class BeamAggregationTransforms implements Serializable{
         //verify it's supported.
         verifySupportedAggregation(ac);
 
-        aggDataType.addField(ac.name, CalciteUtils.getJavaSqlType(ac.type.getSqlTypeName()));
+        aggDataType.addField(ac.name, CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
 
         SqlAggFunction aggFn = ac.getAggregation();
         switch (aggFn.getName()) {
@@ -193,7 +193,7 @@ public class BeamAggregationTransforms implements Serializable{
       // add a COUNT holder if only have AVG
       if (hasAvg && !hasCount) {
         aggDataType.addField("__COUNT",
-            CalciteUtils.getJavaSqlType(SqlTypeName.BIGINT));
+            CalciteUtils.toJavaType(SqlTypeName.BIGINT));
 
         aggFunctions.add("COUNT");
         aggElementExpressions.add(BeamSqlPrimitive.<Long>of(SqlTypeName.BIGINT, 1L));

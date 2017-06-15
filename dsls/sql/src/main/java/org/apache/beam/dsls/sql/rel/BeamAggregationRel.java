@@ -110,13 +110,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         stageName + "_aggregation",
         Combine.<BeamSqlRow, BeamSqlRow, BeamSqlRow>groupedValues(
             new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
-                CalciteUtils.buildRecordType(input.getRowType()))))
+                CalciteUtils.toBeamRecordType(input.getRowType()))))
         .setCoder(KvCoder.<BeamSqlRow, BeamSqlRow>of(keyCoder, aggCoder));
 
     PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply(stageName + "_mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
-            CalciteUtils.buildRecordType(getRowType()), getAggCallList())));
-    mergedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.buildRecordType(getRowType())));
+            CalciteUtils.toBeamRecordType(getRowType()), getAggCallList())));
+    mergedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return mergedStream;
   }
@@ -125,7 +125,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
    * Type of sub-rowrecord used as Group-By keys.
    */
   private BeamSqlRecordType exKeyFieldsSchema(RelDataType relDataType) {
-    BeamSqlRecordType inputRecordType = CalciteUtils.buildRecordType(relDataType);
+    BeamSqlRecordType inputRecordType = CalciteUtils.toBeamRecordType(relDataType);
     BeamSqlRecordType typeOfKey = new BeamSqlRecordType();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
@@ -142,7 +142,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private BeamSqlRecordType exAggFieldsSchema() {
     BeamSqlRecordType typeOfAggFields = new BeamSqlRecordType();
     for (AggregateCall ac : getAggCallList()) {
-      typeOfAggFields.addField(ac.name, CalciteUtils.getJavaSqlType(ac.type.getSqlTypeName()));
+      typeOfAggFields.addField(ac.name, CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
     }
     return typeOfAggFields;
   }

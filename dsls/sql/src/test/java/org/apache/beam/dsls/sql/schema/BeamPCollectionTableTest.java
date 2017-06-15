@@ -51,9 +51,9 @@ public class BeamPCollectionTableTest extends BasePlanner{
       }
     };
     BeamSqlRecordType dataType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
 
-    BeamSqlRow row = new BeamSqlRow(CalciteUtils.buildRecordType(
+    BeamSqlRow row = new BeamSqlRow(CalciteUtils.toBeamRecordType(
         protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY)));
     row.addField(0, 1);
     row.addField(1, "hello world.");

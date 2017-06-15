@@ -70,7 +70,7 @@ public class BeamSqlFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    beamRecordType = CalciteUtils.buildRecordType(relDataType);
+    beamRecordType = CalciteUtils.toBeamRecordType(relDataType);
     record = new BeamSqlRow(beamRecordType);
 
     record.addField(0, 1234567L);

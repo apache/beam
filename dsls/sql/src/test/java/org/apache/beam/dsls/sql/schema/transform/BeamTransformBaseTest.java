@@ -73,7 +73,7 @@ public class BeamTransformBaseTest {
     for (KV<String, SqlTypeName> cm : columnMetadata) {
       builder.add(cm.getKey(), cm.getValue());
     }
-    return CalciteUtils.buildRecordType(builder.build());
+    return CalciteUtils.toBeamRecordType(builder.build());
   }
 
   /**

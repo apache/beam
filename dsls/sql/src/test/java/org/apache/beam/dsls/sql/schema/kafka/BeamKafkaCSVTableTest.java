@@ -92,7 +92,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   private static BeamSqlRecordType genRowType() {
-    return CalciteUtils.buildRecordType(new RelProtoDataType() {
+    return CalciteUtils.toBeamRecordType(new RelProtoDataType() {
 
       @Override public RelDataType apply(RelDataTypeFactory a0) {
         return a0.builder().add("order_id", SqlTypeName.BIGINT)

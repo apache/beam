@@ -104,7 +104,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
 
     List<BeamSqlRow> rows = new ArrayList<>();
     BeamSqlRecordType beamSQLRecordType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     int fieldCount = beamSQLRecordType.size();
 
     for (int i = fieldCount * 2; i < args.length; i += fieldCount) {

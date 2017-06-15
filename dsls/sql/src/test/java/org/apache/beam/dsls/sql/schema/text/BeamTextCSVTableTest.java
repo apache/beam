@@ -168,7 +168,7 @@ public class BeamTextCSVTableTest {
   }
 
   private static BeamSqlRecordType buildBeamSqlRecordType() {
-    return CalciteUtils.buildRecordType(buildRelDataType());
+    return CalciteUtils.toBeamRecordType(buildRelDataType());
   }
 
   private static BeamSqlRow buildRow(Object[] data) {

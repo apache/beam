@@ -71,7 +71,7 @@ public class BeamPlannerAggregationSubmitTest {
     };
 
     BeamSqlRecordType dataType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     BeamSqlRow row1 = new BeamSqlRow(dataType);
     row1.addField(0, 12345L);
     row1.addField(1, 1);
@@ -110,7 +110,7 @@ public class BeamPlannerAggregationSubmitTest {
       }
     };
     BeamSqlRecordType dataType = CalciteUtils
-        .buildRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
 
     return new MockedBeamSqlTable(dataType);
   }

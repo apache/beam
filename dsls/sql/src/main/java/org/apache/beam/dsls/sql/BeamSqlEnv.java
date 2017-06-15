@@ -80,7 +80,7 @@ public class BeamSqlEnv {
     }
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toRelDataType(this.beamSqlRecordType)
+      return CalciteUtils.toCalciteRecordType(this.beamSqlRecordType)
           .apply(BeamQueryPlanner.TYPE_FACTORY);
     }
 
