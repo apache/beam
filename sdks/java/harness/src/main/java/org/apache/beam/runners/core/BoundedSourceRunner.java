@@ -18,14 +18,20 @@
 
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.FluentIterable;
+import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Multimap;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
+import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
@@ -34,21 +40,77 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * A runner which creates {@link Reader}s for each {@link BoundedSource} and executes
- * the {@link Reader}s read loop.
+ * A runner which creates {@link Reader}s for each {@link BoundedSource} sent as an input and
+ * executes the {@link Reader}s read loop.
  */
 public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT> {
+
+  private static final String URN = "urn:org.apache.beam:source:java:0.1";
+
+  /** A registrar which provides a factory to handle Java {@link BoundedSource}s. */
+  @AutoService(PTransformRunnerFactory.Registrar.class)
+  public static class Registrar implements
+      PTransformRunnerFactory.Registrar {
+
+    @Override
+    public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
+      return ImmutableMap.of(URN, new Factory());
+    }
+  }
+
+  /** A factory for {@link BoundedSourceRunner}. */
+  static class Factory<InputT extends BoundedSource<OutputT>, OutputT>
+      implements PTransformRunnerFactory<BoundedSourceRunner<InputT, OutputT>> {
+    @Override
+    public BoundedSourceRunner<InputT, OutputT> createRunnerForPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnDataClient beamFnDataClient,
+        String pTransformId,
+        RunnerApi.PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Consumer<ThrowingRunnable> addStartFunction,
+        Consumer<ThrowingRunnable> addFinishFunction) {
+
+      ImmutableList.Builder<ThrowingConsumer<WindowedValue<?>>> consumers = ImmutableList.builder();
+      for (String pCollectionId : pTransform.getOutputsMap().values()) {
+        consumers.addAll(pCollectionIdsToConsumers.get(pCollectionId));
+      }
+
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      BoundedSourceRunner<InputT, OutputT> runner = new BoundedSourceRunner(
+          pipelineOptions,
+          pTransform.getSpec(),
+          consumers.build());
+
+      // TODO: Remove and replace with source being sent across gRPC port
+      addStartFunction.accept(runner::start);
+
+      ThrowingConsumer runReadLoop =
+          (ThrowingConsumer<WindowedValue<InputT>>) runner::runReadLoop;
+      for (String pCollectionId : pTransform.getInputsMap().values()) {
+        pCollectionIdsToConsumers.put(
+            pCollectionId,
+            runReadLoop);
+      }
+
+      return runner;
+    }
+  }
+
   private final PipelineOptions pipelineOptions;
   private final RunnerApi.FunctionSpec definition;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
 
-  public BoundedSourceRunner(
+  BoundedSourceRunner(
       PipelineOptions pipelineOptions,
       RunnerApi.FunctionSpec definition,
-      Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
+      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers) {
     this.pipelineOptions = pipelineOptions;
     this.definition = definition;
-    this.consumers = ImmutableList.copyOf(FluentIterable.concat(outputMap.values()));
+    this.consumers = consumers;
   }
 
   /**
