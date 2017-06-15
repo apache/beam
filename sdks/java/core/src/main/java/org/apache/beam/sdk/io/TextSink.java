@@ -34,13 +34,13 @@ import org.apache.beam.sdk.util.MimeTypes;
  * '\n'} represented in {@code UTF-8} format as the record separator. Each record (including the
  * last) is terminated.
  */
-class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
+class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> {
   @Nullable private final String header;
   @Nullable private final String footer;
 
   TextSink(
       ValueProvider<ResourceId> baseOutputFilename,
-      DynamicDestinations<String, DestinationT> dynamicDestinations,
+      DynamicDestinations<UserT, DestinationT> dynamicDestinations,
       @Nullable String header,
       @Nullable String footer,
       WritableByteChannelFactory writableByteChannelFactory) {
@@ -54,7 +54,7 @@ class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
   }
 
   /** A {@link WriteOperation WriteOperation} for text files. */
-  private static class TextWriteOperation<DestinationT>
+  private static class TextWriteOperation<InputT, DestinationT>
       extends WriteOperation<String, DestinationT> {
     @Nullable private final String header;
     @Nullable private final String footer;
@@ -69,12 +69,12 @@ class TextSink<DestinationT> extends FileBasedSink<String, DestinationT> {
 
     @Override
     public Writer<String, DestinationT> createWriter() throws Exception {
-      return new TextWriter(this, header, footer);
+      return new TextWriter<>(this, header, footer);
     }
   }
 
   /** A {@link Writer Writer} for text files. */
-  private static class TextWriter<DestinationT> extends Writer<String, DestinationT> {
+  private static class TextWriter<InputT, DestinationT> extends Writer<String, DestinationT> {
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;

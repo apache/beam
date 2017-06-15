@@ -356,12 +356,18 @@ public class TFRecordIO {
     public PDone expand(PCollection<byte[]> input) {
       checkState(getOutputPrefix() != null,
           "need to set the output prefix of a TFRecordIO.Write transform");
-      WriteFiles<byte[], Void> write = WriteFiles.<byte[], Void>to(
+      WriteFiles<byte[], Void, byte[]> write = WriteFiles.<byte[], Void, byte[]>to(
               new TFRecordSink(
                   getOutputPrefix(),
                   getShardTemplate(),
                   getFilenameSuffix(),
-                  getCompressionType()));
+                  getCompressionType()),
+          new SerializableFunction<byte[], byte[]>() {
+            @Override
+            public byte[] apply(byte[] input) {
+              return input;
+            }
+          });
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }

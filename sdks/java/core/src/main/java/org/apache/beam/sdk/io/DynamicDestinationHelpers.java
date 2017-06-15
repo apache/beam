@@ -21,10 +21,12 @@ package org.apache.beam.sdk.io;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ConfigCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 
 /**
  */
@@ -72,8 +74,24 @@ public class DynamicDestinationHelpers {
    * A base class for a {@link DynamicDestinations} object that returns differently-configured
    * instances of {@link DefaultFilenamePolicy}.
    */
-  public abstract static class DefaultDynamicDestinations<T>
-      extends DynamicDestinations<T, DefaultFilenamePolicy.Config> {
+  public static class DefaultDynamicDestinations
+  extends DynamicDestinations<KV<Config, String>, Config> {
+    Config emptyDestination;
+
+    public DefaultDynamicDestinations(Config emptyDestination) {
+      this.emptyDestination = emptyDestination;
+    }
+
+    @Override
+    public Config getDestination(KV<Config, String> element) {
+      return element.getKey();
+    }
+
+    @Override
+    public Config getDefaultDestination() {
+      return null;
+    }
+
     @Nullable
     @Override
     public Coder getDestinationCoder() {

@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -140,10 +141,16 @@ public class WriteWithShardingFactoryTest implements Serializable {
     PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
             new FileBasedSink<Object, Void>(StaticValueProvider.of(outputDirectory),
-            new ConstantFilenamePolicy<>(null)) {
+                new ConstantFilenamePolicy<>(null)) {
               @Override
               public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");
+              }
+            },
+            new SerializableFunction<Object, Object>() {
+              @Override
+              public Object apply(Object input) {
+                return input;
               }
             });
     @SuppressWarnings("unchecked")

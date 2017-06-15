@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -51,10 +52,14 @@ public class WriteFilesTranslation {
   public static final String CUSTOM_JAVA_FILE_BASED_SINK_URN =
       "urn:beam:file_based_sink:javasdk:0.1";
 
+  public static final String CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN =
+      "urn:beam:file_based_sink_format_function:javasdk:0.1";
+
   @VisibleForTesting
-  static WriteFilesPayload toProto(WriteFiles<?, ?> transform) {
+  static WriteFilesPayload toProto(WriteFiles<?, ?, ?> transform) {
     return WriteFilesPayload.newBuilder()
         .setSink(toProto(transform.getSink()))
+        .setFormatFunction(toProto(transform.getFormatFunction()))
         .setWindowedWrites(transform.isWindowedWrites())
         .setRunnerDeterminedSharding(
             transform.getNumShards() == null && transform.getSharding() == null)
@@ -71,6 +76,21 @@ public class WriteFilesTranslation {
                         BytesValue.newBuilder()
                             .setValue(
                                 ByteString.copyFrom(SerializableUtils.serializeToByteArray(sink)))
+                            .build())))
+        .build();
+  }
+
+  private static SdkFunctionSpec toProto(SerializableFunction<?, ?> serializableFunction) {
+    return SdkFunctionSpec.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN)
+                .setParameter(
+                    Any.pack(
+                        BytesValue.newBuilder()
+                            .setValue(
+                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(
+                                    serializableFunction)))
                             .build())))
         .build();
   }
@@ -92,12 +112,38 @@ public class WriteFilesTranslation {
             serializedSink, FileBasedSink.class.getSimpleName());
   }
 
+  @VisibleForTesting
+  static SerializableFunction<?, ?> formatFunctionFromProto(SdkFunctionSpec sinkProto)
+      throws IOException {
+    checkArgument(
+        sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN),
+        "Cannot extract %s instance from %s with URN %s",
+        SerializableFunction.class.getSimpleName(),
+        FunctionSpec.class.getSimpleName(),
+        sinkProto.getSpec().getUrn());
+
+    byte[] serializedFunction =
+        sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+
+    return (SerializableFunction<?, ?>)
+        SerializableUtils.deserializeFromByteArray(
+            serializedFunction, FileBasedSink.class.getSimpleName());
+  }
+
   public static <T, DestinationT> FileBasedSink<T, DestinationT> getSink(
       AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
           transform)
       throws IOException {
     return (FileBasedSink<T, DestinationT>) sinkFromProto(
         getWriteFilesPayload(transform).getSink());
+  }
+
+  public static <InputT> SerializableFunction getFormatFunction(
+      AppliedPTransform<
+              PCollection<InputT>, PDone, ? extends PTransform<PCollection<InputT>, PDone>>
+          transform)
+      throws IOException {
+    return formatFunctionFromProto(getWriteFilesPayload(transform).getFormatFunction());
   }
 
   public static <T> boolean isWindowedWrites(
@@ -125,15 +171,15 @@ public class WriteFilesTranslation {
         .unpack(WriteFilesPayload.class);
   }
 
-  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?>> {
+  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
     @Override
-    public String getUrn(WriteFiles<?, ?> transform) {
+    public String getUrn(WriteFiles<?, ?, ?> transform) {
       return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, WriteFiles<?, ?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, WriteFiles<?, ?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(toProto(transform.getTransform())))

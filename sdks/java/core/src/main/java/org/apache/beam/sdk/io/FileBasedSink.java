@@ -82,14 +82,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract class for file-based output. An implementation of FileBasedSink writes file-based
- * output and defines the format of output files (how values are written, headers/footers, MIME
- * type, etc.).
+ * Abstract class for file-based output. An implementation of FileBasedSink writes file-based output
+ * and defines the format of output files (how values are written, headers/footers, MIME type,
+ * etc.).
  *
  * <p>At pipeline construction time, the methods of FileBasedSink are called to validate the sink
  * and to create a {@link WriteOperation} that manages the process of writing to the sink.
  *
  * <p>The process of writing to file-based sink is as follows:
+ *
  * <ol>
  * <li>An optional subclass-defined initialization,
  * <li>a parallel write of bundles to temporary files, and finally,
@@ -98,20 +99,19 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the finalize method. Each call to {@link Writer#openWindowed}
- * or {@link Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called
- * by the WriteFiles transform, so even redundant or retried bundles will have a unique way of
- * identifying
- * their output.
+ * result passed to the finalize method. Each call to {@link Writer#openWindowed} or {@link
+ * Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the WriteFiles
+ * transform, so even redundant or retried bundles will have a unique way of identifying their
+ * output.
  *
  * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness
  * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
  * will encode the unique bundle id to avoid conflicts with other writers.
  *
- * {@link FileBasedSink} can take a custom {@link FilenamePolicy} object to determine output
- * filenames, and this policy object can be used to write windowed or triggered
- * PCollections into separate files per window pane. This allows file output from unbounded
- * PCollections, and also works for bounded PCollecctions.
+ * <p>{@link FileBasedSink} can take a custom {@link FilenamePolicy} object to determine output
+ * filenames, and this policy object can be used to write windowed or triggered PCollections into
+ * separate files per window pane. This allows file output from unbounded PCollections, and also
+ * works for bounded PCollecctions.
  *
  * <p>Supported file systems are those registered with {@link FileSystems}.
  *
@@ -205,7 +205,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     }
   }
 
-  private final DynamicDestinations<T, DestinationT> dynamicDestinations;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
@@ -372,7 +372,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    */
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(ValueProvider<ResourceId> tempDirectoryProvider,
-                       DynamicDestinations<T, DestinationT> dynamicDestinations) {
+                       DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this(tempDirectoryProvider, dynamicDestinations, CompressionType.UNCOMPRESSED);
 
   }
@@ -383,7 +383,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
-      DynamicDestinations<T, DestinationT> dynamicDestinations,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     this.tempDirectoryProvider =
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
@@ -394,8 +394,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   /**
    * Return the {@link DynamicDestinations} used.
    */
-  public DynamicDestinations<T, DestinationT> getDynamicDestinations() {
-    return dynamicDestinations;
+  public <UserT> DynamicDestinations<UserT, DestinationT> getDynamicDestinations() {
+    return (DynamicDestinations<UserT, DestinationT>) dynamicDestinations;
   }
 
   /**
@@ -518,8 +518,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * @param tempDirectory the base directory to be used for temporary output files.
      */
     @Experimental(Kind.FILESYSTEM)
-    public WriteOperation(FileBasedSink<T, DestinationT> sink,
-                          ResourceId tempDirectory) {
+    public WriteOperation(FileBasedSink<T, DestinationT> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory));
     }
 

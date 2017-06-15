@@ -124,6 +124,13 @@ import org.apache.beam.sdk.values.PDone;
  * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
+  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
    *
@@ -501,13 +508,13 @@ public class AvroIO {
       if (tempDirectory == null) {
         tempDirectory = getFilenamePrefix();
       }
-      WriteFiles<T, DestinationT> write = WriteFiles.to(
-            new AvroSink<>(
-                tempDirectory,
-                dynamicDestinations,
-                AvroCoder.of(getRecordClass(), getSchema()),
-                getCodec(),
-                getMetadata()));
+      WriteFiles<T, DestinationT, T> write = WriteFiles.to(
+          new AvroSink<>(
+              tempDirectory,
+              dynamicDestinations,
+              AvroCoder.of(getRecordClass(), getSchema()),
+              getCodec(),
+              getMetadata()), new IdentityFormatter<T>());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }

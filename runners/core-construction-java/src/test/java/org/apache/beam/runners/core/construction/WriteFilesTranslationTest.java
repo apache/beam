@@ -58,16 +58,16 @@ public class WriteFilesTranslationTest {
   @RunWith(Parameterized.class)
   public static class TestWriteFilesPayloadTranslation {
     @Parameters(name = "{index}: {0}")
-    public static Iterable<WriteFiles<?, Void>> data() {
-      return ImmutableList.<WriteFiles<?, Void>>of(
-          WriteFiles.to(new DummySink()),
-          WriteFiles.to(new DummySink()).withWindowedWrites(),
-          WriteFiles.to(new DummySink()).withNumShards(17),
-          WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
+    public static Iterable<WriteFiles<?, Void, ?>> data() {
+      return ImmutableList.<WriteFiles<?, Void, ?>>of(
+          WriteFiles.to(new DummySink(), null),
+          WriteFiles.to(new DummySink(), null).withWindowedWrites(),
+          WriteFiles.to(new DummySink(), null).withNumShards(17),
+          WriteFiles.to(new DummySink(), null).withWindowedWrites().withNumShards(42));
     }
 
     @Parameter(0)
-    public WriteFiles<String, Void> writeFiles;
+    public WriteFiles<String, Void, String> writeFiles;
 
     public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
@@ -91,7 +91,8 @@ public class WriteFilesTranslationTest {
       PCollection<String> input = p.apply(Create.of("hello"));
       PDone output = input.apply(writeFiles);
 
-      AppliedPTransform<PCollection<String>, PDone, WriteFiles<String, Void>> appliedPTransform =
+      AppliedPTransform<PCollection<String>, PDone, WriteFiles<String, Void, String>>
+      appliedPTransform =
           AppliedPTransform.of(
               "foo", input.expand(), output.expand(), writeFiles, p);
 

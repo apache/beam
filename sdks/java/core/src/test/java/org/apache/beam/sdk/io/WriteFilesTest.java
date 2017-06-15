@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
@@ -164,7 +167,8 @@ public class WriteFilesTest {
   public void testWrite() throws IOException {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
-    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(makeSimpleSink()));
+    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(
+        makeSimpleSink(), new IdentityFormatter<String>()));
   }
 
   /**
@@ -174,7 +178,7 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP, getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink()));
+        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>());
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
         Optional.of(1));
   }
@@ -190,7 +194,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink()).withNumShards(1));
+        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()).withNumShards(1));
   }
 
   private ResourceId getBaseOutputDirectory() {
@@ -199,8 +203,17 @@ public class WriteFilesTest {
 
   }
   private SimpleSink makeSimpleSink() {
-    FilenamePolicy filenamePolicy = new PerWindowFiles("file", "simple");
+    FilenamePolicy filenamePolicy = new PerWindowFiles(
+        getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
+         "simple");
     return new SimpleSink(getBaseOutputDirectory(), filenamePolicy);
+  }
+
+  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
   }
 
   @Test
@@ -220,7 +233,8 @@ public class WriteFilesTest {
     }
 
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withSharding(new LargestInt());
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+        .withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -241,7 +255,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink()).withNumShards(20));
+        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()).withNumShards(20));
   }
 
   /**
@@ -251,7 +265,8 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws IOException {
     List<String> inputs = new ArrayList<>();
-    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(makeSimpleSink()));
+    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(
+        makeSimpleSink(), new IdentityFormatter<String>());
   }
 
   /**
@@ -264,7 +279,7 @@ public class WriteFilesTest {
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(
         inputs, new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
-        getBaseOutputFilename(), WriteFiles.to(makeSimpleSink()));
+        getBaseOutputFilename(), WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
   }
 
   /**
@@ -281,7 +296,7 @@ public class WriteFilesTest {
         new WindowAndReshuffle<>(
             Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink()));
+        WriteFiles.to(makeSimpleSink(), new IdentityFormatter<String>()));
   }
 
   @Test
@@ -294,12 +309,15 @@ public class WriteFilesTest {
     runWrite(
         inputs, Window.<String>into(FixedWindows.of(Duration.millis(2))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink()).withMaxNumWritersPerBundle(2).withWindowedWrites());
+        WriteFiles
+          .to(makeSimpleSink(), new IdentityFormatter<String>())
+          .withMaxNumWritersPerBundle(2).withWindowedWrites());
   }
 
   public void testBuildWrite() {
     SimpleSink sink = makeSimpleSink();
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(3);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink, new IdentityFormatter<String>())
+      .withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -309,25 +327,28 @@ public class WriteFilesTest {
     assertThat(write.getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
-    WriteFiles<String, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
+    WriteFiles<String, ?, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat((SimpleSink) write2.getSink(), is(sink));
     assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
-    WriteFiles<String, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
+    WriteFiles<String, ?, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getSharding(), nullValue());
     assertThat(write.getSharding(), equalTo(originalSharding));
   }
 
   @Test
   public void testDisplayData() {
-    SimpleSink sink = new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    WriteFiles<String, ?> write = WriteFiles.to(sink);
+    SimpleSink sink =
+        new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
+    WriteFiles<String, ?, String> write =
+        WriteFiles.to(sink, new IdentityFormatter<String>());
+
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -342,7 +363,8 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String, ?> write = WriteFiles.to(sink).withNumShards(1);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink,  new IdentityFormatter<String>())
+      .withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -357,8 +379,8 @@ public class WriteFilesTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    WriteFiles<String, ?> write =
-        WriteFiles.to(sink)
+    WriteFiles<String, ?, String> write =
+        WriteFiles.to(sink, new IdentityFormatter<String>())
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
                   @Override
@@ -384,44 +406,50 @@ public class WriteFilesTest {
    */
   private void runWrite(
       List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
-      String baseName, WriteFiles<String, ?> write) throws IOException {
+      String baseName, WriteFiles<String, ?, String> write) throws IOException {
     runShardedWrite(inputs, transform, baseName, write);
   }
 
   private static class PerWindowFiles extends FilenamePolicy {
     private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinuteSecondMillis();
-    private final String prefix;
+    private final ResourceId baseFilename;
     private final String suffix;
 
-    public PerWindowFiles(String prefix, String suffix) {
-      this.prefix = prefix;
+    public PerWindowFiles(ResourceId baseFilename, String suffix) {
+      this.baseFilename = baseFilename;
       this.suffix = suffix;
     }
 
     public String filenamePrefixForWindow(IntervalWindow window) {
+      String prefix = baseFilename.isDirectory()
+        ? "" : firstNonNull(baseFilename.getFilename(), "");
       return String.format("%s%s-%s",
           prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override
-    public ResourceId windowedFilename(
-        ResourceId outputDirectory, WindowedContext context, String extension) {
+    public ResourceId windowedFilename(WindowedContext context,
+                                       FileMetadataProvider fileMetadataProvider) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       String filename = String.format(
           "%s-%s-of-%s%s%s",
           filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards(),
-          extension, suffix);
-      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+          fileMetadataProvider.getSuggestedFilenameSuffix(), suffix);
+      return baseFilename.getCurrentDirectory().resolve(
+          filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public ResourceId unwindowedFilename(
-        ResourceId outputDirectory, Context context, String extension) {
+    public ResourceId unwindowedFilename(Context context,
+                                         FileMetadataProvider fileMetadataProvider) {
+      String prefix = baseFilename.isDirectory()
+          ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename = String.format(
           "%s%s-of-%s%s%s",
           prefix, context.getShardNumber(), context.getNumShards(),
-          extension, suffix);
-      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+          fileMetadataProvider.getSuggestedFilenameSuffix(), suffix);
+      return baseFilename.getCurrentDirectory().resolve(
+          filename, StandardResolveOptions.RESOLVE_FILE);
     }
   }
 
@@ -435,7 +463,7 @@ public class WriteFilesTest {
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
-      WriteFiles<String, ?> write) throws IOException {
+      WriteFiles<String, ?, String> write) throws IOException {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
     options.setTestFlag("test_value");
@@ -446,7 +474,6 @@ public class WriteFilesTest {
     for (long i = 0; i < inputs.size(); i++) {
       timestamps.add(i + 1);
     }
-
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(transform)
         .apply(write);

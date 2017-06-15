@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -543,7 +544,7 @@ public class PTransformMatchersTest implements Serializable {
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",
             false));
-    WriteFiles<Integer, Void> write =
+    WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
             new FileBasedSink<Integer, Void>(StaticValueProvider.of(outputDirectory),
             new ConstantFilenamePolicy<Integer>(null)) {
@@ -551,18 +552,24 @@ public class PTransformMatchersTest implements Serializable {
               public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;
               }
+            },
+            new SerializableFunction<Integer, Integer>() {
+              @Override
+              public Integer apply(Integer input) {
+                return input;
+              }
             });
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    WriteFiles<Integer, Void> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer, Void, Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    WriteFiles<Integer, Void> withCustomSharding =
+    WriteFiles<Integer, Void, Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -570,8 +577,8 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer, Void>>of(
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer, Void, Integer>>of(
         "WriteFiles",
         Collections.<TupleTag<?>, PValue>emptyMap(),
         Collections.<TupleTag<?>, PValue>emptyMap(),
