@@ -19,6 +19,8 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
@@ -27,7 +29,6 @@ import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -82,12 +84,14 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       return new SplittableParDo(transform);
     } else if (signature.stateDeclarations().size() > 0
         || signature.timerDeclarations().size() > 0) {
+
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
-      MultiOutput<KV<?, ?>, OutputT> keyedTransform =
-          (MultiOutput<KV<?, ?>, OutputT>) transform;
-
-      return new GbkThenStatefulParDo(keyedTransform);
+      return new GbkThenStatefulParDo(
+          fn,
+          transform.getMainOutputTag(),
+          transform.getAdditionalOutputTags(),
+          transform.getSideInputs());
     } else {
       return transform;
     }
@@ -101,10 +105,29 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
   static class GbkThenStatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
-    private final MultiOutput<KV<K, InputT>, OutputT> underlyingParDo;
+    private final transient DoFn<KV<K, InputT>, OutputT> doFn;
+    private final TupleTagList additionalOutputTags;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final List<PCollectionView<?>> sideInputs;
 
-    public GbkThenStatefulParDo(MultiOutput<KV<K, InputT>, OutputT> underlyingParDo) {
-      this.underlyingParDo = underlyingParDo;
+    public GbkThenStatefulParDo(
+        DoFn<KV<K, InputT>, OutputT> doFn,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList additionalOutputTags,
+        List<PCollectionView<?>> sideInputs) {
+      this.doFn = doFn;
+      this.additionalOutputTags = additionalOutputTags;
+      this.mainOutputTag = mainOutputTag;
+      this.sideInputs = sideInputs;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+      }
+      return additionalInputs.build();
     }
 
     @Override
@@ -160,7 +183,9 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
           adjustedInput
               // Explode the resulting iterable into elements that are exactly the ones from
               // the input
-              .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
+              .apply(
+              "Stateful ParDo",
+              new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
 
       return outputs;
     }
@@ -172,25 +197,45 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
   static class StatefulParDo<K, InputT, OutputT>
       extends PTransformTranslation.RawPTransform<
           PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
-    private final transient MultiOutput<KV<K, InputT>, OutputT> underlyingParDo;
-    private final transient PCollection<KV<K, InputT>> originalInput;
+    private final transient DoFn<KV<K, InputT>, OutputT> doFn;
+    private final TupleTagList additionalOutputTags;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final List<PCollectionView<?>> sideInputs;
 
     public StatefulParDo(
-        MultiOutput<KV<K, InputT>, OutputT> underlyingParDo,
-        PCollection<KV<K, InputT>> originalInput) {
-      this.underlyingParDo = underlyingParDo;
-      this.originalInput = originalInput;
+        DoFn<KV<K, InputT>, OutputT> doFn,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList additionalOutputTags,
+        List<PCollectionView<?>> sideInputs) {
+      this.doFn = doFn;
+      this.mainOutputTag = mainOutputTag;
+      this.additionalOutputTags = additionalOutputTags;
+      this.sideInputs = sideInputs;
     }
 
-    public MultiOutput<KV<K, InputT>, OutputT> getUnderlyingParDo() {
-      return underlyingParDo;
+    public DoFn<KV<K, InputT>, OutputT> getDoFn() {
+      return doFn;
+    }
+
+    public TupleTag<OutputT> getMainOutputTag() {
+      return mainOutputTag;
+    }
+
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
+
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
     }
 
     @Override
-    public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, PCollection<T> output)
-        throws CannotProvideCoderException {
-      return underlyingParDo.getDefaultOutputCoder(originalInput, output);
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+      }
+      return additionalInputs.build();
     }
 
     @Override
@@ -199,8 +244,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       PCollectionTuple outputs =
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
-              TupleTagList.of(underlyingParDo.getMainOutputTag())
-                  .and(underlyingParDo.getAdditionalOutputTags().getAll()),
+              TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
               input.getWindowingStrategy(),
               input.isBounded());
 
