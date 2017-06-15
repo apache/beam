@@ -87,7 +87,7 @@ public abstract class AbstractOperatorTest implements Serializable {
     /** @return the number of runs for the test */
     default int getNumRuns() { return 1; }
 
-    /** Retrieve test specific settings to be applied to the test flow. */
+    /** @return test specific settings to be applied to the test flow. */
     default Settings getSettings() { return new Settings(); }
   }
 
