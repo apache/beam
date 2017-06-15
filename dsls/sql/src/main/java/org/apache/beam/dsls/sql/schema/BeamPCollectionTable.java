@@ -17,7 +17,6 @@
  */
 package org.apache.beam.dsls.sql.schema;
 
-import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -56,7 +55,7 @@ public class BeamPCollectionTable extends BaseBeamTable {
 
   @Override
   public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
-    throw new BeamInvalidOperatorException("cannot use [BeamPCollectionTable] as target");
+    throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 
 }

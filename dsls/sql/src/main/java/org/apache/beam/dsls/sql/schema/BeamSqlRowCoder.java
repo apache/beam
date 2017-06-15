@@ -96,7 +96,8 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           break;
 
         default:
-          throw new UnsupportedDataTypeException(value.getDataType().getFieldsType().get(idx));
+          throw new UnsupportedOperationException(
+              "Data type: " + value.getDataType().getFieldsType().get(idx) + " not supported yet!");
       }
     }
 
@@ -152,7 +153,8 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           break;
 
         default:
-          throw new UnsupportedDataTypeException(tableSchema.getFieldsType().get(idx));
+          throw new UnsupportedOperationException("Data type: "
+              + tableSchema.getFieldsType().get(idx) + " not supported yet!");
       }
     }
 
