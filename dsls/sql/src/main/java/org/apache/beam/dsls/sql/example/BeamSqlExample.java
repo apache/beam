@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * This is a quick example, which uses Beam SQL DSL to create a data pipeline.
  *
  */
-public class BeamSqlExample {
+class BeamSqlExample {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlExample.class);
 
   public static void main(String[] args) throws Exception {
