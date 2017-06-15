@@ -112,6 +112,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.Element element();
+
     /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
@@ -150,6 +153,11 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      return null;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.Element element() {
       return null;
     }
 

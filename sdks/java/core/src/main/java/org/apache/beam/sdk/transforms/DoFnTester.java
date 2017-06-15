@@ -282,6 +282,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       final DoFn<InputT, OutputT>.ProcessContext processContext =
           createProcessContext(
               ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+
+      final DoFn<InputT, OutputT>.Element wrappedElement =
+          new TestElement(ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
             @Override
@@ -311,6 +315,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.Element element() {
+              return wrappedElement;
             }
 
             @Override
@@ -571,6 +580,25 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public DoFn<InputT, OutputT>.ProcessContext createProcessContext(
       ValueInSingleWindow<InputT> element) {
     return new TestProcessContext(element);
+  }
+
+  private class TestElement extends DoFn<InputT, OutputT>.Element {
+    private final ValueInSingleWindow<InputT> element;
+
+    private TestElement(ValueInSingleWindow<InputT> element) {
+      fn.super();
+      this.element = element;
+    }
+
+    @Override
+    public InputT value() {
+      return element.getValue();
+    }
+
+    @Override
+    public Instant timestamp() {
+      return element.getTimestamp();
+    }
   }
 
   private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {

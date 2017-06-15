@@ -257,6 +257,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public DoFn<InputT, OutputT>.Element element() {
+      throw new UnsupportedOperationException(
+          "Cannot access Element outside of @ProcessElement methods.");
+    }
+
+    @Override
     public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException(
           "Cannot access RestrictionTracker outside of @ProcessElement method.");
@@ -319,6 +325,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.Element element() {
+      throw new UnsupportedOperationException(
+          "Cannot access Element outside of @ProcessElement methods.");
     }
 
     @Override
@@ -498,6 +510,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public DoFn<InputT, OutputT>.Element element() {
+      return new DoFnElement(elem);
+    }
+
+    @Override
     public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
     }
@@ -525,6 +542,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
+    }
+  }
+
+  private class DoFnElement extends DoFn<InputT, OutputT>.Element {
+    private final WindowedValue<InputT> elem;
+
+    private DoFnElement(WindowedValue<InputT> elem) {
+      fn.super();
+      this.elem = elem;
+    }
+
+    @Override
+    public InputT value() {
+      return elem.getValue();
+    }
+
+    @Override
+    public Instant timestamp() {
+      return elem.getTimestamp();
     }
   }
 
@@ -585,6 +621,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       return onTimerContext;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.Element element() {
+      throw new UnsupportedOperationException("Element is not supported in @OnTimer");
     }
 
     @Override

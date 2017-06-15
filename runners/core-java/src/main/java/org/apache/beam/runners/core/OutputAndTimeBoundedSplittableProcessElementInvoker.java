@@ -89,13 +89,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     this.maxNumOutputs = maxNumOutputs;
     this.maxDuration = maxDuration;
   }
-
   @Override
   public Result invokeProcessElement(
       DoFnInvoker<InputT, OutputT> invoker,
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
+    final Element wrappedElement = new Element(element);
     invoker.invokeProcessElement(
         new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
           @Override
@@ -139,6 +139,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public DoFn<InputT, OutputT>.Element element() {
+            return wrappedElement;
+          }
+
+          @Override
           public State state(String stateId) {
             throw new UnsupportedOperationException(
                 "Access to state not supported in Splittable DoFn");
@@ -154,6 +159,25 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     tracker.checkDone();
     return new Result(
         processContext.extractCheckpoint(), processContext.getLastReportedWatermark());
+  }
+
+  private class Element extends DoFn<InputT, OutputT>.Element {
+    private final WindowedValue<InputT> element;
+
+    public Element(WindowedValue<InputT> element) {
+      fn.super();
+      this.element = element;
+    }
+
+    @Override
+    public InputT value() {
+      return element.getValue();
+    }
+
+    @Override
+    public Instant timestamp() {
+      return element.getTimestamp();
+    }
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {

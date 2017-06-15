@@ -301,6 +301,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
+   * The timestamped element from the main input of a {@link DoFn}.
+   */
+  public abstract class Element {
+    /**
+     * Returns the input element to be processed.
+     *
+     * <p>The element will not be changed -- it is safe to cache, etc. without copying.
+     */
+    public abstract InputT value();
+
+    /** Returns the timestamp of the input element. */
+    public abstract Instant timestamp();
+  }
+
+  /**
    * Information accessible when running a {@link DoFn.OnTimer} method.
    */
   public abstract class OnTimerContext extends WindowedContext {
