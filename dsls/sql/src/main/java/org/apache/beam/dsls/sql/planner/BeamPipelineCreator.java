@@ -27,7 +27,7 @@ import org.apache.beam.sdk.Pipeline;
  * pipeline.
  *
  */
-public class BeamPipelineCreator {
+class BeamPipelineCreator {
   private Map<String, BaseBeamTable> sourceTables;
 
   private Pipeline pipeline;
