@@ -33,6 +33,8 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.transforms import core
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.trigger import _CombiningValueStateTag
+from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
@@ -207,7 +209,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
         bundles = _read_values_to_bundles(reader)
 
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, None, None, None)
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -231,7 +233,7 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
+        self._applied_ptransform, bundles, None, None, None)
 
 
 class _TaggedReceivers(dict):
@@ -320,7 +322,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, result_counters, None,
+        self._applied_ptransform, bundles, None, result_counters, None,
         self._tagged_receivers.undeclared_in_memory_tag_values)
 
 
@@ -328,13 +330,8 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   """TransformEvaluator for _GroupByKeyOnly transform."""
 
   MAX_ELEMENT_PER_BUNDLE = None
-
-  class _GroupByKeyOnlyEvaluatorState(object):
-
-    def __init__(self):
-      # output: {} key -> [values]
-      self.output = collections.defaultdict(list)
-      self.completed = False
+  ELEMENTS_TAG = _ListStateTag('elements')
+  COMPLETION_TAG = _CombiningValueStateTag('completed', any)
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
@@ -349,9 +346,8 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state
-                  else _GroupByKeyOnlyEvaluator._GroupByKeyOnlyEvaluatorState())
+    self.step_context = self._execution_context.get_step_context()
+    self.global_state = self.step_context.get_keyed_state(None)
 
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
@@ -362,12 +358,15 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
 
   def process_element(self, element):
-    assert not self.state.completed
+    assert not self.global_state.get_state(
+        None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG)
     if (isinstance(element, WindowedValue)
         and isinstance(element.value, collections.Iterable)
         and len(element.value) == 2):
       k, v = element.value
-      self.state.output[self.key_coder.encode(k)].append(v)
+      encoded_k = self.key_coder.encode(k)
+      state = self.step_context.get_keyed_state(encoded_k)
+      state.add_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG, v)
     else:
       raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
                            'windowed key-value pairs. Instead received: %r.'
@@ -375,15 +374,23 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     if self._is_final_bundle:
-      if self.state.completed:
+      if self.global_state.get_state(
+          None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG):
         # Ignore empty bundles after emitting output. (This may happen because
         # empty bundles do not affect input watermarks.)
         bundles = []
       else:
-        gbk_result = (
-            map(GlobalWindows.windowed_value, (
-                (self.key_coder.decode(k), v)
-                for k, v in self.state.output.iteritems())))
+        gbk_result = []
+        # TODO(ccy): perhaps we can clean this up to not use this
+        # internal attribute of the DirectStepContext.
+        for encoded_k in self.step_context.keyed_existing_state:
+          # Ignore global state.
+          if encoded_k is None:
+            continue
+          k = self.key_coder.decode(encoded_k)
+          state = self.step_context.get_keyed_state(encoded_k)
+          vs = state.get_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG)
+          gbk_result.append(GlobalWindows.windowed_value((k, vs)))
 
         def len_element_fn(element):
           _, v = element.value
@@ -393,20 +400,21 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
             self.output_pcollection, gbk_result,
             _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
 
-      self.state.completed = True
-      state = self.state
+      self.global_state.add_state(
+          None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG, True)
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
       bundles = []
-      state = self.state
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, bundles, state, None, None, hold)
+        self._applied_ptransform, bundles, None, None, hold)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
   """TransformEvaluator for _NativeWrite transform."""
+
+  ELEMENTS_TAG = _ListStateTag('elements')
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
@@ -429,12 +437,12 @@ class _NativeWriteEvaluator(_TransformEvaluator):
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    # state: [values]
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else [])
+    self.step_context = self._execution_context.get_step_context()
+    self.global_state = self.step_context.get_keyed_state(None)
 
   def process_element(self, element):
-    self.state.append(element)
+    self.global_state.add_state(
+        None, _NativeWriteEvaluator.ELEMENTS_TAG, element)
 
   def finish_bundle(self):
     # finish_bundle will append incoming bundles in memory until all the bundles
@@ -444,19 +452,19 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     # ignored and would not generate additional output files.
     # TODO(altay): Do not wait until the last bundle to write in a single shard.
     if self._is_final_bundle:
+      elements = self.global_state.get_state(
+          None, _NativeWriteEvaluator.ELEMENTS_TAG)
       if self._has_already_produced_output:
         # Ignore empty bundles that arrive after the output is produced.
-        assert self.state == []
+        assert elements == []
       else:
         self._sink.pipeline_options = self._evaluation_context.pipeline_options
         with self._sink.writer() as writer:
-          for v in self.state:
+          for v in elements:
             writer.Write(v.value)
-      state = None
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
-      state = self.state
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, [], state, None, None, hold)
+        self._applied_ptransform, [], None, None, hold)

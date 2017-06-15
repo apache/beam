@@ -25,12 +25,11 @@ class TransformResult(object):
 
   The result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
-  def __init__(self, applied_ptransform, uncommitted_output_bundles, state,
+  def __init__(self, applied_ptransform, uncommitted_output_bundles,
                timer_update, counters, watermark_hold,
                undeclared_tag_values=None):
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
-    self.state = state
     # TODO: timer update is currently unused.
     self.timer_update = timer_update
     self.counters = counters

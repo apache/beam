@@ -27,22 +27,22 @@ from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 
 
 class _ExecutionContext(object):
 
-  def __init__(self, watermarks, existing_state):
-    self._watermarks = watermarks
-    self._existing_state = existing_state
+  def __init__(self, watermarks, keyed_states):
+    self.watermarks = watermarks
+    self.keyed_states = keyed_states
 
-  @property
-  def watermarks(self):
-    return self._watermarks
+    self._step_context = None
 
-  @property
-  def existing_state(self):
-    return self._existing_state
+  def get_step_context(self):
+    if not self._step_context:
+      self._step_context = DirectStepContext(self.keyed_states)
+    return self._step_context
 
 
 class _SideInputView(object):
@@ -145,9 +145,8 @@ class EvaluationContext(object):
     self._pcollection_to_views = collections.defaultdict(list)
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
-
-    # AppliedPTransform -> Evaluator specific state objects
-    self._application_state_interals = {}
+    self._transform_keyed_states = self._initialize_keyed_states(
+        root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
         Clock(), root_transforms, value_to_consumers)
     self._side_inputs_container = _SideInputsContainer(views)
@@ -157,6 +156,15 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+
+  def _initialize_keyed_states(self, root_transforms, value_to_consumers):
+    transform_keyed_states = {}
+    for transform in root_transforms:
+      transform_keyed_states[transform] = {}
+    for consumers in value_to_consumers.values():
+      for consumer in consumers:
+        transform_keyed_states[consumer] = {}
+    return transform_keyed_states
 
   def use_pvalue_cache(self, cache):
     assert not self._cache
@@ -231,7 +239,6 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
-      self._application_state_interals[result.transform] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -256,7 +263,7 @@ class EvaluationContext(object):
   def get_execution_context(self, applied_ptransform):
     return _ExecutionContext(
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_interals.get(applied_ptransform))
+        self._transform_keyed_states[applied_ptransform])
 
   def create_bundle(self, output_pcollection):
     """Create an uncommitted bundle for the specified PCollection."""
@@ -296,3 +303,24 @@ class EvaluationContext(object):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_schedule_after_output(
         side_input, task)
+
+
+class DirectUnmergedState(InMemoryUnmergedState):
+  """UnmergedState implementation for the DirectRunner."""
+
+  def __init__(self):
+    super(DirectUnmergedState, self).__init__(defensive_copy=False)
+
+
+class DirectStepContext(object):
+  """Context for the currently-executing step."""
+
+  def __init__(self, keyed_existing_state):
+    self.keyed_existing_state = keyed_existing_state
+
+  def get_keyed_state(self, key):
+    # TODO(ccy): consider implementing transactional copy on write semantics
+    # for state so that work items can be safely retried.
+    if not self.keyed_existing_state.get(key):
+      self.keyed_existing_state[key] = DirectUnmergedState()
+    return self.keyed_existing_state[key]
