@@ -174,7 +174,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      invoker.invokeProcessElement(new ProcessElementArgumentProvider(elem));
     } catch (Exception ex) {
       throw wrapUserCodeException(ex);
     }
@@ -354,29 +354,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFn.ProcessContext} used for running a {@link DoFn} over a
    * single element.
    */
-  private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+  private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
     final WindowedValue<InputT> elem;
 
-    /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
-    @Nullable private StateNamespace namespace;
-
-    /**
-     * The state namespace for this context.
-     *
-     * <p>Any call to this method when more than one window is present will crash; this
-     * represents a bug in the runner or the {@link DoFnSignature}, since values must be in exactly
-     * one window when state or timers are relevant.
-     */
-    private StateNamespace getNamespace() {
-      if (namespace == null) {
-        namespace = StateNamespaces.window(windowCoder, window());
-      }
-      return namespace;
-    }
-
-    private DoFnProcessContext(
-        WindowedValue<InputT> elem) {
+    private DoFnProcessContext(WindowedValue<InputT> elem) {
       fn.super();
       this.elem = elem;
     }
@@ -460,6 +441,34 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                 PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod())));
       }
     }
+  }
+
+  private class ProcessElementArgumentProvider
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final WindowedValue<InputT> elem;
+    private final DoFnProcessContext processContext;
+
+    private ProcessElementArgumentProvider(WindowedValue<InputT> elem) {
+      this.elem = elem;
+      this.processContext = new DoFnProcessContext(elem);
+    }
+
+    /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
+    @Nullable private StateNamespace namespace;
+
+    /**
+     * The state namespace for this context.
+     *
+     * <p>Any call to this method when more than one window is present will crash; this
+     * represents a bug in the runner or the {@link DoFnSignature}, since values must be in exactly
+     * one window when state or timers are relevant.
+     */
+    private StateNamespace getNamespace() {
+      if (namespace == null) {
+        namespace = StateNamespaces.window(windowCoder, window());
+      }
+      return namespace;
+    }
 
     @Override
     public BoundedWindow window() {
@@ -479,7 +488,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      return this;
+      return new DoFnProcessContext(elem);
     }
 
     @Override
@@ -523,15 +532,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on a timer.
    */
-  private class OnTimerArgumentProvider
-      extends DoFn<InputT, OutputT>.OnTimerContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-    private final BoundedWindow window;
-    private final Instant timestamp;
-    private final TimeDomain timeDomain;
+  private class OnTimerArgumentProvider implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private StateNamespace namespace;
+    private final BoundedWindow window;
+    private final DoFnOnTimerContext onTimerContext;
+
+    private OnTimerArgumentProvider(
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain) {
+      this.window = window;
+      this.onTimerContext = new DoFnOnTimerContext(window, timestamp, timeDomain);
+    }
 
     /**
      * The state namespace for this context.
@@ -545,21 +559,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         namespace = StateNamespaces.window(windowCoder, window);
       }
       return namespace;
-    }
-
-    private OnTimerArgumentProvider(
-        BoundedWindow window,
-        Instant timestamp,
-        TimeDomain timeDomain) {
-      fn.super();
-      this.window = window;
-      this.timestamp = timestamp;
-      this.timeDomain = timeDomain;
-    }
-
-    @Override
-    public Instant timestamp() {
-      return timestamp;
     }
 
     @Override
@@ -579,19 +578,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public TimeDomain timeDomain() {
-      return timeDomain;
-    }
-
-
-    @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ProcessContext parameters are not supported.");
     }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      return this;
+      return onTimerContext;
     }
 
     @Override
@@ -623,6 +616,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new RuntimeException(e);
       }
     }
+  }
+
+  private class DoFnOnTimerContext extends DoFn<InputT, OutputT>.OnTimerContext {
+    private final BoundedWindow window;
+    private final Instant timestamp;
+    private final TimeDomain timeDomain;
+
+    private DoFnOnTimerContext(
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain) {
+      fn.super();
+      this.window = window;
+      this.timestamp = timestamp;
+      this.timeDomain = timeDomain;
+    }
 
     @Override
     public PipelineOptions getPipelineOptions() {
@@ -647,6 +656,21 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public Instant timestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public TimeDomain timeDomain() {
+      return timeDomain;
     }
   }
 
