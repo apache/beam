@@ -88,9 +88,10 @@ public class AfterAllStateMachine extends TriggerStateMachine {
 
   @Override
   public void onFire(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subtrigger : context.trigger().subTriggers()) {
-      subtrigger.invokeOnFire(context);
+    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
+      subTrigger.invokeOnFire(context);
     }
+    context.trigger().setFinished(true);
   }
 
 
@@ -99,7 +100,6 @@ public class AfterAllStateMachine extends TriggerStateMachine {
     StringBuilder builder = new StringBuilder("AfterAll.of(");
     Joiner.on(", ").appendTo(builder, subTriggers);
     builder.append(")");
-
     return builder.toString();
   }
 }

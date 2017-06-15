@@ -238,6 +238,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   @Override
   public final void onFire(TriggerContext context) throws Exception {
     clear(context);
+    context.trigger().setFinished(true);
   }
 
   protected Instant computeTargetTimestamp(Instant time) {

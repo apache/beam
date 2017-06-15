@@ -79,17 +79,18 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
 
   @Override
   public void onFire(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subtrigger : context.trigger().subTriggers()) {
-      TriggerContext subContext = context.forTrigger(subtrigger);
-      if (subtrigger.invokeShouldFire(subContext)) {
+    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
+      TriggerContext subContext = context.forTrigger(subTrigger);
+      if (subTrigger.invokeShouldFire(subContext)) {
         // If the trigger is ready to fire, then do whatever it needs to do.
-        subtrigger.invokeOnFire(subContext);
+        subTrigger.invokeOnFire(subContext);
       } else {
         // If the trigger is not ready to fire, it is nonetheless true that whatever
         // pending pane it was tracking is now gone.
-        subtrigger.invokeClear(subContext);
+        subTrigger.invokeClear(subContext);
       }
     }
+    context.trigger().setFinished(true);
   }
 
   @Override

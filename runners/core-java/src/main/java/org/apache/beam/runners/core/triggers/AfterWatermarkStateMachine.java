@@ -318,6 +318,8 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
-    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception { }
+    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {
+      context.trigger().setFinished(true);
+    }
   }
 }

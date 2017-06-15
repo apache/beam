@@ -131,5 +131,6 @@ private static final StateTag<CombiningState<Long, long[], Long>>
   @Override
   public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {
     clear(context);
+    context.trigger().setFinished(true);
   }
 }
