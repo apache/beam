@@ -539,7 +539,7 @@ public class PTransformMatchersTest implements Serializable {
   public void writeWithRunnerDeterminedSharding() {
     ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
     FilenamePolicy policy =
-        DefaultFilenamePolicy.fromConfig(DefaultFilenamePolicy.Config.fromStandardParameters(
+        DefaultFilenamePolicy.fromParams(DefaultFilenamePolicy.Params.fromStandardParameters(
             StaticValueProvider.of(outputDirectory),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",

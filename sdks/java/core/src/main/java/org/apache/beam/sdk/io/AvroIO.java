@@ -491,8 +491,8 @@ public class AvroIO {
       if (dynamicDestinations == null) {
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
         if (usedFilenamePolicy == null) {
-          usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
-              DefaultFilenamePolicy.Config.fromStandardParameters(
+          usedFilenamePolicy = DefaultFilenamePolicy.fromParams(
+              DefaultFilenamePolicy.Params.fromStandardParameters(
                   getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(),
                   getWindowedWrites()));
         }

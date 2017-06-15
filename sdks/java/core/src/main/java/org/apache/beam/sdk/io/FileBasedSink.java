@@ -851,7 +851,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
      * picking sharding, shard might be set to -1.
      */
     public final void openWindowed(String uId, BoundedWindow window, PaneInfo paneInfo, int shard,
-                                   DestinationT destinationT)
+                                   DestinationT destination)
         throws Exception {
       if (!getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openWindowed called a non-windowed sink.");

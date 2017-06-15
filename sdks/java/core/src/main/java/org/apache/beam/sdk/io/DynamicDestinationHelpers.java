@@ -18,11 +18,13 @@
 
 package org.apache.beam.sdk.io;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.ConfigCoder;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.ParamsCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -75,32 +77,42 @@ public class DynamicDestinationHelpers {
    * instances of {@link DefaultFilenamePolicy}.
    */
   public static class DefaultDynamicDestinations
-  extends DynamicDestinations<KV<Config, String>, Config> {
-    Config emptyDestination;
+  extends DynamicDestinations<KV<Params, String>, Params> {
+    byte[] emptyDestination;
 
-    public DefaultDynamicDestinations(Config emptyDestination) {
-      this.emptyDestination = emptyDestination;
+    public DefaultDynamicDestinations(Params emptyDestination) {
+      try {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ParamsCoder.of().encode(emptyDestination, outputStream);
+        this.emptyDestination = outputStream.toByteArray();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
-    public Config getDestination(KV<Config, String> element) {
+    public Params getDestination(KV<Params, String> element) {
       return element.getKey();
     }
 
     @Override
-    public Config getDefaultDestination() {
-      return null;
+    public Params getDefaultDestination() {
+      try {
+        return ParamsCoder.of().decode(new ByteArrayInputStream(emptyDestination));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Nullable
     @Override
-    public Coder getDestinationCoder() {
-      return ConfigCoder.of();
+    public Coder<Params> getDestinationCoder() {
+      return ParamsCoder.of();
     }
 
     @Override
-    public FilenamePolicy getFilenamePolicy(DefaultFilenamePolicy.Config config) {
-      return DefaultFilenamePolicy.fromConfig(config);
+    public FilenamePolicy getFilenamePolicy(DefaultFilenamePolicy.Params params) {
+      return DefaultFilenamePolicy.fromParams(params);
     }
   }
 }

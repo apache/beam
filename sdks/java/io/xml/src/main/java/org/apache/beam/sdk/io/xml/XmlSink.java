@@ -41,8 +41,8 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
   private final XmlIO.Write<T> spec;
 
   private static <T> DefaultFilenamePolicy makeFilenamePolicy(XmlIO.Write<T> spec) {
-     return DefaultFilenamePolicy.fromConfig(
-         DefaultFilenamePolicy.Config.fromStandardParameters(spec.getFilenamePrefix(),
+     return DefaultFilenamePolicy.fromParams(
+         DefaultFilenamePolicy.Params.fromStandardParameters(spec.getFilenamePrefix(),
          ShardNameTemplate.INDEX_OF_MAX, XML_EXTENSION, false));
   }
 

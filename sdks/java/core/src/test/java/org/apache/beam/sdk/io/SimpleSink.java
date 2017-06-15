@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -40,14 +40,16 @@ class SimpleSink extends FileBasedSink<String, Void> {
     super(
         StaticValueProvider.of(baseOutputDirectory),
         new ConstantFilenamePolicy<String>(
-            DefaultFilenamePolicy.fromConfig(new Config(
+            DefaultFilenamePolicy.fromParams(new Params(
                 baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
                 template, suffix))),
         writableByteChannelFactory);
   }
 
   public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
-    super(StaticValueProvider.of(baseOutputDirectory), filenamePolicy);
+    super(
+        StaticValueProvider.of(baseOutputDirectory),
+        new ConstantFilenamePolicy<String>(filenamePolicy));
   }
 
   @Override

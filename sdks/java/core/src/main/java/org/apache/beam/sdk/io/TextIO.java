@@ -28,7 +28,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.Config;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.DefaultDynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -155,12 +155,12 @@ public class TextIO {
 
   /**
    * This is a convenience builder for dynamically writing to multiple file destinations. The
-   * transform takes in {@code KV<DefaultFilenamePolicy.Config, String>}s mapping file lines to
-   * a default filename policy for writing (the config contains a prefix, suffix, and filename
-   * template). A config must also be provided to specify how to write out empty PCollections.
+   * transform takes in {@code KV<DefaultFilenamePolicy.Params, String>}s mapping file lines to
+   * a default filename policy for writing (the params contains a prefix, suffix, and filename
+   * template). A params must also be provided to specify how to write out empty PCollections.
    */
-  public static Write<KV<Config, String>> writeDynamic(Config emptyDestination) {
-    return writeCustomType(new ExtractValueFormatter<Config, String>())
+  public static Write<KV<Params, String>> writeDynamic(Params emptyDestination) {
+    return writeCustomType(new ExtractValueFormatter<Params, String>())
     .withDynamicDestinations(new DefaultDynamicDestinations(emptyDestination));
   }
 
@@ -514,8 +514,8 @@ public class TextIO {
       if (dynamicDestinations == null) {
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
         if (usedFilenamePolicy == null) {
-          usedFilenamePolicy = DefaultFilenamePolicy.fromConfig(
-              Config.fromStandardParameters(getFilenamePrefix(),
+          usedFilenamePolicy = DefaultFilenamePolicy.fromParams(
+              Params.fromStandardParameters(getFilenamePrefix(),
                   getShardTemplate(),
                   getFilenameSuffix(), getWindowedWrites()));
         }

@@ -76,23 +76,23 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /**
    *
    */
-  public static class Config {
+  public static class Params {
     private ValueProvider<ResourceId> baseFilename;
     private String shardTemplate;
     private String suffix;
 
-    public Config(ValueProvider<ResourceId> baseFilename, String shardTemplate, String suffix) {
+    public Params(ValueProvider<ResourceId> baseFilename, String shardTemplate, String suffix) {
       this.baseFilename = baseFilename;
       this.shardTemplate = shardTemplate;
       this.suffix = suffix;
     }
 
-    public Config(ResourceId baseFilename, String shardTemplate, String suffix) {
+    public Params(ResourceId baseFilename, String shardTemplate, String suffix) {
       this(StaticValueProvider.of(baseFilename), shardTemplate, suffix);
     }
 
     /**
-     * A helper function to construct a {@link DefaultFilenamePolicy.Config} using the standard
+     * A helper function to construct a {@link DefaultFilenamePolicy.Params} using the standard
      * filename parameters, namely a provided {@link ResourceId} for the output prefix, and
      * possibly-null shard name template and suffix.
      *
@@ -104,7 +104,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
      *
      * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
      */
-    public static Config fromStandardParameters(
+    public static Params fromStandardParameters(
         ValueProvider<ResourceId> baseFilename,
         @Nullable String shardTemplate,
         @Nullable String filenameSuffix,
@@ -112,7 +112,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       // Pick the appropriate default policy based on whether windowed writes are being performed.
       String defaultTemplate =
           windowedWrites ? DEFAULT_WINDOWED_SHARD_TEMPLATE : DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
-      return new Config(baseFilename,
+      return new Params(baseFilename,
           firstNonNull(shardTemplate, defaultTemplate),
           firstNonNull(filenameSuffix, ""));
     }
@@ -120,16 +120,16 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   /**
    */
-  public static class ConfigCoder extends AtomicCoder<Config> {
-    private static final ConfigCoder INSTANCE = new ConfigCoder();
+  public static class ParamsCoder extends AtomicCoder<Params> {
+    private static final ParamsCoder INSTANCE = new ParamsCoder();
     private Coder<String> stringCoder = StringUtf8Coder.of();
 
-    public static ConfigCoder of() {
+    public static ParamsCoder of() {
       return INSTANCE;
     }
 
     @Override
-    public void encode(Config value, OutputStream outStream)
+    public void encode(Params value, OutputStream outStream)
         throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
@@ -140,12 +140,12 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
 
     @Override
-    public Config decode(InputStream inStream) throws IOException {
+    public Params decode(InputStream inStream) throws IOException {
       ResourceId prefix = FileBasedSink.convertToFileResourceIfPossible(
           stringCoder.decode(inStream));
       String shardTemplate = stringCoder.decode(inStream);
       String suffix = stringCoder.decode(inStream);
-      return new Config(prefix, shardTemplate, suffix);
+      return new Params(prefix, shardTemplate, suffix);
     }
   }
 
@@ -155,15 +155,15 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * @see DefaultFilenamePolicy for more information on the arguments to this function.
    */
   @VisibleForTesting
-  DefaultFilenamePolicy(Config config) {
-    this.baseFilename = config.baseFilename;
-    this.shardTemplate = config.shardTemplate;
-    this.suffix = config.suffix;
+  DefaultFilenamePolicy(Params params) {
+    this.baseFilename = params.baseFilename;
+    this.shardTemplate = params.shardTemplate;
+    this.suffix = params.suffix;
   }
 
 
-  public static DefaultFilenamePolicy fromConfig(Config config) {
-    return new DefaultFilenamePolicy(config);
+  public static DefaultFilenamePolicy fromParams(Params params) {
+    return new DefaultFilenamePolicy(params);
   }
 
   private final ValueProvider<ResourceId> baseFilename;

@@ -276,8 +276,10 @@ public class StateNamespaces {
       W window = CoderUtils.decodeFromBase64(windowCoder, parts.get(1));
       if (parts.size() > 3) {
         int index = Integer.parseInt(parts.get(2), WindowAndTriggerNamespace.TRIGGER_RADIX);
+        // FIXFIXFIX
         return windowAndTrigger(windowCoder, window, index);
       } else {
+        // FIXFIXFIX
         return window(windowCoder, window);
       }
     } catch (Exception  e) {

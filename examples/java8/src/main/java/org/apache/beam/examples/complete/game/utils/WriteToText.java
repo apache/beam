@@ -18,7 +18,6 @@
 package org.apache.beam.examples.complete.game.utils;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Verify.verifyNotNull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -111,21 +111,12 @@ public class WriteToText<InputT>
       checkArgument(
           input.getWindowingStrategy().getWindowFn().windowCoder() == IntervalWindow.getCoder());
 
-      // filenamePrefix may contain a directory and a filename component. Pull out only the filename
-      // component from that path for the PerWindowFiles.
-      String prefix = "";
       ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
-      if (!resource.isDirectory()) {
-        prefix = verifyNotNull(
-            resource.getFilename(),
-            "A non-directory resource should have a non-null filename: %s",
-            resource);
-      }
 
       return input.apply(
           TextIO.write()
               .to(resource.getCurrentDirectory())
-              .withFilenamePolicy(new PerWindowFiles(prefix))
+              .withFilenamePolicy(new PerWindowFiles(resource))
               .withWindowedWrites()
               .withNumShards(3));
     }
@@ -139,31 +130,32 @@ public class WriteToText<InputT>
    */
   protected static class PerWindowFiles extends FilenamePolicy {
 
-    private final String prefix;
+    private final ResourceId prefix;
 
-    public PerWindowFiles(String prefix) {
+    public PerWindowFiles(ResourceId prefix) {
       this.prefix = prefix;
     }
 
     public String filenamePrefixForWindow(IntervalWindow window) {
+      String filePrefix = prefix.isDirectory() ? "" : prefix.getFilename();
       return String.format("%s-%s-%s",
-          prefix, formatter.print(window.start()), formatter.print(window.end()));
+          filePrefix, formatter.print(window.start()), formatter.print(window.end()));
     }
 
     @Override
-    public ResourceId windowedFilename(
-        ResourceId outputDirectory, WindowedContext context, String extension) {
+    public ResourceId windowedFilename(WindowedContext context,
+                                       FileMetadataProvider fileMetadataProvider) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       String filename = String.format(
           "%s-%s-of-%s%s",
           filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards(),
-          extension);
-      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+          fileMetadataProvider.getSuggestedFilenameSuffix());
+      return prefix.getCurrentDirectory().resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public ResourceId unwindowedFilename(
-        ResourceId outputDirectory, Context context, String extension) {
+    public ResourceId unwindowedFilename(Context context,
+                                         FileMetadataProvider fileMetadataProvider) {
       throw new UnsupportedOperationException("Unsupported.");
     }
   }
