@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.rel;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -30,7 +29,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Utilities for {@code BeamRelNode}.
  */
-public class BeamSqlRelUtils {
+class BeamSqlRelUtils {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRelUtils.class);
 
   private static final AtomicInteger sequence = new AtomicInteger(0);

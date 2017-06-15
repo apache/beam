@@ -21,7 +21,6 @@ package org.apache.beam.dsls.sql.rel;
 import java.io.Serializable;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
