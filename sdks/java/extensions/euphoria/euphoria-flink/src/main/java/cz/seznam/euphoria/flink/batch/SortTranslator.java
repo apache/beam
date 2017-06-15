@@ -90,7 +90,7 @@ class SortTranslator implements BatchOperatorTranslator<Sort> {
     return sorted;
   }
   
-  public class SortPartitionerWrapper<T> 
+  public static class SortPartitionerWrapper<T>
       implements org.apache.flink.api.common.functions.Partitioner<T> {
     
     private final Partitioner<T> partitioner;

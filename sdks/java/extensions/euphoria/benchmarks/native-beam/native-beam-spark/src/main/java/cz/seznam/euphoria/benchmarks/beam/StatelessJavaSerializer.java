@@ -54,6 +54,8 @@ class StatelessJavaSerializer extends Serializer {
   @SuppressWarnings("unchecked")
   public void write(Kryo kryo, Output output, Object object) {
     try {
+      // ~ OutputStream is not closed on purpose because
+      // that would also cause a closing of underling Kryo output
       ObjectOutputStream objectStream = new ObjectOutputStream(output);
       objectStream.writeObject(object);
       objectStream.flush();
@@ -65,6 +67,8 @@ class StatelessJavaSerializer extends Serializer {
   @SuppressWarnings("unchecked")
   public Object read (Kryo kryo, Input input, Class type) {
     try {
+      // ~ InputStream is not closed on purpose because
+      // that would also cause a closing of the underling Kryo input
       return new ObjectInputStreamWithClassLoader(input, kryo.getClassLoader()).readObject();
     } catch (Exception e) {
       throw new KryoException("Error during Java deserialization.", e);
