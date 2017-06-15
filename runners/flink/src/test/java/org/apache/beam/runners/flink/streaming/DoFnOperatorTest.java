@@ -118,7 +118,7 @@ public class DoFnOperatorTest {
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -162,7 +162,7 @@ public class DoFnOperatorTest {
         windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping),
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping, null),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -342,7 +342,7 @@ public class DoFnOperatorTest {
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<String>(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -455,7 +455,7 @@ public class DoFnOperatorTest {
             windowedValueCoder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
-            new DoFnOperator.DefaultOutputManagerFactory<KV<String, Integer>>(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
             windowingStrategy,
             new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
             Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -553,7 +553,7 @@ public class DoFnOperatorTest {
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<String>(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
         WindowingStrategy.globalDefault(),
         sideInputMapping, /* side-input mapping */
         ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */
