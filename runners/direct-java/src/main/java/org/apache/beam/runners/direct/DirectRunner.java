@@ -233,36 +233,41 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
               PTransformMatchers.writeWithRunnerDeterminedSharding(),
               new WriteWithShardingFactory())); /* Uses a view internally. */
     }
-    builder = builder.add(
-        PTransformOverride.of(
-            PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-            new ViewOverrideFactory())) /* Uses pardos and GBKs */
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
-                new DirectTestStreamFactory(this))) /* primitive */
-        // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
-        // primitives
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory()))
-        // state and timer pardos are implemented in terms of simple ParDos and extra primitives
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(
-                    SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
-                new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(SplittableParDo.SPLITTABLE_GBKIKWI_URN),
-                new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
-        .add(
-            PTransformOverride.of(
-    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
-                new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
+    builder =
+        builder
+            .add(
+                PTransformOverride.of(
+                    MultiStepCombine.matcher(), MultiStepCombine.Factory.create()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+                    new ViewOverrideFactory())) /* Uses pardos and GBKs */
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
+                    new DirectTestStreamFactory(this))) /* primitive */
+            // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
+            // primitives
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory()))
+            // state and timer pardos are implemented in terms of simple ParDos and extra primitives
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(
+                        SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
+                    new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(SplittableParDo.SPLITTABLE_GBKIKWI_URN),
+                    new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
+                    new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
     return builder.build();
   }
 
