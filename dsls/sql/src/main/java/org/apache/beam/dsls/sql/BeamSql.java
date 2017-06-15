@@ -17,7 +17,6 @@
  */
 package org.apache.beam.dsls.sql;
 
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -146,7 +145,7 @@ public class BeamSql {
     }
 
     public SimpleQueryTransform withUdf(String udfName){
-      throw new BeamSqlUnsupportedException("Pending for UDF support");
+      throw new UnsupportedOperationException("Pending for UDF support");
     }
 
     @Override
@@ -165,7 +164,8 @@ public class BeamSql {
         return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
             .apply(BeamSql.query(sqlQuery));
       } else {
-        throw new BeamSqlUnsupportedException(sqlNode.toString());
+        throw new UnsupportedOperationException(
+            "Sql operation: " + sqlNode.toString() + " is not supported!");
       }
     }
   }

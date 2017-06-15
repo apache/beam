@@ -21,10 +21,8 @@ package org.apache.beam.dsls.sql.rel;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
-
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -214,7 +212,7 @@ public class BeamSortRelTest {
         ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
-  @Test(expected = BeamSqlUnsupportedException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void testOrderBy_exception() throws Exception {
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
         + " order_id, COUNT(*) "
