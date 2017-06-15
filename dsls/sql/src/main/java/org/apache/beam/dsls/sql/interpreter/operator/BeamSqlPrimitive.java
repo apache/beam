@@ -21,9 +21,6 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-
-import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
@@ -51,7 +48,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
     exp.outputType = outputType;
     exp.value = value;
     if (!exp.accept()) {
-      throw new BeamInvalidOperatorException(
+      throw new IllegalArgumentException(
           String.format("value [%s] doesn't match type [%s].", value, outputType));
     }
     return exp;
@@ -139,7 +136,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
       // for SYMBOL, it supports anything...
       return true;
     default:
-      throw new BeamSqlUnsupportedException(outputType.name());
+      throw new UnsupportedOperationException(outputType.name());
     }
   }
 

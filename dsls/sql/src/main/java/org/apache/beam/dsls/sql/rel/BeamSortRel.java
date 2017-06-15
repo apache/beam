@@ -24,13 +24,10 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.dsls.sql.schema.UnsupportedDataTypeException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -111,7 +108,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
 
     if (fetch == null) {
-      throw new BeamSqlUnsupportedException("ORDER BY without a LIMIT is not supported!");
+      throw new UnsupportedOperationException("ORDER BY without a LIMIT is not supported!");
     }
 
     RexLiteral fetchLiteral = (RexLiteral) fetch;
@@ -131,7 +128,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     Type windowType = upstream.getWindowingStrategy().getWindowFn()
         .getWindowTypeDescriptor().getType();
     if (!windowType.equals(GlobalWindow.class)) {
-      throw new BeamSqlUnsupportedException(
+      throw new UnsupportedOperationException(
           "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
     }
 
@@ -230,7 +227,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               fieldRet = row1.getDate(fieldIndex).compareTo(row2.getDate(fieldIndex));
               break;
             default:
-              throw new UnsupportedDataTypeException(fieldType);
+              throw new UnsupportedOperationException(
+                  "Data type: " + fieldType + " not supported yet!");
           }
         }
 

@@ -20,7 +20,6 @@ package org.apache.beam.dsls.sql.rule;
 import com.google.common.collect.ImmutableList;
 import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.dsls.sql.exception.InvalidFieldException;
 import org.apache.beam.dsls.sql.rel.BeamAggregationRel;
 import org.apache.beam.dsls.sql.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
@@ -156,7 +155,7 @@ public class BeamAggregationRule extends RelOptRule {
     if (parameterNode instanceof RexLiteral) {
       return RexLiteral.intValue(parameterNode);
     } else {
-      throw new InvalidFieldException(String.format("[%s] is not valid.", parameterNode));
+      throw new IllegalArgumentException(String.format("[%s] is not valid.", parameterNode));
     }
   }
 

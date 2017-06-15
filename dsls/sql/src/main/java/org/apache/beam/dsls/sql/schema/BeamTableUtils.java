@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
-
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -105,7 +103,7 @@ public final class BeamTableUtils {
           row.addField(idx, Double.valueOf(raw));
           break;
         default:
-          throw new BeamSqlUnsupportedException(
+          throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", columnType));
       }
     } else if (SqlTypeName.CHAR_TYPES.contains(columnType)) {

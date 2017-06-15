@@ -17,7 +17,6 @@
  */
 package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -35,22 +34,22 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
   }
 
-  @Test(expected = BeamInvalidOperatorException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch1(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100L);
     Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
   }
-  @Test(expected = BeamInvalidOperatorException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch2(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DECIMAL, 100L);
     Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
   }
-  @Test(expected = BeamInvalidOperatorException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch3(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.FLOAT, 100L);
     Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
   }
-  @Test(expected = BeamInvalidOperatorException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch4(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 100L);
     Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
