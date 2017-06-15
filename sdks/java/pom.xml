@@ -43,6 +43,7 @@
     <!-- javadoc runs directly from the root parent as the last module
          in the build to be able to capture runner-specific javadoc.
     <module>javadoc</module> -->
+    <module>nexmark</module>
   </modules>
 
   <profiles>
