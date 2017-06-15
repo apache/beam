@@ -56,8 +56,11 @@ class TransformEvaluatorRegistry(object):
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
     }
+    self._root_bundle_providers = {
+        core.PTransform: DefaultRootBundleProvider,
+    }
 
-  def for_application(
+  def get_evaluator(
       self, applied_ptransform, input_committed_bundle,
       side_inputs, scoped_metrics_container):
     """Returns a TransformEvaluator suitable for processing given inputs."""
@@ -78,6 +81,18 @@ class TransformEvaluatorRegistry(object):
     return evaluator(self._evaluation_context, applied_ptransform,
                      input_committed_bundle, side_inputs,
                      scoped_metrics_container)
+
+  def get_root_bundle_provider(self, applied_ptransform):
+    provider_cls = None
+    for cls in applied_ptransform.transform.__class__.mro():
+      provider_cls = self._root_bundle_providers.get(cls)
+      if provider_cls:
+        break
+    if not provider_cls:
+      raise NotImplementedError(
+          'Root provider for [%s] not implemented in runner %s' % (
+              type(applied_ptransform.transform), self))
+    return provider_cls(self._evaluation_context, applied_ptransform)
 
   def should_execute_serially(self, applied_ptransform):
     """Returns True if this applied_ptransform should run one bundle at a time.
@@ -100,6 +115,27 @@ class TransformEvaluatorRegistry(object):
     """
     return isinstance(applied_ptransform.transform,
                       (core._GroupByKeyOnly, _NativeWrite))
+
+
+class RootBundleProvider(object):
+  """Provides bundles for the initial execution of a root transform."""
+
+  def __init__(self, evaluation_context, applied_ptransform):
+    self._evaluation_context = evaluation_context
+    self._applied_ptransform = applied_ptransform
+
+  def get_root_bundles(self):
+    raise NotImplementedError
+
+
+class DefaultRootBundleProvider(RootBundleProvider):
+  """Provides an empty bundle by default for root transforms."""
+
+  def get_root_bundles(self):
+    input_node = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
+    empty_bundle = (
+        self._evaluation_context.create_empty_committed_bundle(input_node))
+    return [empty_bundle]
 
 
 class _TransformEvaluator(object):
@@ -178,7 +214,6 @@ class _BoundedReadEvaluator(_TransformEvaluator):
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not input_committed_bundle
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
