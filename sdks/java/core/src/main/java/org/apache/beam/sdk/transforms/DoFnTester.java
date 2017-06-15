@@ -638,12 +638,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }
-
-    private void throwUnsupportedOutputFromBundleMethods() {
-      throw new UnsupportedOperationException(
-          "DoFnTester doesn't support output from bundle methods");
-    }
-
   }
 
   @Override
