@@ -167,7 +167,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     @Override
     public void add(T input) {
       try {
-        flinkStateBackend.getOperatorState(descriptor).add(input);
+        flinkStateBackend.getListState(descriptor).add(input);
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
       }
@@ -181,7 +181,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     @Override
     public Iterable<T> read() {
       try {
-        Iterable<T> result = flinkStateBackend.getOperatorState(descriptor).get();
+        Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
         return result != null ? result : Collections.<T>emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
@@ -194,7 +194,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
         @Override
         public Boolean read() {
           try {
-            Iterable<T> result = flinkStateBackend.getOperatorState(descriptor).get();
+            Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
             // PartitionableListState.get() return empty collection When there is no element,
             // KeyedListState different. (return null)
             return result == null || Iterators.size(result.iterator()) == 0;
@@ -214,7 +214,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     @Override
     public void clear() {
       try {
-        flinkStateBackend.getOperatorState(descriptor).clear();
+        flinkStateBackend.getListState(descriptor).clear();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }

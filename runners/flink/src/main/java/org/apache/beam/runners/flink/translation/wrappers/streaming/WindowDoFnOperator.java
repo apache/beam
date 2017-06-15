@@ -86,7 +86,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       public StateInternals stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals) stateInternals;
+        return (StateInternals) keyedStateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
@@ -112,7 +112,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   public void fireTimer(InternalTimer<?, TimerData> timer) {
     doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
         KeyedWorkItems.<K, InputT>timersWorkItem(
-            (K) stateInternals.getKey(),
+            (K) keyedStateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
 
