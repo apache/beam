@@ -15,37 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.streaming;
+package org.apache.beam.runners.spark.stateful;
 
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link FlinkBroadcastStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
- *
- * <p>Just test value, bag and combining.
+ * Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}.
+ * Ignore set and map tests.
  */
 @RunWith(JUnit4.class)
-public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
+public class SparkStateInternalsTest extends StateInternalsTest {
 
   @Override
   protected StateInternals createStateInternals() {
-    MemoryStateBackend backend = new MemoryStateBackend();
-    try {
-      OperatorStateBackend operatorStateBackend =
-          backend.createOperatorStateBackend(new DummyEnvironment("test", 1, 0), "");
-      return new FlinkBroadcastStateInternals<>(1, operatorStateBackend);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return SparkStateInternals.forKey("dummyKey");
   }
 
   @Override
@@ -67,30 +54,6 @@ public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
   @Override
   @Ignore
   public void testMap() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkEarliestState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkLatestState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkEndOfWindowState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkStateIsEmpty() {}
-
-  @Override
-  @Ignore
-  public void testMergeEarliestWatermarkIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testMergeLatestWatermarkIntoSource() {}
 
   @Override
   @Ignore
