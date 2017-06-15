@@ -546,11 +546,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       fn.super();
     }
 
-    private void throwUnsupportedOutputFromBundleMethods() {
-      throw new UnsupportedOperationException(
-          "DoFnTester doesn't support output from bundle methods");
-    }
-
     @Override
     public PipelineOptions getPipelineOptions() {
       return options;
@@ -559,12 +554,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public void output(
         OutputT output, Instant timestamp, BoundedWindow window) {
-      throwUnsupportedOutputFromBundleMethods();
+      output(mainOutputTag, output, timestamp, window);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      throwUnsupportedOutputFromBundleMethods();
+      getMutableOutput(tag)
+          .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
     }
   }
 
