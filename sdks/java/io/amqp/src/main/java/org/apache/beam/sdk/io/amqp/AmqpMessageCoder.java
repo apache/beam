@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.io.amqp;
 
+import com.google.common.io.ByteStreams;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.commons.io.IOUtils;
+import org.apache.beam.sdk.util.VarInt;
 import org.apache.qpid.proton.message.Message;
 
 /**
@@ -32,24 +33,36 @@ import org.apache.qpid.proton.message.Message;
  */
 public class AmqpMessageCoder extends CustomCoder<Message> {
 
-  private final StringUtf8Coder stringCoder = StringUtf8Coder.of();
-
   static AmqpMessageCoder of() {
     return new AmqpMessageCoder();
   }
 
+  // private static final int[] MESSAGE_SIZES = [1 << 14 /* 16 KiB */,1 << 20 /* 1 MiB */, 1 << 26
+  //    /* 64 MiB */]
+
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
-    byte[] data = new byte[16384];
-    value.encode(data, 0, data.length);
-    outStream.write(data);
+    //for (int maxMessageSize : MESSAGE_SIZES) {
+      try {
+        byte[] data = new byte[4096];
+        int bytesWritten = value.encode(data, 0, data.length);
+        VarInt.encode(bytesWritten, outStream);
+        outStream.write(data, 0, bytesWritten);
+        return;
+      } catch (Exception ignored) {  // <-- ProtonJ javadoc says it throws an exception if the
+        // message doesn't fit into the byte[] but it doesn't state which one.
+        // Try to encode into a larger byte array since the current one was too small
+      }
+    //}
   }
 
   @Override
   public Message decode(InputStream inStream) throws CoderException, IOException {
     Message message = Message.Factory.create();
-    byte[] data = IOUtils.toByteArray(inStream);
-    message.decode(data, 0, data.length);
+    int bytesToRead = VarInt.decodeInt(inStream);
+    byte[] encodedMessage = new byte[bytesToRead];
+    ByteStreams.readFully(inStream, encodedMessage);
+    message.decode(encodedMessage, 0, encodedMessage.length);
     return message;
   }
 
