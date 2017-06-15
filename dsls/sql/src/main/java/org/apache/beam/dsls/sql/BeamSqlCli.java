@@ -17,6 +17,8 @@
  */
 package org.apache.beam.dsls.sql;
 
+import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
+
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
@@ -30,7 +32,7 @@ import org.apache.calcite.plan.RelOptUtil;
  * {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client.
  */
 @Experimental
-public class BeamSqlCli extends BeamSqlEnv {
+public class BeamSqlCli {
 
   /**
    * Returns a human readable representation of the query execution plan.

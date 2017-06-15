@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
-import static org.apache.beam.dsls.sql.BeamSqlCli.registerTable;
+import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
 
 import java.util.Arrays;
 import java.util.Date;
