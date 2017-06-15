@@ -5,102 +5,127 @@ import (
 	"fmt"
 
 	protobuf "github.com/golang/protobuf/ptypes/any"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
+	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
+	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/runnerapi/org_apache_beam_runner_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 )
 
-const (
-	RemoteGrpcPortTypeUrl = "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort"
-)
+// Tracks provenance information of PCollections to help linking nodes
+// to their predecessors.
+type pCollInfo struct {
+	xid   string                // constructing transform ID
+	xform *rnapi_pb.PTransform  // constructing transform
+	pcoll *rnapi_pb.PCollection // collection metadata
+}
 
-// primitive_transform:<
-//   id:"-14"
-//   function_spec:<
-//     id:"-11"
-//     urn:"urn:org.apache.beam:dofn:java:0.1"
-//     data:<
-//       type_url:"type.googleapis.com/google.protobuf.BytesValue"
-//       value:"\n\020bWFpbi5FeHRyYWN0"
-//     >
-//   >
-//   inputs:<key:"-15" value:<target:<primitive_transform_reference:"-12" name:"-2" > > >
-//   outputs:<key:"out" value:<coder_reference:"-5" > >
-// >
-
-// Output from GBK:
-//
-// primitive_transform: <
-//   id: "-24"
-//     function_spec: <
-//       id: "-25"
-//       urn: "urn:org.apache.beam:source:runner:0.1"
-//       data: <
-//           type_url: "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort"
-//           value: "\n\025\n\002-1\022\017localhost:46567"
-//         >
-//       >
-//       inputs: <
-//         key: "-22"
-//         value: <
-//         >
-//       >
-//       outputs: <
-//         key: "-23"
-//         value: <
-//           coder_reference: "-30"
-//         >
-//       >
-//     >
-//
-//    Coder -30: {
-//       "@type": "kind:windowed_value",
-//       "component_encodings":[
-//           {"@type":"kind:pair",
-//            "component_encodings":[
-//                {"@type":"kind:length_prefix",
-//                 "component_encodings":[{"@type":"CmUKMmdpdGh1Yi5jb20vZ29vZ2xlL2 [...]"}]},
-//                {"@type":"kind:stream",
-//                 "component_encodings":[
-//                     {"@type": "kind:length_prefix",
-//                      "component_encodings\":[{"@type":"CmUKMmdpdGh1Yi5jb20vZ29vZ2 [...]"}]}]}]},
-//           {\"@type\":\"kind:global_window\"}]"
-//    }
+// lookups on PCollections by their ID.
+type pCollMap map[string]*pCollInfo
 
 type nodeID struct {
 	StepID string
 	Key    string
 }
 
-// translate translates a ProcessBundleDescriptor to a sub-graph that can run bundles.
-func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
-	// log.Printf("BUNDLE: %v", bundle)
+// topologicalSort produces a list of topologically sorted PTransform ids and
+// a PCollection lookup structure for the supplied bundle. The function will
+// fail if the graph has cycles.
+func topologicalSort(bundle *fnapi_pb.ProcessBundleDescriptor) (sortedIds []string, colls pCollMap, err error) {
+	colls = make(pCollMap)
+	for id, coll := range bundle.GetPcollections() {
+		colls[id] = &pCollInfo{pcoll: coll}
+	}
 
-	coders, err := translateCoders(bundle.GetCoders())
+	adjs := make(map[string]int)
+
+	for id, transform := range bundle.GetTransforms() {
+		// Populate the adjacency map
+		in := len(transform.GetInputs())
+		adjs[id] = in
+		if in == 0 {
+			// Root node identified.
+			sortedIds = append(sortedIds, id)
+		}
+	}
+
+	xforms := bundle.GetTransforms()
+	if len(xforms) == 0 {
+		return nil, nil, fmt.Errorf("Invalid bundle. No roots identified. %v", bundle)
+	}
+
+	frontier := append([]string(nil), sortedIds...)
+
+	for {
+		for _, id := range frontier {
+			frontier = frontier[1:]
+			xform := xforms[id]
+			for _, out := range xform.GetOutputs() {
+				// Look for consumer xforms that take this output as an input
+				for cid, c := range xforms {
+					for _, in := range c.GetInputs() {
+						if in == out {
+							// They are connected. Decrement the adjacency count of this xform
+							adjs[cid] = adjs[cid] - 1
+							// Update the PCollection metadata to record the producing transform.
+							colls[in].xid, colls[in].xform = id, xforms[id]
+
+							if adjs[cid] == 0 {
+								// Add it to the list
+								frontier = append(frontier, cid)
+							}
+						}
+					}
+				}
+			}
+		}
+		// Add any completed nodes to the sorted list
+		sortedIds = append(sortedIds, frontier...)
+
+		// We're done when there are no more nodes to explore.
+		if len(frontier) == 0 {
+			break
+		}
+	}
+
+	if len(sortedIds) != len(bundle.GetTransforms()) {
+		return nil, nil, fmt.Errorf("Supplied bundle contained a cycle: %v", bundle)
+	}
+
+	return sortedIds, colls, nil
+}
+
+// translate translates a ProcessBundleDescriptor to a sub-graph that can run bundles.
+func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
+	// NOTE: we will see only graph fragments w/o GBK or FLATTEN, which are handled by
+	// the service.
+
+	// The incoming bundle is an unsorted collection of data. By applying a topological sort
+	// we can make a single linear pass to convert to the internal runner representation.
+	sortedIds, colls, err := topologicalSort(bundle)
+	if err != nil {
+		return nil, err
+	}
+
+	coders, err := translateCoders(bundle.GetCodersyyy())
 	if err != nil {
 		return nil, fmt.Errorf("invalid coders: %v", err)
 	}
 
-	// NOTE: we rely on the transforms to be topologically ordered. Then we
-	// can make a single pass.
-
 	g := graph.New()
 	nodes := make(map[nodeID]*graph.Node)
+	xforms := bundle.GetTransforms()
 
-	// NOTE: we will see only graph fragments w/o GBK or FLATTEN, which are handled by
-	// the service.
-
-	for _, transform := range bundle.GetPrimitiveTransform() {
-		// log.Printf("SPEC: %v", transform.GetFunctionSpec())
-
-		spec := transform.GetFunctionSpec()
+	for _, id := range sortedIds {
+		transform := xforms[id]
+		spec := transform.GetSpec()
+		//log.Printf("SPEC: %v %v", id, transform.GetSpec())
 		switch spec.GetUrn() {
-		case "urn:org.apache.beam:source:java:0.1":
+		case "urn:org.apache.beam:source:java:0.1": // using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackProto(spec.Data, &me); err != nil {
+			if err := protox.UnpackProto(spec.GetParameter(), &me); err != nil {
 				return nil, err
 			}
 
@@ -110,13 +135,13 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			if err != nil {
 				return nil, err
 			}
-			if err := link(g, nodes, coders, transform, edge); err != nil {
+			if err := link(g, nodes, coders, transform, id, edge, colls); err != nil {
 				return nil, err
 			}
 
-		case "urn:org.apache.beam:dofn:java:0.1":
+		case "urn:org.apache.beam:dofn:java:0.1": // We are using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackBase64Proto(spec.Data, &me); err != nil {
+			if err := protox.UnpackBase64Proto(spec.GetParameter(), &me); err != nil {
 				return nil, err
 			}
 
@@ -126,22 +151,22 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			if err != nil {
 				return nil, err
 			}
-			if err := link(g, nodes, coders, transform, edge); err != nil {
+			if err := link(g, nodes, coders, transform, id, edge, colls); err != nil {
 				return nil, err
 			}
 
 		case "urn:org.apache.beam:source:runner:0.1":
-			port, err := translatePort(spec.Data)
+			port, err := translatePort(spec.GetParameter())
 			if err != nil {
 				return nil, err
 			}
 
-			if size := len(transform.GetInputs()); size != 1 {
+			if size := len(transform.GetOutputs()); size != 1 {
 				return nil, fmt.Errorf("Expected 1 input, got %v", size)
 			}
 			var target *graph.Target
-			for key, _ := range transform.GetInputs() {
-				target = &graph.Target{ID: transform.GetId(), Name: key}
+			for key := range transform.GetOutputs() {
+				target = &graph.Target{ID: id, Name: key}
 			}
 
 			edge := g.NewEdge(g.Root())
@@ -150,23 +175,23 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			edge.Target = target
 			edge.Output = []*graph.Outbound{{Type: nil}}
 
-			if err := linkOutbound(g, nodes, coders, transform, edge); err != nil {
+			if err := linkOutbound(g, nodes, coders, transform, id, edge, colls); err != nil {
 				return nil, err
 			}
 			edge.Output[0].Type = edge.Output[0].To.Coder.T
 
 		case "urn:org.apache.beam:sink:runner:0.1":
-			port, err := translatePort(spec.Data)
+			port, err := translatePort(spec.GetParameter())
 			if err != nil {
 				return nil, err
 			}
 
-			if size := len(transform.GetOutputs()); size != 1 {
+			if size := len(transform.GetInputs()); size != 1 {
 				return nil, fmt.Errorf("Expected 1 output, got %v", size)
 			}
 			var target *graph.Target
-			for key, _ := range transform.GetOutputs() {
-				target = &graph.Target{ID: transform.GetId(), Name: key}
+			for key := range transform.GetInputs() {
+				target = &graph.Target{ID: id, Name: key}
 			}
 
 			edge := g.NewEdge(g.Root())
@@ -175,7 +200,7 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			edge.Target = target
 			edge.Input = []*graph.Inbound{{Type: nil}}
 
-			if err := linkInbound(g, nodes, coders, transform, edge); err != nil {
+			if err := linkInbound(g, nodes, coders, transform, edge, colls); err != nil {
 				return nil, err
 			}
 			edge.Input[0].Type = edge.Input[0].From.Coder.T
@@ -188,8 +213,8 @@ func translate(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 }
 
 func translatePort(data *protobuf.Any) (*graph.Port, error) {
-	var port pb.RemoteGrpcPort
-	if err := protox.Unpack(data, RemoteGrpcPortTypeUrl, &port); err != nil {
+	var port fnapi_pb.RemoteGrpcPort
+	if err := protox.Unpack(data, "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort", &port); err != nil {
 		return nil, err
 	}
 	return &graph.Port{
@@ -198,15 +223,15 @@ func translatePort(data *protobuf.Any) (*graph.Port, error) {
 	}, nil
 }
 
-func link(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *pb.PrimitiveTransform, edge *graph.MultiEdge) error {
-	if err := linkInbound(g, nodes, coders, transform, edge); err != nil {
+func link(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
+	if err := linkInbound(g, nodes, coders, transform, edge, colls); err != nil {
 		return err
 	}
-	return linkOutbound(g, nodes, coders, transform, edge)
+	return linkOutbound(g, nodes, coders, transform, tid, edge, colls)
 }
 
-func linkInbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *pb.PrimitiveTransform, edge *graph.MultiEdge) error {
-	from := translateInputs(transform)
+func linkInbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, edge *graph.MultiEdge, colls pCollMap) error {
+	from := translateInputs(transform, colls)
 	if len(from) != len(edge.Input) {
 		return fmt.Errorf("unexpected number of inputs: %v, want %v", len(from), len(edge.Input))
 	}
@@ -216,8 +241,8 @@ func linkInbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string
 	return nil
 }
 
-func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *pb.PrimitiveTransform, edge *graph.MultiEdge) error {
-	to := translateOutputs(transform)
+func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
+	to := translateOutputs(transform, tid, colls)
 	if len(to) != len(edge.Output) {
 		return fmt.Errorf("unexpected number of outputs: %v, want %v", len(to), len(edge.Output))
 	}
@@ -233,14 +258,21 @@ func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[strin
 	return nil
 }
 
-func translateInputs(transform *pb.PrimitiveTransform) []nodeID {
+func translateInputs(transform *rnapi_pb.PTransform, colls pCollMap) []nodeID {
 	var from []nodeID
-	for _, in := range transform.GetInputs() {
-		for _, target := range in.GetTarget() {
-			// TODO: we need to reorder input to match. Multiplex?
 
-			id := nodeID{target.GetPrimitiveTransformReference(), target.GetName()}
-			from = append(from, id)
+	for _, in := range transform.GetInputs() {
+		// The runner API doesn't store the bidirectional relationship of nodes.
+		// We identify the data by working backwards to the PCollection, then
+		// consult our PCollection map to get info about the producing PTransform.
+		// Since each PTransform may produce many outputs, we look at all of them
+		// to find the output matching our input identifier.
+		fid := colls[in].xid
+		for okey, ocol := range colls[in].xform.GetOutputs() {
+			if ocol == in {
+				id := nodeID{fid, okey}
+				from = append(from, id)
+			}
 		}
 	}
 	return from
@@ -251,8 +283,9 @@ type output struct {
 	Coder  string
 }
 
-func translateOutputs(transform *pb.PrimitiveTransform) []output {
+func translateOutputs(transform *rnapi_pb.PTransform, tid string, colls pCollMap) []output {
 	var to []output
+
 	for key, col := range transform.GetOutputs() {
 		if key == "bogus" {
 			continue // NOTE: remove bogus output
@@ -260,22 +293,22 @@ func translateOutputs(transform *pb.PrimitiveTransform) []output {
 
 		// TODO: we need to reorder output
 
-		coder := col.GetCoderReference()
-		to = append(to, output{nodeID{transform.GetId(), key}, coder})
+		coder := colls[col].pcoll.GetCoderId()
+		to = append(to, output{nodeID{tid, key}, coder})
 	}
+
 	return to
 }
 
-func translateCoders(list []*pb.Coder) (map[string]*coder.Coder, error) {
+func translateCoders(in map[string]*rnapi_pb.Coder) (map[string]*coder.Coder, error) {
 	coders := make(map[string]*coder.Coder)
-	for _, coder := range list {
-		spec := coder.GetFunctionSpec()
-
-		c, err := unpackCoder(spec.Data)
+	for id, coder := range in {
+		spec := coder.GetSpec().GetSpec()
+		c, err := unpackCoder(spec.GetParameter())
 		if err != nil {
-			return nil, fmt.Errorf("failed to translate coder %s: %v", spec.GetId(), err)
+			return nil, fmt.Errorf("failed to translate coder %s: %v", id, err)
 		}
-		coders[spec.GetId()] = c
+		coders[id] = c
 	}
 	return coders, nil
 }
