@@ -61,7 +61,11 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
       this.input = input;
     }
 
-    /** @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime) */
+    /**
+     * @param fn the event time extraction function
+     * @return the next builder to complete the setup
+     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
+     */
     public OutputBuilder<IN> using(ExtractEventTime<IN> fn) {
       return new OutputBuilder<>(name, input, Objects.requireNonNull(fn));
     }
@@ -101,7 +105,10 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
         getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn));
   }
 
-  /** @see FlatMap#getEventTimeExtractor() */
+  /**
+   * @return the user defined event time assigner
+   * @see FlatMap#getEventTimeExtractor()
+   */
   public ExtractEventTime<IN> getEventTimeExtractor() {
     return eventTimeFn;
   }
