@@ -24,13 +24,13 @@ import org.apache.calcite.rel.RelNode;
 
 /**
  * A new method {@link #buildBeamPipeline(PCollectionTuple)} is added, it's
- * called by {@code BeamPipelineCreator}.
+ * called by {@code BeamQueryPlanner}.
  */
 public interface BeamRelNode extends RelNode {
 
   /**
    * A {@link BeamRelNode} is a recursive structure, the
-   * {@code BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
+   * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
    * algorithm.
    */
   PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections) throws Exception;
