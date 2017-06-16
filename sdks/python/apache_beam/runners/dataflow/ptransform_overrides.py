@@ -37,8 +37,7 @@ class CreatePTransformOverride(PTransformOverride):
     if isinstance(applied_ptransform.transform, Create):
       standard_options = (applied_ptransform
                           .outputs[None]
-                          .pipeline
-                          .options
+                          .pipeline._options
                           .view_as(StandardOptions))
       return standard_options.streaming
     else:

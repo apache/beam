@@ -386,7 +386,7 @@ class DataflowRunner(PipelineRunner):
 
   def run_Impulse(self, transform_node):
     standard_options = (
-        transform_node.outputs[None].pipeline.options.view_as(StandardOptions))
+        transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
     if standard_options.streaming:
       step = self._add_step(
           TransformNames.READ, transform_node.full_label, transform_node)
