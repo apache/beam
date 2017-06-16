@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,26 +37,8 @@ public class JdbcTestDataSet {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcTestDataSet.class);
   public static final String[] SCIENTISTS = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
       "Faraday", "McClintock", "Herschel", "Hopper", "Lovelace"};
-  /**
-   * Use this to create the read tables before IT read tests.
-   *
-   * <p>To invoke this class, you can use this command line:
-   * (run from the jdbc root directory)
-   * mvn test-compile exec:java -Dexec.mainClass=org.apache.beam.sdk.io.jdbc.JdbcTestDataSet \
-   *   -Dexec.args="--postgresServerName=127.0.0.1 --postgresUsername=postgres \
-   *   --postgresDatabaseName=myfancydb \
-   *   --postgresPassword=yourpassword --postgresSsl=false" \
-   *   -Dexec.classpathScope=test
-   * @param args Please pass options from IOTestPipelineOptions used for connection to postgres as
-   * shown above.
-   */
-  public static void main(String[] args) throws SQLException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
-
-    createReadDataTable(getDataSource(options));
-  }
+  public static final long EXPECTED_ROW_COUNT = 1000L;
+  public static final String EXPECTED_HASH_CODE = "7d94d63a41164be058a9680002914358";
 
   public static PGSimpleDataSource getDataSource(IOTestPipelineOptions options)
       throws SQLException {
@@ -78,32 +59,33 @@ public class JdbcTestDataSet {
 
   public static final String READ_TABLE_NAME = "BEAM_TEST_READ";
 
-  public static void createReadDataTable(DataSource dataSource) throws SQLException {
+  public static void createReadDataTableAndAddInitialData(DataSource dataSource)
+      throws SQLException {
     createDataTable(dataSource, READ_TABLE_NAME);
+    addInitialData(dataSource, READ_TABLE_NAME);
   }
 
-  public static String createWriteDataTable(DataSource dataSource) throws SQLException {
-    String tableName = "BEAMTEST" + org.joda.time.Instant.now().getMillis();
+  public static String createWriteDataTableAndAddInitialData(DataSource dataSource)
+      throws SQLException {
+    String tableName = getWriteTableName();
     createDataTable(dataSource, tableName);
+    addInitialData(dataSource, tableName);
     return tableName;
   }
 
-  private static void createDataTable(DataSource dataSource, String tableName) throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
-      // something like this will need to happen in tests on a newly created postgres server,
-      // but likely it will happen in perfkit, not here
-      // alternatively, we may have a pipelineoption indicating whether we want to
-      // re-use the database or create a new one
-      try (Statement statement = connection.createStatement()) {
-        statement.execute(
-            String.format("create table %s (id INT, name VARCHAR(500))", tableName));
-      }
+  public static String getWriteTableName() {
+    return "BEAMTEST" + org.joda.time.Instant.now().getMillis();
+  }
 
+  private static void addInitialData(
+      DataSource dataSource, String tableName)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
       connection.setAutoCommit(false);
       try (PreparedStatement preparedStatement =
                connection.prepareStatement(
                    String.format("insert into %s values (?,?)", tableName))) {
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < EXPECTED_ROW_COUNT; i++) {
           int index = i % SCIENTISTS.length;
           preparedStatement.clearParameters();
           preparedStatement.setInt(1, i);
@@ -112,6 +94,17 @@ public class JdbcTestDataSet {
         }
       }
       connection.commit();
+    }
+  }
+
+  public static void createDataTable(
+      DataSource dataSource, String tableName)
+      throws SQLException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute(
+            String.format("create table %s (id INT, name VARCHAR(500))", tableName));
+      }
     }
 
     LOG.info("Created table {}", tableName);

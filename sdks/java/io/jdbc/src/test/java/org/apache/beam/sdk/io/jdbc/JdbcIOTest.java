@@ -109,7 +109,7 @@ public class JdbcIOTest implements Serializable {
     dataSource.setPortNumber(port);
 
 
-    JdbcTestDataSet.createReadDataTable(dataSource);
+    JdbcTestDataSet.createReadDataTableAndAddInitialData(dataSource);
   }
 
   @AfterClass
@@ -197,7 +197,7 @@ public class JdbcIOTest implements Serializable {
 
     PAssert.thatSingleton(
         output.apply("Count All", Count.<KV<String, Integer>>globally()))
-        .isEqualTo(1000L);
+        .isEqualTo(JdbcTestDataSet.EXPECTED_ROW_COUNT);
 
     PAssert.that(output
         .apply("Count Scientist", Count.<String, Integer>perKey())
@@ -205,7 +205,9 @@ public class JdbcIOTest implements Serializable {
       @Override
       public Void apply(Iterable<KV<String, Long>> input) {
         for (KV<String, Long> element : input) {
-          assertEquals(element.getKey(), 100L, element.getValue().longValue());
+          assertEquals(element.getKey(),
+              JdbcTestDataSet.EXPECTED_ROW_COUNT / JdbcTestDataSet.SCIENTISTS.length,
+              element.getValue().longValue());
         }
         return null;
       }
@@ -242,7 +244,7 @@ public class JdbcIOTest implements Serializable {
 
      PAssert.thatSingleton(
              output.apply("Count One Scientist", Count.<KV<String, Integer>>globally()))
-             .isEqualTo(100L);
+             .isEqualTo(JdbcTestDataSet.EXPECTED_ROW_COUNT / JdbcTestDataSet.SCIENTISTS.length);
 
      pipeline.run();
    }
@@ -250,11 +252,12 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
+    final long rowsToAdd = 1000L;
 
-    String tableName = JdbcTestDataSet.createWriteDataTable(dataSource);
+    String tableName = JdbcTestDataSet.createWriteDataTableAndAddInitialData(dataSource);
     try {
       ArrayList<KV<Integer, String>> data = new ArrayList<>();
-      for (int i = 0; i < 1000; i++) {
+      for (int i = 0; i < rowsToAdd; i++) {
         KV<Integer, String> kv = KV.of(i, "Test");
         data.add(kv);
       }
@@ -282,7 +285,7 @@ public class JdbcIOTest implements Serializable {
             resultSet.next();
             int count = resultSet.getInt(1);
 
-            Assert.assertEquals(2000, count);
+            Assert.assertEquals(rowsToAdd + JdbcTestDataSet.EXPECTED_ROW_COUNT, count);
           }
         }
       }
