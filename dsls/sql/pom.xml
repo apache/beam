@@ -190,5 +190,10 @@
       <version>0.10.1.0</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
