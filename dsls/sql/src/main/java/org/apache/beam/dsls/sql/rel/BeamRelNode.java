@@ -17,7 +17,6 @@
  */
 package org.apache.beam.dsls.sql.rel;
 
-import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -25,13 +24,13 @@ import org.apache.calcite.rel.RelNode;
 
 /**
  * A new method {@link #buildBeamPipeline(PCollectionTuple)} is added, it's
- * called by {@link BeamPipelineCreator}.
+ * called by {@code BeamPipelineCreator}.
  */
 public interface BeamRelNode extends RelNode {
 
   /**
    * A {@link BeamRelNode} is a recursive structure, the
-   * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
+   * {@code BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
    * algorithm.
    */
   PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections) throws Exception;

@@ -23,6 +23,6 @@ import org.apache.calcite.sql.util.SqlShuttle;
  * Unsupported operation to visit a RelNode.
  *
  */
-public class UnsupportedOperatorsVisitor extends SqlShuttle {
+class UnsupportedOperatorsVisitor extends SqlShuttle {
 
 }
