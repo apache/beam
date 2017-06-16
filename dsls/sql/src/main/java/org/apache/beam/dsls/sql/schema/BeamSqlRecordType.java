@@ -17,46 +17,24 @@
  */
 package org.apache.beam.dsls.sql.schema;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Field type information in {@link BeamSqlRow}.
  *
  */
-public class BeamSqlRecordType implements Serializable {
-  private List<String> fieldsName = new ArrayList<>();
-  private List<Integer> fieldsType = new ArrayList<>();
+@AutoValue
+public abstract class BeamSqlRecordType implements Serializable {
+  public abstract List<String> getFieldsName();
+  public abstract List<Integer> getFieldsType();
 
-  public void addField(String fieldName, Integer fieldType) {
-    fieldsName.add(fieldName);
-    fieldsType.add(fieldType);
+  public static BeamSqlRecordType create(List<String> fieldNames, List<Integer> fieldTypes) {
+    return new AutoValue_BeamSqlRecordType(fieldNames, fieldTypes);
   }
 
   public int size() {
-    return fieldsName.size();
+    return getFieldsName().size();
   }
-
-  public List<String> getFieldsName() {
-    return fieldsName;
-  }
-
-  public void setFieldsName(List<String> fieldsName) {
-    this.fieldsName = fieldsName;
-  }
-
-  public List<Integer> getFieldsType() {
-    return fieldsType;
-  }
-
-  public void setFieldsType(List<Integer> fieldsType) {
-    this.fieldsType = fieldsType;
-  }
-
-  @Override
-  public String toString() {
-    return "RecordType [fieldsName=" + fieldsName + ", fieldsType=" + fieldsType + "]";
-  }
-
 }
