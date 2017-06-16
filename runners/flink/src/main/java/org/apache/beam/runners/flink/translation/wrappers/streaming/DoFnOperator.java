@@ -582,8 +582,8 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   /**
-   * Check whether invoke startBundle, if it is, need to flush the buffer data of
-   * {@link BufferedOutputManager} first.
+   * Check whether invoke startBundle, if it is, need to output elements that were
+   * buffered as part of finishing a bundle in snapshot() first.
    *
    * <p>In order to avoid having {@link DoFnRunner#processElement(WindowedValue)} or
    * {@link DoFnRunner#onTimer(String, BoundedWindow, Instant, TimeDomain)} not between
@@ -803,36 +803,9 @@ public class DoFnOperator<InputT, OutputT>
       this.mapping = mapping;
 
       tagToLabel = transformTupleTagsToLabels(mainTag, mapping);
-      Coder<KV<Integer, WindowedValue<?>>> kvCoder =
-          new StructuredCoder<KV<Integer, WindowedValue<?>>>() {
-        @Override
-        public void encode(KV<Integer, WindowedValue<?>> kv, OutputStream out)
-            throws IOException {
-          Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(kv.getKey()));
-          VarIntCoder.of().encode(kv.getKey(), out);
-          coder.encode(kv.getValue(), out);
-        }
-
-        @Override
-        public KV<Integer, WindowedValue<?>> decode(InputStream in)
-            throws IOException {
-          Integer label = VarIntCoder.of().decode(in);
-          Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(label));
-          WindowedValue<?> value = coder.decode(in);
-          return KV.<Integer, WindowedValue<?>>of(label, value);
-        }
-
-        @Override
-        public List<? extends Coder<?>> getCoderArguments() {
-          return null;
-        }
-
-        @Override
-        public void verifyDeterministic() throws NonDeterministicException {}
-      };
 
       StateTag<BagState<KV<Integer, WindowedValue<?>>>> bufferTag =
-          StateTags.bag("bundle-buffer-tag", kvCoder);
+          StateTags.bag("bundle-buffer-tag", new TaggedKvCoder(tagToLabel, coderMapping));
       bufferState = stateInternals.state(StateNamespaces.global(), bufferTag);
     }
 
@@ -896,6 +869,47 @@ public class DoFnOperator<InputT, OutputT>
         output.collect(outputTag, new StreamRecord<>(value));
       }
     }
+  }
+
+  /**
+   * Coder for KV of label and value. It will be serialized in Flink checkpoint.
+   */
+  private static class TaggedKvCoder extends StructuredCoder<KV<Integer, WindowedValue<?>>> {
+
+    private BiMap<TupleTag<?>, Integer> tagToLabel;
+    private Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping;
+
+    TaggedKvCoder(
+        BiMap<TupleTag<?>, Integer> tagToLabel,
+        Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping) {
+      this.tagToLabel = tagToLabel;
+      this.coderMapping = coderMapping;
+    }
+
+    @Override
+    public void encode(KV<Integer, WindowedValue<?>> kv, OutputStream out)
+        throws IOException {
+      Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(kv.getKey()));
+      VarIntCoder.of().encode(kv.getKey(), out);
+      coder.encode(kv.getValue(), out);
+    }
+
+    @Override
+    public KV<Integer, WindowedValue<?>> decode(InputStream in)
+        throws IOException {
+      Integer label = VarIntCoder.of().decode(in);
+      Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(label));
+      WindowedValue<?> value = coder.decode(in);
+      return KV.<Integer, WindowedValue<?>>of(label, value);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   /**

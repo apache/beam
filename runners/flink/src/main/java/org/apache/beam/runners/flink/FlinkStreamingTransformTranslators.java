@@ -366,7 +366,7 @@ class FlinkStreamingTransformTranslators {
         if (!tagsToOutputTags.containsKey(entry.getKey())) {
           tagsToOutputTags.put(
               entry.getKey(),
-              new OutputTag<WindowedValue<?>>(
+              new OutputTag<>(
                   entry.getKey().getId(),
                   (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())
               )
