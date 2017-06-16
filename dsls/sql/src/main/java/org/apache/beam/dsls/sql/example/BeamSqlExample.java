@@ -18,6 +18,8 @@
 package org.apache.beam.dsls.sql.example;
 
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.dsls.sql.BeamSql;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -47,10 +49,9 @@ class BeamSqlExample {
     Pipeline p = Pipeline.create(options);
 
     //define the input row format
-    BeamSqlRecordType type = new BeamSqlRecordType();
-    type.addField("c1", Types.INTEGER);
-    type.addField("c2", Types.VARCHAR);
-    type.addField("c3", Types.DOUBLE);
+    List<String> fieldsName = Arrays.asList("c1", "c2", "c3");
+    List<Integer> fieldsType = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
+    BeamSqlRecordType type = BeamSqlRecordType.create(fieldsName, fieldsType);
     BeamSqlRow row = new BeamSqlRow(type);
     row.addField(0, 1);
     row.addField(1, "row");
