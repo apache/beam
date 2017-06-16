@@ -23,6 +23,8 @@ import java.io.OutputStream;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -62,7 +64,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
         continue;
       }
 
-      switch (value.getDataType().getFieldsType().get(idx)) {
+      switch (CalciteUtils.getFieldType(value.getDataType(), idx)) {
         case INTEGER:
           intCoder.encode(value.getInteger(idx), outStream);
           break;
@@ -117,7 +119,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
         continue;
       }
 
-      switch (tableSchema.getFieldsType().get(idx)) {
+      switch (CalciteUtils.getFieldType(tableSchema, idx)) {
         case INTEGER:
           record.addField(idx, intCoder.decode(inStream));
           break;
