@@ -135,7 +135,7 @@ public class GcsUtil {
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
   private static final FluentBackoff BACKOFF_FACTORY =
-      FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+      FluentBackoff.DEFAULT.withMaxRetries(10).withInitialBackoff(Duration.standardSeconds(1));
 
   /////////////////////////////////////////////////////////////////////////////
 
