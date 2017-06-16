@@ -61,19 +61,18 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   }
 
   /**
-   * filter return empty.
+   * nothing return with filters.
    */
   @Test
-  public void testFilterReturnEmpty() throws Exception {
-    String sql = "SELECT * FROM TABLE_A WHERE f_int < 0";
+  public void testNoReturnFilter() throws Exception {
+    String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
     PCollection<BeamSqlRow> result =
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
-        .apply("testFilterReturnEmpty", BeamSql.query(sql));
+        .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();
 
     pipeline.run().waitUntilFinish();
   }
-
 }

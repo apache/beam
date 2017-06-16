@@ -126,6 +126,4 @@ public class BeamSqlDslBase {
 
     return rows;
   }
-
-
 }

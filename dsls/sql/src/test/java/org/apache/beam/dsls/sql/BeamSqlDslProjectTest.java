@@ -70,6 +70,42 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   }
 
   /**
+   * select partial fields for multiple rows.
+   */
+  @Test
+  public void testPartialFieldsInMultipleRow() throws Exception {
+    String sql = "SELECT f_int, f_long FROM TABLE_A";
+
+    PCollection<BeamSqlRow> result =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
+
+    BeamSqlRecordType resultType = new BeamSqlRecordType();
+    resultType.addField("f_int", Types.INTEGER);
+    resultType.addField("f_long", Types.BIGINT);
+
+    BeamSqlRow record1 = new BeamSqlRow(resultType);
+    record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
+    record1.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
+
+    BeamSqlRow record2 = new BeamSqlRow(resultType);
+    record2.addField("f_int", recordsInTableA.get(1).getFieldValue(0));
+    record2.addField("f_long", recordsInTableA.get(1).getFieldValue(1));
+
+    BeamSqlRow record3 = new BeamSqlRow(resultType);
+    record3.addField("f_int", recordsInTableA.get(2).getFieldValue(0));
+    record3.addField("f_long", recordsInTableA.get(2).getFieldValue(1));
+
+    BeamSqlRow record4 = new BeamSqlRow(resultType);
+    record4.addField("f_int", recordsInTableA.get(3).getFieldValue(0));
+    record4.addField("f_long", recordsInTableA.get(3).getFieldValue(1));
+
+    PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
    * select partial fields.
    */
   @Test
@@ -126,5 +162,4 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
-
 }
