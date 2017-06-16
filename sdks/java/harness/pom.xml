@@ -154,6 +154,12 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <!-- test dependencies -->
     <dependency>
       <groupId>org.hamcrest</groupId>
