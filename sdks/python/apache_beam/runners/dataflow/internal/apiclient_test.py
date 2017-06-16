@@ -122,6 +122,30 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         metric_update.floatingPointMean.count.lowBits, accumulator.count)
 
+  def test_default_ip_configuration(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    self.assertEqual(env.proto.workerPools[0].ipConfiguration, None)
+
+  def test_public_ip_configuration(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp',
+         '--use_public_ips'])
+    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    self.assertEqual(
+        env.proto.workerPools[0].ipConfiguration,
+        dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
+
+  def test_private_ip_configuration(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp',
+         '--no_use_public_ips'])
+    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    self.assertEqual(
+        env.proto.workerPools[0].ipConfiguration,
+        dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
+
 
 if __name__ == '__main__':
   unittest.main()
