@@ -31,7 +31,6 @@ import apache_beam as beam
 from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.pvalue import AsSideInput
@@ -40,6 +39,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
+from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
 from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
@@ -69,6 +69,16 @@ class DataflowRunner(PipelineRunner):
   # are expected by the workers.
   BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
   STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
+
+  # A list of PTransformOverride objects to be applied before running a pipeline
+  # using DataflowRunner.
+  # Currently this only works for overrides where the input and output types do
+  # not change.
+  # For internal SDK use only. This should not be updated by Beam pipeline
+  # authors.
+  _PTRANSFORM_OVERRIDES = [
+      CreatePTransformOverride(),
+  ]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -230,6 +240,9 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    # Performing configured PTransform overrides.
+    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
@@ -370,53 +383,6 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     return step
-
-  def apply_Create(self, transform, pcoll):
-    standard_options = pcoll.pipeline._options.view_as(StandardOptions)  # pylint: disable=protected-access
-    if standard_options.streaming:
-      # Imported here to avoid circular dependencies.
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.transforms.core import DoFn, PTransform
-      from apache_beam.transforms.core import Windowing
-      from apache_beam.transforms.window import GlobalWindows
-
-      class DecodeAndEmitDoFn(DoFn):
-        """A DoFn which stores encoded versions of elements.
-
-        It also stores a Coder to decode and emit those elements.
-        TODO: BEAM-2422 - Make this a SplittableDoFn.
-        """
-
-        def __init__(self, encoded_values, coder):
-          self.encoded_values = encoded_values
-          self.coder = coder
-
-        def process(self, unused_element):
-          for encoded_value in self.encoded_values:
-            yield self.coder.decode(encoded_value)
-
-      class Impulse(PTransform):
-        """The Dataflow specific override for the impulse primitive."""
-
-        def expand(self, pbegin):
-          assert isinstance(pbegin, pvalue.PBegin)
-          return pvalue.PCollection(pbegin.pipeline)
-
-        def get_windowing(self, inputs):
-          return Windowing(GlobalWindows())
-
-        def infer_output_type(self, unused_input_type):
-          return bytes
-
-      values_coder = typecoders.registry.get_coder(transform.get_output_type())
-      encoded_values = map(values_coder.encode, transform.value)
-      return (pcoll
-              | 'Impulse' >> Impulse()
-              | 'Decode Values' >> beam.ParDo(
-                  DecodeAndEmitDoFn(encoded_values, values_coder)
-                  .with_output_types(transform.get_output_type())))
-    else:
-      return self.apply_PTransform(transform, pcoll)
 
   def run_Impulse(self, transform_node):
     standard_options = (
