@@ -157,7 +157,7 @@ public class MongoDbIO {
      * mongodb://[username:password@]host1[:port1]...[,hostN[:portN]]][/[database][?options]]
      * }</pre>
      *
-     * <p>
+     * <p>Where:
      *   <ul>
      *     <li>{@code mongodb://} is a required prefix to identify that this is a string in the
      *     standard connection format.</li>
@@ -175,12 +175,12 @@ public class MongoDbIO {
      *     <li>{@code ?options} are connection options. Note that if {@code database} is absent
      *     there is still a {@code /} required between the last {@code host} and the {@code ?}
      *     introducing the options. Options are name=value pairs and the pairs are separated by
-     *     "&". The {@code KeepAlive} connection option can't be passed via the URI, instead you
-     *     have to use {@link Read#withKeepAlive(boolean)}. Same for the {@code
-     *     MaxConnectionIdleTime} connection option via {@link Read#withMaxConnectionIdleTime(int)}.
+     *     "{@code &}". The {@code KeepAlive} connection option can't be passed via the URI,
+     *     instead you have to use {@link Read#withKeepAlive(boolean)}. Same for the
+     *     {@code MaxConnectionIdleTime} connection option via
+     *     {@link Read#withMaxConnectionIdleTime(int)}.
      *     </li>
      *   </ul>
-     * </p>
      */
     public Read withUri(String uri) {
       checkArgument(uri != null, "MongoDbIO.read().withUri(uri) called with null uri");
@@ -299,16 +299,22 @@ public class MongoDbIO {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
       try (MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()))) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
-
-        // get the Mongo collStats object
-        // it gives the size for the entire collection
-        BasicDBObject stat = new BasicDBObject();
-        stat.append("collStats", spec.collection());
-        Document stats = mongoDatabase.runCommand(stat);
-
-        return stats.get("size", Number.class).longValue();
+        return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
       }
+    }
+
+    private long getEstimatedSizeBytes(MongoClient mongoClient,
+                                       String database,
+                                       String collection) {
+      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
+
+      // get the Mongo collStats object
+      // it gives the size for the entire collection
+      BasicDBObject stat = new BasicDBObject();
+      stat.append("collStats", collection);
+      Document stats = mongoDatabase.runCommand(stat);
+
+      return stats.get("size", Number.class).longValue();
     }
 
     @Override
@@ -321,7 +327,8 @@ public class MongoDbIO {
         if (spec.numSplits() > 0) {
           // the user defines his desired number of splits
           // calculate the batch size
-          long estimatedSizeBytes = getEstimatedSizeBytes(options);
+          long estimatedSizeBytes = getEstimatedSizeBytes(mongoClient,
+              spec.database(), spec.collection());
           desiredBundleSizeBytes = estimatedSizeBytes / spec.numSplits();
         }
 
@@ -543,7 +550,7 @@ public class MongoDbIO {
      * mongodb://[username:password@]host1[:port1],...[,hostN[:portN]]][/[database][?options]]
      * }</pre>
      *
-     * <p>
+     * <p>Where:
      *   <ul>
      *     <li>{@code mongodb://} is a required prefix to identify that this is a string in the
      *     standard connection format.</li>
@@ -561,13 +568,12 @@ public class MongoDbIO {
      *     <li>{@code ?options} are connection options. Note that if {@code database} is absent
      *     there is still a {@code /} required between the last {@code host} and the {@code ?}
      *     introducing the options. Options are name=value pairs and the pairs are separated by
-     *     "&". The {@code KeepAlive} connection option can't be passed via the URI, instead you
-     *     have to use {@link Write#withKeepAlive(boolean)}. Same for the {@code
-     *     MaxConnectionIdleTime} connection option via
+     *     "{@code &}". The {@code KeepAlive} connection option can't be passed via the URI, instead
+     *     you have to use {@link Write#withKeepAlive(boolean)}. Same for the
+     *     {@code MaxConnectionIdleTime} connection option via
      *     {@link Write#withMaxConnectionIdleTime(int)}.
      *     </li>
      *   </ul>
-     * </p>
      */
     public Write withUri(String uri) {
       checkArgument(uri != null, "MongoDbIO.write().withUri(uri) called with null uri");
