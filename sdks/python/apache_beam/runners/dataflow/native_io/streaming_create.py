@@ -26,7 +26,11 @@ from apache_beam.transforms.window import GlobalWindows
 
 
 class StreamingCreate(PTransform):
-  """A specialized implementation for ``Create`` transform in streaming mode."""
+  """A specialized implementation for ``Create`` transform in streaming mode.
+
+  Note: There is no unbounded source API in python to wrap the Create source,
+  so we map this to composite of Impulse primitive and an SDF.
+  """
 
   def __init__(self, values, coder):
     self.coder = coder
@@ -51,7 +55,8 @@ class StreamingCreate(PTransform):
     """The Dataflow specific override for the impulse primitive."""
 
     def expand(self, pbegin):
-      assert isinstance(pbegin, pvalue.PBegin)
+      assert isinstance(pbegin, pvalue.PBegin), (
+          'Input to Impulse transform must be a PBegin but found %s' % pbegin)
       return pvalue.PCollection(pbegin.pipeline)
 
     def get_windowing(self, inputs):
