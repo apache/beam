@@ -465,7 +465,14 @@ class WorkerOptions(PipelineOptions):
     parser.add_argument(
         '--use_public_ips',
         default=None,
+        action='store_true',
         help='Whether to assign public IP addresses to the worker machines.')
+    parser.add_argument(
+        '--no_use_public_ips',
+        dest='use_public_ips',
+        default=None,
+        action='store_false',
+        help='Whether to assign only private IP addresses to the worker machines.')
 
   def validate(self, validator):
     errors = []
