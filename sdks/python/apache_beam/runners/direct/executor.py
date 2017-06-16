@@ -580,11 +580,6 @@ class _ExecutorServiceParallelExecutor(object):
         if not self._executor.evaluation_context.is_done(applied_ptransform):
           pending_bundles = self._executor.node_to_pending_bundles.get(
               applied_ptransform, [])
-          if (applied_ptransform in self._executor.root_nodes and
-              not pending_bundles):
-            logging.warning(
-                'Root node %s is not completed, but has no pending bundles.',
-                applied_ptransform)
           for bundle in pending_bundles:
             self._executor.schedule_consumption(
                 applied_ptransform, bundle,
