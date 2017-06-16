@@ -152,9 +152,7 @@ public class BeamQueryPlanner {
   }
 
   private SqlNode validateNode(SqlNode sqlNode) throws ValidationException {
-    SqlNode validatedSqlNode = planner.validate(sqlNode);
-    validatedSqlNode.accept(new UnsupportedOperatorsVisitor());
-    return validatedSqlNode;
+    return planner.validate(sqlNode);
   }
 
   public Map<String, BaseBeamTable> getSourceTables() {
