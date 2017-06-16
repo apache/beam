@@ -1000,7 +1000,7 @@ public class CombineTest implements Serializable {
           @Override
           public void encode(Accumulator accumulator, OutputStream outStream, Coder.Context context)
               throws CoderException, IOException {
-            StringUtf8Coder.of().encode(accumulator.seed, outStream, context);
+            StringUtf8Coder.of().encode(accumulator.seed, outStream, context.nested());
             StringUtf8Coder.of().encode(accumulator.value, outStream, context);
           }
 
@@ -1012,9 +1012,9 @@ public class CombineTest implements Serializable {
           @Override
           public Accumulator decode(InputStream inStream, Coder.Context context)
               throws CoderException, IOException {
-            return new Accumulator(
-                StringUtf8Coder.of().decode(inStream, context),
-                StringUtf8Coder.of().decode(inStream, context));
+            String seed = StringUtf8Coder.of().decode(inStream, context.nested());
+            String value = StringUtf8Coder.of().decode(inStream, context);
+            return new Accumulator(seed, value);
           }
         };
       }
