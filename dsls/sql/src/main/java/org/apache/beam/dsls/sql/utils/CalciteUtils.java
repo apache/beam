@@ -19,7 +19,9 @@
 package org.apache.beam.dsls.sql.utils;
 
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -82,12 +84,13 @@ public class CalciteUtils {
    * Generate {@code BeamSqlRecordType} from {@code RelDataType} which is used to create table.
    */
   public static BeamSqlRecordType toBeamRecordType(RelDataType tableInfo) {
-    BeamSqlRecordType record = new BeamSqlRecordType();
+    List<String> fieldsName = new ArrayList<>();
+    List<Integer> fieldsType = new ArrayList<>();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
-      record.getFieldsName().add(f.getName());
-      record.getFieldsType().add(toJavaType(f.getType().getSqlTypeName()));
+      fieldsName.add(f.getName());
+      fieldsType.add(toJavaType(f.getType().getSqlTypeName()));
     }
-    return record;
+    return BeamSqlRecordType.create(fieldsName, fieldsType);
   }
 
   /**

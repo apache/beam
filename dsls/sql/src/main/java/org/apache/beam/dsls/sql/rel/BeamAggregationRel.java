@@ -17,8 +17,8 @@
  */
 package org.apache.beam.dsls.sql.rel;
 
+import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
@@ -125,25 +125,29 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
    */
   private BeamSqlRecordType exKeyFieldsSchema(RelDataType relDataType) {
     BeamSqlRecordType inputRecordType = CalciteUtils.toBeamRecordType(relDataType);
-    BeamSqlRecordType typeOfKey = new BeamSqlRecordType();
+    List<String> fieldsName = new ArrayList<>();
+    List<Integer> fieldsType = new ArrayList<>();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
-        typeOfKey.addField(inputRecordType.getFieldsName().get(i),
-            inputRecordType.getFieldsType().get(i));
+        fieldsName.add(inputRecordType.getFieldsName().get(i));
+        fieldsType.add(inputRecordType.getFieldsType().get(i));
       }
     }
-    return typeOfKey;
+    return BeamSqlRecordType.create(fieldsName, fieldsType);
   }
 
   /**
    * Type of sub-rowrecord, that represents the list of aggregation fields.
    */
   private BeamSqlRecordType exAggFieldsSchema() {
-    BeamSqlRecordType typeOfAggFields = new BeamSqlRecordType();
+    List<String> fieldsName = new ArrayList<>();
+    List<Integer> fieldsType = new ArrayList<>();
     for (AggregateCall ac : getAggCallList()) {
-      typeOfAggFields.addField(ac.name, CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
+      fieldsName.add(ac.name);
+      fieldsType.add(CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
     }
-    return typeOfAggFields;
+
+    return BeamSqlRecordType.create(fieldsName, fieldsType);
   }
 
   @Override

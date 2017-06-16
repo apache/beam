@@ -106,13 +106,14 @@ public class BeamAggregationTransforms implements Serializable{
     }
 
     private BeamSqlRecordType exTypeOfKeyRecord(BeamSqlRecordType dataType) {
-      BeamSqlRecordType typeOfKey = new BeamSqlRecordType();
+      List<String> fieldsName = new ArrayList<>();
+      List<Integer> fieldsType = new ArrayList<>();
       for (int idx : groupByKeys) {
-        typeOfKey.addField(dataType.getFieldsName().get(idx), dataType.getFieldsType().get(idx));
+        fieldsName.add(dataType.getFieldsName().get(idx));
+        fieldsType.add(dataType.getFieldsType().get(idx));
       }
-      return typeOfKey;
+      return BeamSqlRecordType.create(fieldsName, fieldsType);
     }
-
   }
 
   /**
@@ -152,19 +153,21 @@ public class BeamAggregationTransforms implements Serializable{
 
     public AggregationCombineFn(List<AggregateCall> aggregationCalls,
         BeamSqlRecordType sourceRowRecordType) {
-      this.aggDataType = new BeamSqlRecordType();
       this.aggFunctions = new ArrayList<>();
       this.aggElementExpressions = new ArrayList<>();
 
       boolean hasAvg = false;
       boolean hasCount = false;
       int countIndex = -1;
+      List<String> fieldsName = new ArrayList<>();
+      List<Integer> fieldsType = new ArrayList<>();
       for (int idx = 0; idx < aggregationCalls.size(); ++idx) {
         AggregateCall ac = aggregationCalls.get(idx);
         //verify it's supported.
         verifySupportedAggregation(ac);
 
-        aggDataType.addField(ac.name, CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
+        fieldsName.add(ac.name);
+        fieldsType.add(CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
 
         SqlAggFunction aggFn = ac.getAggregation();
         switch (aggFn.getName()) {
@@ -190,10 +193,12 @@ public class BeamAggregationTransforms implements Serializable{
         }
         aggFunctions.add(aggFn.getName());
       }
+
+
       // add a COUNT holder if only have AVG
       if (hasAvg && !hasCount) {
-        aggDataType.addField("__COUNT",
-            CalciteUtils.toJavaType(SqlTypeName.BIGINT));
+        fieldsName.add("__COUNT");
+        fieldsType.add(CalciteUtils.toJavaType(SqlTypeName.BIGINT));
 
         aggFunctions.add("COUNT");
         aggElementExpressions.add(BeamSqlPrimitive.<Long>of(SqlTypeName.BIGINT, 1L));
@@ -202,6 +207,7 @@ public class BeamAggregationTransforms implements Serializable{
         countIndex = aggDataType.size() - 1;
       }
 
+      this.aggDataType = BeamSqlRecordType.create(fieldsName, fieldsType);
       this.countIndex = countIndex;
     }
 
