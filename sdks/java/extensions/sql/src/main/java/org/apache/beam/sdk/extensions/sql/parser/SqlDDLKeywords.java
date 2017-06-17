@@ -15,8 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.parser;
+
+import org.apache.calcite.sql.SqlLiteral;
 
 /**
- * table schema for KafkaIO.
+ * Define the keywords that can occur in a CREATE TABLE statement.
  */
-package org.apache.beam.sdk.extensions.sql.schema.kafka;
+public enum SqlDDLKeywords implements SqlLiteral.SqlSymbol {
+  PRIMARY
+}

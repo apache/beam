@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 import org.apache.calcite.DataContext;
@@ -60,6 +60,7 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
+<<<<<<< HEAD
    * Register a UDAF function which can be used in GROUP-BY expression.
    * See {@link BeamSqlUdaf} on how to implement a UDAF.
    */
@@ -68,18 +69,18 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
-   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
+   * Registers a {@link BeamSqlTable} which can be used for all subsequent queries.
    *
    */
-  public void registerTable(String tableName, BaseBeamTable table) {
+  public void registerTable(String tableName, BeamSqlTable table) {
     schema.add(tableName, new BeamCalciteTable(table.getRowType()));
     planner.getSourceTables().put(tableName, table);
   }
 
   /**
-   * Find {@link BaseBeamTable} by table name.
+   * Find {@link BeamSqlTable} by table name.
    */
-  public BaseBeamTable findTable(String tableName){
+  public BeamSqlTable findTable(String tableName){
     return planner.getSourceTables().get(tableName);
   }
 

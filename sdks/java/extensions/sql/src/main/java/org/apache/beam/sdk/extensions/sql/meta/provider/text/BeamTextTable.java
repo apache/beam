@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import java.io.Serializable;
+
 import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;

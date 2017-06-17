@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import java.io.File;
 import java.io.FileOutputStream;

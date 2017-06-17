@@ -41,6 +41,9 @@ public class BeamSqlApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam",
             "org.joda.time",
+            "com.alibaba.fastjson",
+            // exposed through fastjson
+            "sun.reflect",
             "org.apache.commons.csv");
 
     ApiSurface surface = ApiSurface
