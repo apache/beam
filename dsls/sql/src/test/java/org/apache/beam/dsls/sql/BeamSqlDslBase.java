@@ -22,6 +22,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -53,16 +54,11 @@ public class BeamSqlDslBase {
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    recordTypeInTableA = new BeamSqlRecordType();
-    recordTypeInTableA.addField("f_int", Types.INTEGER);
-    recordTypeInTableA.addField("f_long", Types.BIGINT);
-    recordTypeInTableA.addField("f_short", Types.SMALLINT);
-    recordTypeInTableA.addField("f_byte", Types.TINYINT);
-    recordTypeInTableA.addField("f_float", Types.FLOAT);
-    recordTypeInTableA.addField("f_double", Types.DOUBLE);
-    recordTypeInTableA.addField("f_string", Types.VARCHAR);
-    recordTypeInTableA.addField("f_timestamp", Types.TIMESTAMP);
-    recordTypeInTableA.addField("f_int2", Types.INTEGER);
+    recordTypeInTableA = BeamSqlRecordType.create(
+        Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
+            "f_timestamp", "f_int2"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
+            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER));
 
     recordsInTableA = prepareInputRecordsInTableA();
 

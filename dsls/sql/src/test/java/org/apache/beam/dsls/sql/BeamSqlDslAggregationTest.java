@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql;
 
 import java.sql.Types;
+import java.util.Arrays;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
@@ -41,9 +42,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamSqlRow> result =
         inputA1.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int2", Types.INTEGER);
-    resultType.addField("size", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
     record.addField("f_int2", 0);
@@ -73,37 +73,15 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testAggregationFunctions", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int2", Types.INTEGER);
-    resultType.addField("size", Types.BIGINT);
-
-    resultType.addField("sum1", Types.BIGINT);
-    resultType.addField("avg1", Types.BIGINT);
-    resultType.addField("max1", Types.BIGINT);
-    resultType.addField("min1", Types.BIGINT);
-
-    resultType.addField("sum2", Types.SMALLINT);
-    resultType.addField("avg2", Types.SMALLINT);
-    resultType.addField("max2", Types.SMALLINT);
-    resultType.addField("min2", Types.SMALLINT);
-
-    resultType.addField("sum3", Types.TINYINT);
-    resultType.addField("avg3", Types.TINYINT);
-    resultType.addField("max3", Types.TINYINT);
-    resultType.addField("min3", Types.TINYINT);
-
-    resultType.addField("sum4", Types.FLOAT);
-    resultType.addField("avg4", Types.FLOAT);
-    resultType.addField("max4", Types.FLOAT);
-    resultType.addField("min4", Types.FLOAT);
-
-    resultType.addField("sum5", Types.DOUBLE);
-    resultType.addField("avg5", Types.DOUBLE);
-    resultType.addField("max5", Types.DOUBLE);
-    resultType.addField("min5", Types.DOUBLE);
-
-    resultType.addField("max6", Types.TIMESTAMP);
-    resultType.addField("min6", Types.TIMESTAMP);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(
+        Arrays.asList("f_int2", "size", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
+            "min2", "sum3", "avg3", "max3", "min3", "sum4", "avg4", "max4", "min4", "sum5", "avg5",
+            "max5", "min5", "max6", "min6"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
+            Types.BIGINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
+            Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT, Types.FLOAT,
+            Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
+            Types.TIMESTAMP, Types.TIMESTAMP));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
     record.addField("f_int2", 0);
@@ -152,9 +130,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamSqlRow> result =
         inputA1.apply("testDistinct", BeamSql.simpleQuery(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int", Types.INTEGER);
-    resultType.addField("f_long", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int", 1);
@@ -188,9 +165,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testTumbleWindow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int2", Types.INTEGER);
-    resultType.addField("size", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);
@@ -219,9 +195,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamSqlRow> result =
         inputA1.apply("testHopWindow", BeamSql.simpleQuery(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int2", Types.INTEGER);
-    resultType.addField("size", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);
@@ -263,9 +238,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testSessionWindow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int2", Types.INTEGER);
-    resultType.addField("size", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);

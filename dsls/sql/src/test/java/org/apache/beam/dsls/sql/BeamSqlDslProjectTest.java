@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql;
 
 import java.sql.Types;
+import java.util.Arrays;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
@@ -56,9 +57,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
         .apply("testPartialFields", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int", Types.INTEGER);
-    resultType.addField("f_long", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
     record.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
@@ -80,9 +80,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int", Types.INTEGER);
-    resultType.addField("f_long", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
@@ -116,9 +115,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("f_int", Types.INTEGER);
-    resultType.addField("f_long", Types.BIGINT);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
@@ -152,8 +150,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
         .apply("testLiteralField", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = new BeamSqlRecordType();
-    resultType.addField("literal_field", Types.INTEGER);
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("literal_field"),
+        Arrays.asList(Types.INTEGER));
 
     BeamSqlRow record = new BeamSqlRow(resultType);
     record.addField("literal_field", 1);
