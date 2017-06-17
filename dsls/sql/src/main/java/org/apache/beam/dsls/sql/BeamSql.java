@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 package org.apache.beam.dsls.sql;
-
-import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
-import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
+//
+//import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
+//import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
@@ -105,35 +105,67 @@ public class BeamSql {
   /**
    * A {@link PTransform} representing an execution plan for a SQL query.
    */
+//<<<<<<< HEAD
   private static class QueryTransform extends
       PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
+//=======
+//  public static class QueryTransform extends PTransform<PCollectionTuple
+//    , PCollection<BeamSqlRow>> {
+    private BeamSqlEnv sqlEnv;
+//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
     private String sqlQuery;
+
     public QueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
+      sqlEnv = new BeamSqlEnv();
+    }
+
+    public QueryTransform(String sqlQuery, BeamSqlEnv sqlEnv) {
+      this.sqlQuery = sqlQuery;
+      this.sqlEnv = sqlEnv;
     }
 
     @Override
     public PCollection<BeamSqlRow> expand(PCollectionTuple input) {
-      //register tables
-      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
-        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
-        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
-
-        registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
-      }
+//<<<<<<< HEAD
+//      //register tables
+//      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
+//        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
+//        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
+//
+//        registerTable(sourceTag.getId(),
+//            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
+//      }
+//
+//      BeamRelNode beamRelNode = null;
+//      try {
+//        beamRelNode = planner.convertToBeamRel(sqlQuery);
+//=======
+      registerTables(input);
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = planner.convertToBeamRel(sqlQuery);
+        beamRelNode = sqlEnv.planner.convertToBeamRel(sqlQuery);
+//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
 
       try {
-        return beamRelNode.buildBeamPipeline(input);
+        return beamRelNode.buildBeamPipeline(input, sqlEnv);
       } catch (Exception e) {
         throw new IllegalStateException(e);
+      }
+    }
+
+  //register tables, related with input PCollections.
+    private void registerTables(PCollectionTuple input){
+      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
+        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
+        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
+
+        sqlEnv.registerTable(sourceTag.getId(),
+            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
       }
     }
   }
@@ -144,7 +176,9 @@ public class BeamSql {
    */
   private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
+    BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
+
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
     }
@@ -157,8 +191,13 @@ public class BeamSql {
     public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
-        sqlNode = planner.parseQuery(sqlQuery);
-        planner.getPlanner().close();
+//<<<<<<< HEAD
+//        sqlNode = planner.parseQuery(sqlQuery);
+//        planner.getPlanner().close();
+//=======
+        sqlNode = sqlEnv.planner.parseQuery(sqlQuery);
+        sqlEnv.planner.getPlanner().close();
+//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -167,7 +206,7 @@ public class BeamSql {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
         return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
-            .apply(BeamSql.query(sqlQuery));
+            .apply(new QueryTransform(sqlQuery, sqlEnv));
       } else {
         throw new UnsupportedOperationException(
             "Sql operation: " + sqlNode.toString() + " is not supported!");
