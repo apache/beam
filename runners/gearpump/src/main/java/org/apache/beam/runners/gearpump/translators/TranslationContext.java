@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -78,7 +79,7 @@ public class TranslationContext {
   }
 
   public PValue getInput() {
-    return Iterables.getOnlyElement(getInputs().values());
+    return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(getCurrentTransform()));
   }
 
   public Map<TupleTag<?>, PValue> getOutputs() {

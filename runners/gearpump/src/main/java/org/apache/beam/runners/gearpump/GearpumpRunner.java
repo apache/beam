@@ -23,6 +23,7 @@ import com.typesafe.config.ConfigValueFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.beam.runners.gearpump.translators.GearpumpPipelineTranslator;
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
 
 import org.apache.beam.sdk.Pipeline;

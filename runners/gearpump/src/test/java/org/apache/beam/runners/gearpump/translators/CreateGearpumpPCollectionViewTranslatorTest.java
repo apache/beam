@@ -23,7 +23,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.gearpump.GearpumpPipelineTranslator;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
@@ -38,8 +37,8 @@ public class CreateGearpumpPCollectionViewTranslatorTest {
     CreateGearpumpPCollectionViewTranslator translator =
         new CreateGearpumpPCollectionViewTranslator();
 
-    GearpumpPipelineTranslator.CreateGearpumpPCollectionView pCollectionView =
-        mock(GearpumpPipelineTranslator.CreateGearpumpPCollectionView.class);
+    CreateStreamingGearpumpView.CreateGearpumpPCollectionView pCollectionView =
+        mock(CreateStreamingGearpumpView.CreateGearpumpPCollectionView.class);
 
     JavaStream javaStream = mock(JavaStream.class);
     TranslationContext translationContext = mock(TranslationContext.class);
@@ -49,7 +48,7 @@ public class CreateGearpumpPCollectionViewTranslatorTest {
     when(translationContext.getInputStream(mockInput)).thenReturn(javaStream);
 
     PCollectionView view = mock(PCollectionView.class);
-    when(translationContext.getOutput()).thenReturn(view);
+    when(pCollectionView.getView()).thenReturn(view);
 
     translator.translate(pCollectionView, translationContext);
     verify(translationContext, times(1)).setOutputStream(view, javaStream);

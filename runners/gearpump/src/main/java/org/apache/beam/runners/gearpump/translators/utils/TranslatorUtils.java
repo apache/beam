@@ -52,6 +52,7 @@ public class TranslatorUtils {
   }
 
   public static Window boundedWindowToGearpumpWindow(BoundedWindow window) {
+    // Gearpump window upper bound is exclusive
     Instant end = TranslatorUtils.jodaTimeToJava8Time(window.maxTimestamp().plus(1L));
     if (window instanceof IntervalWindow) {
       IntervalWindow intervalWindow = (IntervalWindow) window;

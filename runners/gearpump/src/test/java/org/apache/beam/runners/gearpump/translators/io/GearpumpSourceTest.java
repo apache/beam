@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.gearpump.DefaultMessage;
@@ -42,10 +43,11 @@ import org.junit.Test;
 public class GearpumpSourceTest {
   private static final List<TimestampedValue<String>> TEST_VALUES =
       Lists.newArrayList(
-          TimestampedValue.of("a", new org.joda.time.Instant(Long.MIN_VALUE)),
+          TimestampedValue.of("a", BoundedWindow.TIMESTAMP_MIN_VALUE),
           TimestampedValue.of("b", new org.joda.time.Instant(0)),
           TimestampedValue.of("c", new org.joda.time.Instant(53)),
-          TimestampedValue.of("d", new org.joda.time.Instant(Long.MAX_VALUE - 1)));
+          TimestampedValue.of("d", BoundedWindow.TIMESTAMP_MAX_VALUE)
+      );
 
   private static class SourceForTest<T> extends GearpumpSource<T> {
     private ValuesSource<T> valuesSource;
@@ -72,10 +74,16 @@ public class GearpumpSourceTest {
         new SourceForTest<>(options, valuesSource);
     sourceForTest.open(null, Instant.EPOCH);
 
-    for (TimestampedValue<String> value : TEST_VALUES) {
+    for (int i = 0; i < TEST_VALUES.size(); i++) {
+      TimestampedValue<String> value = TEST_VALUES.get(i);
+
       // Check the watermark first since the Source will advance when it's opened
-      Instant expectedWaterMark = TranslatorUtils.jodaTimeToJava8Time(value.getTimestamp());
-      Assert.assertEquals(expectedWaterMark, sourceForTest.getWatermark());
+      if (i < TEST_VALUES.size() - 1) {
+        Instant expectedWaterMark = TranslatorUtils.jodaTimeToJava8Time(value.getTimestamp());
+        Assert.assertEquals(expectedWaterMark, sourceForTest.getWatermark());
+      } else {
+        Assert.assertEquals(Watermark.MAX(), sourceForTest.getWatermark());
+      }
 
       Message expectedMsg =
           new DefaultMessage(

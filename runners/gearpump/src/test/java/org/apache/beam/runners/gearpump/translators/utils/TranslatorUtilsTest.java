@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Lists;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -68,7 +67,7 @@ public class TranslatorUtilsTest {
             Instant.ofEpochMilli(Long.MAX_VALUE))));
     BoundedWindow globalWindow = GlobalWindow.INSTANCE;
     assertThat(TranslatorUtils.boundedWindowToGearpumpWindow(globalWindow),
-        equalTo(Window.apply(Instant.ofEpochMilli(Long.MIN_VALUE / 1000),
-            Instant.ofEpochMilli(Long.MAX_VALUE / 1000).minus(Duration.ofDays(1)).plusMillis(1))));
+        equalTo(Window.apply(Instant.ofEpochMilli(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
+            Instant.ofEpochMilli(globalWindow.maxTimestamp().getMillis() + 1))));
   }
 }

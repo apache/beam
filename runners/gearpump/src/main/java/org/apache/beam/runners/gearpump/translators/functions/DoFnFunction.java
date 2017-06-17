@@ -135,7 +135,6 @@ public class DoFnFunction<InputT, OutputT> extends
       }
     }
 
-
     for (PCollectionView<?> sideInput: sideInputs) {
       for (WindowedValue<InputT> value : pushedBackValues) {
         for (BoundedWindow win: value.getWindows()) {
