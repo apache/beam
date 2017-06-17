@@ -605,6 +605,11 @@ class TestOptions(PipelineOptions):
         help=('Verify state/output of e2e test pipeline. This is pickled '
               'version of the matcher which should extends '
               'hamcrest.core.base_matcher.BaseMatcher.'))
+    parser.add_argument(
+        '--dry_run',
+        default=False,
+        help=('Used in unit testing runners without submitting the '
+              'actual job.'))
 
   def validate(self, validator):
     errors = []
