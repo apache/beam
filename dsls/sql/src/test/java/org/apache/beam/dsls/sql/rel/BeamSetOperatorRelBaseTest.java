@@ -42,6 +42,8 @@ import org.junit.Test;
  * Test for {@code BeamSetOperatorRelBase}.
  */
 public class BeamSetOperatorRelBaseTest {
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   public static final Date THE_DATE = new Date();
@@ -57,7 +59,7 @@ public class BeamSetOperatorRelBaseTest {
   @BeforeClass
   public static void prepare() {
     THE_DATE.setTime(100000);
-    BeamSqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
+    sqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
   }
 
   @Test
@@ -71,7 +73,7 @@ public class BeamSetOperatorRelBaseTest {
         + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     List<BeamSqlRow> expRows =
         MockedBeamSqlTable.of(
         SqlTypeName.BIGINT, "order_id",
@@ -100,7 +102,7 @@ public class BeamSetOperatorRelBaseTest {
     // use a real pipeline rather than the TestPipeline because we are
     // testing exceptions, the pipeline will not actually run.
     Pipeline pipeline1 = Pipeline.create(PipelineOptionsFactory.create());
-    BeamSqlCli.compilePipeline(sql, pipeline1);
+    BeamSqlCli.compilePipeline(sql, pipeline1, sqlEnv);
     pipeline.run();
   }
 

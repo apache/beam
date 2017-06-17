@@ -34,6 +34,8 @@ import org.junit.Test;
  * Test for {@code BeamUnionRel}.
  */
 public class BeamUnionRelTest {
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   private static MockedBeamSqlTable orderDetailsTable = MockedBeamSqlTable
@@ -46,7 +48,7 @@ public class BeamUnionRelTest {
 
   @BeforeClass
   public static void prepare() {
-    BeamSqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
+    sqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
   }
 
   @Test
@@ -58,7 +60,7 @@ public class BeamUnionRelTest {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS ";
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
@@ -81,7 +83,7 @@ public class BeamUnionRelTest {
         + " SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS";
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",

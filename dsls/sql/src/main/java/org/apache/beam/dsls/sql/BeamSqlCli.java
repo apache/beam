@@ -17,8 +17,6 @@
  */
 package org.apache.beam.dsls.sql;
 
-import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
-
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
@@ -33,12 +31,11 @@ import org.apache.calcite.plan.RelOptUtil;
  */
 @Experimental
 public class BeamSqlCli {
-
   /**
    * Returns a human readable representation of the query execution plan.
    */
-  public static String explainQuery(String sqlString) throws Exception {
-    BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
+  public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv) throws Exception {
+    BeamRelNode exeTree = sqlEnv.planner.convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -46,22 +43,23 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement) throws Exception{
+  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, BeamSqlEnv sqlEnv)
+      throws Exception{
     PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
         .as(PipelineOptions.class); // FlinkPipelineOptions.class
     options.setJobName("BeamPlanCreator");
     Pipeline pipeline = Pipeline.create(options);
 
-    return compilePipeline(sqlStatement, pipeline);
+    return compilePipeline(sqlStatement, pipeline, sqlEnv);
   }
 
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline)
-      throws Exception{
+  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline
+      , BeamSqlEnv sqlEnv) throws Exception{
     PCollection<BeamSqlRow> resultStream =
-        planner.compileBeamPipeline(sqlStatement, basePipeline);
+        sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }
 }
