@@ -18,7 +18,6 @@
 """Pipeline options obtained from command line parsing."""
 
 import argparse
-import warnings
 
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.options.value_provider import StaticValueProvider
@@ -279,14 +278,6 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
-  # TODO(BEAM-1265): Remove this warning, once at least one runner supports
-  # streaming pipelines.
-  def validate(self, validator):
-    errors = []
-    if self.view_as(StandardOptions).streaming:
-      warnings.warn('Streaming pipelines are not supported.')
-    return errors
-
 
 class TypeOptions(PipelineOptions):
 
@@ -474,7 +465,14 @@ class WorkerOptions(PipelineOptions):
     parser.add_argument(
         '--use_public_ips',
         default=None,
-        help='Whether to assign public IP addresses to the worker machines.')
+        action='store_true',
+        help='Whether to assign public IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--no_use_public_ips',
+        dest='use_public_ips',
+        default=None,
+        action='store_false',
+        help='Whether to assign only private IP addresses to the worker VMs.')
 
   def validate(self, validator):
     errors = []
@@ -553,6 +551,14 @@ class SetupOptions(PipelineOptions):
          'During job submission a source distribution will be built and the '
          'worker will install the resulting package before running any custom '
          'code.'))
+    parser.add_argument(
+        '--beam_plugins',
+        default=None,
+        help=
+        ('Bootstrap the python process before executing any code by importing '
+         'all the plugins used in the pipeline. Please pass a comma separated'
+         'list of import paths to be included. This is currently an '
+         'experimental flag and provides no stability.'))
     parser.add_argument(
         '--save_main_session',
         default=False,

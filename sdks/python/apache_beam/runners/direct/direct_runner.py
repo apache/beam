@@ -26,21 +26,44 @@ from __future__ import absolute_import
 import collections
 import logging
 
+from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.options.pipeline_options import DirectOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 __all__ = ['DirectRunner']
 
 
+# Type variables.
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
+
+
+@typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
+@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
+  """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
+  pass
+
+
 class DirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
+
+  # A list of PTransformOverride objects to be applied before running a pipeline
+  # using DirectRunner.
+  # Currently this only works for overrides where the input and output types do
+  # not change.
+  # For internal SDK use only. This should not be updated by Beam pipeline
+  # authors.
+  _PTRANSFORM_OVERRIDES = []
 
   def __init__(self):
     self._cache = None
@@ -56,8 +79,24 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
+  def apply__GroupAlsoByWindow(self, transform, pcoll):
+    if (transform.__class__ == _GroupAlsoByWindow and
+        pcoll.pipeline._options.view_as(StandardOptions).streaming):
+      # Use specialized streaming implementation, if requested.
+      raise NotImplementedError(
+          'Streaming support is not yet available on the DirectRunner.')
+      # TODO(ccy): enable when streaming implementation is plumbed through.
+      # type_hints = transform.get_type_hints()
+      # return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
+      #                 .with_input_types(*type_hints.input_types[0])
+      #                 .with_output_types(*type_hints.output_types[0]))
+    return transform.expand(pcoll)
+
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
+
+    # Performing configured PTransform overrides.
+    pipeline.replace_all(DirectRunner._PTRANSFORM_OVERRIDES)
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.

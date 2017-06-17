@@ -33,7 +33,7 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.portability.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
@@ -179,7 +179,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         # into the sdk worker, or an injection of the source object into the
         # sdk worker as data followed by an SDF that reads that source.
         if (isinstance(operation.source.source,
-                       worker_runner_base.InMemorySource)
+                       maptask_executor_runner.InMemorySource)
             and isinstance(operation.source.source.default_output_coder(),
                            WindowedValueCoder)):
           output_stream = create_OutputStream()
@@ -264,11 +264,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             element_coder.get_impl().encode_to_stream(
                 element, output_stream, True)
           elements_data = output_stream.get()
-          state_key = beam_fn_api_pb2.StateKey(function_spec_reference=view_id)
+          state_key = beam_fn_api_pb2.StateKey(key=view_id)
           state_handler.Clear(state_key)
-          state_handler.Append(
-              beam_fn_api_pb2.SimpleStateAppendRequest(
-                  state_key=state_key, data=[elements_data]))
+          state_handler.Append(state_key, elements_data)
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         fn = sdk_worker.pack_function_spec_data(
@@ -382,9 +380,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       return beam_fn_api_pb2.Elements.Data(
           data=''.join(self._all[self._to_key(state_key)]))
 
-    def Append(self, append_request):
-      self._all[self._to_key(append_request.state_key)].extend(
-          append_request.data)
+    def Append(self, state_key, data):
+      self._all[self._to_key(state_key)].extend(data)
 
     def Clear(self, state_key):
       try:
@@ -394,8 +391,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     @staticmethod
     def _to_key(state_key):
-      return (state_key.function_spec_reference, state_key.window,
-              state_key.key)
+      return state_key.window, state_key.key
 
   class DirectController(object):
     """An in-memory controller for fn API control, state and data planes."""

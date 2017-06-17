@@ -46,6 +46,8 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.utils.plugin import BeamPlugin
 
 
 __all__ = ['DataflowRunner']
@@ -226,6 +228,14 @@ class DataflowRunner(PipelineRunner):
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
+
+    # Add setup_options for all the BeamPlugin imports
+    setup_options = pipeline._options.view_as(SetupOptions)
+    plugins = BeamPlugin.get_all_plugin_paths()
+    if setup_options.beam_plugins is not None:
+      plugins = list(set(plugins + setup_options.beam_plugins.split(',')))
+    setup_options.beam_plugins = plugins
+
     self.job = apiclient.Job(pipeline._options)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
@@ -732,7 +742,7 @@ class DataflowRunner(PipelineRunner):
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
     windowing_proto = windowing.to_runner_api(context)
     return cls.byte_array_to_json_string(
@@ -745,7 +755,7 @@ class DataflowRunner(PipelineRunner):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.runners import pipeline_context
-    from apache_beam.portability.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     from apache_beam.transforms.core import Windowing
     proto = beam_runner_api_pb2.MessageWithComponents()
     proto.ParseFromString(cls.json_string_to_byte_array(serialized_data))
