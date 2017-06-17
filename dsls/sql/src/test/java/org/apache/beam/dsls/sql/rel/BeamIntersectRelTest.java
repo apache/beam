@@ -34,6 +34,8 @@ import org.junit.Test;
  * Test for {@code BeamIntersectRel}.
  */
 public class BeamIntersectRelTest {
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   private static MockedBeamSqlTable orderDetailsTable1 = MockedBeamSqlTable
@@ -57,8 +59,8 @@ public class BeamIntersectRelTest {
 
   @BeforeClass
   public static void setUp() {
-    BeamSqlEnv.registerTable("ORDER_DETAILS1", orderDetailsTable1);
-    BeamSqlEnv.registerTable("ORDER_DETAILS2", orderDetailsTable2);
+    sqlEnv.registerTable("ORDER_DETAILS1", orderDetailsTable1);
+    sqlEnv.registerTable("ORDER_DETAILS2", orderDetailsTable2);
   }
 
   @Test
@@ -70,7 +72,7 @@ public class BeamIntersectRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
         SqlTypeName.BIGINT, "order_id",
@@ -93,7 +95,7 @@ public class BeamIntersectRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows).containsInAnyOrder(

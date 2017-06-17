@@ -74,7 +74,6 @@ public class CalciteUtils {
 
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
-   * @return
    */
   public static SqlTypeName getFieldType(BeamSqlRecordType schema, int index) {
     return toCalciteType(schema.getFieldsType().get(index));

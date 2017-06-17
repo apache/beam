@@ -56,18 +56,17 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
    * which is the persisted PCollection.
    */
   @Override
-  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
-      throws Exception {
-
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
+      , BeamSqlEnv sqlEnv) throws Exception {
     RelNode input = getInput();
     String stageName = BeamSqlRelUtils.getStageName(this);
 
     PCollection<BeamSqlRow> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections);
+        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
-    BaseBeamTable targetTable = BeamSqlEnv.findTable(sourceName);
+    BaseBeamTable targetTable = sqlEnv.findTable(sourceName);
 
     PDone streamEnd = upstream.apply(stageName, targetTable.buildIOWriter());
 
