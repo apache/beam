@@ -63,6 +63,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLnExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
@@ -277,6 +278,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
         case "SIGN":
           ret = new BeamSqlSignExpression(subExps);
+          break;
+        case "POWER":
+          ret = new BeamSqlPowerExpression(subExps);
+          break;
+        case "POW":
+          ret = new BeamSqlPowerExpression(subExps);
           break;
 
         // string operators

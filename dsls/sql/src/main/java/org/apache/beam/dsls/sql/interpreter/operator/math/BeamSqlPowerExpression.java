@@ -50,7 +50,7 @@ public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
           .power(SqlFunctions.toDouble(leftOp.getValue()),
               SqlFunctions.toDouble(rightOp.getValue())));
 
-    } else if (SqlTypeName.BIGINT.equals(leftOp.getOutputType()) && SqlTypeName.DECIMAL
+    } else if (SqlTypeName.INT_TYPES.equals(leftOp.getOutputType()) && SqlTypeName.DECIMAL
         .equals(rightOp.getOutputType())) {
 
       result = BeamSqlPrimitive.of(SqlTypeName.DOUBLE,
