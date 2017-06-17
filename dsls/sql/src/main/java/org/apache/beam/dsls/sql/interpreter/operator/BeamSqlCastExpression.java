@@ -22,7 +22,6 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.List;
 
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -105,7 +104,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
         return BeamSqlPrimitive.of(castOutputType,
             toTimeStamp(opValueEvaluated(index, inputRecord), outputTimestampFormat));
     }
-    throw new BeamSqlUnsupportedException(
+    throw new RuntimeException(
         String.format("Cast to type %s not supported", castOutputType));
   }
 

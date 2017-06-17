@@ -21,6 +21,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
@@ -92,6 +93,14 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(record).getValue());
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "17-05-21 23:59:59.989"));
+    Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
+        new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(record).getValue());
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testForCastTypeNotSupported() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, Calendar.getInstance().getTime()));
     Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(record).getValue());
   }
