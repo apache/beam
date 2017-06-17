@@ -57,7 +57,6 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
 
   /**
    * The method to check whether operands are numeric or not.
-   * @param opType
    */
   public boolean isOperandNumeric(SqlTypeName opType) {
     return SqlTypeName.NUMERIC_TYPES.contains(opType);

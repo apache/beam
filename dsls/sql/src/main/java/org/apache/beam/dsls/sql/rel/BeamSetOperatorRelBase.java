@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.io.Serializable;
 import java.util.List;
-
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -62,12 +62,12 @@ public class BeamSetOperatorRelBase {
     this.all = all;
   }
 
-  public PCollection<BeamSqlRow> buildBeamPipeline(
-      PCollectionTuple inputPCollections) throws Exception {
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
+      , BeamSqlEnv sqlEnv) throws Exception {
     PCollection<BeamSqlRow> leftRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(0))
-        .buildBeamPipeline(inputPCollections);
+        .buildBeamPipeline(inputPCollections, sqlEnv);
     PCollection<BeamSqlRow> rightRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(1))
-        .buildBeamPipeline(inputPCollections);
+        .buildBeamPipeline(inputPCollections, sqlEnv);
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();

@@ -40,9 +40,8 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
-      throws Exception {
-
+  public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
+      , BeamSqlEnv sqlEnv) throws Exception {
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
     String stageName = BeamSqlRelUtils.getStageName(this);
@@ -55,7 +54,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
       return sourceStream;
     } else {
       //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-      BaseBeamTable sourceTable = BeamSqlEnv.findTable(sourceName);
+      BaseBeamTable sourceTable = sqlEnv.findTable(sourceName);
       return sourceTable.buildIOReader(inputPCollections.getPipeline());
     }
   }

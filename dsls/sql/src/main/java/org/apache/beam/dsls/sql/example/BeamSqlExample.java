@@ -63,13 +63,13 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<BeamSqlRow> outputStream = inputTable.apply(
-        BeamSql.simpleQuery("select c2, c3 from TABLE_A where c1=1"));
+        BeamSql.simpleQuery("select c2, c3 from PCOLLECTION where c1=1"));
 
     //log out the output record;
     outputStream.apply("log_result",
         MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
       public Void apply(BeamSqlRow input) {
-        System.out.println("TABLE_A: " + input);
+        System.out.println("PCOLLECTION: " + input);
         return null;
       }
     }));

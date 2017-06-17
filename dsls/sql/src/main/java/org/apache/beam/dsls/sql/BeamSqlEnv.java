@@ -42,10 +42,10 @@ import org.apache.calcite.tools.Frameworks;
  * a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
 public class BeamSqlEnv {
-  static SchemaPlus schema;
-  static BeamQueryPlanner planner;
+  SchemaPlus schema;
+  BeamQueryPlanner planner;
 
-  static {
+  public BeamSqlEnv() {
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(schema);
   }
@@ -53,7 +53,7 @@ public class BeamSqlEnv {
   /**
    * Register a UDF function which can be used in SQL expression.
    */
-  public static void registerUdf(String functionName, Class<?> clazz, String methodName) {
+  public void registerUdf(String functionName, Class<?> clazz, String methodName) {
     schema.add(functionName, ScalarFunctionImpl.create(clazz, methodName));
   }
 
@@ -61,7 +61,7 @@ public class BeamSqlEnv {
    * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
    *
    */
-  public static void registerTable(String tableName, BaseBeamTable table) {
+  public void registerTable(String tableName, BaseBeamTable table) {
     schema.add(tableName, new BeamCalciteTable(table.getRecordType()));
     planner.getSourceTables().put(tableName, table);
   }
@@ -69,7 +69,7 @@ public class BeamSqlEnv {
   /**
    * Find {@link BaseBeamTable} by table name.
    */
-  public static BaseBeamTable findTable(String tableName){
+  public BaseBeamTable findTable(String tableName){
     return planner.getSourceTables().get(tableName);
   }
 
