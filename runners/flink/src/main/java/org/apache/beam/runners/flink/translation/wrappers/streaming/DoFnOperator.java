@@ -324,9 +324,9 @@ public class DoFnOperator<InputT, OutputT>
     maxBundleTime = options.getMaxBundleTime();
     bundleCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+
     // Schedule timer to check timeout of finish bundle.
-    // Period is maxBundleTime/2 to ensure that there is at least once a finishBundle
-    // within maxBundleTime.
+    long bundleCheckPeriod = maxBundleTime / 2 + (maxBundleTime % 2);
     checkFinishBundleTimer = getProcessingTimeService().scheduleAtFixedRate(
         new ProcessingTimeCallback() {
           @Override
@@ -334,9 +334,7 @@ public class DoFnOperator<InputT, OutputT>
             checkInvokeFinishBundleByTime();
           }
         },
-        maxBundleTime / 2,
-        maxBundleTime / 2
-    );
+        bundleCheckPeriod, bundleCheckPeriod);
 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
