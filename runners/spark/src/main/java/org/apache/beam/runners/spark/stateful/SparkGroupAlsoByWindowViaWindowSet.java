@@ -109,9 +109,10 @@ public class SparkGroupAlsoByWindowViaWindowSet {
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,
           final SparkRuntimeContext runtimeContext,
-          final List<Integer> sourceIds,
-          final Long batchDurationMillis) {
+          final List<Integer> sourceIds) {
 
+    final long batchDurationMillis =
+        runtimeContext.getPipelineOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis();
     final IterableCoder<WindowedValue<InputT>> itrWvCoder = IterableCoder.of(wvCoder);
     final Coder<InputT> iCoder = ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder();
     final Coder<? extends BoundedWindow> wCoder =

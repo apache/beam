@@ -33,7 +33,6 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -305,8 +304,7 @@ public final class StreamingTransformTranslator {
                 wvCoder,
                 windowingStrategy,
                 runtimeContext,
-                streamSources,
-                ((SparkPipelineOptions) context.getOptions()).getBatchIntervalMillis());
+                streamSources);
 
         context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
       }
