@@ -54,8 +54,20 @@ import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpressio
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAcosExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAsinExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCotExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLnExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlTanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -229,6 +241,42 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
         case "ROUND":
           ret = new BeamSqlRoundExpression(subExps);
+          break;
+        case "LN":
+          ret = new BeamSqlLnExpression(subExps);
+          break;
+        case "LOG10":
+          ret = new BeamSqlLogExpression(subExps);
+          break;
+        case "EXP":
+          ret = new BeamSqlExpExpression(subExps);
+          break;
+        case "ACOS":
+          ret = new BeamSqlAcosExpression(subExps);
+          break;
+        case "ASIN":
+          ret = new BeamSqlAsinExpression(subExps);
+          break;
+        case "ATAN":
+          ret = new BeamSqlAtanExpression(subExps);
+          break;
+        case "COT":
+          ret = new BeamSqlCotExpression(subExps);
+          break;
+        case "DEGREES":
+          ret = new BeamSqlDegreesExpression(subExps);
+          break;
+        case "RADIANS":
+          ret = new BeamSqlRadiansExpression(subExps);
+          break;
+        case "SIN":
+          ret = new BeamSqlSinExpression(subExps);
+          break;
+        case "TAN":
+          ret = new BeamSqlTanExpression(subExps);
+          break;
+        case "SIGN":
+          ret = new BeamSqlSignExpression(subExps);
           break;
 
         // string operators
