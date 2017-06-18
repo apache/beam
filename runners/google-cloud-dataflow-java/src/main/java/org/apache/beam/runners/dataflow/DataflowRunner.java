@@ -67,6 +67,7 @@ import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
+import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -1464,9 +1465,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         numShards = DEFAULT_NUM_SHARDS;
       }
 
-      return PTransformReplacement.of(
+      try {
+        WriteFiles<T> replacement = WriteFiles.to(WriteFilesTranslation.getSink(transform));
+        if (WriteFilesTranslation.isWindowedWrites(transform)) {
+          replacement = replacement.withWindowedWrites();
+        }
+        return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            transform.getTransform().withNumShards(numShards));
+            replacement.withNumShards(numShards));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
