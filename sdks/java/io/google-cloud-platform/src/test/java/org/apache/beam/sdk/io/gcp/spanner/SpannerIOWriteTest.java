@@ -61,7 +61,7 @@ import org.mockito.Matchers;
  * Unit tests for {@link SpannerIO}.
  */
 @RunWith(JUnit4.class)
-public class SpannerIOTest implements Serializable {
+public class SpannerIOWriteTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
