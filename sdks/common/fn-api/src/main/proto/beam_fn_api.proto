@@ -67,43 +67,47 @@ message Target {
   string name = 2;
 }
 
-// Information defining a PCollection
+// (Deprecated) Information defining a PCollection
+//
+// Migrate to Runner API.
 message PCollection {
   // (Required) A reference to a coder.
-  string coder_reference = 1;
+  string coder_reference = 1 [deprecated = true];
 
   // TODO: Windowing strategy, ...
 }
 
-// A primitive transform within Apache Beam.
+// (Deprecated) A primitive transform within Apache Beam.
+//
+// Migrate to Runner API.
 message PrimitiveTransform {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  string id = 1;
+  string id = 1 [deprecated = true];
 
   // (Required) A function spec that is used by this primitive
   // transform to process data.
-  FunctionSpec function_spec = 2;
+  FunctionSpec function_spec = 2 [deprecated = true];
 
   // A map of distinct input names to target definitions.
   // For example, in CoGbk this represents the tag name associated with each
   // distinct input name and a list of primitive transforms that are associated
   // with the specified input.
-  map<string, Target.List> inputs = 3;
+  map<string, Target.List> inputs = 3 [deprecated = true];
 
   // A map from local output name to PCollection definitions. For example, in
   // DoFn this represents the tag name associated with each distinct output.
-  map<string, PCollection> outputs = 4;
+  map<string, PCollection> outputs = 4 [deprecated = true];
 
   // TODO: Should we model side inputs as a special type of input for a
   // primitive transform or should it be modeled as the relationship that
   // the predecessor input will be a view primitive transform.
   // A map of from side input names to side inputs.
-  map<string, SideInput> side_inputs = 5;
+  map<string, SideInput> side_inputs = 5 [deprecated = true];
 
   // The user name of this step.
   // TODO: This should really be in display data and not at this level
-  string step_name = 6;
+  string step_name = 6 [deprecated = true];
 }
 
 /*
@@ -112,13 +116,14 @@ message PrimitiveTransform {
  * This is still unstable mainly due to how we model the side input.
  */
 
-// Defines the common elements of user-definable functions, to allow the SDK to
-// express the information the runner needs to execute work.
-// Stable
+// (Deprecated) Defines the common elements of user-definable functions,
+// to allow the SDK to express the information the runner needs to execute work.
+//
+// Migrate to Runner API.
 message FunctionSpec {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  string id = 1;
+  string id = 1 [deprecated = true];
 
   // (Required) A globally unique name representing this user definable
   // function.
@@ -128,30 +133,31 @@ message FunctionSpec {
   //
   // For example:
   //    urn:org.apache.beam:coder:kv:1.0
-  string urn = 2;
+  string urn = 2 [deprecated = true];
 
   // (Required) Reference to specification of execution environment required to
   // invoke this function.
-  string environment_reference = 3;
+  string environment_reference = 3 [deprecated = true];
 
   // Data used to parameterize this function. Depending on the urn, this may be
   // optional or required.
-  google.protobuf.Any data = 4;
+  google.protobuf.Any data = 4 [deprecated = true];
 }
 
+// (Deprecated) Migrate to Runner API.
 message SideInput {
   // TODO: Coder?
 
   // For RunnerAPI.
-  Target input = 1;
+  Target input = 1 [deprecated = true];
 
   // For FnAPI.
-  FunctionSpec view_fn = 2;
+  FunctionSpec view_fn = 2 [deprecated = true];
 }
 
-// Defines how to encode values into byte streams and decode values from byte
-// streams. A coder can be parameterized by additional properties which may or
-// may not be language agnostic.
+// (Deprecated) Defines how to encode values into byte streams and decode
+// values from byte streams. A coder can be parameterized by additional
+// properties which may or may not be language agnostic.
 //
 // Coders using the urn:org.apache.beam:coder namespace must have their
 // encodings registered such that another may implement the encoding within
@@ -160,14 +166,15 @@ message SideInput {
 // For example:
 //    urn:org.apache.beam:coder:kv:1.0
 //    urn:org.apache.beam:coder:iterable:1.0
-// Stable
+//
+// Migrate to Runner API.
 message Coder {
   // TODO: This looks weird when compared to the other function specs
   // which use URN to differentiate themselves. Should "Coder" be embedded
   // inside the FunctionSpec data block.
 
   // The data associated with this coder used to reconstruct it.
-  FunctionSpec function_spec = 1;
+  FunctionSpec function_spec = 1 [deprecated = true];
 
   // A list of component coder references.
   //
@@ -180,7 +187,7 @@ message Coder {
   //
   // TODO: Perhaps this is redundant with the data of the FunctionSpec
   // for known coders?
-  repeated string component_coder_reference = 2;
+  repeated string component_coder_reference = 2 [deprecated = true];
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -273,10 +280,14 @@ message ProcessBundleDescriptor {
 
   // (Deprecated) A list of primitive transforms that should
   // be used to construct the bundle processing graph.
-  repeated PrimitiveTransform primitive_transform = 2;
+  //
+  // Migrate to Runner API definitions found within transforms field.
+  repeated PrimitiveTransform primitive_transform = 2 [deprecated = true];
 
   // (Deprecated) The set of all coders referenced in this bundle.
-  repeated Coder coders = 4;
+  //
+  // Migrate to Runner API defintions found within codersyyy field.
+  repeated Coder coders = 4 [deprecated = true];
 
   // (Required) A map from pipeline-scoped id to PTransform.
   map<string, org.apache.beam.runner_api.v1.PTransform> transforms = 5;
@@ -303,9 +314,9 @@ message ProcessBundleRequest {
   // instantiated and executed by the SDK harness.
   string process_bundle_descriptor_reference = 1;
 
-  // (Optional) A list of cache tokens that can be used by an SDK to cache
-  // data looked up using the State API across multiple bundles.
-  repeated CacheToken cache_tokens = 2;
+  // (Optional) A list of cache tokens that can be used by an SDK to reuse
+  // cached data returned by the State API across multiple bundles.
+  repeated bytes cache_tokens = 2;
 }
 
 // Stable
@@ -528,6 +539,10 @@ message StateResponse {
   // failed.
   string error = 2;
 
+  // (Optional) If this is specified, then the result of this state request
+  // can be cached using the supplied token.
+  bytes cache_token = 3;
+
   // A corresponding response matching the request will be populated.
   oneof response {
     // A response to getting state.
@@ -553,49 +568,44 @@ service BeamFnState {
   ) {}
 }
 
-message CacheToken {
-  // (Required) Represents the function spec and tag associated with this state
-  // key.
-  //
-  // By combining the function_spec_reference with the tag representing:
-  //   * the input, we refer to the iterable portion of a large GBK
-  //   * the side input, we refer to the side input
-  //   * the user state, we refer to user state
-  Target target = 1;
-
-  // (Required) An opaque identifier.
-  bytes token = 2;
-}
-
 message StateKey {
-  // (Required) Represents the function spec and tag associated with this state
-  // key.
-  //
-  // By combining the function_spec_reference with the tag representing:
-  //   * the input, we refer to fetching the iterable portion of a large GBK
-  //   * the side input, we refer to fetching the side input
-  //   * the user state, we refer to fetching user state
-  Target target = 1;
+  message Runner {
+    // (Required) Opaque information supplied by the runner. Used to support
+    // remote references.
+    bytes key = 1;
+  }
 
-  // (Required) The bytes of the window which this state request is for encoded
-  // in the nested context.
-  bytes window = 2;
+  message MultimapSideInput {
+    // (Required) The id of the PTransform containing a side input.
+    string ptransform_id = 1;
+    // (Required) The id of the side input.
+    string side_input_id = 2;
+    // (Required) The window (after mapping the currently executing elements
+    // window into the side input windows domain) encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key encoded in a nested context.
+    bytes key = 4;
+  }
 
-  // (Required) The user key encoded in the nested context.
-  bytes key = 3;
-}
+  message BagUserState {
+    // (Required) The id of the PTransform containing user state.
+    string ptransform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context. 
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+  }
 
-// A logical byte stream which can be continued using the state API.
-message ContinuableStream {
-  // (Optional) If specified, represents a token which can be used with the
-  // state API to get the next chunk of this logical byte stream. The end of
-  // the logical byte stream is signalled by this field being unset.
-  bytes continuation_token = 1;
-
-  // Represents a part of a logical byte stream. Elements within
-  // the logical byte stream are encoded in the nested context and
-  // concatenated together.
-  bytes data = 2;
+  // (Required) One of the following state keys must be set.
+  oneof type {
+    Runner runner = 1;
+    MultimapSideInput multimap_side_input = 2;
+    BagUserState bag_user_state = 3;
+    // TODO: represent a state key for user map state
+  }
 }
 
 // A request to get state.
@@ -608,10 +618,18 @@ message StateGetRequest {
   bytes continuation_token = 1;
 }
 
-// A response to get state.
+// A response to get state representing a logical byte stream which can be
+// continued using the state API.
 message StateGetResponse {
-  // (Required) The response containing a continuable logical byte stream.
-  ContinuableStream stream = 1;
+  // (Optional) If specified, represents a token which can be used with the
+  // state API to get the next chunk of this logical byte stream. The end of
+  // the logical byte stream is signalled by this field being unset.
+  bytes continuation_token = 1;
+
+  // Represents a part of a logical byte stream. Elements within
+  // the logical byte stream are encoded in the nested context and
+  // concatenated together.
+  bytes data = 2;
 }
 
 // A request to append state.

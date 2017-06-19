@@ -39,6 +39,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
+from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
 from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
@@ -46,6 +47,9 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.utils.plugin import BeamPlugin
 
 
 __all__ = ['DataflowRunner']
@@ -66,6 +70,16 @@ class DataflowRunner(PipelineRunner):
   # are expected by the workers.
   BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
   STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
+
+  # A list of PTransformOverride objects to be applied before running a pipeline
+  # using DataflowRunner.
+  # Currently this only works for overrides where the input and output types do
+  # not change.
+  # For internal SDK use only. This should not be updated by Beam pipeline
+  # authors.
+  _PTRANSFORM_OVERRIDES = [
+      CreatePTransformOverride(),
+  ]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -215,7 +229,6 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  # TODO(mariagh): Make this method take pipepline_options
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -226,6 +239,17 @@ class DataflowRunner(PipelineRunner):
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
+
+    # Performing configured PTransform overrides.
+    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    # Add setup_options for all the BeamPlugin imports
+    setup_options = pipeline._options.view_as(SetupOptions)
+    plugins = BeamPlugin.get_all_plugin_paths()
+    if setup_options.beam_plugins is not None:
+      plugins = list(set(plugins + setup_options.beam_plugins.split(',')))
+    setup_options.beam_plugins = plugins
+
     self.job = apiclient.Job(pipeline._options)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
@@ -238,6 +262,11 @@ class DataflowRunner(PipelineRunner):
 
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
+
+    test_options = pipeline._options.view_as(TestOptions)
+    # If it is a dry run, return without submitting the job.
+    if test_options.dry_run:
+      return None
 
     standard_options = pipeline._options.view_as(StandardOptions)
     if standard_options.streaming:
@@ -359,6 +388,26 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     return step
+
+  def run_Impulse(self, transform_node):
+    standard_options = (
+        transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
+    if standard_options.streaming:
+      step = self._add_step(
+          TransformNames.READ, transform_node.full_label, transform_node)
+      step.add_property(PropertyNames.FORMAT, 'pubsub')
+      step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
+
+      step.encoding = self._get_encoded_output_coder(transform_node)
+      step.add_property(
+          PropertyNames.OUTPUT_INFO,
+          [{PropertyNames.USER_NAME: (
+              '%s.%s' % (
+                  transform_node.full_label, PropertyNames.OUT)),
+            PropertyNames.ENCODING: step.encoding,
+            PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    else:
+      ValueError('Impulse source for batch pipelines has not been defined.')
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,

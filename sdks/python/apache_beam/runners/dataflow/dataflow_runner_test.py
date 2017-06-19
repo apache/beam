@@ -59,7 +59,8 @@ class DataflowRunnerTest(unittest.TestCase):
       '--project=test-project',
       '--staging_location=ignored',
       '--temp_location=/dev/null',
-      '--no_auth=True']
+      '--no_auth=True',
+      '--dry_run=True']
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
@@ -108,8 +109,25 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
      | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
      | ptransform.GroupByKey())
+    p.run()
+
+  def test_streaming_create_translation(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append("--streaming")
+    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
+    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     remote_runner.job = apiclient.Job(p._options)
+    # Performing configured PTransform overrides here.
+    p.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
     super(DataflowRunner, remote_runner).run(p)
+    job_dict = json.loads(str(remote_runner.job))
+    self.assertEqual(len(job_dict[u'steps']), 2)
+
+    self.assertEqual(job_dict[u'steps'][0][u'kind'], u'ParallelRead')
+    self.assertEqual(
+        job_dict[u'steps'][0][u'properties'][u'pubsub_subscription'],
+        '_starting_signal/')
+    self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -142,8 +160,7 @@ class DataflowRunnerTest(unittest.TestCase):
     (p | ptransform.Create([1, 2, 3, 4, 5])
      | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
-    remote_runner.job = apiclient.Job(p._options)
-    super(DataflowRunner, remote_runner).run(p)
+    p.run()
     job_dict = json.loads(str(remote_runner.job))
     steps = [step
              for step in job_dict['steps']
