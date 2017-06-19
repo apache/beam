@@ -264,7 +264,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             element_coder.get_impl().encode_to_stream(
                 element, output_stream, True)
           elements_data = output_stream.get()
-          state_key = beam_fn_api_pb2.StateKey(key=view_id)
+          state_key = beam_fn_api_pb2.StateKey.MultimapSideInput(key=view_id)
           state_handler.Clear(state_key)
           state_handler.Append(state_key, elements_data)
 
