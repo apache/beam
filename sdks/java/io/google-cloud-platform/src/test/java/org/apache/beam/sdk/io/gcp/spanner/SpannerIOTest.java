@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -42,6 +45,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
 import org.junit.Rule;
@@ -229,6 +233,23 @@ public class SpannerIOTest implements Serializable {
         .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
     verify(serviceFactory.mockDatabaseClient(), times(1))
         .writeAtLeastOnce(argThat(new IterableOfSize(3)));
+  }
+
+  @Test
+  public void displayData() throws Exception {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123);
+
+    DisplayData data = DisplayData.from(write);
+    assertThat(data.items(), hasSize(4));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
   }
 
   private static class FakeServiceFactory
