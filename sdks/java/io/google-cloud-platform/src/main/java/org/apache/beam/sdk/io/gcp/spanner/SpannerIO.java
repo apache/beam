@@ -132,7 +132,7 @@ public class SpannerIO {
     abstract ValueProvider<String> getDatabaseId();
 
     @Nullable
-    abstract ValueProvider<Long> getBatchSizeBytes();
+    abstract Long getBatchSizeBytes();
 
     @Nullable
     @VisibleForTesting
@@ -149,7 +149,7 @@ public class SpannerIO {
 
       abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
-      abstract Builder setBatchSizeBytes(ValueProvider<Long> batchSizeBytes);
+      abstract Builder setBatchSizeBytes(Long batchSizeBytes);
 
       @VisibleForTesting
       abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
@@ -190,10 +190,6 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withBatchSizeBytes(long batchSizeBytes) {
-      return withBatchSizeBytes(ValueProvider.StaticValueProvider.of(batchSizeBytes));
-    }
-
-    public Write withBatchSizeBytes(ValueProvider<Long> batchSizeBytes) {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
 
@@ -318,7 +314,7 @@ public class SpannerIO {
       MutationGroup m = c.element();
       mutations.add(m);
       batchSizeBytes += MutationSizeEstimator.sizeOf(m);
-      if (batchSizeBytes >= spec.getBatchSizeBytes().get()) {
+      if (batchSizeBytes >= spec.getBatchSizeBytes()) {
         flushBatch();
       }
     }
