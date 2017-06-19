@@ -93,7 +93,12 @@
 
     <dependency>
       <groupId>com.google.api</groupId>
-      <artifactId>api-common</artifactId>
+      <artifactId>gax-grpc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-core-grpc</artifactId>
     </dependency>
 
     <dependency>
@@ -255,11 +260,16 @@
 
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-text</artifactId>
-      <scope>test</scope>
+      <artifactId>commons-lang3</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!--  Test dependencies -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
