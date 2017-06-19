@@ -33,6 +33,12 @@ job('beam_PerformanceTests_Python'){
       '',
       false)
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python SDK Performance Test',
+      'Run Python Performance Test')
+
   def pipelineArgs = [
       project: 'apache-beam-testing',
       staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
@@ -53,4 +59,3 @@ job('beam_PerformanceTests_Python'){
 
   common_job_properties.buildPerformanceTest(delegate, argMap)
 }
-
