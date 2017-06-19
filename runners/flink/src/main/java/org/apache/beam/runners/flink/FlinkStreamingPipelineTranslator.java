@@ -24,7 +24,6 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.sdk.Pipeline;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
@@ -195,35 +193,6 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
      */
     boolean canTranslate(T transform, FlinkStreamingTranslationContext context) {
       return true;
-    }
-  }
-
-  private static class ReflectiveOneToOneOverrideFactory<
-          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
-      extends SingleInputOutputOverrideFactory<
-          PCollection<InputT>, PCollection<OutputT>, TransformT> {
-    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
-    private final FlinkRunner runner;
-
-    private ReflectiveOneToOneOverrideFactory(
-        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
-        FlinkRunner runner) {
-      this.replacement = replacement;
-      this.runner = runner;
-    }
-
-    @Override
-    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          InstanceBuilder.ofType(replacement)
-              .withArg(FlinkRunner.class, runner)
-              .withArg(
-                  (Class<PTransform<PCollection<InputT>, PCollection<OutputT>>>)
-                      transform.getTransform().getClass(),
-                  transform.getTransform())
-              .build());
     }
   }
 
