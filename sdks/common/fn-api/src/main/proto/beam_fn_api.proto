@@ -569,7 +569,8 @@ message StateKey {
     string ptransform_id = 1;
     // (Required) The id of the side input.
     string side_input_id = 2;
-    // (Required) The window encoded in a nested context. 
+    // (Required) The window (after mapping the currently executing elements
+    // window into the side input windows domain) encoded in a nested context.
     bytes window = 3;
     // (Required) The key encoded in a nested context.
     bytes key = 4;
@@ -582,7 +583,8 @@ message StateKey {
     string user_state_id = 2;
     // (Required) The window encoded in a nested context. 
     bytes window = 3;
-    // (Required) The key encoded in a nested context.
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
     bytes key = 4;
   }
 
