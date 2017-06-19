@@ -47,6 +47,7 @@ import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.Connection;
@@ -96,7 +97,12 @@ public class HBaseIOTest {
         conf.setStrings("hbase.master.hostname", "localhost");
         conf.setStrings("hbase.regionserver.hostname", "localhost");
         htu = new HBaseTestingUtility(conf);
-        htu.startMiniCluster(1, 4);
+
+        // We don't use the full htu.startMiniCluster() to avoid starting unneeded HDFS/MR daemons
+        htu.startMiniZKCluster();
+        MiniHBaseCluster hbm = htu.startMiniHBaseCluster(1, 4);
+        hbm.waitForActiveAndReadyMaster();
+
         admin = htu.getHBaseAdmin();
     }
 
@@ -107,7 +113,8 @@ public class HBaseIOTest {
             admin = null;
         }
         if (htu != null) {
-            htu.shutdownMiniCluster();
+            htu.shutdownMiniHBaseCluster();
+            htu.shutdownMiniZKCluster();
             htu = null;
         }
     }
