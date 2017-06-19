@@ -150,7 +150,7 @@ public class SpannerWriteIT {
   @After
   public void tearDown() throws Exception {
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
-    spanner.closeAsync().get();
+    spanner.close();
   }
 
   private static class GenerateMutations extends DoFn<Long, Mutation> {
