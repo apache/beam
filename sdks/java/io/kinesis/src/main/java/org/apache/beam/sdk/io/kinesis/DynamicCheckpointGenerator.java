@@ -28,29 +28,31 @@ import com.google.common.base.Function;
  * List of shards is obtained dynamically on call to {@link #generate(SimplifiedKinesisClient)}.
  */
 class DynamicCheckpointGenerator implements CheckpointGenerator {
-    private final String streamName;
-    private final StartingPoint startingPoint;
 
-    public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
-        this.streamName = checkNotNull(streamName, "streamName");
-        this.startingPoint = checkNotNull(startingPoint, "startingPoint");
-    }
+  private final String streamName;
+  private final StartingPoint startingPoint;
 
-    @Override
-    public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
-            throws TransientKinesisException {
-        return new KinesisReaderCheckpoint(
-                transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
-                    @Override
-                    public ShardCheckpoint apply(Shard shard) {
-                        return new ShardCheckpoint(streamName, shard.getShardId(), startingPoint);
-                    }
-                })
-        );
-    }
+  public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
+    this.streamName = checkNotNull(streamName, "streamName");
+    this.startingPoint = checkNotNull(startingPoint, "startingPoint");
+  }
 
-    @Override
-    public String toString() {
-        return String.format("Checkpoint generator for %s: %s", streamName, startingPoint);
-    }
+  @Override
+  public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
+      throws TransientKinesisException {
+    return new KinesisReaderCheckpoint(
+        transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
+
+          @Override
+          public ShardCheckpoint apply(Shard shard) {
+            return new ShardCheckpoint(streamName, shard.getShardId(), startingPoint);
+          }
+        })
+    );
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Checkpoint generator for %s: %s", streamName, startingPoint);
+  }
 }

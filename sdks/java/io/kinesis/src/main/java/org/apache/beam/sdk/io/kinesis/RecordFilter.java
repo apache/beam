@@ -21,7 +21,6 @@ import static com.google.common.collect.Lists.newArrayList;
 
 import java.util.List;
 
-
 /**
  * Filters out records, which were already processed and checkpointed.
  *
@@ -29,13 +28,14 @@ import java.util.List;
  * accuracy, not with "subSequenceNumber" accuracy.
  */
 class RecordFilter {
-    public List<KinesisRecord> apply(List<KinesisRecord> records, ShardCheckpoint checkpoint) {
-        List<KinesisRecord> filteredRecords = newArrayList();
-        for (KinesisRecord record : records) {
-            if (checkpoint.isBeforeOrAt(record)) {
-                filteredRecords.add(record);
-            }
-        }
-        return filteredRecords;
+
+  public List<KinesisRecord> apply(List<KinesisRecord> records, ShardCheckpoint checkpoint) {
+    List<KinesisRecord> filteredRecords = newArrayList();
+    for (KinesisRecord record : records) {
+      if (checkpoint.isBeforeOrAt(record)) {
+        filteredRecords.add(record);
+      }
     }
+    return filteredRecords;
+  }
 }
