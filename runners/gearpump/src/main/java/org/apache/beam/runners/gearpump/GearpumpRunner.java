@@ -106,6 +106,8 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     serializers.put("org.apache.beam.sdk.values.KV", "");
     serializers.put("org.apache.beam.sdk.transforms.windowing.IntervalWindow", "");
     serializers.put("org.apache.beam.sdk.values.TimestampedValue", "");
+    serializers.put(
+        "org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils$RawUnionValue", "");
 
     if (userSerializers != null && !userSerializers.isEmpty()) {
       serializers.putAll(userSerializers);
