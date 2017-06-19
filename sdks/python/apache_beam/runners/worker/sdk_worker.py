@@ -358,7 +358,7 @@ class SdkWorker(object):
               tag=tag,
               source=SideInputSource(
                   self.state_handler,
-                  beam_fn_api_pb2.StateKey(
+                  beam_fn_api_pb2.StateKey.MultimapSideInput(
                       key=si.view_fn.id.encode('utf-8')),
                   coder=unpack_and_deserialize_py_fn(si.view_fn)))
         output_tags = list(transform.outputs.keys())
