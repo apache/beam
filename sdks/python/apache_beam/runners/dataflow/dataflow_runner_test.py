@@ -116,10 +116,7 @@ class DataflowRunnerTest(unittest.TestCase):
     self.default_properties.append("--streaming")
     p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
     p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    remote_runner.job = apiclient.Job(p._options)
-    # Performing configured PTransform overrides here.
-    p.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
-    super(DataflowRunner, remote_runner).run(p)
+    p.run()
     job_dict = json.loads(str(remote_runner.job))
     self.assertEqual(len(job_dict[u'steps']), 2)
 
