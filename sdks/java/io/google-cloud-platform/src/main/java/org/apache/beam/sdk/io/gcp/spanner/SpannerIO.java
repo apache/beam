@@ -337,7 +337,7 @@ public class SpannerIO {
       if (spanner == null) {
         return;
       }
-      spanner.closeAsync().get();
+      spanner.close();
       spanner = null;
     }
 

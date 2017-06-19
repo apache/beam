@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.google.api.core.ApiFuture;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
@@ -274,10 +273,8 @@ public class SpannerIOTest implements Serializable {
         mockSpanners.add(mock(Spanner.class, withSettings().serializable()));
         mockDatabaseClients.add(mock(DatabaseClient.class, withSettings().serializable()));
       }
-      ApiFuture voidFuture = mock(ApiFuture.class, withSettings().serializable());
       when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
           .thenReturn(mockDatabaseClient());
-      when(mockSpanner().closeAsync()).thenReturn(voidFuture);
     }
 
     DatabaseClient mockDatabaseClient() {
