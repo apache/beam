@@ -93,7 +93,12 @@
 
     <dependency>
       <groupId>com.google.api</groupId>
-      <artifactId>api-common</artifactId>
+      <artifactId>gax-grpc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-core-grpc</artifactId>
     </dependency>
 
     <dependency>
