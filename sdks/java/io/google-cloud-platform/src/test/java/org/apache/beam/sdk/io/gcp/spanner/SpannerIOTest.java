@@ -149,7 +149,7 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(1000000000)
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteGroupFn writerFn = new SpannerIO.SpannerWriteGroupFn(write);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
     DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two));
 
@@ -175,7 +175,7 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(batchSize)
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteGroupFn writerFn = new SpannerIO.SpannerWriteGroupFn(write);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
     DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two, three));
 
@@ -198,7 +198,7 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(0) // turn off batching.
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteGroupFn writerFn = new SpannerIO.SpannerWriteGroupFn(write);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
     DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two));
 
@@ -224,7 +224,7 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(batchSize)
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteGroupFn writerFn = new SpannerIO.SpannerWriteGroupFn(write);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
     DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(g(one, two, three)));
 
