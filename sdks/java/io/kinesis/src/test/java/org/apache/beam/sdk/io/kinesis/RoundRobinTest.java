@@ -22,36 +22,38 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Collections;
 import java.util.List;
+
 import org.junit.Test;
 
 /**
  * Tests {@link RoundRobin}.
  */
 public class RoundRobinTest {
-    @Test(expected = IllegalArgumentException.class)
-    public void doesNotAllowCreationWithEmptyCollection() {
-        new RoundRobin<>(Collections.emptyList());
+
+  @Test(expected = IllegalArgumentException.class)
+  public void doesNotAllowCreationWithEmptyCollection() {
+    new RoundRobin<>(Collections.emptyList());
+  }
+
+  @Test
+  public void goesThroughElementsInCycle() {
+    List<String> input = newArrayList("a", "b", "c");
+
+    RoundRobin<String> roundRobin = new RoundRobin<>(newArrayList(input));
+
+    input.addAll(input);  // duplicate the input
+    for (String element : input) {
+      assertThat(roundRobin.getCurrent()).isEqualTo(element);
+      assertThat(roundRobin.getCurrent()).isEqualTo(element);
+      roundRobin.moveForward();
     }
+  }
 
-    @Test
-    public void goesThroughElementsInCycle() {
-        List<String> input = newArrayList("a", "b", "c");
+  @Test
+  public void usualIteratorGoesThroughElementsOnce() {
+    List<String> input = newArrayList("a", "b", "c");
 
-        RoundRobin<String> roundRobin = new RoundRobin<>(newArrayList(input));
-
-        input.addAll(input);  // duplicate the input
-        for (String element : input) {
-            assertThat(roundRobin.getCurrent()).isEqualTo(element);
-            assertThat(roundRobin.getCurrent()).isEqualTo(element);
-            roundRobin.moveForward();
-        }
-    }
-
-    @Test
-    public void usualIteratorGoesThroughElementsOnce() {
-        List<String> input = newArrayList("a", "b", "c");
-
-        RoundRobin<String> roundRobin = new RoundRobin<>(input);
-        assertThat(roundRobin).hasSize(3).containsOnly(input.toArray(new String[0]));
-    }
+    RoundRobin<String> roundRobin = new RoundRobin<>(input);
+    assertThat(roundRobin).hasSize(3).containsOnly(input.toArray(new String[0]));
+  }
 }
