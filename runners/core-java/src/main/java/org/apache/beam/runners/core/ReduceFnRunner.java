@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
@@ -919,8 +920,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // The pane has elements.
       return true;
     }
-    if (timing == Timing.ON_TIME) {
-      // This is the unique ON_TIME pane.
+    if (timing == Timing.ON_TIME
+        && windowingStrategy.getOnTimeBehavior() == Window.OnTimeBehavior.FIRE_ALWAYS) {
+      // This is an empty ON_TIME pane.
       return true;
     }
     if (isFinished && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS) {
