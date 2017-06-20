@@ -127,7 +127,6 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * Configuration configuration = ...;
  * PCollection<Mutation> data = ...;
- * data.setCoder(HBaseIO.WRITE_CODER);
  *
  * data.apply("write",
  *     HBaseIO.write()
@@ -666,6 +665,4 @@ public class HBaseIO {
             private long recordsWritten;
         }
     }
-
-    public static final Coder<Mutation> WRITE_CODER = HBaseMutationCoder.of();
 }

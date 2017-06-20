@@ -295,8 +295,7 @@ public class HBaseIOTest {
 
         createTable(table);
 
-        p.apply("multiple rows", Create.of(makeMutations(key, value, numMutations))
-            .withCoder(HBaseIO.WRITE_CODER))
+        p.apply("multiple rows", Create.of(makeMutations(key, value, numMutations)))
          .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
         p.run().waitUntilFinish();
 
@@ -309,7 +308,7 @@ public class HBaseIOTest {
     public void testWritingFailsTableDoesNotExist() throws Exception {
         final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
-        p.apply(Create.empty(HBaseIO.WRITE_CODER))
+        p.apply(Create.empty(HBaseMutationCoder.of()))
          .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
 
         // Exception will be thrown by write.validate() when write is applied.
@@ -325,8 +324,8 @@ public class HBaseIOTest {
         final String key = "KEY";
         createTable(table);
 
-        p.apply(Create.of(makeBadMutation(key)).withCoder(HBaseIO.WRITE_CODER))
-                .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
+        p.apply(Create.of(makeBadMutation(key)))
+         .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
 
         thrown.expect(Pipeline.PipelineExecutionException.class);
         thrown.expectCause(Matchers.<Throwable>instanceOf(IllegalArgumentException.class));
