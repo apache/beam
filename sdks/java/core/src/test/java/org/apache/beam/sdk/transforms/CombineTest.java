@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -320,6 +321,30 @@ public class CombineTest implements Serializable {
             Arrays.asList(
                 KV.of("a", "2:11"), KV.of("a", "5:4"), KV.of("b", "5:1"), KV.of("b", "13:13")));
     PAssert.that(combineGloballyWithContext).containsInAnyOrder("2:11", "5:14", "13:13");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSlidingWindowsCombine() throws InterruptedException, IOException {
+    PCollection<Long> windowedValues =
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(1L, new Instant(1L)),
+                    TimestampedValue.of(2L, new Instant(2L)),
+                    TimestampedValue.of(4L, new Instant(3L)),
+                    TimestampedValue.of(8L, new Instant(4L)),
+                    TimestampedValue.of(16L, new Instant(8L))))
+            .apply(
+                Window.<Long>into(
+                    SlidingWindows.of(Duration.millis(2L)).every(Duration.millis(1L))));
+
+    PCollection<Long> sums =
+        windowedValues.apply(Combine.globally(Sum.ofLongs()).withoutDefaults());
+    // Windows [0, 2), [1, 3), [2, 4), [3, 5), [4, 6), [7, 9), [8, 10)
+    // Values  1       (1+2)   (2+4)   (4+8)   (8)     (16)    (16)
+    PAssert.that(sums).containsInAnyOrder(1L, 3L, 6L, 12L, 8L, 16L, 16L);
     pipeline.run();
   }
 
