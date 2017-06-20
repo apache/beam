@@ -40,6 +40,7 @@
     <module>google-cloud-dataflow-java</module>
     <module>spark</module>
     <module>apex</module>
+    <module>tez</module>
   </modules>
 
   <profiles>
