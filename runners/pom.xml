@@ -65,6 +65,7 @@
       </activation>
       <modules>
         <module>gearpump</module>
+        <module>tez</module>
       </modules>
     </profile>
   </profiles>
