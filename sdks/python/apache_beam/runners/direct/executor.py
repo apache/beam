@@ -222,14 +222,14 @@ class _CompletionCallback(object):
   or for a source transform.
   """
 
-  def __init__(self, evaluation_context, all_updates, timers=None):
+  def __init__(self, evaluation_context, all_updates, timer_firings=None):
     self._evaluation_context = evaluation_context
     self._all_updates = all_updates
-    self._timers = timers
+    self._timer_firings = timer_firings or []
 
   def handle_result(self, input_committed_bundle, transform_result):
     output_committed_bundles = self._evaluation_context.handle_result(
-        input_committed_bundle, self._timers, transform_result)
+        input_committed_bundle, self._timer_firings, transform_result)
     for output_committed_bundle in output_committed_bundles:
       self._all_updates.offer(_ExecutorServiceParallelExecutor._ExecutorUpdate(
           output_committed_bundle, None))
@@ -251,11 +251,12 @@ class TransformExecutor(_ExecutorService.CallableTask):
   """
 
   def __init__(self, transform_evaluator_registry, evaluation_context,
-               input_bundle, applied_ptransform, completion_callback,
-               transform_evaluation_state):
+               input_bundle, fired_timers, applied_ptransform,
+               completion_callback, transform_evaluation_state):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
     self._input_bundle = input_bundle
+    self._fired_timers = fired_timers
     self._applied_ptransform = applied_ptransform
     self._completion_callback = completion_callback
     self._transform_evaluation_state = transform_evaluation_state
@@ -287,6 +288,10 @@ class TransformExecutor(_ExecutorService.CallableTask):
       evaluator = self._transform_evaluator_registry.get_evaluator(
           self._applied_ptransform, self._input_bundle,
           side_input_values, scoped_metrics_container)
+
+      if self._fired_timers:
+        for timer_firing in self._fired_timers:
+          evaluator.process_timer_wrapper(timer_firing)
 
       if self._input_bundle:
         for value in self._input_bundle.get_elements_iterable():
@@ -379,11 +384,11 @@ class _ExecutorServiceParallelExecutor(object):
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
-        self.schedule_consumption(applied_ptransform, committed_bundle,
+        self.schedule_consumption(applied_ptransform, committed_bundle, [],
                                   self.default_completion_callback)
 
   def schedule_consumption(self, consumer_applied_ptransform, committed_bundle,
-                           on_complete):
+                           fired_timers, on_complete):
     """Schedules evaluation of the given bundle with the transform."""
     assert consumer_applied_ptransform
     assert committed_bundle
@@ -397,8 +402,8 @@ class _ExecutorServiceParallelExecutor(object):
 
     transform_executor = TransformExecutor(
         self.transform_evaluator_registry, self.evaluation_context,
-        committed_bundle, consumer_applied_ptransform, on_complete,
-        transform_executor_service)
+        committed_bundle, fired_timers, consumer_applied_ptransform,
+        on_complete, transform_executor_service)
     transform_executor_service.schedule(transform_executor)
 
   class _TypedUpdateQueue(object):
@@ -527,19 +532,21 @@ class _ExecutorServiceParallelExecutor(object):
       Returns:
         True if timers fired.
       """
-      fired_timers = self._executor.evaluation_context.extract_fired_timers()
-      for applied_ptransform in fired_timers:
+      transform_fired_timers = (
+          self._executor.evaluation_context.extract_fired_timers())
+      for applied_ptransform, fired_timers in transform_fired_timers:
         # Use an empty committed bundle. just to trigger.
         empty_bundle = (
             self._executor.evaluation_context.create_empty_committed_bundle(
                 applied_ptransform.inputs[0]))
         timer_completion_callback = _CompletionCallback(
             self._executor.evaluation_context, self._executor.all_updates,
-            applied_ptransform)
+            timer_firings=fired_timers)
 
         self._executor.schedule_consumption(
-            applied_ptransform, empty_bundle, timer_completion_callback)
-      return bool(fired_timers)
+            applied_ptransform, empty_bundle, fired_timers,
+            timer_completion_callback)
+      return bool(transform_fired_timers)
 
     def _is_executing(self):
       """Returns True if there is at least one non-blocked TransformExecutor."""
@@ -582,6 +589,6 @@ class _ExecutorServiceParallelExecutor(object):
               applied_ptransform, [])
           for bundle in pending_bundles:
             self._executor.schedule_consumption(
-                applied_ptransform, bundle,
+                applied_ptransform, bundle, [],
                 self._executor.default_completion_callback)
           self._executor.node_to_pending_bundles[applied_ptransform] = []
