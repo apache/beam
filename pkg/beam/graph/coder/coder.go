@@ -3,10 +3,11 @@ package coder
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"strings"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -38,21 +39,39 @@ func (c *CustomCoder) String() string {
 	return fmt.Sprintf("%v[%v]", c.Type, c.Name)
 }
 
+// Type signatures of encode/decode for verification.
+var (
+	encodeSig = &userfn.Signature{
+		OptArgs:   []reflect.Type{reflectx.Type},
+		Args:      []reflect.Type{typex.TType}, // T to be substituted
+		Return:    []reflect.Type{reflectx.ByteSlice},
+		OptReturn: []reflect.Type{reflectx.Error}}
+
+	decodeSig = &userfn.Signature{
+		OptArgs:   []reflect.Type{reflectx.Type},
+		Args:      []reflect.Type{reflectx.ByteSlice},
+		Return:    []reflect.Type{typex.TType}, // T to be substituted
+		OptReturn: []reflect.Type{reflectx.Error}}
+)
+
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
 func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
 	enc, err := userfn.New(encode)
 	if err != nil {
-		return nil, fmt.Errorf("Bad encode: %v", err)
+		return nil, fmt.Errorf("bad encode: %v", err)
 	}
-	dec, err := userfn.New(decode)
-	if err != nil {
-		return nil, fmt.Errorf("Bad decode: %v", err)
+	if err := userfn.Satisfy(encode, userfn.Replace(encodeSig, typex.TType, t)); err != nil {
+		return nil, fmt.Errorf("encode has incorrect signature: %v", err)
 	}
 
-	// TODO(herohde) 5/16/2017: validate coder signature. Perhaps we want
-	// to allow custom Options or other context? However, would a coder
-	// ever need context.Context, for example?
+	dec, err := userfn.New(decode)
+	if err != nil {
+		return nil, fmt.Errorf("bad decode: %v", err)
+	}
+	if err := userfn.Satisfy(decode, userfn.Replace(decodeSig, typex.TType, t)); err != nil {
+		return nil, fmt.Errorf("decode has incorrect signature: %v", err)
+	}
 
 	c := &CustomCoder{
 		Name: id,

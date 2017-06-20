@@ -1,4 +1,3 @@
-//
 // Package userfn contains functions and types used to perform type analysis
 // of Beam user functions. This package is primarily used in pipeline construction
 // to typecheck pipelines, but could be used by anyone who wants to perform
