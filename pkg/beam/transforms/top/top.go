@@ -7,8 +7,13 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+)
+
+var (
+	sig = userfn.MakePredicate(typex.TType, typex.TType) // (T, T) -> bool
 )
 
 func init() {
@@ -24,7 +29,8 @@ func Globally(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) b
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
 	}
-	// TODO(herohde) 5/24/2017: typecheck the less function.
+	t := typex.SkipW(col.Type()).Type()
+	userfn.MustSatisfy(less, userfn.Replace(sig, typex.TType, t))
 
 	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
@@ -39,7 +45,7 @@ func PerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) bea
 // TODO(herohde) 5/25/2017: use a heap instead of a sorted slice.
 
 type accum struct {
-	// List stores the elements of type A in order. It has at most size N.
+	// list stores the elements of type A in order. It has at most size N.
 	list []reflect.Value
 }
 

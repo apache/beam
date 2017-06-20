@@ -5,7 +5,12 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+)
+
+var (
+	sig = userfn.MakePredicate(typex.TType) // T -> bool
 )
 
 func init() {
@@ -20,7 +25,9 @@ func init() {
 func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
 	p = p.Composite("filter.Filter")
 
-	// TODO: validate signature of fn
+	t := typex.SkipW(col.Type()).Type()
+	userfn.MustSatisfy(fn, userfn.Replace(sig, typex.TType, t))
+
 	return beam.ParDo(p, &filterFn{Filter: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}}, col)
 }
 

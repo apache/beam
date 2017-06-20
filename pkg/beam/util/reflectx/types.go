@@ -22,8 +22,9 @@ var (
 	String = reflect.TypeOf((*string)(nil)).Elem()
 	Error  = reflect.TypeOf((*error)(nil)).Elem()
 
-	Context = reflect.TypeOf((*context.Context)(nil)).Elem()
-	Type    = reflect.TypeOf((*reflect.Type)(nil)).Elem()
+	Context   = reflect.TypeOf((*context.Context)(nil)).Elem()
+	Type      = reflect.TypeOf((*reflect.Type)(nil)).Elem()
+	ByteSlice = reflect.TypeOf((*[]byte)(nil)).Elem()
 )
 
 // SkipPtr returns the target of a Ptr type, if a Ptr. Otherwise itself.
