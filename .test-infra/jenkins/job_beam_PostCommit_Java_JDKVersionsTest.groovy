@@ -37,6 +37,8 @@ matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
   common_job_properties.setPostCommit(
       delegate,
       '0 */6 * * *',
+      false,
+      '',  // TODO: Remove last two args once test is stable again.
       false)
 
   // Allows triggering this build against pull requests.
