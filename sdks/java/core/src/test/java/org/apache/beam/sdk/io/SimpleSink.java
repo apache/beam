@@ -40,6 +40,10 @@ class SimpleSink extends FileBasedSink<String> {
         writableByteChannelFactory);
   }
 
+  public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
+    super(StaticValueProvider.of(baseOutputDirectory), filenamePolicy);
+  }
+
   @Override
   public SimpleWriteOperation createWriteOperation() {
     return new SimpleWriteOperation(this);
