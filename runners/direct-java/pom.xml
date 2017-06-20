@@ -155,7 +155,8 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=DirectRunner"
+                    "--runner=DirectRunner",
+                    "--unitTest"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
