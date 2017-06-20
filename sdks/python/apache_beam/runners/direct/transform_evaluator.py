@@ -28,13 +28,15 @@ import apache_beam.io as io
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.transform_result import TransformResult
+from apache_beam.runners.direct.util import KeyedWorkItem
+from apache_beam.runners.direct.util import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.transforms import core
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
+from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
@@ -199,6 +201,18 @@ class _TransformEvaluator(object):
     """Starts a new bundle."""
     pass
 
+  def process_timer_wrapper(self, timer_firing):
+    """Process timer by clearing and then calling process_timer()."""
+    state = self.step_context.get_keyed_state(timer_firing.key)
+    state.clear_timer(
+        timer_firing.window, timer_firing.name, timer_firing.time_domain)
+    self.process_timer(timer_firing)
+
+  def process_timer(self, timer_firing):
+    """Default process_timer() impl. generating KeyedWorkItem element."""
+    self.process_element(
+        KeyedWorkItem(timer_firing.key, timer_firing=timer_firing))
+
   def process_element(self, element):
     """Processes a new element as part of the current bundle."""
     raise NotImplementedError('%s do not process elements.', type(self))
@@ -244,7 +258,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
         bundles = _read_values_to_bundles(reader)
 
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None)
+        self._applied_ptransform, bundles, None, None)
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -268,7 +282,7 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, None)
+        self._applied_ptransform, bundles, None, None)
 
 
 class _TaggedReceivers(dict):
@@ -357,7 +371,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, None, result_counters, None,
+        self._applied_ptransform, bundles, result_counters, None,
         self._tagged_receivers.undeclared_in_memory_tag_values)
 
 
@@ -375,7 +389,6 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
 
-  @property
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
             == WatermarkManager.WATERMARK_POS_INF)
@@ -391,6 +404,9 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     kv_type_hint = (
         self._applied_ptransform.transform.get_type_hints().input_types[0])
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+
+  def process_timer(self, timer_firing):
+    pass
 
   def process_element(self, element):
     assert not self.global_state.get_state(
@@ -408,7 +424,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
                            % element)
 
   def finish_bundle(self):
-    if self._is_final_bundle:
+    if self._is_final_bundle():
       if self.global_state.get_state(
           None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG):
         # Ignore empty bundles after emitting output. (This may happen because
@@ -441,9 +457,11 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     else:
       bundles = []
       hold = WatermarkManager.WATERMARK_NEG_INF
+      self.global_state.set_timer(
+          None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
     return TransformResult(
-        self._applied_ptransform, bundles, None, None, hold)
+        self._applied_ptransform, bundles, None, hold)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
@@ -475,6 +493,9 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     self.step_context = self._execution_context.get_step_context()
     self.global_state = self.step_context.get_keyed_state(None)
 
+  def process_timer(self, timer_firing):
+    pass
+
   def process_element(self, element):
     self.global_state.add_state(
         None, _NativeWriteEvaluator.ELEMENTS_TAG, element)
@@ -500,6 +521,8 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
       hold = WatermarkManager.WATERMARK_NEG_INF
+      self.global_state.set_timer(
+          None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
     return TransformResult(
-        self._applied_ptransform, [], None, None, hold)
+        self._applied_ptransform, [], None, hold)
