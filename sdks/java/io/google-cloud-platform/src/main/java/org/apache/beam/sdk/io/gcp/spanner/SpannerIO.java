@@ -107,10 +107,9 @@ public class SpannerIO {
    * configured with a {@link Write#withInstanceId} and {@link Write#withDatabaseId} that identify
    * the Cloud Spanner database being written.
    */
-  @Experimental
-  public static Write write() {
-    return new AutoValue_SpannerIO_Write.Builder().build()
-        .withBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES);
+  @Experimental public static Write write() {
+    return new AutoValue_SpannerIO_Write.Builder().setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+        .build();
   }
 
   /**
@@ -131,8 +130,7 @@ public class SpannerIO {
     @Nullable
     abstract ValueProvider<String> getDatabaseId();
 
-    @Nullable
-    abstract Long getBatchSizeBytes();
+    abstract long getBatchSizeBytes();
 
     @Nullable
     @VisibleForTesting
@@ -149,7 +147,7 @@ public class SpannerIO {
 
       abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
-      abstract Builder setBatchSizeBytes(Long batchSizeBytes);
+      abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       @VisibleForTesting
       abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
