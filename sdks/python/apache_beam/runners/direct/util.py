@@ -15,26 +15,44 @@
 # limitations under the License.
 #
 
-"""The result of evaluating an AppliedPTransform with a TransformEvaluator."""
+"""Utility classes used by the DirectRunner.
+
+For internal use only. No backwards compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 
 
 class TransformResult(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  The result of evaluating an AppliedPTransform with a TransformEvaluator."""
+  """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles,
-               timer_update, counters, watermark_hold,
-               undeclared_tag_values=None):
+               counters, watermark_hold, undeclared_tag_values=None):
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
-    # TODO: timer update is currently unused.
-    self.timer_update = timer_update
     self.counters = counters
     self.watermark_hold = watermark_hold
     # Only used when caching (materializing) all values is requested.
     self.undeclared_tag_values = undeclared_tag_values
     # Populated by the TransformExecutor.
     self.logical_metric_updates = None
+
+
+class TimerFiring(object):
+  """A single instance of a fired timer."""
+
+  def __init__(self, key, window, name, time_domain, timestamp):
+    self.key = key
+    self.window = window
+    self.name = name
+    self.time_domain = time_domain
+    self.timestamp = timestamp
+
+
+class KeyedWorkItem(object):
+  """A keyed item that can either be a timer firing or a list of elements."""
+  def __init__(self, key, timer_firing=None, elements=None):
+    self.key = key
+    assert not timer_firing and elements
+    self.timer_firing = timer_firing
+    self.elements = elements
