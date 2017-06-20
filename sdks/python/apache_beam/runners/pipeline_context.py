@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
 
@@ -42,9 +43,10 @@ class _PipelineContextMap(object):
     self._id_to_proto = proto_map if proto_map else {}
     self._counter = 0
 
-  def _unique_ref(self):
+  def _unique_ref(self, obj=None):
     self._counter += 1
-    return "ref_%s_%s" % (self._obj_type.__name__, self._counter)
+    return "ref_%s_%s_%s" % (
+        self._obj_type.__name__, type(obj).__name__, self._counter)
 
   def populate_map(self, proto_map):
     for id, proto in self._id_to_proto.items():
@@ -52,7 +54,7 @@ class _PipelineContextMap(object):
 
   def get_id(self, obj):
     if obj not in self._obj_to_id:
-      id = self._unique_ref()
+      id = self._unique_ref(obj)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
@@ -79,11 +81,16 @@ class PipelineContext(object):
       # TODO: environment
   }
 
-  def __init__(self, context_proto=None):
+  def __init__(self, proto=None):
+    if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
+      proto = beam_runner_api_pb2.Components(
+          coders=dict(proto.codersyyy.items()),
+          windowing_strategies=dict(proto.windowing_strategies.items()),
+          environments=dict(proto.environments.items()))
     for name, cls in self._COMPONENT_TYPES.items():
       setattr(
           self, name, _PipelineContextMap(
-              self, cls, getattr(context_proto, name, None)))
+              self, cls, getattr(proto, name, None)))
 
   @staticmethod
   def from_runner_api(proto):
