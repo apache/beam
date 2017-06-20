@@ -96,8 +96,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
             @Override
             public boolean isRequired(HttpResponse response) {
               int statusCode = response.getStatusCode();
-              return (statusCode / 100 == 5) ||  // 5xx: server error
-                  statusCode == 429;             // 429: Too many requests
+              return (statusCode == 0) // Code 0 usually means no response / network error
+                  || (statusCode / 100 == 5) // 5xx: server error
+                  || statusCode == 429; // 429: Too many requests
             }
           });
     }
