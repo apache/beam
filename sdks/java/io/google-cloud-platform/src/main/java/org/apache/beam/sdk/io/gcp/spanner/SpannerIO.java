@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -106,10 +107,8 @@ public class SpannerIO {
    * configured with a {@link Write#withInstanceId} and {@link Write#withDatabaseId} that identify
    * the Cloud Spanner database being written.
    */
-  @Experimental
-  public static Write write() {
-    return new AutoValue_SpannerIO_Write.Builder()
-        .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+  @Experimental public static Write write() {
+    return new AutoValue_SpannerIO_Write.Builder().setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .build();
   }
 
@@ -123,13 +122,13 @@ public class SpannerIO {
   public abstract static class Write extends PTransform<PCollection<Mutation>, PDone> {
 
     @Nullable
-    abstract String getProjectId();
+    abstract ValueProvider<String> getProjectId();
 
     @Nullable
-    abstract String getInstanceId();
+    abstract ValueProvider<String> getInstanceId();
 
     @Nullable
-    abstract String getDatabaseId();
+    abstract ValueProvider<String> getDatabaseId();
 
     abstract long getBatchSizeBytes();
 
@@ -142,11 +141,11 @@ public class SpannerIO {
     @AutoValue.Builder
     abstract static class Builder {
 
-      abstract Builder setProjectId(String projectId);
+      abstract Builder setProjectId(ValueProvider<String> projectId);
 
-      abstract Builder setInstanceId(String instanceId);
+      abstract Builder setInstanceId(ValueProvider<String> instanceId);
 
-      abstract Builder setDatabaseId(String databaseId);
+      abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
@@ -162,6 +161,10 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withProjectId(String projectId) {
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
+    }
+
+    public Write withProjectId(ValueProvider<String> projectId) {
       return toBuilder().setProjectId(projectId).build();
     }
 
@@ -172,6 +175,10 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withInstanceId(String instanceId) {
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
+    }
+
+    public Write withInstanceId(ValueProvider<String> instanceId) {
       return toBuilder().setInstanceId(instanceId).build();
     }
 
@@ -191,6 +198,10 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withDatabaseId(String databaseId) {
+      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
+    }
+
+    public Write withDatabaseId(ValueProvider<String> databaseId) {
       return toBuilder().setDatabaseId(databaseId).build();
     }
 
@@ -291,7 +302,7 @@ public class SpannerIO {
       SpannerOptions spannerOptions = getSpannerOptions();
       spanner = spannerOptions.getService();
       dbClient = spanner.getDatabaseClient(
-          DatabaseId.of(projectId(), spec.getInstanceId(), spec.getDatabaseId()));
+          DatabaseId.of(projectId(), spec.getInstanceId().get(), spec.getDatabaseId().get()));
       mutations = new ArrayList<>();
       batchSizeBytes = 0;
     }
@@ -309,7 +320,7 @@ public class SpannerIO {
     private String projectId() {
       return spec.getProjectId() == null
           ? ServiceOptions.getDefaultProjectId()
-          : spec.getProjectId();
+          : spec.getProjectId().get();
     }
 
     @FinishBundle
@@ -334,7 +345,7 @@ public class SpannerIO {
         spannerOptionsBuider.setServiceFactory(spec.getServiceFactory());
       }
       if (spec.getProjectId() != null) {
-        spannerOptionsBuider.setProjectId(spec.getProjectId());
+        spannerOptionsBuider.setProjectId(spec.getProjectId().get());
       }
       return spannerOptionsBuider.build();
     }
