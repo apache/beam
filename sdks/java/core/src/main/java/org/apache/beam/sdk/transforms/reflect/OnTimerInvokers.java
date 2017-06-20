@@ -39,4 +39,5 @@ class OnTimerInvokers {
       DoFn<InputT, OutputT> fn, String timerId) {
     return ByteBuddyOnTimerInvokerFactory.only().forTimer(fn, timerId);
   }
+
 }

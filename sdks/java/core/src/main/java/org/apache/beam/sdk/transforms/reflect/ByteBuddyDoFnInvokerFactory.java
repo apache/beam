@@ -202,6 +202,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
         invoker.addOnTimerInvoker(
             onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
+
       }
 
       return invoker;
