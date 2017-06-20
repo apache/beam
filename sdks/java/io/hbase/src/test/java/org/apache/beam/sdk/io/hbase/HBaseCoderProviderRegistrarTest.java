@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.hbase;
 
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,5 +39,7 @@ public class HBaseCoderProviderRegistrarTest {
   @Test
   public void testMutationCoderIsRegistered() throws Exception {
     CoderRegistry.createDefault().getCoder(Mutation.class);
+    CoderRegistry.createDefault().getCoder(Put.class);
+    CoderRegistry.createDefault().getCoder(Delete.class);
   }
 }

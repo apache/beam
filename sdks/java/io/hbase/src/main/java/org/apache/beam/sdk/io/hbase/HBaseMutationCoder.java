@@ -21,8 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
@@ -65,4 +69,42 @@ class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
       throw new IllegalArgumentException("Only Put and Delete are supported");
     }
   }
+
+  /**
+   * Returns a {@link CoderProvider} which uses the {@link HBaseMutationCoder} for
+   * {@link Mutation mutations}.
+   */
+  static CoderProvider getCoderProvider() {
+    return HBASE_MUTATION_CODER_PROVIDER;
+  }
+
+  private static final CoderProvider HBASE_MUTATION_CODER_PROVIDER =
+    new HBaseMutationCoderProvider();
+
+  /**
+   * A {@link CoderProvider} for {@link Mutation mutations}.
+   */
+  private static class HBaseMutationCoderProvider extends CoderProvider {
+    @Override
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (!typeDescriptor.isSubtypeOf(HBASE_MUTATION_TYPE_DESCRIPTOR)) {
+        throw new CannotProvideCoderException(
+          String.format(
+            "Cannot provide %s because %s is not a subclass of %s",
+            HBaseMutationCoder.class.getSimpleName(),
+            typeDescriptor,
+            Mutation.class.getName()));
+      }
+
+      try {
+        return (Coder<T>) HBaseMutationCoder.of();
+      } catch (IllegalArgumentException e) {
+        throw new CannotProvideCoderException(e);
+      }
+    }
+  }
+
+  private static final TypeDescriptor<Mutation> HBASE_MUTATION_TYPE_DESCRIPTOR =
+    new TypeDescriptor<Mutation>() {};
 }
