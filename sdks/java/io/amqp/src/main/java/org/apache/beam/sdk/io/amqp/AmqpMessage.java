@@ -17,30 +17,41 @@
  */
 package org.apache.beam.sdk.io.amqp;
 
-import static org.junit.Assert.assertTrue;
-
-import java.util.Objects;
-
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.qpid.proton.amqp.messaging.AmqpValue;
-import org.junit.Test;
+import org.apache.qpid.proton.message.Message;
 
 /**
- * Test on the {@link AmqpMessageCoder}.
+ * Extend AMQ ProtonJ Message to override the equals() method.
  */
-public class AmqpMessageCoderTest {
+public class AmqpMessage {
 
-  private final AmqpMessageCoder coder = AmqpMessageCoder.of();
+  private Message message;
 
-  @Test
-  public void testEncodeDecode() throws Exception {
-    AmqpMessage message = new AmqpMessage();
-    message.getMessage().setBody(new AmqpValue("test"));
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
-    AmqpMessage clone = CoderUtils.decodeFromByteArray(coder, encoded);
+  public AmqpMessage() {
+    message = Message.Factory.create();
+  }
 
-    assertTrue(Objects.equals(message, clone));
-    assertTrue(Objects.equals(clone, message));
+  public AmqpMessage(Message message) {
+    this.message = message;
+  }
+
+  public Message getMessage() {
+    return this.message;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.message.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof AmqpMessage) {
+      AmqpMessage message = (AmqpMessage) obj;
+      if (this.message.getBody().toString().equals(message.getMessage().getBody().toString())) {
+        return true;
+      }
+    }
+    return false;
   }
 
 }

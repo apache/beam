@@ -112,7 +112,7 @@ public class AmqpIO {
    * A {@link PTransform} to read/receive messages using AMQP 1.0 protocol.
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<AmqpMessage>> {
 
     @Nullable abstract List<String> addresses();
     abstract long maxNumRecords();
@@ -175,11 +175,11 @@ public class AmqpIO {
     }
 
     @Override
-    public PCollection<Message> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
+    public PCollection<AmqpMessage> expand(PBegin input) {
+      org.apache.beam.sdk.io.Read.Unbounded<AmqpMessage> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedAmqpSource(this));
 
-      PTransform<PBegin, PCollection<Message>> transform = unbounded;
+      PTransform<PBegin, PCollection<AmqpMessage>> transform = unbounded;
 
       if (maxNumRecords() != Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords());
@@ -220,7 +220,8 @@ public class AmqpIO {
 
   }
 
-  private static class UnboundedAmqpSource extends UnboundedSource<Message, AmqpCheckpointMark> {
+  private static class UnboundedAmqpSource
+      extends UnboundedSource<AmqpMessage, AmqpCheckpointMark> {
 
     private final Read spec;
 
@@ -245,13 +246,13 @@ public class AmqpIO {
     }
 
     @Override
-    public UnboundedReader<Message> createReader(PipelineOptions pipelineOptions,
+    public UnboundedReader<AmqpMessage> createReader(PipelineOptions pipelineOptions,
                                                 AmqpCheckpointMark checkpointMark) {
       return new UnboundedAmqpReader(this, checkpointMark);
     }
 
     @Override
-    public Coder<Message> getDefaultOutputCoder() {
+    public Coder<AmqpMessage> getDefaultOutputCoder() {
       return new AmqpMessageCoder();
     }
 
@@ -267,12 +268,12 @@ public class AmqpIO {
 
   }
 
-  private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {
+  private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<AmqpMessage> {
 
     private final UnboundedAmqpSource source;
 
     private Messenger messenger;
-    private Message current;
+    private AmqpMessage current;
     private Instant currentTimestamp;
     private AmqpCheckpointMark checkpointMark;
 
@@ -300,7 +301,7 @@ public class AmqpIO {
     }
 
     @Override
-    public Message getCurrent() {
+    public AmqpMessage getCurrent() {
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -343,7 +344,7 @@ public class AmqpIO {
       if (currentTimestamp.isBefore(checkpointMark.watermark)) {
         checkpointMark.watermark = currentTimestamp;
       }
-      current = message;
+      current = new AmqpMessage(message);
       return true;
     }
 
@@ -360,7 +361,7 @@ public class AmqpIO {
    * A {@link PTransform} to send messages using AMQP 1.0 protocol.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<Message>, PDone> {
+  public abstract static class Write extends PTransform<PCollection<AmqpMessage>, PDone> {
 
     @Nullable abstract List<String> addresses();
     @Nullable abstract String subject();
@@ -395,7 +396,7 @@ public class AmqpIO {
     }
 
     @Override
-    public PDone expand(PCollection<Message> input) {
+    public PDone expand(PCollection<AmqpMessage> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -414,7 +415,7 @@ public class AmqpIO {
       builder.addIfNotNull(DisplayData.item("subject", subject()));
     }
 
-    private static class WriteFn extends DoFn<Message, Void> {
+    private static class WriteFn extends DoFn<AmqpMessage, Void> {
 
       private final Write spec;
 
@@ -432,13 +433,13 @@ public class AmqpIO {
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
-        Message message = processContext.element();
+        AmqpMessage message = processContext.element();
         for (String address : spec.addresses()) {
-          message.setAddress(address);
+          message.getMessage().setAddress(address);
           if (spec.subject() != null) {
-            message.setSubject(spec.subject());
+            message.getMessage().setSubject(spec.subject());
           }
-          messenger.put(message);
+          messenger.put(message.getMessage());
           messenger.send();
         }
       }

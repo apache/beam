@@ -31,7 +31,7 @@ import org.apache.qpid.proton.message.Message;
 /**
  * A coder for AMQP message.
  */
-public class AmqpMessageCoder extends CustomCoder<Message> {
+public class AmqpMessageCoder extends CustomCoder<AmqpMessage> {
 
   static AmqpMessageCoder of() {
     return new AmqpMessageCoder();
@@ -41,11 +41,11 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
   //    /* 64 MiB */]
 
   @Override
-  public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(AmqpMessage value, OutputStream outStream) throws CoderException, IOException {
     //for (int maxMessageSize : MESSAGE_SIZES) {
       try {
         byte[] data = new byte[4096];
-        int bytesWritten = value.encode(data, 0, data.length);
+        int bytesWritten = value.getMessage().encode(data, 0, data.length);
         VarInt.encode(bytesWritten, outStream);
         outStream.write(data, 0, bytesWritten);
         return;
@@ -57,13 +57,13 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
   }
 
   @Override
-  public Message decode(InputStream inStream) throws CoderException, IOException {
+  public AmqpMessage decode(InputStream inStream) throws CoderException, IOException {
     Message message = Message.Factory.create();
     int bytesToRead = VarInt.decodeInt(inStream);
     byte[] encodedMessage = new byte[bytesToRead];
     ByteStreams.readFully(inStream, encodedMessage);
     message.decode(encodedMessage, 0, encodedMessage.length);
-    return message;
+    return new AmqpMessage(message);
   }
 
 }

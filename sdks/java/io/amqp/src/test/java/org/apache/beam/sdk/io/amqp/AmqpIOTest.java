@@ -34,7 +34,6 @@ import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.message.Message;
 import org.apache.qpid.proton.messenger.Messenger;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -61,10 +60,10 @@ public class AmqpIOTest {
 
   @Test
   public void testRead() throws Exception {
-    PCollection<Message> output = pipeline.apply(AmqpIO.read()
-        .withMaxNumRecords(10)
+    PCollection<AmqpMessage> output = pipeline.apply(AmqpIO.read()
+        .withMaxNumRecords(100)
         .withAddresses(Collections.singletonList("amqp://~localhost:" + port)));
-    PAssert.thatSingleton(output.apply(Count.<Message>globally())).isEqualTo(10L);
+    PAssert.thatSingleton(output.apply(Count.<AmqpMessage>globally())).isEqualTo(100L);
 
     Thread sender = new Thread() {
       public void run() {
@@ -72,11 +71,11 @@ public class AmqpIOTest {
           Thread.sleep(500);
           Messenger sender = Messenger.Factory.create();
           sender.start();
-          for (int i = 0; i < 10; i++) {
-            Message message = Message.Factory.create();
-            message.setAddress("amqp://localhost:" + port);
-            message.setBody(new AmqpValue("Test " + i));
-            sender.put(message);
+          for (int i = 0; i < 100; i++) {
+            AmqpMessage message = new AmqpMessage();
+            message.getMessage().setAddress("amqp://localhost:" + port);
+            message.getMessage().setBody(new AmqpValue("Test " + i));
+            sender.put(message.getMessage());
             sender.send();
           }
           sender.stop();
@@ -91,8 +90,6 @@ public class AmqpIOTest {
   }
 
   @Test
-  @Ignore("Fails with IllegalMutationException: PTransform AmqpIO.Write/ParDo(Write)/ParMultiDo"
-      + "(Write) illegaly mutated value Message{body=AmqpValue{Test 91}}")
   public void testWrite() throws Exception {
     final List<String> received = new ArrayList<>();
     Thread receiver = new Thread() {
@@ -119,10 +116,10 @@ public class AmqpIOTest {
     LOG.info("Starting AMQP receiver");
     receiver.start();
 
-    List<Message> data = new ArrayList<>();
+    List<AmqpMessage> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      Message message = Message.Factory.create();
-      message.setBody(new AmqpValue("Test " + i));
+      AmqpMessage message = new AmqpMessage();
+      message.getMessage().setBody(new AmqpValue("Test " + i));
       data.add(message);
     }
     pipeline.apply(Create.of(data).withCoder(AmqpMessageCoder.of()))
@@ -135,8 +132,7 @@ public class AmqpIOTest {
 
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
-      assertTrue(received.contains("AmqpValue{AmqpValue{AmqpValue{AmqpValue{AmqpValue"
-          + "{Test " + i + "}}}}}"));
+      assertTrue(received.contains("AmqpValue{Test " + i + "}"));
     }
   }
 
