@@ -42,13 +42,8 @@ import org.apache.calcite.tools.Frameworks;
  * a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
 public class BeamSqlEnv {
-//<<<<<<< HEAD
-//  static SchemaPlus schema;
-//  static BeamQueryPlanner planner;
-//=======
   SchemaPlus schema;
   BeamQueryPlanner planner;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 
   public BeamSqlEnv() {
     schema = Frameworks.createRootSchema(true);
@@ -66,13 +61,8 @@ public class BeamSqlEnv {
    * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
    *
    */
-//<<<<<<< HEAD
   public void registerTable(String tableName, BaseBeamTable table) {
     schema.add(tableName, new BeamCalciteTable(table.getRecordType()));
-//=======
-//  public void registerTable(String tableName, BaseBeamTable table) {
-//    schema.add(tableName, table);
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
     planner.getSourceTables().put(tableName, table);
   }
 

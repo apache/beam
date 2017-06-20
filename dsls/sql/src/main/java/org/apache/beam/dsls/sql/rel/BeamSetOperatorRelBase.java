@@ -20,12 +20,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.io.Serializable;
 import java.util.List;
-//<<<<<<< HEAD
-//
-//=======
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-//import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;

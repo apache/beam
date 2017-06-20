@@ -17,11 +17,7 @@
  */
 package org.apache.beam.dsls.sql.rel;
 
-//<<<<<<< HEAD
-//=======
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-//import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;

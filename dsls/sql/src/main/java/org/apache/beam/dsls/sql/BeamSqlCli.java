@@ -17,8 +17,6 @@
  */
 package org.apache.beam.dsls.sql;
 
-//import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
-
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
@@ -36,14 +34,8 @@ public class BeamSqlCli {
   /**
    * Returns a human readable representation of the query execution plan.
    */
-//<<<<<<< HEAD
   public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv) throws Exception {
-//    BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
-//=======
-//  public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv)
-//      throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = sqlEnv.planner.convertToBeamRel(sqlString);
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -67,11 +59,7 @@ public class BeamSqlCli {
   public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline
       , BeamSqlEnv sqlEnv) throws Exception{
     PCollection<BeamSqlRow> resultStream =
-//<<<<<<< HEAD
-//        planner.compileBeamPipeline(sqlStatement, basePipeline);
-//=======
         sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
     return resultStream;
   }
 }

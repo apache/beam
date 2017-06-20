@@ -19,11 +19,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.util.ArrayList;
 import java.util.List;
-//<<<<<<< HEAD
-//=======
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-//import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;

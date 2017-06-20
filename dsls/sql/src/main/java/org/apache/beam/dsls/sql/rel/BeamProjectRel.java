@@ -18,10 +18,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
-//<<<<<<< HEAD
-//=======
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;

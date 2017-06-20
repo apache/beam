@@ -24,12 +24,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-//<<<<<<< HEAD
-//=======
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-//import org.apache.beam.dsls.sql.planner.BeamSqlRelUtils;
-//import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
-//>>>>>>> eb5852b... restrict the scope of BeamSqlEnv
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
