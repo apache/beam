@@ -126,4 +126,174 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlExpExpression(operands).evaluate(record).getValue());
   }
 
+  @Test public void testForACosExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(Double.NaN,
+        new BeamSqlACosExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
+    Assert.assertEquals(1.1040309877476002,
+        new BeamSqlACosExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
+    Assert.assertEquals(1.9465782472653976,
+        new BeamSqlACosExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForASinExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type double
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
+    Assert.assertEquals(0.4667653390472964,
+        new BeamSqlASinExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
+    Assert.assertEquals(-0.3757819204705009,
+        new BeamSqlASinExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForATanExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type double
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
+    Assert.assertEquals(0.4228539261329407,
+        new BeamSqlATanExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
+    Assert.assertEquals(-0.3517385919208851,
+        new BeamSqlATanExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForCosExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type double
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
+    Assert.assertEquals(0.9004471023526769,
+        new BeamSqlCosExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
+    Assert.assertEquals(0.933407994804752,
+        new BeamSqlCosExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForCotExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type double
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, .45));
+    Assert.assertEquals(2.0701573613012125,
+        new BeamSqlCotExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-.367)));
+    Assert.assertEquals(-2.601349560400992,
+        new BeamSqlCotExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForDegreesExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(114.59155902616465,
+        new BeamSqlDegreesExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
+    Assert.assertEquals(137.50987083139756,
+        new BeamSqlDegreesExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
+    Assert.assertEquals(146.67719555349075,
+        new BeamSqlDegreesExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForRadiansExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(0.03490658503988659,
+        new BeamSqlRadiansExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
+    Assert.assertEquals(0.041887902047863905,
+        new BeamSqlRadiansExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
+    Assert.assertEquals(0.04468042885105484,
+        new BeamSqlRadiansExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForSinExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(0.9092974268256817,
+        new BeamSqlSinExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
+    Assert.assertEquals(0.675463180551151,
+        new BeamSqlSinExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
+    Assert.assertEquals(0.5493554364271266,
+        new BeamSqlSinExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForTanExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(-2.185039863261519,
+        new BeamSqlTanExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
+    Assert.assertEquals(-0.9160142896734107,
+        new BeamSqlTanExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
+    Assert.assertEquals(-0.6574471216727855,
+        new BeamSqlTanExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForSignExpression() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    // test for exp function with operand type smallint
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
+    Assert.assertEquals(1,
+        new BeamSqlSignExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
+    Assert.assertEquals(1.0,
+        new BeamSqlSignExpression(operands).evaluate(record).getValue());
+    // test for exp function with operand type decimal
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
+    Assert.assertEquals(BigDecimal.ONE,
+        new BeamSqlSignExpression(operands).evaluate(record).getValue());
+  }
+
 }
