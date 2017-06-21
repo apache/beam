@@ -17,14 +17,11 @@
 
 """Unit tests for the range_trackers module."""
 
-import array
 import copy
 import logging
 import math
 import unittest
 
-
-from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 
 
