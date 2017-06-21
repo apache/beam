@@ -60,10 +60,10 @@ public class AmqpIOTest {
 
   @Test
   public void testRead() throws Exception {
-    PCollection<AmqpMessage> output = pipeline.apply(AmqpIO.read()
+    PCollection<Message> output = pipeline.apply(AmqpIO.read()
         .withMaxNumRecords(100)
         .withAddresses(Collections.singletonList("amqp://~localhost:" + port)));
-    PAssert.thatSingleton(output.apply(Count.<AmqpMessage>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(output.apply(Count.<Message>globally())).isEqualTo(100L);
 
     Thread sender = new Thread() {
       public void run() {
@@ -72,10 +72,10 @@ public class AmqpIOTest {
           Messenger sender = Messenger.Factory.create();
           sender.start();
           for (int i = 0; i < 100; i++) {
-            AmqpMessage message = new AmqpMessage();
-            message.getMessage().setAddress("amqp://localhost:" + port);
-            message.getMessage().setBody(new AmqpValue("Test " + i));
-            sender.put(message.getMessage());
+            Message message = Message.Factory.create();
+            message.setAddress("amqp://localhost:" + port);
+            message.setBody(new AmqpValue("Test " + i));
+            sender.put(message);
             sender.send();
           }
           sender.stop();
@@ -116,15 +116,15 @@ public class AmqpIOTest {
     LOG.info("Starting AMQP receiver");
     receiver.start();
 
-    List<AmqpMessage> data = new ArrayList<>();
+    List<Message> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      AmqpMessage message = new AmqpMessage();
-      message.getMessage().setBody(new AmqpValue("Test " + i));
+      Message message = Message.Factory.create();
+      message.setBody(new AmqpValue("Test " + i));
+      message.setAddress("amqp://localhost:" + port);
+      message.setSubject("test");
       data.add(message);
     }
-    pipeline.apply(Create.of(data).withCoder(AmqpMessageCoder.of()))
-        .apply(AmqpIO.write()
-            .withAddresses(Collections.singletonList("amqp://localhost:" + port)));
+    pipeline.apply(Create.of(data).withCoder(AmqpMessageCoder.of())).apply(AmqpIO.write());
     LOG.info("Starting pipeline");
     pipeline.run();
     LOG.info("Join receiver thread");

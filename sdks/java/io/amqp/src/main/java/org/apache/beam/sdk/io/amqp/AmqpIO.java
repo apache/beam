@@ -90,8 +90,7 @@ import org.joda.time.Instant;
  *
  *  pipeline
  *    .apply(...) // provide PCollection<Message>
- *    .apply(AmqpIO.write()
- *      .withAddresses(Collections.singletonList("amqp://host:1234")));
+ *    .apply(AmqpIO.write());
  *
  * }</pre>
  */
@@ -102,7 +101,7 @@ public class AmqpIO {
   }
 
   public static Write write() {
-    return new AutoValue_AmqpIO_Write.Builder().build();
+    return new AutoValue_AmqpIO_Write();
   }
 
   private AmqpIO() {
@@ -112,7 +111,7 @@ public class AmqpIO {
    * A {@link PTransform} to read/receive messages using AMQP 1.0 protocol.
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<AmqpMessage>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
     @Nullable abstract List<String> addresses();
     abstract long maxNumRecords();
@@ -175,11 +174,11 @@ public class AmqpIO {
     }
 
     @Override
-    public PCollection<AmqpMessage> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<AmqpMessage> unbounded =
+    public PCollection<Message> expand(PBegin input) {
+      org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedAmqpSource(this));
 
-      PTransform<PBegin, PCollection<AmqpMessage>> transform = unbounded;
+      PTransform<PBegin, PCollection<Message>> transform = unbounded;
 
       if (maxNumRecords() != Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords());
@@ -196,7 +195,6 @@ public class AmqpIO {
 
     private transient Messenger messenger;
     private transient List<Tracker> trackers = new ArrayList<>();
-    private Instant watermark;
 
     public AmqpCheckpointMark() {
     }
@@ -208,20 +206,18 @@ public class AmqpIO {
         messenger.accept(tracker, 0);
       }
       trackers.clear();
-      watermark = Instant.now();
     }
 
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
         throws java.io.IOException, ClassNotFoundException {
       trackers = new ArrayList<>();
-      watermark = Instant.now();
     }
 
   }
 
   private static class UnboundedAmqpSource
-      extends UnboundedSource<AmqpMessage, AmqpCheckpointMark> {
+      extends UnboundedSource<Message, AmqpCheckpointMark> {
 
     private final Read spec;
 
@@ -246,13 +242,13 @@ public class AmqpIO {
     }
 
     @Override
-    public UnboundedReader<AmqpMessage> createReader(PipelineOptions pipelineOptions,
+    public UnboundedReader<Message> createReader(PipelineOptions pipelineOptions,
                                                 AmqpCheckpointMark checkpointMark) {
       return new UnboundedAmqpReader(this, checkpointMark);
     }
 
     @Override
-    public Coder<AmqpMessage> getDefaultOutputCoder() {
+    public Coder<Message> getDefaultOutputCoder() {
       return new AmqpMessageCoder();
     }
 
@@ -268,13 +264,14 @@ public class AmqpIO {
 
   }
 
-  private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<AmqpMessage> {
+  private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {
 
     private final UnboundedAmqpSource source;
 
     private Messenger messenger;
-    private AmqpMessage current;
+    private Message current;
     private Instant currentTimestamp;
+    private Instant watermark = new Instant(Long.MIN_VALUE);
     private AmqpCheckpointMark checkpointMark;
 
     public UnboundedAmqpReader(UnboundedAmqpSource source, AmqpCheckpointMark checkpointMark) {
@@ -289,7 +286,7 @@ public class AmqpIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.watermark;
+      return watermark;
     }
 
     @Override
@@ -301,7 +298,7 @@ public class AmqpIO {
     }
 
     @Override
-    public AmqpMessage getCurrent() {
+    public Message getCurrent() {
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -341,10 +338,8 @@ public class AmqpIO {
       Tracker tracker = messenger.incomingTracker();
       checkpointMark.trackers.add(tracker);
       currentTimestamp = new Instant(message.getCreationTime());
-      if (currentTimestamp.isBefore(checkpointMark.watermark)) {
-        checkpointMark.watermark = currentTimestamp;
-      }
-      current = new AmqpMessage(message);
+      watermark = currentTimestamp;
+      current = message;
       return true;
     }
 
@@ -361,61 +356,15 @@ public class AmqpIO {
    * A {@link PTransform} to send messages using AMQP 1.0 protocol.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<AmqpMessage>, PDone> {
-
-    @Nullable abstract List<String> addresses();
-    @Nullable abstract String subject();
-
-    abstract Builder builder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setAddresses(List<String> addresses);
-      abstract Builder setSubject(String subject);
-      abstract Write build();
-    }
-
-    /**
-     * Define the AMQP addresses where to send messages.
-     */
-    public Write withAddresses(List<String> addresses) {
-      checkArgument(addresses != null, "AmqpIO.write().withAddresses(addresses) called with "
-          + "null addresses");
-      checkArgument(!addresses.isEmpty(), "AmpqIO.write().withAddresses(addresses) called with "
-          + "empty addresses list");
-      return builder().setAddresses(addresses).build();
-    }
-
-    /**
-     * Define the AMQP messages subject.
-     */
-    public Write withSubject(String subject) {
-      checkArgument(subject != null, "AmqpIO.write().withSubject(subject) called with null "
-          + "subject");
-      return builder().setSubject(subject).build();
-    }
+  public abstract static class Write extends PTransform<PCollection<Message>, PDone> {
 
     @Override
-    public PDone expand(PCollection<AmqpMessage> input) {
+    public PDone expand(PCollection<Message> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
-    @Override
-    public void validate(PipelineOptions pipelineOptions) {
-      checkState(addresses() != null, "AmqIO.write() requires addresses list to be set via "
-          + "withAddresses(addresses)");
-      checkState(!addresses().isEmpty(), "AmqIO.write() requires a non-empty addresses list to be"
-          + " set via withAddresses(addresses)");
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("addresses", Joiner.on(" ").join(addresses())));
-      builder.addIfNotNull(DisplayData.item("subject", subject()));
-    }
-
-    private static class WriteFn extends DoFn<AmqpMessage, Void> {
+    private static class WriteFn extends DoFn<Message, Void> {
 
       private final Write spec;
 
@@ -433,15 +382,9 @@ public class AmqpIO {
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
-        AmqpMessage message = processContext.element();
-        for (String address : spec.addresses()) {
-          message.getMessage().setAddress(address);
-          if (spec.subject() != null) {
-            message.getMessage().setSubject(spec.subject());
-          }
-          messenger.put(message.getMessage());
-          messenger.send();
-        }
+        Message message = processContext.element();
+        messenger.put(message);
+        messenger.send();
       }
 
       @Teardown
