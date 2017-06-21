@@ -148,7 +148,8 @@ class EvaluationContext(object):
     self._transform_keyed_states = self._initialize_keyed_states(
         root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
-        Clock(), root_transforms, value_to_consumers)
+        Clock(), root_transforms, value_to_consumers,
+        self._transform_keyed_states)
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
