@@ -1,7 +1,6 @@
 package graphx
 
 import (
-	"debug/elf"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -16,6 +15,21 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
+
+// TODO(wcn): not happy with these names. if inspiration strikes, changes welcome!
+
+// SymbolResolution is the interface that should be implemented
+// in order to override the default behavior for symbol resolution.
+type SymbolResolution interface {
+	Sym2Addr(string) (uintptr, error)
+}
+
+// SymbolResolver is exported to allow unit tests to supply a resolver function.
+// This is needed since the default symbol resolution process uses the DWARF
+// tables in the executable, which unfortunately are not made available
+// by default in "go test" builds. Unit tests that need symbol resolution
+// should pass in an appropriate fake.
+var SymbolResolver SymbolResolution = symbols
 
 // EncodeMultiEdge converts the preprocessed representation into the wire
 // representation of the multiedge, capturing input and ouput type information.
@@ -221,29 +235,6 @@ func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
 		return nil, err
 	}
 	return ret, nil
-}
-
-// TODO(wcn): should move this to its own file that is conditionally compiled.
-// We can then write the OSX version, for example. This function is the abstraction
-// for getting addresses from names, which depends on the OS.
-func sym2addr(name string) (uintptr, error) {
-	f, err := elf.Open("/proc/self/exe")
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	syms, err := f.Symbols()
-	if err != nil {
-		return 0, err
-	}
-
-	for _, s := range syms {
-		if s.Name == name {
-			return uintptr(s.Value), nil
-		}
-	}
-	return 0, fmt.Errorf("no symbol %q", name)
 }
 
 func encodeFullType(t typex.FullType) (*v1.FullType, error) {
@@ -864,4 +855,8 @@ func DecodeWindow(w *CoderRef) (*coder.Window, error) {
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}
+}
+
+func sym2addr(name string) (uintptr, error) {
+	return SymbolResolver.Sym2Addr(name)
 }
