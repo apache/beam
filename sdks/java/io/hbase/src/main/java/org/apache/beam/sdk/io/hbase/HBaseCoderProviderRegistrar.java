@@ -24,11 +24,6 @@ import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.hadoop.hbase.client.Append;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Increment;
-import org.apache.hadoop.hbase.client.Mutation;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
 /**
@@ -39,11 +34,7 @@ public class HBaseCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
-      CoderProviders.forCoder(TypeDescriptor.of(Append.class), HBaseMutationCoder.of()),
-      CoderProviders.forCoder(TypeDescriptor.of(Delete.class), HBaseMutationCoder.of()),
-      CoderProviders.forCoder(TypeDescriptor.of(Increment.class), HBaseMutationCoder.of()),
-      CoderProviders.forCoder(TypeDescriptor.of(Mutation.class), HBaseMutationCoder.of()),
-      CoderProviders.forCoder(TypeDescriptor.of(Put.class), HBaseMutationCoder.of()),
+      HBaseMutationCoder.getCoderProvider(),
       CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()));
   }
 }
