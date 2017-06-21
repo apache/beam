@@ -93,17 +93,19 @@ class WatermarkManager(object):
     return self._transform_to_watermarks[applied_ptransform]
 
   def update_watermarks(self, completed_committed_bundle, applied_ptransform,
-                        completed_timers, outputs, earliest_hold):
+                        completed_timers, outputs, unprocessed_bundles,
+                        earliest_hold):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, applied_ptransform, completed_timers,
-        outputs)
+        outputs, unprocessed_bundles)
     tw = self.get_watermarks(applied_ptransform)
     tw.hold(earliest_hold)
     self._refresh_watermarks(applied_ptransform)
 
   def _update_pending(self, input_committed_bundle, applied_ptransform,
-                      completed_timers, output_committed_bundles):
+                      completed_timers, output_committed_bundles,
+                      unprocessed_bundles):
     """Updated list of pending bundles for the given AppliedPTransform."""
 
     # Update pending elements. Filter out empty bundles. They do not impact
@@ -118,6 +120,9 @@ class WatermarkManager(object):
 
     completed_tw = self._transform_to_watermarks[applied_ptransform]
     completed_tw.update_timers(completed_timers)
+
+    for unprocessed_bundle in unprocessed_bundles:
+      completed_tw.add_pending(unprocessed_bundle)
 
     assert input_committed_bundle or applied_ptransform in self._root_transforms
     if input_committed_bundle and input_committed_bundle.has_elements():
