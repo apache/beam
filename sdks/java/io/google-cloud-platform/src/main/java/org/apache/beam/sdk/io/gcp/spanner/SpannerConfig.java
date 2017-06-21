@@ -64,7 +64,7 @@ public abstract class SpannerConfig implements Serializable {
     return builder().build();
   }
 
-  public static Builder builder() {
+  static Builder builder() {
     return new AutoValue_SpannerConfig.Builder();
   }
 
@@ -130,4 +130,10 @@ public abstract class SpannerConfig implements Serializable {
   public SpannerConfig withDatabaseId(String databaseId) {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
+
+  @VisibleForTesting
+  SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+    return toBuilder().setServiceFactory(serviceFactory).build();
+  }
+
 }

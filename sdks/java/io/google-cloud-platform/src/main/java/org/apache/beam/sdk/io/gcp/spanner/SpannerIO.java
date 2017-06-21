@@ -170,6 +170,7 @@ public class SpannerIO {
   @Experimental
   public static Read read() {
     return new AutoValue_SpannerIO_Read.Builder()
+        .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
         .setKeySet(KeySet.all())
         .build();
@@ -183,6 +184,7 @@ public class SpannerIO {
   @Experimental
   public static CreateTransaction createTransaction() {
     return new AutoValue_SpannerIO_CreateTransaction.Builder()
+        .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
         .build();
   }
@@ -194,7 +196,7 @@ public class SpannerIO {
    */
   @Experimental
   public static Write write() {
-    return new AutoValue_SpannerIO_Write.Builder().build()
+    return new AutoValue_SpannerIO_Write.Builder().setSpannerConfig(SpannerConfig.create()).build()
         .withBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES);
   }
 
@@ -274,7 +276,6 @@ public class SpannerIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract SpannerConfig.Builder spannerConfigBuilder();
 
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
@@ -310,9 +311,8 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Read withProjectId(ValueProvider<String> projectId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setProjectId(projectId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
     }
 
     /**
@@ -332,9 +332,8 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Read withInstanceId(ValueProvider<String> instanceId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setInstanceId(instanceId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
     /**
@@ -354,16 +353,14 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Read withDatabaseId(ValueProvider<String> databaseId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setDatabaseId(databaseId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
     @VisibleForTesting
     Read withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setServiceFactory(serviceFactory);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
     }
 
     /**
@@ -431,11 +428,13 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable abstract TimestampBound getTimestampBound();
+    @Nullable
+    abstract TimestampBound getTimestampBound();
 
     abstract Builder toBuilder();
 
-    @Override public PCollectionView<Transaction> expand(PBegin input) {
+    @Override
+    public PCollectionView<Transaction> expand(PBegin input) {
       return input.apply(Create.of(1))
           .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
           .apply("As PCollectionView", View.<Transaction>asSingleton());
@@ -446,9 +445,8 @@ public class SpannerIO {
     }
 
     public CreateTransaction withProjectId(ValueProvider<String> projectId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setProjectId(projectId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
     }
 
     public CreateTransaction withInstanceId(String instanceId) {
@@ -456,9 +454,8 @@ public class SpannerIO {
     }
 
     public CreateTransaction withInstanceId(ValueProvider<String> instanceId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setInstanceId(instanceId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
     public CreateTransaction withSpannerConfig(SpannerConfig spannerConfig) {
@@ -470,30 +467,28 @@ public class SpannerIO {
     }
 
     public CreateTransaction withDatabaseId(ValueProvider<String> databaseId) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setDatabaseId(databaseId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
-    @VisibleForTesting CreateTransaction withServiceFactory(
+    @VisibleForTesting
+    CreateTransaction withServiceFactory(
         ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
-      Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setServiceFactory(serviceFactory);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
     }
 
     public CreateTransaction withTimestampBound(TimestampBound timestampBound) {
       return toBuilder().setTimestampBound(timestampBound).build();
     }
 
-    @Override public void validate(PipelineOptions options) {
+    @Override
+    public void validate(PipelineOptions options) {
       getSpannerConfig().validate(options);
     }
 
     /** A builder for {@link CreateTransaction}. */
     @AutoValue.Builder public abstract static class Builder {
-
-      public abstract SpannerConfig.Builder spannerConfigBuilder();
 
       public abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
@@ -525,8 +520,6 @@ public class SpannerIO {
 
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
-      abstract SpannerConfig.Builder spannerConfigBuilder();
-
       abstract Builder setBatchSizeBytes(Long batchSizeBytes);
 
       abstract Write build();
@@ -547,9 +540,8 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withProjectId(ValueProvider<String> projectId) {
-      Write.Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setProjectId(projectId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
     }
 
     /**
@@ -569,9 +561,8 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withInstanceId(ValueProvider<String> instanceId) {
-      Write.Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setInstanceId(instanceId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
     /**
@@ -601,16 +592,14 @@ public class SpannerIO {
      * <p>Does not modify this object.
      */
     public Write withDatabaseId(ValueProvider<String> databaseId) {
-      Write.Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setDatabaseId(databaseId);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
     @VisibleForTesting
     Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
-      Write.Builder builder = toBuilder();
-      builder.spannerConfigBuilder().setServiceFactory(serviceFactory);
-      return builder.build();
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
     }
 
     /**
