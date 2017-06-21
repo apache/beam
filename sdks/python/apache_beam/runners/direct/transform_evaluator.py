@@ -202,7 +202,14 @@ class _TransformEvaluator(object):
     pass
 
   def process_timer_wrapper(self, timer_firing):
-    """Process timer by clearing and then calling process_timer()."""
+    """Process timer by clearing and then calling process_timer().
+
+    This method is called with any timer firing and clears the delivered
+    timer from the keyed state and then calls process_timer().  The default
+    process_timer() implementation emits a KeyedWorkItem for the particular
+    timer and passes it to process_element().  Evaluator subclasses which
+    desire different timer delivery semantics can override process_timer().
+    """
     state = self.step_context.get_keyed_state(timer_firing.key)
     state.clear_timer(
         timer_firing.window, timer_firing.name, timer_firing.time_domain)
@@ -406,6 +413,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
 
   def process_timer(self, timer_firing):
+    # We do not need to emit a KeyedWorkItem to process_element().
     pass
 
   def process_element(self, element):
@@ -494,6 +502,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     self.global_state = self.step_context.get_keyed_state(None)
 
   def process_timer(self, timer_firing):
+    # We do not need to emit a KeyedWorkItem to process_element().
     pass
 
   def process_element(self, element):
