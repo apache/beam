@@ -36,17 +36,20 @@ import org.apache.qpid.proton.messenger.Messenger;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Tests on {@link AmqpIO}.
  */
+@RunWith(JUnit4.class)
 public class AmqpIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(AmqpIOTest.class);
 
-  private static int port;
+  private int port;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
