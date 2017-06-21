@@ -234,6 +234,76 @@ public class SpannerIO {
 
     abstract Builder toBuilder();
 
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
+
+      abstract Builder setTimestampBound(TimestampBound timestampBound);
+
+      abstract Builder setQuery(Statement statement);
+
+      abstract Builder setTable(String table);
+
+      abstract Builder setIndex(String index);
+
+      abstract Builder setColumns(List<String> columns);
+
+      abstract Builder setKeySet(KeySet keySet);
+
+      abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract Read build();
+    }
+
+    /** Specifies the Cloud Spanner configuration. */
+    public Read withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public Read withProjectId(String projectId) {
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public Read withProjectId(ValueProvider<String> projectId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public Read withInstanceId(String instanceId) {
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public Read withInstanceId(ValueProvider<String> instanceId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public Read withDatabaseId(String databaseId) {
+      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public Read withDatabaseId(ValueProvider<String> databaseId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    @VisibleForTesting
+    Read withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
+    }
+
+    public Read withTransaction(PCollectionView<Transaction> transaction) {
+      return toBuilder().setTransaction(transaction).build();
+    }
+
     public Read withTimestamp(Timestamp timestamp) {
       return withTimestampBound(TimestampBound.ofReadTimestamp(timestamp));
     }
@@ -270,108 +340,6 @@ public class SpannerIO {
       return toBuilder().setIndex(index).build();
     }
 
-    public Read withSpannerConfig(SpannerConfig spannerConfig) {
-      return toBuilder().setSpannerConfig(spannerConfig).build();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
-
-      abstract Builder setTimestampBound(TimestampBound timestampBound);
-
-      abstract Builder setQuery(Statement statement);
-
-      abstract Builder setTable(String table);
-
-      abstract Builder setIndex(String index);
-
-      abstract Builder setColumns(List<String> columns);
-
-      abstract Builder setKeySet(KeySet keySet);
-
-      abstract Builder setTransaction(PCollectionView<Transaction> transaction);
-
-      abstract Read build();
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner project.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withProjectId(String projectId) {
-      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner project.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withProjectId(ValueProvider<String> projectId) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withProjectId(projectId));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner
-     * instance.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withInstanceId(String instanceId) {
-      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner
-     * instance.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withInstanceId(ValueProvider<String> instanceId) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withInstanceId(instanceId));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner
-     * database.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withDatabaseId(String databaseId) {
-      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will write to the specified Cloud Spanner
-     * database.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withDatabaseId(ValueProvider<String> databaseId) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withDatabaseId(databaseId));
-    }
-
-    @VisibleForTesting
-    Read withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withServiceFactory(serviceFactory));
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Read} that will read from the specified Cloud Spanner
-     * config.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withTransaction(PCollectionView<Transaction> transaction) {
-      return toBuilder().setTransaction(transaction).build();
-    }
 
     @Override
     public void validate(PipelineOptions options) {
@@ -440,32 +408,39 @@ public class SpannerIO {
           .apply("As PCollectionView", View.<Transaction>asSingleton());
     }
 
+    /** Specifies the Cloud Spanner configuration. */
+    public CreateTransaction withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
     public CreateTransaction withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
+    /** Specifies the Cloud Spanner project. */
     public CreateTransaction withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
+    /** Specifies the Cloud Spanner instance. */
     public CreateTransaction withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
+    /** Specifies the Cloud Spanner instance. */
     public CreateTransaction withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    public CreateTransaction withSpannerConfig(SpannerConfig spannerConfig) {
-      return toBuilder().setSpannerConfig(spannerConfig).build();
-    }
-
+    /** Specifies the Cloud Spanner database. */
     public CreateTransaction withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
+    /** Specifies the Cloud Spanner database. */
     public CreateTransaction withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
@@ -525,72 +500,39 @@ public class SpannerIO {
       abstract Write build();
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner project.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner configuration. */
+    public Write withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
     public Write withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner project.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner project. */
     public Write withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
-     * instance.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner instance. */
     public Write withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
-     * instance.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner instance. */
     public Write withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
-     * config.
-     *
-     * <p>Does not modify this object.
-     */
-    public Write withSpannerConfig(SpannerConfig spannerConfig) {
-      return toBuilder().setSpannerConfig(spannerConfig).build();
-    }
-
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
-     * database.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner database. */
     public Write withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
-     * database.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the Cloud Spanner database. */
     public Write withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
@@ -609,11 +551,7 @@ public class SpannerIO {
       return new WriteGrouped(this);
     }
 
-    /**
-     * Returns a new {@link SpannerIO.Write} with a new batch size limit.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the batch size limit. */
     public Write withBatchSizeBytes(long batchSizeBytes) {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
