@@ -112,6 +112,8 @@ REQUIRED_SETUP_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
+    # Six required by nose plugins management.
+    'six>=1.9',
     ]
 
 GCP_REQUIREMENTS = [
