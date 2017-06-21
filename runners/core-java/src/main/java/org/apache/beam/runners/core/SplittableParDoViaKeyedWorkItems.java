@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -86,15 +85,15 @@ public class SplittableParDoViaKeyedWorkItems {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessViaKeyedWorkItems}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>, PCollectionTuple,
-      ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
+          PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+          ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
-            PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>, PCollectionTuple>
+            PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>,
-                    PCollectionTuple, ProcessKeyedElements<InputT, OutputT, RestrictionT>>
+                    PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
@@ -113,8 +112,7 @@ public class SplittableParDoViaKeyedWorkItems {
    * method for a splittable {@link DoFn}.
    */
   public static class SplittableProcessViaKeyedWorkItems<InputT, OutputT, RestrictionT>
-      extends PTransform<
-          PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
 
     public SplittableProcessViaKeyedWorkItems(
@@ -123,15 +121,13 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     @Override
-    public PCollectionTuple expand(
-        PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>> input) {
+    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
       return input
-          .apply(new GBKIntoKeyedWorkItems<String, ElementAndRestriction<InputT, RestrictionT>>())
+          .apply(new GBKIntoKeyedWorkItems<String, KV<InputT, RestrictionT>>())
           .setCoder(
               KeyedWorkItemCoder.of(
                   StringUtf8Coder.of(),
-                  ((KvCoder<String, ElementAndRestriction<InputT, RestrictionT>>) input.getCoder())
-                      .getValueCoder(),
+                  ((KvCoder<String, KV<InputT, RestrictionT>>) input.getCoder()).getValueCoder(),
                   input.getWindowingStrategy().getWindowFn().windowCoder()))
           .apply(new ProcessElements<>(original));
     }
@@ -141,8 +137,7 @@ public class SplittableParDoViaKeyedWorkItems {
   public static class ProcessElements<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       extends PTransform<
-          PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
-          PCollectionTuple> {
+          PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
 
     public ProcessElements(ProcessKeyedElements<InputT, OutputT, RestrictionT> original) {
@@ -176,7 +171,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
     @Override
     public PCollectionTuple expand(
-        PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>> input) {
+        PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>> input) {
       return ProcessKeyedElements.createPrimitiveOutputFor(
           input,
           original.getFn(),
@@ -201,7 +196,7 @@ public class SplittableParDoViaKeyedWorkItems {
   @VisibleForTesting
   public static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-      extends DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> {
+      extends DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
@@ -321,7 +316,7 @@ public class SplittableParDoViaKeyedWorkItems {
       boolean isSeedCall = (timer == null);
       StateNamespace stateNamespace;
       if (isSeedCall) {
-        WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue =
+        WindowedValue<KV<InputT, RestrictionT>> windowedValue =
             Iterables.getOnlyElement(c.element().elementsIterable());
         BoundedWindow window = Iterables.getOnlyElement(windowedValue.getWindows());
         stateNamespace =
@@ -337,27 +332,25 @@ public class SplittableParDoViaKeyedWorkItems {
           stateInternals.state(stateNamespace, restrictionTag);
       WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
 
-      ElementAndRestriction<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
+      KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
       if (isSeedCall) {
-        WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue =
+        WindowedValue<KV<InputT, RestrictionT>> windowedValue =
             Iterables.getOnlyElement(c.element().elementsIterable());
-        WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().element());
+        WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().getKey());
         elementState.write(element);
-        elementAndRestriction =
-            ElementAndRestriction.of(element, windowedValue.getValue().restriction());
+        elementAndRestriction = KV.of(element, windowedValue.getValue().getValue());
       } else {
         // This is not the first ProcessElement call for this element/restriction - rather,
         // this is a timer firing, so we need to fetch the element and restriction from state.
         elementState.readLater();
         restrictionState.readLater();
-        elementAndRestriction =
-            ElementAndRestriction.of(elementState.read(), restrictionState.read());
+        elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
       }
 
-      final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.restriction());
+      final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.getValue());
       SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
           processElementInvoker.invokeProcessElement(
-              invoker, elementAndRestriction.element(), tracker);
+              invoker, elementAndRestriction.getKey(), tracker);
 
       // Save state for resuming.
       if (result.getResidualRestriction() == null) {
@@ -370,7 +363,7 @@ public class SplittableParDoViaKeyedWorkItems {
       restrictionState.write(result.getResidualRestriction());
       Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
-        futureOutputWatermark = elementAndRestriction.element().getTimestamp();
+        futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
       }
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.

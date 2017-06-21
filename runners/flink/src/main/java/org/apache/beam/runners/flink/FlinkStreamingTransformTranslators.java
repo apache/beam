@@ -29,7 +29,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -548,14 +547,11 @@ class FlinkStreamingTransformTranslators {
           transform.getAdditionalOutputTags().getAll(),
           context,
           new ParDoTranslationHelper.DoFnOperatorFactory<
-              KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
+              KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
             @Override
-            public DoFnOperator<
-                KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-                OutputT> createDoFnOperator(
-                    DoFn<
-                        KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-                        OutputT> doFn,
+            public DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
+                createDoFnOperator(
+                    DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
                     String stepName,
                     List<PCollectionView<?>> sideInputs,
                     TupleTag<OutputT> mainOutputTag,
@@ -563,11 +559,8 @@ class FlinkStreamingTransformTranslators {
                     FlinkStreamingTranslationContext context,
                     WindowingStrategy<?, ?> windowingStrategy,
                     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-                    Coder<
-                        WindowedValue<
-                            KeyedWorkItem<
-                                String,
-                                ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
+                    Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
+                        inputCoder,
                     Coder keyCoder,
                     Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
