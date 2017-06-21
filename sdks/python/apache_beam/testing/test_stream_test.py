@@ -19,6 +19,8 @@
 
 import unittest
 
+import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import TestStream
@@ -77,6 +79,41 @@ class TestStreamTest(unittest.TestCase):
            .add_elements([
                TimestampedValue('a', timestamp.MAX_TIMESTAMP)
            ]))
+
+  def test_basic_execution(self):
+    test_stream = (TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['a', 'b', 'c'])
+                   .advance_watermark_to(20)
+                   .add_elements(['d'])
+                   .add_elements(['e'])
+                   .advance_processing_time(10)
+                   .advance_watermark_to(300)
+                   .add_elements([TimestampedValue('late', 12)])
+                   .add_elements([TimestampedValue('last', 310)]))
+
+    global _seen_elements  # pylint: disable=global-variable-undefined
+    _seen_elements = []
+
+    class RecordFn(beam.DoFn):
+      def process(self, element=beam.DoFn.ElementParam,
+                  timestamp=beam.DoFn.TimestampParam):
+        _seen_elements.append((element, timestamp))
+
+    p = TestPipeline()
+    my_record_fn = RecordFn()
+    p | test_stream | beam.ParDo(my_record_fn)  # pylint: disable=expression-not-assigned
+    p.run()
+
+    self.assertEqual([
+        ('a', timestamp.Timestamp(10)),
+        ('b', timestamp.Timestamp(10)),
+        ('c', timestamp.Timestamp(10)),
+        ('d', timestamp.Timestamp(20)),
+        ('e', timestamp.Timestamp(20)),
+        ('late', timestamp.Timestamp(12)),
+        ('last', timestamp.Timestamp(310)),], _seen_elements)
+    del _seen_elements
 
 
 if __name__ == '__main__':

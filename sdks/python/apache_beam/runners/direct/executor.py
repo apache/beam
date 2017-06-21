@@ -227,17 +227,25 @@ class _CompletionCallback(object):
     self._all_updates = all_updates
     self._timer_firings = timer_firings or []
 
-  def handle_result(self, input_committed_bundle, transform_result):
+  def handle_result(self, transform_executor, input_committed_bundle,
+                    transform_result):
     output_committed_bundles = self._evaluation_context.handle_result(
         input_committed_bundle, self._timer_firings, transform_result)
     for output_committed_bundle in output_committed_bundles:
       self._all_updates.offer(_ExecutorServiceParallelExecutor._ExecutorUpdate(
-          output_committed_bundle, None))
+          transform_executor,
+          committed_bundle=output_committed_bundle))
+    for unprocessed_bundle in transform_result.unprocessed_bundles:
+      self._all_updates.offer(
+          _ExecutorServiceParallelExecutor._ExecutorUpdate(
+              transform_executor,
+              unprocessed_bundle=unprocessed_bundle))
     return output_committed_bundles
 
-  def handle_exception(self, exception):
+  def handle_exception(self, transform_executor, exception):
     self._all_updates.offer(
-        _ExecutorServiceParallelExecutor._ExecutorUpdate(None, exception))
+        _ExecutorServiceParallelExecutor._ExecutorUpdate(
+            transform_executor, exception=exception))
 
 
 class TransformExecutor(_ExecutorService.CallableTask):
@@ -312,10 +320,10 @@ class TransformExecutor(_ExecutorService.CallableTask):
             self._evaluation_context.append_to_cache(
                 self._applied_ptransform, tag, value)
 
-      self._completion_callback.handle_result(self._input_bundle, result)
+      self._completion_callback.handle_result(self, self._input_bundle, result)
       return result
     except Exception as e:  # pylint: disable=broad-except
-      self._completion_callback.handle_exception(e)
+      self._completion_callback.handle_exception(self, e)
     finally:
       self._evaluation_context.metrics().commit_physical(
           self._input_bundle,
@@ -387,6 +395,10 @@ class _ExecutorServiceParallelExecutor(object):
         self.schedule_consumption(applied_ptransform, committed_bundle, [],
                                   self.default_completion_callback)
 
+  def schedule_unprocessed_bundle(self, applied_ptransform,
+                                  unprocessed_bundle):
+    self.node_to_pending_bundles[applied_ptransform].append(unprocessed_bundle)
+
   def schedule_consumption(self, consumer_applied_ptransform, committed_bundle,
                            fired_timers, on_complete):
     """Schedules evaluation of the given bundle with the transform."""
@@ -433,10 +445,16 @@ class _ExecutorServiceParallelExecutor(object):
   class _ExecutorUpdate(object):
     """An internal status update on the state of the executor."""
 
-    def __init__(self, produced_bundle=None, exception=None):
+    def __init__(self, transform_executor, committed_bundle=None,
+                 unprocessed_bundle=None, exception=None):
+      self.transform_executor = transform_executor
       # Exactly one of them should be not-None
-      assert bool(produced_bundle) != bool(exception)
-      self.committed_bundle = produced_bundle
+      assert sum([
+          bool(committed_bundle),
+          bool(unprocessed_bundle),
+          bool(exception)]) == 1
+      self.committed_bundle = committed_bundle
+      self.unprocessed_bundle = unprocessed_bundle
       self.exception = exception
       self.exc_info = sys.exc_info()
       if self.exc_info[1] is not exception:
@@ -471,6 +489,10 @@ class _ExecutorServiceParallelExecutor(object):
         while update:
           if update.committed_bundle:
             self._executor.schedule_consumers(update.committed_bundle)
+          elif update.unprocessed_bundle:
+            self._executor.schedule_unprocessed_bundle(
+                update.transform_executor._applied_ptransform,
+                update.unprocessed_bundle)
           else:
             assert update.exception
             logging.warning('A task failed with exception.\n %s',
