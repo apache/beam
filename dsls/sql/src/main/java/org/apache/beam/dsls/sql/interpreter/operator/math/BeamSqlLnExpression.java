@@ -35,25 +35,7 @@ public class BeamSqlLnExpression extends BeamSqlMathUnaryExpression {
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
-    BeamSqlPrimitive result = null;
-    switch (op.getOutputType()) {
-      case TINYINT:
-      case SMALLINT:
-      case INTEGER:
-      case BIGINT:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.ln(SqlFunctions.toLong(op.getValue())));
-        break;
-      case FLOAT:
-      case DOUBLE:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.ln(SqlFunctions.toDouble(op.getValue())));
-        break;
-      case DECIMAL:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.ln(SqlFunctions.toBigDecimal(op.getValue())));
-        break;
-    }
-    return result;
+    return BeamSqlPrimitive
+        .of(SqlTypeName.DOUBLE, SqlFunctions.ln(SqlFunctions.toDouble(op.getValue())));
   }
 }

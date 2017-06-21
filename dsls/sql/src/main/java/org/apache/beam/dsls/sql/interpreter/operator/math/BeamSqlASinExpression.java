@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
@@ -34,25 +35,7 @@ public class BeamSqlASinExpression extends BeamSqlMathUnaryExpression {
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
-    BeamSqlPrimitive result = null;
-    switch (op.getOutputType()) {
-      case TINYINT:
-      case SMALLINT:
-      case INTEGER:
-      case BIGINT:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.asin(SqlFunctions.toLong(op.getValue())));
-        break;
-      case FLOAT:
-      case DOUBLE:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.asin(SqlFunctions.toDouble(op.getValue())));
-        break;
-      case DECIMAL:
-        result = BeamSqlPrimitive
-            .of(SqlTypeName.DOUBLE, SqlFunctions.asin(SqlFunctions.toBigDecimal(op.getValue())));
-        break;
-    }
-    return result;
+    return BeamSqlPrimitive
+        .of(SqlTypeName.DOUBLE, SqlFunctions.asin(SqlFunctions.toDouble(op.getValue())));
   }
 }
