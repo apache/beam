@@ -783,7 +783,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testSplitQueryFnWithQueryLimit() throws Exception {
-    Query queryWithLimit = QUERY.toBuilder().clone()
+    Query queryWithLimit = QUERY.toBuilder()
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
@@ -1079,7 +1079,7 @@ public class DatastoreV1Test {
   private List<Query> splitQuery(Query query, int numSplits) {
     List<Query> queries = new LinkedList<>();
     for (int i = 0; i < numSplits; i++) {
-      queries.add(query.toBuilder().clone().build());
+      queries.add(query.toBuilder().build());
     }
     return queries;
   }
