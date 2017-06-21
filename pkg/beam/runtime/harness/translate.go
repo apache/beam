@@ -2,6 +2,7 @@ package harness
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	protobuf "github.com/golang/protobuf/ptypes/any"
@@ -12,6 +13,11 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
+)
+
+var (
+	errRootlessBundle = errors.New("Invalid bundle: no roots supplied")
+	errBundleHasCycle = errors.New("Bundle contained a cycle")
 )
 
 // Tracks provenance information of PCollections to help linking nodes
@@ -53,7 +59,7 @@ func topologicalSort(bundle *fnapi_pb.ProcessBundleDescriptor) (sortedIds []stri
 
 	xforms := bundle.GetTransforms()
 	if len(xforms) == 0 {
-		return nil, nil, fmt.Errorf("Invalid bundle. No roots identified. %v", bundle)
+		return nil, nil, errRootlessBundle
 	}
 
 	frontier := append([]string(nil), sortedIds...)
@@ -91,7 +97,7 @@ func topologicalSort(bundle *fnapi_pb.ProcessBundleDescriptor) (sortedIds []stri
 	}
 
 	if len(sortedIds) != len(bundle.GetTransforms()) {
-		return nil, nil, fmt.Errorf("Supplied bundle contained a cycle: %v", bundle)
+		return nil, nil, errBundleHasCycle
 	}
 
 	return sortedIds, colls, nil
@@ -162,7 +168,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 			if size := len(transform.GetOutputs()); size != 1 {
-				return nil, fmt.Errorf("Expected 1 input, got %v", size)
+				return nil, fmt.Errorf("Expected 1 output, got %v", size)
 			}
 			var target *graph.Target
 			for key := range transform.GetOutputs() {
@@ -187,7 +193,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 			if size := len(transform.GetInputs()); size != 1 {
-				return nil, fmt.Errorf("Expected 1 output, got %v", size)
+				return nil, fmt.Errorf("Expected 1 input, got %v", size)
 			}
 			var target *graph.Target
 			for key := range transform.GetInputs() {
