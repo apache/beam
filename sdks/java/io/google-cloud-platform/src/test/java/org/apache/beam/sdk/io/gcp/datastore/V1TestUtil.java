@@ -374,7 +374,7 @@ class V1TestUtil {
 
     // Read the next batch of query results.
     private Iterator<EntityResult> getIteratorAndMoveCursor() throws DatastoreException {
-      Query.Builder query = this.query.toBuilder().clone();
+      Query.Builder query = this.query.toBuilder();
       query.setLimit(Int32Value.newBuilder().setValue(QUERY_BATCH_LIMIT));
       if (currentBatch != null && !currentBatch.getEndCursor().isEmpty()) {
         query.setStartCursor(currentBatch.getEndCursor());
