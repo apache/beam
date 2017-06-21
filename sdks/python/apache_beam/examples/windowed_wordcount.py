@@ -25,7 +25,6 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import re
 
 
 import apache_beam as beam
@@ -33,6 +32,12 @@ import apache_beam.transforms.window as window
 
 TABLE_SCHEMA = ('word:STRING, count:INTEGER, '
                 'window_start:TIMESTAMP, window_end:TIMESTAMP')
+
+
+def find_words(element):
+  import re
+  return re.findall(r'[A-Za-z\']+', element)
+
 
 class FormatDoFn(beam.DoFn):
   def process(self, element, window=beam.DoFn.WindowParam):
@@ -61,14 +66,13 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-    # Read the text file[pattern] into a PCollection.
+    # Read the text from PubSub messages
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
     transformed = (lines
-                   | 'Split' >> (
-                       beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                       .with_output_types(unicode))
+                   | 'Split' >> (beam.FlatMap(find_words)
+                                 .with_output_types(unicode))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
