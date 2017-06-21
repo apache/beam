@@ -29,6 +29,7 @@ var (
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image.")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	experiments     = flag.String("experiments", "", "Comma-separated list of experiments (optional).")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	block          = flag.Bool("block", true, "Wait for job to terminate.")
@@ -70,7 +71,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Name:      *jobName,
 		Type:      "JOB_TYPE_BATCH",
 		Environment: &df.Environment{
-			Experiments: []string{"use_gci_image"},
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.3.0",
@@ -101,6 +101,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
+	}
+	if *experiments != "" {
+		job.Environment.Experiments = strings.Split(*experiments, ",")
 	}
 	printJob(job)
 
