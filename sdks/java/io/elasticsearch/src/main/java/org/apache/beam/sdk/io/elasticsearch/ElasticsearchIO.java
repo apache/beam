@@ -455,16 +455,7 @@ public class ElasticsearchIO {
       while (shards.hasNext()) {
         Map.Entry<String, JsonNode> shardJson = shards.next();
         String shardId = shardJson.getKey();
-        JsonNode value = (JsonNode) shardJson.getValue();
-        boolean isPrimaryShard =
-            value
-                .path(0)
-                .path("routing")
-                .path("primary")
-                .asBoolean();
-        if (isPrimaryShard) {
-          sources.add(new BoundedElasticsearchSource(spec, shardId));
-        }
+        sources.add(new BoundedElasticsearchSource(spec, shardId));
       }
       checkArgument(!sources.isEmpty(), "No primary shard found");
       return sources;
