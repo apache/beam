@@ -34,8 +34,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 @AutoValue
 public abstract class SpannerConfig implements Serializable {
 
-  private static final long serialVersionUID = -5680874609304170301L;
-
   @Nullable
   abstract ValueProvider<String> getProjectId();
 

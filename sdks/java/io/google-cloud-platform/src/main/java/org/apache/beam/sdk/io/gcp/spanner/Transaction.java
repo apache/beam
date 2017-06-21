@@ -25,8 +25,6 @@ import java.io.Serializable;
 @AutoValue
 public abstract class Transaction implements Serializable {
 
-  private static final long serialVersionUID = -6879867902917208538L;
-
   abstract Timestamp timestamp();
 
   public static Transaction create(Timestamp timestamp) {

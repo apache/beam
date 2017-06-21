@@ -24,8 +24,6 @@ import com.google.cloud.spanner.Statement;
 /** Creates a batch transaction. */
 class CreateTransactionFn extends AbstractSpannerFn<Object, Transaction> {
 
-  private static final long serialVersionUID = -4174426331092286581L;
-
   private final SpannerIO.CreateTransaction config;
 
   CreateTransactionFn(SpannerIO.CreateTransaction config) {
