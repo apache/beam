@@ -94,13 +94,11 @@ public abstract class SpannerConfig implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
 
-
     abstract Builder setProjectId(ValueProvider<String> projectId);
 
     abstract Builder setInstanceId(ValueProvider<String> instanceId);
 
     abstract Builder setDatabaseId(ValueProvider<String> databaseId);
-
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
