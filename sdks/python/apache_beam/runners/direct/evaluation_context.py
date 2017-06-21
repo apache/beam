@@ -208,11 +208,12 @@ class EvaluationContext(object):
       the committed bundles contained within the handled result.
     """
     with self._lock:
-      committed_bundles = self._commit_bundles(
-          result.uncommitted_output_bundles)
+      committed_bundles, unprocessed_bundles = self._commit_bundles(
+          result.uncommitted_output_bundles,
+          result.unprocessed_bundles)
       self._watermark_manager.update_watermarks(
           completed_bundle, result.transform, completed_timers,
-          committed_bundles, result.watermark_hold)
+          committed_bundles, unprocessed_bundles, result.watermark_hold)
 
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
@@ -252,14 +253,17 @@ class EvaluationContext(object):
           executor_service.submit(task)
         self._pending_unblocked_tasks = []
 
-  def _commit_bundles(self, uncommitted_bundles):
+  def _commit_bundles(self, uncommitted_bundles, unprocessed_bundles):
     """Commits bundles and returns a immutable set of committed bundles."""
     for in_progress_bundle in uncommitted_bundles:
       producing_applied_ptransform = in_progress_bundle.pcollection.producer
       watermarks = self._watermark_manager.get_watermarks(
           producing_applied_ptransform)
       in_progress_bundle.commit(watermarks.synchronized_processing_output_time)
-    return tuple(uncommitted_bundles)
+
+    for unprocessed_bundle in unprocessed_bundles:
+      unprocessed_bundle.commit(None)
+    return tuple(uncommitted_bundles), tuple(unprocessed_bundles)
 
   def get_execution_context(self, applied_ptransform):
     return _ExecutionContext(

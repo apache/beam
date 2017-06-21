@@ -27,9 +27,11 @@ class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles,
-               counters, watermark_hold, undeclared_tag_values=None):
+               unprocessed_bundles, counters, watermark_hold,
+               undeclared_tag_values=None):
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
+    self.unprocessed_bundles = unprocessed_bundles
     self.counters = counters
     self.watermark_hold = watermark_hold
     # Only used when caching (materializing) all values is requested.
