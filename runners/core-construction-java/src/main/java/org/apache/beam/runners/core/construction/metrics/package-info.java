@@ -19,4 +19,4 @@
 /**
  * Utilities for runners to implement metrics.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.runners.core.construction.metrics;
