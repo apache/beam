@@ -19,7 +19,6 @@
 """
 import base64
 import collections
-import json
 import logging
 import Queue as queue
 import threading

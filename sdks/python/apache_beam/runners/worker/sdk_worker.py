@@ -28,9 +28,7 @@ import logging
 import Queue as queue
 import threading
 import traceback
-import zlib
 
-import dill
 from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
