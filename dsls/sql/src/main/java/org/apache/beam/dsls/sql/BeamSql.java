@@ -17,9 +17,6 @@
  */
 package org.apache.beam.dsls.sql;
 
-import static org.apache.beam.dsls.sql.BeamSqlEnv.planner;
-import static org.apache.beam.dsls.sql.BeamSqlEnv.registerTable;
-
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -47,17 +44,15 @@ PipelineOptions options = PipelineOptionsFactory.create();
 Pipeline p = Pipeline.create(options);
 
 //create table from TextIO;
-TableSchema tableASchema = ...;
 PCollection<BeamSqlRow> inputTableA = p.apply(TextIO.read().from("/my/input/patha"))
-    .apply(BeamSql.fromTextRow(tableASchema));
-TableSchema tableBSchema = ...;
+    .apply(...);
 PCollection<BeamSqlRow> inputTableB = p.apply(TextIO.read().from("/my/input/pathb"))
-    .apply(BeamSql.fromTextRow(tableBSchema));
+    .apply(...);
 
 //run a simple query, and register the output as a table in BeamSql;
 String sql1 = "select MY_FUNC(c1), c2 from TABLE_A";
-PCollection<BeamSqlRow> outputTableA = inputTableA.apply(BeamSql.simpleQuery(sql1))
-        .withUdf("MY_FUNC", myFunc);
+PCollection<BeamSqlRow> outputTableA = inputTableA.apply(BeamSql.simpleQuery(sql1)
+        .withUdf("MY_FUNC", myFunc));
 
 //run a JOIN with one table from TextIO, and one table from another query
 PCollection<BeamSqlRow> outputTableB = PCollectionTuple.of(
@@ -107,33 +102,45 @@ public class BeamSql {
    */
   private static class QueryTransform extends
       PTransform<PCollectionTuple, PCollection<BeamSqlRow>> {
+    private BeamSqlEnv sqlEnv;
     private String sqlQuery;
+
     public QueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
+      sqlEnv = new BeamSqlEnv();
+    }
+
+    public QueryTransform(String sqlQuery, BeamSqlEnv sqlEnv) {
+      this.sqlQuery = sqlQuery;
+      this.sqlEnv = sqlEnv;
     }
 
     @Override
     public PCollection<BeamSqlRow> expand(PCollectionTuple input) {
-      //register tables
-      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
-        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
-        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
-
-        registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
-      }
+      registerTables(input);
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = planner.convertToBeamRel(sqlQuery);
+        beamRelNode = sqlEnv.planner.convertToBeamRel(sqlQuery);
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
 
       try {
-        return beamRelNode.buildBeamPipeline(input);
+        return beamRelNode.buildBeamPipeline(input, sqlEnv);
       } catch (Exception e) {
         throw new IllegalStateException(e);
+      }
+    }
+
+    //register tables, related with input PCollections.
+    private void registerTables(PCollectionTuple input){
+      for (TupleTag<?> sourceTag : input.getAll().keySet()) {
+        PCollection<BeamSqlRow> sourceStream = (PCollection<BeamSqlRow>) input.get(sourceTag);
+        BeamSqlRowCoder sourceCoder = (BeamSqlRowCoder) sourceStream.getCoder();
+
+        sqlEnv.registerTable(sourceTag.getId(),
+            new BeamPCollectionTable(sourceStream, sourceCoder.getTableSchema()));
       }
     }
   }
@@ -144,21 +151,23 @@ public class BeamSql {
    */
   private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
+    BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
+
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
     }
 
-    public SimpleQueryTransform withUdf(String udfName){
-      throw new UnsupportedOperationException("Pending for UDF support");
-    }
+//    public SimpleQueryTransform withUdf(String udfName){
+//      throw new UnsupportedOperationException("Pending for UDF support");
+//    }
 
     @Override
     public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
-        sqlNode = planner.parseQuery(sqlQuery);
-        planner.getPlanner().close();
+        sqlNode = sqlEnv.planner.parseQuery(sqlQuery);
+        sqlEnv.planner.getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -167,7 +176,7 @@ public class BeamSql {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
         return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
-            .apply(BeamSql.query(sqlQuery));
+            .apply(new QueryTransform(sqlQuery, sqlEnv));
       } else {
         throw new UnsupportedOperationException(
             "Sql operation: " + sqlNode.toString() + " is not supported!");
