@@ -631,7 +631,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 
 @BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  # The Java runner harness strips the base64 encoding.
+  # The Dataflow runner harness strips the base64 encoding.
   source = pickler.loads(base64.b64encode(parameter.value))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),

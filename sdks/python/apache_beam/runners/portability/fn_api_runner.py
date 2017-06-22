@@ -205,8 +205,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         else:
           # Otherwise serialize the source and execute it there.
           # TODO: Use SDFs with an initial impulse.
-          # The Java runner harness strips the base64 encoding. do the same
-          # here until we get the same thign back that we sent in.
+          # The Dataflow runner harness strips the base64 encoding. do the same
+          # here until we get the same thing back that we sent in.
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=sdk_worker.PYTHON_SOURCE_URN,
               parameter=proto_utils.pack_Any(
