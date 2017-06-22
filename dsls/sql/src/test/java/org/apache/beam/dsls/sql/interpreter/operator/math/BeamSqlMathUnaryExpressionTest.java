@@ -125,7 +125,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlExpExpression(operands).evaluate(record).getValue());
   }
 
-  @Test public void testForACosExpression() {
+  @Test public void testForAcosExpression() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     // test for exp function with operand type smallint
@@ -144,7 +144,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlAcosExpression(operands).evaluate(record).getValue());
   }
 
-  @Test public void testForASinExpression() {
+  @Test public void testForAsinExpression() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     // test for exp function with operand type double
@@ -158,7 +158,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlAsinExpression(operands).evaluate(record).getValue());
   }
 
-  @Test public void testForATanExpression() {
+  @Test public void testForAtanExpression() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
     // test for exp function with operand type double
