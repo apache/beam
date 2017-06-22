@@ -1185,7 +1185,7 @@ public class DatastoreV1 {
 
   /**
    * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
-   * batches; see {@link DatastoreV1.WriteBatcher}.
+   * batches; see {@link DatastoreV1.WriteBatcherImpl}.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities">
@@ -1279,19 +1279,28 @@ public class DatastoreV1 {
 
       while (true) {
         // Batch upsert entities.
+        CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+        commitRequest.addAllMutations(mutations);
+        commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+        long startTime = System.currentTimeMillis(), endTime;
+
         try {
-          CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          commitRequest.addAllMutations(mutations);
-          commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-          long startTime = System.currentTimeMillis();
           datastore.commit(commitRequest.build());
-          long endTime = System.currentTimeMillis();
+          endTime = System.currentTimeMillis();
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
 
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
+          if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
+            /* Most errors are not related to request size, and should not change our expectation of
+             * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
+             * consideration, though. */
+            endTime = System.currentTimeMillis();
+            writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+          }
+
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
           LOG.error("Error writing batch of {} mutations to Datastore ({}): {}", mutations.size(),
