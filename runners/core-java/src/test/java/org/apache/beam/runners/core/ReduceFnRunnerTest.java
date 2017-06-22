@@ -78,6 +78,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -348,6 +349,36 @@ public class ReduceFnRunnerTest {
     tester.advanceInputWatermark(GlobalWindow.INSTANCE.maxTimestamp());
     assertThat(tester.extractOutput(), contains(isWindowedValue(equalTo(55))));
   }
+
+  /**
+   * Tests that if end-of-window and GC timers come in together, that the pane is correctly
+   * marked as final.
+   */
+  @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-2505")
+  public void testCombiningAccumulatingEventTime() throws Exception {
+    WindowingStrategy<?, IntervalWindow> strategy =
+        WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(100)))
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(1))
+            .withTrigger(Repeatedly.forever(AfterWatermark.pastEndOfWindow()));
+
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
+
+    injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
+    injectElement(tester, 5);
+
+    tester.advanceInputWatermark(new Instant(1000));
+
+    assertThat(
+        tester.extractOutput(),
+        contains(
+            isSingleWindowedValue(
+                equalTo(7), 2, 0, 100, PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0))));
+  }
+
 
   @Test
   public void testOnElementCombiningAccumulating() throws Exception {
