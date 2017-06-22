@@ -28,9 +28,7 @@ import logging
 import Queue as queue
 import threading
 import traceback
-import zlib
 
-import dill
 from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
@@ -165,37 +163,6 @@ class SideInputSource(native_iobase.NativeSource,
       yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
 
-def unpack_and_deserialize_py_fn(function_spec):
-  """Returns unpacked and deserialized object from function spec proto."""
-  return pickler.loads(unpack_function_spec_data(function_spec))
-
-
-def unpack_function_spec_data(function_spec):
-  """Returns unpacked data from function spec proto."""
-  data = wrappers_pb2.BytesValue()
-  function_spec.data.Unpack(data)
-  return data.value
-
-
-# pylint: disable=redefined-builtin
-def serialize_and_pack_py_fn(fn, urn, id=None):
-  """Returns serialized and packed function in a function spec proto."""
-  return pack_function_spec_data(pickler.dumps(fn), urn, id)
-# pylint: enable=redefined-builtin
-
-
-# pylint: disable=redefined-builtin
-def pack_function_spec_data(value, urn, id=None):
-  """Returns packed data in a function spec proto."""
-  data = wrappers_pb2.BytesValue(value=value)
-  fn_proto = beam_fn_api_pb2.FunctionSpec(urn=urn)
-  fn_proto.data.Pack(data)
-  if id:
-    fn_proto.id = id
-  return fn_proto
-# pylint: enable=redefined-builtin
-
-
 def memoize(func):
   cache = {}
   missing = object()
@@ -285,24 +252,6 @@ class SdkWorker(object):
       for p_transform in list(process_bundle_descriptor.primitive_transform):
         self.fns[p_transform.function_spec.id] = p_transform.function_spec
     return beam_fn_api_pb2.RegisterResponse()
-
-  def initial_source_split(self, request, unused_instruction_id=None):
-    source_spec = self.fns[request.source_reference]
-    assert source_spec.urn == PYTHON_SOURCE_URN
-    source_bundle = unpack_and_deserialize_py_fn(
-        self.fns[request.source_reference])
-    splits = source_bundle.source.split(request.desired_bundle_size_bytes,
-                                        source_bundle.start_position,
-                                        source_bundle.stop_position)
-    response = beam_fn_api_pb2.InitialSourceSplitResponse()
-    response.splits.extend([
-        beam_fn_api_pb2.SourceSplit(
-            source=serialize_and_pack_py_fn(split, PYTHON_SOURCE_URN),
-            relative_size=split.weight,
-        )
-        for split in splits
-    ])
-    return response
 
   def create_execution_tree(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
