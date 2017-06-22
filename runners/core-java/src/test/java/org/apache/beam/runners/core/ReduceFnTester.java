@@ -318,6 +318,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   @SafeVarargs
+  public final void assertHasOnlyGlobalAndStateFor(W... expectedWindows) {
+    assertHasOnlyGlobalAndAllowedTags(
+        ImmutableSet.copyOf(expectedWindows),
+        ImmutableSet.<StateTag<?>>of(
+            ((SystemReduceFn<?, ?, ?, ?, ?>) reduceFn).getBufferTag(),
+            TriggerStateMachineRunner.FINISHED_BITS_TAG,
+            PaneInfoTracker.PANE_INFO_TAG,
+            WatermarkHold.watermarkHoldTagForTimestampCombiner(
+                objectStrategy.getTimestampCombiner()),
+            WatermarkHold.EXTRA_HOLD_TAG));
+  }
+
+  @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
