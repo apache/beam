@@ -93,12 +93,15 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -112,6 +115,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -127,6 +131,8 @@ import org.mockito.stubbing.Answer;
 
 /**
  * Tests for the {@link DataflowRunner}.
+ *
+ * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
 public class DataflowRunnerTest implements Serializable {
@@ -1220,6 +1226,38 @@ public class DataflowRunnerTest implements Serializable {
   public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
+  }
+
+  private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(Create.of(KV.of(13, 42)))
+        .apply(Window.<KV<Integer, Integer>>into(Sessions.withGapDuration(Duration.millis(1))))
+        .apply(ParDo.of(new DoFn<KV<Integer, Integer>, Void>() {
+          @StateId("fizzle")
+          private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
+
+          @ProcessElement
+          public void process() {}
+        }));
+
+    thrown.expectMessage("merging");
+    thrown.expect(UnsupportedOperationException.class);
+    p.run();
+  }
+
+  @Test
+  public void testMergingStatefulRejectedInStreaming() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    verifyMergingStatefulParDoRejected(options);
+  }
+
+  @Test
+  public void testMergingStatefulRejectedInBatch() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(false);
+    verifyMergingStatefulParDoRejected(options);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {

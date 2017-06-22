@@ -1542,4 +1542,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
   }
+
+  static void verifyStateSupportForWindowingStrategy(WindowingStrategy strategy) {
+    // https://issues.apache.org/jira/browse/BEAM-2507
+    if (!strategy.getWindowFn().isNonMerging()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support state or timers with merging windows",
+              DataflowRunner.class.getSimpleName()));
+    }
+  }
 }

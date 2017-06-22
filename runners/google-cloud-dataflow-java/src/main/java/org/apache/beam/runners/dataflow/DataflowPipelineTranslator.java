@@ -972,7 +972,10 @@ public class DataflowPipelineTranslator {
               fn));
     }
 
-    DataflowRunner.verifyStateSupported(fn);
+    if (signature.usesState() || signature.usesTimers()) {
+      DataflowRunner.verifyStateSupported(fn);
+      DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
+    }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
