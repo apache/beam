@@ -31,7 +31,6 @@
 
     <properties>
         <tika.version>1.15</tika.version>
-        <commons.compress.version>1.14</commons.compress.version>
     </properties>
     
     <dependencies>
@@ -108,12 +107,6 @@
             <artifactId>tika-parsers</artifactId>
             <version>${tika.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-           <groupId>org.apache.commons</groupId>
-           <artifactId>commons-compress</artifactId>
-           <version>${commons.compress.version}</version>
-           <scope>test</scope>
         </dependency>
     </dependencies>
     
