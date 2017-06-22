@@ -17,12 +17,25 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.KeySet;
+import com.google.cloud.spanner.ReadOnlyTransaction;
+import com.google.cloud.spanner.ResultSets;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.TimestampBound;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import com.google.cloud.spanner.*;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,17 +52,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 /** Unit tests for {@link SpannerIO}. */
 @RunWith(JUnit4.class)
 public class SpannerIOReadTest implements Serializable {
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
   private ReadOnlyTransaction mockTx;
@@ -57,7 +66,7 @@ public class SpannerIOReadTest implements Serializable {
   private Type fakeType = Type.struct(Type.StructField.of("id", Type.int64()),
       Type.StructField.of("name", Type.string()));
 
-  List<Struct> fakeRows = Arrays.asList(
+  private List<Struct> fakeRows = Arrays.asList(
       Struct.newBuilder().add("id", Value.int64(1)).add("name", Value.string("Alice")).build(),
       Struct.newBuilder().add("id", Value.int64(2)).add("name", Value.string("Bob")).build());
 

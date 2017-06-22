@@ -17,21 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import org.mockito.Matchers;
-
-import javax.annotation.concurrent.GuardedBy;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
+import javax.annotation.concurrent.GuardedBy;
+import org.mockito.Matchers;
 
 /**
  * A serialization friendly type service factory that maintains a mock {@link Spanner} and
