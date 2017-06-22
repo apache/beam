@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import base64
 import collections
 import json
 import logging
@@ -195,7 +196,7 @@ def pack_function_spec_data(value, urn, id=None):
 # pylint: enable=redefined-builtin
 
 
-# TODO(vikasrk): move this method to ``coders.py`` in the SDK.
+# TODO(vikasrk): Consistently use same format everywhere.
 def load_compressed(compressed_data):
   """Returns a decompressed and deserialized python object."""
   # Note: SDK uses ``pickler.dumps`` to serialize certain python objects
@@ -259,6 +260,10 @@ class SdkHarness(object):
         try:
           response = self.worker.do_instruction(work_request)
         except Exception:  # pylint: disable=broad-except
+          logging.error(
+              'Error processing instruction %s',
+              work_request.instruction_id,
+              exc_info=True)
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=work_request.instruction_id,
               error=traceback.format_exc())
@@ -319,10 +324,10 @@ class SdkWorker(object):
     return response
 
   def create_execution_tree(self, descriptor):
-    if descriptor.primitive_transform:
-      return self.create_execution_tree_from_fn_api(descriptor)
-    else:
+    if descriptor.transforms:
       return self.create_execution_tree_from_runner_api(descriptor)
+    else:
+      return self.create_execution_tree_from_fn_api(descriptor)
 
   def create_execution_tree_from_runner_api(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
@@ -551,7 +556,15 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, parameter, consumers)
 
   def get_coder(self, coder_id):
-    return self.context.coders.get_by_id(coder_id)
+    coder_proto = self.descriptor.codersyyy[coder_id]
+    if coder_proto.spec.spec.urn:
+      return self.context.coders.get_by_id(coder_id)
+    else:
+      # No URN, assume cloud object encoding json bytes.
+      return operation_specs.get_coder_from_spec(
+          json.loads(
+              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
+                                     wrappers_pb2.BytesValue).value))
 
   def get_output_coders(self, transform_proto):
     return {
@@ -618,7 +631,8 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 
 @BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  source = pickler.loads(parameter.value)
+  # The Dataflow runner harness strips the base64 encoding.
+  source = pickler.loads(base64.b64encode(parameter.value))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
       [WindowedValueCoder(source.default_output_coder())])
