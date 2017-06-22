@@ -23,26 +23,12 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability import maptask_executor_runner_test
 
 
-class FnApiRunnerTestWithRunnerProtos(
+class FnApiRunnerTest(
     maptask_executor_runner_test.MapTaskExecutorRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_runner_protos=True))
-
-  def test_combine_per_key(self):
-    # TODO(robertwb): Implement PGBKCV operation.
-    pass
-
-  # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner
-
-
-class FnApiRunnerTestWithFnProtos(
-    maptask_executor_runner_test.MapTaskExecutorRunnerTest):
-
-  def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_runner_protos=False))
+        runner=fn_api_runner.FnApiRunner())
 
   def test_combine_per_key(self):
     # TODO(robertwb): Implement PGBKCV operation.
