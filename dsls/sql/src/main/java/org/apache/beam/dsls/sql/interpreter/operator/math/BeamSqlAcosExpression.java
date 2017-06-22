@@ -28,9 +28,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamSqlMathUnaryExpression} for 'ACOS' function.
  */
-public class BeamSqlACosExpression extends BeamSqlMathUnaryExpression {
+public class BeamSqlAcosExpression extends BeamSqlMathUnaryExpression {
 
-  public BeamSqlACosExpression(List<BeamSqlExpression> operands) {
+  public BeamSqlAcosExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 

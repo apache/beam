@@ -53,10 +53,10 @@ import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimestampE
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlACosExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlASinExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlATanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAcosExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAsinExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
@@ -252,13 +252,13 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlExpExpression(subExps);
           break;
         case "ACOS":
-          ret = new BeamSqlACosExpression(subExps);
+          ret = new BeamSqlAcosExpression(subExps);
           break;
         case "ASIN":
-          ret = new BeamSqlASinExpression(subExps);
+          ret = new BeamSqlAsinExpression(subExps);
           break;
         case "ATAN":
-          ret = new BeamSqlATanExpression(subExps);
+          ret = new BeamSqlAtanExpression(subExps);
           break;
         case "COT":
           ret = new BeamSqlCotExpression(subExps);

@@ -26,16 +26,16 @@ import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlMathUnaryExpression} for 'ASIN' function.
+ * {@code BeamSqlMathUnaryExpression} for 'ATAN' function.
  */
-public class BeamSqlASinExpression extends BeamSqlMathUnaryExpression {
+public class BeamSqlAtanExpression extends BeamSqlMathUnaryExpression {
 
-  public BeamSqlASinExpression(List<BeamSqlExpression> operands) {
+  public BeamSqlAtanExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     return BeamSqlPrimitive
-        .of(SqlTypeName.DOUBLE, SqlFunctions.asin(SqlFunctions.toDouble(op.getValue())));
+        .of(SqlTypeName.DOUBLE, SqlFunctions.atan(SqlFunctions.toDouble(op.getValue())));
   }
 }
