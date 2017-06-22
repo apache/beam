@@ -529,8 +529,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     for (TimestampedValue<InputT> value : values) {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
-    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    runner.processElements(
+
+    Iterable<WindowedValue<InputT>> inputs =
         Iterables.transform(
             Arrays.asList(values),
             new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
@@ -548,7 +548,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
                   throw new RuntimeException(e);
                 }
               }
-            }));
+            });
+
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
+    runner.processElements(
+        new LateDataDroppingDoFnRunner.LateDataFilter(objectStrategy, timerInternals)
+            .filter(KEY, inputs));
 
     // Persist after each bundle.
     runner.persist();
