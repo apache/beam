@@ -21,24 +21,14 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
-import com.google.cloud.ServiceFactory;
-import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import javax.annotation.concurrent.GuardedBy;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -54,8 +44,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
-
 
 /**
  * Unit tests for {@link SpannerIO}.
@@ -249,50 +237,6 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(data, hasDisplayItem("instanceId", "test-instance"));
     assertThat(data, hasDisplayItem("databaseId", "test-database"));
     assertThat(data, hasDisplayItem("batchSizeBytes", 123));
-  }
-
-  private static class FakeServiceFactory
-      implements ServiceFactory<Spanner, SpannerOptions>, Serializable {
-    // Marked as static so they could be returned by serviceFactory, which is serializable.
-    private static final Object lock = new Object();
-
-    @GuardedBy("lock")
-    private static final List<Spanner> mockSpanners = new ArrayList<>();
-
-    @GuardedBy("lock")
-    private static final List<DatabaseClient> mockDatabaseClients = new ArrayList<>();
-
-    @GuardedBy("lock")
-    private static int count = 0;
-
-    private final int index;
-
-    public FakeServiceFactory() {
-      synchronized (lock) {
-        index = count++;
-        mockSpanners.add(mock(Spanner.class, withSettings().serializable()));
-        mockDatabaseClients.add(mock(DatabaseClient.class, withSettings().serializable()));
-      }
-      when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
-          .thenReturn(mockDatabaseClient());
-    }
-
-    DatabaseClient mockDatabaseClient() {
-      synchronized (lock) {
-        return mockDatabaseClients.get(index);
-      }
-    }
-
-    Spanner mockSpanner() {
-      synchronized (lock) {
-        return mockSpanners.get(index);
-      }
-    }
-
-    @Override
-    public Spanner create(SpannerOptions serviceOptions) {
-      return mockSpanner();
-    }
   }
 
   private static class IterableOfSize extends ArgumentMatcher<Iterable<Mutation>> {
