@@ -50,7 +50,7 @@ PCollection<BeamSqlRow> inputTableB = p.apply(TextIO.read().from("/my/input/path
     .apply(...);
 
 //run a simple query, and register the output as a table in BeamSql;
-String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
+String sql1 = "select MY_FUNC(c1), c2 from TABLE_A";
 PCollection<BeamSqlRow> outputTableA = inputTableA.apply(BeamSql.simpleQuery(sql1)
         .withUdf("MY_FUNC", myFunc));
 
@@ -151,20 +151,19 @@ public class BeamSql {
    */
   private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
-    private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
     BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
 
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
-      validateQuery();
     }
 
 //    public SimpleQueryTransform withUdf(String udfName){
 //      throw new UnsupportedOperationException("Pending for UDF support");
 //    }
 
-    private void validateQuery() {
+    @Override
+    public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
       SqlNode sqlNode;
       try {
         sqlNode = sqlEnv.planner.parseQuery(sqlQuery);
@@ -176,19 +175,12 @@ public class BeamSql {
       if (sqlNode instanceof SqlSelect) {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
-        if (!tableName.equalsIgnoreCase(PCOLLECTION_TABLE_NAME)) {
-          throw new IllegalStateException("Use fixed table name " + PCOLLECTION_TABLE_NAME);
-        }
+        return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
+            .apply(new QueryTransform(sqlQuery, sqlEnv));
       } else {
         throw new UnsupportedOperationException(
             "Sql operation: " + sqlNode.toString() + " is not supported!");
       }
-    }
-
-    @Override
-    public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
-      return PCollectionTuple.of(new TupleTag<BeamSqlRow>(PCOLLECTION_TABLE_NAME), input)
-          .apply(new QueryTransform(sqlQuery, sqlEnv));
     }
   }
 }
