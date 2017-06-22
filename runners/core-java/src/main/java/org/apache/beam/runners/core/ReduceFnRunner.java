@@ -663,7 +663,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       this.isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
           && timer.getTimestamp().equals(window.maxTimestamp());
       Instant cleanupTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
-      this.isGarbageCollection = !timer.getTimestamp().isBefore(cleanupTime);
+      this.isGarbageCollection =
+          TimeDomain.EVENT_TIME == timer.getDomain() && !timer.getTimestamp().isBefore(cleanupTime);
     }
 
     // Has this window had its trigger finish?
