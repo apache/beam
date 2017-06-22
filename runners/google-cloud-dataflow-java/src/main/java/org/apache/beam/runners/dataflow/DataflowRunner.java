@@ -107,6 +107,8 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
@@ -119,6 +121,8 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -136,6 +140,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.DateTimeUtils;
@@ -1510,6 +1515,31 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
     } else {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+    }
+  }
+
+  static void verifyStateSupported(DoFn<?, ?> fn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+
+    for (DoFnSignature.StateDeclaration stateDecl : signature.stateDeclarations().values()) {
+
+      // https://issues.apache.org/jira/browse/BEAM-1474
+      if (stateDecl.stateType().isSubtypeOf(TypeDescriptor.of(MapState.class))) {
+        throw new UnsupportedOperationException(String.format(
+            "%s does not currently support %s",
+            DataflowRunner.class.getSimpleName(),
+            MapState.class.getSimpleName()
+        ));
+      }
+
+      // https://issues.apache.org/jira/browse/BEAM-1479
+      if (stateDecl.stateType().isSubtypeOf(TypeDescriptor.of(SetState.class))) {
+        throw new UnsupportedOperationException(String.format(
+            "%s does not currently support %s",
+            DataflowRunner.class.getSimpleName(),
+            SetState.class.getSimpleName()
+        ));
+      }
     }
   }
 }

@@ -972,6 +972,8 @@ public class DataflowPipelineTranslator {
               fn));
     }
 
+    DataflowRunner.verifyStateSupported(fn);
+
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
         PropertyNames.SERIALIZED_FN,
