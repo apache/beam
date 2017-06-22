@@ -65,17 +65,17 @@ public class GlobalWatermarkHolderTest {
             instant.plus(Duration.millis(5)),
             instant.plus(Duration.millis(5)),
             instant));
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
     // low < high.
     GlobalWatermarkHolder.add(1,
         new SparkWatermarks(
             instant.plus(Duration.millis(10)),
             instant.plus(Duration.millis(15)),
             instant.plus(Duration.millis(100))));
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
 
     // assert watermarks in Broadcast.
-    SparkWatermarks currentWatermarks = GlobalWatermarkHolder.get().getValue().get(1);
+    SparkWatermarks currentWatermarks = GlobalWatermarkHolder.get(0L).get(1);
     assertThat(currentWatermarks.getLowWatermark(), equalTo(instant.plus(Duration.millis(10))));
     assertThat(currentWatermarks.getHighWatermark(), equalTo(instant.plus(Duration.millis(15))));
     assertThat(currentWatermarks.getSynchronizedProcessingTime(),
@@ -93,7 +93,7 @@ public class GlobalWatermarkHolderTest {
             instant.plus(Duration.millis(25)),
             instant.plus(Duration.millis(20)),
             instant.plus(Duration.millis(200))));
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
   }
 
   @Test
@@ -106,7 +106,7 @@ public class GlobalWatermarkHolderTest {
             instant.plus(Duration.millis(5)),
             instant.plus(Duration.millis(10)),
             instant));
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Synchronized processing time must advance.");
@@ -117,7 +117,7 @@ public class GlobalWatermarkHolderTest {
             instant.plus(Duration.millis(5)),
             instant.plus(Duration.millis(10)),
             instant));
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
   }
 
   @Test
@@ -136,15 +136,15 @@ public class GlobalWatermarkHolderTest {
             instant.plus(Duration.millis(6)),
             instant));
 
-    GlobalWatermarkHolder.advance(jsc);
+    GlobalWatermarkHolder.advance();
 
     // assert watermarks for source 1.
-    SparkWatermarks watermarksForSource1 = GlobalWatermarkHolder.get().getValue().get(1);
+    SparkWatermarks watermarksForSource1 = GlobalWatermarkHolder.get(0L).get(1);
     assertThat(watermarksForSource1.getLowWatermark(), equalTo(instant.plus(Duration.millis(5))));
     assertThat(watermarksForSource1.getHighWatermark(), equalTo(instant.plus(Duration.millis(10))));
 
     // assert watermarks for source 2.
-    SparkWatermarks watermarksForSource2 = GlobalWatermarkHolder.get().getValue().get(2);
+    SparkWatermarks watermarksForSource2 = GlobalWatermarkHolder.get(0L).get(2);
     assertThat(watermarksForSource2.getLowWatermark(), equalTo(instant.plus(Duration.millis(3))));
     assertThat(watermarksForSource2.getHighWatermark(), equalTo(instant.plus(Duration.millis(6))));
   }
