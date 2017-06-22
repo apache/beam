@@ -263,9 +263,13 @@ class common_job_properties {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
-        shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install job requirements.
+        // TODO: Using Perfkit feature branch is only for testing. Must change
+        // back to GoogleCloudPlatform master branch once the branch is merged.
+        shell('git clone -b improve-beam-benchmark https://github.com/markflyhigh/PerfKitBenchmarker.git')
+        // Install basic job requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        // Install job requirements for Python SDK.
+        shell('pip install --user -e sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
