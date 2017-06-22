@@ -37,7 +37,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testAggregationWithoutWindow() throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A GROUP BY f_int2";
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamSqlRow> result =
         inputA1.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
@@ -125,7 +125,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testDistinct() throws Exception {
-    String sql = "SELECT distinct f_int, f_long FROM TABLE_A ";
+    String sql = "SELECT distinct f_int, f_long FROM PCOLLECTION ";
 
     PCollection<BeamSqlRow> result =
         inputA1.apply("testDistinct", BeamSql.simpleQuery(sql));
@@ -190,7 +190,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testHopWindow() throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION "
         + "GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
     PCollection<BeamSqlRow> result =
         inputA1.apply("testHopWindow", BeamSql.simpleQuery(sql));
