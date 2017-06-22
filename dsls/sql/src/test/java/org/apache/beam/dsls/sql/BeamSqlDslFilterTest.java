@@ -33,7 +33,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
    */
   @Test
   public void testSingleFilter() throws Exception {
-    String sql = "SELECT * FROM TABLE_A WHERE f_int = 1";
+    String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<BeamSqlRow> result =
         inputA1.apply("testSingleFilter", BeamSql.simpleQuery(sql));
