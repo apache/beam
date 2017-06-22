@@ -17,6 +17,7 @@
 
 """A PipelineRunner using the SDK harness.
 """
+import base64
 import collections
 import json
 import logging
@@ -204,11 +205,14 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         else:
           # Otherwise serialize the source and execute it there.
           # TODO: Use SDFs with an initial impulse.
+          # The Dataflow runner harness strips the base64 encoding. do the same
+          # here until we get the same thing back that we sent in.
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=sdk_worker.PYTHON_SOURCE_URN,
               parameter=proto_utils.pack_Any(
                   wrappers_pb2.BytesValue(
-                      value=pickler.dumps(operation.source.source))))
+                      value=base64.b64decode(
+                          pickler.dumps(operation.source.source)))))
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
         # Record the contents of each side input for access via the state api.
