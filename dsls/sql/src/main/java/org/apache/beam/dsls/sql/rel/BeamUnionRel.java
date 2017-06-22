@@ -19,7 +19,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
-
+import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
@@ -81,8 +81,8 @@ public class BeamUnionRel extends Union implements BeamRelNode {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 
-  @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections)
-      throws Exception {
-    return delegate.buildBeamPipeline(inputPCollections);
+  @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
+      , BeamSqlEnv sqlEnv) throws Exception {
+    return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
   }
 }
