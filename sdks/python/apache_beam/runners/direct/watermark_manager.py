@@ -175,7 +175,6 @@ class _TransformWatermarks(object):
   def update_timers(self, completed_timers):
     with self._lock:
       for timer_firing in completed_timers:
-        print 'REMOVE', timer_firing
         self._fired_timers.remove(timer_firing)
 
   @property
