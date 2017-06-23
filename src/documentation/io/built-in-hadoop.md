@@ -226,3 +226,46 @@ PCollection<KV<Long, HCatRecord>> hcatData =
 ```py
   # The Beam SDK for Python does not support Hadoop InputFormat IO.
 ```
+
+### Amazon DynamoDB - DynamoDBInputFormat
+
+To read data from Amazon DynamoDB, use `org.apache.hadoop.dynamodb.read.DynamoDBInputFormat`.
+DynamoDBInputFormat implements the older `org.apache.hadoop.mapred.InputFormat` interface and to make it compatible with HadoopInputFormatIO which uses the newer abstract class `org.apache.hadoop.mapreduce.InputFormat`, 
+a wrapper API is required which acts as an adapter between HadoopInputFormatIO and DynamoDBInputFormat (or in general any InputFormat implementing `org.apache.hadoop.mapred.InputFormat`)
+The below example uses one such available wrapper API - <https://github.com/twitter/elephant-bird/blob/master/core/src/main/java/com/twitter/elephantbird/mapreduce/input/MapReduceInputFormatWrapper.java>
+
+
+```java
+Configuration dynamoDBConf = new Configuration();
+Job job = Job.getInstance(dynamoDBConf);
+com.twitter.elephantbird.mapreduce.input.MapReduceInputFormatWrapper.setInputFormat(org.apache.hadoop.dynamodb.read.DynamoDBInputFormat.class, job);
+dynamoDBConf = job.getConfiguration();
+dynamoDBConf.setClass("key.class", Text.class, WritableComparable.class);
+dynamoDBConf.setClass("value.class", org.apache.hadoop.dynamodb.DynamoDBItemWritable.class, Writable.class);
+dynamoDBConf.set("dynamodb.servicename", "dynamodb");
+dynamoDBConf.set("dynamodb.input.tableName", "table_name");
+dynamoDBConf.set("dynamodb.endpoint", "dynamodb.us-west-1.amazonaws.com");
+dynamoDBConf.set("dynamodb.regionid", "us-west-1");
+dynamoDBConf.set("dynamodb.throughput.read", "1");
+dynamoDBConf.set("dynamodb.throughput.read.percent", "1");
+dynamoDBConf.set("dynamodb.version", "2011-12-05");
+dynamoDBConf.set(DynamoDBConstants.DYNAMODB_ACCESS_KEY_CONF, "aws_access_key");
+dynamoDBConf.set(DynamoDBConstants.DYNAMODB_SECRET_KEY_CONF, "aws_secret_key");
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+```
+
+Call Read transform as follows:
+
+```java
+PCollection<Text, DynamoDBItemWritable> dynamoDBData =
+  p.apply("read",
+  HadoopInputFormatIO.<Text, DynamoDBItemWritable>read()
+  .withConfiguration(dynamoDBConf);
+```
+
+```py
+  # The Beam SDK for Python does not support Hadoop InputFormat IO.
+```
