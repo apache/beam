@@ -54,7 +54,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <p>TODO: Move DoFnRunners into SDK harness and merge the methods below into it removing this
  * class.
  */
-public class DoFnRunnerFactory {
+public class FnApiDoFnRunner {
 
   private static final String URN = "urn:org.apache.beam:dofn:java:0.1";
 
