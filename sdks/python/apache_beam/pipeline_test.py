@@ -480,6 +480,24 @@ class RunnerApiTest(unittest.TestCase):
     p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
     p2.run()
 
+  def test_pickling(self):
+    class MyPTransform(beam.PTransform):
+      pickle_count = [0]
+
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+      def __reduce__(self):
+        self.pickle_count[0] += 1
+        return str, ()
+
+    p = beam.Pipeline()
+    for k in range(20):
+      p | 'Iter%s' % k >> MyPTransform()  # pylint: disable=expression-not-assigned
+    p.to_runner_api()
+    self.assertEqual(MyPTransform.pickle_count[0], 20)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

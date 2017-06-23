@@ -466,6 +466,13 @@ class Pipeline(object):
     self.transforms_stack.pop()
     return pvalueish_result
 
+  def __reduce__(self):
+    # Some transforms contain a reference to their enclosing pipeline,
+    # which in turn reference all other transforms (resulting in quadratic
+    # time/space to pickle each transform individually).  As we don't
+    # require pickled pipelines to be executable, break the chain here.
+    return str, ('Pickled pipeline stub.',)
+
   def _verify_runner_api_compatible(self):
     class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       ok = True  # Really a nonlocal.
