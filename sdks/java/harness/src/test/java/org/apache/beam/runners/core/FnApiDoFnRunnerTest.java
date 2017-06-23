@@ -44,6 +44,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.runners.core.PTransformRunnerFactory.Registrar;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
@@ -71,7 +72,6 @@ public class FnApiDoFnRunnerTest {
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String STRING_CODER_SPEC_ID = "999L";
   private static final RunnerApi.Coder STRING_CODER_SPEC;
-  private static final String URN = "urn:org.apache.beam:dofn:java:0.1";
 
   static {
     try {
@@ -132,7 +132,7 @@ public class FnApiDoFnRunnerTest {
             Long.parseLong(mainOutputId), TestDoFn.mainOutput,
             Long.parseLong(additionalOutputId), TestDoFn.additionalOutput));
     RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn("urn:org.apache.beam:dofn:java:0.1")
+        .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
         .setParameter(Any.pack(BytesValue.newBuilder()
             .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
             .build()))
@@ -200,7 +200,8 @@ public class FnApiDoFnRunnerTest {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
       if (registrar instanceof FnApiDoFnRunner.Registrar) {
-        assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
+        assertThat(registrar.getPTransformRunnerFactories(),
+            IsMapContaining.hasKey(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN));
         return;
       }
     }
