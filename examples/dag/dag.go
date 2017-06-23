@@ -12,7 +12,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
 var (
@@ -21,7 +20,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf((*average)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*average)(nil)).Elem())
 }
 
 // TODO(herohde) 5/22/2017: maybe make it more convenient to use the side

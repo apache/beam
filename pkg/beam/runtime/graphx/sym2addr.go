@@ -6,6 +6,21 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/symtab"
 )
 
+// TODO(wcn): not happy with these names. if inspiration strikes, changes welcome!
+
+// SymbolResolution is the interface that should be implemented
+// in order to override the default behavior for symbol resolution.
+type SymbolResolution interface {
+	Sym2Addr(string) (uintptr, error)
+}
+
+// SymbolResolver is exported to allow unit tests to supply a resolver function.
+// This is needed since the default symbol resolution process uses the DWARF
+// tables in the executable, which unfortunately are not made available
+// by default in "go test" builds. Unit tests that need symbol resolution
+// should pass in an appropriate fake.
+var SymbolResolver SymbolResolution
+
 func init() {
 	var err error
 	// First try the Linux location, since it's the most reliable.

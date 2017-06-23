@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf((*filterFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
 }
 
 // NOTE(herohde) 3/24/2017: the filter is an example of the user code being
@@ -33,15 +33,10 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollec
 
 type filterFn struct {
 	Filter graphx.DataFnValue `json:"filter"`
-	fn     reflect.Value
-}
-
-func (f *filterFn) Setup() {
-	f.fn = reflect.ValueOf(f.Filter.Fn)
 }
 
 func (f *filterFn) ProcessElement(elm typex.T, emit func(typex.T)) {
-	ret := f.fn.Call([]reflect.Value{reflect.ValueOf(elm)})
+	ret := f.Filter.Fn.Call([]reflect.Value{reflect.ValueOf(elm)})
 	if ret[0].Bool() {
 		emit(elm)
 	}

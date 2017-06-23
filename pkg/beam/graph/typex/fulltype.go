@@ -183,7 +183,7 @@ func IsAssignable(from, to FullType) bool {
 		return to.Class() == Universal || to.Class() == Concrete || to.Class() == Container
 	case Container:
 		if to.Class() == Container {
-			return IsList(from.Type()) && IsList(to.Type()) && IsAssignable(from.Components()[0], to.Components()[1])
+			return IsList(from.Type()) && IsList(to.Type()) && IsAssignable(from.Components()[0], to.Components()[0])
 		}
 		return to.Class() == Universal
 	case Composite:

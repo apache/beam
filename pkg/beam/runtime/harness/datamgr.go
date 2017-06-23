@@ -120,6 +120,8 @@ func (m *DataChannel) read(ctx context.Context) {
 			id := exec.StreamID{Port: m.port, Target: graph.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
 			sid := id.String()
 
+			// log.Printf("Chan read (%v): %v", sid, elm.GetData())
+
 			var r *dataReader
 			if local, ok := cache[sid]; ok {
 				r = local
@@ -132,19 +134,17 @@ func (m *DataChannel) read(ctx context.Context) {
 				// Sentinel EOF segment for stream. Close buffer to signal EOF.
 				close(r.buf)
 
-				// Clean up channel bookkeeping. We'll never see another message
-				// for it again.
+				// Clean up local bookkeeping. We'll never see another message
+				// for it again. We have to be careful not to remove the real
+				// one, because readers may be initialized after we've seen
+				// the full stream.
 				delete(cache, sid)
-				m.mu.Lock()
-				delete(m.readers, sid)
-				m.mu.Unlock()
 				continue
 			}
 
 			// This send is deliberately blocking, if we exceed the buffering for
 			// a reader. We can't buffer the entire main input, if some user code
 			// is slow (or gets stuck).
-
 			r.buf <- elm.GetData()
 		}
 	}
@@ -184,7 +184,8 @@ type dataReader struct {
 }
 
 func (r *dataReader) Close() error {
-	// TODO: allow early close to throw away data async
+	// TODO(herohde) 6/27/2017: allow early close to throw away data async. We also need
+	// to garbage collect readers.
 	return nil
 }
 

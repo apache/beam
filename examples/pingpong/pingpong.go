@@ -12,7 +12,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 )
 
 var (
@@ -61,10 +60,10 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 }
 
 func subset(p *beam.Pipeline, a, b beam.PCollection) {
-	beam.ParDo0(p, subsetFn, debug.Tick(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
+	beam.ParDo0(p, subsetFn, beam.Impulse(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
-func subsetFn(_ string, a, b func(*string) bool) error {
+func subsetFn(_ []byte, a, b func(*string) bool) error {
 	larger := make(map[string]bool)
 	var elm string
 	for b(&elm) {

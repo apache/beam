@@ -17,7 +17,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf((*combineFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
 }
 
 // Globally returns the top N elements of the incoming PCollection<T>, using the

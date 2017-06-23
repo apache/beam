@@ -1,8 +1,27 @@
 package beam
 
-// TODO(herohde) 5/1/2017: add type aliases to the well-known types for Go 1.9.
+import (
+	"reflect"
 
-// import "github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+)
+
+// IMPLEMENTATION NOTE: functions and types in this file are assumed to be
+// simple forwards from the graph package (or subpackages) for the purpose of
+// removing such package dependencies from end-user pipeline code. So:
+//
+//         PLEASE DO NOT ADD NON-FORWARDING FUNCTIONALITY HERE.
+//
+// Instead, add such functionality in the graph packages.
+
+// RegisterType inserts "external" structs into a global type registry to bypass
+// serialization and preserve full method information. It should be called in
+// init() only.
+func RegisterType(t reflect.Type) {
+	graph.Register(t)
+}
+
+// TODO(herohde) 5/1/2017: add type aliases to the well-known types for Go 1.9.
 
 // type T = typex.T
 // type U = typex.U

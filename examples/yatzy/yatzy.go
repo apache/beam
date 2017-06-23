@@ -12,8 +12,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 )
 
 var (
@@ -22,7 +20,7 @@ var (
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf((*minFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
 }
 
 // roll is a construction-time dice roll. The value is encoded in the shape of
@@ -32,7 +30,7 @@ func roll(p *beam.Pipeline) beam.PCollection {
 
 	p = p.Composite(fmt.Sprintf("roll[%v]", num))
 
-	col := beam.Source(p, zeroFn)
+	col := beam.Create(p, 0)
 	for i := 0; i < num; i++ {
 		col = beam.ParDo(p, incFn, col)
 	}
@@ -57,10 +55,6 @@ func incFn(num int) int {
 	return num + 1
 }
 
-func zeroFn(emit func(int)) {
-	emit(0)
-}
-
 func eq(n int, other ...int) bool {
 	for _, num := range other {
 		if num != n {
@@ -71,7 +65,7 @@ func eq(n int, other ...int) bool {
 }
 
 // evalFn takes 5 dice rolls as singleton side inputs.
-func evalFn(_ string, a, b, c, d, e int) {
+func evalFn(_ []byte, a, b, c, d, e int) {
 	r := []int{a, b, c, d, e}
 	sort.Ints(r)
 
@@ -103,7 +97,7 @@ func main() {
 
 	// Construct a construction-time-randomized pipeline.
 	p := beam.NewPipeline()
-	beam.ParDo0(p, evalFn, debug.Tick(p),
+	beam.ParDo0(p, evalFn, beam.Impulse(p),
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},

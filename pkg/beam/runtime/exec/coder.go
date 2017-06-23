@@ -46,6 +46,18 @@ type DataManager interface {
 
 func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 	switch c.Kind {
+	case coder.Bytes:
+		// Encoding: size (varint) + raw data
+
+		data := val.Elm.Interface().([]byte)
+		size := len(data)
+
+		if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+			return err
+		}
+		_, err := w.Write(data)
+		return err
+
 	case coder.Custom:
 		enc := c.Custom.Enc
 
@@ -86,6 +98,19 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 
 func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 	switch c.Kind {
+	case coder.Bytes:
+		// Encoding: size (varint) + raw data
+
+		size, err := coder.DecodeVarInt(r)
+		if err != nil {
+			return FullValue{}, err
+		}
+		data, err := ioutilx.ReadN(r, (int)(size))
+		if err != nil {
+			return FullValue{}, err
+		}
+		return FullValue{Elm: reflect.ValueOf(data)}, nil
+
 	case coder.Custom:
 		dec := c.Custom.Dec
 

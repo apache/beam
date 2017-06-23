@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 // Opcode represents a primitive Fn API instruction kind.
@@ -21,6 +23,7 @@ const (
 	Combine    Opcode = "Combine"
 	DataSource Opcode = "DataSource"
 	DataSink   Opcode = "DataSink"
+	Impulse    Opcode = "Impulse"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -139,6 +142,7 @@ type MultiEdge struct {
 	CombineFn *CombineFn // Combine.
 	Port      *Port      // DataSource, DataSink.
 	Target    *Target    // DataSource, DataSink.
+	Value     []byte     // Impulse
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -187,7 +191,8 @@ func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
-// NewFlatten inserts a new Flatten edge in the graph.
+// NewFlatten inserts a new Flatten edge in the graph. Flatten output type is
+// the shared input type.
 func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	if len(in) < 2 {
 		return nil, fmt.Errorf("flatten needs at least 2 input, got %v", len(in))
@@ -202,15 +207,12 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		return nil, fmt.Errorf("flatten input type cannot be GBK or CGBK: %v", t)
 	}
 
-	// Flatten output type is the shared input type.
-	out := g.NewNode(t)
-
 	edge := g.NewEdge(s)
 	edge.Op = Flatten
 	for _, n := range in {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: t})
 	}
-	edge.Output = []*Outbound{{To: out, Type: t}}
+	edge.Output = []*Outbound{{To: g.NewNode(t), Type: t}}
 
 	log.Printf("EDGE: %v", edge)
 	return edge, nil
@@ -297,4 +299,20 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 
 	log.Printf("EDGE: %v", edge)
 	return edge, nil
+}
+
+// NewImpulse inserts a new Impulse edge into the graph. It must use the
+// built-in bytes coder.
+func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
+	ft := typex.NewW(typex.New(reflectx.ByteSlice))
+	n := g.NewNode(ft)
+	n.Coder = coder.NewW(coder.NewBytes(), coder.NewGlobalWindow())
+
+	edge := g.NewEdge(s)
+	edge.Op = Impulse
+	edge.Value = value
+	edge.Output = []*Outbound{{To: n, Type: ft}}
+
+	log.Printf("EDGE: %v", edge)
+	return edge
 }

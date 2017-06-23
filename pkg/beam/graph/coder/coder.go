@@ -99,6 +99,11 @@ func (w *Window) String() string {
 	return fmt.Sprintf("%v", w.Kind)
 }
 
+// NewGlobalWindow returns a new global window coder using the built-in scheme.
+func NewGlobalWindow() *Window {
+	return &Window{Kind: GlobalWindow}
+}
+
 // Kind represents the type of coder used.
 type Kind string
 
@@ -106,8 +111,7 @@ type Kind string
 // documents the usage of coders in the Beam environment.
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
-	VarInt        Kind = "varint"
-	Bytes         Kind = "bytes"
+	Bytes         Kind = "bytes"  // Implicitly length-prefixed
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"
 	GBK           Kind = "GBK"
@@ -121,9 +125,9 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder
-	Custom     *CustomCoder
-	Window     *Window
+	Components []*Coder     // WindowedValue, KV, GCK, CoGBK
+	Custom     *CustomCoder // Custom
+	Window     *Window      // WindowedValue
 }
 
 func (c *Coder) String() string {
@@ -143,6 +147,12 @@ func (c *Coder) String() string {
 		ret += fmt.Sprintf("!%v", c.Window)
 	}
 	return ret
+}
+
+// NewBytes returns a new []byte coder using the built-in scheme. It
+// is always nested, for now.
+func NewBytes() *Coder {
+	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
 }
 
 // Convenience methods to operate through the top-level WindowedValue.
