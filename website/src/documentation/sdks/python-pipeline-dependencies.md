@@ -49,6 +49,12 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
         --extra_package /path/to/package/package-name
 
+   where package-name is the package's tarball. If you have the `setup.py` for that
+   package then you can build the tarball with the following command:
+
+        python setup.py sdist
+
+   See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
 
 ## <a name="multfiles"></a>Multiple File Dependencies
 
