@@ -474,10 +474,29 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
         'type of location: %s' % sdk_remote_location)
 
 
-def get_required_container_version():
+def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Returns the Google Cloud Dataflow container version for remote execution.
+  Args:
+    job_type: string, BEAM job type.
+
+  Returns:
+    string, Google Cloud Dataflow container image for remote execution.
+  """
+  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
+  else:
+    image_name = 'dataflow.gcr.io/v1beta3/python'
+  image_tag = _get_required_container_version()
+  return image_name + ':' + image_tag
+
+
+def _get_required_container_version():
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns:
+    string, The tag of worker container images in GCR that corresponds to
+    current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
@@ -501,7 +520,7 @@ def get_sdk_name_and_version():
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
-  container_version = get_required_container_version()
+  container_version = _get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return ('Apache Beam SDK for Python', beam_version.__version__)
   return ('Google Cloud Dataflow SDK for Python', container_version)
@@ -511,7 +530,7 @@ def get_sdk_package_name():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-  container_version = get_required_container_version()
+  container_version = _get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME
   return GOOGLE_PACKAGE_NAME
