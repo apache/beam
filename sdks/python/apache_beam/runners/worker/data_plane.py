@@ -265,9 +265,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def __init__(self):
     self._data_channel_cache = {}
 
-  def create_data_channel(self, function_spec):
-    remote_grpc_port = beam_fn_api_pb2.RemoteGrpcPort()
-    function_spec.data.Unpack(remote_grpc_port)
+  def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
       logging.info('Creating channel for %s', url)
