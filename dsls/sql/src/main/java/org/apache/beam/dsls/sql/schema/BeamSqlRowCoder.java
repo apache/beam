@@ -57,7 +57,6 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   @Override
   public void encode(BeamSqlRow value, OutputStream outStream) throws CoderException, IOException {
     listCoder.encode(value.getNullFields(), outStream);
-    System.out.println("Encode: nullFields: " + value.getNullFields());
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
         continue;
