@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.TaskContext;
+import org.apache.spark.TaskContext$;
 
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
@@ -108,7 +110,10 @@ class FunctionCollectorAsync<T> extends FunctionCollector<T> {
    * {@code queue} and mark end of stream by {@code EOS}
    */
   void runAsynchronously(final Runnable r) {
+    // ~ temporarily transfer spark's thread-local state to the new thread
+    TaskContext tctx = TaskContext$.MODULE$.get();
     MEDIATOR_POOL.submit((Runnable) () -> {
+      TaskContext$.MODULE$.setTaskContext(tctx);
       try {
         r.run();
         queue.put(EOS);
@@ -118,6 +123,8 @@ class FunctionCollectorAsync<T> extends FunctionCollector<T> {
         } catch (InterruptedException e2) {
           Thread.currentThread().interrupt();
         }
+      } finally {
+        TaskContext$.MODULE$.unset();
       }
     });
   }
