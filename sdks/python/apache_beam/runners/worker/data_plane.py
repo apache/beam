@@ -246,8 +246,8 @@ class DataChannelFactory(object):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def create_data_channel(self, function_spec):
-    """Returns a ``DataChannel`` from the given function_spec."""
+  def create_data_channel(self, remote_grpc_port):
+    """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
@@ -287,7 +287,7 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   def __init__(self, in_memory_data_channel):
     self._in_memory_data_channel = in_memory_data_channel
 
-  def create_data_channel(self, unused_function_spec):
+  def create_data_channel(self, unused_remote_grpc_port):
     return self._in_memory_data_channel
 
   def close(self):
