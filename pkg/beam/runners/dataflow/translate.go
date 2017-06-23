@@ -1,14 +1,19 @@
 package dataflow
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	df "google.golang.org/api/dataflow/v1b3"
 	"log"
+	"net/url"
 	"path"
+	"time"
 )
 
 // translate translates a Graph into a sequence of Dataflow steps. The step
@@ -140,6 +145,25 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 // updates.
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
+	case graph.Impulse:
+		c := edge.Output[0].To.Coder
+
+		// NOTE: The impulse []data value is encoded in a special way as a
+		// URL Query-escaped windowed _unnested_ value. It is read back in
+		// a nested context at runtime.
+		var buf bytes.Buffer
+		if err := exec.EncodeWindowedValueHeader(c, typex.EventTime(time.Time{}), &buf); err != nil {
+			return "", properties{}, err
+		}
+		value := string(append(buf.Bytes(), edge.Value...))
+
+		// log.Printf("Impulse data: %v", url.QueryEscape(value))
+
+		return "CreateCollection", properties{
+			UserName: buildName(edge.Scope(), "create"),
+			Element:  []string{url.QueryEscape(value)},
+		}, nil
+
 	case graph.Source:
 		fn, err := serializeFn(edge)
 		if err != nil {

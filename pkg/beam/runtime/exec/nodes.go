@@ -465,6 +465,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		t, err := DecodeWindowedValueHeader(c, r)
 		if err != nil {
 			if err == io.EOF {
+				// log.Printf("EOF")
 				break
 			}
 			return fmt.Errorf("source failed: %v", err)
@@ -545,6 +546,8 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
 			elm.Timestamp = t
+
+			// log.Printf("READ: %v %v", elm.Elm.Type(), elm.Elm.Interface())
 
 			if err := n.Out.ProcessElement(ctx, elm); err != nil {
 				panic(err)

@@ -8,7 +8,43 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
 	"log"
+	"reflect"
 )
+
+// Impulse emits its single element in one invocation.
+type Impulse struct {
+	UID  exec.UnitID
+	Edge *graph.MultiEdge
+	Out  []exec.Node
+}
+
+func (n *Impulse) ID() exec.UnitID {
+	return n.UID
+}
+
+func (n *Impulse) Up(ctx context.Context) error {
+	return exec.Up(ctx, n.Out...)
+}
+
+func (n *Impulse) Process(ctx context.Context) error {
+	value := exec.FullValue{Elm: reflect.ValueOf(n.Edge.Value)}
+	// TODO(herohde) 6/23/2017: set value.Timestamp
+
+	for _, out := range n.Out {
+		if err := out.ProcessElement(ctx, value); err != nil {
+			panic(err)
+		}
+	}
+	return nil
+}
+
+func (n *Impulse) Down(ctx context.Context) error {
+	return exec.Down(ctx, n.Out...)
+}
+
+func (n *Impulse) String() string {
+	return fmt.Sprintf("Impulse[%v]", len(n.Edge.Value))
+}
 
 type group struct {
 	key    exec.FullValue

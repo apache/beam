@@ -9,13 +9,11 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
 func init() {
-	graphx.Register(reflect.TypeOf((*readFileFn)(nil)).Elem())
-	graphx.Register(reflect.TypeOf((*writeFileFn)(nil)).Elem())
-	graphx.Register(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*readFileFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
 }
 
 // Read reads a local file and returns the lines as a PCollection<string>. The
@@ -94,7 +92,7 @@ func (w *writeFileFn) Teardown() error {
 func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	p = p.Composite("textio.Immediate")
 
-	var data []string
+	var data []interface{}
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -109,15 +107,5 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	if err := scanner.Err(); err != nil {
 		return beam.PCollection{}, err
 	}
-	return beam.Source(p, &emitLinesFn{Lines: data}), nil
-}
-
-type emitLinesFn struct {
-	Lines []string `json:"lines"`
-}
-
-func (e *emitLinesFn) ProcessElement(emit func(string)) {
-	for _, line := range e.Lines {
-		emit(line)
-	}
+	return beam.Create(p, data...), nil
 }

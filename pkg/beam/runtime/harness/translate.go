@@ -105,8 +105,8 @@ func topologicalSort(bundle *fnapi_pb.ProcessBundleDescriptor) (sortedIds []stri
 
 // translate translates a ProcessBundleDescriptor to a sub-graph that can run bundles.
 func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
-	// NOTE: we will see only graph fragments w/o GBK or FLATTEN, which are handled by
-	// the service.
+	// NOTE: we will see only graph fragments w/o GBK, IMPULSE or FLATTEN, which
+	// are handled by the service.
 
 	// The incoming bundle is an unsorted collection of data. By applying a topological sort
 	// we can make a single linear pass to convert to the internal runner representation.
@@ -297,7 +297,7 @@ func translateOutputs(transform *rnapi_pb.PTransform, tid string, colls pCollMap
 			continue // NOTE: remove bogus output
 		}
 
-		// TODO: we need to reorder output
+		// TODO(herohde) 6/26/2017: we need to reorder output
 
 		coder := colls[col].pcoll.GetCoderId()
 		to = append(to, output{nodeID{tid, key}, coder})

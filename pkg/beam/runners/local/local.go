@@ -66,6 +66,10 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 
 	for _, edge := range list {
 		switch edge.Op {
+		case graph.Impulse:
+			unit := &Impulse{UID: idgen.New(), Edge: edge}
+			units = append(units, unit)
+
 		case graph.Source:
 			unit := &exec.Source{UID: idgen.New(), Edge: edge}
 			units = append(units, unit)
@@ -198,6 +202,9 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 	return append(units, aux...), nil
 }
 
+// TODO(herohde) 6/26/2017: get rid of the below functions. Maybe just add
+// methods on units?
+
 func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
 	switch unit.(type) {
 	case *exec.Source:
@@ -212,6 +219,8 @@ func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
 		return unit.(*exec.DataSource).Edge, true
 	case *exec.DataSink:
 		return unit.(*exec.DataSink).Edge, true
+	case *Impulse:
+		return unit.(*Impulse).Edge, true
 	default:
 		return nil, false
 	}
@@ -234,6 +243,8 @@ func setOut(unit exec.Unit, out []exec.Node) {
 		unit.(*exec.DataSource).Out = out[0]
 	case *exec.DataSink:
 		// nop
+	case *Impulse:
+		unit.(*Impulse).Out = out
 	default:
 		panic(fmt.Sprintf("Unit %v has no output", unit))
 	}

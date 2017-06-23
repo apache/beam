@@ -4,18 +4,13 @@ import (
 	"context"
 	"flag"
 	"log"
-	"os"
-	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 )
 
 var (
-	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	n     = flag.Int("count", 2, "Number of trees")
 	depth = flag.Int("depth", 3, "Depth of each tree")
 )
@@ -30,12 +25,11 @@ func tree(p *beam.Pipeline, depth int) beam.PCollection {
 	return beam.Flatten(p, a, b, c)
 }
 
+var count = 0
+
 func leaf(p *beam.Pipeline) beam.PCollection {
-	lines, err := textio.Immediate(p, *input)
-	if err != nil {
-		log.Fatalf("Failed to read %v: %v", *input, err)
-	}
-	return beam.ParDo(p, strings.ToUpper, lines)
+	count++
+	return beam.Create(p, count) // singleton PCollection<int>
 }
 
 func main() {
@@ -48,7 +42,7 @@ func main() {
 	p := beam.NewPipeline()
 	for i := 0; i < *n; i++ {
 		t := tree(p, *depth)
-		debug.Print(p, count.Dedup(p, t))
+		debug.Print(p, t)
 	}
 
 	if err := beamexec.Run(context.Background(), p); err != nil {

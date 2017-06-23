@@ -16,21 +16,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
-// TODO(wcn): not happy with these names. if inspiration strikes, changes welcome!
-
-// SymbolResolution is the interface that should be implemented
-// in order to override the default behavior for symbol resolution.
-type SymbolResolution interface {
-	Sym2Addr(string) (uintptr, error)
-}
-
-// SymbolResolver is exported to allow unit tests to supply a resolver function.
-// This is needed since the default symbol resolution process uses the DWARF
-// tables in the executable, which unfortunately are not made available
-// by default in "go test" builds. Unit tests that need symbol resolution
-// should pass in an appropriate fake.
-var SymbolResolver SymbolResolution
-
 // EncodeMultiEdge converts the preprocessed representation into the wire
 // representation of the multiedge, capturing input and ouput type information.
 func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
@@ -160,11 +145,11 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 
 	case u.Recv != nil:
 		t := reflect.TypeOf(u.Recv)
-		k, ok := key(reflectx.SkipPtr(t))
+		k, ok := graph.Key(reflectx.SkipPtr(t))
 		if !ok {
 			return nil, fmt.Errorf("bad recv: %v", u.Recv)
 		}
-		if _, ok := lookup(k); !ok {
+		if _, ok := graph.Lookup(k); !ok {
 			return nil, fmt.Errorf("recv type must be registered: %v", t)
 		}
 		typ, err := encodeType(t)
@@ -223,7 +208,7 @@ func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
 		return nil, err
 	}
 
-	ptr, err := sym2addr(ref.Name)
+	ptr, err := SymbolResolver.Sym2Addr(ref.Name)
 	if err != nil {
 		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
@@ -315,8 +300,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
 	case reflect.Struct:
-		if k, ok := key(t); ok {
-			if _, present := lookup(k); present {
+		if k, ok := graph.Key(t); ok {
+			if _, present := graph.Lookup(k); present {
 				// External type. Serialize by key and lookup in registry
 				// on decoding side.
 
@@ -521,7 +506,7 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		return ret, nil
 
 	case v1.Type_EXTERNAL:
-		ret, ok := lookup(t.ExternalKey)
+		ret, ok := graph.Lookup(t.ExternalKey)
 		if !ok {
 			return nil, fmt.Errorf("external key not found: %v", t.ExternalKey)
 		}
@@ -683,6 +668,7 @@ const (
 	lengthPrefixType  = "kind:length_prefix"
 	windowedValueType = "kind:windowed_value"
 	streamType        = "kind:stream"
+	bytesType         = "kind:bytes"
 
 	globalWindowType = "kind:global_window"
 )
@@ -753,6 +739,10 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, window}, IsWrapper: true}, nil
 
+	case coder.Bytes:
+		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
+		return &CoderRef{Type: bytesType}, nil
+
 	default:
 		return nil, fmt.Errorf("bad coder kind: %v", c.Kind)
 	}
@@ -761,6 +751,9 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 // DecodeCoder extracts a usable coder from the encoded runner form.
 func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
+	case bytesType:
+		return coder.NewBytes(), nil
+
 	case pairType:
 		if len(c.Components) != 2 {
 			return nil, fmt.Errorf("bad pair: %+v", c)
@@ -851,12 +844,8 @@ func EncodeWindow(w *coder.Window) (*CoderRef, error) {
 func DecodeWindow(w *CoderRef) (*coder.Window, error) {
 	switch w.Type {
 	case globalWindowType:
-		return &coder.Window{Kind: coder.GlobalWindow}, nil
+		return coder.NewGlobalWindow(), nil
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}
-}
-
-func sym2addr(name string) (uintptr, error) {
-	return SymbolResolver.Sym2Addr(name)
 }

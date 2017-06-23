@@ -51,19 +51,18 @@ type properties struct {
 	UserName    string        `json:"user_name,omitempty"`
 	DisplayData []displayData `json:"display_data,omitempty"`
 
-	// Element []string  `json:"element,omitempty"`
 	// UserFn string  `json:"user_fn,omitempty"`
 
-	DisallowCombinerLifting bool             `json:"disallow_combiner_lifting,omitempty"` // GBK.
-	Encoding                *graphx.CoderRef `json:"encoding,omitempty"`                  // Combine (accumulator coder).
-
-	CustomSourceInputStep *customSourceInputStep      `json:"custom_source_step_input,omitempty"`
-	Inputs                []*outputReference          `json:"inputs,omitempty"` // Flatten.
-	ParallelInput         *outputReference            `json:"parallel_input,omitempty"`
-	NonParallelInputs     map[string]*outputReference `json:"non_parallel_inputs,omitempty"`
-	Format                string                      `json:"format,omitempty"`
-	SerializedFn          string                      `json:"serialized_fn,omitempty"`
-	OutputInfo            []output                    `json:"output_info,omitempty"`
+	CustomSourceInputStep   *customSourceInputStep      `json:"custom_source_step_input,omitempty"`  // Source
+	DisallowCombinerLifting bool                        `json:"disallow_combiner_lifting,omitempty"` // GBK.
+	Element                 []string                    `json:"element,omitempty"`                   // Impulse
+	Encoding                *graphx.CoderRef            `json:"encoding,omitempty"`                  // Combine (accumulator coder).
+	Format                  string                      `json:"format,omitempty"`                    // Source
+	Inputs                  []*outputReference          `json:"inputs,omitempty"`                    // Flatten.
+	NonParallelInputs       map[string]*outputReference `json:"non_parallel_inputs,omitempty"`       // ParDo
+	OutputInfo              []output                    `json:"output_info,omitempty"`               // Source, ParDo, GBK, Flatten, Combine
+	ParallelInput           *outputReference            `json:"parallel_input,omitempty"`            // ParDo, GBK, Flatten, Combine
+	SerializedFn            string                      `json:"serialized_fn,omitempty"`             // ParDo, Combine
 }
 
 type output struct {
