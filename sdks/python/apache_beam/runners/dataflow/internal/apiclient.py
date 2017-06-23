@@ -145,13 +145,13 @@ class Environment(object):
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:
-      job_type = 'FNAPI_STREAMING'
+      self.job_type = 'FNAPI_STREAMING'
     else:
-      job_type = 'PYTHON_BATCH'
+      self.job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type',
-            value=to_json_value(job_type)),
+            value=to_json_value(self.job_type)),
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='major', value=to_json_value(environment_version))])
     # Experiments
@@ -205,11 +205,8 @@ class Environment(object):
       pool.workerHarnessContainerImage = (
           self.worker_options.worker_harness_container_image)
     else:
-      # Default to using the worker harness container image for the current SDK
-      # version.
       pool.workerHarnessContainerImage = (
-          'dataflow.gcr.io/v1beta3/python:%s' %
-          get_required_container_version())
+          self._getDefaultWorkerHarnessContainerImageForCurrentSdk())
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -247,6 +244,13 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
+  def _getDefaultWorkerHarnessContainerImageForCurrentSdk(self):
+    if self.job_type == 'FNAPI_BATCH' or self.job_type == 'FNAPI_STREAMING':
+      container_image = 'dataflow.gcr.io/v1beta3/python-fnapi'
+    else:
+      container_image = 'dataflow.gcr.io/v1beta3/python'
+    container_tag = get_required_container_version()
+    return container_image + ':' + container_tag
 
 class Job(object):
   """Wrapper for a dataflow Job protobuf."""
