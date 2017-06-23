@@ -60,6 +60,11 @@ public interface TikaOptions extends PipelineOptions {
   Long getQueueMaxPollTime();
   void setQueueMaxPollTime(Long value);
 
+  @Description("Minumin text fragment length for Tika Parser to report")
+  @Default.Integer(0)
+  Integer getMinimumTextLength();
+  void setMinimumTextLength(Integer value);
+
   @Description("Pipeline name")
   @Default.String("TikaRead")
   String getPipelineName();

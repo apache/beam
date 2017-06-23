@@ -86,6 +86,10 @@ class TikaReader extends BoundedReader<String> {
     tikaMetadata = spec.getInputMetadata() != null ? spec.getInputMetadata()
         : new Metadata();
 
+    if (spec.getMinimumTextLength() != null) {
+      tikaHandler.setMinTextLength(spec.getMinimumTextLength());
+    }
+
     if (!Boolean.TRUE.equals(spec.getParseSynchronously())) {
       // Try to parse the file on the executor thread to make the best effort
       // at letting the pipeline thread advancing over the file content
@@ -192,14 +196,22 @@ class TikaReader extends BoundedReader<String> {
     private Queue<String> queue = new ConcurrentLinkedQueue<>();
     private volatile boolean documentEnded;
     private volatile Exception parseException;
+    private volatile String current;
+    private int minTextLength;
 
     @Override
     public void characters(char ch[], int start, int length) throws SAXException {
       String value = new String(ch, start, length).trim();
       if (!value.isEmpty()) {
-        //TODO: review how concatenating multiple chunks into a minimum length text fragment
-        // can optionally help optimize PTransform
-        queue.add(value);
+        if (minTextLength <= 0) {
+          queue.add(value);
+        } else {
+          current = current == null ? value : current + " " + value;
+          if (current.length() >= minTextLength) {
+            queue.add(current);
+            current = null;
+          }
+        }
       }
     }
 
@@ -226,12 +238,21 @@ class TikaReader extends BoundedReader<String> {
 
     public String getCurrent() throws IOException {
       checkParseException();
-      return queue.poll();
+      String value = queue.poll();
+      if (value == null && documentEnded) {
+        return current;
+      } else {
+        return value;
+      }
     }
     public void checkParseException() throws IOException {
       if (parseException != null) {
         throw new IOException(parseException);
       }
+    }
+
+    public void setMinTextLength(int minTextLength) {
+      this.minTextLength = minTextLength;
     }
   }
 }

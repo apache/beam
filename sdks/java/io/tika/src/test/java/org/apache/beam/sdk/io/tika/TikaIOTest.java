@@ -58,6 +58,10 @@ public class TikaIOTest {
       "the content from the files", "and", "Apache Tika",
       "Author=BeamTikaUser"
   };
+  private static final String[] ODT_FILE_WITH_MIN_TEXT_LEN = new String[] {
+      "Combining Apache Beam", "and Apache Tika can help to ingest", "in most known formats.",
+      "the content from the files"
+  };
   private static final String[] ODT_FILES = new String[] {
       "Combining", "can help to ingest", "Apache", "Beam", "in most known formats.",
       "the content from the files", "and", "Apache Tika",
@@ -119,6 +123,17 @@ public class TikaIOTest {
   }
 
   @Test
+  public void testReadOdtFileWithMinTextLength() throws IOException {
+
+    String resourcePath = getClass().getResource("/apache-beam-tika1.odt").getPath();
+
+    PCollection<String> output = p.apply("ParseOdtFile",
+        TikaIO.read().from(resourcePath).withMinimumTextlength(20));
+    PAssert.that(output).containsInAnyOrder(ODT_FILE_WITH_MIN_TEXT_LEN);
+    p.run();
+  }
+
+  @Test
   public void testReadPdfFileSync() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
@@ -160,6 +175,7 @@ public class TikaIOTest {
         .from("foo.*")
         .withTikaConfigPath("tikaconfigpath")
         .withContentTypeHint("application/pdf")
+        .withMinimumTextlength(100)
         .withReadOutputMetadata(true);
 
     DisplayData displayData = DisplayData.from(read);
@@ -172,7 +188,8 @@ public class TikaIOTest {
     assertThat(displayData, hasDisplayItem("parseMode", "asynchronous"));
     assertThat(displayData, hasDisplayItem("queuePollTime", "50"));
     assertThat(displayData, hasDisplayItem("queueMaxPollTime", "3000"));
-    assertEquals(7, displayData.items().size());
+    assertThat(displayData, hasDisplayItem("minTextLen", "100"));
+    assertEquals(8, displayData.items().size());
   }
 
   @Test

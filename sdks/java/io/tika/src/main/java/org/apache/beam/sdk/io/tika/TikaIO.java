@@ -80,6 +80,7 @@ public class TikaIO {
     @Nullable abstract Boolean getReadOutputMetadata();
     @Nullable abstract Long getQueuePollTime();
     @Nullable abstract Long getQueueMaxPollTime();
+    @Nullable abstract Integer getMinimumTextLength();
     @Nullable abstract Boolean getParseSynchronously();
 
     abstract Builder toBuilder();
@@ -92,6 +93,7 @@ public class TikaIO {
       abstract Builder setReadOutputMetadata(Boolean value);
       abstract Builder setQueuePollTime(Long value);
       abstract Builder setQueueMaxPollTime(Long value);
+      abstract Builder setMinimumTextLength(Integer value);
       abstract Builder setParseSynchronously(Boolean value);
 
       abstract Read build();
@@ -189,6 +191,14 @@ public class TikaIO {
     }
 
     /**
+     * Returns a new transform which will operate on the text blocks with the
+     * given minimum text length.
+     */
+    public Read withMinimumTextlength(Integer value) {
+      return toBuilder().setMinimumTextLength(value).build();
+    }
+
+    /**
      * Returns a new transform which will use the synchronous reader.
      */
     public Read withParseSynchronously(Boolean value) {
@@ -204,6 +214,7 @@ public class TikaIO {
       builder.setFilepattern(StaticValueProvider.of(options.getInput()))
              .setQueuePollTime(options.getQueuePollTime())
              .setQueueMaxPollTime(options.getQueueMaxPollTime())
+             .setMinimumTextLength(options.getMinimumTextLength())
              .setParseSynchronously(options.getParseSynchronously());
       if (options.getContentTypeHint() != null) {
         Metadata metadata = this.getInputMetadata();
@@ -274,6 +285,12 @@ public class TikaIO {
             .withLabel("Queue Poll Time"))
         .add(DisplayData.item("queueMaxPollTime", getQueueMaxPollTime().toString())
           .withLabel("Queue Max Poll Time"));
+      }
+      Integer minTextLen = getMinimumTextLength();
+      if (minTextLen != null && minTextLen > 0) {
+        builder
+        .add(DisplayData.item("minTextLen", getMinimumTextLength().toString())
+          .withLabel("Minimum Text Length"));
       }
       if (Boolean.TRUE.equals(getReadOutputMetadata())) {
         builder
