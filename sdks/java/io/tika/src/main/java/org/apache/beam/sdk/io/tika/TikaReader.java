@@ -208,10 +208,12 @@ class TikaReader extends BoundedReader<String> {
     }
 
     public synchronized boolean waitForNext(long pollTime) throws IOException {
-      try {
-        wait(pollTime);
-      } catch (InterruptedException ex) {
-        // continue;
+      if (!documentEnded) {
+        try {
+          wait(pollTime);
+        } catch (InterruptedException ex) {
+          // continue;
+        }
       }
       return documentEnded;
     }
