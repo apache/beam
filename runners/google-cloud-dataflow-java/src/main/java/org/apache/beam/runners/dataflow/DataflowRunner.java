@@ -1455,8 +1455,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   @VisibleForTesting
-  static class StreamingShardedWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
+  static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
+      implements PTransformOverrideFactory<PCollection<UserT>, PDone,
+      WriteFiles<UserT, DestinationT, OutputT>> {
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
@@ -1467,8 +1468,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PDone, WriteFiles<T>> transform) {
+    public PTransformReplacement<PCollection<UserT>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<UserT>, PDone,
+        WriteFiles<UserT, DestinationT, OutputT>> transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In
       // streaming, there are large numbers of small bundles, resulting in many tiny files.
       // Instead we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
@@ -1485,7 +1487,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
 
       try {
-        WriteFiles<T> replacement = WriteFiles.to(WriteFilesTranslation.getSink(transform));
+        WriteFiles<UserT, DestinationT, OutputT> replacement =
+            WriteFiles.<UserT, DestinationT, OutputT>to(
+            WriteFilesTranslation.<UserT, DestinationT, OutputT>getSink(transform),
+            WriteFilesTranslation.<UserT, OutputT>getFormatFunction(transform));
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }

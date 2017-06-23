@@ -104,7 +104,7 @@ public class WriteFilesTranslationTest {
           WriteFilesTranslation.isWindowedWrites(appliedPTransform),
           equalTo(writeFiles.isWindowedWrites()));
 
-      assertThat(WriteFilesTranslation.<String, Void>getSink(appliedPTransform),
+      assertThat(WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
           equalTo(writeFiles.getSink()));
     }
   }

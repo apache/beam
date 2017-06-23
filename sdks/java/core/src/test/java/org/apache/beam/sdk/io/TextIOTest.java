@@ -391,7 +391,7 @@ public class TextIOTest {
     p.run();
 
     assertOutputFiles(elems, header, footer, numShards, baseFilename,
-        firstNonNull(write.getShardTemplate(),
+        firstNonNull(write.inner.getShardTemplate(),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
@@ -557,7 +557,7 @@ public class TextIOTest {
     }
     assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1,
         baseDir.resolve(outputName + writableByteChannelFactory.getSuggestedFilenameSuffix(),
-            StandardResolveOptions.RESOLVE_FILE), write.getShardTemplate());
+            StandardResolveOptions.RESOLVE_FILE), write.inner.getShardTemplate());
   }
 
   @Test

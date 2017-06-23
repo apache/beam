@@ -113,8 +113,8 @@ public class WriteFilesTranslation {
   }
 
   @VisibleForTesting
-  static SerializableFunction<?, ?> formatFunctionFromProto(SdkFunctionSpec sinkProto)
-      throws IOException {
+  static <InputT, OutputT> SerializableFunction<InputT, OutputT> formatFunctionFromProto(
+      SdkFunctionSpec sinkProto) throws IOException {
     checkArgument(
         sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN),
         "Cannot extract %s instance from %s with URN %s",
@@ -125,25 +125,26 @@ public class WriteFilesTranslation {
     byte[] serializedFunction =
         sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
 
-    return (SerializableFunction<?, ?>)
+    return (SerializableFunction<InputT, OutputT>)
         SerializableUtils.deserializeFromByteArray(
             serializedFunction, FileBasedSink.class.getSimpleName());
   }
 
-  public static <T, DestinationT> FileBasedSink<T, DestinationT> getSink(
-      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+  public static <UserT, DestinationT, OutputT> FileBasedSink<OutputT, DestinationT> getSink(
+      AppliedPTransform<PCollection<UserT>, PDone, ? extends PTransform<PCollection<UserT>, PDone>>
           transform)
       throws IOException {
-    return (FileBasedSink<T, DestinationT>) sinkFromProto(
+    return (FileBasedSink<OutputT, DestinationT>) sinkFromProto(
         getWriteFilesPayload(transform).getSink());
   }
 
-  public static <InputT> SerializableFunction getFormatFunction(
+  public static <InputT, OutputT> SerializableFunction<InputT, OutputT> getFormatFunction(
       AppliedPTransform<
               PCollection<InputT>, PDone, ? extends PTransform<PCollection<InputT>, PDone>>
           transform)
       throws IOException {
-    return formatFunctionFromProto(getWriteFilesPayload(transform).getFormatFunction());
+    return formatFunctionFromProto(getWriteFilesPayload(transform)
+    .<InputT, OutputT>getFormatFunction());
   }
 
   public static <T> boolean isWindowedWrites(

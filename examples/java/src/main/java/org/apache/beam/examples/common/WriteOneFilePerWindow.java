@@ -55,7 +55,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
   @Override
   public PDone expand(PCollection<String> input) {
     ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
-    TextIO.Write<String> write = TextIO.write()
+    TextIO.Write write = TextIO.write()
         .to(resource.getCurrentDirectory())
         .withFilenamePolicy(new PerWindowFiles(resource))
         .withWindowedWrites();
