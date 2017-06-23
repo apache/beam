@@ -7,6 +7,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
@@ -82,28 +83,6 @@ func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*Cus
 	return c, nil
 }
 
-// windowKind tags the kind of window that is used by the coder.
-type windowKind string
-
-const (
-	// GlobalWindow is the tag for windowing used in bounded pipelines.
-	GlobalWindow windowKind = "GW"
-)
-
-// Window represents the window encoding.
-type Window struct {
-	Kind windowKind
-}
-
-func (w *Window) String() string {
-	return fmt.Sprintf("%v", w.Kind)
-}
-
-// NewGlobalWindow returns a new global window coder using the built-in scheme.
-func NewGlobalWindow() *Window {
-	return &Window{Kind: GlobalWindow}
-}
-
 // Kind represents the type of coder used.
 type Kind string
 
@@ -125,12 +104,15 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder     // WindowedValue, KV, GCK, CoGBK
-	Custom     *CustomCoder // Custom
-	Window     *Window      // WindowedValue
+	Components []*Coder       // WindowedValue, KV, GCK, CoGBK
+	Custom     *CustomCoder   // Custom
+	Window     *window.Window // WindowedValue
 }
 
 func (c *Coder) String() string {
+	if c == nil {
+		return "$"
+	}
 	if c.Custom != nil {
 		return c.Custom.String()
 	}
@@ -163,7 +145,7 @@ func IsW(c *Coder) bool {
 }
 
 // NewW returns a WindowedValue coder for the window of elements.
-func NewW(c *Coder, w *Window) *Coder {
+func NewW(c *Coder, w *window.Window) *Coder {
 	return &Coder{
 		Kind:       WindowedValue,
 		T:          typex.NewW(c.T),
@@ -178,7 +160,7 @@ func IsWKV(c *Coder) bool {
 }
 
 // NewWKV returns a WindowedValue coder for the window of KV elements.
-func NewWKV(components []*Coder, w *Window) *Coder {
+func NewWKV(components []*Coder, w *window.Window) *Coder {
 	c := &Coder{
 		Kind:       KV,
 		T:          typex.New(typex.KVType, Types(components)...),
@@ -193,7 +175,7 @@ func IsWGBK(c *Coder) bool {
 }
 
 // NewWGBK returns a WindowedValue coder for the window of GBK elements.
-func NewWGBK(components []*Coder, w *Window) *Coder {
+func NewWGBK(components []*Coder, w *window.Window) *Coder {
 	c := &Coder{
 		Kind:       GBK,
 		T:          typex.New(typex.GBKType, Types(components)...),
@@ -208,7 +190,7 @@ func IsWCoGBK(c *Coder) bool {
 }
 
 // NewWCoGBK returns a WindowedValue coder for the window of CoGBK elements.
-func NewWCoGBK(components []*Coder, w *Window) *Coder {
+func NewWCoGBK(components []*Coder, w *window.Window) *Coder {
 	c := &Coder{
 		Kind:       CoGBK,
 		T:          typex.New(typex.CoGBKType, Types(components)...),

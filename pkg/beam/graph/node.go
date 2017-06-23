@@ -5,6 +5,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 )
 
 // Node is a typed connector describing the data type and encoding. A node
@@ -20,6 +21,9 @@ type Node struct {
 	// Coder defines the data encoding. It can be changed, but must be of
 	// the underlying type, t.
 	Coder *coder.Coder
+
+	// w defines the kind of windowing used.
+	w *window.Window
 }
 
 // ID returns the graph-local identifier for the node.
@@ -32,11 +36,13 @@ func (n *Node) Type() typex.FullType {
 	return n.t
 }
 
+// Window returns the window applied to the data.
+func (n *Node) Window() *window.Window {
+	return n.w
+}
+
 func (n *Node) String() string {
-	if n.Coder != nil {
-		return fmt.Sprintf("{%v: %v/%v}", n.id, n.t, n.Coder)
-	}
-	return fmt.Sprintf("{%v: %v/$}", n.id, n.t)
+	return fmt.Sprintf("{%v: %v/%v/%v}", n.id, n.t, n.w, n.Coder)
 }
 
 // NodeTypes returns the fulltypes of the supplied slice of nodes.

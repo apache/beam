@@ -6,6 +6,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
@@ -55,7 +56,7 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 	// (2) Insert the create ParDo manually, because the return type cannot be
 	// inferred from the signature.
 
-	n := p.real.NewNode(typex.NewW(typex.New(t)))
+	n := p.real.NewNode(typex.NewW(typex.New(t)), window.NewGlobalWindow())
 
 	edge := p.real.NewEdge(p.parent)
 	edge.Op = graph.ParDo

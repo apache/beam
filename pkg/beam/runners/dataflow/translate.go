@@ -3,17 +3,20 @@ package dataflow
 import (
 	"bytes"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
-	df "google.golang.org/api/dataflow/v1b3"
 	"log"
 	"net/url"
 	"path"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
+	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/runnerapi/org_apache_beam_runner_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
+	df "google.golang.org/api/dataflow/v1b3"
 )
 
 // translate translates a Graph into a sequence of Dataflow steps. The step
@@ -203,9 +206,15 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}, nil
 
 	case graph.GBK:
+		w := edge.Input[0].From.Window()
+		sfn, err := encodeSerializedFn(translateWindow(w))
+		if err != nil {
+			return "", properties{}, err
+		}
 		return "GroupByKey", properties{
 			UserName:                buildName(edge.Scope(), "group"), // TODO: user-defined
 			DisallowCombinerLifting: true,
+			SerializedFn:            sfn,
 		}, nil
 
 	case graph.Sink:
@@ -258,4 +267,48 @@ func buildScopeName(scope *graph.Scope) string {
 // semantic meaning.
 func stepID(id int) string {
 	return fmt.Sprintf("s%v", id)
+}
+
+func translateWindow(w *window.Window) proto.Message {
+	// TODO: The only windowing strategy we support is the global window.
+	if w.Kind() != window.GlobalWindow {
+		panic(fmt.Sprintf("Unsupported window type supplied: %v", w))
+	}
+	// We compute the fixed content of this message for use in workflows.
+	msg := rnapi_pb.MessageWithComponents{
+		Components: &rnapi_pb.Components{
+			Coders: map[string]*rnapi_pb.Coder{
+				"Coder": &rnapi_pb.Coder{
+					Spec: &rnapi_pb.SdkFunctionSpec{
+						Spec: &rnapi_pb.FunctionSpec{
+							Urn: "urn:beam:coders:global_window:0.1",
+						},
+					},
+				},
+			},
+		},
+		Root: &rnapi_pb.MessageWithComponents_WindowingStrategy{
+			WindowingStrategy: &rnapi_pb.WindowingStrategy{
+				WindowFn: &rnapi_pb.SdkFunctionSpec{
+					Spec: &rnapi_pb.FunctionSpec{
+						Urn: "beam:window_fn:global_windows:v0.1",
+					},
+				},
+				WindowCoderId:   "Coder",
+				ClosingBehavior: rnapi_pb.ClosingBehavior_EMIT_IF_NONEMPTY,
+				Trigger: &rnapi_pb.Trigger{
+					Trigger: &rnapi_pb.Trigger_Default_{
+						Default: &rnapi_pb.Trigger_Default{},
+					},
+				},
+			},
+		},
+	}
+
+	return &msg
+}
+
+func encodeSerializedFn(in proto.Message) (string, error) {
+	// The Beam Runner API uses URL query escaping for serialized fn messages.
+	return protox.EncodeQueryEscaped(in)
 }

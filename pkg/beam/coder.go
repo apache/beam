@@ -3,9 +3,11 @@ package beam
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"reflect"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 )
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
@@ -75,7 +77,7 @@ func inferCoder(t typex.FullType) (*coder.Coder, error) {
 		case typex.CoGBKType:
 			return &coder.Coder{Kind: coder.CoGBK, T: t, Components: c}, nil
 		case typex.WindowedValueType:
-			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: &coder.Window{Kind: coder.GlobalWindow}}, nil
+			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: window.NewGlobalWindow()}, nil
 
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))
