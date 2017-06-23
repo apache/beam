@@ -45,6 +45,7 @@ func GroupByKey(p *Pipeline, a PCollection) PCollection {
 }
 
 // TODO(herohde) 5/30/2017: add windowing aspects to above documentation.
+// TODO(herohde) 6/23/2017: support createWithFewKeys and other variants?
 
 // TryGroupByKey inserts a GBK transform into the pipeline. Returns
 // an error on failure.

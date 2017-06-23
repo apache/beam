@@ -6,6 +6,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"strings"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -34,7 +35,7 @@ type CustomCoder struct {
 // present in java/python. Not clear whether we actually need it.
 
 func (c *CustomCoder) String() string {
-	return fmt.Sprintf("%s<%v>", c.Name, c.Type)
+	return fmt.Sprintf("%v[%v]", c.Type, c.Name)
 }
 
 // NewCustomCoder creates a coder for the supplied parameters defining a
@@ -67,7 +68,7 @@ type windowKind string
 
 const (
 	// GlobalWindow is the tag for windowing used in bounded pipelines.
-	GlobalWindow windowKind = "GlobalWindow"
+	GlobalWindow windowKind = "GW"
 )
 
 // Window represents the window encoding.
@@ -82,12 +83,13 @@ func (w *Window) String() string {
 // Kind represents the type of coder used.
 type Kind string
 
-// Tags for the various Beam encoding strategies. https://beam.apache.org/documentation/programming-guide/#coders documents the usage of coders in the Beam environment.
+// Tags for the various Beam encoding strategies. https://beam.apache.org/documentation/programming-guide/#coders
+// documents the usage of coders in the Beam environment.
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
-	VarInt        Kind = "VarInt"
-	Bytes         Kind = "Bytes"
-	WindowedValue Kind = "WindowedValue"
+	VarInt        Kind = "varint"
+	Bytes         Kind = "bytes"
+	WindowedValue Kind = "W"
 	KV            Kind = "KV"
 	GBK           Kind = "GBK"
 	CoGBK         Kind = "CoGBK"
@@ -106,17 +108,21 @@ type Coder struct {
 }
 
 func (c *Coder) String() string {
-	ret := fmt.Sprintf("{%v", c.Kind)
-	if len(c.Components) > 0 {
-		ret += fmt.Sprintf(" %v", c.Components)
-	}
 	if c.Custom != nil {
-		ret += fmt.Sprintf(" %v", c.Custom)
+		return c.Custom.String()
+	}
+
+	ret := fmt.Sprintf("%v", c.Kind)
+	if len(c.Components) > 0 {
+		var args []string
+		for _, elm := range c.Components {
+			args = append(args, fmt.Sprintf("%v", elm))
+		}
+		ret += fmt.Sprintf("<%v>", strings.Join(args, ","))
 	}
 	if c.Window != nil {
-		ret += fmt.Sprintf(" @%v", c.Window)
+		ret += fmt.Sprintf("!%v", c.Window)
 	}
-	ret += "}"
 	return ret
 }
 

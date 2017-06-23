@@ -57,9 +57,24 @@ func (t *tree) String() string {
 		for _, c := range t.components {
 			args = append(args, fmt.Sprintf("%v", c))
 		}
-		return fmt.Sprintf("%v<%v>", t.t.Name(), strings.Join(args, ","))
+		return fmt.Sprintf("%v<%v>", printShortComposite(t.t), strings.Join(args, ","))
 	default:
 		return fmt.Sprintf("<invalid: %v>", t.t)
+	}
+}
+
+func printShortComposite(t reflect.Type) string {
+	switch t {
+	case WindowedValueType:
+		return "W"
+	case GBKType:
+		return "GBK"
+	case CoGBKType:
+		return "CoGBK"
+	case KVType:
+		return "KV"
+	default:
+		return fmt.Sprintf("invalid(%v)", t)
 	}
 }
 
