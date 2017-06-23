@@ -50,7 +50,7 @@ public class DynamicDestinationHelpers {
 
     @Override
     public Coder<Void> getDestinationCoder() {
-      return VoidCoder.of();
+      return null;
     }
 
     @Override

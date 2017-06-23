@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -49,8 +51,10 @@ import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -230,8 +234,10 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     public abstract DestinationT getDefaultDestination();
 
     /**
-     * Returns the coder for {@link DestinationT}.
-     * (INFER)
+     * Returns the coder for {@link DestinationT}. If this is not overridden, then
+     * the coder registry will be use to find a suitable coder. This must be a
+     * deterministic coder, as {@link DestinationT} will be used as a key type in a
+     * {@link org.apache.beam.sdk.transforms.GroupByKey}.
      */
     @Nullable
     public Coder<DestinationT> getDestinationCoder() {
@@ -247,6 +253,34 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
     * Populates the display data.
      */
     public void populateDisplayData(DisplayData.Builder builder) {
+    }
+
+    // Gets the destination coder. If the user does not provide one, try to find one in the coder
+    // registry. If no coder can be found, throws CannotProvideCoderException.
+    Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+        throws CannotProvideCoderException {
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder != null) {
+        return destinationCoder;
+      }
+      // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
+      // We must first use reflection to figure out what the type parameter is.
+      for (Type superclass = getClass().getGenericSuperclass();
+           superclass != null;
+           superclass = ((Class) superclass).getGenericSuperclass()) {
+        if (superclass instanceof ParameterizedType) {
+          ParameterizedType parameterized = (ParameterizedType) superclass;
+          if (parameterized.getRawType() == DynamicDestinations.class) {
+            // DestinationT is the second parameter.
+            Type parameter = parameterized.getActualTypeArguments()[1];
+            @SuppressWarnings("unchecked")
+            Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
+            return registry.getCoder(parameterClass);
+          }
+        }
+      }
+      throw new AssertionError(
+          "Couldn't find the DynamicDestinations superclass of " + this.getClass());
     }
   }
 

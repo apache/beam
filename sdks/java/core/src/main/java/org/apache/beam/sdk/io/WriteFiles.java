@@ -31,6 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -581,7 +582,14 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> shardedWindowCoder =
         (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
-    Coder<DestinationT> destinationCoder = sink.getDynamicDestinations().getDestinationCoder();
+    Coder<DestinationT> destinationCoder = null;
+    try {
+      destinationCoder = sink.getDynamicDestinations().getDestinationCoderWithDefault(
+          input.getPipeline().getCoderRegistry());
+    }  catch (CannotProvideCoderException e) {
+      throw new RuntimeException(e);
+    }
+
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>(
