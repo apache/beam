@@ -62,9 +62,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link DoFnRunnerFactory}. */
+/** Tests for {@link FnApiDoFnRunner}. */
 @RunWith(JUnit4.class)
-public class DoFnRunnerFactoryTest {
+public class FnApiDoFnRunnerTest {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Coder<WindowedValue<String>> STRING_CODER =
@@ -155,7 +155,7 @@ public class DoFnRunnerFactoryTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new DoFnRunnerFactory.Factory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         pTransformId,
@@ -199,7 +199,7 @@ public class DoFnRunnerFactoryTest {
   public void testRegistration() {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
-      if (registrar instanceof DoFnRunnerFactory.Registrar) {
+      if (registrar instanceof FnApiDoFnRunner.Registrar) {
         assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
         return;
       }
