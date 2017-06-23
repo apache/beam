@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 )
 
 // Graph represents an in-progress deferred execution graph and is easily
@@ -52,12 +53,12 @@ func (g *Graph) NewEdge(parent *Scope) *MultiEdge {
 }
 
 // NewNode creates a new node in the graph of the supplied fulltype.
-func (g *Graph) NewNode(t typex.FullType) *Node {
+func (g *Graph) NewNode(t typex.FullType, w *window.Window) *Node {
 	if !typex.IsBound(t) {
 		panic(fmt.Sprintf("Node type not bound: %v", t))
 	}
 	id := len(g.nodes) + 1
-	n := &Node{id: id, t: t}
+	n := &Node{id: id, t: t, w: w}
 	g.nodes = append(g.nodes, n)
 	return n
 }

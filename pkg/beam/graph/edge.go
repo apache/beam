@@ -7,6 +7,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
@@ -175,7 +176,7 @@ func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
 	// (1) Create GBK result type and coder: KV<T,U> -> GBK<T,U>.
 
 	t := typex.NewWGBK(typex.SkipW(n.Type()).Components()...)
-	out := g.NewNode(t)
+	out := g.NewNode(t, n.Window())
 
 	// (2) Add generic GBK edge
 
@@ -198,10 +199,16 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		return nil, fmt.Errorf("flatten needs at least 2 input, got %v", len(in))
 	}
 	t := in[0].Type()
+	w := in[0].Window()
 	for _, n := range in {
 		if !typex.IsEqual(t, n.Type()) {
 			return nil, fmt.Errorf("mismatched flatten input types: %v, want %v", n.Type(), t)
 		}
+
+		if !w.Equals(n.Window()) {
+			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.Window(), w)
+		}
+
 	}
 	if typex.IsWGBK(t) || typex.IsWCoGBK(t) {
 		return nil, fmt.Errorf("flatten input type cannot be GBK or CGBK: %v", t)
@@ -212,7 +219,7 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	for _, n := range in {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: t})
 	}
-	edge.Output = []*Outbound{{To: g.NewNode(t), Type: t}}
+	edge.Output = []*Outbound{{To: g.NewNode(t, w), Type: t}}
 
 	log.Printf("EDGE: %v", edge)
 	return edge, nil
@@ -246,7 +253,7 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i])
+		n := g.NewNode(out[i], inputWindow(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 
@@ -289,11 +296,12 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 	edge := g.NewEdge(s)
 	edge.Op = Combine
 	edge.CombineFn = u
+
 	for i := 0; i < len(in); i++ {
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i])
+		n := g.NewNode(out[i], inputWindow(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 
@@ -305,8 +313,9 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 // built-in bytes coder.
 func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	ft := typex.NewW(typex.New(reflectx.ByteSlice))
-	n := g.NewNode(ft)
-	n.Coder = coder.NewW(coder.NewBytes(), coder.NewGlobalWindow())
+	w := window.NewGlobalWindow()
+	n := g.NewNode(ft, w)
+	n.Coder = coder.NewW(coder.NewBytes(), w)
 
 	edge := g.NewEdge(s)
 	edge.Op = Impulse
@@ -315,4 +324,11 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 
 	log.Printf("EDGE: %v", edge)
 	return edge
+}
+
+func inputWindow(in []*Node) *window.Window {
+	if len(in) == 0 {
+		return window.NewGlobalWindow()
+	}
+	return in[0].Window()
 }

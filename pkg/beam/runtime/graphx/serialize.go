@@ -11,6 +11,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
@@ -830,21 +831,21 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 // EncodeWindow translates the preprocessed representation of a Beam coder
 // into the wire representation, capturing the underlying types used by
 // the coder.
-func EncodeWindow(w *coder.Window) (*CoderRef, error) {
-	switch w.Kind {
-	case coder.GlobalWindow:
+func EncodeWindow(w *window.Window) (*CoderRef, error) {
+	switch w.Kind() {
+	case window.GlobalWindow:
 		return &CoderRef{Type: globalWindowType}, nil
 	default:
-		return nil, fmt.Errorf("bad window kind: %v", w.Kind)
+		return nil, fmt.Errorf("bad window kind: %v", w.Kind())
 	}
 }
 
 // DecodeWindow receives the wire representation of a Beam coder, extracting
 // the preprocessed representation, expanding all types used by the coder.
-func DecodeWindow(w *CoderRef) (*coder.Window, error) {
+func DecodeWindow(w *CoderRef) (*window.Window, error) {
 	switch w.Type {
 	case globalWindowType:
-		return coder.NewGlobalWindow(), nil
+		return window.NewGlobalWindow(), nil
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}

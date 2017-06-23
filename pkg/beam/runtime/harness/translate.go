@@ -9,6 +9,7 @@ import (
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/runnerapi/org_apache_beam_runner_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
@@ -252,10 +253,15 @@ func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[strin
 	if len(to) != len(edge.Output) {
 		return fmt.Errorf("unexpected number of outputs: %v, want %v", len(to), len(edge.Output))
 	}
+
+	w := window.NewGlobalWindow()
+	if len(edge.Input) > 0 {
+		w = edge.Input[0].From.Window()
+	}
 	for i := 0; i < len(edge.Output); i++ {
 		c := coders[to[i].Coder]
 
-		n := g.NewNode(c.T)
+		n := g.NewNode(c.T, w)
 		n.Coder = c
 		nodes[to[i].NodeID] = n
 
