@@ -231,11 +231,12 @@ public class FileBasedSinkTest {
   private void testRemoveTemporaryFiles(int numFiles, ResourceId tempDirectory)
       throws Exception {
     String prefix = "file";
-    SimpleSink sink =
-        new SimpleSink(getBaseOutputDirectory(), prefix, "", "");
+    SimpleSink<Void> sink =
+        SimpleSink.makeSimpleSink(getBaseOutputDirectory(), prefix, "", "",
+        CompressionType.UNCOMPRESSED);
 
     WriteOperation<String, Void> writeOp =
-        new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
+        new SimpleSink.SimpleWriteOperation<>(sink, tempDirectory);
 
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
@@ -326,7 +327,9 @@ public class FileBasedSinkTest {
     List<ResourceId> actual;
     ResourceId root = getBaseOutputDirectory();
 
-    SimpleSink sink = new SimpleSink(root, "file", ".SSSSS.of.NNNNN", ".test");
+    SimpleSink<Void> sink =
+        SimpleSink.makeSimpleSink(
+            root, "file", ".SSSSS.of.NNNNN", ".test", CompressionType.UNCOMPRESSED);
     FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected = Arrays.asList(
@@ -352,8 +355,9 @@ public class FileBasedSinkTest {
   @Test
   public void testCollidingOutputFilenames() throws IOException {
     ResourceId root = getBaseOutputDirectory();
-    SimpleSink sink = new SimpleSink(root, "file", "-NN", "test");
-    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
+    SimpleSink<Void> sink =
+        SimpleSink.makeSimpleSink(root, "file", "-NN", "test", CompressionType.UNCOMPRESSED);
+    SimpleSink.SimpleWriteOperation<Void> writeOp = new SimpleSink.SimpleWriteOperation<>(sink);
 
     ResourceId temp1 = root.resolve("temp1", StandardResolveOptions.RESOLVE_FILE);
     ResourceId temp2 = root.resolve("temp2", StandardResolveOptions.RESOLVE_FILE);
@@ -379,7 +383,9 @@ public class FileBasedSinkTest {
     List<ResourceId> expected;
     List<ResourceId> actual;
     ResourceId root = getBaseOutputDirectory();
-    SimpleSink sink = new SimpleSink(root, "file", "-SSSSS-of-NNNNN", "");
+    SimpleSink<Void> sink =
+        SimpleSink.makeSimpleSink(
+            root, "file", "-SSSSS-of-NNNNN", "", CompressionType.UNCOMPRESSED);
     FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected = Arrays.asList(
@@ -487,8 +493,8 @@ public class FileBasedSinkTest {
     final String testUid = "testId";
     ResourceId root = getBaseOutputDirectory();
     WriteOperation<String, Void> writeOp =
-        new SimpleSink(root, "file", "-SS-of-NN", "txt", new DrunkWritableByteChannelFactory())
-            .createWriteOperation();
+        SimpleSink.makeSimpleSink(root, "file", "-SS-of-NN", "txt",
+        new DrunkWritableByteChannelFactory()).createWriteOperation();
     final Writer<String, Void> writer = writeOp.createWriter();
     final ResourceId expectedFile =
         writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
@@ -513,20 +519,22 @@ public class FileBasedSinkTest {
   }
 
   /** Build a SimpleSink with default options. */
-  private SimpleSink buildSink() {
-    return new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", ".test");
+  private SimpleSink<Void> buildSink() {
+    return SimpleSink.makeSimpleSink(
+        getBaseOutputDirectory(), "file", "-SS-of-NN", ".test", CompressionType.UNCOMPRESSED);
   }
 
   /**
    * Build a SimpleWriteOperation with default options and the given temporary directory.
    */
-  private SimpleSink.SimpleWriteOperation buildWriteOperationWithTempDir(ResourceId tempDirectory) {
-    SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
+  private SimpleSink.SimpleWriteOperation<Void> buildWriteOperationWithTempDir(
+      ResourceId tempDirectory) {
+    SimpleSink<Void> sink = buildSink();
+    return new SimpleSink.SimpleWriteOperation<>(sink, tempDirectory);
   }
 
   /** Build a write operation with the default options for it and its parent sink. */
-  private SimpleSink.SimpleWriteOperation buildWriteOperation() {
+  private SimpleSink.SimpleWriteOperation<Void> buildWriteOperation() {
     return buildSink().createWriteOperation();
   }
 }

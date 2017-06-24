@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.regex.Matcher;
@@ -32,8 +33,8 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -69,14 +70,17 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       "W-P" + DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
 
   /*
-   * pattern for both windowed and non-windowed file names
+   * pattern for both windowed and non-windowed file names.
    */
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+|W|P)");
 
   /**
+   * Encapsulates constructor parameters to {@link DefaultFilenamePolicy}.
    *
+   * <p>This is used as the {@code DestinationT} argument to allow {@link DefaultFilenamePolicy}
+   * objects to be dynamically generated.
    */
-  public static class Params {
+  public static class Params implements Serializable {
     private ValueProvider<ResourceId> baseFilename;
     private String shardTemplate;
     private String suffix;
@@ -149,6 +153,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
   }
 
+  private final Params params;
   /**
    * Constructs a new {@link DefaultFilenamePolicy}.
    *
@@ -156,24 +161,36 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    */
   @VisibleForTesting
   DefaultFilenamePolicy(Params params) {
-    this.baseFilename = params.baseFilename;
-    this.shardTemplate = params.shardTemplate;
-    this.suffix = params.suffix;
+    this.params = params;
+
   }
 
+  /**
+   * Construct a {@link DefaultFilenamePolicy}.
+   *
+   * <p>This is a shortcut for {@code DefaultFilenamePolicy.fromParams(Params
+   * .fromStandardParameters(baseFilename, shardTemplate, filenameSuffix, windowedWrites)}.
+   */
+  public static DefaultFilenamePolicy fromStandardParameters(
+      ValueProvider<ResourceId> baseFilename,
+      @Nullable String shardTemplate,
+      @Nullable String filenameSuffix,
+      boolean windowedWrites) {
+    return fromParams(
+        Params.fromStandardParameters(baseFilename, shardTemplate, filenameSuffix, windowedWrites));
+  }
 
+  /**
+   * Construct a {@link DefaultFilenamePolicy} from a {@link Params} object.
+   */
   public static DefaultFilenamePolicy fromParams(Params params) {
     return new DefaultFilenamePolicy(params);
   }
 
-  private final ValueProvider<ResourceId> baseFilename;
-  private final String shardTemplate;
-  private final String suffix;
-
   /**
    * Constructs a fully qualified name from components.
    *
-   * <p>The name is built from a bas filename, shard template (with shard numbers
+   * <p>The name is built from a base filename, shard template (with shard numbers
    * applied), and a suffix.  All components are required, but may be empty
    * strings.
    *
@@ -229,11 +246,11 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   @Nullable
-  public ResourceId unwindowedFilename(Context context, FileMetadataProvider fileMetadataProvider) {
+  public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
     return constructName(
-        baseFilename.get(),
-        shardTemplate,
-        suffix + fileMetadataProvider.getSuggestedFilenameSuffix(),
+        params.baseFilename.get(),
+        params.shardTemplate,
+        params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
         context.getShardNumber(),
         context.getNumShards(),
         null,
@@ -242,13 +259,13 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   public ResourceId windowedFilename(
-      WindowedContext context, FileMetadataProvider fileMetadataProvider) {
+      WindowedContext context, OutputFileHints outputFileHints) {
     final PaneInfo paneInfo = context.getPaneInfo();
     String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(context.getWindow());
-    return constructName(baseFilename.get(), shardTemplate,
-    suffix + fileMetadataProvider.getSuggestedFilenameSuffix(), context.getShardNumber(),
-    context.getNumShards(), paneStr, windowStr);
+    return constructName(params.baseFilename.get(), params.shardTemplate,
+    params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
+        context.getShardNumber(), context.getNumShards(), paneStr, windowStr);
   }
 
   /*
@@ -279,10 +296,12 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     String filenamePattern;
-    if (baseFilename.isAccessible()) {
-      filenamePattern = String.format("%s%s%s", baseFilename.get(), shardTemplate, suffix);
+    if (params.baseFilename.isAccessible()) {
+      filenamePattern = String.format("%s%s%s", params.baseFilename.get(),
+          params.shardTemplate, params.suffix);
     } else {
-      filenamePattern = String.format("%s%s%s", baseFilename, shardTemplate, suffix);
+      filenamePattern = String.format("%s%s%s", params.baseFilename, params.shardTemplate,
+          params.suffix);
     }
     builder.add(
         DisplayData.item("filenamePattern", filenamePattern)

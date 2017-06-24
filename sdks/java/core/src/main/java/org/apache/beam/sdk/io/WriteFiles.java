@@ -110,7 +110,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
   static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<OutputT, DestinationT> sink;
-  SerializableFunction<UserT, OutputT> formatFunction;
+  private SerializableFunction<UserT, OutputT> formatFunction;
   private WriteOperation<OutputT, DestinationT> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
@@ -127,8 +127,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
    * the runner control how many different shards are produced.
    */
-  public static <InT, DestT, OutT> WriteFiles<InT, DestT, OutT> to(
-      FileBasedSink<OutT, DestT> sink, SerializableFunction<InT, OutT> formatFunction) {
+  public static <UserT, DestinationT, OutputT> WriteFiles<UserT, DestinationT, OutputT> to(
+      FileBasedSink<OutputT, DestinationT> sink,
+      SerializableFunction<UserT, OutputT> formatFunction) {
     checkNotNull(sink, "sink");
     return new WriteFiles<>(
         sink,
@@ -202,7 +203,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /**
-   * Returns the link to the format function that maps the user type to the record written to files.
+   * Returns the the format function that maps the user type to the record written to files.
    */
   public SerializableFunction<UserT, OutputT> getFormatFunction() {
     return formatFunction;
@@ -314,9 +315,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private static class WriterKey<DestinationT> {
-    BoundedWindow window;
-    PaneInfo paneInfo;
-    DestinationT destination;
+    private final BoundedWindow window;
+    private final PaneInfo paneInfo;
+    private final DestinationT destination;
 
     WriterKey(BoundedWindow window, PaneInfo paneInfo, DestinationT destination) {
       this.window = window;

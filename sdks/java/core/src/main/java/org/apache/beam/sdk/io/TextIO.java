@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -97,13 +98,6 @@ import org.apache.beam.sdk.values.PDone;
  * }</pre>
  */
 public class TextIO {
-  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
-    @Override
-    public T apply(T input) {
-      return input;
-    }
-  }
-
   private static class ExtractValueFormatter<K, V> implements SerializableFunction<KV<K, V>, V> {
     @Override
     public V apply(KV<K, V> input) {
@@ -399,6 +393,14 @@ public class TextIO {
     }
 
     /**
+     * Set the base directory used to generate temporary files.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public TypedWrite<T> withTempDirectory(ResourceId tempDirectory) {
+      return withTempDirectory(StaticValueProvider.of(tempDirectory));
+    }
+
+    /**
      * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
      * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
@@ -515,10 +517,11 @@ public class TextIO {
       if (dynamicDestinations == null) {
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
         if (usedFilenamePolicy == null) {
-          usedFilenamePolicy = DefaultFilenamePolicy.fromParams(
-              Params.fromStandardParameters(getFilenamePrefix(),
-                  getShardTemplate(),
-                  getFilenameSuffix(), getWindowedWrites()));
+          usedFilenamePolicy = DefaultFilenamePolicy.fromStandardParameters(
+              getFilenamePrefix(),
+              getShardTemplate(),
+              getFilenameSuffix(),
+              getWindowedWrites());
         }
         dynamicDestinations =
             new ConstantFilenamePolicy<>(usedFilenamePolicy);
@@ -586,7 +589,7 @@ public class TextIO {
   /**
    * This class is used as the default return value of {@link TextIO#write()}.
    *
-   * All methods in this class delegate to the appropriate method of
+   * <p>All methods in this class delegate to the appropriate method of
    * {@link TextIO.TypedWrite}. This class exists for backwards compatibility, and will be
    * removed in Beam 3.0.
    */
@@ -595,7 +598,7 @@ public class TextIO {
     TypedWrite<String> inner;
 
     Write() {
-      this(TextIO.writeCustomType(new IdentityFormatter<String>()));
+      this(TextIO.writeCustomType(SerializableFunctions.<String>identity()));
     }
 
     Write (TypedWrite<String> inner) {
@@ -640,6 +643,14 @@ public class TextIO {
      */
     @Experimental(Kind.FILESYSTEM)
     public Write withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+      return new Write(inner.withTempDirectory(tempDirectory));
+    }
+
+    /**
+     * See {@link TypedWrite#withTempDirectory(ResourceId)}.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write withTempDirectory(ResourceId tempDirectory) {
       return new Write(inner.withTempDirectory(tempDirectory));
     }
 

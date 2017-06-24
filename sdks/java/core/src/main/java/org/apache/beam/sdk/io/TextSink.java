@@ -54,7 +54,7 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> 
   }
 
   /** A {@link WriteOperation WriteOperation} for text files. */
-  private static class TextWriteOperation<InputT, DestinationT>
+  private static class TextWriteOperation<DestinationT>
       extends WriteOperation<String, DestinationT> {
     @Nullable private final String header;
     @Nullable private final String footer;
@@ -74,7 +74,7 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> 
   }
 
   /** A {@link Writer Writer} for text files. */
-  private static class TextWriter<InputT, DestinationT> extends Writer<String, DestinationT> {
+  private static class TextWriter<DestinationT> extends Writer<String, DestinationT> {
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;

@@ -30,36 +30,43 @@ import org.apache.beam.sdk.util.MimeTypes;
  * A simple {@link FileBasedSink} that writes {@link String} values as lines with
  * header and footer.
  */
-class SimpleSink extends FileBasedSink<String, Void> {
-  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix) {
-    this(baseOutputDirectory, prefix, template, suffix, CompressionType.UNCOMPRESSED);
+class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
+  public SimpleSink(
+      ResourceId tempDirectory,
+      DynamicDestinations<String, DestinationT> dynamicDestinations,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    super(StaticValueProvider.of(tempDirectory), dynamicDestinations, writableByteChannelFactory);
   }
 
-  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix,
-                    WritableByteChannelFactory writableByteChannelFactory) {
-    super(
-        StaticValueProvider.of(baseOutputDirectory),
-        new ConstantFilenamePolicy<String>(
-            DefaultFilenamePolicy.fromParams(new Params(
-                baseOutputDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
-                template, suffix))),
-        writableByteChannelFactory);
+  public static SimpleSink<Void> makeSimpleSink(
+      ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
+    return new SimpleSink<>(
+        tempDirectory,
+        new ConstantFilenamePolicy<String>(filenamePolicy),
+        CompressionType.UNCOMPRESSED);
   }
 
-  public SimpleSink(ResourceId baseOutputDirectory, FilenamePolicy filenamePolicy) {
-    super(
-        StaticValueProvider.of(baseOutputDirectory),
-        new ConstantFilenamePolicy<String>(filenamePolicy));
+  public static SimpleSink<Void> makeSimpleSink(
+      ResourceId baseDirectory, String prefix, String shardTemplate, String suffix,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    DynamicDestinations<String, Void> dynamicDestinations =
+        new ConstantFilenamePolicy<>(
+            DefaultFilenamePolicy.fromParams(
+                new Params(
+                    baseDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
+                    shardTemplate,
+                    suffix)));
+    return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
   }
 
   @Override
-  public SimpleWriteOperation createWriteOperation() {
-    return new SimpleWriteOperation(this);
+  public SimpleWriteOperation<DestinationT> createWriteOperation() {
+    return new SimpleWriteOperation<>(this);
   }
 
-  static final class SimpleWriteOperation extends WriteOperation<String, Void> {
-    public SimpleWriteOperation(SimpleSink sink,
-                                ResourceId tempOutputDirectory) {
+  static final class SimpleWriteOperation<DestinationT>
+      extends WriteOperation<String, DestinationT> {
+    public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
       super(sink, tempOutputDirectory);
     }
 
@@ -68,12 +75,12 @@ class SimpleSink extends FileBasedSink<String, Void> {
     }
 
     @Override
-    public SimpleWriter createWriter() throws Exception {
-      return new SimpleWriter(this);
+    public SimpleWriter<DestinationT> createWriter() throws Exception {
+      return new SimpleWriter<>(this);
     }
   }
 
-  static final class SimpleWriter extends Writer<String, Void> {
+  static final class SimpleWriter<DestinationT> extends Writer<String, DestinationT> {
     static final String HEADER = "header";
     static final String FOOTER = "footer";
 

@@ -26,8 +26,8 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -115,8 +115,8 @@ public class WriteToText<InputT>
 
       return input.apply(
           TextIO.write()
-              .to(resource.getCurrentDirectory())
               .withFilenamePolicy(new PerWindowFiles(resource))
+              .withTempDirectory(resource.getCurrentDirectory())
               .withWindowedWrites()
               .withNumShards(3));
     }
@@ -144,18 +144,18 @@ public class WriteToText<InputT>
 
     @Override
     public ResourceId windowedFilename(WindowedContext context,
-                                       FileMetadataProvider fileMetadataProvider) {
+                                       OutputFileHints outputFileHints) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       String filename = String.format(
           "%s-%s-of-%s%s",
           filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards(),
-          fileMetadataProvider.getSuggestedFilenameSuffix());
+          outputFileHints.getSuggestedFilenameSuffix());
       return prefix.getCurrentDirectory().resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
     public ResourceId unwindowedFilename(Context context,
-                                         FileMetadataProvider fileMetadataProvider) {
+                                         OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Unsupported.");
     }
   }

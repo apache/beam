@@ -28,8 +28,8 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -38,6 +38,8 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.junit.Test;
@@ -58,12 +60,13 @@ public class WriteFilesTranslationTest {
   @RunWith(Parameterized.class)
   public static class TestWriteFilesPayloadTranslation {
     @Parameters(name = "{index}: {0}")
-    public static Iterable<WriteFiles<?, Void, ?>> data() {
-      return ImmutableList.<WriteFiles<?, Void, ?>>of(
-          WriteFiles.to(new DummySink(), null),
-          WriteFiles.to(new DummySink(), null).withWindowedWrites(),
-          WriteFiles.to(new DummySink(), null).withNumShards(17),
-          WriteFiles.to(new DummySink(), null).withWindowedWrites().withNumShards(42));
+    public static Iterable<WriteFiles<Object, Void, Object>> data() {
+      SerializableFunction<Object, Object> format = SerializableFunctions.constant(null);
+      return ImmutableList.of(
+          WriteFiles.to(new DummySink(), format),
+          WriteFiles.to(new DummySink(), format).withWindowedWrites(),
+          WriteFiles.to(new DummySink(), format).withNumShards(17),
+          WriteFiles.to(new DummySink(), format).withWindowedWrites().withNumShards(42));
     }
 
     @Parameter(0)
@@ -113,7 +116,7 @@ public class WriteFilesTranslationTest {
    * A simple {@link FileBasedSink} for testing serialization/deserialization. Not mocked to avoid
    * any issues serializing mocks.
    */
-  private static class DummySink extends FileBasedSink<String, Void> {
+  private static class DummySink extends FileBasedSink<Object, Void> {
 
     DummySink() {
       super(
@@ -122,7 +125,7 @@ public class WriteFilesTranslationTest {
     }
 
     @Override
-    public WriteOperation<String, Void> createWriteOperation() {
+    public WriteOperation<Object, Void> createWriteOperation() {
       return new DummyWriteOperation(this);
     }
 
@@ -151,13 +154,13 @@ public class WriteFilesTranslationTest {
     }
   }
 
-  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<String, Void> {
-    public DummyWriteOperation(FileBasedSink<String, Void> sink) {
+  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Object, Void> {
+    public DummyWriteOperation(FileBasedSink<Object, Void> sink) {
       super(sink);
     }
 
     @Override
-    public FileBasedSink.Writer<String, Void> createWriter() throws Exception {
+    public FileBasedSink.Writer<Object, Void> createWriter() throws Exception {
       throw new UnsupportedOperationException("Should never be called.");
     }
   }
@@ -165,13 +168,13 @@ public class WriteFilesTranslationTest {
   private static class DummyFilenamePolicy extends FilenamePolicy {
     @Override
     public ResourceId windowedFilename(WindowedContext c,
-    FileMetadataProvider fileMetadataProvider) {
+    OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 
     @Nullable
     @Override
-    public ResourceId unwindowedFilename(Context c, FileMetadataProvider fileMetadataProvider) {
+    public ResourceId unwindowedFilename(Context c, OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Should never be called.");
     }
 

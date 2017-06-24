@@ -76,6 +76,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -100,6 +101,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -1263,30 +1265,36 @@ public class DataflowRunnerTest implements Serializable {
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
     TestPipeline p = TestPipeline.fromOptions(options);
 
-    StreamingShardedWriteFactory<Object> factory =
+    StreamingShardedWriteFactory<Object, Void, Object> factory =
         new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
+    WriteFiles<Object, Void, Object> original = WriteFiles.to(
+        new TestSink(tmpFolder.toString()), SerializableFunctions.identity());
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
-        AppliedPTransform.of(
-            "writefiles", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object, Void, Object>>
+        originalApplication =
+            AppliedPTransform.of(
+                "writefiles",
+                objs.expand(),
+                Collections.<TupleTag<?>, PValue>emptyMap(),
+                original,
+                p);
 
-    WriteFiles<Object> replacement = (WriteFiles<Object>)
+    WriteFiles<Object, Void, Object> replacement = (WriteFiles<Object, Void, Object>)
         factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
     assertThat(replacement.getNumShards().get(), equalTo(expectedNumShards));
   }
 
-  private static class TestSink extends FileBasedSink<Object> {
+  private static class TestSink extends FileBasedSink<Object, Void> {
     @Override
     public void validate(PipelineOptions options) {}
 
     TestSink(String tmpFolder) {
       super(StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
-          null);
+          new ConstantFilenamePolicy<>(null));
     }
     @Override
-    public WriteOperation<Object> createWriteOperation() {
+    public WriteOperation<Object, Void> createWriteOperation() {
       throw new IllegalArgumentException("Should not be used");
     }
   }

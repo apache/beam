@@ -566,9 +566,8 @@ public class TFRecordIO {
         TFRecordIO.CompressionType compressionType) {
       super(outputPrefix,
           new ConstantFilenamePolicy<byte[]>(
-          DefaultFilenamePolicy.fromParams(
-              DefaultFilenamePolicy.Params.fromStandardParameters(
-                  outputPrefix, shardTemplate, suffix, false))),
+          DefaultFilenamePolicy.fromStandardParameters(
+                  outputPrefix, shardTemplate, suffix, false)),
                   writableByteChannelFactory(compressionType));
     }
 

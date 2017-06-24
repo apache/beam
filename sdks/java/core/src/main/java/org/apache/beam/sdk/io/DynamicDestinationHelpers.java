@@ -18,11 +18,8 @@
 
 package org.apache.beam.sdk.io;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ParamsCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -31,6 +28,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 
 /**
+ * Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}.
  */
 public class DynamicDestinationHelpers {
   /**
@@ -63,9 +61,6 @@ public class DynamicDestinationHelpers {
       return filenamePolicy;
     }
 
-    /**
-     * Populates the display data.
-     */
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       filenamePolicy.populateDisplayData(builder);
@@ -74,20 +69,14 @@ public class DynamicDestinationHelpers {
 
   /**
    * A base class for a {@link DynamicDestinations} object that returns differently-configured
-   * instances of {@link DefaultFilenamePolicy}.
+   * instances of {@link DefaultFilenamePolicy} based on the key.
    */
   public static class DefaultDynamicDestinations
   extends DynamicDestinations<KV<Params, String>, Params> {
-    byte[] emptyDestination;
+    Params emptyDestination;
 
     public DefaultDynamicDestinations(Params emptyDestination) {
-      try {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        ParamsCoder.of().encode(emptyDestination, outputStream);
-        this.emptyDestination = outputStream.toByteArray();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      this.emptyDestination = emptyDestination;
     }
 
     @Override
@@ -97,11 +86,7 @@ public class DynamicDestinationHelpers {
 
     @Override
     public Params getDefaultDestination() {
-      try {
-        return ParamsCoder.of().decode(new ByteArrayInputStream(emptyDestination));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      return emptyDestination;
     }
 
     @Nullable

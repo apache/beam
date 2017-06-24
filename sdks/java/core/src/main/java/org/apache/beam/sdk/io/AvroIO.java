@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -275,7 +276,6 @@ public class AvroIO {
     @Nullable abstract Schema getSchema();
     abstract boolean getWindowedWrites();
     @Nullable abstract FilenamePolicy getFilenamePolicy();
-    @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
 
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
@@ -298,8 +298,6 @@ public class AvroIO {
       abstract Builder<T> setSchema(Schema schema);
       abstract Builder<T> setWindowedWrites(boolean windowedWrites);
       abstract Builder<T> setFilenamePolicy(FilenamePolicy filenamePolicy);
-      abstract Builder<T> setDynamicDestinations(
-          @Nullable DynamicDestinations<T, ?> dynamicDestinations);
       abstract Builder<T> setCodec(SerializableAvroCodecFactory codec);
       abstract Builder<T> setMetadata(ImmutableMap<String, Object> metadata);
 
@@ -380,13 +378,6 @@ public class AvroIO {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
-    /**
-     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
-     * objects can
-     */
-    public Write<T> withDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations) {
-      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
-    }
     /**
      * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
      * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
@@ -476,28 +467,23 @@ public class AvroIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkState(getFilenamePrefix() != null || getTempDirectory() != null,
+      checkArgument(getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
               + "transform.");
-      checkState(getFilenamePolicy() == null || getDynamicDestinations() == null,
-          "Cannot specify both a filename policy and dynamic destinations");
-      if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
-        checkState(getShardTemplate() == null && getFilenameSuffix() == null,
+      if (getFilenamePolicy() != null) {
+        checkArgument(getShardTemplate() == null && getFilenameSuffix() == null,
             "shardTemplate and filenameSuffix should only be used with the default "
                 + "filename policy");
       }
 
-      DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
-      if (dynamicDestinations == null) {
-        FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
-        if (usedFilenamePolicy == null) {
-          usedFilenamePolicy = DefaultFilenamePolicy.fromParams(
-              DefaultFilenamePolicy.Params.fromStandardParameters(
-                  getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(),
-                  getWindowedWrites()));
-        }
-        dynamicDestinations = new ConstantFilenamePolicy<>(usedFilenamePolicy);
+      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+      if (usedFilenamePolicy == null) {
+        usedFilenamePolicy =
+            DefaultFilenamePolicy.fromStandardParameters(
+                getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
+      DynamicDestinations<T, Void> dynamicDestinations =
+          new ConstantFilenamePolicy<>(usedFilenamePolicy);
       return expandTyped(input, dynamicDestinations);
     }
 
@@ -514,7 +500,7 @@ public class AvroIO {
               dynamicDestinations,
               AvroCoder.of(getRecordClass(), getSchema()),
               getCodec(),
-              getMetadata()), new IdentityFormatter<T>());
+              getMetadata()), SerializableFunctions.<T>identity());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }

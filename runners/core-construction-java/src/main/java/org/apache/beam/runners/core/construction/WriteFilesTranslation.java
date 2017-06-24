@@ -26,6 +26,7 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -67,30 +68,24 @@ public class WriteFilesTranslation {
   }
 
   private static SdkFunctionSpec toProto(FileBasedSink<?, ?> sink) {
-    return SdkFunctionSpec.newBuilder()
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(CUSTOM_JAVA_FILE_BASED_SINK_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(sink)))
-                            .build())))
-        .build();
+    return toProto(CUSTOM_JAVA_FILE_BASED_SINK_URN, sink);
   }
 
   private static SdkFunctionSpec toProto(SerializableFunction<?, ?> serializableFunction) {
+    return toProto(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN, serializableFunction);
+  }
+
+  private static SdkFunctionSpec toProto(String urn, Serializable serializable) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()
-                .setUrn(CUSTOM_JAVA_FILE_BASED_SINK_FORMAT_FUNCTION_URN)
+                .setUrn(urn)
                 .setParameter(
                     Any.pack(
                         BytesValue.newBuilder()
                             .setValue(
                                 ByteString.copyFrom(SerializableUtils.serializeToByteArray(
-                                    serializableFunction)))
+                                    serializable)))
                             .build())))
         .build();
   }

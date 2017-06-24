@@ -21,8 +21,8 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileBasedSink.FileMetadataProvider;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -56,8 +56,8 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
   public PDone expand(PCollection<String> input) {
     ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
     TextIO.Write write = TextIO.write()
-        .to(resource.getCurrentDirectory())
         .withFilenamePolicy(new PerWindowFiles(resource))
+        .withTempDirectory(resource.getCurrentDirectory())
         .withWindowedWrites();
     if (numShards != null) {
       write = write.withNumShards(numShards);
@@ -88,7 +88,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
     @Override
     public ResourceId windowedFilename(
-        WindowedContext context, FileMetadataProvider fileMetadataProvider) {
+        WindowedContext context, OutputFileHints outputFileHints) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       String filename =
           String.format(
@@ -96,7 +96,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
               filenamePrefixForWindow(window),
               context.getShardNumber(),
               context.getNumShards(),
-              fileMetadataProvider.getSuggestedFilenameSuffix());
+              outputFileHints.getSuggestedFilenameSuffix());
       return baseFilename
           .getCurrentDirectory()
           .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
@@ -104,7 +104,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
     @Override
     public ResourceId unwindowedFilename(
-        Context context, FileMetadataProvider fileMetadataProvider) {
+        Context context, OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Unsupported.");
     }
   }
