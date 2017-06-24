@@ -33,7 +33,7 @@ import apache_beam.transforms.window as window
 
 def split_fn(lines):
   import re
-  return re.findall(r'[A-Za-z\']+', x)
+  return re.findall(r'[A-Za-z\']+', lines)
 
 
 def run(argv=None):
