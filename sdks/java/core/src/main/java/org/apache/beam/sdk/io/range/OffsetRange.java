@@ -15,15 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.splittabledofn;
+package org.apache.beam.sdk.io.range;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
-    implements Serializable, HasDefaultTracker<OffsetRange, OffsetRangeTracker> {
+    implements Serializable,
+    HasDefaultTracker<
+                OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
   private final long from;
   private final long to;
 
@@ -42,8 +47,8 @@ public class OffsetRange
   }
 
   @Override
-  public OffsetRangeTracker newTracker() {
-    return new OffsetRangeTracker(this);
+  public org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker newTracker() {
+    return new org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker(this);
   }
 
   @Override
@@ -73,5 +78,24 @@ public class OffsetRange
     int result = (int) (from ^ (from >>> 32));
     result = 31 * result + (int) (to ^ (to >>> 32));
     return result;
+  }
+
+  public List<OffsetRange> split(long desiredNumOffsetsPerSplit, long minNumOffsetPerSplit) {
+    List<OffsetRange> res = new ArrayList<>();
+    long start = getFrom();
+    long maxEnd = getTo();
+
+    while (start < maxEnd) {
+      long end = start + desiredNumOffsetsPerSplit;
+      end = Math.min(end, maxEnd);
+      // Avoid having a too small range at the end and ensure that we respect minNumOffsetPerSplit.
+      long remaining = maxEnd - end;
+      if ((remaining < desiredNumOffsetsPerSplit / 4) || (remaining < minNumOffsetPerSplit)) {
+        end = maxEnd;
+      }
+      res.add(new OffsetRange(start, end));
+      start = end;
+    }
+    return res;
   }
 }
