@@ -23,25 +23,37 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -51,19 +63,33 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
- * file(s) to be read.
+ * file(s) to be read. Alternatively, if the filenames to be read are themselves in a
+ * {@link PCollection}, apply {@link TextIO#readAll()}.
  *
  * <p>{@link TextIO.Read} returns a {@link PCollection} of {@link String Strings}, each
  * corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n', '\r',
  * or '\r\n').
  *
- * <p>Example:
+ * <p>Example 1: reading a file or filepattern.
  *
  * <pre>{@code
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
+ * }</pre>
+ *
+ * <p>Example 2: reading a PCollection of filenames.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // E.g. the filenames might be computed from other data in the pipeline, or
+ * // read from a data source.
+ * PCollection<String> filenames = ...;
+ *
+ * // Read all files in the collection.
+ * PCollection<String> lines = filenames.apply(TextIO.readAll());
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
@@ -129,6 +155,26 @@ public class TextIO {
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
+  }
+
+  /**
+   * A {@link PTransform} that works like {@link #read}, but reads each file in a {@link
+   * PCollection} of filepatterns.
+   *
+   * <p>Can be applied to both bounded and unbounded {@link PCollection PCollections}, so this is
+   * suitable for reading a {@link PCollection} of filepatterns arriving as a stream. However, every
+   * filepattern is expanded once at the moment it is processed, rather than watched for new files
+   * matching the filepattern to appear. Likewise, every file is read once, rather than watched for
+   * new entries.
+   */
+  public static ReadAll readAll() {
+    return new AutoValue_TextIO_ReadAll.Builder()
+        .setCompressionType(CompressionType.AUTO)
+        // 64MB is a reasonable value that allows to amortize the cost of opening files,
+        // but is not so large as to exhaust a typical runner's maximum amount of output per
+        // ProcessElement call.
+        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .build();
   }
 
   /**
@@ -228,29 +274,34 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      switch (getCompressionType()) {
+      return wrapWithCompression(new TextSource(getFilepattern()), getCompressionType());
+    }
+
+    private static FileBasedSource<String> wrapWithCompression(
+        FileBasedSource<String> source, CompressionType compressionType) {
+      switch (compressionType) {
         case UNCOMPRESSED:
-          return new TextSource(getFilepattern());
+          return source;
         case AUTO:
-          return CompressedSource.from(new TextSource(getFilepattern()));
+          return CompressedSource.from(source);
         case BZIP2:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
-                  .withDecompression(CompressedSource.CompressionMode.BZIP2);
+              CompressedSource.from(source)
+                  .withDecompression(CompressionMode.BZIP2);
         case GZIP:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
-                  .withDecompression(CompressedSource.CompressionMode.GZIP);
+              CompressedSource.from(source)
+                  .withDecompression(CompressionMode.GZIP);
         case ZIP:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
-                  .withDecompression(CompressedSource.CompressionMode.ZIP);
+              CompressedSource.from(source)
+                  .withDecompression(CompressionMode.ZIP);
         case DEFLATE:
           return
-              CompressedSource.from(new TextSource(getFilepattern()))
-                  .withDecompression(CompressedSource.CompressionMode.DEFLATE);
+              CompressedSource.from(source)
+                  .withDecompression(CompressionMode.DEFLATE);
         default:
-          throw new IllegalArgumentException("Unknown compression type: " + getFilepattern());
+          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
       }
     }
 
@@ -273,7 +324,156 @@ public class TextIO {
     }
   }
 
-  // ///////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #readAll}. */
+  @AutoValue
+  public abstract static class ReadAll
+      extends PTransform<PCollection<String>, PCollection<String>> {
+    abstract CompressionType getCompressionType();
+    abstract long getDesiredBundleSizeBytes();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract ReadAll build();
+    }
+
+    /** Same as {@link Read#withCompressionType(CompressionType)}. */
+    public ReadAll withCompressionType(CompressionType compressionType) {
+      return toBuilder().setCompressionType(compressionType).build();
+    }
+
+    @VisibleForTesting
+    ReadAll withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<String> input) {
+      return input
+          .apply("Expand glob", ParDo.of(new ExpandGlobFn()))
+          .apply(
+              "Split into ranges",
+              ParDo.of(new SplitIntoRangesFn(getCompressionType(), getDesiredBundleSizeBytes())))
+          .apply("Reshuffle", new ReshuffleWithUniqueKey<KV<Metadata, OffsetRange>>())
+          .apply("Read", ParDo.of(new ReadTextFn(this)));
+    }
+
+    private static class ReshuffleWithUniqueKey<T>
+        extends PTransform<PCollection<T>, PCollection<T>> {
+      @Override
+      public PCollection<T> expand(PCollection<T> input) {
+        return input
+            .apply("Unique key", ParDo.of(new AssignUniqueKeyFn<T>()))
+            .apply("Reshuffle", Reshuffle.<Integer, T>of())
+            .apply("Values", Values.<T>create());
+      }
+    }
+
+    private static class AssignUniqueKeyFn<T> extends DoFn<T, KV<Integer, T>> {
+      private int index;
+
+      @Setup
+      public void setup() {
+        this.index = ThreadLocalRandom.current().nextInt();
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        c.output(KV.of(++index, c.element()));
+      }
+    }
+
+    private static class ExpandGlobFn extends DoFn<String, Metadata> {
+      @ProcessElement
+      public void process(ProcessContext c) throws Exception {
+        MatchResult match = FileSystems.match(c.element());
+        checkArgument(
+            match.status().equals(Status.OK),
+            "Failed to match filepattern %s: %s",
+            c.element(),
+            match.status());
+        for (Metadata metadata : match.metadata()) {
+          c.output(metadata);
+        }
+      }
+    }
+
+    private static class SplitIntoRangesFn extends DoFn<Metadata, KV<Metadata, OffsetRange>> {
+      private final CompressionType compressionType;
+      private final long desiredBundleSize;
+
+      private SplitIntoRangesFn(CompressionType compressionType, long desiredBundleSize) {
+        this.compressionType = compressionType;
+        this.desiredBundleSize = desiredBundleSize;
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        Metadata metadata = c.element();
+        final boolean isSplittable = isSplittable(metadata, compressionType);
+        if (!isSplittable) {
+          c.output(KV.of(metadata, new OffsetRange(0, metadata.sizeBytes())));
+          return;
+        }
+        for (OffsetRange range :
+            new OffsetRange(0, metadata.sizeBytes()).split(desiredBundleSize, 0)) {
+          c.output(KV.of(metadata, range));
+        }
+      }
+
+      static boolean isSplittable(Metadata metadata, CompressionType compressionType) {
+        if (!metadata.isReadSeekEfficient()) {
+          return false;
+        }
+        switch (compressionType) {
+          case AUTO:
+            return !CompressionMode.isCompressed(metadata.resourceId().toString());
+          case UNCOMPRESSED:
+            return true;
+          case GZIP:
+          case BZIP2:
+          case ZIP:
+          case DEFLATE:
+            return false;
+          default:
+            throw new UnsupportedOperationException("Unknown compression type: " + compressionType);
+        }
+      }
+    }
+
+    private static class ReadTextFn extends DoFn<KV<Metadata, OffsetRange>, String> {
+      private final TextIO.ReadAll spec;
+
+      private ReadTextFn(ReadAll spec) {
+        this.spec = spec;
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) throws IOException {
+        Metadata metadata = c.element().getKey();
+        OffsetRange range = c.element().getValue();
+        FileBasedSource<String> source =
+            TextIO.Read.wrapWithCompression(
+                new TextSource(StaticValueProvider.of(metadata.toString())),
+                spec.getCompressionType());
+        BoundedSource.BoundedReader<String> reader =
+            source
+                .createForSubrangeOfFile(metadata, range.getFrom(), range.getTo())
+                .createReader(c.getPipelineOptions());
+        for (boolean more = reader.start(); more; more = reader.advance()) {
+          c.output(reader.getCurrent());
+        }
+      }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
 
   /** Implementation of {@link #write}. */
   @AutoValue
