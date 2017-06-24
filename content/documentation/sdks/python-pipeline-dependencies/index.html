@@ -199,6 +199,15 @@
     <div class="highlighter-rouge"><pre class="highlight"><code> --extra_package /path/to/package/package-name
 </code></pre>
     </div>
+
+    <p>where package-name is the package’s tarball. If you have the <code class="highlighter-rouge">setup.py</code> for that
+package then you can build the tarball with the following command:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> python setup.py sdist
+</code></pre>
+    </div>
+
+    <p>See the <a href="https://docs.python.org/2/distutils/sourcedist.html">sdist documentation</a> for more details on this command.</p>
   </li>
 </ol>
 
