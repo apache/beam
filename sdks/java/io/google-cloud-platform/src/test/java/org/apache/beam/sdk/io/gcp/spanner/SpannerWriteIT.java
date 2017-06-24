@@ -149,7 +149,9 @@ public class SpannerWriteIT {
 
   @After
   public void tearDown() throws Exception {
-    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+    if (databaseAdminClient != null) {
+      databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+    }
     spanner.close();
   }
 
