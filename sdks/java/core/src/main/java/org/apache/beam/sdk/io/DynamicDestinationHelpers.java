@@ -24,8 +24,8 @@ import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ParamsCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 
 /**
  * Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}.
@@ -69,19 +69,21 @@ public class DynamicDestinationHelpers {
 
   /**
    * A base class for a {@link DynamicDestinations} object that returns differently-configured
-   * instances of {@link DefaultFilenamePolicy} based on the key.
+   * instances of {@link DefaultFilenamePolicy}.
    */
-  public static class DefaultDynamicDestinations
-  extends DynamicDestinations<KV<Params, String>, Params> {
+  public static class DefaultDynamicDestinations<UserT> extends DynamicDestinations<UserT, Params> {
+    SerializableFunction<UserT, Params> destinationFunction;
     Params emptyDestination;
 
-    public DefaultDynamicDestinations(Params emptyDestination) {
+    public DefaultDynamicDestinations(SerializableFunction<UserT, Params> destinationFunction,
+                                      Params emptyDestination) {
+      this.destinationFunction = destinationFunction;
       this.emptyDestination = emptyDestination;
     }
 
     @Override
-    public Params getDestination(KV<Params, String> element) {
-      return element.getKey();
+    public Params getDestination(UserT element) {
+      return destinationFunction.apply(element);
     }
 
     @Override

@@ -334,8 +334,8 @@ public class TextIOTest {
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
     input.apply(TextIO.write()
-        .to(FileSystems.matchNewResource(baseDir.toString(), true))
-        .withDynamicDestinations(new TestDynamicDestinations(baseDir)));
+        .to(new TestDynamicDestinations(baseDir))
+        .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
     p.run();
 
     assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("a")),

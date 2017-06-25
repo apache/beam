@@ -58,6 +58,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -368,8 +369,9 @@ public class AvroIOTest {
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
         .apply(AvroIO.write(GenericClass.class)
-            .to(baseFilename)
-            .withFilenamePolicy(policy)
+            .to(policy)
+            .withTempDirectory(StaticValueProvider.of(
+                FileSystems.matchNewResource(baseDir.toString(), true)))
             .withWindowedWrites()
             .withNumShards(2));
     windowedAvroWritePipeline.run();

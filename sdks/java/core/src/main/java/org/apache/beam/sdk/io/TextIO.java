@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -98,13 +97,6 @@ import org.apache.beam.sdk.values.PDone;
  * }</pre>
  */
 public class TextIO {
-  private static class ExtractValueFormatter<K, V> implements SerializableFunction<KV<K, V>, V> {
-    @Override
-    public V apply(KV<K, V> input) {
-      return input.getValue();
-    }
-  }
-
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded
    * {@link PCollection} containing one element for each line of the input files.
@@ -130,7 +122,7 @@ public class TextIO {
    * <p>This version allows you to apply {@link TextIO} writes to a PCollection of a custom type
    * {@link T}, along with a format function that converts the input type {@link T} to the String
    * that will be written to the file. The advantage of this is it  allows a user-provided
-   * {@link DynamicDestinations} object, set via {@link Write#withDynamicDestinations} to examine
+   * {@link DynamicDestinations} object, set via {@link Write#to(DynamicDestinations)} to examine
    * the user's custom type when choosing a destination.
    */
   public static <T> TypedWrite<T> writeCustomType(SerializableFunction<T, String> formatFunction) {
@@ -146,17 +138,6 @@ public class TextIO {
         .setWindowedWrites(false)
         .setNumShards(0)
         .build();
-  }
-
-  /**
-   * This is a convenience builder for dynamically writing to multiple file destinations. The
-   * transform takes in {@code KV<DefaultFilenamePolicy.Params, String>}s mapping file lines to
-   * a default filename policy for writing (the params contains a prefix, suffix, and filename
-   * template). A params must also be provided to specify how to write out empty PCollections.
-   */
-  public static TypedWrite<KV<Params, String>> writeDynamic(Params emptyDestination) {
-    return writeCustomType(new ExtractValueFormatter<Params, String>())
-    .withDynamicDestinations(new DefaultDynamicDestinations(emptyDestination));
   }
 
   /** Implementation of {@link #read}. */
@@ -343,7 +324,7 @@ public class TextIO {
      * {@link #withNumShards(int)}), and a common suffix (if supplied using
      * {@link #withSuffix(String)}).
      *
-     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
+     * <p>This default policy can be overridden using {@link #to(FilenamePolicy)},
      * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
      * not be set. Custom filename policies do not automatically see this prefix - you should
      * explicitly pass the prefix into your {@link FilenamePolicy} object if you need this.
@@ -377,6 +358,35 @@ public class TextIO {
     }
 
     /**
+     * Use a {@link FileBasedSink.FilenamePolicy} to name written files. A
+     * directory for temporary files must be specified using {@link #withTempDirectory}.
+     */
+    public TypedWrite<T> to(FilenamePolicy filenamePolicy) {
+      return toBuilder().setFilenamePolicy(filenamePolicy).build();
+    }
+
+    /**
+     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
+     * objects can examine the input record when creating a {@link FilenamePolicy}. A directory for
+     * temporary files must be specified using {@link #withTempDirectory}.
+     */
+    public TypedWrite<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
+      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
+    }
+
+    /**
+     * Write to dynamic destinations using the default filename policy. The destinationFunction
+     * maps the input record to a {@link DefaultFilenamePolicy.Params} object that specifies where
+     * the records should be written (base filename, file suffix, and shard template). The
+     * emptyDestination parameter specified where empty files should be written for when the written
+     * {@link PCollection} is empty.
+     */
+    public TypedWrite<T> to(
+        SerializableFunction<T, Params> destinationFunction, Params emptyDestination) {
+      return to(new DefaultDynamicDestinations<T>(destinationFunction, emptyDestination));
+    }
+
+    /**
      * Like {@link #to(ResourceId)}.
      */
     @Experimental(Kind.FILESYSTEM)
@@ -402,7 +412,8 @@ public class TextIO {
 
     /**
      * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
-     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     * used when using one of the default filename-prefix to() overrides - i.e. not when using
+     * either {@link #to(FilenamePolicy)} or {@link #to(DynamicDestinations)}.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
@@ -412,29 +423,15 @@ public class TextIO {
     }
 
     /**
-     * Configures the filename suffix for written files. This option may only be used when
-     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     * Configures the filename suffix for written files. This option may only be
+     * used when using one of the default filename-prefix to() overrides - i.e. not when using
+     * either {@link #to(FilenamePolicy)} or {@link #to(DynamicDestinations)}.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
      */
     public TypedWrite<T> withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
-    }
-
-    /**
-     * Use a {@link FileBasedSink.FilenamePolicy} to name written files.
-     */
-    public TypedWrite<T> withFilenamePolicy(FilenamePolicy filenamePolicy) {
-      return toBuilder().setFilenamePolicy(filenamePolicy).build();
-    }
-
-    /**
-     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
-     * objects can examine the input record when creating a {@link FilenamePolicy}.
-     */
-    public TypedWrite<T> withDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations) {
-      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
     }
 
     /**
@@ -453,8 +450,7 @@ public class TextIO {
     }
 
     /**
-     * Forces a single file as output and empty shard name template. This option is only compatible
-     * with unwindowed writes.
+     * Forces a single file as output and empty shard name template.
      *
      * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
      * performance of a pipeline. Setting this value is not recommended unless you require a
@@ -496,6 +492,12 @@ public class TextIO {
       return toBuilder().setWritableByteChannelFactory(writableByteChannelFactory).build();
     }
 
+    /**
+     * Preserves windowing of input elements and writes them to files based on the element's window.
+     *
+     * <p>If using {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated using
+     * {@link FilenamePolicy#windowedFilename}. See also {@link WriteFiles#withWindowedWrites()}.
+     */
     public TypedWrite<T> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
     }
@@ -562,6 +564,11 @@ public class TextIO {
         prefixString = getFilenamePrefix().isAccessible()
             ? getFilenamePrefix().get().toString() : getFilenamePrefix().toString();
       }
+      String tempDirectory = null;
+      if (getTempDirectory() != null) {
+        tempDirectory = getTempDirectory().isAccessible()
+            ? getTempDirectory().get().toString() : getTempDirectory().toString();
+      }
       builder
           .addIfNotNull(DisplayData.item("filePrefix", prefixString)
             .withLabel("Output File Prefix"))
@@ -571,6 +578,8 @@ public class TextIO {
             .withLabel("Output Shard Name Template"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
             .withLabel("Maximum Output Shards"), 0)
+          .addIfNotNull(DisplayData.item("tempDirectory", tempDirectory)
+              .withLabel("Directory for temporary files"))
           .addIfNotNull(DisplayData.item("fileHeader", getHeader())
             .withLabel("File Header"))
           .addIfNotNull(DisplayData.item("fileFooter", getFooter())
@@ -628,7 +637,6 @@ public class TextIO {
       return new Write(inner.to(outputPrefix));
     }
 
-
     /**
      * See {@link TypedWrite#toResource(ValueProvider)}.
      */
@@ -637,6 +645,27 @@ public class TextIO {
       return new Write(inner.toResource(filenamePrefix));
     }
 
+    /**
+     * See {@link TypedWrite#to(FilenamePolicy)}.
+     */
+    public Write to(FilenamePolicy filenamePolicy) {
+      return new Write(inner.to(filenamePolicy));
+    }
+
+    /**
+     * See {@link TypedWrite#to(DynamicDestinations)}.
+     */
+    public Write to(DynamicDestinations<String, ?> dynamicDestinations) {
+      return new Write(inner.to(dynamicDestinations));
+    }
+
+    /**
+     * See {@link TypedWrite#to(SerializableFunction, Params)}.
+     */
+    public Write to(
+        SerializableFunction<String, Params> destinationFunction, Params emptyDestination) {
+      return new Write(inner.to(destinationFunction, emptyDestination));
+    }
 
     /**
      * See {@link TypedWrite#withTempDirectory(ValueProvider)}.
@@ -666,20 +695,6 @@ public class TextIO {
      */
     public Write withSuffix(String filenameSuffix) {
       return new Write(inner.withSuffix(filenameSuffix));
-    }
-
-    /**
-     * See {@link TypedWrite#withFilenamePolicy(FilenamePolicy)}.
-     */
-    public Write withFilenamePolicy(FilenamePolicy filenamePolicy) {
-      return new Write(inner.withFilenamePolicy(filenamePolicy));
-    }
-
-    /**
-     * See {@link TypedWrite#withDynamicDestinations(DynamicDestinations)}.
-     */
-    public Write withDynamicDestinations(DynamicDestinations<String, ?> dynamicDestinations) {
-      return new Write(inner.withDynamicDestinations(dynamicDestinations));
     }
 
     /**

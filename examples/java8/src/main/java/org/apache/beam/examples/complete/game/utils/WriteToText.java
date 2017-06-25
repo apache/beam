@@ -115,7 +115,7 @@ public class WriteToText<InputT>
 
       return input.apply(
           TextIO.write()
-              .withFilenamePolicy(new PerWindowFiles(resource))
+              .to(new PerWindowFiles(resource))
               .withTempDirectory(resource.getCurrentDirectory())
               .withWindowedWrites()
               .withNumShards(3));
