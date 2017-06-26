@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -29,13 +30,12 @@ import org.elasticsearch.client.RestClient;
  * <p>This is independent from the tests so that for read tests it can be run separately after data
  * store creation rather than every time (which can be more fragile.)
  */
-public class ElasticsearchTestDataSet {
+public class ElasticsearchIOITCommon {
 
-  public static final String ES_INDEX = "beam";
-  public static final String ES_TYPE = "test";
-  public static final long NUM_DOCS = 60000;
-  public static final int AVERAGE_DOC_SIZE = 25;
-  public static final int MAX_DOC_SIZE = 35;
+  static final String ES_INDEX = "beam";
+  static final String ES_TYPE = "test";
+  static final long NUM_DOCS = 50000;
+  static final int AVERAGE_DOC_SIZE = 25;
   private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
 
   /**
@@ -45,7 +45,7 @@ public class ElasticsearchTestDataSet {
    *
    * <pre>
    * mvn test-compile exec:java \
-   * -Dexec.mainClass=org.apache.beam.sdk.io.elasticsearch.ElasticsearchTestDataSet \
+   * -Dexec.mainClass=ElasticsearchIOITCommon \
    *   -Dexec.args="--elasticsearchServer=1.2.3.4 \
    *  --elasticsearchHttpPort=9200 \
    *   -Dexec.classpathScope=test
@@ -63,16 +63,16 @@ public class ElasticsearchTestDataSet {
 
   private static void createAndPopulateReadIndex(IOTestPipelineOptions options) throws Exception {
     // automatically creates the index and insert docs
-    try (RestClient restClient = getConnectionConfiguration(options, ReadOrWrite.READ)
-        .createClient()) {
-      ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
+    ConnectionConfiguration connectionConfiguration =
+        getConnectionConfiguration(options, ReadOrWrite.READ);
+    try (RestClient restClient = connectionConfiguration.createClient()) {
+      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, NUM_DOCS, restClient);
     }
   }
 
-  static ElasticsearchIO.ConnectionConfiguration getConnectionConfiguration(
-      IOTestPipelineOptions options, ReadOrWrite rOw){
-    ElasticsearchIO.ConnectionConfiguration connectionConfiguration =
-        ElasticsearchIO.ConnectionConfiguration.create(
+  static ConnectionConfiguration getConnectionConfiguration(IOTestPipelineOptions options,
+      ReadOrWrite rOw) {
+    ConnectionConfiguration connectionConfiguration = ConnectionConfiguration.create(
             new String[] {
               "http://"
                   + options.getElasticsearchServer()
@@ -84,13 +84,8 @@ public class ElasticsearchTestDataSet {
     return connectionConfiguration;
   }
 
-  static void deleteIndex(RestClient restClient, ReadOrWrite rOw) throws Exception {
-    ElasticSearchIOTestUtils
-        .deleteIndex((rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex, restClient);
-  }
-
   /** Enum that tells whether we use the index for reading or for writing. */
-  public enum ReadOrWrite {
+  enum ReadOrWrite {
     READ,
     WRITE
   }
