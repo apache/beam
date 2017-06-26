@@ -22,6 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
@@ -32,6 +33,7 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
+import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.tools.Frameworks;
 
@@ -55,6 +57,14 @@ public class BeamSqlEnv {
    */
   public void registerUdf(String functionName, Class<?> clazz, String methodName) {
     schema.add(functionName, ScalarFunctionImpl.create(clazz, methodName));
+  }
+
+  /**
+   * Register a UDAF function which can be used in GROUP-BY expression.
+   * See {@link BeamSqlUdaf} on how to implement a UDAF.
+   */
+  public void registerUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz) {
+    schema.add(functionName, AggregateFunctionImpl.create(clazz));
   }
 
   /**
