@@ -46,7 +46,6 @@ public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
   @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
       BeamSqlPrimitive rightOp) {
     BeamSqlPrimitive result = null;
-
     switch (leftOp.getOutputType()) {
       case SMALLINT:
         result = BeamSqlPrimitive.of(SqlTypeName.SMALLINT,
@@ -71,6 +70,8 @@ public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
       case DECIMAL:
         result = BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
             roundBigDecimal(toBigDecimal(leftOp.getValue()), toInt(rightOp.getValue())));
+        break;
+      default:
         break;
     }
     return result;

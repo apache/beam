@@ -342,7 +342,7 @@ public class BeamSqlRow implements Serializable {
    * Return data fields as key=value.
    */
   public String valueInString() {
-    StringBuffer sb = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
     for (int idx = 0; idx < size(); ++idx) {
       sb.append(String.format(",%s=%s", dataType.getFieldsName().get(idx), getFieldValue(idx)));
     }
@@ -364,4 +364,7 @@ public class BeamSqlRow implements Serializable {
     return toString().equals(other.toString());
   }
 
+  @Override public int hashCode() {
+    return toString().hashCode();
+  }
 }

@@ -24,7 +24,6 @@ import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -68,7 +67,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     BaseBeamTable targetTable = sqlEnv.findTable(sourceName);
 
-    PDone streamEnd = upstream.apply(stageName, targetTable.buildIOWriter());
+    upstream.apply(stageName, targetTable.buildIOWriter());
 
     return upstream;
   }
