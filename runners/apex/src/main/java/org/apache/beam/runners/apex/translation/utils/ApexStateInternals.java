@@ -447,7 +447,7 @@ public class ApexStateInternals<K> implements StateInternals {
       final Slice keyBytes;
       try {
         keyBytes = (key != null) ? new Slice(CoderUtils.encodeToByteArray(keyCoder, key)) :
-          new Slice(null);
+          new Slice(new byte[] {});
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
