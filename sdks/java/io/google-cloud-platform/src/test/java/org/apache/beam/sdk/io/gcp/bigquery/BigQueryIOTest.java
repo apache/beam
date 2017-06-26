@@ -1652,7 +1652,7 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(query),
         true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
 
-    PipelineOptions options = PipelineOptionsFactory.create();
+    // PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
 
     List<TableRow> read = convertBigDecimaslToLong(

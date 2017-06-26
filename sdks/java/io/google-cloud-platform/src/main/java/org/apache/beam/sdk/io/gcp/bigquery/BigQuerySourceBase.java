@@ -83,12 +83,15 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return tableSchema;
   }
 
-  protected List<String> extractFiles(PipelineOptions options) throws Exception {
+  protected List<ResourceId> extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
     JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId = BigQueryIO.getExtractJobId(jobIdToken.get());
-    List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
+    String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
+    final String extractDestinationDir =
+        resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+    List<ResourceId> tempFiles = executeExtract(
+        extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
     return tempFiles;
   }
 
@@ -103,8 +106,14 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
-      String extractJobId = BigQueryIO.getExtractJobId(jobIdToken.get());
-      List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
+
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+
+      String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
+      List<ResourceId> tempFiles = executeExtract(
+          extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
+
       TableSchema tableSchema = getSchema(options);
 
       cleanupTempResource(bqOptions);
@@ -158,7 +167,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   List<BoundedSource<TableRow>> createSources(
-      List<String> files, TableSchema tableSchema) throws IOException, InterruptedException {
+      List<ResourceId> files, TableSchema tableSchema) throws IOException, InterruptedException {
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
 
     SerializableFunction<GenericRecord, TableRow> function =
