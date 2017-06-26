@@ -62,8 +62,8 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpressi
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLnExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
