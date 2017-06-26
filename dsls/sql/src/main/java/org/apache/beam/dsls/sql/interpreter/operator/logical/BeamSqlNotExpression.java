@@ -40,7 +40,6 @@ public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
     if (numberOfOperands() != 1) {
       return false;
     }
-
     return super.accept();
   }
 

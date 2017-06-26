@@ -45,7 +45,7 @@ class BeamSqlExample {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlExample.class);
 
   public static void main(String[] args) throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     Pipeline p = Pipeline.create(options);
 
     //define the input row format

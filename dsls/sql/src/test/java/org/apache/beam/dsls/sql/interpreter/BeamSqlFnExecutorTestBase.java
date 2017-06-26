@@ -79,7 +79,7 @@ public class BeamSqlFnExecutorTestBase {
     record.addField(3, 1234567L);
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
-    final List<RelTraitDef> traitDefs = new ArrayList<RelTraitDef>();
+    final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
     FrameworkConfig config = Frameworks.newConfigBuilder()
