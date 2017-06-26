@@ -27,13 +27,21 @@ class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles,
-               unprocessed_bundles, counters, watermark_hold,
+               unprocessed_bundles, counters, keyed_watermark_holds,
                undeclared_tag_values=None):
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
     self.counters = counters
-    self.watermark_hold = watermark_hold
+    # Mapping of key -> earliest hold timestamp or None.  Keys should be
+    # strings or None.
+    #
+    # For each key, we receive as its corresponding value the earliest
+    # watermark hold for that key (the key can be None for global state), past
+    # which the output watermark for the currently-executing step will not
+    # advance.  If the value is None or utils.timestamp.MAX_TIMESTAMP, the
+    # watermark hold will be removed.
+    self.keyed_watermark_holds = keyed_watermark_holds or {}
     # Only used when caching (materializing) all values is requested.
     self.undeclared_tag_values = undeclared_tag_values
     # Populated by the TransformExecutor.
@@ -43,8 +51,8 @@ class TransformResult(object):
 class TimerFiring(object):
   """A single instance of a fired timer."""
 
-  def __init__(self, key, window, name, time_domain, timestamp):
-    self.key = key
+  def __init__(self, encoded_key, window, name, time_domain, timestamp):
+    self.encoded_key = encoded_key
     self.window = window
     self.name = name
     self.time_domain = time_domain
@@ -53,8 +61,7 @@ class TimerFiring(object):
 
 class KeyedWorkItem(object):
   """A keyed item that can either be a timer firing or a list of elements."""
-  def __init__(self, key, timer_firing=None, elements=None):
-    self.key = key
-    assert not timer_firing and elements
-    self.timer_firing = timer_firing
-    self.elements = elements
+  def __init__(self, encoded_key, timer_firings=None, elements=None):
+    self.encoded_key = encoded_key
+    self.timer_firings = timer_firings or []
+    self.elements = elements or []
