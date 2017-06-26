@@ -21,6 +21,7 @@ package org.apache.beam.dsls.sql;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 
@@ -49,5 +50,50 @@ public class TestUtils {
     }
 
     return strs;
+  }
+
+  /**
+   * Convenient way to build a list of {@code BeamSqlRow}s.
+   */
+  public static class RowsBuilder {
+    private BeamSqlRecordType type;
+    private List<BeamSqlRow> rows = new ArrayList<>();
+
+    public static RowsBuilder of(final Object... args) {
+      List<Integer> types = new ArrayList<>();
+      List<String> names = new ArrayList<>();
+      int lastTypeIndex = 0;
+      for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
+        types.add((int) args[lastTypeIndex]);
+        names.add((String) args[lastTypeIndex + 1]);
+      }
+
+      BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.create(names, types);
+      RowsBuilder builder = new RowsBuilder();
+      builder.type = beamSQLRecordType;
+
+      return builder;
+    }
+
+    public RowsBuilder values(final Object... args) {
+      int fieldCount = type.size();
+      for (int i = 0; i < args.length; i += fieldCount) {
+        BeamSqlRow row = new BeamSqlRow(type);
+        for (int j = 0; j < fieldCount; j++) {
+          row.addField(j, args[i + j]);
+        }
+        this.rows.add(row);
+      }
+
+      return this;
+    }
+
+    public List<BeamSqlRow> getRows() {
+      return rows;
+    }
+
+    public List<String> getStrRows() {
+      return beamSqlRows2Strings(rows);
+    }
   }
 }

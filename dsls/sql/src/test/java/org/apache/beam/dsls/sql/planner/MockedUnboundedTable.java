@@ -24,18 +24,13 @@ import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -45,83 +40,43 @@ import org.joda.time.Instant;
 public class MockedUnboundedTable extends MockedTable {
   private List<Pair<Duration, List<BeamSqlRow>>> timestampedRows = new ArrayList<>();
   private int timestampField;
-  public MockedUnboundedTable(BeamSqlRecordType beamSqlRecordType, int timestampField) {
+  private MockedUnboundedTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);
-    this.timestampField = timestampField;
   }
 
   /**
-   * Convenient way to build a mocked table with mock data:
+   * Convenient way to build a mocked table.
    *
    * <p>e.g.
    *
    * <pre>{@code
    * MockedUnboundedTable
-   *   .of(SqlTypeName.BIGINT, "order_id",
-   *       SqlTypeName.INTEGER, "site_id",
-   *       SqlTypeName.DOUBLE, "price",
-   *       SqlTypeName.TIMESTAMP, "order_time",
-   *
-   *       1L, 2, 1.0, new Date(),
-   *       1L, 1, 2.0, new Date(),
-   *       2L, 4, 3.0, new Date(),
-   *       2L, 1, 4.0, new Date(),
-   *       5L, 5, 5.0, new Date(),
-   *       6L, 6, 6.0, new Date(),
-   *       7L, 7, 7.0, new Date(),
-   *       8L, 8888, 8.0, new Date(),
-   *       8L, 999, 9.0, new Date(),
-   *       10L, 100, 10.0, new Date())
+   *   .of(Types.BIGINT, "order_id",
+   *       Types.INTEGER, "site_id",
+   *       Types.DOUBLE, "price",
+   *       Types.TIMESTAMP, "order_time")
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args){
-    final RelProtoDataType protoRowType = new RelProtoDataType() {
-      @Override
-      public RelDataType apply(RelDataTypeFactory a0) {
-        RelDataTypeFactory.FieldInfoBuilder builder = a0.builder();
-
-        int lastTypeIndex = 0;
-        for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
-          if (args[lastTypeIndex] instanceof SqlTypeName) {
-            builder.add(args[lastTypeIndex + 1].toString(),
-                (SqlTypeName) args[lastTypeIndex]);
-          } else {
-            break;
-          }
-        }
-        return builder.build();
-      }
-    };
-
-
-    List<BeamSqlRow> rows = new ArrayList<>();
-    BeamSqlRecordType beamSQLRecordType = CalciteUtils
-        .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
-    int fieldCount = beamSQLRecordType.size();
-
-
-
-    for (int i = fieldCount * 2 + 1; i < args.length; i += fieldCount) {
-      BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
-      for (int j = 0; j < fieldCount; j++) {
-        row.addField(j, args[i + j]);
-      }
-      rows.add(row);
+    List<Integer> types = new ArrayList<>();
+    List<String> names = new ArrayList<>();
+    int lastTypeIndex = 0;
+    for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
+      types.add((int) args[lastTypeIndex]);
+      names.add((String) args[lastTypeIndex + 1]);
     }
-    MockedUnboundedTable table = new MockedUnboundedTable(
-        beamSQLRecordType, (int) args[fieldCount * 2]);
-    table.addInputRecords(rows);
 
-    return table;
+    return new MockedUnboundedTable(
+        BeamSqlRecordType.create(names, types)
+    );
   }
 
-  public MockedUnboundedTable addInputRecords(List<BeamSqlRow> rows) {
-    this.timestampedRows.add(Pair.of(Duration.standardMinutes(0), rows));
-
+  public MockedUnboundedTable timestampColumnIndex(int idx) {
+    this.timestampField = idx;
     return this;
   }
 
-  public MockedUnboundedTable addInputRecords(Duration duration, Object... args) {
+  public MockedUnboundedTable addRows(Duration duration, Object... args) {
     List<BeamSqlRow> rows = new ArrayList<>();
     int fieldCount = getRecordType().size();
 
@@ -133,6 +88,7 @@ public class MockedUnboundedTable extends MockedTable {
       rows.add(row);
     }
 
+    // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
   }
