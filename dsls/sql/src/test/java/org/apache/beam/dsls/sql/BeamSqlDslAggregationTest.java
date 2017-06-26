@@ -21,11 +21,13 @@ import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -256,5 +258,69 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PAssert.that(result).containsInAnyOrder(record1, record2);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * GROUP-BY with UDAF.
+   */
+  @Ignore
+  public void testAggregationWithUDAF() throws Exception {
+    String sql = "SELECT f_int2, squaresum(f_int) AS `squaresum` FROM TABLE_A GROUP BY f_int2";
+
+    //The test case is disabled temporally as BeamSql doesn't have methods to regester UDF/UDAF,
+    //pending on task BEAM-2520
+//    BeamSqlEnv.registerUdaf("squaresum", SquareSum.class);
+    PCollection<BeamSqlRow> result =
+        inputA1.apply("testAggregationWithUDAF", BeamSql.simpleQuery(sql));
+
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "squaresum"),
+        Arrays.asList(Types.INTEGER, Types.INTEGER));
+
+    BeamSqlRow record = new BeamSqlRow(resultType);
+    record.addField("f_int2", 0);
+    record.addField("squaresum", 30);
+
+    PAssert.that(result).containsInAnyOrder(record);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * UDAF for test, which returns the sum of square.
+   */
+  public static class SquareSum extends BeamSqlUdaf<Integer, Integer> {
+    private int outputFieldType;
+    private BeamSqlRecordType accType;
+
+    public SquareSum() {
+      this.outputFieldType = Types.INTEGER;
+      accType = BeamSqlRecordType.create(Arrays.asList("__tudaf"), Arrays.asList(outputFieldType));
+    }
+
+    // @Override
+    public BeamSqlRow init() {
+      return new BeamSqlRow(accType, Arrays.<Object>asList(0));
+    }
+
+    // @Override
+    public BeamSqlRow add(BeamSqlRow accumulator, Integer input) {
+      return new BeamSqlRow(accType,
+          Arrays.<Object>asList(accumulator.getInteger(0) + input * input));
+    }
+
+    // @Override
+    public BeamSqlRow merge(Iterable<BeamSqlRow> accumulators) {
+      int v = 0;
+      while (accumulators.iterator().hasNext()) {
+        v += accumulators.iterator().next().getInteger(0);
+      }
+      return new BeamSqlRow(accType, Arrays.<Object>asList(v));
+    }
+
+    // @Override
+    public Integer result(BeamSqlRow accumulator) {
+      return accumulator.getInteger(0);
+    }
+
   }
 }

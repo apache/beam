@@ -103,7 +103,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     PCollection<KV<BeamSqlRow, BeamSqlRow>> aggregatedStream = exCombineByStream.apply(
         stageName + "_combineBy",
         Combine.<BeamSqlRow, BeamSqlRow, BeamSqlRow>perKey(
-            new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
+            new BeamAggregationTransforms.AggregationAdaptor(getAggCallList(),
                 CalciteUtils.toBeamRecordType(input.getRowType()))))
         .setCoder(KvCoder.of(keyCoder, aggCoder));
 
