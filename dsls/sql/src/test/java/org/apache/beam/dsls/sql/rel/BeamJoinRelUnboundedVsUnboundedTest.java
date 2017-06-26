@@ -25,12 +25,14 @@ import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.planner.MockedUnboundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,18 +51,26 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
   public static void prepare() {
     FIRST_DATE.setTime(1);
     SECOND_DATE.setTime(1 + 3600 * 1000);
-    beamSqlEnv.registerTable("ORDER_DETAILS",
-        MockedBeamSqlTable
+    beamSqlEnv.registerTable("ORDER_DETAILS", MockedUnboundedTable
         .of(SqlTypeName.INTEGER, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.INTEGER, "price",
             SqlTypeName.TIMESTAMP, "order_time",
 
+            3,
+
             1, 1, 1, FIRST_DATE,
             1, 2, 2, FIRST_DATE,
             2, 2, 3, SECOND_DATE,
             2, 3, 3, SECOND_DATE
-        ).withIsBounded(PCollection.IsBounded.UNBOUNDED));
+            )
+        .addInputRecords(
+            // this late record is omitted
+            Duration.standardHours(1).plus(Duration.standardMinutes(40)),
+            2, 3, 3, SECOND_DATE
+        )
+
+    );
   }
 
   @Test
@@ -83,7 +93,8 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         SqlTypeName.INTEGER, "order_id0",
         SqlTypeName.INTEGER, "sum_site_id0",
         1, 3, 1, 3,
-        2, 5, 2, 5
+        //2, 5, 2, 5
+            2, 8, 2, 8
         ).getInputRecords()));
     pipeline.run();
   }
@@ -134,7 +145,6 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    System.out.println(sql);
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(beamSqlRows2Strings(MockedBeamSqlTable.of(

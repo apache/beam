@@ -15,46 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.commons.lang3.tuple.Pair;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
- * A mock table use to check input/output.
- *
+ * A mocked unbounded table.
  */
-public class MockedBeamSqlTable extends BaseBeamTable {
-  public static final AtomicInteger COUNTER = new AtomicInteger();
-  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
-
-  private List<BeamSqlRow> inputRecords;
-  public MockedBeamSqlTable(BeamSqlRecordType beamSqlRecordType) {
+public class MockedUnboundedTable extends MockedTable {
+  private List<Pair<Duration, List<BeamSqlRow>>> timestampedRows = new ArrayList<>();
+  private int timestampField;
+  public MockedUnboundedTable(BeamSqlRecordType beamSqlRecordType, int timestampField) {
     super(beamSqlRecordType);
-  }
-
-  public MockedBeamSqlTable withInputRecords(List<BeamSqlRow> inputRecords){
-    this.inputRecords = inputRecords;
-    return this;
+    this.timestampField = timestampField;
   }
 
   /**
@@ -63,7 +56,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
    * <p>e.g.
    *
    * <pre>{@code
-   * MockedBeamSqlTable
+   * MockedUnboundedTable
    *   .of(SqlTypeName.BIGINT, "order_id",
    *       SqlTypeName.INTEGER, "site_id",
    *       SqlTypeName.DOUBLE, "price",
@@ -81,7 +74,7 @@ public class MockedBeamSqlTable extends BaseBeamTable {
    *       10L, 100, 10.0, new Date())
    * }</pre>
    */
-  public static MockedBeamSqlTable of(final Object... args){
+  public static MockedUnboundedTable of(final Object... args){
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
@@ -100,64 +93,72 @@ public class MockedBeamSqlTable extends BaseBeamTable {
       }
     };
 
+
     List<BeamSqlRow> rows = new ArrayList<>();
     BeamSqlRecordType beamSQLRecordType = CalciteUtils
         .toBeamRecordType(protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
     int fieldCount = beamSQLRecordType.size();
 
-    for (int i = fieldCount * 2; i < args.length; i += fieldCount) {
+
+
+    for (int i = fieldCount * 2 + 1; i < args.length; i += fieldCount) {
       BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
       for (int j = 0; j < fieldCount; j++) {
         row.addField(j, args[i + j]);
       }
       rows.add(row);
     }
-    return new MockedBeamSqlTable(beamSQLRecordType).withInputRecords(rows);
+    MockedUnboundedTable table = new MockedUnboundedTable(
+        beamSQLRecordType, (int) args[fieldCount * 2]);
+    table.addInputRecords(rows);
+
+    return table;
   }
 
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
+  public MockedUnboundedTable addInputRecords(List<BeamSqlRow> rows) {
+    this.timestampedRows.add(Pair.of(Duration.standardMinutes(0), rows));
+
+    return this;
   }
 
-  @Override
+  public MockedUnboundedTable addInputRecords(Duration duration, Object... args) {
+    List<BeamSqlRow> rows = new ArrayList<>();
+    int fieldCount = getRecordType().size();
 
-  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply(
-        "MockedBeamSQLTable_Reader_" + COUNTER.incrementAndGet(), Create.of(inputRecords));
-  }
-
-  @Override
-  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
-    return new OutputStore();
-  }
-
-  public List<BeamSqlRow> getInputRecords() {
-    return inputRecords;
-  }
-
-  /**
-   * Keep output in {@code CONTENT} for validation.
-   *
-   */
-  public static class OutputStore extends PTransform<PCollection<BeamSqlRow>, PDone> {
-
-    @Override
-    public PDone expand(PCollection<BeamSqlRow> input) {
-      input.apply(ParDo.of(new DoFn<BeamSqlRow, Void>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          CONTENT.add(c.element());
-        }
-
-        @Teardown
-        public void close() {
-
-        }
-
-      }));
-      return PDone.in(input.getPipeline());
+    for (int i = 0; i < args.length; i += fieldCount) {
+      BeamSqlRow row = new BeamSqlRow(getRecordType());
+      for (int j = 0; j < fieldCount; j++) {
+        row.addField(j, args[i + j]);
+      }
+      rows.add(row);
     }
+
+    this.timestampedRows.add(Pair.of(duration, rows));
+    return this;
   }
 
+  @Override public BeamIOType getSourceType() {
+    return BeamIOType.UNBOUNDED;
+  }
+
+  @Override public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
+    TestStream.Builder<BeamSqlRow> values = TestStream.create(
+        new BeamSqlRowCoder(beamSqlRecordType));
+
+    for (Pair<Duration, List<BeamSqlRow>> pair : timestampedRows) {
+      values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
+      for (int i = 0; i < pair.getValue().size(); i++) {
+        values = values.addElements(TimestampedValue.of(pair.getValue().get(i),
+            new Instant(pair.getValue().get(i).getDate(timestampField))));
+      }
+    }
+
+    return pipeline.begin().apply(
+        "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
+        values.advanceWatermarkToInfinity());
+  }
+
+  @Override public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
+    throw new UnsupportedOperationException("MockedUnboundedTable#buildIOWriter unsupported!");
+  }
 }

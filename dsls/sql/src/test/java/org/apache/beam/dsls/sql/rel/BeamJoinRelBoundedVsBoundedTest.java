@@ -151,7 +151,9 @@ public class BeamJoinRelBoundedVsBoundedTest {
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.INTEGER, "price",
 
-            1, 2, 3, 2, 3, 3, 3, 4, 5));
+            1, 2, 3,
+            2, 3, 3,
+            3, 4, 5));
 
     beamSqlEnv.registerTable("ORDER_DETAILS0",
         MockedBeamSqlTable
@@ -159,7 +161,9 @@ public class BeamJoinRelBoundedVsBoundedTest {
                 SqlTypeName.INTEGER, "site_id0",
                 SqlTypeName.INTEGER, "price0",
 
-                1, 2, 3, 2, 3, 3, 3, 4, 5));
+                1, 2, 3,
+                2, 3, 3,
+                3, 4, 5));
 
   }
 }

@@ -25,6 +25,7 @@ import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.planner.MockedUnboundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.PAssert;
@@ -52,12 +53,17 @@ public class BeamJoinRelUnboundedVsBoundedTest {
     FIRST_DATE.setTime(1);
     SECOND_DATE.setTime(1 + 3600 * 1000);
     THIRD_DATE.setTime(1 + 3600 * 1000 + 3600 * 1000 + 1);
-    beamSqlEnv.registerTable("ORDER_DETAILS", MockedBeamSqlTable
-        .of(SqlTypeName.INTEGER, "order_id", SqlTypeName.INTEGER, "site_id", SqlTypeName.INTEGER,
-            "price", SqlTypeName.TIMESTAMP, "order_time",
+    beamSqlEnv.registerTable("ORDER_DETAILS", MockedUnboundedTable
+        .of(SqlTypeName.INTEGER, "order_id",
+            SqlTypeName.INTEGER, "site_id",
+            SqlTypeName.INTEGER, "price",
+            SqlTypeName.TIMESTAMP, "order_time",
 
-            1, 1, 1, FIRST_DATE, 1, 2, 2, FIRST_DATE, 2, 2, 3, SECOND_DATE, 2, 3, 3, SECOND_DATE, 3,
-            3, 3, THIRD_DATE).withIsBounded(PCollection.IsBounded.UNBOUNDED));
+            1, 1, 1, FIRST_DATE,
+            1, 2, 2, FIRST_DATE,
+            2, 2, 3, SECOND_DATE,
+            2, 3, 3, SECOND_DATE,
+            3, 3, 3, THIRD_DATE));
 
     beamSqlEnv.registerTable("ORDER_DETAILS1", MockedBeamSqlTable
         .of(SqlTypeName.INTEGER, "order_id",
@@ -65,7 +71,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
 
             1, "james",
             2, "bond"
-        ).withIsBounded(PCollection.IsBounded.BOUNDED));
+        ));
   }
 
   @Test
