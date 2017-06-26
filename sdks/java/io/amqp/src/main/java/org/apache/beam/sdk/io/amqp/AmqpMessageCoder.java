@@ -22,6 +22,7 @@ import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.BufferOverflowException;
 
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -33,13 +34,36 @@ import org.apache.qpid.proton.message.Message;
  */
 public class AmqpMessageCoder extends CustomCoder<Message> {
 
+  private static final int[] MESSAGE_SIZES = new int[]{
+      8 * 1024, // 8 KiB
+      64 * 1024, // 62 KiB
+      1 * 1024 * 1024, // 1 MiB
+      64 * 1024 * 1024, // 62 MiB
+  };
+
   static AmqpMessageCoder of() {
     return new AmqpMessageCoder();
   }
 
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
-    byte[] data = new byte[4096];
+    for (int maxMessageSize : MESSAGE_SIZES) {
+      try {
+        encode(value, outStream, maxMessageSize);
+        return;
+      } catch (Exception e) {
+        if (maxMessageSize == MESSAGE_SIZES[MESSAGE_SIZES.length - 1]) {
+          throw new CoderException("Message is larger than the max size supported by the coder", e);
+        } else {
+          continue;
+        }
+      }
+    }
+  }
+
+  private void encode(Message value, OutputStream outStream, int messageSize) throws
+      IOException, BufferOverflowException {
+    byte[] data = new byte[messageSize];
     int bytesWritten = value.encode(data, 0, data.length);
     VarInt.encode(bytesWritten, outStream);
     outStream.write(data, 0, bytesWritten);
