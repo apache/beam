@@ -564,7 +564,8 @@ class FlinkStreamingTransformTranslators {
                     Coder keyCoder,
                     Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
-                  doFn,
+                  (SplittableParDoViaKeyedWorkItems.ProcessFn<
+                      InputT, OutputT, RestrictionT, TrackerT>) doFn,
                   stepName,
                   inputCoder,
                   mainOutputTag,

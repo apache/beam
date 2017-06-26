@@ -19,34 +19,50 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.SplittableProcessElementInvoker;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -60,8 +76,53 @@ public class SplittableDoFnOperator<
 
   private transient ScheduledExecutorService executorService;
 
+  /**
+   * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
+   * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
+   * and is released when the {@link DoFn.ProcessElement} call returns and there is no residual
+   * restriction captured by the {@link SplittableProcessElementInvoker}.
+   *
+   * <p>A hold is needed to avoid letting the output watermark immediately progress together with
+   * the input watermark when the first {@link DoFn.ProcessElement} call for this element
+   * completes.
+   */
+  private static final StateTag<WatermarkHoldState> watermarkHoldTag =
+      StateTags.makeSystemTagInternal(
+          StateTags.<GlobalWindow>watermarkStateInternal("hold", TimestampCombiner.LATEST));
+
+  /**
+   * The state cell containing a copy of the element. Written during the first {@link
+   * DoFn.ProcessElement} call and read during subsequent calls in response to timer firings, when
+   * the original element is no longer available.
+   */
+  private final StateTag<ValueState<WindowedValue<InputT>>> elementTag;
+
+  /**
+   * The state cell containing a restriction representing the unprocessed part of work for this
+   * element.
+   */
+  private StateTag<ValueState<RestrictionT>> restrictionTag;
+
+  private final DoFn<InputT, OutputT> fn;
+  private final Coder<InputT> elementCoder;
+  private final Coder<RestrictionT> restrictionCoder;
+  private final WindowingStrategy<InputT, ?> inputWindowingStrategy;
+
+  private transient SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>
+      processElementInvoker;
+
+  private transient InternalTimerService<TimerInternals.TimerData> continuationTimerService;
+
+  private transient DoFnInvoker<InputT, OutputT> invoker;
+
+  /**
+   * We need this for blocking shutdown in close while we still have pending processing-time timers.
+   */
+  protected transient Object checkpointingLock;
+
+
   public SplittableDoFnOperator(
-      DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
+      ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn,
       String stepName,
       Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> inputCoder,
       TupleTag<OutputT> mainOutputTag,
@@ -73,7 +134,7 @@ public class SplittableDoFnOperator<
       PipelineOptions options,
       Coder<?> keyCoder) {
     super(
-        doFn,
+        processFn,
         stepName,
         inputCoder,
         mainOutputTag,
@@ -84,6 +145,28 @@ public class SplittableDoFnOperator<
         sideInputs,
         options,
         keyCoder);
+
+    fn = processFn.getFn();
+    elementCoder = processFn.getElementCoder();
+    restrictionCoder = processFn.getRestrictionCoder();
+    inputWindowingStrategy = processFn.getInputWindowingStrategy();
+
+    this.elementTag =
+        StateTags.value(
+            "element",
+            WindowedValue.getFullCoder(
+                elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
+
+    this.restrictionTag = StateTags.value("restriction", restrictionCoder);
+  }
+
+  @Override
+  public void setup(
+      StreamTask<?, ?> containingTask,
+      StreamConfig config,
+      Output<StreamRecord<WindowedValue<OutputT>>> output) {
+    super.setup(containingTask, config, output);
+    checkpointingLock = containingTask.getCheckpointLock();
   }
 
   @Override
@@ -92,29 +175,17 @@ public class SplittableDoFnOperator<
 
     checkState(doFn instanceof ProcessFn);
 
-    StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
-      @Override
-      public StateInternals stateInternalsForKey(String key) {
-        //this will implicitly be keyed by the key of the incoming
-        // element or by the key of a firing timer
-        return (StateInternals) stateInternals;
-      }
-    };
-    TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
-      @Override
-      public TimerInternals timerInternalsForKey(String key) {
-        //this will implicitly be keyed like the StateInternalsFactory
-        return timerInternals;
-      }
-    };
+    continuationTimerService =
+        getInternalTimerService("continuation", new CoderTypeSerializer<>(timerCoder), this);
+
+    invoker = DoFnInvokers.invokerFor(fn);
+    invoker.invokeSetup();
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
-    ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
-    ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
-    ((ProcessFn) doFn).setProcessElementInvoker(
-        new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
-            doFn,
+
+    processElementInvoker = new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
+            fn,
             serializedOptions.getPipelineOptions(),
             new OutputWindowedValue<OutputT>() {
               @Override
@@ -141,20 +212,181 @@ public class SplittableDoFnOperator<
             sideInputReader,
             executorService,
             10000,
-            Duration.standardSeconds(10)));
+            Duration.standardSeconds(10));
+  }
+
+
+  @Override
+  public void processElement(
+      StreamRecord<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> streamRecord)
+      throws Exception {
+
+    KeyedWorkItem<String, KV<InputT, RestrictionT>> inputElement =
+        streamRecord.getValue().getValue();
+
+    // Initialize state (element and restriction)
+
+    WindowedValue<KV<InputT, RestrictionT>> windowedValue =
+        Iterables.getOnlyElement(inputElement.elementsIterable());
+    BoundedWindow window = Iterables.getOnlyElement(windowedValue.getWindows());
+    StateNamespace stateNamespace =
+          StateNamespaces.window(
+              (Coder<BoundedWindow>) inputWindowingStrategy.getWindowFn().windowCoder(), window);
+
+    ValueState<WindowedValue<InputT>> elementState =
+        stateInternals.state(stateNamespace, elementTag);
+    ValueState<RestrictionT> restrictionState =
+        stateInternals.state(stateNamespace, restrictionTag);
+    WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
+
+    KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
+    WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().getKey());
+    elementState.write(element);
+    elementAndRestriction = KV.of(element, windowedValue.getValue().getValue());
+
+    if (processRestriction(elementState, restrictionState, holdState, elementAndRestriction)) {
+      return;
+    }
+
+    // Set a timer to continue processing this element.
+    Instant now = Instant.now();
+    continuationTimerService.registerProcessingTimeTimer(
+        TimerInternals.TimerData.of(
+            "continuation", stateNamespace, now, TimeDomain.PROCESSING_TIME),
+        now.getMillis());
+
+    // also register a "last-resort" timer to make sure that we process any pending restrictions
+    // when we are shut down
+    continuationTimerService.registerEventTimeTimer(
+        TimerInternals.TimerData.of(
+            "continuation",
+            stateNamespace,
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            TimeDomain.EVENT_TIME),
+        BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+  }
+
+  /**
+   * Process a restriction. Returns true if the restriction is exhausted, false otherwise.
+   */
+  private boolean processRestriction(
+      ValueState<WindowedValue<InputT>> elementState,
+      ValueState<RestrictionT> restrictionState,
+      WatermarkHoldState holdState,
+      KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction) {
+    final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.getValue());
+    SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
+        processElementInvoker.invokeProcessElement(
+            invoker, elementAndRestriction.getKey(), tracker);
+
+    // Save state for resuming.
+    if (result.getResidualRestriction() == null) {
+      // All work for this element/restriction is completed. Clear state and release hold.
+      elementState.clear();
+      restrictionState.clear();
+      holdState.clear();
+      return true;
+    }
+
+    restrictionState.write(result.getResidualRestriction());
+    Instant futureOutputWatermark = result.getFutureOutputWatermark();
+    if (futureOutputWatermark == null) {
+      futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
+    }
+    holdState.add(futureOutputWatermark);
+
+    return false;
   }
 
   @Override
-  public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
-    doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem(
-            (String) stateInternals.getKey(),
-            Collections.singletonList(timer.getNamespace()))));
+  public void onEventTime(
+      InternalTimer<Object, TimerInternals.TimerData> flinkTimer) throws Exception {
+    if (flinkTimer.getTimestamp() != BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // it's not our "last-resort" timer
+      return;
+    }
+
+    TimerInternals.TimerData timer = flinkTimer.getNamespace();
+    StateNamespace stateNamespace = timer.getNamespace();
+
+    ValueState<WindowedValue<InputT>> elementState =
+        stateInternals.state(stateNamespace, elementTag);
+    ValueState<RestrictionT> restrictionState =
+        stateInternals.state(stateNamespace, restrictionTag);
+    WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
+
+    boolean restrictionExhausted;
+    do {
+      // This is not the first ProcessElement call for this element/restriction - rather,
+      // this is a timer firing, so we need to fetch the element and restriction from state.
+      elementState.readLater();
+      restrictionState.readLater();
+
+      KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction =
+          KV.of(elementState.read(), restrictionState.read());
+
+      restrictionExhausted =
+          processRestriction(elementState, restrictionState, holdState, elementAndRestriction);
+
+    } while (!restrictionExhausted);
+  }
+
+  @Override
+  public void onProcessingTime(
+      InternalTimer<Object, TimerInternals.TimerData> flinkTimer) throws Exception {
+
+    TimerInternals.TimerData timer = flinkTimer.getNamespace();
+    StateNamespace stateNamespace = timer.getNamespace();
+
+    ValueState<WindowedValue<InputT>> elementState =
+        stateInternals.state(stateNamespace, elementTag);
+    ValueState<RestrictionT> restrictionState =
+        stateInternals.state(stateNamespace, restrictionTag);
+    WatermarkHoldState holdState = stateInternals.state(stateNamespace, watermarkHoldTag);
+
+    // This is not the first ProcessElement call for this element/restriction - rather,
+    // this is a timer firing, so we need to fetch the element and restriction from state.
+    elementState.readLater();
+    restrictionState.readLater();
+
+    WindowedValue<InputT> element = elementState.read();
+
+    if (element == null) {
+      // it can happen that the "last-resort" event-time timer already cleaned this on the
+      // +Inf watermark
+      return;
+    }
+
+    KV<WindowedValue<InputT>, RestrictionT> elementAndRestriction =
+        KV.of(element, restrictionState.read());
+
+    if (processRestriction(elementState, restrictionState, holdState, elementAndRestriction)) {
+      return;
+    }
+
+    // Set a timer to continue processing this element.
+    Instant now = Instant.now();
+    continuationTimerService.registerProcessingTimeTimer(
+        TimerInternals.TimerData.of(
+            "continuation", stateNamespace, now, TimeDomain.PROCESSING_TIME),
+        now.getMillis());
+  }
+
+  @Override
+  public void processWatermark(Watermark mark) throws Exception {
+    super.processWatermark(mark);
+
+    // Also update the watermark on our continuation service. We have to manually do this because
+    // DoFnOperator overrides processWatermark() and AbstractStreamOperator therefore doesn't
+    // advance all the registered timer services.
+    ((HeapInternalTimerService) continuationTimerService).advanceWatermark(mark.getTimestamp());
   }
 
   @Override
   public void close() throws Exception {
     super.close();
+
+    invoker.invokeTeardown();
 
     executorService.shutdown();
 
