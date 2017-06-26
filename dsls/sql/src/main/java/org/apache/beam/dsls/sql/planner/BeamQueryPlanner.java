@@ -73,7 +73,7 @@ public class BeamQueryPlanner {
       RelDataTypeSystem.DEFAULT);
 
   public BeamQueryPlanner(SchemaPlus schema) {
-    final List<RelTraitDef> traitDefs = new ArrayList<RelTraitDef>();
+    final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
 
