@@ -44,8 +44,6 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
       , BeamSqlEnv sqlEnv) throws Exception {
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
-    String stageName = BeamSqlRelUtils.getStageName(this);
-
     TupleTag<BeamSqlRow> sourceTupleTag = new TupleTag<BeamSqlRow>(sourceName);
     if (inputPCollections.has(sourceTupleTag)) {
       //choose PCollection from input PCollectionTuple if exists there.

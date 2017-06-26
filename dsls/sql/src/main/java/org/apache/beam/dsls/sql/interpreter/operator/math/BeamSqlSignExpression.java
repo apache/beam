@@ -55,6 +55,8 @@ public class BeamSqlSignExpression extends BeamSqlMathUnaryExpression {
         result = BeamSqlPrimitive
             .of(SqlTypeName.DECIMAL, SqlFunctions.sign(SqlFunctions.toBigDecimal(op.getValue())));
         break;
+      default:
+        break;
     }
     return result;
   }

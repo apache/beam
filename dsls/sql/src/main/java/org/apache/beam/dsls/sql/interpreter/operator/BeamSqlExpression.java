@@ -30,7 +30,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * as its operands, and return a value with type {@link SqlTypeName}.
  *
  */
-public abstract class BeamSqlExpression implements Serializable{
+public abstract class BeamSqlExpression implements Serializable {
   protected List<BeamSqlExpression> operands;
   protected SqlTypeName outputType;
 

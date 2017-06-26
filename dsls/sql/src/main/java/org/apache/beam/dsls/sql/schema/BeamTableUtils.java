@@ -45,7 +45,7 @@ public final class BeamTableUtils {
 
       if (rawRecord.size() != beamSqlRecordType.size()) {
         throw new IllegalArgumentException(String.format(
-            "Expect %d fields, but actually %d", line,
+            "Expect %d fields, but actually %d",
             beamSqlRecordType.size(), rawRecord.size()
         ));
       } else {
@@ -75,7 +75,7 @@ public final class BeamTableUtils {
 
   public static void addFieldWithAutoTypeCasting(BeamSqlRow row, int idx, Object rawObj) {
     if (rawObj == null) {
-      row.addField(idx, rawObj);
+      row.addField(idx, null);
       return;
     }
 
