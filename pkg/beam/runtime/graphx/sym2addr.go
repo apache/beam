@@ -6,22 +6,20 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/symtab"
 )
 
-var symbols SymbolResolution
-
 func init() {
 	var err error
 	// First try the Linux location, since it's the most reliable.
-	symbols, err = symtab.New("/proc/self/exe")
+	SymbolResolver, err = symtab.New("/proc/self/exe")
 	if err == nil {
 		return
 	}
 	// For other OS's this works in most cases we need. If it doesn't, log
 	// an error and keep going.
-	symbols, err = symtab.New(os.Args[0])
+	SymbolResolver, err = symtab.New(os.Args[0])
 	if err == nil {
 		return
 	}
-	symbols = panicResolver(false)
+	SymbolResolver = panicResolver(false)
 }
 
 type panicResolver bool
