@@ -184,18 +184,20 @@ public class PipelineOptionsFactory {
     private final String[] args;
     private final boolean validation;
     private final boolean strictParsing;
+    private final boolean isCLI;
 
     // Do not allow direct instantiation
     private Builder() {
-      this(null, false, true);
+      this(null, false, true, false);
     }
 
     private Builder(String[] args, boolean validation,
-        boolean strictParsing) {
+        boolean strictParsing, boolean isCLI) {
       this.defaultAppName = findCallersClassName();
       this.args = args;
       this.validation = validation;
       this.strictParsing = strictParsing;
+      this.isCLI = isCLI;
     }
 
     /**
@@ -237,7 +239,7 @@ public class PipelineOptionsFactory {
      */
     public Builder fromArgs(String... args) {
       checkNotNull(args, "Arguments should not be null.");
-      return new Builder(args, validation, strictParsing);
+      return new Builder(args, validation, strictParsing, true);
     }
 
     /**
@@ -247,7 +249,7 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(args, true, strictParsing);
+      return new Builder(args, true, strictParsing, isCLI);
     }
 
     /**
@@ -255,7 +257,7 @@ public class PipelineOptionsFactory {
      * arguments.
      */
     public Builder withoutStrictParsing() {
-      return new Builder(args, validation, false);
+      return new Builder(args, validation, false, isCLI);
     }
 
     /**
@@ -300,7 +302,11 @@ public class PipelineOptionsFactory {
       }
 
       if (validation) {
-        PipelineOptionsValidator.validate(klass, t);
+        if (isCLI) {
+          PipelineOptionsValidator.validateCLI(klass, t);
+        } else {
+          PipelineOptionsValidator.validate(klass, t);
+        }
       }
       return t;
     }

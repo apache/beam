@@ -60,6 +60,18 @@ public class PipelineOptionsValidatorTest {
   }
 
   @Test
+  public void testWhenRequiredOptionIsSetAndClearedCLI() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Missing required value for "
+        + "[--object, \"Fake Description\"].");
+
+    Required required = PipelineOptionsFactory.fromArgs(new String[]{"--object=blah"})
+        .as(Required.class);
+    required.setObject(null);
+    PipelineOptionsValidator.validateCLI(Required.class, required);
+  }
+
+  @Test
   public void testWhenRequiredOptionIsNeverSet() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
@@ -68,6 +80,17 @@ public class PipelineOptionsValidatorTest {
 
     Required required = PipelineOptionsFactory.as(Required.class);
     PipelineOptionsValidator.validate(Required.class, required);
+  }
+
+
+  @Test
+  public void testWhenRequiredOptionIsNeverSetCLI() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Missing required value for "
+        + "[--object, \"Fake Description\"].");
+
+    Required required = PipelineOptionsFactory.fromArgs(new String[]{}).as(Required.class);
+    PipelineOptionsValidator.validateCLI(Required.class, required);
   }
 
   @Test
@@ -79,6 +102,16 @@ public class PipelineOptionsValidatorTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     PipelineOptionsValidator.validate(Required.class, options);
+  }
+
+  @Test
+  public void testWhenRequiredOptionIsNeverSetOnSuperInterfaceCLI() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Missing required value for "
+        + "[--object, \"Fake Description\"].");
+
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[]{}).create();
+    PipelineOptionsValidator.validateCLI(Required.class, options);
   }
 
   /** A test interface that overrides the parent's method. */
@@ -98,6 +131,17 @@ public class PipelineOptionsValidatorTest {
 
     SubClassValidation required = PipelineOptionsFactory.as(SubClassValidation.class);
     PipelineOptionsValidator.validate(Required.class, required);
+  }
+
+  @Test
+  public void testValidationOnOverriddenMethodsCLI() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Missing required value for "
+        + "[--object, \"Fake Description\"].");
+
+    SubClassValidation required = PipelineOptionsFactory.fromArgs(new String[]{})
+        .as(SubClassValidation.class);
+    PipelineOptionsValidator.validateCLI(Required.class, required);
   }
 
   /** A test interface with a required group. */
