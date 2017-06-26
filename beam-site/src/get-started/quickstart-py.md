@@ -102,7 +102,7 @@ For example, to run `wordcount.py`, run:
 
 {:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
+python -m apache_beam.examples.wordcount --input <PATH_TO_INPUT_FILE> --output counts
 ```
 
 {:.runner-dataflow}
