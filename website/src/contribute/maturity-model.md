@@ -138,7 +138,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>QU50</p></td>
       <td><p>The project strives to respond to documented bug reports in a timely manner.</p></td>
-      <td><p><b>YES.</b> The project has resolved <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Resolved%2C%20Closed)">550 issues</a> during incubation.</p><p><b>Even further</b>, <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab%3Dcom.atlassian.jira.jira-projects-plugin:components-panel=undefined&selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel">all project components</a> have designated a single committer who gets assigned all newly filed issues for a triage/re-assignment to ensure timely action.</p></td>
+      <td><p><b>YES.</b> The project has resolved <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Resolved%2C%20Closed)">550 issues</a> during incubation.</p><p><b>Even further</b>, <a href="https://issues.apache.org/jira/projects/BEAM?selectedItem=com.atlassian.jira.jira-projects-plugin%3Acomponents-page&selectedTab%3Dcom.atlassian.jira.jira-projects-plugin%3Acomponents-panel=undefined">all project components</a> have designated a single committer who gets assigned all newly filed issues for a triage/re-assignment to ensure timely action.</p></td>
     </tr>
 
     <tr>
