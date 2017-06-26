@@ -213,7 +213,7 @@ class EvaluationContext(object):
           result.unprocessed_bundles)
       self._watermark_manager.update_watermarks(
           completed_bundle, result.transform, completed_timers,
-          committed_bundles, unprocessed_bundles, result.watermark_hold)
+          committed_bundles, unprocessed_bundles, result.keyed_watermark_holds)
 
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)

@@ -94,13 +94,13 @@ class WatermarkManager(object):
 
   def update_watermarks(self, completed_committed_bundle, applied_ptransform,
                         completed_timers, outputs, unprocessed_bundles,
-                        earliest_hold):
+                        keyed_earliest_holds):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, applied_ptransform, completed_timers,
         outputs, unprocessed_bundles)
     tw = self.get_watermarks(applied_ptransform)
-    tw.hold(earliest_hold)
+    tw.hold(keyed_earliest_holds)
     self._refresh_watermarks(applied_ptransform)
 
   def _update_pending(self, input_committed_bundle, applied_ptransform,
@@ -161,7 +161,7 @@ class _TransformWatermarks(object):
     self._input_transform_watermarks = []
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
-    self._earliest_hold = WatermarkManager.WATERMARK_POS_INF
+    self._keyed_earliest_holds = {}
     self._pending = set()  # Scheduled bundles targeted for this transform.
     self._fired_timers = set()
     self._lock = threading.Lock()
@@ -187,11 +187,13 @@ class _TransformWatermarks(object):
     with self._lock:
       return self._output_watermark
 
-  def hold(self, value):
+  def hold(self, keyed_earliest_holds):
     with self._lock:
-      if value is None:
-        value = WatermarkManager.WATERMARK_POS_INF
-      self._earliest_hold = value
+      for key, hold_value in keyed_earliest_holds.iteritems():
+        self._keyed_earliest_holds[key] = hold_value
+        if (hold_value is None or
+            hold_value == WatermarkManager.WATERMARK_POS_INF):
+          del self._keyed_earliest_holds[key]
 
   def add_pending(self, pending):
     with self._lock:
@@ -230,7 +232,11 @@ class _TransformWatermarks(object):
 
       self._input_watermark = max(self._input_watermark,
                                   min(pending_holder, producer_watermark))
-      new_output_watermark = min(self._input_watermark, self._earliest_hold)
+      earliest_hold = WatermarkManager.WATERMARK_POS_INF
+      for hold in self._keyed_earliest_holds.values():
+        if hold < earliest_hold:
+          earliest_hold = hold
+      new_output_watermark = min(self._input_watermark, earliest_hold)
 
       advanced = new_output_watermark > self._output_watermark
       self._output_watermark = new_output_watermark
@@ -246,11 +252,11 @@ class _TransformWatermarks(object):
         return False
 
       fired_timers = []
-      for key, state in self._keyed_states.iteritems():
+      for encoded_key, state in self._keyed_states.iteritems():
         timers = state.get_timers(watermark=self._input_watermark)
         for expired in timers:
           window, (name, time_domain, timestamp) = expired
           fired_timers.append(
-              TimerFiring(key, window, name, time_domain, timestamp))
+              TimerFiring(encoded_key, window, name, time_domain, timestamp))
       self._fired_timers.update(fired_timers)
       return fired_timers

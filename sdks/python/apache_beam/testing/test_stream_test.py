@@ -20,12 +20,15 @@
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -98,7 +101,9 @@ class TestStreamTest(unittest.TestCase):
                   timestamp=beam.DoFn.TimestampParam):
         yield (element, timestamp)
 
-    p = TestPipeline()
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     my_record_fn = RecordFn()
     records = p | test_stream | beam.ParDo(my_record_fn)
     assert_that(records, equal_to([
@@ -109,6 +114,36 @@ class TestStreamTest(unittest.TestCase):
         ('e', timestamp.Timestamp(20)),
         ('late', timestamp.Timestamp(12)),
         ('last', timestamp.Timestamp(310)),]))
+    p.run()
+
+  def test_gbk_execution(self):
+    test_stream = (TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['a', 'b', 'c'])
+                   .advance_watermark_to(20)
+                   .add_elements(['d'])
+                   .add_elements(['e'])
+                   .advance_processing_time(10)
+                   .advance_watermark_to(300)
+                   .add_elements([TimestampedValue('late', 12)])
+                   .add_elements([TimestampedValue('last', 310)]))
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    records = (p
+               | test_stream
+               | beam.WindowInto(FixedWindows(15))
+               | beam.Map(lambda x: ('k', x))
+               | beam.GroupByKey())
+    # TODO(ccy): timestamp assignment for elements from a GBK should respect
+    # the TimestampCombiner.  The test below should also verify the timestamps
+    # of the outputted elements once this is implemented.
+    assert_that(records, equal_to([
+        ('k', ['a', 'b', 'c']),
+        ('k', ['d', 'e']),
+        ('k', ['late']),
+        ('k', ['last'])]))
     p.run()
 
 
