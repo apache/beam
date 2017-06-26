@@ -29,7 +29,7 @@ type SymbolResolution interface {
 // tables in the executable, which unfortunately are not made available
 // by default in "go test" builds. Unit tests that need symbol resolution
 // should pass in an appropriate fake.
-var SymbolResolver SymbolResolution = symbols
+var SymbolResolver SymbolResolution
 
 // EncodeMultiEdge converts the preprocessed representation into the wire
 // representation of the multiedge, capturing input and ouput type information.
