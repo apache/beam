@@ -208,6 +208,16 @@ public class TranslationContext {
         }
 
         bolt.registerExecutor(executor);
+
+        // set parallelismNumber
+        String pTransformfullName = userGraphContext.currentTransform.getFullName();
+        String compositeName = pTransformfullName.split("/")[0];
+        Map parallelismNumMap = userGraphContext.getOptions().getParallelismNumMap();
+        if (parallelismNumMap.containsKey(compositeName)) {
+            int configNum = (Integer) parallelismNumMap.get(compositeName);
+            int currNum = bolt.getParallelismNum();
+            bolt.setParallelismNum(Math.max(configNum, currNum));
+        }
     }
 
     // TODO: add getSideInputs() and getSideOutputs().
