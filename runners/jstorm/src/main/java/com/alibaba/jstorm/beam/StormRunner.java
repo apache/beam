@@ -96,6 +96,7 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
 
         // Setup config for runtime env
         config.put("worker.external", "beam");
+        config.put("topology.acker.executors", 0);
 
         return config;
     }
@@ -178,9 +179,9 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
 
         @Override
         public State cancel() throws IOException {
-            localCluster.deactivate(getTopologyName());
+            //localCluster.deactivate(getTopologyName());
             localCluster.killTopology(getTopologyName());
-            localCluster.shutdown();
+            //localCluster.shutdown();
             JStormUtils.sleepMs(1000);
             return State.CANCELLED;
         }
@@ -228,7 +229,7 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
         Map<String, AdaptorBasicSpout> spouts = context.getSpouts();
         for (String id : spouts.keySet()) {
             IRichSpout spout = getSpout(isExactlyOnce, spouts.get(id));
-            builder.setSpout(id, spout, parallelismNumber);  
+            builder.setSpout(id, spout, getParallelismNum(spouts.get(id), parallelismNumber));
         }
 
         HashMap<String, BoltDeclarer> declarers = new HashMap<>();
@@ -239,7 +240,8 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
             IRichBolt bolt = getBolt(isExactlyOnce, context.getBolt(destBoltId));
             BoltDeclarer declarer = declarers.get(destBoltId);
             if (declarer == null) {
-                declarer = builder.setBolt(destBoltId, bolt, parallelismNumber);
+                declarer = builder.setBolt(destBoltId, bolt,
+                        getParallelismNum(context.getBolt(destBoltId), parallelismNumber));
                 declarers.put(destBoltId, declarer);
             }
 
@@ -309,5 +311,16 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
 
     private IRichBolt getBolt(boolean isExactlyOnce, ExecutorsBolt bolt) {
         return isExactlyOnce ? new TxExecutorsBolt(bolt) : bolt;
+    }
+
+    /**
+     * Calculate the final parallelism number according to the configured number and global number.
+     * @param component
+     * @param globalParallelismNum
+     * @return final parallelism number for the specified component
+     */
+    private int getParallelismNum(AbstractComponent component, int globalParallelismNum) {
+        int configParallelismNum = component.getParallelismNum();
+        return configParallelismNum > 0 ? configParallelismNum : globalParallelismNum;
     }
 }

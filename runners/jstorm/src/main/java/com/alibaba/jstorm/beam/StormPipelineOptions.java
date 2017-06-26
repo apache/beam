@@ -43,7 +43,7 @@ public interface StormPipelineOptions extends PipelineOptions, ApplicationNameOp
     Integer getWorkerNumber();
     void setWorkerNumber(Integer number);
 
-    @Description("Parallelism number of a component")
+    @Description("Global parallelism number of a component")
     @Default.Integer(1)
     Integer getParallelismNumber();
     void setParallelismNumber(Integer number);
@@ -57,6 +57,11 @@ public interface StormPipelineOptions extends PipelineOptions, ApplicationNameOp
     @Default.Boolean(false)
     Boolean getExactlyOnceTopology();
     void setExactlyOnceTopology(Boolean isExactlyOnce);
+
+    @Description("Parallelism number of a specified composite PTransform")
+    @Default.InstanceFactory(DefaultMapValueFactory.class)
+    Map getParallelismNumMap();
+    void setParallelismNumMap(Map parallelismNumMap);
 
     class DefaultMapValueFactory implements DefaultValueFactory<Map> {
         @Override

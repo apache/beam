@@ -4,10 +4,7 @@ import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.client.ConfigExtension;
 import com.alibaba.jstorm.common.metric.AsmMetric;
-import com.alibaba.jstorm.metric.AsmWindow;
-import com.alibaba.jstorm.metric.JStormMetrics;
-import com.alibaba.jstorm.metric.MetaType;
-import com.alibaba.jstorm.metric.MetricType;
+import com.alibaba.jstorm.metric.*;
 import com.google.common.base.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -17,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -33,8 +31,10 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
     }
 
     private final StormRunner stormRunner;
+    private final StormPipelineOptions options;
 
     private TestJStormRunner(StormPipelineOptions options) {
+        this.options = options;
         Map conf = Maps.newHashMap();
         conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
         options.setTopologyConfig(conf);
@@ -68,6 +68,7 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
             LOG.info("Assertion checks timed out.");
             throw new AssertionError("Assertion checks timed out.");
         } finally {
+            clearPAssertCount();
             cancel(result);
         }
     }
@@ -95,6 +96,18 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
         LOG.info("Found {} success, {} failures out of {} expected assertions.",
                 successes, failures, expectedNumberOfAssertions);
         return Optional.absent();
+    }
+
+    private void clearPAssertCount() {
+        String topologyName = options.getJobName();
+        AsmMetricRegistry taskMetrics = JStormMetrics.getTaskMetrics();
+        Iterator<Map.Entry<String, AsmMetric>> itr = taskMetrics.getMetrics().entrySet().iterator();
+        while (itr.hasNext()) {
+            Map.Entry<String, AsmMetric> metric = itr.next();
+            if (metric.getKey().contains(topologyName)) {
+                itr.remove();
+            }
+        }
     }
 
     private void cancel(StormRunner.StormPipelineResult result) {

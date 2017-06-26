@@ -19,8 +19,10 @@
  */
 package com.alibaba.jstorm.beam.example;
 
+import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.beam.StormPipelineOptions;
 import com.alibaba.jstorm.beam.StormRunner;
+import com.alibaba.jstorm.utils.LoadConf;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
@@ -37,6 +39,8 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+
 /**
  * A minimal word count pipeline using the Beam API, running on top of Storm
  * 
@@ -52,8 +56,8 @@ public class StormWordCount {
 
         @ProcessElement
         public void processElement(ProcessContext c, BoundedWindow window) {
-            LOG.info("Receive Element={}, timeStamp={}, assignWindows={}",
-                    c.element(), c.timestamp().toDateTime(), window);
+            //LOG.info("Receive Element={}, timeStamp={}, assignWindows={}",
+            //        c.element(), c.timestamp().toDateTime(), window);
             if (c.element().trim().isEmpty()) {
                 emptyLines.inc();
             }
@@ -113,15 +117,49 @@ public class StormWordCount {
 
     }
 
+    public static Map loadConf(String arg) {
+        if (arg.endsWith("yaml")) {
+            return LoadConf.LoadYaml(arg);
+        } else {
+            return LoadConf.LoadProperty(arg);
+        }
+    }
+
     public static void main(String[] args) {
-        WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
+        Map conf = Maps.newHashMap();
+        if (args.length > 0) {
+            conf.putAll(loadConf(args[0]));
+        }
+
+        WordCountOptions options = PipelineOptionsFactory.as(WordCountOptions.class);
         options.setRunner(StormRunner.class);
         options.setJobName("WordCount");
+
+        int pn = conf.containsKey("parallelism.number") ? (Integer) conf.get("parallelism.number") : 1;
+        options.setParallelismNumber(pn);
+
+        if (conf.containsKey("spout.parallelism.num")) {
+            options.getParallelismNumMap().put("Spout", (Integer) conf.get("spout.parallelism.num"));
+        }
+        if (conf.containsKey(("window.parallelism.num"))) {
+            options.getParallelismNumMap().put("Window", (Integer) conf.get("window.parallelism.num"));
+        }
+        if(conf.containsKey("count.parallelism.num")) {
+            options.getParallelismNumMap().put("CountWords", (Integer) conf.get("count.parallelism.num"));
+        }
+        if(conf.containsKey("format.parallelism.num")) {
+            options.getParallelismNumMap().put("FormatAsText", (Integer) conf.get("format.parallelism.num"));
+        }
+
+        if (conf.size() > 0) {
+            options.setTopologyConfig(conf);
+        }
+
         Pipeline p = Pipeline.create(options);
         p.apply("Spout", Read.from(new RandomSentenceSource(StringUtf8Coder.of())))
                 .apply("Window", Window.<String> into(FixedWindows.of(Duration.standardSeconds(30))))
-                .apply(new CountWords())
-                .apply(MapElements.via(new FormatAsTextFn()));
+                .apply("CountWords", new CountWords())
+                .apply("FormatAsText", MapElements.via(new FormatAsTextFn()));
 
         p.run();
 

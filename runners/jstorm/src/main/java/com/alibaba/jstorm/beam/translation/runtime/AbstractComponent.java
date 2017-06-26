@@ -33,6 +33,7 @@ import backtype.storm.utils.Utils;
 public abstract class AbstractComponent implements IComponent {
     private Map<String, Fields> streamToFields = new HashMap<>();
     private Map<String, Boolean> keyStreams = new HashMap<>();
+    private int parallelismNum = 0;
 
     public void addOutputField(String streamId) {
         addOutputField(streamId, new Fields(CommonInstance.VALUE));
@@ -58,5 +59,13 @@ public abstract class AbstractComponent implements IComponent {
     public boolean keyedEmit(String streamId) {
         Boolean isKeyedStream = keyStreams.get(streamId);
         return isKeyedStream == null ? false : isKeyedStream;
+    }
+
+    public int getParallelismNum() {
+        return parallelismNum;
+    }
+
+    public void setParallelismNum(int num) {
+        parallelismNum = num;
     }
 }
