@@ -15,7 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.io.elasticsearch;
+
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -24,7 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
-import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
@@ -33,15 +35,16 @@ import org.elasticsearch.client.RestClient;
 class ElasticSearchIOTestUtils {
 
   /** Enumeration that specifies whether to insert malformed documents. */
-  enum InjectionMode {
+  public enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
     DO_NOT_INJECT_INVALID_DOCS
   }
 
   /** Deletes the given index synchronously. */
-  static void deleteIndex(String index, RestClient restClient) throws IOException {
+  static void deleteIndex(ConnectionConfiguration connectionConfiguration,
+      RestClient restClient) throws IOException {
     try {
-      restClient.performRequest("DELETE", String.format("/%s", index), new BasicHeader("", ""));
+      restClient.performRequest("DELETE", String.format("/%s", connectionConfiguration.getIndex()));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
@@ -52,8 +55,8 @@ class ElasticSearchIOTestUtils {
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
-  static void insertTestDocuments(String index, String type, long numDocs, RestClient restClient)
-      throws IOException {
+  static void insertTestDocuments(ConnectionConfiguration connectionConfiguration,
+      long numDocs, RestClient restClient) throws IOException {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -61,17 +64,17 @@ class ElasticSearchIOTestUtils {
     for (String document : data) {
       bulkRequest.append(String.format("{ \"index\" : {} }%n%s%n", document));
     }
-    String endPoint = String.format("/%s/%s/_bulk", index, type);
+    String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
+        connectionConfiguration.getType());
     HttpEntity requestBody =
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response = restClient.performRequest("POST", endPoint,
-        Collections.singletonMap("refresh", "true"), requestBody,
-        new BasicHeader("", ""));
+        Collections.singletonMap("refresh", "true"), requestBody);
     JsonNode searchResult = ElasticsearchIO.parseResponse(response);
     boolean errors = searchResult.path("errors").asBoolean();
     if (errors){
-      throw new IOException(
-          String.format("Failed to insert test documents in index %s", index));
+      throw new IOException(String.format("Failed to insert test documents in index %s",
+          connectionConfiguration.getIndex()));
     }
   }
 
@@ -80,15 +83,16 @@ class ElasticSearchIOTestUtils {
    *
    * @return The number of docs in the index
    */
-  static long refreshIndexAndGetCurrentNumDocs(String index, String type, RestClient restClient)
-      throws IOException {
+  static long refreshIndexAndGetCurrentNumDocs(
+      ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
     long result = 0;
     try {
-      String endPoint = String.format("/%s/_refresh", index);
-      restClient.performRequest("POST", endPoint, new BasicHeader("", ""));
+      String endPoint = String.format("/%s/_refresh", connectionConfiguration.getIndex());
+      restClient.performRequest("POST", endPoint);
 
-      endPoint = String.format("/%s/%s/_search", index, type);
-      Response response = restClient.performRequest("GET", endPoint, new BasicHeader("", ""));
+      endPoint = String.format("/%s/%s/_search", connectionConfiguration.getIndex(),
+          connectionConfiguration.getType());
+      Response response = restClient.performRequest("GET", endPoint);
       JsonNode searchResult = ElasticsearchIO.parseResponse(response);
       result = searchResult.path("hits").path("total").asLong();
     } catch (IOException e) {
