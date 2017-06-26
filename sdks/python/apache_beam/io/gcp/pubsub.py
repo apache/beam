@@ -33,8 +33,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms.display import DisplayDataItem
 
 
-__all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub',
-           'PubSubSource', 'PubSubSink']
+__all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 
 
 class ReadStringsFromPubSub(PTransform):
@@ -160,71 +159,3 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
   def writer(self):
     raise NotImplementedError(
         'PubSubPayloadSink is not supported in local execution.')
-
-
-class PubSubSource(dataflow_io.NativeSource):
-  """Deprecated: do not use.
-
-  Source for reading from a given Cloud Pub/Sub topic.
-
-  Attributes:
-    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    subscription: Optional existing Cloud Pub/Sub subscription to use in the
-      form "projects/<project>/subscriptions/<subscription>".
-    id_label: The attribute on incoming Pub/Sub messages to use as a unique
-      record identifier.  When specified, the value of this attribute (which can
-      be any string that uniquely identifies the record) will be used for
-      deduplication of messages.  If not provided, Dataflow cannot guarantee
-      that no duplicate data will be delivered on the Pub/Sub stream. In this
-      case, deduplication of the stream will be strictly best effort.
-    coder: The Coder to use for decoding incoming Pub/Sub messages.
-  """
-
-  def __init__(self, topic, subscription=None, id_label=None,
-               coder=coders.StrUtf8Coder()):
-    self.topic = topic
-    self.subscription = subscription
-    self.id_label = id_label
-    self.coder = coder
-
-  @property
-  def format(self):
-    """Source format name required for remote execution."""
-    return 'pubsub'
-
-  def display_data(self):
-    return {'id_label':
-            DisplayDataItem(self.id_label,
-                            label='ID Label Attribute').drop_if_none(),
-            'topic':
-            DisplayDataItem(self.topic,
-                            label='Pubsub Topic'),
-            'subscription':
-            DisplayDataItem(self.subscription,
-                            label='Pubsub Subscription').drop_if_none()}
-
-  def reader(self):
-    raise NotImplementedError(
-        'PubSubSource is not supported in local execution.')
-
-
-class PubSubSink(dataflow_io.NativeSink):
-  """Deprecated: do not use.
-
-  Sink for writing to a given Cloud Pub/Sub topic."""
-
-  def __init__(self, topic, coder=coders.StrUtf8Coder()):
-    self.topic = topic
-    self.coder = coder
-
-  @property
-  def format(self):
-    """Sink format name required for remote execution."""
-    return 'pubsub'
-
-  def display_data(self):
-    return {'topic': DisplayDataItem(self.topic, label='Pubsub Topic')}
-
-  def writer(self):
-    raise NotImplementedError(
-        'PubSubSink is not supported in local execution.')
