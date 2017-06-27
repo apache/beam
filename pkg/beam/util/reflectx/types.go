@@ -3,6 +3,7 @@ package reflectx
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 )
 
@@ -33,4 +34,16 @@ func SkipPtr(t reflect.Type) reflect.Type {
 		return t.Elem()
 	}
 	return t
+}
+
+// MakeSlice creates a slice of type []T with the given elements.
+func MakeSlice(t reflect.Type, values ...reflect.Value) reflect.Value {
+	ret := reflect.MakeSlice(reflect.SliceOf(t), len(values), len(values))
+	for i, value := range values {
+		if value.Type() != t {
+			panic(fmt.Sprintf("element type is %v, want %v", value.Type(), t))
+		}
+		ret.Index(i).Set(value)
+	}
+	return ret
 }

@@ -1,3 +1,5 @@
+// Package top contains transformations for finding the smallest (or largest) N
+// elements based on arbitrary orderings.
 package top
 
 import (
@@ -35,12 +37,29 @@ func Globally(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) b
 	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
+// PerKey returns the top N elements for each key of the incoming PCollection<KV<A,B>>,
+// using the given comparator, less : B x B -> bool. It returns a PCollection<KV<A,[]B>>
+// with a single slice of the N largest elements for each key.
 func PerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	panic("NYI")
+	p = p.Composite(fmt.Sprintf("top.PerKey(%v)", n))
+
+	if n < 1 {
+		panic(fmt.Sprintf("n must be > 0"))
+	}
+	if !typex.IsWKV(col.Type()) {
+		panic(fmt.Sprintf("type must be a KV: %v", col.Type()))
+	}
+
+	t := typex.SkipW(col.Type()).Components()[1].Type()
+	userfn.MustSatisfy(less, userfn.Replace(sig, typex.TType, t))
+
+	keyed := beam.GroupByKey(p, col)
+	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, keyed)
 }
 
 // TODO(herohde) 5/25/2017: the accumulator should be serializable with a Coder.
-// We need a coder here, because the elements are generally code-able only.
+// We need a coder here, because the elements are generally code-able only. Until
+// then, we do not support combiner lifting.
 
 // TODO(herohde) 5/25/2017: use a heap instead of a sorted slice.
 

@@ -1,5 +1,7 @@
 package beam
 
+import "github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
 // functions is that such utilities are more readily possible.
@@ -24,6 +26,36 @@ func Seq(p *Pipeline, col PCollection, dofns ...interface{}) PCollection {
 // Composite is a helper to scope a composite transform.
 func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) PCollection) PCollection {
 	return fn(p.Composite(name))
+}
+
+// DropKey drops the key for an input PCollection<KV<A,B>>. It returns
+// a PCollection<B>.
+func DropKey(p *Pipeline, col PCollection) PCollection {
+	return ParDo(p, dropKeyFn, col)
+}
+
+func dropKeyFn(_ typex.X, y typex.Y) typex.Y {
+	return y
+}
+
+// DropValue drops the value for an input PCollection<KV<A,B>>. It returns
+// a PCollection<A>.
+func DropValue(p *Pipeline, col PCollection) PCollection {
+	return ParDo(p, dropValueFn, col)
+}
+
+func dropValueFn(x typex.X, _ typex.Y) typex.X {
+	return x
+}
+
+// SwapKV swaps the key and value for an input PCollection<KV<A,B>>. It returns
+// a PCollection<KV<B,A>>.
+func SwapKV(p *Pipeline, col PCollection) PCollection {
+	return ParDo(p, swapKVFn, col)
+}
+
+func swapKVFn(x typex.X, y typex.Y) (typex.Y, typex.X) {
+	return y, x
 }
 
 // The MustX functions are convenience helpers to create error-less functions.

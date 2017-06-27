@@ -38,7 +38,13 @@ func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Opt
 	return ret, nil
 }
 
-// Combine inserts a Combine transform into the pipeline.
+// Combine inserts a Combine transform into the pipeline. The Combine is either
+// global or per-key, depending on the input:
+//
+//    PCollection<T>        : global combine
+//    PCollection<GBK<K,V>> : per-key combine
+//
+// For a per-key combine, the Combine may optionally take a key parameter.
 func Combine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombine(p, combinefn, col, opts...))
 }

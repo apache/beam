@@ -263,6 +263,10 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge
 
 // NewCombine inserts a new Combine edge into the graph.
 func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error) {
+	if len(in) < 1 {
+		return nil, fmt.Errorf("combine needs at least 1 input, got %v", len(in))
+	}
+
 	// Create a synthetic function for binding purposes. It takes main inputs,
 	// side inputs and returns the output type -- but hides the accumulator.
 	//
@@ -288,10 +292,45 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 		synth.Ret = u.MergeAccumulatorsFn().Ret
 	}
 
-	inbound, kinds, outbound, out, err := Bind(synth, NodeTypes(in)...)
-	if err != nil {
-		return nil, err
+	ts := NodeTypes(in)
+	t := typex.SkipW(in[0].Type())
+
+	// Per-key combines are allowed as well and the key does not have to be
+	// present in the signature. In that case, it is ignored for the
+	// purpose of binding. The difficulty is that we can't easily tell the
+	// difference between (Key, Accum) and (Accum, SideInput) in the
+	// signature, so we simply try binding with and without a key.
+
+	isPerKey := typex.IsWGBK(ts[0])
+	if isPerKey {
+		ts[0] = typex.NewW(t.Components()[1]) // Try W<GBK<A,B>> -> W<B>
+
+		// The runtime always adds the key for the output of per-key combiners.
+		key := t.Components()[0]
+		synth.Ret = append([]userfn.ReturnParam{{Kind: userfn.RetValue, T: key.Type()}}, synth.Ret...)
 	}
+
+	inbound, kinds, outbound, out, err := Bind(synth, ts...)
+	if err != nil {
+		if !isPerKey {
+			return nil, err
+		}
+
+		ts[0] = typex.NewWKV(t.Components()...) // Try W<GBK<A,B>> -> W<KV<A,B>>
+
+		inbound, kinds, outbound, out, err = Bind(synth, ts...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// For per-key combine, the shape of the inbound type and the type of the
+	// node are different. A node type of W<GBK<A,B>> will become W<B> or
+	// W<KV<A,B>>, depending on whether the combineFn is keyed or not. The
+	// runtime will look at this type to decide whether to add the key.
+	//
+	// However, the outbound type will be W<KV<A,O>> (where O is the output
+	// type) regardless of whether the combineFn is keyed or not.
 
 	edge := g.NewEdge(s)
 	edge.Op = Combine
