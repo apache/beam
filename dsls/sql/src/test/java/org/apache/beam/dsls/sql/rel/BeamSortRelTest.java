@@ -18,16 +18,15 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import java.util.Collection;
 import java.util.Date;
-import java.util.Iterator;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,20 +69,17 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4";
 
-    System.out.println(sql);
-    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
+        SqlTypeName.BIGINT, "order_id",
+        SqlTypeName.INTEGER, "site_id",
+        SqlTypeName.DOUBLE, "price",
+        1L, 2, 1.0,
+        1L, 1, 2.0,
+        2L, 4, 3.0,
+        2L, 1, 4.0
+    ).getInputRecords());
     pipeline.run().waitUntilFinish();
-
-    assertEquals(
-        MockedBeamSqlTable.of(
-            SqlTypeName.BIGINT, "order_id",
-            SqlTypeName.INTEGER, "site_id",
-            SqlTypeName.DOUBLE, "price",
-            1L, 2, 1.0,
-            1L, 1, 2.0,
-            2L, 4, 3.0,
-            2L, 1, 4.0
-        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
   }
 
   @Test
@@ -108,10 +104,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS FIRST limit 4";
 
-    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
-    pipeline.run().waitUntilFinish();
-
-    assertEquals(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
@@ -121,7 +115,9 @@ public class BeamSortRelTest {
             1L, 2, 1.0,
             2L, null, 4.0,
             2L, 1, 3.0
-        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
+        ).getInputRecords()
+    );
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -146,10 +142,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS LAST limit 4";
 
-    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
-    pipeline.run().waitUntilFinish();
-
-    assertEquals(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
@@ -159,7 +153,9 @@ public class BeamSortRelTest {
             1L, null, 2.0,
             2L, 1, 3.0,
             2L, null, 4.0
-        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
+        ).getInputRecords()
+    );
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -169,10 +165,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4 offset 4";
 
-    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
-    pipeline.run().waitUntilFinish();
-
-    assertEquals(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
@@ -182,7 +176,9 @@ public class BeamSortRelTest {
             6L, 6, 6.0,
             7L, 7, 7.0,
             8L, 8888, 8.0
-        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
+        ).getInputRecords()
+    );
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -192,10 +188,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 11";
 
-    BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
-    pipeline.run().waitUntilFinish();
-
-    assertEquals(
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(
         MockedBeamSqlTable.of(
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
@@ -211,7 +205,9 @@ public class BeamSortRelTest {
             8L, 8888, 8.0,
             8L, 999, 9.0,
             10L, 100, 10.0
-        ).getInputRecords(), MockedBeamSqlTable.CONTENT);
+        ).getInputRecords()
+    );
+    pipeline.run().waitUntilFinish();
   }
 
   @Test(expected = UnsupportedOperationException.class)
@@ -230,16 +226,5 @@ public class BeamSortRelTest {
   public void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS", orderDetailTable);
     sqlEnv.registerTable("SUB_ORDER_RAM", subOrderRamTable);
-    MockedBeamSqlTable.CONTENT.clear();
-  }
-
-  private void assertEquals(Collection<BeamSqlRow> rows1, Collection<BeamSqlRow> rows2) {
-    Assert.assertEquals(rows1.size(), rows2.size());
-
-    Iterator<BeamSqlRow> it1 = rows1.iterator();
-    Iterator<BeamSqlRow> it2 = rows2.iterator();
-    while (it1.hasNext()) {
-      Assert.assertEquals(it1.next(), it2.next());
-    }
   }
 }
