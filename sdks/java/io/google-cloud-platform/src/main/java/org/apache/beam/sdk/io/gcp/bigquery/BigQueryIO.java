@@ -45,6 +45,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -414,10 +415,12 @@ public class BigQueryIO {
     }
 
     /**
-     * Use new SDF-like source.
+     * Use new SplittableDoFn-compatible source implementation.
      *
-     * <p>With new source.  TODO: Better comment.
+     * <p>Use new SplittableDoFn-compatible source implementation. This implementation is also
+     * compatible with repeated template invocations.
      */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
     public Read withNewSource() {
       return toBuilder().setUseNewSource(true).build();
     }
