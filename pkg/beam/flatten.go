@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
 // Flatten is a PTransform that takes multiple PCollections of type 'A' and
@@ -22,6 +23,18 @@ import (
 // of the first PCollection.
 func Flatten(p *Pipeline, cols ...PCollection) PCollection {
 	return Must(TryFlatten(p, cols...))
+}
+
+// FlattenCol expects a PCollection<[]A> and returns a PCollection<A>
+// containing all the elements for each incoming slice.
+func FlattenCol(p *Pipeline, col PCollection) PCollection {
+	return ParDo(p, flattenColFn, col)
+}
+
+func flattenColFn(list []typex.T, emit func(typex.T)) {
+	for _, elm := range list {
+		emit(elm)
+	}
 }
 
 // TryFlatten merges incoming PCollections of type 'A' to a single PCollection

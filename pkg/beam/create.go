@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	RegisterType(reflect.TypeOf((*create)(nil)).Elem())
+	RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
 }
 
 // Create inserts a fixed set of values into the pipeline. The values must
@@ -28,6 +28,23 @@ func Create(p *Pipeline, values ...interface{}) PCollection {
 	return Must(TryCreate(p, values...))
 }
 
+// CreateList inserts a fixed set of values into the pipeline from a slice or
+// array. It is a convenience wrapper over Create. For example:
+//
+//    list := []string{"a", "b", "c"}
+//    foo := beam.CreateList(p, list)  // foo : W<string>
+func CreateList(p *Pipeline, list interface{}) PCollection {
+	var ret []interface{}
+	val := reflect.ValueOf(list)
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		panic(fmt.Sprintf("Input %v must be a slice or array", list))
+	}
+	for i := 0; i < val.Len(); i++ {
+		ret = append(ret, val.Index(i).Interface())
+	}
+	return Must(TryCreate(p, ret...))
+}
+
 // TryCreate inserts a fixed set of values into the pipeline. The values must
 // be of the same type.
 func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
@@ -35,7 +52,7 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 		return PCollection{}, fmt.Errorf("create has no values")
 	}
 
-	fn := &create{}
+	fn := &createFn{}
 	t := reflect.ValueOf(values[0]).Type()
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
@@ -71,11 +88,11 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
-type create struct {
+type createFn struct {
 	Values []interface{} `json:"values"`
 }
 
-func (c *create) ProcessElement(_ []byte, emit func(typex.T)) {
+func (c *createFn) ProcessElement(_ []byte, emit func(typex.T)) {
 	for _, value := range c.Values {
 		emit(value)
 	}

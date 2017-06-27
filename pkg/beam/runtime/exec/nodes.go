@@ -13,6 +13,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 // Discard silently discard all elements. It is implicitly inserted for any
@@ -311,7 +312,9 @@ type Combine struct {
 	Side []ReStream
 	Out  []Node
 
-	accum reflect.Value
+	accum reflect.Value // global accumulator, only used/valid if isPerKey == false
+
+	isPerKey, usesKey bool
 }
 
 func (n *Combine) ID() UnitID {
@@ -326,23 +329,45 @@ func (n *Combine) Up(ctx context.Context) error {
 	// TODO: setup, validate side input
 	// TODO: specialize based on type?
 
+	// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
+	// instead of inferring it here?
+
+	n.isPerKey = typex.IsWGBK(n.Edge.Input[0].From.Type())
+	n.usesKey = typex.IsWKV(n.Edge.Input[0].Type)
+	if n.isPerKey {
+		return nil
+	}
+
+	a, err := n.newAccum(reflect.Value{})
+	if err != nil {
+		panic(fmt.Sprintf("CreateAccumulator failed: %v", err))
+	}
+	n.accum = a
+	return nil
+}
+
+func (n *Combine) newAccum(key reflect.Value) (reflect.Value, error) {
 	fn := n.Edge.CombineFn.CreateAccumulatorFn()
 	if fn == nil {
-		n.accum = reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T)
-		return nil
+		return reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T), nil
 	}
 
 	args := make([]reflect.Value, len(fn.Param))
 
 	in := fn.Params(userfn.FnValue | userfn.FnIter | userfn.FnReIter)
 	i := 0
+
+	if n.usesKey {
+		args[in[i]] = key
+		i++
+	}
 	for k, side := range n.Side {
 		input := n.Edge.Input[k]
 		param := fn.Param[in[i]]
 
 		value, err := makeSideInput(input, param, side)
 		if err != nil {
-			return err
+			return reflect.Value{}, err
 		}
 		args[in[i]] = value
 		i++
@@ -350,20 +375,71 @@ func (n *Combine) Up(ctx context.Context) error {
 
 	ret := fn.Fn.Call(args)
 	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		return ret[index].Interface().(error)
+		return reflect.Value{}, ret[index].Interface().(error)
 	}
-	n.accum = ret[fn.Returns(userfn.RetValue)[0]]
-	return nil
+	return ret[fn.Returns(userfn.RetValue)[0]], nil
 }
 
 func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
-	// TODO: precompute args construction to re-use args and just plug in
-	// context and FullValue as well as reset iterators.
+	if n.isPerKey {
+		// For per-key combine, all processing can be done here. Note that
+		// we do not explicitly call merge, although it may be called implicitly
+		// when adding input.
+
+		a, err := n.newAccum(value.Elm)
+		if err != nil {
+			panic(fmt.Sprintf("CreateAccumulator failed: %v", err))
+		}
+
+		stream := values[0].Open()
+		for {
+			v, err := stream.Read()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				panic(err) // see below
+			}
+
+			a, err = n.addInput(ctx, a, value.Elm, v.Elm, value.Timestamp)
+			if err != nil {
+				panic(fmt.Sprintf("AddInput failed: %v", err))
+			}
+		}
+		stream.Close()
+
+		out, err := n.extract(a)
+		if err != nil {
+			panic(fmt.Sprintf("ExtractOutput failed: %v", err))
+		}
+
+		for _, unit := range n.Out {
+			if err := unit.ProcessElement(ctx, FullValue{Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp}); err != nil {
+				panic(err) // see below
+			}
+		}
+		return nil
+	}
+
+	// Accumulate globally
+
+	a, err := n.addInput(ctx, n.accum, reflect.Value{}, value.Elm, value.Timestamp)
+	if err != nil {
+		panic(fmt.Sprintf("AddInput failed: %v", err))
+	}
+	n.accum = a
+	return nil
+}
+
+func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value, timestamp typex.EventTime) (reflect.Value, error) {
+	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Edge.CombineFn.AddInputFn()
 	if fn == nil {
-		// TODO(herohde) 5/30/2017: Merge function only. The input value is an accumulator.
-		panic("No AddInput")
+		// Merge function only. The input value is an accumulator.
+
+		list := reflectx.MakeSlice(accum.Type(), accum, value)
+		return n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Call([]reflect.Value{list})[0], nil
 	}
 
 	// (1) Populate contexts
@@ -379,12 +455,16 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	i := 0
 
 	if index, ok := fn.EventTime(); ok {
-		args[index] = reflect.ValueOf(value.Timestamp)
+		args[index] = reflect.ValueOf(timestamp)
 	}
 
-	args[in[i]] = n.accum
+	args[in[i]] = accum
 	i++
-	args[in[i]] = Convert(value.Elm, fn.Param[i].T)
+	if n.usesKey {
+		args[in[i]] = Convert(key, fn.Param[i].T)
+		i++
+	}
+	args[in[i]] = Convert(value, fn.Param[i].T)
 	i++
 
 	// (3) Side inputs and form conversion
@@ -395,7 +475,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 
 		value, err := makeSideInput(input, param, side)
 		if err != nil {
-			return err
+			return reflect.Value{}, err
 		}
 		args[in[i]] = value
 		i++
@@ -405,34 +485,51 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 
 	ret := fn.Fn.Call(args)
 	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		panic(fmt.Sprintf("AddInput %v failed: %v", fn.Name, ret[index].Interface()))
-		// return ret[index].Interface().(error)
+		return reflect.Value{}, ret[index].Interface().(error)
 	}
-	n.accum = ret[fn.Returns(userfn.RetValue)[0]]
-	return nil
+	return ret[fn.Returns(userfn.RetValue)[0]], nil
+}
+
+func (n *Combine) extract(accum reflect.Value) (reflect.Value, error) {
+	fn := n.Edge.CombineFn.ExtractOutputFn()
+	if fn == nil {
+		// Merge function only. Accumulator type is the output type.
+		return accum, nil
+	}
+
+	ret := fn.Fn.Call([]reflect.Value{accum})
+	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
+		return reflect.Value{}, ret[index].Interface().(error)
+	}
+
+	return ret[fn.Returns(userfn.RetValue)[0]], nil
 }
 
 func (n *Combine) Down(ctx context.Context) error {
-	value := FullValue{}
-
-	fn := n.Edge.CombineFn.ExtractOutputFn()
-
-	ret := fn.Fn.Call([]reflect.Value{n.accum})
-	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		panic(fmt.Sprintf("AddInput %v failed: %v", fn.Name, ret[index].Interface()))
-		// return ret[index].Interface().(error)
+	if n.isPerKey {
+		return Down(ctx, n.Out...)
 	}
-	value.Elm = ret[fn.Returns(userfn.RetValue)[0]]
-	// TODO(herohde) 6/1/2017: set value.Timestamp
 
-	if err := n.Out[0].ProcessElement(ctx, value); err != nil {
-		panic(err) // see below
+	out, err := n.extract(n.accum)
+	if err != nil {
+		panic(fmt.Sprintf("ExtractOutput failed: %v", err))
+	}
+
+	for _, unit := range n.Out {
+		// TODO(herohde) 6/1/2017: populate FullValue.Timestamp
+		if err := unit.ProcessElement(ctx, FullValue{Elm: out}); err != nil {
+			panic(err) // see below
+		}
 	}
 	return Down(ctx, n.Out...)
 }
 
 func (n *Combine) String() string {
-	return fmt.Sprintf("Combine[%v] Out:%v", path.Base(n.Edge.CombineFn.Name()), IDs(n.Out...))
+	// Re-compute: the corresponding fields are not necessarily set yet.
+	isPerKey := typex.IsWGBK(n.Edge.Input[0].From.Type())
+	usesKey := typex.IsWKV(n.Edge.Input[0].Type)
+
+	return fmt.Sprintf("Combine[%v] Keyed:%v (Use:%v) Out:%v", path.Base(n.Edge.CombineFn.Name()), isPerKey, usesKey, IDs(n.Out...))
 }
 
 // DataSource is a Root execution unit.
