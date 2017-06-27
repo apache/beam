@@ -436,6 +436,11 @@ message WindowingStrategy {
 
   // (Required) Indicate whether empty on-time panes should be omitted.
   OnTimeBehavior OnTimeBehavior = 9;
+
+  // (Required) Whether or not the window fn assigns inputs to exactly one window
+  //
+  // This knowledge is required for some optimizations
+  bool assigns_to_one_window = 10;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
