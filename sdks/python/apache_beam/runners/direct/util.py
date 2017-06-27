@@ -63,6 +63,5 @@ class KeyedWorkItem(object):
   """A keyed item that can either be a timer firing or a list of elements."""
   def __init__(self, encoded_key, timer_firings=None, elements=None):
     self.encoded_key = encoded_key
-    assert not (timer_firings and elements)
     self.timer_firings = timer_firings or []
     self.elements = elements or []

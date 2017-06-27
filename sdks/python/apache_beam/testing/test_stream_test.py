@@ -136,9 +136,9 @@ class TestStreamTest(unittest.TestCase):
                | beam.WindowInto(FixedWindows(15))
                | beam.Map(lambda x: ('k', x))
                | beam.GroupByKey())
-    # TODO(ccy): timestamp assignment for elements from a GBK should respect
-    # the TimestampCombiner.  The test below should also verify the timestamps
-    # of the outputted elements once this is implemented.
+    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # respect the TimestampCombiner.  The test below should also verify the
+    # timestamps of the outputted elements once this is implemented.
     assert_that(records, equal_to([
         ('k', ['a', 'b', 'c']),
         ('k', ['d', 'e']),

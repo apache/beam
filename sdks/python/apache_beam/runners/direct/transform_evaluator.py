@@ -565,7 +565,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   """TransformEvaluator for _StreamingGroupByKeyOnly transform.
 
   The _GroupByKeyOnlyEvaluator buffers elements until its input watermark goes
-  to infinity, which is suitable for batch mode execution.  During streaming
+  to infinity, which is suitable for batch mode execution. During streaming
   mode execution, we emit each bundle as it comes to the next transform.
   """
 
