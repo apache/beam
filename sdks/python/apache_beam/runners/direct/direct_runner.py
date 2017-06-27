@@ -34,6 +34,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.core import _GroupAlsoByWindow
+from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -45,6 +46,13 @@ __all__ = ['DirectRunner']
 # Type variables.
 K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
+
+
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
+  """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
+  pass
 
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
@@ -79,17 +87,24 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
+  def apply__GroupByKeyOnly(self, transform, pcoll):
+    if (transform.__class__ == _GroupByKeyOnly and
+        pcoll.pipeline._options.view_as(StandardOptions).streaming):
+      # Use specialized streaming implementation, if requested.
+      type_hints = transform.get_type_hints()
+      return pcoll | (_StreamingGroupByKeyOnly()
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
+    return transform.expand(pcoll)
+
   def apply__GroupAlsoByWindow(self, transform, pcoll):
     if (transform.__class__ == _GroupAlsoByWindow and
         pcoll.pipeline._options.view_as(StandardOptions).streaming):
       # Use specialized streaming implementation, if requested.
-      raise NotImplementedError(
-          'Streaming support is not yet available on the DirectRunner.')
-      # TODO(ccy): enable when streaming implementation is plumbed through.
-      # type_hints = transform.get_type_hints()
-      # return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
-      #                 .with_input_types(*type_hints.input_types[0])
-      #                 .with_output_types(*type_hints.output_types[0]))
+      type_hints = transform.get_type_hints()
+      return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
     return transform.expand(pcoll)
 
   def run(self, pipeline):
