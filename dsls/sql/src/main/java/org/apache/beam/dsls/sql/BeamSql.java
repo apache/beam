@@ -50,9 +50,8 @@ PCollection<BeamSqlRow> inputTableB = p.apply(TextIO.read().from("/my/input/path
     .apply(...);
 
 //run a simple query, and register the output as a table in BeamSql;
-String sql1 = "select MY_FUNC(c1), c2 from TABLE_A";
-PCollection<BeamSqlRow> outputTableA = inputTableA.apply(BeamSql.simpleQuery(sql1)
-        .withUdf("MY_FUNC", myFunc));
+String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
+PCollection<BeamSqlRow> outputTableA = inputTableA.apply(BeamSql.simpleQuery(sql1));
 
 //run a JOIN with one table from TextIO, and one table from another query
 PCollection<BeamSqlRow> outputTableB = PCollectionTuple.of(
@@ -91,6 +90,8 @@ public class BeamSql {
    *
    * <p>This is a simplified form of {@link #query(String)} where the query must reference
    * a single input table.
+   *
+   * <p>Make sure to query it from a static table name <em>PCOLLECTION</em>.
    */
   public static PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>>
   simpleQuery(String sqlQuery) throws Exception {
@@ -151,15 +152,20 @@ public class BeamSql {
    */
   private static class SimpleQueryTransform
       extends PTransform<PCollection<BeamSqlRow>, PCollection<BeamSqlRow>> {
+    private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
     BeamSqlEnv sqlEnv = new BeamSqlEnv();
     private String sqlQuery;
 
     public SimpleQueryTransform(String sqlQuery) {
       this.sqlQuery = sqlQuery;
+      validateQuery();
     }
 
-    @Override
-    public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
+    // public SimpleQueryTransform withUdf(String udfName){
+    // throw new UnsupportedOperationException("Pending for UDF support");
+    // }
+
+    private void validateQuery() {
       SqlNode sqlNode;
       try {
         sqlNode = sqlEnv.planner.parseQuery(sqlQuery);
@@ -171,12 +177,19 @@ public class BeamSql {
       if (sqlNode instanceof SqlSelect) {
         SqlSelect select = (SqlSelect) sqlNode;
         String tableName = select.getFrom().toString();
-        return PCollectionTuple.of(new TupleTag<BeamSqlRow>(tableName), input)
-            .apply(new QueryTransform(sqlQuery, sqlEnv));
+        if (!tableName.equalsIgnoreCase(PCOLLECTION_TABLE_NAME)) {
+          throw new IllegalStateException("Use fixed table name " + PCOLLECTION_TABLE_NAME);
+        }
       } else {
         throw new UnsupportedOperationException(
             "Sql operation: " + sqlNode.toString() + " is not supported!");
       }
+    }
+
+    @Override
+    public PCollection<BeamSqlRow> expand(PCollection<BeamSqlRow> input) {
+      return PCollectionTuple.of(new TupleTag<BeamSqlRow>(PCOLLECTION_TABLE_NAME), input)
+          .apply(new QueryTransform(sqlQuery, sqlEnv));
     }
   }
 }

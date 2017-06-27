@@ -36,7 +36,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
    */
   @Test
   public void testSelectAll() throws Exception {
-    String sql = "SELECT * FROM TABLE_A";
+    String sql = "SELECT * FROM PCOLLECTION";
 
     PCollection<BeamSqlRow> result =
         inputA2.apply("testSelectAll", BeamSql.simpleQuery(sql));
