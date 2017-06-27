@@ -103,19 +103,10 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     // We ignore desiredBundleSizeBytes anyway, however in any case, we should not initiate
     // another BigQuery extract job for the repeated split() calls.
     if (cachedSplitResult == null) {
-      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-      TableReference tableToExtract = getTableToExtract(bqOptions);
-      JobService jobService = bqServices.getJobService(bqOptions);
-
-      final String extractDestinationDir =
-          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
-
-      String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
-      List<ResourceId> tempFiles = executeExtract(
-          extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
-
+      List<ResourceId> tempFiles = extractFiles(options);
       TableSchema tableSchema = getSchema(options);
 
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       cleanupTempResource(bqOptions);
       cachedSplitResult = checkNotNull(createSources(tempFiles, tableSchema));
     }
