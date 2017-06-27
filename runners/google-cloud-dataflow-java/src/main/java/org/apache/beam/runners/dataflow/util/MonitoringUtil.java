@@ -180,14 +180,13 @@ public class MonitoringUtil {
     return allMessages;
   }
 
-  public static String getJobMonitoringPageURL(String projectName, String jobId) {
+  public static String getJobMonitoringPageURL(String projectName, String regionId, String jobId) {
     try {
       // Project name is allowed in place of the project id: the user will be redirected to a URL
       // that has the project name replaced with project id.
-      return String.format(
-          "https://console.developers.google.com/project/%s/dataflow/job/%s",
-          URLEncoder.encode(projectName, "UTF-8"),
-          URLEncoder.encode(jobId, "UTF-8"));
+      return String.format("https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
+          URLEncoder.encode(regionId, "UTF-8"), URLEncoder.encode(jobId, "UTF-8"),
+          URLEncoder.encode(projectName, "UTF-8"));
     } catch (UnsupportedEncodingException e) {
       // Should never happen.
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
