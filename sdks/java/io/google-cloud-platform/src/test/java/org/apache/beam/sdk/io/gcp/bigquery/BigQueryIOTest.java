@@ -413,7 +413,6 @@ public class BigQueryIOTest implements Serializable {
       throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setUseNewSource(useNewSource);
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
     Job job = new Job();
@@ -453,10 +452,14 @@ public class BigQueryIOTest implements Serializable {
         .withDatasetService(fakeDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
+    BigQueryIO.Read read = BigQueryIO.read().from("non-executing-project:somedataset.sometable")
+        .withTestServices(fakeBqServices)
+        .withoutValidation();
+    if (useNewSource) {
+      read = read.withNewSource();
+    }
     PCollection<KV<String, Long>> output = p
-        .apply(BigQueryIO.read().from("non-executing-project:somedataset.sometable")
-            .withTestServices(fakeBqServices)
-            .withoutValidation())
+        .apply(read)
         .apply(ParDo.of(new DoFn<TableRow, KV<String, Long>>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -1652,7 +1655,6 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(query),
         true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
 
-    // PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
 
     List<TableRow> read = convertBigDecimaslToLong(

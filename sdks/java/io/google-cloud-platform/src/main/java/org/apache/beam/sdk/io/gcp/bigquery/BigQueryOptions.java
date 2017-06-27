@@ -36,9 +36,4 @@ public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
   @Default.String("bigquery.googleapis.com/cloud_dataflow")
   String getTempDatasetId();
   void setTempDatasetId(String value);
-
-  @Description("Whether to use the SDF-style (experimental) source.")
-  @Default.Boolean(false)
-  Boolean getUseNewSource();
-  void setUseNewSource(Boolean value);
 }

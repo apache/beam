@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
@@ -296,6 +297,7 @@ public class BigQueryIO {
   public static Read read() {
     return new AutoValue_BigQueryIO_Read.Builder()
         .setValidate(true)
+        .setUseNewSource(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .build();
   }
@@ -308,6 +310,7 @@ public class BigQueryIO {
     abstract boolean getValidate();
     @Nullable abstract Boolean getFlattenResults();
     @Nullable abstract Boolean getUseLegacySql();
+    abstract Boolean getUseNewSource();
     abstract BigQueryServices getBigQueryServices();
     abstract Builder toBuilder();
 
@@ -318,6 +321,7 @@ public class BigQueryIO {
       abstract Builder setValidate(boolean validate);
       abstract Builder setFlattenResults(Boolean flattenResults);
       abstract Builder setUseLegacySql(Boolean useLegacySql);
+      abstract Builder setUseNewSource(Boolean useNewSource);
       abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Read build();
     }
@@ -407,6 +411,15 @@ public class BigQueryIO {
      */
     public Read usingStandardSql() {
       return toBuilder().setUseLegacySql(false).build();
+    }
+
+    /**
+     * Use new SDF-like source.
+     *
+     * <p>With new source.  TODO: Better comment.
+     */
+    public Read withNewSource() {
+      return toBuilder().setUseNewSource(true).build();
     }
 
     @VisibleForTesting
@@ -517,17 +530,14 @@ public class BigQueryIO {
     @Override
     public PCollection<TableRow> expand(PBegin input) {
       Pipeline p = input.getPipeline();
-      final String jobUuid = BigQueryHelpers.randomUUIDString();
+      final String staticJobUuid = BigQueryHelpers.randomUUIDString();
 
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection = null;
-      // TODO: Fix this.
-      //      final boolean useNewSource = bqOptions.getUseNewSource();
-      final boolean useNewSource = false;
-      if (!useNewSource) {
+      if (!getUseNewSource()) {
         // Create a singleton job ID token at construction time.
         jobIdTokenView = p
-            .apply("TriggerIdCreation", Create.of(jobUuid))
+            .apply("TriggerIdCreation", Create.of(staticJobUuid))
             .apply("ViewId", View.<String>asSingleton());
       } else {
         // Create a singleton job ID token at execution time.
@@ -545,10 +555,10 @@ public class BigQueryIO {
       }
 
       PCollection<TableRow> rows;
-      if (!useNewSource) {
+      if (!getUseNewSource()) {
         // Apply the traditional Source model.
         rows = p.apply(
-            org.apache.beam.sdk.io.Read.from(applySourceTransform(jobUuid)))
+            org.apache.beam.sdk.io.Read.from(applySourceTransform(staticJobUuid)))
             .setCoder(getDefaultOutputCoder());
       } else {
         // Apply the DoFn version.
@@ -592,7 +602,7 @@ public class BigQueryIO {
                       throws Exception {
                     TableSchema schema = BigQueryHelpers.fromJsonString(
                         c.sideInput(schemaView), TableSchema.class);
-                    // TODO: Get job UUID from side input.
+                    String jobUuid = (String) c.sideInput(jobIdTokenView);
                     BigQuerySourceBase source = applySourceTransform(jobUuid);
                     List<BoundedSource<TableRow>> sources =
                     source.createSources(ImmutableList.of(
@@ -609,7 +619,7 @@ public class BigQueryIO {
                       }
                     }
                   }
-                }).withSideInputs(schemaView));
+                }).withSideInputs(schemaView, jobIdTokenView));
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -617,16 +627,17 @@ public class BigQueryIO {
             void cleanup(DoFn.ProcessContext c) throws Exception {
               PipelineOptions options = c.getPipelineOptions();
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+              String jobUuid = (String) c.sideInput(jobIdTokenView);
               final String extractDestinationDir =
                   resolveTempLocation(
                       bqOptions.getTempLocation(),
                       "BigQueryExtractTemp",
                       jobUuid);
               final String executingProject = bqOptions.getProject();
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(executingProject)
-                      .setJobId(getExtractJobId((String) c.sideInput(jobIdTokenView)));
+              JobReference jobRef = new JobReference()
+                  .setProjectId(executingProject)
+                  .setJobId(getExtractJobId(
+                      createJobIdToken(bqOptions.getJobName(), jobUuid)));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -680,10 +691,6 @@ public class BigQueryIO {
       ValueProvider<TableReference> provider = getTableProvider();
       return provider == null ? null : provider.get();
     }
-  }
-
-  static String getExtractJobId(String jobIdToken) {
-    return jobIdToken + "-extract";
   }
 
   static String getExtractDestinationUri(String extractDestinationDir) {
