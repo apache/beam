@@ -148,6 +148,11 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   }
 
   @Override
+  public boolean assignsToOneWindow() {
+    return !this.period.isShorterThan(this.size);
+  }
+
+  @Override
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
