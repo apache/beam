@@ -2,11 +2,12 @@ package graphx
 
 import (
 	"encoding/json"
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
-	"reflect"
 )
 
 // TODO(herohde) 6/27/2017: find a better home for this functionality.

@@ -1,8 +1,9 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 func TestJSONCoder(t *testing.T) {

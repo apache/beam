@@ -2,6 +2,7 @@ package beam
 
 import (
 	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )

@@ -3,14 +3,15 @@ package exec
 import (
 	"context"
 	"fmt"
+	"io"
+	"reflect"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/ioutilx"
-	"io"
-	"reflect"
-	"time"
 )
 
 // StreamID represents the information needed to identify a data stream.

@@ -2,9 +2,10 @@ package graph
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
-	"reflect"
 )
 
 // Fn holds either a function or struct receiver.

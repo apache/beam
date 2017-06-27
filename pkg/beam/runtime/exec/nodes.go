@@ -3,14 +3,15 @@ package exec
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"io"
 	"log"
 	"path"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 )
 
 // Discard silently discard all elements. It is implicitly inserted for any

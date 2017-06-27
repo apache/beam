@@ -2,10 +2,11 @@ package userfn
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"reflect"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 // Signature is a concise representation of a group of function types. The
