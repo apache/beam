@@ -50,8 +50,7 @@ public class GcpCoreApiSurfaceTest {
             "org.codehaus.jackson",
             // via Avro
             "org.joda.time",
-            "org.junit",
-            "sun.reflect");
+            "org.junit");
 
     assertThat(
         ApiSurface.getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
