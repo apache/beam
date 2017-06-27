@@ -28,6 +28,8 @@ import logging
 
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 import apache_beam.transforms.window as window
 
 
@@ -46,8 +48,10 @@ def run(argv=None):
       '--output_topic', required=True,
       help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   known_args, pipeline_args = parser.parse_known_args(argv)
+  options = PipelineOptions(pipeline_args)
+  options.view_as(StandardOptions).streaming = True
 
-  with beam.Pipeline(argv=pipeline_args) as p:
+  with beam.Pipeline(options=options) as p:
 
     # Read from PubSub into a PCollection.
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)

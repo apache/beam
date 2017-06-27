@@ -24,12 +24,16 @@ This API is currently under development and is subject to change.
 
 from __future__ import absolute_import
 
+import re
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import core
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Map
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 
 
@@ -43,11 +47,12 @@ class ReadStringsFromPubSub(PTransform):
     """Initializes ``ReadStringsFromPubSub``.
 
     Attributes:
-      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
-        provided then subscription must be None.
+      topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/
+        <topic>".
       subscription: Existing Cloud Pub/Sub subscription to use in the
-        form "projects/<project>/subscriptions/<subscription>". If provided then
-        topic must be None.
+        form "projects/<project>/subscriptions/<subscription>". If not
+        specified, a temporary subscription will be created from the specified
+        topic.
       id_label: The attribute on incoming Pub/Sub messages to use as a unique
         record identifier.  When specified, the value of this attribute (which
         can be any string that uniquely identifies the record) will be used for
@@ -56,16 +61,13 @@ class ReadStringsFromPubSub(PTransform):
         case, deduplication of the stream will be strictly best effort.
     """
     super(ReadStringsFromPubSub, self).__init__()
-    if topic and subscription:
-      raise ValueError("Only one of topic or subscription should be provided.")
-
-    if not (topic or subscription):
-      raise ValueError("Either a topic or subscription must be provided.")
-
     self._source = _PubSubPayloadSource(
         topic,
         subscription=subscription,
         id_label=id_label)
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
 
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
@@ -93,15 +95,19 @@ class WriteStringsToPubSub(PTransform):
     return pcoll | Write(self._sink)
 
 
+PROJECT_ID_REGEXP = '[a-z][-a-z0-9:.]{4,61}[a-z0-9]'
+SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
+TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
+
+
 class _PubSubPayloadSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
   Attributes:
-    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>". If
-      provided then topic must be None.
+    topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/<topic>".
     subscription: Existing Cloud Pub/Sub subscription to use in the
-      form "projects/<project>/subscriptions/<subscription>". If provided then
-      subscription must be None.
+      form "projects/<project>/subscriptions/<subscription>". If not specified,
+      a temporary subscription will be created from the specified topic.
     id_label: The attribute on incoming Pub/Sub messages to use as a unique
       record identifier.  When specified, the value of this attribute (which can
       be any string that uniquely identifies the record) will be used for
@@ -111,12 +117,36 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
   """
 
   def __init__(self, topic=None, subscription=None, id_label=None):
-    # we are using this coder explicitly for portability reasons of PubsubIO
+    # We are using this coder explicitly for portability reasons of PubsubIO
     # across implementations in languages.
     self.coder = coders.BytesCoder()
-    self.topic = topic
-    self.subscription = subscription
+    self.full_topic = topic
+    self.full_subscription = subscription
+    self.topic_name = None
+    self.subscription_name = None
     self.id_label = id_label
+
+    # Perform some validation on the topic and subscription.
+    if not (topic or subscription):
+      raise ValueError('Either a topic or subscription must be provided.')
+
+    if topic:
+      match = re.match(TOPIC_REGEXP, topic)
+      if not match:
+        raise ValueError(
+            'PubSub topic must be in the form "projects/<project>/topics'
+            '/<topic>" (got %r).' % topic)
+      project, self.topic_name = match.group(1), match.group(2)
+    if subscription:
+      match = re.match(SUBSCRIPTION_REGEXP, subscription)
+      if not match:
+        raise ValueError(
+            'PubSub subscription must be in the form "projects/<project>'
+            '/subscriptions/<subscription>" (got %r).' % subscription)
+      project, self.subscription_name = match.group(1), match.group(2)
+    if not re.match(PROJECT_ID_REGEXP, project):
+      raise ValueError('Invalid PubSub project name: %r.' % project)
+    self.project = project
 
   @property
   def format(self):
@@ -128,10 +158,10 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
             DisplayDataItem(self.id_label,
                             label='ID Label Attribute').drop_if_none(),
             'topic':
-            DisplayDataItem(self.topic,
+            DisplayDataItem(self.full_topic,
                             label='Pubsub Topic'),
             'subscription':
-            DisplayDataItem(self.subscription,
+            DisplayDataItem(self.full_subscription,
                             label='Pubsub Subscription').drop_if_none()}
 
   def reader(self):
@@ -146,7 +176,18 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
     # we are using this coder explicitly for portability reasons of PubsubIO
     # across implementations in languages.
     self.coder = coders.BytesCoder()
-    self.topic = topic
+    self.full_topic = topic
+
+    # Validate topic name.
+    match = re.match(TOPIC_REGEXP, topic)
+    if not match:
+      raise ValueError(
+          'PubSub topic must be in the form "projects/<project>/topics'
+          '/<topic>".')
+    project, self.topic_name = match.group(1), match.group(2)
+    if not re.match(PROJECT_ID_REGEXP, project):
+      raise ValueError('Invalid PubSub project name: %r.' % project)
+    self.project = project
 
   @property
   def format(self):
@@ -154,7 +195,7 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
     return 'pubsub'
 
   def display_data(self):
-    return {'topic': DisplayDataItem(self.topic, label='Pubsub Topic')}
+    return {'topic': DisplayDataItem(self.full_topic, label='Pubsub Topic')}
 
   def writer(self):
     raise NotImplementedError(
