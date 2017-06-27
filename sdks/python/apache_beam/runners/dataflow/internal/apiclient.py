@@ -144,13 +144,13 @@ class Environment(object):
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:
-      self.job_type = 'FNAPI_STREAMING'
+      job_type = 'FNAPI_STREAMING'
     else:
-      self.job_type = 'PYTHON_BATCH'
+      job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type',
-            value=to_json_value(self.job_type)),
+            value=to_json_value(job_type)),
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='major', value=to_json_value(environment_version))])
     # Experiments
@@ -243,13 +243,6 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
-  def _getDefaultWorkerHarnessContainerImageForCurrentSdk(self):
-    if self.job_type == 'FNAPI_BATCH' or self.job_type == 'FNAPI_STREAMING':
-      container_image = 'dataflow.gcr.io/v1beta3/python-fnapi'
-    else:
-      container_image = 'dataflow.gcr.io/v1beta3/python'
-    container_tag = get_required_container_version()
-    return container_image + ':' + container_tag
 
 class Job(object):
   """Wrapper for a dataflow Job protobuf."""
