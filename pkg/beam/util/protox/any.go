@@ -2,6 +2,7 @@ package protox
 
 import (
 	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	protobuf "github.com/golang/protobuf/ptypes/any"
 	protobufw "github.com/golang/protobuf/ptypes/wrappers"

@@ -1,9 +1,10 @@
 package debug
 
 import (
+	"log"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"log"
 )
 
 // Print prints out all data. Use with care.

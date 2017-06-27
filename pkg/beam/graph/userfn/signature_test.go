@@ -1,10 +1,11 @@
 package userfn
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 func TestSatisfy(t *testing.T) {

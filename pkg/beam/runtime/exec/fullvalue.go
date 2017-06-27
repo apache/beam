@@ -2,10 +2,11 @@ package exec
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"io"
 	"reflect"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
 // TODO: require that FullValue Elm/Elm2 are typed as underlying types? Or just

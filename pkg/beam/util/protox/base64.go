@@ -3,6 +3,7 @@ package protox
 import (
 	"encoding/base64"
 	"fmt"
+
 	"github.com/golang/protobuf/proto"
 )
 

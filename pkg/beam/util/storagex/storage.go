@@ -3,13 +3,14 @@ package storagex
 import (
 	"context"
 	"fmt"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/googleapi"
-	"google.golang.org/api/storage/v1"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/storage/v1"
 )
 
 // NewClient creates a new GCS client with default application credentials.

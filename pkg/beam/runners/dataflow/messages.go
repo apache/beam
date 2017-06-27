@@ -3,6 +3,7 @@ package dataflow
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
