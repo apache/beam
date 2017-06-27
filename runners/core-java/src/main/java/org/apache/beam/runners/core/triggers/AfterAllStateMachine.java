@@ -77,9 +77,9 @@ public class AfterAllStateMachine extends TriggerStateMachine {
    */
   @Override
   public boolean shouldFire(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subtTrigger : context.trigger().subTriggers()) {
-      if (!context.forTrigger(subtTrigger).trigger().isFinished()
-          && !subtTrigger.invokeShouldFire(context)) {
+    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
+      if (!context.forTrigger(subTrigger).trigger().isFinished()
+          && !subTrigger.invokeShouldFire(context)) {
         return false;
       }
     }
@@ -93,7 +93,6 @@ public class AfterAllStateMachine extends TriggerStateMachine {
     }
     context.trigger().setFinished(true);
   }
-
 
   @Override
   public String toString() {
