@@ -40,8 +40,7 @@ import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * A mock table use to check input/output.
- *
+ * Mocked table for bounded data sources.
  */
 public class MockedBeamSqlTable extends BaseBeamTable {
   private static final AtomicInteger COUNTER = new AtomicInteger();
