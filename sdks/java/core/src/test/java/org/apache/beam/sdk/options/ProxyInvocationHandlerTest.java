@@ -1031,4 +1031,11 @@ public class ProxyInvocationHandlerTest {
     expectedException.expectCause(Matchers.<Throwable>instanceOf(NotSerializableException.class));
     SerializableUtils.clone(new CapturesOptions());
   }
+
+  @Test
+  public void testGetOptionNameFromMethod() throws NoSuchMethodException {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    handler.as(BaseOptions.class);
+    assertEquals("foo", handler.getOptionName(BaseOptions.class.getMethod("getFoo")));
+  }
 }

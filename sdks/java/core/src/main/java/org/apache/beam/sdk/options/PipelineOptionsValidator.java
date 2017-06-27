@@ -43,9 +43,29 @@ public class PipelineOptionsValidator {
    *
    * @param klass The interface to fetch validation criteria from.
    * @param options The {@link PipelineOptions} to validate.
-   * @return The type
+   * @return Validated options.
    */
   public static <T extends PipelineOptions> T validate(Class<T> klass, PipelineOptions options) {
+    return validate(klass, options, false);
+  }
+
+  /**
+   * Validates that the passed {@link PipelineOptions} from command line interface (CLI)
+   * conforms to all the validation criteria from the passed in interface.
+   *
+   * <p>Note that the interface requested must conform to the validation criteria specified on
+   * {@link PipelineOptions#as(Class)}.
+   *
+   * @param klass The interface to fetch validation criteria from.
+   * @param options The {@link PipelineOptions} to validate.
+   * @return Validated options.
+   */
+  public static <T extends PipelineOptions> T validateCli(Class<T> klass, PipelineOptions options) {
+    return validate(klass, options, true);
+  }
+
+  private static <T extends PipelineOptions> T validate(Class<T> klass, PipelineOptions options,
+      boolean isCli) {
     checkNotNull(klass);
     checkNotNull(options);
     checkArgument(Proxy.isProxyClass(options.getClass()));
@@ -67,9 +87,15 @@ public class PipelineOptionsValidator {
             requiredGroups.put(requiredGroup, method);
           }
         } else {
-          checkArgument(handler.invoke(asClassOptions, method, null) != null,
-              "Missing required value for [%s, \"%s\"]. ",
-              method, getDescription(method));
+          if (isCli) {
+            checkArgument(handler.invoke(asClassOptions, method, null) != null,
+                "Missing required value for [--%s, \"%s\"]. ",
+                handler.getOptionName(method), getDescription(method));
+          } else {
+            checkArgument(handler.invoke(asClassOptions, method, null) != null,
+                "Missing required value for [%s, \"%s\"]. ",
+                method, getDescription(method));
+          }
         }
       }
     }
