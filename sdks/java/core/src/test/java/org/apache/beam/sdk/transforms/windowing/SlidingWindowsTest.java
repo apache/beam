@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -55,11 +56,12 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
     expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
     expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
+    SlidingWindows windowFn = SlidingWindows.of(new Duration(10)).every(new Duration(5));
     assertEquals(
         expected,
-        runWindowFn(
-            SlidingWindows.of(new Duration(10)).every(new Duration(5)),
+        runWindowFn(windowFn,
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+    assertThat(windowFn.assignsToOneWindow(), is(false));
   }
 
   @Test
@@ -69,11 +71,27 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(7)), set(1, 2, 5));
     expected.put(new IntervalWindow(new Instant(5), new Instant(12)), set(5, 9, 10, 11));
     expected.put(new IntervalWindow(new Instant(10), new Instant(17)), set(10, 11));
+    SlidingWindows windowFn = SlidingWindows.of(new Duration(7)).every(new Duration(5));
+    assertEquals(
+        expected,
+        runWindowFn(windowFn,
+            Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+    assertThat(windowFn.assignsToOneWindow(), is(false));
+  }
+
+  @Test
+  public void testEqualSize() throws Exception {
+    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
+    expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
+    expected.put(new IntervalWindow(new Instant(3), new Instant(6)), set(3, 4, 5));
+    expected.put(new IntervalWindow(new Instant(6), new Instant(9)), set(6, 7));
+    SlidingWindows windowFn = SlidingWindows.of(new Duration(3)).every(new Duration(3));
     assertEquals(
         expected,
         runWindowFn(
-            SlidingWindows.of(new Duration(7)).every(new Duration(5)),
-            Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+            windowFn,
+            Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L)));
+    assertThat(windowFn.assignsToOneWindow(), is(true));
   }
 
   @Test
@@ -82,12 +100,14 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
     expected.put(new IntervalWindow(new Instant(10), new Instant(13)), set(10, 11));
     expected.put(new IntervalWindow(new Instant(100), new Instant(103)), set(100));
+    SlidingWindows windowFn = SlidingWindows.of(new Duration(3)).every(new Duration(10));
     assertEquals(
         expected,
         runWindowFn(
             // Only look at the first 3 millisecs of every 10-millisec interval.
-            SlidingWindows.of(new Duration(3)).every(new Duration(10)),
+            windowFn,
             Arrays.asList(1L, 2L, 3L, 5L, 9L, 10L, 11L, 100L)));
+    assertThat(windowFn.assignsToOneWindow(), is(true));
   }
 
   @Test
