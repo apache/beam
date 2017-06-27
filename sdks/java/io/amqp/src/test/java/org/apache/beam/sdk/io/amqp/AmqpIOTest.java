@@ -87,9 +87,12 @@ public class AmqpIOTest {
         }
       }
     };
-    sender.start();
-    pipeline.run();
-    sender.join();
+    try {
+      sender.start();
+      pipeline.run();
+    } finally {
+      sender.join();
+    }
   }
 
   @Test
@@ -129,9 +132,12 @@ public class AmqpIOTest {
     }
     pipeline.apply(Create.of(data).withCoder(AmqpMessageCoder.of())).apply(AmqpIO.write());
     LOG.info("Starting pipeline");
-    pipeline.run();
-    LOG.info("Join receiver thread");
-    receiver.join();
+    try {
+      pipeline.run();
+    } finally {
+      LOG.info("Join receiver thread");
+      receiver.join();
+    }
 
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
