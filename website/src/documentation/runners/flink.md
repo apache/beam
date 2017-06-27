@@ -40,7 +40,7 @@ $ mvn dependency:tree -Pflink-runner |grep flink
 [INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.2.1:runtime
 ...
 ```
-Here, we would need Flink 1.2.1.
+Here, we would need Flink 1.2.1. Please also note the Scala version in the dependency name. In this case we need to make sure to use a Flink cluster with Scala version 2.10.
 
 For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-release-1.1/) can be helpful.
 
