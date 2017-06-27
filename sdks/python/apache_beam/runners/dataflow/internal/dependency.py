@@ -500,11 +500,13 @@ def get_sdk_name_and_version():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
-  # TODO(ccy): Make this check cleaner.
+  import pkg_resources as pkg
   container_version = get_required_container_version()
-  if container_version == BEAM_CONTAINER_VERSION:
+  try:
+    pkg.get_distribution(GOOGLE_PACKAGE_NAME)
+    return ('Google Cloud Dataflow SDK for Python', container_version)
+  except pkg.DistributionNotFound:
     return ('Apache Beam SDK for Python', beam_version.__version__)
-  return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def get_sdk_package_name():
