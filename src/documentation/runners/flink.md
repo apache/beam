@@ -37,10 +37,10 @@ To find out which version of Flink you need you can run this command to check th
 ```
 $ mvn dependency:tree -Pflink-runner |grep flink
 ...
-[INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.1.2:runtime
+[INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.2.1:runtime
 ...
 ```
-Here, we would need Flink 1.1.2.
+Here, we would need Flink 1.2.1.
 
 For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-release-1.1/) can be helpful.
 
