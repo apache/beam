@@ -35,10 +35,10 @@ import org.apache.qpid.proton.message.Message;
 public class AmqpMessageCoder extends CustomCoder<Message> {
 
   private static final int[] MESSAGE_SIZES = new int[]{
-      8 * 1024, // 8 KiB
-      64 * 1024, // 62 KiB
-      1 * 1024 * 1024, // 1 MiB
-      64 * 1024 * 1024, // 62 MiB
+      8 * 1024,
+      64 * 1024,
+      1 * 1024 * 1024,
+      64 * 1024 * 1024
   };
 
   static AmqpMessageCoder of() {
@@ -52,13 +52,10 @@ public class AmqpMessageCoder extends CustomCoder<Message> {
         encode(value, outStream, maxMessageSize);
         return;
       } catch (Exception e) {
-        if (maxMessageSize == MESSAGE_SIZES[MESSAGE_SIZES.length - 1]) {
-          throw new CoderException("Message is larger than the max size supported by the coder", e);
-        } else {
-          continue;
-        }
+        continue;
       }
     }
+    throw new CoderException("Message is larger than the max size supported by the coder");
   }
 
   private void encode(Message value, OutputStream outStream, int messageSize) throws

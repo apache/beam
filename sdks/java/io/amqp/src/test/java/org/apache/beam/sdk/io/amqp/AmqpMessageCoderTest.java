@@ -50,9 +50,7 @@ public class AmqpMessageCoderTest {
     message.setSubject("test");
     AmqpMessageCoder coder = AmqpMessageCoder.of();
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
-
-    Message clone = CoderUtils.decodeFromByteArray(coder, encoded);
+    Message clone = CoderUtils.clone(coder, message);
 
     assertEquals("AmqpValue{body}", clone.getBody().toString());
     assertEquals("address", clone.getAddress());
@@ -60,7 +58,7 @@ public class AmqpMessageCoderTest {
   }
 
   @Test
-  public void encodeDecodeLargeMessage() throws Exception {
+  public void encodeDecodeTooMuchLargerMessage() throws Exception {
     thrown.expect(CoderException.class);
     Message message = Message.Factory.create();
     message.setAddress("address");
@@ -71,6 +69,21 @@ public class AmqpMessageCoderTest {
     AmqpMessageCoder coder = AmqpMessageCoder.of();
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
+  }
+
+  @Test
+  public void encodeDecodeLargeMessage() throws Exception {
+    Message message = Message.Factory.create();
+    message.setAddress("address");
+    message.setSubject("subject");
+    String body = Joiner.on("").join(Collections.nCopies(32 * 1024 * 1024, " "));
+    message.setBody(new AmqpValue(body));
+
+    AmqpMessageCoder coder = AmqpMessageCoder.of();
+
+    Message clone = CoderUtils.clone(coder, message);
+
+    clone.getBody().toString().equals(message.getBody().toString());
   }
 
 }

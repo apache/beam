@@ -231,11 +231,7 @@ public class AmqpIO {
       // amqp is a queue system, so, it's possible to have multiple concurrent sources, even if
       // they bind the listener
       List<UnboundedAmqpSource> sources = new ArrayList<>();
-      if (desiredNumSplits > 0) {
-        for (int i = 0; i < desiredNumSplits; i++) {
-          sources.add(new UnboundedAmqpSource(spec));
-        }
-      } else {
+      for (int i = 0; i < Math.max(1, desiredNumSplits); ++i) {
         sources.add(new UnboundedAmqpSource(spec));
       }
       return sources;
