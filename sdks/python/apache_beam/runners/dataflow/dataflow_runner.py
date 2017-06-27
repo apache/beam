@@ -247,7 +247,7 @@ class DataflowRunner(PipelineRunner):
     setup_options = pipeline._options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
     if setup_options.beam_plugins is not None:
-      plugins = list(set(plugins + setup_options.beam_plugins.split(',')))
+      plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
     self.job = apiclient.Job(pipeline._options)

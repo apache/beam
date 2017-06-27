@@ -30,42 +30,62 @@ import logging
 import apache_beam as beam
 import apache_beam.transforms.window as window
 
+TABLE_SCHEMA = ('word:STRING, count:INTEGER, '
+                'window_start:TIMESTAMP, window_end:TIMESTAMP')
 
-def split_fn(lines):
+
+def find_words(element):
   import re
-  return re.findall(r'[A-Za-z\']+', lines)
+  return re.findall(r'[A-Za-z\']+', element)
+
+
+class FormatDoFn(beam.DoFn):
+  def process(self, element, window=beam.DoFn.WindowParam):
+    ts_format = '%Y-%m-%d %H:%M:%S.%f UTC'
+    window_start = window.start.to_utc_datetime().strftime(ts_format)
+    window_end = window.end.to_utc_datetime().strftime(ts_format)
+    return [{'word': element[0],
+             'count': element[1],
+             'window_start':window_start,
+             'window_end':window_end}]
 
 
 def run(argv=None):
   """Build and run the pipeline."""
+
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input_topic', required=True,
       help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   parser.add_argument(
-      '--output_topic', required=True,
-      help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+      '--output_table', required=True,
+      help=
+      ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
+       'or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-    # Read from PubSub into a PCollection.
+    # Read the text from PubSub messages
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
     transformed = (lines
-                   # Use a pre-defined function that imports the re package.
-                   | 'Split' >> (
-                       beam.FlatMap(split_fn).with_output_types(unicode))
+                   | 'Split' >> (beam.FlatMap(find_words)
+                                 .with_output_types(unicode))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
-                   | beam.WindowInto(window.FixedWindows(15, 0))
+                   | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
                    | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-                   | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
+                   | 'Format' >> beam.ParDo(FormatDoFn()))
 
-    # Write to PubSub.
+    # Write to BigQuery.
     # pylint: disable=expression-not-assigned
-    transformed | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    transformed | 'Write' >> beam.io.WriteToBigQuery(
+        known_args.output_table,
+        schema=TABLE_SCHEMA,
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
 
 
 if __name__ == '__main__':

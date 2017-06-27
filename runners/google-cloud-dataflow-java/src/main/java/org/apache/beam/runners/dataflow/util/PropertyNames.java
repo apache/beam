@@ -63,4 +63,5 @@ public class PropertyNames {
   public static final String USES_KEYED_STATE = "uses_keyed_state";
   public static final String VALUE = "value";
   public static final String DISPLAY_DATA = "display_data";
+  public static final String RESTRICTION_CODER = "restriction_coder";
 }

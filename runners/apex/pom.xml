@@ -256,7 +256,7 @@
             <configuration>
               <ignoredUsedUndeclaredDependencies>
                 <ignoredUsedUndeclaredDependency>org.apache.apex:apex-api:jar:${apex.core.version}</ignoredUsedUndeclaredDependency>
-                <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::3.1</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::${apache.commons.lang.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>commons-io:commons-io:jar:2.4</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>com.esotericsoftware.kryo:kryo::${apex.kryo.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>com.datatorrent:netlet::1.3.0</ignoredUsedUndeclaredDependency>

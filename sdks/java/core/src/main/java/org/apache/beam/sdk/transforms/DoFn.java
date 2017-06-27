@@ -677,6 +677,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
+  /** Temporary, do not use. See https://issues.apache.org/jira/browse/BEAM-1904 */
+  public class ProcessContinuation {}
+
   /**
    * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.

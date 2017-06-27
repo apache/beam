@@ -25,6 +25,7 @@ import java.util.UUID;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -54,7 +55,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <li>Explode windows, since splitting within each window has to happen independently
  * <li>Assign a unique key to each element/restriction pair
  * <li>Process the keyed element/restriction pairs in a runner-specific way with the splittable
- *   {@link DoFn}'s {@link DoFn.ProcessElement} method.
+ *     {@link DoFn}'s {@link DoFn.ProcessElement} method.
  * </ol>
  *
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
@@ -93,10 +94,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     Coder<RestrictionT> restrictionCoder =
         DoFnInvokers.invokerFor(fn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
-    Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
-        ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
+    Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
-    PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>> keyedRestrictions =
+    PCollection<KV<String, KV<InputT, RestrictionT>>> keyedRestrictions =
         input
             .apply(
                 "Pair with initial restriction",
@@ -107,12 +107,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             // ProcessFn requires all input elements to be in a single window and have a single
             // element per work item. This must precede the unique keying so each key has a single
             // associated element.
-            .apply(
-                "Explode windows",
-                ParDo.of(new ExplodeWindowsFn<ElementAndRestriction<InputT, RestrictionT>>()))
+            .apply("Explode windows", ParDo.of(new ExplodeWindowsFn<KV<InputT, RestrictionT>>()))
             .apply(
                 "Assign unique key",
-                WithKeys.of(new RandomUniqueKeyFn<ElementAndRestriction<InputT, RestrictionT>>()));
+                WithKeys.of(new RandomUniqueKeyFn<KV<InputT, RestrictionT>>()));
 
     return keyedRestrictions.apply(
         "ProcessKeyedElements",
@@ -140,12 +138,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   /**
    * Runner-specific primitive {@link PTransform} that invokes the {@link DoFn.ProcessElement}
-   * method for a splittable {@link DoFn} on each {@link ElementAndRestriction} of the input {@link
-   * PCollection} of {@link KV KVs} keyed with arbitrary but globally unique keys.
+   * method for a splittable {@link DoFn} on each {@link KV} of the input {@link PCollection} of
+   * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
   public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
-      extends RawPTransform<
-          PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>, PCollectionTuple> {
+      extends RawPTransform<PCollection<KV<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
@@ -208,9 +205,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public PCollectionTuple expand(
-        PCollection<KV<String, ElementAndRestriction<InputT, RestrictionT>>>
-            input) {
+    public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
       return createPrimitiveOutputFor(
           input, fn, mainOutputTag, additionalOutputTags, windowingStrategy);
     }
@@ -257,7 +252,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * Pairs each input element with its initial restriction using the given splittable {@link DoFn}.
    */
   private static class PairWithRestrictionFn<InputT, OutputT, RestrictionT>
-      extends DoFn<InputT, ElementAndRestriction<InputT, RestrictionT>> {
+      extends DoFn<InputT, KV<InputT, RestrictionT>> {
     private DoFn<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
@@ -273,7 +268,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          ElementAndRestriction.of(
+          KV.of(
               context.element(),
               invoker.<RestrictionT>invokeGetInitialRestriction(context.element())));
     }
@@ -281,9 +276,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   /** Splits the restriction using the given {@link SplitRestriction} method. */
   private static class SplitRestrictionFn<InputT, RestrictionT>
-      extends DoFn<
-          ElementAndRestriction<InputT, RestrictionT>,
-          ElementAndRestriction<InputT, RestrictionT>> {
+      extends DoFn<KV<InputT, RestrictionT>, KV<InputT, RestrictionT>> {
     private final DoFn<InputT, ?> splittableFn;
     private transient DoFnInvoker<InputT, ?> invoker;
 
@@ -298,14 +291,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
-      final InputT element = c.element().element();
+      final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
           element,
-          c.element().restriction(),
+          c.element().getValue(),
           new OutputReceiver<RestrictionT>() {
             @Override
             public void output(RestrictionT part) {
-              c.output(ElementAndRestriction.of(element, part));
+              c.output(KV.of(element, part));
             }
           });
     }

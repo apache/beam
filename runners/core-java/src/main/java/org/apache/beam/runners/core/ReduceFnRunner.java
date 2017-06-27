@@ -663,7 +663,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       this.isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
           && timer.getTimestamp().equals(window.maxTimestamp());
       Instant cleanupTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
-      this.isGarbageCollection = !timer.getTimestamp().isBefore(cleanupTime);
+      this.isGarbageCollection =
+          TimeDomain.EVENT_TIME == timer.getDomain() && !timer.getTimestamp().isBefore(cleanupTime);
     }
 
     // Has this window had its trigger finish?
@@ -948,7 +949,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
-      boolean isFinished, boolean isEndOfWindow)
+      final boolean isFinished, boolean isEndOfWindow)
           throws Exception {
     Instant inputWM = timerInternals.currentInputWatermarkTime();
 
@@ -1005,9 +1006,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                 @Override
                 public void output(OutputT toOutput) {
                   // We're going to output panes, so commit the (now used) PaneInfo.
-                  // TODO: This is unnecessary if the trigger isFinished since the saved
+                  // This is unnecessary if the trigger isFinished since the saved
                   // state will be immediately deleted.
-                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+                  if (!isFinished) {
+                    paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+                  }
 
                   // Output the actual value.
                   outputter.outputWindowedValue(

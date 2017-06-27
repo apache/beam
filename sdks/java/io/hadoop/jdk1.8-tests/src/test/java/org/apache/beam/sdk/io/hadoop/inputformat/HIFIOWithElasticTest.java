@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,7 +77,7 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(HIFIOWithElasticTest.class);
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
-  private static final String ELASTIC_IN_MEM_PORT = "9200";
+  private static String elasticInMemPort = "9200";
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
   private static final String ELASTIC_INDEX_NAME = "beamdb";
@@ -94,6 +95,10 @@ public class HIFIOWithElasticTest implements Serializable {
   @BeforeClass
   public static void startServer()
       throws NodeValidationException, InterruptedException, IOException {
+    ServerSocket serverSocket = new ServerSocket(0);
+    int port = serverSocket.getLocalPort();
+    serverSocket.close();
+    elasticInMemPort = String.valueOf(port);
     ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
@@ -173,7 +178,7 @@ public class HIFIOWithElasticTest implements Serializable {
   public Configuration getConfiguration() {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
-    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", ELASTIC_IN_MEM_PORT));
+    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", elasticInMemPort));
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
@@ -209,7 +214,7 @@ public class HIFIOWithElasticTest implements Serializable {
       Settings settings = Settings.builder()
           .put("node.data", TRUE)
           .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-          .put("http.port", ELASTIC_IN_MEM_PORT)
+          .put("http.port", elasticInMemPort)
           .put("path.data", elasticTempFolder.getRoot().getPath())
           .put("path.home", elasticTempFolder.getRoot().getPath())
           .put("transport.type", "local")

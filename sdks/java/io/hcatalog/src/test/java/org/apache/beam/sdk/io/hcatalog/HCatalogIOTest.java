@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_DATABASE;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_FILTER;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE_NAME;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getHCatRecords;
@@ -69,7 +71,7 @@ import org.junit.runners.model.Statement;
 
 /** Test for HCatalogIO. */
 public class HCatalogIOTest implements Serializable {
-  public static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
+  private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
   @ClassRule
   public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
@@ -103,12 +105,12 @@ public class HCatalogIOTest implements Serializable {
   /** Use this annotation to setup complete test data(table populated with records). */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.METHOD})
-  @interface NeedsTestData {}
+  private @interface NeedsTestData {}
 
   /** Use this annotation to setup test tables alone(empty tables, no records are populated). */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.METHOD})
-  @interface NeedsEmptyTestTables {}
+  private @interface NeedsEmptyTestTables {}
 
   @BeforeClass
   public static void setupEmbeddedMetastoreService () throws IOException {
@@ -117,7 +119,7 @@ public class HCatalogIOTest implements Serializable {
 
   @AfterClass
   public static void shutdownEmbeddedMetastoreService () throws Exception {
-    service.executeQuery("drop table " + TEST_TABLE_NAME);
+    service.executeQuery("drop table " + TEST_TABLE);
     service.close();
   }
 
@@ -130,23 +132,27 @@ public class HCatalogIOTest implements Serializable {
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-                .withTable(TEST_TABLE_NAME));
+                .withDatabase(TEST_DATABASE)
+                .withTable(TEST_TABLE)
+                .withPartition(new java.util.HashMap<String, String>())
+                .withBatchSize(512L));
     defaultPipeline.run();
 
-    PCollection<String> output =
-        readAfterWritePipeline
-            .apply(
-                HCatalogIO.read()
-                    .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-                    .withTable(HCatalogIOTestUtils.TEST_TABLE_NAME))
-            .apply(
-                ParDo.of(
-                    new DoFn<HCatRecord, String>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        c.output(c.element().get(0).toString());
-                      }
-                    }));
+    PCollection<String> output = readAfterWritePipeline
+        .apply(
+            HCatalogIO.read()
+                .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                .withDatabase(TEST_DATABASE)
+                .withTable(TEST_TABLE)
+                .withFilter(TEST_FILTER))
+        .apply(
+            ParDo.of(
+                new DoFn<HCatRecord, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().get(0).toString());
+                  }
+                }));
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
   }
@@ -222,7 +228,7 @@ public class HCatalogIOTest implements Serializable {
         HCatalogIO.read()
             .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
             .withContext(context)
-            .withTable(TEST_TABLE_NAME);
+            .withTable(TEST_TABLE);
 
     List<String> records = new ArrayList<>();
     for (int i = 0; i < context.numSplits(); i++) {
@@ -246,7 +252,7 @@ public class HCatalogIOTest implements Serializable {
         HCatalogIO.read()
             .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
             .withContext(context)
-            .withTable(TEST_TABLE_NAME);
+            .withTable(TEST_TABLE);
 
     BoundedHCatalogSource source = new BoundedHCatalogSource(spec);
     List<BoundedSource<HCatRecord>> unSplitSource = source.split(-1, OPTIONS);
@@ -260,8 +266,8 @@ public class HCatalogIOTest implements Serializable {
   }
 
   private void reCreateTestTable() throws CommandNeedRetryException {
-    service.executeQuery("drop table " + TEST_TABLE_NAME);
-    service.executeQuery("create table " + TEST_TABLE_NAME + "(mycol1 string, mycol2 int)");
+    service.executeQuery("drop table " + TEST_TABLE);
+    service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
   }
 
   private void prepareTestData() throws Exception {

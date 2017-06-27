@@ -171,7 +171,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       }
 
       // register Watermarks listener to broadcast the advanced WMs.
-      jssc.addStreamingListener(new JavaStreamingListenerWrapper(new WatermarksListener(jssc)));
+      jssc.addStreamingListener(new JavaStreamingListenerWrapper(new WatermarksListener()));
 
       // The reason we call initAccumulators here even though it is called in
       // SparkRunnerStreamingContextFactory is because the factory is not called when resuming

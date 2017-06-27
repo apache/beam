@@ -103,6 +103,27 @@
                   <threadCount>4</threadCount>
                 </configuration>
               </execution>
+              <execution>
+                <id>streaming-tests</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>
+                    org.apache.beam.runners.spark.StreamingTest
+                  </groups>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--runner=TestSparkRunner",
+                      "--forceStreaming=true",
+                      "--enableSparkMetricSinks=true"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
         </plugins>
@@ -195,6 +216,11 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
@@ -361,27 +387,6 @@
                     [
                     "--runner=TestSparkRunner",
                     "--streaming=false",
-                    "--enableSparkMetricSinks=true"
-                    ]
-                  </beamTestPipelineOptions>
-                </systemPropertyVariables>
-              </configuration>
-            </execution>
-            <execution>
-              <id>streaming-tests</id>
-              <phase>test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <groups>
-                  org.apache.beam.runners.spark.StreamingTest
-                </groups>
-                <systemPropertyVariables>
-                  <beamTestPipelineOptions>
-                    [
-                    "--runner=TestSparkRunner",
-                    "--forceStreaming=true",
                     "--enableSparkMetricSinks=true"
                     ]
                   </beamTestPipelineOptions>

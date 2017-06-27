@@ -246,8 +246,8 @@ class DataChannelFactory(object):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def create_data_channel(self, function_spec):
-    """Returns a ``DataChannel`` from the given function_spec."""
+  def create_data_channel(self, remote_grpc_port):
+    """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
@@ -265,9 +265,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def __init__(self):
     self._data_channel_cache = {}
 
-  def create_data_channel(self, function_spec):
-    remote_grpc_port = beam_fn_api_pb2.RemoteGrpcPort()
-    function_spec.data.Unpack(remote_grpc_port)
+  def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
       logging.info('Creating channel for %s', url)
@@ -289,7 +287,7 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   def __init__(self, in_memory_data_channel):
     self._in_memory_data_channel = in_memory_data_channel
 
-  def create_data_channel(self, unused_function_spec):
+  def create_data_channel(self, unused_remote_grpc_port):
     return self._in_memory_data_channel
 
   def close(self):

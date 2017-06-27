@@ -21,15 +21,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import base64
 import collections
 import json
 import logging
 import Queue as queue
 import threading
 import traceback
-import zlib
 
-import dill
 from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
@@ -164,56 +163,6 @@ class SideInputSource(native_iobase.NativeSource,
       yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
 
-def unpack_and_deserialize_py_fn(function_spec):
-  """Returns unpacked and deserialized object from function spec proto."""
-  return pickler.loads(unpack_function_spec_data(function_spec))
-
-
-def unpack_function_spec_data(function_spec):
-  """Returns unpacked data from function spec proto."""
-  data = wrappers_pb2.BytesValue()
-  function_spec.data.Unpack(data)
-  return data.value
-
-
-# pylint: disable=redefined-builtin
-def serialize_and_pack_py_fn(fn, urn, id=None):
-  """Returns serialized and packed function in a function spec proto."""
-  return pack_function_spec_data(pickler.dumps(fn), urn, id)
-# pylint: enable=redefined-builtin
-
-
-# pylint: disable=redefined-builtin
-def pack_function_spec_data(value, urn, id=None):
-  """Returns packed data in a function spec proto."""
-  data = wrappers_pb2.BytesValue(value=value)
-  fn_proto = beam_fn_api_pb2.FunctionSpec(urn=urn)
-  fn_proto.data.Pack(data)
-  if id:
-    fn_proto.id = id
-  return fn_proto
-# pylint: enable=redefined-builtin
-
-
-# TODO(vikasrk): move this method to ``coders.py`` in the SDK.
-def load_compressed(compressed_data):
-  """Returns a decompressed and deserialized python object."""
-  # Note: SDK uses ``pickler.dumps`` to serialize certain python objects
-  # (like sources), which involves serialization, compression and base64
-  # encoding. We cannot directly use ``pickler.loads`` for
-  # deserialization, as the runner would have already base64 decoded the
-  # data. So we only need to decompress and deserialize.
-
-  data = zlib.decompress(compressed_data)
-  try:
-    return dill.loads(data)
-  except Exception:          # pylint: disable=broad-except
-    dill.dill._trace(True)   # pylint: disable=protected-access
-    return dill.loads(data)
-  finally:
-    dill.dill._trace(False)  # pylint: disable=protected-access
-
-
 def memoize(func):
   cache = {}
   missing = object()
@@ -259,6 +208,10 @@ class SdkHarness(object):
         try:
           response = self.worker.do_instruction(work_request)
         except Exception:  # pylint: disable=broad-except
+          logging.error(
+              'Error processing instruction %s',
+              work_request.instruction_id,
+              exc_info=True)
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=work_request.instruction_id,
               error=traceback.format_exc())
@@ -300,31 +253,7 @@ class SdkWorker(object):
         self.fns[p_transform.function_spec.id] = p_transform.function_spec
     return beam_fn_api_pb2.RegisterResponse()
 
-  def initial_source_split(self, request, unused_instruction_id=None):
-    source_spec = self.fns[request.source_reference]
-    assert source_spec.urn == PYTHON_SOURCE_URN
-    source_bundle = unpack_and_deserialize_py_fn(
-        self.fns[request.source_reference])
-    splits = source_bundle.source.split(request.desired_bundle_size_bytes,
-                                        source_bundle.start_position,
-                                        source_bundle.stop_position)
-    response = beam_fn_api_pb2.InitialSourceSplitResponse()
-    response.splits.extend([
-        beam_fn_api_pb2.SourceSplit(
-            source=serialize_and_pack_py_fn(split, PYTHON_SOURCE_URN),
-            relative_size=split.weight,
-        )
-        for split in splits
-    ])
-    return response
-
   def create_execution_tree(self, descriptor):
-    if descriptor.primitive_transform:
-      return self.create_execution_tree_from_fn_api(descriptor)
-    else:
-      return self.create_execution_tree_from_runner_api(descriptor)
-
-  def create_execution_tree_from_runner_api(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
     counter_factory = counters.CounterFactory()
@@ -362,131 +291,6 @@ class SdkWorker(object):
     return [get_operation(transform_id)
             for transform_id in sorted(
                 descriptor.transforms, key=topological_height, reverse=True)]
-
-  def create_execution_tree_from_fn_api(self, descriptor):
-    # TODO(vikasrk): Add an id field to Coder proto and use that instead.
-    coders = {coder.function_spec.id: operation_specs.get_coder_from_spec(
-        json.loads(unpack_function_spec_data(coder.function_spec)))
-              for coder in descriptor.coders}
-
-    counter_factory = counters.CounterFactory()
-    # TODO(robertwb): Figure out the correct prefix to use for output counters
-    # from StateSampler.
-    state_sampler = statesampler.StateSampler(
-        'fnapi-step%s-' % descriptor.id, counter_factory)
-    consumers = collections.defaultdict(lambda: collections.defaultdict(list))
-    ops_by_id = {}
-    reversed_ops = []
-
-    for transform in reversed(descriptor.primitive_transform):
-      # TODO(robertwb): Figure out how to plumb through the operation name (e.g.
-      # "s3") from the service through the FnAPI so that msec counters can be
-      # reported and correctly plumbed through the service and the UI.
-      operation_name = 'fnapis%s' % transform.id
-
-      def only_element(iterable):
-        element, = iterable
-        return element
-
-      if transform.function_spec.urn == DATA_OUTPUT_URN:
-        target = beam_fn_api_pb2.Target(
-            primitive_transform_reference=transform.id,
-            name=only_element(transform.outputs.keys()))
-
-        op = DataOutputOperation(
-            operation_name,
-            transform.step_name,
-            consumers[transform.id],
-            counter_factory,
-            state_sampler,
-            coders[only_element(transform.outputs.values()).coder_reference],
-            target,
-            self.data_channel_factory.create_data_channel(
-                transform.function_spec))
-
-      elif transform.function_spec.urn == DATA_INPUT_URN:
-        target = beam_fn_api_pb2.Target(
-            primitive_transform_reference=transform.id,
-            name=only_element(transform.inputs.keys()))
-        op = DataInputOperation(
-            operation_name,
-            transform.step_name,
-            consumers[transform.id],
-            counter_factory,
-            state_sampler,
-            coders[only_element(transform.outputs.values()).coder_reference],
-            target,
-            self.data_channel_factory.create_data_channel(
-                transform.function_spec))
-
-      elif transform.function_spec.urn == PYTHON_DOFN_URN:
-        def create_side_input(tag, si):
-          # TODO(robertwb): Extract windows (and keys) out of element data.
-          return operation_specs.WorkerSideInputSource(
-              tag=tag,
-              source=SideInputSource(
-                  self.state_handler,
-                  beam_fn_api_pb2.StateKey.MultimapSideInput(
-                      key=si.view_fn.id.encode('utf-8')),
-                  coder=unpack_and_deserialize_py_fn(si.view_fn)))
-        output_tags = list(transform.outputs.keys())
-        spec = operation_specs.WorkerDoFn(
-            serialized_fn=unpack_function_spec_data(transform.function_spec),
-            output_tags=output_tags,
-            input=None,
-            side_inputs=[create_side_input(tag, si)
-                         for tag, si in transform.side_inputs.items()],
-            output_coders=[coders[transform.outputs[out].coder_reference]
-                           for out in output_tags])
-
-        op = operations.DoOperation(operation_name, spec, counter_factory,
-                                    state_sampler)
-        # TODO(robertwb): Move these to the constructor.
-        op.step_name = transform.step_name
-        for tag, op_consumers in consumers[transform.id].items():
-          for consumer in op_consumers:
-            op.add_receiver(
-                consumer, output_tags.index(tag))
-
-      elif transform.function_spec.urn == IDENTITY_DOFN_URN:
-        op = operations.FlattenOperation(operation_name, None, counter_factory,
-                                         state_sampler)
-        # TODO(robertwb): Move these to the constructor.
-        op.step_name = transform.step_name
-        for tag, op_consumers in consumers[transform.id].items():
-          for consumer in op_consumers:
-            op.add_receiver(consumer, 0)
-
-      elif transform.function_spec.urn == PYTHON_SOURCE_URN:
-        source = load_compressed(unpack_function_spec_data(
-            transform.function_spec))
-        # TODO(vikasrk): Remove this once custom source is implemented with
-        # splittable dofn via the data plane.
-        spec = operation_specs.WorkerRead(
-            iobase.SourceBundle(1.0, source, None, None),
-            [WindowedValueCoder(source.default_output_coder())])
-        op = operations.ReadOperation(operation_name, spec, counter_factory,
-                                      state_sampler)
-        op.step_name = transform.step_name
-        output_tags = list(transform.outputs.keys())
-        for tag, op_consumers in consumers[transform.id].items():
-          for consumer in op_consumers:
-            op.add_receiver(
-                consumer, output_tags.index(tag))
-
-      else:
-        raise NotImplementedError
-
-      # Record consumers.
-      for _, inputs in transform.inputs.items():
-        for target in inputs.target:
-          consumers[target.primitive_transform_reference][target.name].append(
-              op)
-
-      reversed_ops.append(op)
-      ops_by_id[transform.id] = op
-
-    return list(reversed(reversed_ops))
 
   def process_bundle(self, request, instruction_id):
     ops = self.create_execution_tree(
@@ -551,7 +355,15 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, parameter, consumers)
 
   def get_coder(self, coder_id):
-    return self.context.coders.get_by_id(coder_id)
+    coder_proto = self.descriptor.codersyyy[coder_id]
+    if coder_proto.spec.spec.urn:
+      return self.context.coders.get_by_id(coder_id)
+    else:
+      # No URN, assume cloud object encoding json bytes.
+      return operation_specs.get_coder_from_spec(
+          json.loads(
+              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
+                                     wrappers_pb2.BytesValue).value))
 
   def get_output_coders(self, transform_proto):
     return {
@@ -618,7 +430,8 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 
 @BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  source = pickler.loads(parameter.value)
+  # The Dataflow runner harness strips the base64 encoding.
+  source = pickler.loads(base64.b64encode(parameter.value))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
       [WindowedValueCoder(source.default_output_coder())])

@@ -589,6 +589,22 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
+  def test_model_textio_gzip_concatenated(self):
+    temp_path_1 = self.create_temp_file('a\nb\nc\n')
+    temp_path_2 = self.create_temp_file('p\nq\nr\n')
+    temp_path_3 = self.create_temp_file('x\ny\nz')
+    gzip_file_name = temp_path_1 + '.gz'
+    with open(temp_path_1) as src, gzip.open(gzip_file_name, 'wb') as dst:
+      dst.writelines(src)
+    with open(temp_path_2) as src, gzip.open(gzip_file_name, 'ab') as dst:
+      dst.writelines(src)
+    with open(temp_path_3) as src, gzip.open(gzip_file_name, 'ab') as dst:
+      dst.writelines(src)
+      # Add the temporary gzip file to be cleaned up as well.
+      self.temp_files.append(gzip_file_name)
+    snippets.model_textio_compressed(
+        {'read': gzip_file_name}, ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z'])
+
   @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test datastoreio functionality in unit tests therefore we limit

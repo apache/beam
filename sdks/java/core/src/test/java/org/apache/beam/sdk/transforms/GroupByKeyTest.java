@@ -45,14 +45,19 @@ import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -180,6 +185,40 @@ public class GroupByKeyTest {
         input.apply(GroupByKey.<String, Integer>create());
 
     PAssert.that(output).empty();
+
+    p.run();
+  }
+
+  /**
+   * Tests that when a processing time timers comes in after a window is expired it does not cause a
+   * spurious output.
+   */
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void testCombiningAccumulatingProcessingTime() throws Exception {
+    PCollection<Integer> triggeredSums =
+        p.apply(
+                TestStream.create(VarIntCoder.of())
+                    .advanceWatermarkTo(new Instant(0))
+                    .addElements(
+                        TimestampedValue.of(2, new Instant(2)),
+                        TimestampedValue.of(5, new Instant(5)))
+                    .advanceWatermarkTo(new Instant(100))
+                    .advanceProcessingTime(Duration.millis(10))
+                    .advanceWatermarkToInfinity())
+            .apply(
+                Window.<Integer>into(FixedWindows.of(Duration.millis(100)))
+                    .withTimestampCombiner(TimestampCombiner.EARLIEST)
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO)
+                    .triggering(
+                        Repeatedly.forever(
+                            AfterProcessingTime.pastFirstElementInPane()
+                                .plusDelayOf(Duration.millis(10)))))
+            .apply(Sum.integersGlobally().withoutDefaults());
+
+    PAssert.that(triggeredSums)
+        .containsInAnyOrder(7);
 
     p.run();
   }

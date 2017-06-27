@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
-import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -111,9 +111,7 @@ public class SplittableParDoProcessFnTest {
   private static class ProcessFnTester<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       implements AutoCloseable {
-    private final DoFnTester<
-            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
-        tester;
+    private final DoFnTester<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
@@ -194,14 +192,13 @@ public class SplittableParDoProcessFnTest {
     void startElement(InputT element, RestrictionT restriction) throws Exception {
       startElement(
           WindowedValue.of(
-              ElementAndRestriction.of(element, restriction),
+              KV.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
 
-    void startElement(WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue)
-        throws Exception {
+    void startElement(WindowedValue<KV<InputT, RestrictionT>> windowedValue) throws Exception {
       tester.processElement(
           KeyedWorkItems.elementsWorkItem("key", Collections.singletonList(windowedValue)));
     }
@@ -223,8 +220,7 @@ public class SplittableParDoProcessFnTest {
         return false;
       }
       tester.processElement(
-          KeyedWorkItems.<String, ElementAndRestriction<InputT, RestrictionT>>timersWorkItem(
-              "key", timers));
+          KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem("key", timers));
       return true;
     }
 
@@ -309,7 +305,7 @@ public class SplittableParDoProcessFnTest {
             MAX_BUNDLE_DURATION);
     tester.startElement(
         WindowedValue.of(
-            ElementAndRestriction.of(42, new SomeRestriction()),
+            KV.of(42, new SomeRestriction()),
             base,
             Collections.singletonList(w),
             PaneInfo.ON_TIME_AND_ONLY_FIRING));

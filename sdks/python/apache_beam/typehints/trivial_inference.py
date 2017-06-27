@@ -40,8 +40,7 @@ def instance_to_type(o):
   """
   t = type(o)
   if o is None:
-    # TODO(robertwb): Eliminate inconsistent use of None vs. NoneType.
-    return None
+    return type(None)
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
     if t == types.InstanceType:
       return o.__class__
