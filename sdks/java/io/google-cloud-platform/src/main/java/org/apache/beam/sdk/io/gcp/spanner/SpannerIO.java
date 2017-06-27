@@ -485,8 +485,7 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable
-    abstract Long getBatchSizeBytes();
+    abstract long getBatchSizeBytes();
 
     abstract Builder toBuilder();
 
@@ -495,7 +494,7 @@ public class SpannerIO {
 
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
-      abstract Builder setBatchSizeBytes(Long batchSizeBytes);
+      abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       abstract Write build();
     }
