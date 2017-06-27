@@ -40,21 +40,14 @@ import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * A mock table use to check input/output.
- *
+ * Mocked table for bounded data sources.
  */
 public class MockedBeamSqlTable extends BaseBeamTable {
-  public static final AtomicInteger COUNTER = new AtomicInteger();
-  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
-
+  private static final AtomicInteger COUNTER = new AtomicInteger();
+  private static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
   private List<BeamSqlRow> inputRecords;
   public MockedBeamSqlTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);
-  }
-
-  public MockedBeamSqlTable withInputRecords(List<BeamSqlRow> inputRecords){
-    this.inputRecords = inputRecords;
-    return this;
   }
 
   /**
@@ -81,6 +74,9 @@ public class MockedBeamSqlTable extends BaseBeamTable {
    *       10L, 100, 10.0, new Date())
    * }</pre>
    */
+  // FIXME: refactor this method
+  //        1) use Types rather than SqlTypeName
+  //        2) use RowsBuilder rather than duplicate the logic here
   public static MockedBeamSqlTable of(final Object... args){
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
@@ -112,7 +108,10 @@ public class MockedBeamSqlTable extends BaseBeamTable {
       }
       rows.add(row);
     }
-    return new MockedBeamSqlTable(beamSQLRecordType).withInputRecords(rows);
+    MockedBeamSqlTable table = new MockedBeamSqlTable(beamSQLRecordType);
+    table.inputRecords = rows;
+
+    return table;
   }
 
   @Override

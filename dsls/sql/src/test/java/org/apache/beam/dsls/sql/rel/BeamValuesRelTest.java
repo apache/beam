@@ -26,7 +26,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,10 +87,5 @@ public class BeamValuesRelTest {
   public static void prepareClass() {
     sqlEnv.registerTable("string_table", stringTable);
     sqlEnv.registerTable("int_table", intTable);
-  }
-
-  @Before
-  public void prepare() {
-    MockedBeamSqlTable.CONTENT.clear();
   }
 }

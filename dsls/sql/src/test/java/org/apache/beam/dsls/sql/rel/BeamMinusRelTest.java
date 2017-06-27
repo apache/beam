@@ -62,7 +62,6 @@ public class BeamMinusRelTest {
   public void setUp() {
     sqlEnv.registerTable("ORDER_DETAILS1", orderDetailsTable1);
     sqlEnv.registerTable("ORDER_DETAILS2", orderDetailsTable2);
-    MockedBeamSqlTable.CONTENT.clear();
   }
 
   @Test
