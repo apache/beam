@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import collections
+import random
+import time
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -48,6 +50,7 @@ from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.options.pipeline_options import TypeOptions
 
@@ -63,6 +66,7 @@ class TransformEvaluatorRegistry(object):
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
+        io.ReadStringsFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
@@ -355,6 +359,91 @@ class _TestStreamEvaluator(_TransformEvaluator):
     return TransformResult(
         self._applied_ptransform, self.bundles, unprocessed_bundles, None,
         {None: hold})
+
+
+class _PubSubSubscriptionWrapper(object):
+  """Wrapper for garbage-collecting temporary PubSub subscriptions."""
+
+  def __init__(self, subscription, should_cleanup):
+    self.subscription = subscription
+    self.should_cleanup = should_cleanup
+
+  def __del__(self):
+    if self.should_cleanup:
+      self.subscription.delete()
+
+
+class _PubSubReadEvaluator(_TransformEvaluator):
+  """TransformEvaluator for PubSub read."""
+
+  _subscription_cache = {}
+
+  def __init__(self, evaluation_context, applied_ptransform,
+               input_committed_bundle, side_inputs, scoped_metrics_container):
+    assert not side_inputs
+    super(_PubSubReadEvaluator, self).__init__(
+        evaluation_context, applied_ptransform, input_committed_bundle,
+        side_inputs, scoped_metrics_container)
+
+    source = self._applied_ptransform.transform._source
+    self._subscription = _PubSubReadEvaluator.get_subscription(
+        self._applied_ptransform, source.project, source.topic_name,
+        source.subscription_name)
+
+  @classmethod
+  def get_subscription(cls, transform, project, topic, subscription_name):
+    if transform not in cls._subscription_cache:
+      from google.cloud import pubsub
+      should_create = not subscription_name
+      if should_create:
+        subscription_name = 'beam_%d_%x' % (
+            int(time.time()), random.randrange(1 << 32))
+      cls._subscription_cache[transform] = _PubSubSubscriptionWrapper(
+          pubsub.Client(project=project).topic(topic).subscription(
+              subscription_name),
+          should_create)
+      if should_create:
+        cls._subscription_cache[transform].subscription.create()
+    return cls._subscription_cache[transform].subscription
+
+  def start_bundle(self):
+    pass
+
+  def process_element(self, element):
+    pass
+
+  def _read_from_pubsub(self):
+    from google.cloud import pubsub
+    # Because of the AutoAck, we are not able to reread messages if this
+    # evaluator fails with an exception before emitting a bundle. However,
+    # the DirectRunner currently doesn't retry work items anyway, so the
+    # pipeline would enter an inconsistent state on any error.
+    with pubsub.subscription.AutoAck(
+        self._subscription, return_immediately=True,
+        max_messages=10) as results:
+      return [message.data for unused_ack_id, message in results.items()]
+
+  def finish_bundle(self):
+    data = self._read_from_pubsub()
+    if data:
+      output_pcollection = list(self._outputs)[0]
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      # TODO(ccy): we currently do not use the PubSub message timestamp or
+      # respect the PubSub source's id_label field.
+      now = Timestamp.of(time.time())
+      for message_data in data:
+        bundle.output(GlobalWindows.windowed_value(message_data, timestamp=now))
+      bundles = [bundle]
+    else:
+      bundles = []
+    input_pvalue = self._applied_ptransform.inputs
+    if not input_pvalue:
+      input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
+    unprocessed_bundle = self._evaluation_context.create_bundle(
+        input_pvalue)
+    return TransformResult(
+        self._applied_ptransform, bundles,
+        [unprocessed_bundle], None, {None: Timestamp.of(time.time())})
 
 
 class _FlattenEvaluator(_TransformEvaluator):
