@@ -48,11 +48,11 @@ class ReadStringsFromPubSub(PTransform):
 
     Attributes:
       topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/
-        <topic>".
+        <topic>". If provided, subscription must be None.
       subscription: Existing Cloud Pub/Sub subscription to use in the
         form "projects/<project>/subscriptions/<subscription>". If not
         specified, a temporary subscription will be created from the specified
-        topic.
+        topic. If provided, topic must be None.
       id_label: The attribute on incoming Pub/Sub messages to use as a unique
         record identifier.  When specified, the value of this attribute (which
         can be any string that uniquely identifies the record) will be used for
@@ -105,9 +105,11 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
 
   Attributes:
     topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/<topic>".
+      If provided, subscription must be None.
     subscription: Existing Cloud Pub/Sub subscription to use in the
       form "projects/<project>/subscriptions/<subscription>". If not specified,
-      a temporary subscription will be created from the specified topic.
+      a temporary subscription will be created from the specified topic. If
+      provided, topic must be None.
     id_label: The attribute on incoming Pub/Sub messages to use as a unique
       record identifier.  When specified, the value of this attribute (which can
       be any string that uniquely identifies the record) will be used for
@@ -129,6 +131,8 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
     # Perform some validation on the topic and subscription.
     if not (topic or subscription):
       raise ValueError('Either a topic or subscription must be provided.')
+    if topic and subscription:
+      raise ValueError('Only one of topic or subscription should be provided.')
 
     if topic:
       match = re.match(TOPIC_REGEXP, topic)
@@ -159,7 +163,7 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
                             label='ID Label Attribute').drop_if_none(),
             'topic':
             DisplayDataItem(self.full_topic,
-                            label='Pubsub Topic'),
+                            label='Pubsub Topic').drop_if_none(),
             'subscription':
             DisplayDataItem(self.full_subscription,
                             label='Pubsub Subscription').drop_if_none()}

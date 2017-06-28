@@ -61,6 +61,11 @@ class TestReadStringsFromPubSub(unittest.TestCase):
         ValueError, "Either a topic or subscription must be provided."):
       ReadStringsFromPubSub(None, None, 'a_label')
 
+  def test_expand_with_both_topic_and_subscription(self):
+    with self.assertRaisesRegexp(
+        ValueError, "Only one of topic or subscription should be provided."):
+      ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
+
 
 class TestWriteStringsToPubSub(unittest.TestCase):
   def test_expand(self):
@@ -74,15 +79,26 @@ class TestWriteStringsToPubSub(unittest.TestCase):
 
 
 class TestPubSubSource(unittest.TestCase):
-  def test_display_data(self):
+  def test_display_data_topic(self):
     source = _PubSubPayloadSource(
         'projects/fakeprj/topics/a_topic',
-        'projects/fakeprj/subscriptions/a_subscription',
+        None,
         'a_label')
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher(
             'topic', 'projects/fakeprj/topics/a_topic'),
+        DisplayDataItemMatcher('id_label', 'a_label')]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_display_data_subscription(self):
+    source = _PubSubPayloadSource(
+        None,
+        'projects/fakeprj/subscriptions/a_subscription',
+        'a_label')
+    dd = DisplayData.create_from(source)
+    expected_items = [
         DisplayDataItemMatcher(
             'subscription', 'projects/fakeprj/subscriptions/a_subscription'),
         DisplayDataItemMatcher('id_label', 'a_label')]

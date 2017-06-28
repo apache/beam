@@ -386,18 +386,18 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         side_inputs, scoped_metrics_container)
 
     source = self._applied_ptransform.transform._source
-    should_create = not source.subscription_name
     self._subscription = _PubSubReadEvaluator.get_subscription(
         self._applied_ptransform, source.project, source.topic_name,
-        source.subscription_name, should_create)
+        source.subscription_name)
 
   @classmethod
-  def get_subscription(cls, transform, project, topic, subscription_name,
-                       should_create):
+  def get_subscription(cls, transform, project, topic, subscription_name):
     if transform not in cls._subscription_cache:
       from google.cloud import pubsub
+      should_create = not subscription_name
       if should_create:
-        subscription_name = 'dataflow_%x' % random.randrange(1 << 32)
+        subscription_name = 'beam_%d_%x' % (
+            int(time.time()), random.randrange(1 << 32))
       cls._subscription_cache[transform] = _PubSubSubscriptionWrapper(
           pubsub.Client(project=project).topic(topic).subscription(
               subscription_name),
@@ -414,6 +414,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
   def _read_from_pubsub(self):
     from google.cloud import pubsub
+    # Because of the AutoAck, we are not able to reread messages if this
+    # evaluator fails with an exception before emitting a bundle. However,
+    # the DirectRunner currently doesn't retry work items anyway, so the
+    # pipeline would enter an inconsistent state on any error.
     with pubsub.subscription.AutoAck(
         self._subscription, return_immediately=True,
         max_messages=10) as results:
@@ -424,6 +428,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if data:
       output_pcollection = list(self._outputs)[0]
       bundle = self._evaluation_context.create_bundle(output_pcollection)
+      # TODO(ccy): we currently do not use the PubSub message timestamp or
+      # respect the PubSub source's id_label field.
       now = Timestamp.of(time.time())
       for message_data in data:
         bundle.output(GlobalWindows.windowed_value(message_data, timestamp=now))
