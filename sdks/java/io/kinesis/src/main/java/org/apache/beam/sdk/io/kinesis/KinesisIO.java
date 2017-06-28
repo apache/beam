@@ -100,7 +100,7 @@ import org.joda.time.Instant;
  * }</pre>
  *
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public final class KinesisIO {
     /** Returns a new {@link Read} transform for reading from Kinesis. */
     public static Read read() {
