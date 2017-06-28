@@ -52,6 +52,7 @@ public class GcpApiSurfaceTest {
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
+            classesInPackage("com.google.api.core"),
             classesInPackage("com.google.api.client.googleapis"),
             classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),
@@ -60,9 +61,18 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigtable.config"),
+            classesInPackage("com.google.spanner.v1"),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.grpc.ApiException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.Error.class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.ExceptionData.class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.ExceptionData.Builder
+                .class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.RetryHelper.RetryHelperException.class),
+            Matchers.<Class<?>>equalTo(com.google.cloud.grpc.BaseGrpcServiceException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.ByteArray.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Date.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Timestamp.class),
