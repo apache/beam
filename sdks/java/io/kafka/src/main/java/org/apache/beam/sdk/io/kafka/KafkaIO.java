@@ -962,7 +962,8 @@ public class KafkaIO {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return Math.max(0, (long) ((latestOffset - nextOffset) / (1 + avgOffsetGap.get())));
+        double remaining = (latestOffset - nextOffset) / (1 + avgOffsetGap.get());
+        return Math.max(0, (long) Math.ceil(remaining));
       }
     }
 
