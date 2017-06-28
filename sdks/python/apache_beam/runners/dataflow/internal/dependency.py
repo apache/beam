@@ -71,9 +71,15 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 
 # Update this version to the next version whenever there is a change that will
-# require changes to the execution environment.
+# require changes to legacy dataflow worker the execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
+# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER version should coincide
+# when we make a release.
 BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
+# Update this version to the next version whenever there is a change that
+# requires changes to SDK harness container or SDK harness laucnher.
+# This should be in the beam-[version]-[date] format, date is optional.
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.1.0-20170621'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -487,12 +493,15 @@ def get_default_container_image_for_current_sdk(job_type):
     image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
   else:
     image_name = 'dataflow.gcr.io/v1beta3/python'
-  image_tag = _get_required_container_version()
+  image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version():
+def _get_required_container_version(job_type=None):
   """For internal use only; no backwards-compatibility guarantees.
+
+  Args:
+    job_type: string, BEAM job type.
 
   Returns:
     string, The tag of worker container images in GCR that corresponds to
@@ -512,7 +521,10 @@ def _get_required_container_version():
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
-    return BEAM_CONTAINER_VERSION
+    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+      return BEAM_FNAPI_CONTAINER_VERSION
+    else:
+      return BEAM_CONTAINER_VERSION
 
 
 def get_sdk_name_and_version():
