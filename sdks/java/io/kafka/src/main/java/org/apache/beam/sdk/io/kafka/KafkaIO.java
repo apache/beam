@@ -904,6 +904,22 @@ public class KafkaIO {
       return name;
     }
 
+    // Maintains approximate average over last 1000 elements
+    private static class MovingAvg {
+      private static final int MOVING_AVG_WINDOW = 1000;
+      private double avg = 0;
+      private long numUpdates = 0;
+
+      void update(double quantity) {
+        numUpdates++;
+        avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
+      }
+
+      double get() {
+        return avg;
+      }
+    }
+
     // maintains state of each assigned partition (buffered records, consumed offset, etc)
     private static class PartitionState {
       private final TopicPartition topicPartition;
@@ -911,9 +927,8 @@ public class KafkaIO {
       private long latestOffset;
       private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-      // simple moving average for size of each record in bytes
-      private double avgRecordSize = 0;
-      private static final int movingAvgWindow = 1000; // very roughly avg of last 1000 elements
+      private MovingAvg avgRecordSize = new MovingAvg();
+      private MovingAvg avgOffsetGap = new MovingAvg(); // > 0 only when log compaction is enabled.
 
       PartitionState(TopicPartition partition, long nextOffset) {
         this.topicPartition = partition;
@@ -921,17 +936,13 @@ public class KafkaIO {
         this.latestOffset = UNINITIALIZED_OFFSET;
       }
 
-      // update consumedOffset and avgRecordSize
-      void recordConsumed(long offset, int size) {
+      // Update consumedOffset, avgRecordSize, and avgOffsetGap
+      void recordConsumed(long offset, int size, long offsetGap) {
         nextOffset = offset + 1;
 
-        // this is always updated from single thread. probably not worth making it an AtomicDouble
-        if (avgRecordSize <= 0) {
-          avgRecordSize = size;
-        } else {
-          // initially, first record heavily contributes to average.
-          avgRecordSize += ((size - avgRecordSize) / movingAvgWindow);
-        }
+        // This is always updated from single thread. Probably not worth making atomic.
+        avgRecordSize.update(size);
+        avgOffsetGap.update(offsetGap);
       }
 
       synchronized void setLatestOffset(long latestOffset) {
@@ -944,14 +955,15 @@ public class KafkaIO {
         if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return (long) (backlogMessageCount * avgRecordSize);
+        return (long) (backlogMessageCount * avgRecordSize.get());
       }
 
       synchronized long backlogMessageCount() {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return Math.max(0, (latestOffset - nextOffset));
+        double remaining = (latestOffset - nextOffset) / (1 + avgOffsetGap.get());
+        return Math.max(0, (long) Math.ceil(remaining));
       }
     }
 
@@ -1154,14 +1166,11 @@ public class KafkaIO {
             continue;
           }
 
-          // sanity check
-          if (offset != expected) {
-            LOG.warn("{}: gap in offsets for {} at {}. {} records missing.",
-                this, pState.topicPartition, expected, offset - expected);
-          }
+          long offsetGap = offset - expected; // could be > 0 when Kafka log compaction is enabled.
 
           if (curRecord == null) {
             LOG.info("{}: first record offset {}", name, offset);
+            offsetGap = 0;
           }
 
           curRecord = null; // user coders below might throw.
@@ -1182,7 +1191,7 @@ public class KafkaIO {
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-          pState.recordConsumed(offset, recordSize);
+          pState.recordConsumed(offset, recordSize, offsetGap);
           bytesRead.inc(recordSize);
           bytesReadBySplit.inc(recordSize);
           return true;
