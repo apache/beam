@@ -184,7 +184,7 @@ class BeamBuiltinAggregations {
     public BeamSqlRow merge(Iterable<BeamSqlRow> accumulators) {
       BigDecimal v = new BigDecimal(0);
       while (accumulators.iterator().hasNext()) {
-        v.add(accumulators.iterator().next().getBigDecimal(0));
+        v = v.add(accumulators.iterator().next().getBigDecimal(0));
       }
       return new BeamSqlRow(accType, Arrays.<Object>asList(v));
     }
@@ -263,7 +263,7 @@ class BeamBuiltinAggregations {
       long s = 0;
       while (accumulators.iterator().hasNext()) {
         BeamSqlRow r = accumulators.iterator().next();
-        v.add(r.getBigDecimal(0));
+        v = v.add(r.getBigDecimal(0));
         s += r.getLong(1);
       }
       return new BeamSqlRow(accType, Arrays.<Object>asList(v, s));
