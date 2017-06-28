@@ -31,6 +31,8 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -59,11 +61,6 @@ public class SpannerReadIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
-    @Description("Project ID for Spanner")
-    @Default.String("apache-beam-testing")
-    String getProjectId();
-    void setProjectId(String value);
-
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -84,13 +81,16 @@ public class SpannerReadIT {
   private DatabaseAdminClient databaseAdminClient;
   private SpannerTestPipelineOptions options;
   private String databaseName;
+  private String project;
 
   @Before
   public void setUp() throws Exception {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    spanner = SpannerOptions.newBuilder().setProjectId(options.getProjectId()).build().getService();
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+
+    spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
     databaseName = generateDatabaseName();
 
@@ -118,7 +118,7 @@ public class SpannerReadIT {
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(
             DatabaseId.of(
-                options.getProjectId(), options.getInstanceId(), databaseName));
+                project, options.getInstanceId(), databaseName));
 
     List<Mutation> mutations = new ArrayList<>();
     for (int i = 0; i < 5L; i++) {
@@ -134,7 +134,7 @@ public class SpannerReadIT {
     databaseClient.writeAtLeastOnce(mutations);
 
     SpannerConfig spannerConfig = SpannerConfig.create()
-        .withProjectId(options.getProjectId())
+        .withProjectId(project)
         .withInstanceId(options.getInstanceId())
         .withDatabaseId(databaseName);
 
