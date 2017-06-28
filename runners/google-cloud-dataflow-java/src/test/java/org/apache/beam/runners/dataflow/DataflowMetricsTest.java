@@ -243,7 +243,10 @@ public class DataflowMetricsTest {
         makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
         makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
         makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
-        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true)));
+        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true),
+        // The following counter can not have its name translated thus it won't appear.
+        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, false),
+        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
