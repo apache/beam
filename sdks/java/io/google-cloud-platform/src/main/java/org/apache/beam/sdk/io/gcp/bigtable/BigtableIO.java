@@ -175,7 +175,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -211,7 +211,7 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental
+  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Row>> {
 
@@ -415,7 +415,7 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental
+  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write
       extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
