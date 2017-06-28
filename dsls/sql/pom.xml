@@ -38,6 +38,26 @@
     <avatica-version>1.9.0</avatica-version>
   </properties>
 
+  <!--
+  The direct runner is available by default.
+  You can also include it on the classpath explicitly with -P direct-runner
+  -->
+  <profiles>
+    <profile>
+      <id>direct-runner</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-direct-java</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <build>
     <resources>
       <resource>
@@ -137,11 +157,6 @@
           <artifactId>protobuf-lite</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
