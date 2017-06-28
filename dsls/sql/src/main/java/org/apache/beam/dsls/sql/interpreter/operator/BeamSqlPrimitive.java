@@ -30,7 +30,7 @@ import org.apache.calcite.util.NlsString;
  * It holds the value, and return it directly during {@link #evaluate(BeamSqlRow)}.
  *
  */
-public class BeamSqlPrimitive<T> extends BeamSqlExpression{
+public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private T value;
 
   private BeamSqlPrimitive() {
@@ -44,7 +44,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
    * A builder function to create from Type and value directly.
    */
   public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value){
-    BeamSqlPrimitive<T> exp = new BeamSqlPrimitive<T>();
+    BeamSqlPrimitive<T> exp = new BeamSqlPrimitive<>();
     exp.outputType = outputType;
     exp.value = value;
     if (!exp.accept()) {

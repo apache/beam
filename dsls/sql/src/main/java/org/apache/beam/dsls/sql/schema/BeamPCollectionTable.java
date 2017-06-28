@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
-  private PCollection<BeamSqlRow> upstream;
+  private transient PCollection<BeamSqlRow> upstream;
 
   protected BeamPCollectionTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);

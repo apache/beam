@@ -35,6 +35,9 @@ public class BeamSqlDivideExpression extends BeamSqlArithmeticExpression {
   }
 
   @Override public Double calc(Number left, Number right) {
+    if (right.doubleValue() == 0) {
+      throw new IllegalArgumentException("divisor cannot be 0");
+    }
     return left.doubleValue() / right.doubleValue();
   }
 }

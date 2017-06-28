@@ -66,6 +66,8 @@ public class BeamSqlAbsExpression extends BeamSqlMathUnaryExpression {
         result = BeamSqlPrimitive
             .of(SqlTypeName.DOUBLE, SqlFunctions.abs(op.getDouble()));
         break;
+      default:
+        break;
     }
     return result;
   }

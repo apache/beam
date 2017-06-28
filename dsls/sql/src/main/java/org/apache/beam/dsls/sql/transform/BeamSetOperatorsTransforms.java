@@ -85,9 +85,8 @@ public abstract class BeamSetOperatorsTransforms {
         case INTERSECT:
           if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
             if (all) {
-              Iterator<BeamSqlRow> iter = leftRows.iterator();
-              while (iter.hasNext()) {
-                ctx.output(iter.next());
+              for (BeamSqlRow leftRow : leftRows) {
+                ctx.output(leftRow);
               }
             } else {
               ctx.output(ctx.element().getKey());
