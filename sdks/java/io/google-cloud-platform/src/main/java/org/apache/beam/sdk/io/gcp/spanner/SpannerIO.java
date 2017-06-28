@@ -196,8 +196,8 @@ public class SpannerIO {
    */
   @Experimental
   public static Write write() {
-    return new AutoValue_SpannerIO_Write.Builder().setSpannerConfig(SpannerConfig.create()).build()
-        .withBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES);
+    return new AutoValue_SpannerIO_Write.Builder().setSpannerConfig(SpannerConfig.create())
+        .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES).build();
   }
 
   /**
