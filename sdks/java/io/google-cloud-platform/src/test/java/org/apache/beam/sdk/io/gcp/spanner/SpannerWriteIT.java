@@ -33,7 +33,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
-
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -43,7 +42,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.commons.text.RandomStringGenerator;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -116,9 +114,11 @@ public class SpannerWriteIT {
   }
 
   private String generateDatabaseName() {
-    String random = new RandomStringGenerator.Builder().build()
-        .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
-        .toLowerCase();
+    String random =
+        new RandomStringGenerator.Builder()
+            .withinRange('a', 'z')
+            .build()
+            .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 
