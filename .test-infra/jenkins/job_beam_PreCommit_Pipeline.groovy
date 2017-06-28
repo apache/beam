@@ -36,6 +36,12 @@ pipelineJob('beam_PreCommit_Pipeline') {
         'pipeline',
         'Commit id or refname (eg: origin/pr/9/head) you want to build.')
   }
+  triggers {
+    githubPullRequest {
+      useGithubHooks()
+      permitAll()
+    }
+  }
   // Set common parameters.
   //common_job_properties.setTopLevelMainJobProperties(
   //  delegate,
