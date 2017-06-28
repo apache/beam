@@ -33,7 +33,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
     // ${sha1} parameter needs to be provided, and defaults to the main branch.
     stringParam(
         'sha1',
-        'pipeline_test',
+        'pipeline',
         'Commit id or refname (eg: origin/pr/9/head) you want to build.')
   }
   // Set common parameters.
@@ -50,7 +50,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
       scm {
         git {
           remote {
-            github('jasonkuster/beam')
+            github('beam-testing/beam')
             refspec('+refs/heads/*:refs/remotes/origin/* ' +
                     '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
           }
