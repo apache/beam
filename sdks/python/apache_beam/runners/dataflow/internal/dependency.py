@@ -520,7 +520,7 @@ def get_sdk_name_and_version():
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
   import pkg_resources as pkg
-  container_version = get_required_container_version()
+  container_version = _get_required_container_version()
   try:
     pkg.get_distribution(GOOGLE_PACKAGE_NAME)
     return ('Google Cloud Dataflow SDK for Python', container_version)
