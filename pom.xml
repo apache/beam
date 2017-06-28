@@ -108,7 +108,7 @@
     <api-common.version>1.0.0-rc2</api-common.version>
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <bigtable.version>0.9.6.2</bigtable.version>
+    <bigtable.version>0.9.7.1</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
