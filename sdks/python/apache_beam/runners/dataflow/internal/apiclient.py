@@ -38,7 +38,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.dependency import get_required_container_version
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
@@ -205,11 +204,8 @@ class Environment(object):
       pool.workerHarnessContainerImage = (
           self.worker_options.worker_harness_container_image)
     else:
-      # Default to using the worker harness container image for the current SDK
-      # version.
       pool.workerHarnessContainerImage = (
-          'dataflow.gcr.io/v1beta3/python:%s' %
-          get_required_container_version())
+          dependency.get_default_container_image_for_current_sdk(job_type))
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
