@@ -179,10 +179,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamSqlRow leftNullRow, BeamSqlRow rightNullRow, String stageName) {
     PCollection<KV<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>>> joinedRows = null;
     switch (joinType) {
-      case INNER:
-        joinedRows = org.apache.beam.sdk.extensions.joinlibrary.Join
-            .innerJoin(extractedLeftRows, extractedRightRows);
-        break;
       case LEFT:
         joinedRows = org.apache.beam.sdk.extensions.joinlibrary.Join
             .leftOuterJoin(extractedLeftRows, extractedRightRows, rightNullRow);
@@ -195,6 +191,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         joinedRows = org.apache.beam.sdk.extensions.joinlibrary.Join
             .fullOuterJoin(extractedLeftRows, extractedRightRows, leftNullRow,
             rightNullRow);
+        break;
+      case INNER:
+      default:
+        joinedRows = org.apache.beam.sdk.extensions.joinlibrary.Join
+            .innerJoin(extractedLeftRows, extractedRightRows);
+        break;
     }
 
     PCollection<BeamSqlRow> ret = joinedRows
