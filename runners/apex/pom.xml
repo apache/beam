@@ -75,6 +75,13 @@
       <artifactId>apex-engine</artifactId>
       <version>${apex.core.version}</version>
       <scope>runtime</scope>
+      <exclusions>
+        <!-- Fix build on JDK-9 -->
+        <exclusion>
+          <groupId>jdk.tools</groupId>
+          <artifactId>jdk.tools</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Beam -->
