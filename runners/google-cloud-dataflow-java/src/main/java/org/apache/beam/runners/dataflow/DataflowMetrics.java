@@ -79,9 +79,14 @@ class DataflowMetrics extends MetricResults {
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
     String fullStepName = metricUpdate.getName().getContext().get("step");
-    fullStepName = (dataflowPipelineJob.transformStepNames != null
-        ? dataflowPipelineJob.transformStepNames
-        .inverse().get(fullStepName).getFullName() : fullStepName);
+    if (dataflowPipelineJob.transformStepNames == null
+        || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
+      // If we can't translate internal step names to user step names, we just skip them
+      // altogether.
+      return null;
+    }
+    fullStepName = dataflowPipelineJob.transformStepNames
+        .inverse().get(fullStepName).getFullName();
     return MetricKey.create(
         fullStepName,
         MetricName.named(
@@ -119,15 +124,18 @@ class DataflowMetrics extends MetricResults {
     // If the Context of the metric update does not have a namespace, then these are not
     // actual metrics counters.
     for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
-      if (Objects.equal(update.getName().getOrigin(), "user") && isMetricTentative(update)
+      if (Objects.equal(update.getName().getOrigin(), "user")
           && update.getName().getContext().containsKey("namespace")) {
-        tentativeByName.put(metricHashKey(update), update);
-        metricHashKeys.add(metricHashKey(update));
-      } else if (Objects.equal(update.getName().getOrigin(), "user")
-          && update.getName().getContext().containsKey("namespace")
-          && !isMetricTentative(update)) {
-        committedByName.put(metricHashKey(update), update);
-        metricHashKeys.add(metricHashKey(update));
+        MetricKey key = metricHashKey(update);
+        if (key == null) {
+          continue;
+        }
+        metricHashKeys.add(key);
+        if (isMetricTentative(update)) {
+          tentativeByName.put(key, update);
+        } else {
+          committedByName.put(key, update);
+        }
       }
     }
     // Create the lists with the metric result information.
