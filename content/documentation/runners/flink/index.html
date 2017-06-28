@@ -171,11 +171,11 @@
 <p>To find out which version of Flink you need you can run this command to check the version of the Flink dependency that your project is using:</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>$ mvn dependency:tree -Pflink-runner |grep flink
 ...
-[INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.1.2:runtime
+[INFO] |  +- org.apache.flink:flink-streaming-java_2.10:jar:1.2.1:runtime
 ...
 </code></pre>
 </div>
-<p>Here, we would need Flink 1.1.2.</p>
+<p>Here, we would need Flink 1.2.1. Please also note the Scala version in the dependency name. In this case we need to make sure to use a Flink cluster with Scala version 2.10.</p>
 
 <p>For more information, the <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.1/">Flink Documentation</a> can be helpful.</p>
 
