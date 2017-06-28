@@ -428,7 +428,7 @@ public class DataflowPipelineJob implements PipelineResult {
                     + "please go to the Developers Console to cancel it manually: %s",
                 state,
                 MonitoringUtil.getJobMonitoringPageURL(
-                  getProjectId(), getRegion(), getJobId()));
+                    getProjectId(), getRegion(), getJobId()));
             LOG.warn(errorMsg);
             throw new IOException(errorMsg, e);
           }
