@@ -34,9 +34,9 @@ class common_job_properties {
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(context,
-                                           String branch = 'master',
+                                           String branch = 'pipeline',
                                            int timeout = 100,
-                                           String jenkinsExecutorLabel = 'beam') {
+                                           String jenkinsExecutorLabel = 'master') {
     setTopLevelJobProperties(
             context,
             'beam',
@@ -55,7 +55,7 @@ class common_job_properties {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
+      githubProjectUrl('https://github.com/beam-testing/' + repositoryName + '/')
     }
 
     // Set JDK version.
@@ -73,7 +73,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/' + repositoryName + '.git')
+          url('https://github.com/beam-testing/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
@@ -104,9 +104,9 @@ class common_job_properties {
       environmentVariables {
         env('SPARK_LOCAL_IP', '127.0.0.1')
       }
-      credentialsBinding {
-        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-      }
+      // credentialsBinding {
+      //   string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+      // }
     }
   }
 
@@ -198,7 +198,7 @@ class common_job_properties {
                            String commitStatusName,
                            String successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, successComment)
+    // setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -207,11 +207,11 @@ class common_job_properties {
   static void enablePhraseTriggeringFromPullRequest(context,
                                                     String commitStatusName,
                                                     String prTriggerPhrase) {
-    setPullRequestBuildTrigger(
-      context,
-      commitStatusName,
-      '--none--',
-      prTriggerPhrase)
+    // setPullRequestBuildTrigger(
+    //   context,
+    //   commitStatusName,
+    //   '--none--',
+    //   prTriggerPhrase)
   }
 
   // Sets common config for PostCommit jobs.
@@ -221,18 +221,18 @@ class common_job_properties {
                             String notifyAddress = 'commits@beam.apache.org',
                             boolean emailIndividuals = true) {
     // Set build triggers
-    context.triggers {
+    // context.triggers {
       // By default runs every 6 hours.
-      cron(buildSchedule)
-      if (triggerEveryPush) {
-        githubPush()
-      }
-    }
+    //   cron(buildSchedule)
+    //   if (triggerEveryPush) {
+    //     githubPush()
+    //   }
+    // }
 
-    context.publishers {
+    // context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
-      mailer(notifyAddress, false, emailIndividuals)
-    }
+      // mailer(notifyAddress, false, emailIndividuals)
+    // }
   }
 
   // Configures the argument list for performance tests, adding the standard
