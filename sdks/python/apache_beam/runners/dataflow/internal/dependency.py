@@ -50,6 +50,8 @@ shared staging location.
 
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
+
+TODO(tvalentyn): Use enumerated type instead of strings for job types.
 """
 
 import functools
@@ -484,10 +486,10 @@ def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
   Args:
-    job_type: string, BEAM job type.
+    job_type (str): BEAM job type.
 
   Returns:
-    string, Google Cloud Dataflow container image for remote execution.
+    str: Google Cloud Dataflow container image for remote execution.
   """
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
     image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
@@ -501,11 +503,11 @@ def _get_required_container_version(job_type=None):
   """For internal use only; no backwards-compatibility guarantees.
 
   Args:
-    job_type: string, BEAM job type.
+    job_type (str): BEAM job type.
 
   Returns:
-    string, The tag of worker container images in GCR that corresponds to
-    current version of the SDK.
+    str: The tag of worker container images in GCR that corresponds to
+      current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
