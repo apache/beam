@@ -26,7 +26,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
   // Execute concurrent builds if necessary.
   concurrentBuild()
   properties {
-    githubProjectUrl('https://github.com/beam-testing/' + repositoryName + '/')
+    githubProjectUrl('https://github.com/beam-testing/beam/')
   }
   parameters {
     // This is a recommended setup if you want to run the job manually. The
