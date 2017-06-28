@@ -17,33 +17,30 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Operation;
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.TimestampBound;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
+import java.util.ArrayList;
 import java.util.Collections;
-
-import org.apache.beam.sdk.io.GenerateSequence;
+import java.util.List;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.commons.text.RandomStringGenerator;
-
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,9 +48,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End-to-end test of Cloud Spanner Sink. */
+/** End-to-end test of Cloud Spanner Source. */
 @RunWith(JUnit4.class)
-public class SpannerWriteIT {
+public class SpannerReadIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;
 
@@ -115,36 +112,45 @@ public class SpannerWriteIT {
     op.waitFor();
   }
 
-  private String generateDatabaseName() {
-    String random = new RandomStringGenerator.Builder().build()
-        .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
-        .toLowerCase();
-    return options.getDatabaseIdPrefix() + "-" + random;
-  }
-
   @Test
-  public void testWrite() throws Exception {
-    p.apply(GenerateSequence.from(0).to(100))
-        .apply(ParDo.of(new GenerateMutations(options.getTable())))
-        .apply(
-            SpannerIO.write()
-                .withProjectId(options.getProjectId())
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName));
-
-    p.run();
+  public void testRead() throws Exception {
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(
             DatabaseId.of(
                 options.getProjectId(), options.getInstanceId(), databaseName));
 
-    ResultSet resultSet =
-        databaseClient
-            .singleUse()
-            .executeQuery(Statement.of("SELECT COUNT(*) FROM " + options.getTable()));
-    assertThat(resultSet.next(), is(true));
-    assertThat(resultSet.getLong(0), equalTo(100L));
-    assertThat(resultSet.next(), is(false));
+    List<Mutation> mutations = new ArrayList<>();
+    for (int i = 0; i < 5L; i++) {
+      mutations.add(
+          Mutation.newInsertOrUpdateBuilder(options.getTable())
+              .set("key")
+              .to((long) i)
+              .set("value")
+              .to(RandomStringUtils.random(100, true, true))
+              .build());
+    }
+
+    databaseClient.writeAtLeastOnce(mutations);
+
+    SpannerConfig spannerConfig = SpannerConfig.create()
+        .withProjectId(options.getProjectId())
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(databaseName);
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> output =
+        p.apply(
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withQuery("SELECT * FROM " + options.getTable())
+                .withTransaction(tx));
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+    p.run();
   }
 
   @After
@@ -153,22 +159,11 @@ public class SpannerWriteIT {
     spanner.close();
   }
 
-  private static class GenerateMutations extends DoFn<Long, Mutation> {
-    private final String table;
-    private final int valueSize = 100;
-
-    public GenerateMutations(String table) {
-      this.table = table;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
-      Long key = c.element();
-      builder.set("Key").to(key);
-      builder.set("Value").to(new RandomStringGenerator.Builder().build().generate(valueSize));
-      Mutation mutation = builder.build();
-      c.output(mutation);
-    }
+  private String generateDatabaseName() {
+    String random =
+        RandomStringUtils.randomAlphanumeric(
+            MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
+            .toLowerCase();
+    return options.getDatabaseIdPrefix() + "-" + random;
   }
 }

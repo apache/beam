@@ -138,7 +138,7 @@
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
-    <spanner.version>0.16.0-beta</spanner.version>
+    <spanner.version>0.20.0-beta</spanner.version>
     <spark.version>1.6.2</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
@@ -161,6 +161,7 @@
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
+    <gax-grpc.version>0.20.0</gax-grpc.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -638,6 +639,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.api</groupId>
+        <artifactId>gax-grpc</artifactId>
+        <version>${gax-grpc.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client</artifactId>
         <version>${google-clients.version}</version>
@@ -851,6 +858,11 @@
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-core-grpc</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
