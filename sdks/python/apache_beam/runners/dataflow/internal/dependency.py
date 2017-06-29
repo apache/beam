@@ -71,9 +71,15 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 
 # Update this version to the next version whenever there is a change that will
-# require changes to the execution environment.
+# require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
+# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER version should coincide
+# when we make a release.
 BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
+# Update this version to the next version whenever there is a change that
+# requires changes to SDK harness container or SDK harness launcher.
+# This should be in the beam-[version]-[date] format, date is optional.
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.1.0-20170621'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -474,10 +480,33 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
         'type of location: %s' % sdk_remote_location)
 
 
-def get_required_container_version():
+def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Returns the Google Cloud Dataflow container version for remote execution.
+  Args:
+    job_type (str): BEAM job type.
+
+  Returns:
+    str: Google Cloud Dataflow container image for remote execution.
+  """
+  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
+  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
+  else:
+    image_name = 'dataflow.gcr.io/v1beta3/python'
+  image_tag = _get_required_container_version(job_type)
+  return image_name + ':' + image_tag
+
+
+def _get_required_container_version(job_type=None):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Args:
+    job_type (str, optional): BEAM job type. Defaults to None.
+
+  Returns:
+    str: The tag of worker container images in GCR that corresponds to
+      current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
@@ -493,7 +522,10 @@ def get_required_container_version():
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
-    return BEAM_CONTAINER_VERSION
+    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+      return BEAM_FNAPI_CONTAINER_VERSION
+    else:
+      return BEAM_CONTAINER_VERSION
 
 
 def get_sdk_name_and_version():
@@ -501,7 +533,7 @@ def get_sdk_name_and_version():
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
   import pkg_resources as pkg
-  container_version = get_required_container_version()
+  container_version = _get_required_container_version()
   try:
     pkg.get_distribution(GOOGLE_PACKAGE_NAME)
     return ('Google Cloud Dataflow SDK for Python', container_version)
@@ -513,7 +545,7 @@ def get_sdk_package_name():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-  container_version = get_required_container_version()
+  container_version = _get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME
   return GOOGLE_PACKAGE_NAME
