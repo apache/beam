@@ -20,8 +20,8 @@ import common_job_properties
 
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.
-mavenJob('beam_PreCommit_Java_UnitTest') {
-  description('Part of the PreCommit Pipeline. Runs Java Surefire unit tests.')
+mavenJob('beam_PreCommit_Java_CodeHealth') {
+  description('Part of the PreCommit Pipeline. Runs Java code health checks.')
 
   parameters {
     stringParam(
@@ -60,13 +60,13 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
       string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
     }
     downstreamCommitStatus {
-      context('Jenkins: Java Unit Tests')
-      triggeredStatus("Java Unit Tests Pending")
-      startedStatus("Running Java Unit Tests")
+      context('Jenkins: Java Code Health')
+      triggeredStatus("Java Code Health Pending")
+      startedStatus("Running Java Code Health")
       statusUrl()
-      completedStatus('SUCCESS', "Java Unit Tests Passed")
-      completedStatus('FAILURE', "Java Unit Tests Failed")
-      completedStatus('ERROR', "Error Executing Java Unit Tests")
+      completedStatus('SUCCESS', "Java Code Health Passed")
+      completedStatus('FAILURE', "Java Code Health Failed")
+      completedStatus('ERROR', "Error Executing Java Code Health")
     }
     // Set SPARK_LOCAL_IP for spark tests.
     environmentVariables {
@@ -100,11 +100,10 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
     '-B',
     '-e',
     '-P' + profiles.join(',')
-    'surefire:test@default-test',
-    'coveralls:report',
     '-pl \'!sdks/python\'',
-    '-DrepoToken=$COVERALLS_REPO_TOKEN',
-    '-DpullRequest=$ghprbPullId',
+    'checkstyle:check',
+    'findbugs:check',
+    'rat:check'
   ]
   goals(args.join(' '))
 }
