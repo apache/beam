@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,6 +47,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Pair;
 
@@ -59,16 +61,24 @@ import org.apache.calcite.util.Pair;
  *   <li>BoundedTable JOIN UnboundedTable</li>
  * </ul>
  *
- * <p>For the first two cases, a standard join can be utilized to implement them as long as the
- * windowFn of the both sides match. For the third case, {@code sideInput} is utilized to implement
- * the join, hence there are some constrains for the third case: 1) FULL JOIN is not supported
- * 2) The unbounded table must be at the left side of the OUTER JOIN.
+ * <p>For the first two cases, a standard join is utilized as long as the windowFn of the both
+ * sides match.
  *
- * <p>There is also some overall constrains:
+ * <p>For the third case, {@code sideInput} is utilized to implement the join, so there are some
+ * constraints:
  *
  * <ul>
- *  <li>Only equi-join is supported</li>
- *  <li>CROSS JOIN is not supported</li>
+ *   <li>{@code FULL OUTER JOIN} is not supported.</li>
+ *   <li>If it's a {@code LEFT OUTER JOIN}, the unbounded table should on the left side.</li>
+ *   <li>If it's a {@code RIGHT OUTER JOIN}, the unbounded table should on the right side.</li>
+ * </ul>
+ *
+ *
+ * <p>There are also some general constraints:
+ *
+ * <ul>
+ *  <li>Only equi-join is supported.</li>
+ *  <li>CROSS JOIN is not supported.</li>
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
@@ -132,13 +142,17 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     BeamSqlRow rightNullRow = buildNullRow(rightRelNode);
 
     // a regular join
-    if (leftWinFn.isCompatible(rightWinFn)
-        && ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
+    if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
             && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
            || (leftRows.isBounded() == PCollection.IsBounded.UNBOUNDED
-                && rightRows.isBounded() == PCollection.IsBounded.UNBOUNDED)
-            )
-        ) {
+                && rightRows.isBounded() == PCollection.IsBounded.UNBOUNDED)) {
+      try {
+        leftWinFn.verifyCompatibility(rightWinFn);
+      } catch (IncompatibleWindowException e) {
+        throw new IllegalArgumentException(
+            "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
+      }
+
       return standardJoin(extractedLeftRows, extractedRightRows,
           leftNullRow, rightNullRow, stageName);
     } else if (
@@ -148,8 +162,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
         ) {
       // if one of the sides is Bounded & the other is Unbounded
-      // then do a sideInput
-      // when doing a sideInput, the windowFn does not need to match
+      // then do a sideInput join
+      // when doing a sideInput join, the windowFn does not need to match
       // Only support INNER JOIN & LEFT OUTER JOIN where left side of the join must be
       // the unbounded
       if (joinType == JoinRelType.FULL) {
@@ -210,24 +224,34 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<BeamSqlRow, BeamSqlRow>> extractedLeftRows,
       PCollection<KV<BeamSqlRow, BeamSqlRow>> extractedRightRows,
       BeamSqlRow leftNullRow, BeamSqlRow rightNullRow) {
-    // if the join is not a INNER JOIN we convert the join to a left join
-    // by swap the left/right side of the rows
-    boolean swapped = joinType != JoinRelType.INNER
-        && extractedLeftRows.isBounded() == PCollection.IsBounded.BOUNDED;
+    // we always make the Unbounded table on the left to do the sideInput join
+    // (will convert the result accordingly before return)
+    boolean swapped = (extractedLeftRows.isBounded() == PCollection.IsBounded.BOUNDED);
+    JoinRelType realJoinType =
+        (swapped && joinType != JoinRelType.INNER) ? JoinRelType.LEFT : joinType;
 
     PCollection<KV<BeamSqlRow, BeamSqlRow>> realLeftRows =
         swapped ? extractedRightRows : extractedLeftRows;
     PCollection<KV<BeamSqlRow, BeamSqlRow>> realRightRows =
         swapped ? extractedLeftRows : extractedRightRows;
     BeamSqlRow realRightNullRow = swapped ? leftNullRow : rightNullRow;
-    JoinRelType realJoinType = swapped ? JoinRelType.LEFT : joinType;
 
-    final PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> rowsView = realRightRows
+    // swapped still need to pass down because, we need to swap the result back.
+    return sideInputJoinHelper(realJoinType, realLeftRows, realRightRows,
+        realRightNullRow, swapped);
+  }
+
+  private PCollection<BeamSqlRow> sideInputJoinHelper(
+      JoinRelType joinType,
+      PCollection<KV<BeamSqlRow, BeamSqlRow>> leftRows,
+      PCollection<KV<BeamSqlRow, BeamSqlRow>> rightRows,
+      BeamSqlRow rightNullRow, boolean swapped) {
+    final PCollectionView<Map<BeamSqlRow, Iterable<BeamSqlRow>>> rowsView = rightRows
         .apply(View.<BeamSqlRow, BeamSqlRow>asMultimap());
 
-    PCollection<BeamSqlRow> ret = realLeftRows
+    PCollection<BeamSqlRow> ret = leftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
-            realJoinType, realRightNullRow, rowsView, swapped)).withSideInputs(rowsView))
+            joinType, rightNullRow, rowsView, swapped)).withSideInputs(rowsView))
         .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return ret;
@@ -242,17 +266,22 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return nullRow;
   }
 
-  private List<Pair<Integer, Integer>> extractJoinColumns(int separator) {
+  private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {
+    // it's a CROSS JOIN because: condition == true
+    if (condition instanceof RexLiteral && (Boolean) ((RexLiteral) condition).getValue()) {
+      throw new UnsupportedOperationException("CROSS JOIN is not supported!");
+    }
+
     RexCall call = (RexCall) condition;
     List<Pair<Integer, Integer>> pairs = new ArrayList<>();
     if ("AND".equals(call.getOperator().getName())) {
       List<RexNode> operands = call.getOperands();
       for (RexNode rexNode : operands) {
-        Pair<Integer, Integer> pair = extractOneJoinColumn((RexCall) rexNode, separator);
+        Pair<Integer, Integer> pair = extractOneJoinColumn((RexCall) rexNode, leftRowColumnCount);
         pairs.add(pair);
       }
     } else if ("=".equals(call.getOperator().getName())) {
-      pairs.add(extractOneJoinColumn(call, separator));
+      pairs.add(extractOneJoinColumn(call, leftRowColumnCount));
     } else {
       throw new UnsupportedOperationException(
           "Operator " + call.getOperator().getName() + " is not supported in join condition");
@@ -261,14 +290,15 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return pairs;
   }
 
-  private Pair<Integer, Integer> extractOneJoinColumn(RexCall oneCondition, int separator) {
+  private Pair<Integer, Integer> extractOneJoinColumn(RexCall oneCondition,
+      int leftRowColumnCount) {
     List<RexNode> operands = oneCondition.getOperands();
     final int leftIndex = Math.min(((RexInputRef) operands.get(0)).getIndex(),
         ((RexInputRef) operands.get(1)).getIndex());
 
     final int rightIndex1 = Math.max(((RexInputRef) operands.get(0)).getIndex(),
         ((RexInputRef) operands.get(1)).getIndex());
-    final int rightIndex = rightIndex1 - separator;
+    final int rightIndex = rightIndex1 - leftRowColumnCount;
 
     return new Pair<>(leftIndex, rightIndex);
   }

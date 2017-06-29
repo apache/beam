@@ -38,6 +38,30 @@ public class BeamJoinRelBoundedVsBoundedTest {
   public final TestPipeline pipeline = TestPipeline.create();
   private static final BeamSqlEnv beamSqlEnv = new BeamSqlEnv();
 
+  @BeforeClass
+  public static void prepare() {
+    beamSqlEnv.registerTable("ORDER_DETAILS",
+        MockedBeamSqlTable
+            .of(SqlTypeName.INTEGER, "order_id",
+                SqlTypeName.INTEGER, "site_id",
+                SqlTypeName.INTEGER, "price",
+
+                1, 2, 3,
+                2, 3, 3,
+                3, 4, 5));
+
+    beamSqlEnv.registerTable("ORDER_DETAILS0",
+        MockedBeamSqlTable
+            .of(SqlTypeName.INTEGER, "order_id0",
+                SqlTypeName.INTEGER, "site_id0",
+                SqlTypeName.INTEGER, "price0",
+
+                1, 2, 3,
+                2, 3, 3,
+                3, 4, 5));
+
+  }
+
   @Test
   public void testInnerJoin() throws Exception {
     String sql =
@@ -143,27 +167,29 @@ public class BeamJoinRelBoundedVsBoundedTest {
     pipeline.run();
   }
 
-  @BeforeClass
-  public static void prepare() {
-    beamSqlEnv.registerTable("ORDER_DETAILS",
-        MockedBeamSqlTable
-        .of(SqlTypeName.INTEGER, "order_id",
-            SqlTypeName.INTEGER, "site_id",
-            SqlTypeName.INTEGER, "price",
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException_nonEqualJoin() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS o1"
+            + " JOIN ORDER_DETAILS o2"
+            + " on "
+            + " o1.order_id>o2.site_id"
+        ;
 
-            1, 2, 3,
-            2, 3, 3,
-            3, 4, 5));
+    pipeline.enableAbandonedNodeEnforcement(false);
+    BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    pipeline.run();
+  }
 
-    beamSqlEnv.registerTable("ORDER_DETAILS0",
-        MockedBeamSqlTable
-            .of(SqlTypeName.INTEGER, "order_id0",
-                SqlTypeName.INTEGER, "site_id0",
-                SqlTypeName.INTEGER, "price0",
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException_crossJoin() throws Exception {
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS o1, ORDER_DETAILS o2";
 
-                1, 2, 3,
-                2, 3, 3,
-                3, 4, 5));
-
+    pipeline.enableAbandonedNodeEnforcement(false);
+    BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    pipeline.run();
   }
 }

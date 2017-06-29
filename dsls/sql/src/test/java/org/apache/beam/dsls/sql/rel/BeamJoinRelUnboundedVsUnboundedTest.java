@@ -25,6 +25,7 @@ import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.planner.MockedUnboundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -58,12 +59,12 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         .addRows(
             Duration.ZERO,
             1, 1, 1, FIRST_DATE,
-            1, 2, 2, FIRST_DATE
+            1, 2, 6, FIRST_DATE
         )
         .addRows(
             WINDOW_SIZE.plus(Duration.standardMinutes(1)),
-            2, 2, 3, SECOND_DATE,
-            2, 3, 3, SECOND_DATE,
+            2, 2, 7, SECOND_DATE,
+            2, 3, 8, SECOND_DATE,
             // this late record is omitted(First window)
             1, 3, 3, FIRST_DATE
         )
@@ -97,7 +98,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 Types.INTEGER, "sum_site_id0").values(
                 1, 3, 1, 3,
                 2, 5, 2, 5
-            ).getStrRows()
+            ).getStringRows()
         );
     pipeline.run();
   }
@@ -133,7 +134,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 2, 2, null, null,
                 2, 2, 2, 5,
                 3, 3, null, null
-            ).getStrRows()
+            ).getStringRows()
         );
     pipeline.run();
   }
@@ -163,7 +164,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 null, null, 2, 2,
                 2, 5, 2, 2,
                 null, null, 3, 3
-            ).getStrRows()
+            ).getStringRows()
         );
     pipeline.run();
   }
@@ -171,40 +172,36 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
   @Test
   public void testFullOuterJoin() throws Exception {
     String sql = "SELECT * FROM "
-        + "(select site_id as order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY site_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
-        + " LEFT OUTER JOIN "
+        + "(select price as order_id1, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+        + "          GROUP BY price, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+        + " FULL OUTER JOIN "
         + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
-        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o2 "
+        + "          GROUP BY order_id , TUMBLE(order_time, INTERVAL '1' HOUR)) o2 "
         + " on "
-        + " o1.order_id=o2.order_id"
+        + " o1.order_id1=o2.order_id"
         ;
 
-    // 1, 1 | 1, 3
-    // 2, 2 | NULL, NULL
-    // ---- | -----
-    // 2, 2 | 2, 5
-    // 3, 3 | NULL, NULL
-
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("hello")));
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Types.INTEGER, "order_id",
+                Types.INTEGER, "order_id1",
                 Types.INTEGER, "sum_site_id",
-                Types.INTEGER, "order_id0",
+                Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id0"
             ).values(
                 1, 1, 1, 3,
-                2, 2, null, null,
-                2, 2, 2, 5,
-                3, 3, null, null
-            ).getStrRows()
+                6, 2, null, null,
+                7, 2, null, null,
+                8, 3, null, null,
+                null, null, 2, 5
+            ).getStringRows()
         );
     pipeline.run();
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testWindowsMismatch() throws Exception {
     String sql = "SELECT * FROM "
         + "(select site_id as order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "

@@ -89,7 +89,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
   }
 
   @Test
-  public void testInnerJoin() throws Exception {
+  public void testInnerJoin_unboundedTableOnTheLeftSide() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
         + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
         + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
@@ -109,7 +109,33 @@ public class BeamJoinRelUnboundedVsBoundedTest {
             ).values(
                 1, 3, "james",
                 2, 5, "bond"
-            ).getStrRows()
+            ).getStringRows()
+        );
+    pipeline.run();
+  }
+
+  @Test
+  public void testInnerJoin_boundedTableOnTheLeftSide() throws Exception {
+    String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
+        + " ORDER_DETAILS1 o2 "
+        + " JOIN "
+        + "(select order_id, sum(site_id) as sum_site_id FROM ORDER_DETAILS "
+        + "          GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)) o1 "
+        + " on "
+        + " o1.order_id=o2.order_id"
+        ;
+
+    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Types.INTEGER, "order_id",
+                Types.INTEGER, "sum_site_id",
+                Types.VARCHAR, "buyer"
+            ).values(
+                1, 3, "james",
+                2, 5, "bond"
+            ).getStringRows()
         );
     pipeline.run();
   }
@@ -137,7 +163,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 1, 3, "james",
                 2, 5, "bond",
                 3, 3, null
-            ).getStrRows()
+            ).getStringRows()
         );
     pipeline.run();
   }
@@ -178,7 +204,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 1, 3, "james",
                 2, 5, "bond",
                 3, 3, null
-            ).getStrRows()
+            ).getStringRows()
         );
     pipeline.run();
   }

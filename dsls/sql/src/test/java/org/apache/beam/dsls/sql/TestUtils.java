@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 public class TestUtils {
 
   /**
-   * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code}.
+   * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}.
    */
   public static class BeamSqlRow2StringDoFn extends DoFn<BeamSqlRow, String> {
     @ProcessElement
@@ -54,11 +54,32 @@ public class TestUtils {
 
   /**
    * Convenient way to build a list of {@code BeamSqlRow}s.
+   *
+   * <p>You can use it like this:
+   *
+   * <pre>{@code
+   * TestUtils.RowsBuilder.of(
+   *   Types.INTEGER, "order_id",
+   *   Types.INTEGER, "sum_site_id",
+   *   Types.VARCHAR, "buyer"
+   * ).values(
+   *   1, 3, "james",
+   *   2, 5, "bond"
+   *   ).getStringRows()
+   * }</pre>
+   * {@code}
    */
   public static class RowsBuilder {
     private BeamSqlRecordType type;
     private List<BeamSqlRow> rows = new ArrayList<>();
 
+    /**
+     * Create a RowsBuilder with the specified row type info.
+     *
+     * <p>Note: check the class javadoc for for detailed example.
+     *
+     * @args pairs of column type and column names.
+     */
     public static RowsBuilder of(final Object... args) {
       List<Integer> types = new ArrayList<>();
       List<String> names = new ArrayList<>();
@@ -75,6 +96,11 @@ public class TestUtils {
       return builder;
     }
 
+    /**
+     * Add values to the builder.
+     *
+     * <p>Note: check the class javadoc for for detailed example.
+     */
     public RowsBuilder values(final Object... args) {
       int fieldCount = type.size();
       for (int i = 0; i < args.length; i += fieldCount) {
@@ -92,7 +118,7 @@ public class TestUtils {
       return rows;
     }
 
-    public List<String> getStrRows() {
+    public List<String> getStringRows() {
       return beamSqlRows2Strings(rows);
     }
   }
