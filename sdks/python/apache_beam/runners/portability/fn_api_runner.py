@@ -38,6 +38,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
@@ -186,7 +187,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         target_name = only_element(get_inputs(operation).keys())
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
-            urn=sdk_worker.DATA_OUTPUT_URN,
+            urn=bundle_processor.DATA_OUTPUT_URN,
             parameter=proto_utils.pack_Any(data_operation_spec))
 
       elif isinstance(operation, operation_specs.WorkerRead):
@@ -200,7 +201,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.read(None),
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
-              urn=sdk_worker.DATA_INPUT_URN,
+              urn=bundle_processor.DATA_INPUT_URN,
               parameter=proto_utils.pack_Any(data_operation_spec))
 
         else:
@@ -209,7 +210,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           # The Dataflow runner harness strips the base64 encoding. do the same
           # here until we get the same thing back that we sent in.
           transform_spec = beam_runner_api_pb2.FunctionSpec(
-              urn=sdk_worker.PYTHON_SOURCE_URN,
+              urn=bundle_processor.PYTHON_SOURCE_URN,
               parameter=proto_utils.pack_Any(
                   wrappers_pb2.BytesValue(
                       value=base64.b64decode(
@@ -223,21 +224,22 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           element_coder = si.source.default_output_coder()
           # TODO(robertwb): Actually flesh out the ViewFn API.
           side_input_extras.append((si.tag, element_coder))
-          side_input_data[sdk_worker.side_input_tag(transform_id, si.tag)] = (
-              self._reencode_elements(
-                  si.source.read(si.source.get_range_tracker(None, None)),
-                  element_coder))
+          side_input_data[
+              bundle_processor.side_input_tag(transform_id, si.tag)] = (
+                  self._reencode_elements(
+                      si.source.read(si.source.get_range_tracker(None, None)),
+                      element_coder))
         augmented_serialized_fn = pickler.dumps(
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
-            urn=sdk_worker.PYTHON_DOFN_URN,
+            urn=bundle_processor.PYTHON_DOFN_URN,
             parameter=proto_utils.pack_Any(
                 wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         # Flatten is nice and simple.
         transform_spec = beam_runner_api_pb2.FunctionSpec(
-            urn=sdk_worker.IDENTITY_DOFN_URN)
+            urn=bundle_processor.IDENTITY_DOFN_URN)
 
       else:
         raise NotImplementedError(operation)
