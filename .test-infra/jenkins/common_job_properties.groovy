@@ -111,6 +111,11 @@ class common_job_properties {
     }
   }
 
+  private static void setPipelineDownstreamJobProperties(context,
+                                                         String sdkLang) {
+
+  }
+
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,

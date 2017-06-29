@@ -3,7 +3,6 @@ import hudson.model.Result
 
 try {
     javaBuildNum = -1
-    pythonBuildNum = -1
     stage('Build') {
         parallel (
             java: {
@@ -15,17 +14,6 @@ try {
                 ]
                 if(javaBuild.getResult() == Result.SUCCESS.toString()) {
                     javaBuildNum = javaBuild.getNumber()
-                }
-            },
-            python: {
-                def pythonBuild = build job: 'beam_PreCommit_Python_Build', parameters:[
-                    string(name: 'sha1', value: "origin/pr/${ghprbPullId}/head"),
-                    string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
-                    string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
-                    string(name: 'ghprbPullId', value: "${ghprbPullId}")
-                ]
-                if(pythonBuild.getResult() == Result.SUCCESS.toString()) {
-                    pythonBuildNum = pythonBuild.getNumber()
                 }
             }
         )
@@ -58,16 +46,14 @@ try {
                 }
             },
             python_unit: {
-                if(pythonBuildNum != -1) {
-                    def pythonTest = build job: 'beam_PreCommit_Python_UnitTest', parameters: [
-                        string(name: 'buildNum', value: "${pythonBuildNum}"),
-                        string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
-                        string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
-                        string(name: 'ghprbPullId', value: "${ghprbPullId}")
-                    ]
-                    if(pythonTest.getResult() == Result.SUCCESS.toString()) {
-                        pythonUnitPassed = true
-                    }
+                def pythonTest = build job: 'beam_PreCommit_Python_UnitTest', parameters: [
+                    string(name: 'buildNum', value: "${pythonBuildNum}"),
+                    string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
+                    string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
+                    string(name: 'ghprbPullId', value: "${ghprbPullId}")
+                ]
+                if(pythonTest.getResult() == Result.SUCCESS.toString()) {
+                    pythonUnitPassed = true
                 }
             }
         )
@@ -77,11 +63,11 @@ try {
             java_integration: {
                 if(javaUnitPassed) {
                     build job: 'beam_PreCommit_Java_IntegrationTest', parameters: [
-                string(name: 'buildNum', value: "${javaBuildNum}"),
-                string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
-                string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
-                string(name: 'ghprbPullId', value: "${ghprbPullId}")
-            ]
+                        string(name: 'buildNum', value: "${javaBuildNum}"),
+                        string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
+                        string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
+                        string(name: 'ghprbPullId', value: "${ghprbPullId}")
+                    ]
                 }
             },
             python_integration: {

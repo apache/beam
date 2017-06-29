@@ -99,7 +99,7 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(',')
+    '-P' + profiles.join(','),
     '-pl \'!sdks/python\'',
     'checkstyle:check',
     'findbugs:check',

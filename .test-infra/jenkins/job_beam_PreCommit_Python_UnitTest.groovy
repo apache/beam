@@ -99,8 +99,8 @@ mavenJob('beam_PreCommit_Python_UnitTest') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(',')
-    '???????',
+    '-P' + profiles.join(','),
+    'clean install',
     '-pl sdks/python',
   ]
   goals(args.join(' '))

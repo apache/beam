@@ -99,7 +99,7 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(',')
+    '-P' + profiles.join(','),
     'surefire:test@default-test',
     'coveralls:report',
     '-pl \'!sdks/python\'',
