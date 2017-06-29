@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.util.Arrays;
+
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -148,13 +148,17 @@ public class MutationDetectors {
       // encodedObject, because the Coder may treat it differently.
       //
       // For example, an unbounded Iterable will be encoded in an unbounded way, but decoded into an
-      // ArrayList, which will then be re-encoded in a bounded format. So we really do need to
-      // encode-decode-encode retainedObject.
-      if (Arrays.equals(
-          CoderUtils.encodeToByteArray(coder, clonedOriginalObject),
-          CoderUtils.encodeToByteArray(coder, clonedPossiblyModifiedObject))) {
-        return;
-      }
+      // ArrayList, which will then be re-encoded in a bounded format. So we get a structural value
+      // from a coder and used that to check if the byte array[] are the same. The structuralValue()
+      // method of the Coder returns a StructuralByteArray object.
+      // StructuralByteArray is a wrapper around a byte[] that uses structural, value-based equality
+      // rather than byte[]'s normal object identity.
+
+
+        if (coder.structuralValue(clonedOriginalObject)
+                .equals(coder.structuralValue(clonedPossiblyModifiedObject))){
+            return;
+        }
 
       // If we got here, then they are not deepEquals() and do not have deepEquals() encodings.
       // Even if there is some conceptual sense in which the objects are equivalent, it has not
