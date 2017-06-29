@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+
 import com.google.common.base.CharMatcher;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -61,13 +62,14 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
     @SuppressWarnings("unchecked")
     Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
-
     try {
-      Constructor<?> constructor = constructorCache.get(fnClass).get(timerId);
-      @SuppressWarnings("unchecked")
-      OnTimerInvoker<InputT, OutputT> invoker =
+        OnTimerMethodSpecifier onTimerMethodSpecifier =
+                OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
+        Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
+
+        OnTimerInvoker<InputT, OutputT> invoker =
           (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
-      return invoker;
+        return invoker;
     } catch (InstantiationException
         | IllegalAccessException
         | IllegalArgumentException
@@ -97,50 +99,31 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
   /**
-   * A cache of constructors of generated {@link OnTimerInvoker} classes, keyed by {@link DoFn}
-   * class and then by {@link TimerId}.
+   * A cache of constructors of generated {@link OnTimerInvoker} classes,
+   * keyed by {@link OnTimerMethodSpecifier}.
    *
    * <p>Needed because generating an invoker class is expensive, and to avoid generating an
    * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
    */
-  private final LoadingCache<Class<? extends DoFn<?, ?>>, LoadingCache<String, Constructor<?>>>
-      constructorCache =
-          CacheBuilder.newBuilder()
-              .build(
-                  new CacheLoader<
-                      Class<? extends DoFn<?, ?>>, LoadingCache<String, Constructor<?>>>() {
-                    @Override
-                    public LoadingCache<String, Constructor<?>> load(
-                        final Class<? extends DoFn<?, ?>> fnClass) throws Exception {
-                      return CacheBuilder.newBuilder().build(new OnTimerConstructorLoader(fnClass));
-                    }
-                  });
+  private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorCache =
+          CacheBuilder.newBuilder().build(
+          new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
+              @Override
+              public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
+                      throws Exception {
+                  DoFnSignature signature =
+                          DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
+                  Class<? extends OnTimerInvoker<?, ?>> invokerClass =
+                          generateOnTimerInvokerClass(signature, onTimerMethodSpecifier.timerId());
+                  try {
+                      return invokerClass.getConstructor(signature.fnClass());
+                  } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+                      throw new RuntimeException(e);
+                  }
 
-  /**
-   * A cache loader fixed to a particular {@link DoFn} class that loads constructors for the
-   * invokers for its {@link OnTimer @OnTimer} methods.
-   */
-  private static class OnTimerConstructorLoader extends CacheLoader<String, Constructor<?>> {
-
-    private final DoFnSignature signature;
-
-    public OnTimerConstructorLoader(Class<? extends DoFn<?, ?>> clazz) {
-      this.signature = DoFnSignatures.getSignature(clazz);
-    }
-
-    @Override
-    public Constructor<?> load(String timerId) throws Exception {
-      Class<? extends OnTimerInvoker<?, ?>> invokerClass =
-          generateOnTimerInvokerClass(signature, timerId);
-      try {
-        return invokerClass.getConstructor(signature.fnClass());
-      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-
-  /**
+              }
+          });
+    /**
    * Generates a {@link OnTimerInvoker} class for the given {@link DoFnSignature} and {@link
    * TimerId}.
    */
