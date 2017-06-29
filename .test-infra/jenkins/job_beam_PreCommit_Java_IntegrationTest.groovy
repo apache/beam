@@ -99,7 +99,7 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(',')
+    '-P' + profiles.join(','),
     'failsafe:integration-test',
     '-pl \'!sdks/python\'',
   ]

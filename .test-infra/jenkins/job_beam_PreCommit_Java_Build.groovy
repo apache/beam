@@ -109,7 +109,7 @@ mavenJob('beam_PreCommit_Java_Build') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(',')
+    '-P' + profiles.join(','),
     'clean',
     'install',
     '-pl \'!sdks/python\'',
