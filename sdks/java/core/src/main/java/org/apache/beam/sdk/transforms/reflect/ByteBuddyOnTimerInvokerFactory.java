@@ -62,7 +62,6 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
     @SuppressWarnings("unchecked")
     Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
-    // Is there a way to create and OnTimerMethod using DoFn<Input, Output>?
     try {
         OnTimerMethodSpecifier onTimerMethodSpecifier =
                 OnTimerMethodSpecifier.create(fnClass, timerId);
