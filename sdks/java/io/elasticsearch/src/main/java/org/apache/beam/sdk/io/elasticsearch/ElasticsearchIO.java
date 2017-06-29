@@ -113,7 +113,7 @@ import org.elasticsearch.client.RestClientBuilder;
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
  * to specify the size of the write batch in number of documents or in bytes.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {
 
   public static Read read() {

@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -94,6 +95,7 @@ import org.joda.time.Instant;
  *
  * }</pre>
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class AmqpIO {
 
   public static Read read() {

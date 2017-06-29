@@ -235,7 +235,7 @@ import org.slf4j.LoggerFactory;
  * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
  * otherwise it is set to processing time.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**

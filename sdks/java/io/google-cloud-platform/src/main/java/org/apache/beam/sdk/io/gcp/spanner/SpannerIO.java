@@ -167,7 +167,7 @@ public class SpannerIO {
    * configured with a {@link Read#withInstanceId} and {@link Read#withDatabaseId} that identify the
    * Cloud Spanner database.
    */
-  @Experimental
+  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static Read read() {
     return new AutoValue_SpannerIO_Read.Builder()
         .setSpannerConfig(SpannerConfig.create())
