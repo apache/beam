@@ -68,7 +68,7 @@ func Bind(fn *userfn.UserFn, in ...typex.FullType) ([]typex.FullType, []InputKin
 }
 
 func findOutbound(fn *userfn.UserFn) ([]typex.FullType, error) {
-	ret := userfn.SubReturns(fn.Ret, fn.Returns(userfn.RetValue)...)
+	ret := trimIllegal(returnTypes(userfn.SubReturns(fn.Ret, fn.Returns(userfn.RetValue)...)))
 	params := userfn.SubParams(fn.Param, fn.Params(userfn.FnEmit)...)
 
 	var outbound []typex.FullType
@@ -78,9 +78,9 @@ func findOutbound(fn *userfn.UserFn) ([]typex.FullType, error) {
 	case 0:
 		break // ok: no direct output.
 	case 1:
-		outbound = append(outbound, typex.NewW(typex.New(ret[0].T)))
+		outbound = append(outbound, typex.NewW(typex.New(ret[0])))
 	case 2:
-		outbound = append(outbound, typex.NewWKV(typex.New(ret[0].T), typex.New(ret[1].T)))
+		outbound = append(outbound, typex.NewWKV(typex.New(ret[0]), typex.New(ret[1])))
 	default:
 		return nil, fmt.Errorf("too many return values: %v", ret)
 	}
@@ -95,6 +95,14 @@ func findOutbound(fn *userfn.UserFn) ([]typex.FullType, error) {
 		}
 	}
 	return outbound, nil
+}
+
+func returnTypes(list []userfn.ReturnParam) []reflect.Type {
+	var ret []reflect.Type
+	for _, elm := range list {
+		ret = append(ret, elm.T)
+	}
+	return ret
 }
 
 func findInbound(fn *userfn.UserFn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
@@ -147,7 +155,7 @@ func tryBindInbound(candidate typex.FullType, args []userfn.FnParam, isMain bool
 			switch arg.Kind {
 			case userfn.FnValue:
 				if args[0].T.Kind() == reflect.Slice && t.Type() == args[0].T.Elem() {
-					// NOTE: we do not allow universal slices, for now.
+					// TODO(herohde) 6/29/2017: we do not allow universal slices, for now.
 
 					kind = Slice
 					other = typex.NewW(typex.New(args[0].T.Elem()))
@@ -165,8 +173,17 @@ func tryBindInbound(candidate typex.FullType, args []userfn.FnParam, isMain bool
 				kind = Iter
 				other = typex.NewW(typex.New(trimmed[0]))
 
+			case userfn.FnReIter:
+				values, _ := userfn.UnfoldReIter(args[0].T)
+				trimmed := trimIllegal(values)
+				if len(trimmed) != 1 {
+					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+				}
+
+				kind = ReIter
+				other = typex.NewW(typex.New(trimmed[0]))
+
 			default:
-				// TODO: ReIter
 				panic(fmt.Sprintf("Unexpected param kind: %v", arg))
 			}
 		}
@@ -182,34 +199,59 @@ func tryBindInbound(candidate typex.FullType, args []userfn.FnParam, isMain bool
 				}
 				other = typex.NewWKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
-				// TODO: side input map form.
+				// TODO(herohde) 6/29/2017: side input map form.
 
-				if args[0].Kind != userfn.FnIter {
+				switch args[0].Kind {
+				case userfn.FnIter:
+					values, _ := userfn.UnfoldIter(args[0].T)
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 2 {
+						return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+					}
+
+					kind = Iter
+					other = typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+
+				case userfn.FnReIter:
+					values, _ := userfn.UnfoldReIter(args[0].T)
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 2 {
+						return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+					}
+
+					kind = ReIter
+					other = typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+
+				default:
 					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
 				}
-				values, _ := userfn.UnfoldIter(args[0].T)
-				trimmed := trimIllegal(values)
-				if len(trimmed) != 2 {
-					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
-				}
-
-				kind = Iter
-				other = typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 			}
 
 		case typex.GBKType:
 			if args[0].Kind != userfn.FnValue {
 				return nil, kind, fmt.Errorf("Key of %v cannot bind to %v", t, args[0])
 			}
-			if args[1].Kind != userfn.FnIter {
+
+			switch args[1].Kind {
+			case userfn.FnIter:
+				values, _ := userfn.UnfoldIter(args[1].T)
+				trimmed := trimIllegal(values)
+				if len(trimmed) != 1 {
+					return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
+				}
+				other = typex.NewWGBK(typex.New(args[0].T), typex.New(trimmed[0]))
+
+			case userfn.FnReIter:
+				values, _ := userfn.UnfoldReIter(args[1].T)
+				trimmed := trimIllegal(values)
+				if len(trimmed) != 1 {
+					return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
+				}
+				other = typex.NewWGBK(typex.New(args[0].T), typex.New(trimmed[0]))
+
+			default:
 				return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
 			}
-			values, _ := userfn.UnfoldIter(args[1].T)
-			trimmed := trimIllegal(values)
-			if len(trimmed) != 1 {
-				return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
-			}
-			other = typex.NewWGBK(typex.New(args[0].T), typex.New(trimmed[0]))
 
 		default:
 			// TODO: typex.CoGBKType
@@ -220,7 +262,7 @@ func tryBindInbound(candidate typex.FullType, args []userfn.FnParam, isMain bool
 		return nil, kind, fmt.Errorf("unexpected inbound type %v", t)
 	}
 
-	if !typex.IsAssignable(candidate, other) {
+	if !typex.IsStructurallyAssignable(candidate, other) {
 		return nil, kind, fmt.Errorf("%v is not assignable to %v", candidate, other)
 	}
 	return other, kind, nil

@@ -240,7 +240,7 @@ func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool
 		input := n.Edge.Input[k+1]
 		param := fn.Param[in[i]]
 
-		value, err := makeSideInput(input, param, side.Open())
+		value, err := makeSideInput(input, param, side)
 		if err != nil {
 			return err
 		}
@@ -340,7 +340,7 @@ func (n *Combine) Up(ctx context.Context) error {
 		input := n.Edge.Input[k]
 		param := fn.Param[in[i]]
 
-		value, err := makeSideInput(input, param, side.Open())
+		value, err := makeSideInput(input, param, side)
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		input := n.Edge.Input[k+1]
 		param := fn.Param[in[i]]
 
-		value, err := makeSideInput(input, param, side.Open())
+		value, err := makeSideInput(input, param, side)
 		if err != nil {
 			return err
 		}
@@ -622,6 +622,16 @@ func (n *DataSink) String() string {
 	return fmt.Sprintf("DataSink[%v]", sid)
 }
 
+func makeReIter(t reflect.Type, s ReStream) reflect.Value {
+	if !userfn.IsReIter(t) {
+		panic(fmt.Sprintf("illegal re-iter type: %v", t))
+	}
+	return reflect.MakeFunc(t, func(args []reflect.Value) []reflect.Value {
+		iter := makeIter(t.Out(0), s.Open())
+		return []reflect.Value{iter}
+	})
+}
+
 func makeIter(t reflect.Type, s Stream) reflect.Value {
 	types, ok := userfn.UnfoldIter(t)
 	if !ok {
@@ -687,10 +697,10 @@ func makeEmit(ctx context.Context, t reflect.Type, n Node) reflect.Value {
 	})
 }
 
-func makeSideInput(input *graph.Inbound, param userfn.FnParam, values Stream) (reflect.Value, error) {
+func makeSideInput(input *graph.Inbound, param userfn.FnParam, values ReStream) (reflect.Value, error) {
 	switch input.Kind {
 	case graph.Singleton:
-		elms, err := ReadAll(values)
+		elms, err := ReadAll(values.Open())
 		if err != nil {
 			return reflect.Value{}, err
 		}
@@ -700,7 +710,7 @@ func makeSideInput(input *graph.Inbound, param userfn.FnParam, values Stream) (r
 		return Convert(elms[0].Elm, param.T), nil
 
 	case graph.Slice:
-		elms, err := ReadAll(values)
+		elms, err := ReadAll(values.Open())
 		if err != nil {
 			return reflect.Value{}, err
 		}
@@ -711,7 +721,10 @@ func makeSideInput(input *graph.Inbound, param userfn.FnParam, values Stream) (r
 		return slice, nil
 
 	case graph.Iter:
-		return makeIter(param.T, values), nil
+		return makeIter(param.T, values.Open()), nil
+
+	case graph.ReIter:
+		return makeReIter(param.T, values), nil
 
 	default:
 		panic(fmt.Sprintf("Unexpected side input kind: %v", input))

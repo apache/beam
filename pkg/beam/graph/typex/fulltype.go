@@ -20,9 +20,6 @@ type FullType interface {
 	Components() []FullType
 }
 
-// TODO(herohde) 5/16/2017: maybe rename FullType to DataType to match
-// DataClass, if we go that way?
-
 type tree struct {
 	class      Class
 	t          reflect.Type
@@ -78,8 +75,7 @@ func printShortComposite(t reflect.Type) string {
 	}
 }
 
-// TODO(herohde) 4/20/2017: internalize types?
-// TODO(herohde) 4/24/2017: fully validate types.
+// TODO(herohde) 4/20/2017: internalize fulltypes?
 
 // New constructs a new full type with the given elements. It panics
 // if not valid.
@@ -102,6 +98,9 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) != 2 {
 				panic("Invalid number of components for KV/GBK")
 			}
+			if isAnyComposite(components) {
+				panic("Invalid to nest composites inside KV/GBK")
+			}
 			return &tree{class, t, components}
 		case WindowedValueType:
 			if len(components) != 1 {
@@ -115,6 +114,9 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) < 2 {
 				panic("Invalid number of components for CoGBK")
 			}
+			if isAnyComposite(components) {
+				panic("Invalid to nest composites inside CoGBK")
+			}
 			return &tree{class, t, components}
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))
@@ -122,6 +124,15 @@ func New(t reflect.Type, components ...FullType) FullType {
 	default:
 		panic(fmt.Sprintf("Invalid underlying type: %v", t))
 	}
+}
+
+func isAnyComposite(list []FullType) bool {
+	for _, t := range list {
+		if t.Class() == Composite {
+			return true
+		}
+	}
+	return false
 }
 
 // Convenience methods to operate through the top-level WindowedValue.
@@ -165,14 +176,25 @@ func SkipW(t FullType) FullType {
 	return t
 }
 
-// TODO(herohde) 4/20/2017: Disallow bad universal substitutions that produce
-// inconsistent bindings: KV<T', U'> bind to KV<T, T>, where the substitution
-// would be an invalid mapping {T -> T', T -> U'}. However, KV<X',Y'> -> KV<Y,X>
-// or KV<T',T'> -> KV<T,U> are ok.
-
-// IsAssignable returns true iff a from value can be assigned to the to value of
-// the given Types.
-func IsAssignable(from, to FullType) bool {
+// IsStructurallyAssignable returns true iff a from value is structurally
+// assignable to the to value of the given types. Types that are
+// "structurally assignable" (SA) are assignable if type variables are
+// disregarded. In other words, depending on the bindings of universal
+// type variables, types may or may not be assignable. However, types that
+// are not SA are not assignable under any bindings.
+//
+// For example:
+//
+//   SA:  KV<int,int>    := KV<int,int>
+//   SA:  KV<int,X>      := KV<int,string>  // X bound to string by assignment
+//   SA:  KV<int,string> := KV<int,X>       // Assignable only if X is already bound to string
+//   SA:  KV<int,string> := KV<X,X>         // Not assignable under any binding
+//
+//   Not SA:  KV<int,string> := KV<string,X>
+//   Not SA:  X              := KV<int,string>
+//   Not SA:  GBK(X,Y)       := KV<int,string>
+//
+func IsStructurallyAssignable(from, to FullType) bool {
 	switch from.Class() {
 	case Concrete:
 		if to.Class() == Concrete {
@@ -180,10 +202,11 @@ func IsAssignable(from, to FullType) bool {
 		}
 		return to.Class() == Universal
 	case Universal:
+		// Universals are not structurally assignable to Composites, such as KV or GBK.
 		return to.Class() == Universal || to.Class() == Concrete || to.Class() == Container
 	case Container:
 		if to.Class() == Container {
-			return IsList(from.Type()) && IsList(to.Type()) && IsAssignable(from.Components()[0], to.Components()[0])
+			return IsList(from.Type()) && IsList(to.Type()) && IsStructurallyAssignable(from.Components()[0], to.Components()[0])
 		}
 		return to.Class() == Universal
 	case Composite:
@@ -194,7 +217,7 @@ func IsAssignable(from, to FullType) bool {
 			return false
 		}
 		for i, elm := range from.Components() {
-			if !IsAssignable(elm, to.Components()[i]) {
+			if !IsStructurallyAssignable(elm, to.Components()[i]) {
 				return false
 			}
 		}
@@ -214,6 +237,19 @@ func IsEqual(from, to FullType) bool {
 	}
 	for i, elm := range from.Components() {
 		if !IsEqual(elm, to.Components()[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsEqualList returns true iff the lists of types are equal.
+func IsEqualList(from, to []FullType) bool {
+	if len(from) != len(to) {
+		return false
+	}
+	for i, t := range from {
+		if !IsEqual(t, to[i]) {
 			return false
 		}
 	}
@@ -248,7 +284,7 @@ func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 		t := types[i]
 		model := models[i]
 
-		if !IsAssignable(model, t) {
+		if !IsStructurallyAssignable(model, t) {
 			return nil, fmt.Errorf("%v is not assignable to %v", model, t)
 		}
 		if err := walk(t, model, m); err != nil {
