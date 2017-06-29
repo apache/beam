@@ -63,7 +63,7 @@ func (k FnParamKind) String() string {
 	case FnIter:
 		return "Iter"
 	case FnReIter:
-		return "FnIter"
+		return "ReIter"
 	case FnEmit:
 		return "Emit"
 	case FnType:
@@ -226,6 +226,8 @@ func New(dofn interface{}) (*UserFn, error) {
 			kind = FnEmit
 		case IsIter(t):
 			kind = FnIter
+		case IsReIter(t):
+			kind = FnReIter
 		default:
 			return nil, fmt.Errorf("bad paramenter type for %s: %v", name, t)
 		}

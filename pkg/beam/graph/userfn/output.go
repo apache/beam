@@ -12,7 +12,12 @@ func IsEmit(t reflect.Type) bool {
 	return ok
 }
 
-// UnfoldEmit returns the parameter types, if an emitter.
+// UnfoldEmit returns the parameter types, if an emitter. For example:
+//
+//     func (int)                  returns {int}
+//     func (string, int)          returns {string, int}
+//     func (typex.EventTime, int) returns {typex.EventTime, int}
+//
 func UnfoldEmit(t reflect.Type) ([]reflect.Type, bool) {
 	if t.Kind() != reflect.Func {
 		return nil, false
@@ -31,7 +36,7 @@ func UnfoldEmit(t reflect.Type) ([]reflect.Type, bool) {
 		ret = append(ret, typex.EventTimeType)
 		skip = 1
 	}
-	if t.NumIn()-skip > 2 {
+	if t.NumIn()-skip > 2 || t.NumIn() == skip {
 		return nil, false
 	}
 
