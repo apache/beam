@@ -545,10 +545,11 @@ def get_sdk_package_name():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-  container_version = _get_required_container_version()
-  if container_version == BEAM_CONTAINER_VERSION:
+  sdk_name, _ = get_sdk_name_and_version()
+  if sdk_name == 'Google Cloud Dataflow SDK for Python':
+    return GOOGLE_PACKAGE_NAME
+  else:
     return BEAM_PACKAGE_NAME
-  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):
