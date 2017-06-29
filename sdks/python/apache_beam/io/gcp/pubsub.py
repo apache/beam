@@ -100,6 +100,30 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
+def parse_topic(full_topic):
+  match = re.match(TOPIC_REGEXP, full_topic)
+  if not match:
+    raise ValueError(
+        'PubSub topic must be in the form "projects/<project>/topics'
+        '/<topic>" (got %r).' % full_topic)
+  project, topic_name = match.group(1), match.group(2)
+  if not re.match(PROJECT_ID_REGEXP, project):
+    raise ValueError('Invalid PubSub project name: %r.' % project)
+  return project, topic_name
+
+
+def parse_subscription(full_subscription):
+  match = re.match(SUBSCRIPTION_REGEXP, full_subscription)
+  if not match:
+    raise ValueError(
+        'PubSub subscription must be in the form "projects/<project>'
+        '/subscriptions/<subscription>" (got %r).' % full_subscription)
+  project, subscription_name = match.group(1), match.group(2)
+  if not re.match(PROJECT_ID_REGEXP, project):
+    raise ValueError('Invalid PubSub project name: %r.' % project)
+  return project, subscription_name
+
+
 class _PubSubPayloadSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
@@ -135,22 +159,9 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
       raise ValueError('Only one of topic or subscription should be provided.')
 
     if topic:
-      match = re.match(TOPIC_REGEXP, topic)
-      if not match:
-        raise ValueError(
-            'PubSub topic must be in the form "projects/<project>/topics'
-            '/<topic>" (got %r).' % topic)
-      project, self.topic_name = match.group(1), match.group(2)
+      self.project, self.topic_name = parse_topic(topic)
     if subscription:
-      match = re.match(SUBSCRIPTION_REGEXP, subscription)
-      if not match:
-        raise ValueError(
-            'PubSub subscription must be in the form "projects/<project>'
-            '/subscriptions/<subscription>" (got %r).' % subscription)
-      project, self.subscription_name = match.group(1), match.group(2)
-    if not re.match(PROJECT_ID_REGEXP, project):
-      raise ValueError('Invalid PubSub project name: %r.' % project)
-    self.project = project
+      self.project, self.subscription_name = parse_subscription(subscription)
 
   @property
   def format(self):
@@ -182,16 +193,7 @@ class _PubSubPayloadSink(dataflow_io.NativeSink):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
 
-    # Validate topic name.
-    match = re.match(TOPIC_REGEXP, topic)
-    if not match:
-      raise ValueError(
-          'PubSub topic must be in the form "projects/<project>/topics'
-          '/<topic>".')
-    project, self.topic_name = match.group(1), match.group(2)
-    if not re.match(PROJECT_ID_REGEXP, project):
-      raise ValueError('Invalid PubSub project name: %r.' % project)
-    self.project = project
+    self.project, self.topic_name = parse_topic(topic)
 
   @property
   def format(self):
