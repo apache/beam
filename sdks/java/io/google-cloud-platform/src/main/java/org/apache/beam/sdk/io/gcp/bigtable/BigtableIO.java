@@ -33,6 +33,7 @@ import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
@@ -638,12 +639,14 @@ public class BigtableIO {
 
         StringBuilder logEntry = new StringBuilder();
         int i = 0;
+        List<BigtableWriteException> suppressed = Lists.newArrayList();
         for (; i < 10 && !failures.isEmpty(); ++i) {
           BigtableWriteException exc = failures.remove();
           logEntry.append("\n").append(exc.getMessage());
           if (exc.getCause() != null) {
             logEntry.append(": ").append(exc.getCause().getMessage());
           }
+          suppressed.add(exc);
         }
         String message =
             String.format(
@@ -652,7 +655,11 @@ public class BigtableIO {
                 i,
                 logEntry.toString());
         LOG.error(message);
-        throw new IOException(message);
+        IOException exception = new IOException(message);
+        for (BigtableWriteException e : suppressed) {
+          exception.addSuppressed(e);
+        }
+        throw exception;
       }
 
       private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
