@@ -477,6 +477,9 @@ class Pipeline(object):
     class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       ok = True  # Really a nonlocal.
 
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
       def visit_transform(self, transform_node):
         if transform_node.side_inputs:
           # No side inputs (yet).
@@ -555,7 +558,7 @@ class PipelineVisitor(object):
     pass
 
   def visit_transform(self, transform_node):
-    """Callback for visiting a transform node in the pipeline DAG."""
+    """Callback for visiting a transform leaf node in the pipeline DAG."""
     pass
 
   def enter_composite_transform(self, transform_node):
