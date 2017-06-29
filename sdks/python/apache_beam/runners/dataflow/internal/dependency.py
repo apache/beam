@@ -69,12 +69,15 @@ from apache_beam.utils import processes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
+# All constants are for internal use only; no backwards-compatibility
+# guarantees.
 
+# In a released version BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION
+# should match each other, and should be in the same format as the SDK version
+# (i.e. MAJOR.MINOR.PATCH). For non-released (dev) versions, read below.
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER version should coincide
-# when we make a release.
 BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
@@ -86,8 +89,13 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
+# Package names for different distributions
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
 BEAM_PACKAGE_NAME = 'apache-beam'
+
+# SDK identifiers for different distributions
+GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
+BEAM_SDK_NAME = 'Apache Beam SDK for Python'
 
 
 def _dependency_file_copy(from_path, to_path):
@@ -536,19 +544,20 @@ def get_sdk_name_and_version():
   container_version = _get_required_container_version()
   try:
     pkg.get_distribution(GOOGLE_PACKAGE_NAME)
-    return ('Google Cloud Dataflow SDK for Python', container_version)
+    return (GOOGLE_SDK_NAME, container_version)
   except pkg.DistributionNotFound:
-    return ('Apache Beam SDK for Python', beam_version.__version__)
+    return (BEAM_SDK_NAME, beam_version.__version__)
 
 
 def get_sdk_package_name():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-  container_version = _get_required_container_version()
-  if container_version == BEAM_CONTAINER_VERSION:
+  sdk_name, _ = get_sdk_name_and_version()
+  if sdk_name == GOOGLE_SDK_NAME:
+    return GOOGLE_PACKAGE_NAME
+  else:
     return BEAM_PACKAGE_NAME
-  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):
