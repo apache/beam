@@ -26,8 +26,10 @@ from __future__ import absolute_import
 import collections
 import logging
 
+import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
@@ -106,6 +108,58 @@ class DirectRunner(PipelineRunner):
                       .with_input_types(*type_hints.input_types[0])
                       .with_output_types(*type_hints.output_types[0]))
     return transform.expand(pcoll)
+
+  def apply_ReadStringsFromPubSub(self, transform, pcoll):
+    try:
+      from google.cloud import pubsub as unused_pubsub
+    except ImportError:
+      raise ImportError('Google Cloud PubSub not available, please install '
+                        'apache_beam[gcp]')
+    # Execute this as a native transform.
+    output = PCollection(pcoll.pipeline)
+    output.element_type = unicode
+    return output
+
+  def apply_WriteStringsToPubSub(self, transform, pcoll):
+    try:
+      from google.cloud import pubsub
+    except ImportError:
+      raise ImportError('Google Cloud PubSub not available, please install '
+                        'apache_beam[gcp]')
+    project = transform._sink.project
+    topic_name = transform._sink.topic_name
+
+    class DirectWriteToPubSub(beam.DoFn):
+      _topic = None
+
+      def __init__(self, project, topic_name):
+        self.project = project
+        self.topic_name = topic_name
+
+      def start_bundle(self):
+        if self._topic is None:
+          self._topic = pubsub.Client(project=self.project).topic(
+              self.topic_name)
+        self._buffer = []
+
+      def process(self, elem):
+        self._buffer.append(elem.encode('utf-8'))
+        if len(self._buffer) >= 100:
+          self._flush()
+
+      def finish_bundle(self):
+        self._flush()
+
+      def _flush(self):
+        if self._buffer:
+          with self._topic.batch() as batch:
+            for datum in self._buffer:
+              batch.publish(datum)
+          self._buffer = []
+
+    output = pcoll | beam.ParDo(DirectWriteToPubSub(project, topic_name))
+    output.element_type = unicode
+    return output
 
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

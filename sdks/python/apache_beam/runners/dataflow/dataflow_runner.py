@@ -668,11 +668,12 @@ class DataflowRunner(PipelineRunner):
         raise ValueError('PubSubPayloadSource is currently available for use '
                          'only in streaming pipelines.')
       # Only one of topic or subscription should be set.
-      if transform.source.topic:
-        step.add_property(PropertyNames.PUBSUB_TOPIC, transform.source.topic)
-      elif transform.source.subscription:
+      if transform.source.full_subscription:
         step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION,
-                          transform.source.subscription)
+                          transform.source.full_subscription)
+      elif transform.source.full_topic:
+        step.add_property(PropertyNames.PUBSUB_TOPIC,
+                          transform.source.full_topic)
       if transform.source.id_label:
         step.add_property(PropertyNames.PUBSUB_ID_LABEL,
                           transform.source.id_label)
@@ -756,7 +757,7 @@ class DataflowRunner(PipelineRunner):
       if not standard_options.streaming:
         raise ValueError('PubSubPayloadSink is currently available for use '
                          'only in streaming pipelines.')
-      step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.topic)
+      step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.full_topic)
     else:
       raise ValueError(
           'Sink %r has unexpected format %s.' % (
