@@ -150,6 +150,7 @@ public class SpannerIOReadTest implements Serializable {
   public void runQuery() throws Exception {
     SpannerIO.Read read =
         SpannerIO.read()
+            .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
             .withTimestamp(Timestamp.now())
@@ -176,6 +177,7 @@ public class SpannerIOReadTest implements Serializable {
   public void runRead() throws Exception {
     SpannerIO.Read read =
         SpannerIO.read()
+            .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
             .withTimestamp(Timestamp.now())
@@ -202,6 +204,7 @@ public class SpannerIOReadTest implements Serializable {
   public void runReadUsingIndex() throws Exception {
     SpannerIO.Read read =
         SpannerIO.read()
+            .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
             .withTimestamp(Timestamp.now())
@@ -232,11 +235,13 @@ public class SpannerIOReadTest implements Serializable {
 
     PCollectionView<Transaction> tx = pipeline
         .apply("tx", SpannerIO.createTransaction()
+            .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
             .withServiceFactory(serviceFactory));
 
     PCollection<Struct> one = pipeline.apply("read q", SpannerIO.read()
+        .withProjectId("test")
         .withInstanceId("123")
         .withDatabaseId("aaa")
         .withTimestamp(Timestamp.now())
@@ -244,6 +249,7 @@ public class SpannerIOReadTest implements Serializable {
         .withServiceFactory(serviceFactory)
         .withTransaction(tx));
     PCollection<Struct> two = pipeline.apply("read r", SpannerIO.read()
+        .withProjectId("test")
         .withInstanceId("123")
         .withDatabaseId("aaa")
         .withTimestamp(Timestamp.now())
