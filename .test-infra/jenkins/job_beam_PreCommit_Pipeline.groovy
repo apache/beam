@@ -17,15 +17,13 @@
  * limitations under the License.
  */
 
-import common_job_properties
-
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.
-mavenJob('beam_PreCommit_Pipeline') {
+pipelineJob('beam_PreCommit_Pipeline') {
   description('PreCommit Pipeline Job. Owns overall lifecycle of PreCommit tests.')
 
   properties {
-    githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
+    githubProjectUrl('https://github.com/apache/beam/')
   }
 
   parameters {
@@ -34,20 +32,19 @@ mavenJob('beam_PreCommit_Pipeline') {
       'master',
       'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
   }
-  
+
   wrappers {
     timeout {
       absolute(120)
       abortBuild()
     }
-  }  
-  
+  }
+
   // Restrict this project to run only on Jenkins executors as specified
   label('beam')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
-
 
   triggers {
     githubPullRequest {
@@ -86,7 +83,7 @@ mavenJob('beam_PreCommit_Pipeline') {
           }
         }
       }
-      scriptPath('.test-infra/jenkins/Precommit_Pipeline.groovy')
+      scriptPath('.test-infra/jenkins/PreCommit_Pipeline.groovy')
     }
   }
 }

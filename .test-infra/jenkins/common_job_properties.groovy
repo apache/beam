@@ -74,7 +74,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/' + repositoryName + '.git')
+          github("apache/${repositoryName}")
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
@@ -141,35 +141,13 @@ class common_job_properties {
             delegate.context("Jenkins: " + commitStatusContext)
           }
 
-          /*
-            This section is disabled, because of jenkinsci/ghprb-plugin#417 issue.
-            For the time being, an equivalent configure section below is added.
-
           // Comment messages after build completes.
           buildStatus {
             completedStatus('SUCCESS', successComment)
             completedStatus('FAILURE', '--none--')
             completedStatus('ERROR', '--none--')
           }
-          */
         }
-      }
-    }
-
-    // Comment messages after build completes.
-    context.configure {
-      def messages = it / triggers / 'org.jenkinsci.plugins.ghprb.GhprbTrigger' / extensions / 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildStatus' / messages
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message(successComment)
-        result('SUCCESS')
-      }
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
-        result('ERROR')
-      }
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
-        result('FAILURE')
       }
     }
   }

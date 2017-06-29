@@ -28,11 +28,23 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
       'buildNum',
       'N/A',
       'Build number of beam_PreCommit_Java_Build to copy from.')
+    stringParam(
+      'ghprbGhRepository',
+      'N/A',
+      'Repository name for use by ghprb plugin.')
+    stringParam(
+      'ghprbActualCommit',
+      'N/A',
+      'Commit ID for use by ghprb plugin.')
+    stringParam(
+      'ghprbPullId',
+      'N/A',
+      'PR # for use by ghprb plugin.')
   }
-  
+
   // Set JDK version.
   jdk('JDK 1.8 (latest)')
-  
+
   // Restrict this project to run only on Jenkins executors as specified
   label('beam')
 
@@ -53,7 +65,7 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
       startedStatus("Running Java Unit Tests")
       statusUrl()
       completedStatus('SUCCESS', "Java Unit Tests Passed")
-      completedStatus('FAILURE', "Some Java Unit Tests Failed")
+      completedStatus('FAILURE', "Java Unit Tests Failed")
       completedStatus('ERROR', "Error Executing Java Unit Tests")
     }
     // Set SPARK_LOCAL_IP for spark tests.
@@ -68,11 +80,35 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
   preBuildSteps {
     copyArtifacts("beam_PreCommit_Java_Build") {
       buildSelector {
-        buildNumber("${buildNum}")
+        buildNumber('${buildNum}')
       }
     }
   }
 
-  // Maven goals for this job.
-  goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner surefire:test@default-test -pl \'!sdks/python\' -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId coveralls:report')
+  // Construct Maven goals for this job.
+  profiles = [
+    'release',
+    'include-runners',
+    'jenkins-precommit',
+    'direct-runner',
+    'dataflow-runner',
+    'spark-runner',
+    'flink-runner',
+    'apex-runner'
+  ]
+  args = [
+    '-B',
+    '-e',
+    '-P' + profiles.join(',')
+    'surefire:test@default-test',
+    'coveralls:report',
+    '-pl \'!sdks/python\'',
+    ' -DrepoToken=$COVERALLS_REPO_TOKEN',
+    '-DpullRequest=$ghprbPullId',
+    '-Dcheckstyle.skip',
+    '-Dfindbugs.skip',
+    '-Dmaven.javadoc.skip',
+    '-Drat.skip'
+  ]
+  goals(args.join(' '))
 }
