@@ -79,7 +79,7 @@ public class BigtableWriteIT implements Serializable {
   public void setup() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    project = options.as(GcpOptions.class).getProject();
 
     bigtableOptions =
         new Builder()

@@ -88,7 +88,7 @@ public class SpannerReadIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    project = options.as(GcpOptions.class).getProject();
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
