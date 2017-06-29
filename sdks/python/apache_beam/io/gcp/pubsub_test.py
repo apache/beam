@@ -31,6 +31,16 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
+# Protect against environments where the PubSub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import pubsub
+except ImportError:
+  pubsub = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadStringsFromPubSub(unittest.TestCase):
   def test_expand_with_topic(self):
     p = TestPipeline()
@@ -67,6 +77,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
       ReadStringsFromPubSub('a_topic', 'a_subscription', 'a_label')
 
 
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestWriteStringsToPubSub(unittest.TestCase):
   def test_expand(self):
     p = TestPipeline()
@@ -78,6 +89,7 @@ class TestWriteStringsToPubSub(unittest.TestCase):
     self.assertEqual('a_topic', pdone.producer.transform.dofn.topic_name)
 
 
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSource(unittest.TestCase):
   def test_display_data_topic(self):
     source = _PubSubPayloadSource(
@@ -114,6 +126,7 @@ class TestPubSubSource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
+@unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
   def test_display_data(self):
     sink = _PubSubPayloadSink('projects/fakeprj/topics/a_topic')
