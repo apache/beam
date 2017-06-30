@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.mock;
+
+import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRecordType;
+import static org.apache.beam.dsls.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +29,7 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
@@ -45,7 +46,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   /**
-   * Convenient way to build a mocked table.
+   * Convenient way to build a mocked unbounded table.
    *
    * <p>e.g.
    *
@@ -58,17 +59,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args){
-    List<Integer> types = new ArrayList<>();
-    List<String> names = new ArrayList<>();
-    int lastTypeIndex = 0;
-    for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
-      types.add((int) args[lastTypeIndex]);
-      names.add((String) args[lastTypeIndex + 1]);
-    }
-
-    return new MockedUnboundedTable(
-        BeamSqlRecordType.create(names, types)
-    );
+    return new MockedUnboundedTable(buildBeamSqlRecordType(args));
   }
 
   public MockedUnboundedTable timestampColumnIndex(int idx) {
@@ -77,17 +68,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   public MockedUnboundedTable addRows(Duration duration, Object... args) {
-    List<BeamSqlRow> rows = new ArrayList<>();
-    int fieldCount = getRecordType().size();
-
-    for (int i = 0; i < args.length; i += fieldCount) {
-      BeamSqlRow row = new BeamSqlRow(getRecordType());
-      for (int j = 0; j < fieldCount; j++) {
-        row.addField(j, args[i + j]);
-      }
-      rows.add(row);
-    }
-
+    List<BeamSqlRow> rows = buildRows(getRecordType(), args);
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
@@ -112,9 +93,5 @@ public class MockedUnboundedTable extends MockedTable {
     return pipeline.begin().apply(
         "MockedUnboundedTable_" + COUNTER.incrementAndGet(),
         values.advanceWatermarkToInfinity());
-  }
-
-  @Override public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
-    throw new UnsupportedOperationException("MockedUnboundedTable#buildIOWriter unsupported!");
   }
 }

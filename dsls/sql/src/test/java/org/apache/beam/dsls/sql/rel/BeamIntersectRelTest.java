@@ -18,14 +18,15 @@
 
 package org.apache.beam.dsls.sql.rel;
 
+import java.sql.Types;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.TestUtils;
+import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,29 +39,35 @@ public class BeamIntersectRelTest {
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static MockedBeamSqlTable orderDetailsTable1 = MockedBeamSqlTable
-      .of(SqlTypeName.BIGINT, "order_id",
-          SqlTypeName.INTEGER, "site_id",
-          SqlTypeName.DOUBLE, "price",
-          1L, 1, 1.0,
-          1L, 1, 1.0,
-          2L, 2, 2.0,
-          4L, 4, 4.0
-      );
-
-  private static MockedBeamSqlTable orderDetailsTable2 = MockedBeamSqlTable
-      .of(SqlTypeName.BIGINT, "order_id",
-          SqlTypeName.INTEGER, "site_id",
-          SqlTypeName.DOUBLE, "price",
-          1L, 1, 1.0,
-          2L, 2, 2.0,
-          3L, 3, 3.0
-      );
 
   @BeforeClass
-  public static void setUp() {
-    sqlEnv.registerTable("ORDER_DETAILS1", orderDetailsTable1);
-    sqlEnv.registerTable("ORDER_DETAILS2", orderDetailsTable2);
+  public static void prepare() {
+    sqlEnv.registerTable("ORDER_DETAILS1",
+        MockedBoundedTable
+            .of(
+                Types.BIGINT, "order_id",
+                Types.INTEGER, "site_id",
+                Types.DOUBLE, "price"
+            ).addRows(
+            1L, 1, 1.0,
+            1L, 1, 1.0,
+            2L, 2, 2.0,
+            4L, 4, 4.0
+        )
+    );
+
+    sqlEnv.registerTable("ORDER_DETAILS2",
+        MockedBoundedTable
+            .of(
+                Types.BIGINT, "order_id",
+                Types.INTEGER, "site_id",
+                Types.DOUBLE, "price"
+            ).addRows(
+            1L, 1, 1.0,
+            2L, 2, 2.0,
+            3L, 3, 3.0
+        )
+    );
   }
 
   @Test
@@ -74,14 +81,14 @@ public class BeamIntersectRelTest {
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSqlTable.of(
-        SqlTypeName.BIGINT, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.DOUBLE, "price",
-
-        1L, 1, 1.0,
-        2L, 2, 2.0
-    ).getInputRecords());
+        TestUtils.RowsBuilder.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
+            1L, 1, 1.0,
+            2L, 2, 2.0
+        ).getRows());
 
     pipeline.run().waitUntilFinish();
   }
@@ -99,14 +106,15 @@ public class BeamIntersectRelTest {
     PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSqlTable.of(
-            SqlTypeName.BIGINT, "order_id",
-            SqlTypeName.INTEGER, "site_id",
-            SqlTypeName.DOUBLE, "price",
+        TestUtils.RowsBuilder.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,
             2L, 2, 2.0
-        ).getInputRecords());
+        ).getRows());
 
     pipeline.run();
   }
