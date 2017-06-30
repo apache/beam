@@ -42,8 +42,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.text.RandomStringGenerator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -127,7 +125,7 @@ public class SpannerReadIT {
               .set("key")
               .to((long) i)
               .set("value")
-              .to(RandomStringUtils.random(100, true, true))
+              .to(RandomUtils.randomAlphaNumeric(100))
               .build());
     }
 
@@ -161,11 +159,8 @@ public class SpannerReadIT {
   }
 
   private String generateDatabaseName() {
-    String random =
-        new RandomStringGenerator.Builder()
-            .withinRange('a', 'z')
-            .build()
-            .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
+    String random = RandomUtils
+        .randomAlphaNumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 }
