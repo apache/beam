@@ -43,12 +43,11 @@ public class BeamIntersectRelTest {
   @BeforeClass
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS1",
-        MockedBoundedTable
-            .of(
-                Types.BIGINT, "order_id",
-                Types.INTEGER, "site_id",
-                Types.DOUBLE, "price"
-            ).addRows(
+        MockedBoundedTable.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,
             2L, 2, 2.0,
@@ -57,12 +56,11 @@ public class BeamIntersectRelTest {
     );
 
     sqlEnv.registerTable("ORDER_DETAILS2",
-        MockedBoundedTable
-            .of(
-                Types.BIGINT, "order_id",
-                Types.INTEGER, "site_id",
-                Types.DOUBLE, "price"
-            ).addRows(
+        MockedBoundedTable.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0,
             3L, 3, 3.0

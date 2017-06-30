@@ -54,7 +54,8 @@ public class BeamJoinRelBoundedVsBoundedTest {
     );
 
     beamSqlEnv.registerTable("ORDER_DETAILS0",
-        MockedBoundedTable.of(Types.INTEGER, "order_id0",
+        MockedBoundedTable.of(
+            Types.INTEGER, "order_id0",
             Types.INTEGER, "site_id0",
             Types.INTEGER, "price0"
         ).addRows(

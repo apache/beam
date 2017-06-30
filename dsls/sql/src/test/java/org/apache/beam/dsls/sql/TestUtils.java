@@ -88,7 +88,7 @@ public class TestUtils {
     }
 
     /**
-     * Add addRows to the builder.
+     * Add rows to the builder.
      *
      * <p>Note: check the class javadoc for for detailed example.
      */
