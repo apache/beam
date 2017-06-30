@@ -45,7 +45,9 @@ import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,6 +63,7 @@ import org.junit.runners.JUnit4;
 public class LocalFileSystemTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
   private LocalFileSystem localFileSystem = new LocalFileSystem();
 
   @Test
@@ -238,6 +241,52 @@ public class LocalFileSystemTest {
         matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*.txt");
     assertThat(
         toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchInDirectory() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    String expectedFile = expected.get(0);
+    int slashIndex = expectedFile.lastIndexOf('/');
+    if (SystemUtils.IS_OS_WINDOWS) {
+        slashIndex = expectedFile.lastIndexOf('\\');
+    }
+    String directory = expectedFile.substring(0, slashIndex);
+    String relative = expectedFile.substring(slashIndex + 1);
+    System.setProperty("user.dir", directory);
+    List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
+    assertThat(
+        toFilenames(results),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithFileSlashPrefix() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    String file = "file:/" + temporaryFolder.getRoot().toPath().resolve("a").toString();
+    List<MatchResult> results = localFileSystem.match(ImmutableList.of(file));
+    assertThat(
+        toFilenames(results),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithFileThreeSlashesPrefix() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    String file = "file:///" + temporaryFolder.getRoot().toPath().resolve("a").toString();
+    List<MatchResult> results = localFileSystem.match(ImmutableList.of(file));
+    assertThat(
+        toFilenames(results),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
