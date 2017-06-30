@@ -71,9 +71,6 @@ func IsConcrete(t reflect.Type) bool {
 	case reflect.Map, reflect.Array:
 		return false // TBD
 
-	case reflect.Complex64, reflect.Complex128:
-		return false // TBD
-
 	case reflect.Slice:
 		return IsConcrete(t.Elem())
 
@@ -107,6 +104,9 @@ func IsConcrete(t reflect.Type) bool {
 		return true
 
 	case reflect.Float32, reflect.Float64:
+		return true
+
+	case reflect.Complex64, reflect.Complex128:
 		return true
 
 	case reflect.String:
