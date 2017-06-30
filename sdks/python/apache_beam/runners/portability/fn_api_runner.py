@@ -261,7 +261,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         id=self._next_uid(),
         transforms=transform_protos,
         pcollections=pcollection_protos,
-        codersyyy=dict(context_proto.coders.items()),
+        coders=dict(context_proto.coders.items()),
         windowing_strategies=dict(context_proto.windowing_strategies.items()),
         environments=dict(context_proto.environments.items()))
     return input_data, side_input_data, runner_sinks, process_bundle_descriptor
