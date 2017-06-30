@@ -19,13 +19,9 @@ package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
-import java.math.BigDecimal;
-import java.util.Date;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -65,17 +61,10 @@ public abstract class BeamSqlUdaf<InputT, AccumT, OutputT> implements Serializab
 
   /**
    * get the coder for AccumT which stores the intermediate result.
-   * By default it's fetched from {@link CoderRegistry}, and Beam SQL field types are included,
-   * like Integer/Long/Short/Byte/Float/Double/BigDecimal/Date.
+   * By default it's fetched from {@link CoderRegistry}.
    */
   public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry)
       throws CannotProvideCoderException {
-    //Register coder for Short/Float/BigDecimal/Date
-    registry.registerCoderForClass(Short.class, SerializableCoder.of(Short.class));
-    registry.registerCoderForClass(Float.class, SerializableCoder.of(Float.class));
-    registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
-    registry.registerCoderForClass(Date.class, SerializableCoder.of(Date.class));
-
     return registry.getCoder(
         (Class<AccumT>) ((ParameterizedType) getClass()
         .getGenericSuperclass()).getActualTypeArguments()[1]);
