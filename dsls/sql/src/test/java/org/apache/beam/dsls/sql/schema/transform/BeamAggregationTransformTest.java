@@ -117,7 +117,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
     //3. run aggregation functions
     PCollection<KV<BeamSqlRow, BeamSqlRow>> aggregatedStream = groupedStream.apply("aggregation",
         Combine.<BeamSqlRow, BeamSqlRow, BeamSqlRow>groupedValues(
-            new BeamAggregationTransforms.AggregationCombineFn(aggCalls, inputRowType)))
+            new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputRowType)))
         .setCoder(KvCoder.<BeamSqlRow, BeamSqlRow>of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
