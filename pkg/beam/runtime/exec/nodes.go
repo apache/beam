@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -517,7 +518,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 						return fmt.Errorf("stream chunk size decoding failed: %v", err)
 					}
 
-					log.Printf("Chunk size=%v", chunk)
+					// log.Printf("Chunk size=%v", chunk)
 
 					if chunk == 0 {
 						break
@@ -594,12 +595,22 @@ func (n *DataSink) Up(ctx context.Context) error {
 }
 
 func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
-	c := n.Edge.Input[0].From.Coder
+	// Marshal the pieces into a temporary buffer since they must be transmitted on FnAPI as a single
+	// unit.
+	var b bytes.Buffer
 
-	if err := EncodeWindowedValueHeader(c, value.Timestamp, n.w); err != nil {
+	c := n.Edge.Input[0].From.Coder
+	if err := EncodeWindowedValueHeader(c, value.Timestamp, &b); err != nil {
 		return err
 	}
-	return EncodeElement(coder.SkipW(c), value, n.w)
+	if err := EncodeElement(coder.SkipW(c), value, &b); err != nil {
+		return err
+	}
+
+	if _, err := n.w.Write(b.Bytes()); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (n *DataSink) Down(ctx context.Context) error {
