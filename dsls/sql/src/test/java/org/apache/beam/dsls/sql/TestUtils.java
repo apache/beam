@@ -20,7 +20,6 @@ package org.apache.beam.dsls.sql;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -62,7 +61,7 @@ public class TestUtils {
    *   Types.INTEGER, "order_id",
    *   Types.INTEGER, "sum_site_id",
    *   Types.VARCHAR, "buyer"
-   * ).values(
+   * ).addRows(
    *   1, 3, "james",
    *   2, 5, "bond"
    *   ).getStringRows()
@@ -81,15 +80,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      List<Integer> types = new ArrayList<>();
-      List<String> names = new ArrayList<>();
-      int lastTypeIndex = 0;
-      for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
-        types.add((int) args[lastTypeIndex]);
-        names.add((String) args[lastTypeIndex + 1]);
-      }
-
-      BeamSqlRecordType beamSQLRecordType = BeamSqlRecordType.create(names, types);
+      BeamSqlRecordType beamSQLRecordType = buildBeamSqlRecordType(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRecordType;
 
@@ -97,20 +88,12 @@ public class TestUtils {
     }
 
     /**
-     * Add values to the builder.
+     * Add rows to the builder.
      *
      * <p>Note: check the class javadoc for for detailed example.
      */
-    public RowsBuilder values(final Object... args) {
-      int fieldCount = type.size();
-      for (int i = 0; i < args.length; i += fieldCount) {
-        BeamSqlRow row = new BeamSqlRow(type);
-        for (int j = 0; j < fieldCount; j++) {
-          row.addField(j, args[i + j]);
-        }
-        this.rows.add(row);
-      }
-
+    public RowsBuilder addRows(final Object... args) {
+      this.rows.addAll(buildRows(type, args));
       return this;
     }
 
@@ -121,5 +104,59 @@ public class TestUtils {
     public List<String> getStringRows() {
       return beamSqlRows2Strings(rows);
     }
+  }
+
+  /**
+   * Convenient way to build a {@code BeamSqlRecordType}.
+   *
+   * <p>e.g.
+   *
+   * <pre>{@code
+   *   buildBeamSqlRecordType(
+   *       Types.BIGINT, "order_id",
+   *       Types.INTEGER, "site_id",
+   *       Types.DOUBLE, "price",
+   *       Types.TIMESTAMP, "order_time"
+   *   )
+   * }</pre>
+   */
+  public static BeamSqlRecordType buildBeamSqlRecordType(Object... args) {
+    List<Integer> types = new ArrayList<>();
+    List<String> names = new ArrayList<>();
+
+    for (int i = 0; i < args.length - 1; i += 2) {
+      types.add((int) args[i]);
+      names.add((String) args[i + 1]);
+    }
+
+    return BeamSqlRecordType.create(names, types);
+  }
+
+  /**
+   * Convenient way to build a {@code BeamSqlRow}s.
+   *
+   * <p>e.g.
+   *
+   * <pre>{@code
+   *   buildRows(
+   *       recordType,
+   *       1, 1, 1, // the first row
+   *       2, 2, 2, // the second row
+   *       ...
+   *   )
+   * }</pre>
+   */
+  public static List<BeamSqlRow> buildRows(BeamSqlRecordType type, Object... args) {
+    List<BeamSqlRow> rows = new ArrayList<>();
+    int fieldCount = type.size();
+
+    for (int i = 0; i < args.length; i += fieldCount) {
+      BeamSqlRow row = new BeamSqlRow(type);
+      for (int j = 0; j < fieldCount; j++) {
+        row.addField(j, args[i + j]);
+      }
+      rows.add(row);
+    }
+    return rows;
   }
 }

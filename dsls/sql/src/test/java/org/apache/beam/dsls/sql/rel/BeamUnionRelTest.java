@@ -18,14 +18,15 @@
 
 package org.apache.beam.dsls.sql.rel;
 
+import java.sql.Types;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.TestUtils;
+import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,17 +39,19 @@ public class BeamUnionRelTest {
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static MockedBeamSqlTable orderDetailsTable = MockedBeamSqlTable
-      .of(SqlTypeName.BIGINT, "order_id",
-          SqlTypeName.INTEGER, "site_id",
-          SqlTypeName.DOUBLE, "price",
-
-          1L, 1, 1.0,
-          2L, 2, 2.0);
 
   @BeforeClass
   public static void prepare() {
-    sqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
+    sqlEnv.registerTable("ORDER_DETAILS",
+        MockedBoundedTable.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
+            1L, 1, 1.0,
+            2L, 2, 2.0
+        )
+    );
   }
 
   @Test
@@ -62,14 +65,14 @@ public class BeamUnionRelTest {
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSqlTable.of(
-            SqlTypeName.BIGINT, "order_id",
-            SqlTypeName.INTEGER, "site_id",
-            SqlTypeName.DOUBLE, "price",
-
+        TestUtils.RowsBuilder.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0
-        ).getInputRecords()
+        ).getRows()
     );
     pipeline.run();
   }
@@ -85,16 +88,16 @@ public class BeamUnionRelTest {
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
-        MockedBeamSqlTable.of(
-            SqlTypeName.BIGINT, "order_id",
-            SqlTypeName.INTEGER, "site_id",
-            SqlTypeName.DOUBLE, "price",
-
+        TestUtils.RowsBuilder.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price"
+        ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,
             2L, 2, 2.0,
             2L, 2, 2.0
-        ).getInputRecords()
+        ).getRows()
     );
     pipeline.run();
   }

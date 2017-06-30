@@ -23,7 +23,7 @@ import java.util.Date;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
-import org.apache.beam.dsls.sql.planner.MockedUnboundedTable;
+import org.apache.beam.dsls.sql.mock.MockedUnboundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.PAssert;
@@ -95,7 +95,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id",
                 Types.INTEGER, "order_id0",
-                Types.INTEGER, "sum_site_id0").values(
+                Types.INTEGER, "sum_site_id0").addRows(
                 1, 3, 1, 3,
                 2, 5, 2, 5
             ).getStringRows()
@@ -129,7 +129,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 Types.INTEGER, "sum_site_id",
                 Types.INTEGER, "order_id0",
                 Types.INTEGER, "sum_site_id0"
-            ).values(
+            ).addRows(
                 1, 1, 1, 3,
                 2, 2, null, null,
                 2, 2, 2, 5,
@@ -159,7 +159,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 Types.INTEGER, "sum_site_id",
                 Types.INTEGER, "order_id0",
                 Types.INTEGER, "sum_site_id0"
-            ).values(
+            ).addRows(
                 1, 3, 1, 1,
                 null, null, 2, 2,
                 2, 5, 2, 2,
@@ -190,7 +190,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
                 Types.INTEGER, "sum_site_id",
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id0"
-            ).values(
+            ).addRows(
                 1, 1, 1, 3,
                 6, 2, null, null,
                 7, 2, null, null,
