@@ -23,15 +23,14 @@ import java.util.Date;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
-import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
-import org.apache.beam.dsls.sql.planner.MockedUnboundedTable;
+import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
+import org.apache.beam.dsls.sql.mock.MockedUnboundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -79,10 +78,10 @@ public class BeamJoinRelUnboundedVsBoundedTest {
         )
     );
 
-    beamSqlEnv.registerTable("ORDER_DETAILS1", MockedBeamSqlTable
-        .of(SqlTypeName.INTEGER, "order_id",
-            SqlTypeName.VARCHAR, "buyer",
-
+    beamSqlEnv.registerTable("ORDER_DETAILS1", MockedBoundedTable
+        .of(Types.INTEGER, "order_id",
+            Types.VARCHAR, "buyer"
+        ).addRows(
             1, "james",
             2, "bond"
         ));
@@ -106,7 +105,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id",
                 Types.VARCHAR, "buyer"
-            ).values(
+            ).addRows(
                 1, 3, "james",
                 2, 5, "bond"
             ).getStringRows()
@@ -132,7 +131,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id",
                 Types.VARCHAR, "buyer"
-            ).values(
+            ).addRows(
                 1, 3, "james",
                 2, 5, "bond"
             ).getStringRows()
@@ -159,7 +158,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id",
                 Types.VARCHAR, "buyer"
-            ).values(
+            ).addRows(
                 1, 3, "james",
                 2, 5, "bond",
                 3, 3, null
@@ -200,7 +199,7 @@ public class BeamJoinRelUnboundedVsBoundedTest {
                 Types.INTEGER, "order_id",
                 Types.INTEGER, "sum_site_id",
                 Types.VARCHAR, "buyer"
-            ).values(
+            ).addRows(
                 1, 3, "james",
                 2, 5, "bond",
                 3, 3, null

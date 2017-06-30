@@ -18,22 +18,19 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import java.util.ArrayList;
+import java.sql.Types;
 import java.util.Date;
-import java.util.List;
-
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.TestUtils;
+import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,20 +43,21 @@ public class BeamSetOperatorRelBaseTest {
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  public static final Date THE_DATE = new Date();
-  private static MockedBeamSqlTable orderDetailsTable = MockedBeamSqlTable
-      .of(SqlTypeName.BIGINT, "order_id",
-          SqlTypeName.INTEGER, "site_id",
-          SqlTypeName.DOUBLE, "price",
-          SqlTypeName.TIMESTAMP, "order_time",
-
-          1L, 1, 1.0, THE_DATE,
-          2L, 2, 2.0, THE_DATE);
+  public static final Date THE_DATE = new Date(100000);
 
   @BeforeClass
   public static void prepare() {
-    THE_DATE.setTime(100000);
-    sqlEnv.registerTable("ORDER_DETAILS", orderDetailsTable);
+    sqlEnv.registerTable("ORDER_DETAILS",
+        MockedBoundedTable.of(
+            Types.BIGINT, "order_id",
+            Types.INTEGER, "site_id",
+            Types.DOUBLE, "price",
+            Types.TIMESTAMP, "order_time"
+        ).addRows(
+            1L, 1, 1.0, THE_DATE,
+            2L, 2, 2.0, THE_DATE
+        )
+    );
   }
 
   @Test
@@ -74,17 +72,17 @@ public class BeamSetOperatorRelBaseTest {
         + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
-    List<BeamSqlRow> expRows =
-        MockedBeamSqlTable.of(
-        SqlTypeName.BIGINT, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.BIGINT, "cnt",
-
-        1L, 1, 1L,
-        2L, 2, 1L
-    ).getInputRecords();
     // compare valueInString to ignore the windowStart & windowEnd
-    PAssert.that(rows.apply(ParDo.of(new ToString()))).containsInAnyOrder(toString(expRows));
+    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Types.BIGINT, "order_id",
+                Types.INTEGER, "site_id",
+                Types.BIGINT, "cnt"
+            ).addRows(
+                1L, 1, 1L,
+                2L, 2, 1L
+            ).getStringRows());
     pipeline.run();
   }
 
@@ -104,21 +102,5 @@ public class BeamSetOperatorRelBaseTest {
     Pipeline pipeline1 = Pipeline.create(PipelineOptionsFactory.create());
     BeamSqlCli.compilePipeline(sql, pipeline1, sqlEnv);
     pipeline.run();
-  }
-
-  static class ToString extends DoFn<BeamSqlRow, String> {
-    @ProcessElement
-    public void processElement(ProcessContext ctx) {
-      ctx.output(ctx.element().valueInString());
-    }
-  }
-
-  static List<String> toString (List<BeamSqlRow> rows) {
-    List<String> strs = new ArrayList<>();
-    for (BeamSqlRow row : rows) {
-      strs.add(row.valueInString());
-    }
-
-    return strs;
   }
 }
