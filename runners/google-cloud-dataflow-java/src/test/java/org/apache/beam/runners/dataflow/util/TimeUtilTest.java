@@ -47,8 +47,14 @@ public final class TimeUtilTest {
     assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001001Z"));
     assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001000000Z"));
     assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001000001Z"));
+    assertEquals(new Instant(0), fromCloudTime("1970-01-01T00:00:00.0Z"));
+    assertEquals(new Instant(0), fromCloudTime("1970-01-01T00:00:00.00Z"));
+    assertEquals(new Instant(420), fromCloudTime("1970-01-01T00:00:00.42Z"));
+    assertEquals(new Instant(300), fromCloudTime("1970-01-01T00:00:00.3Z"));
+    assertEquals(new Instant(20), fromCloudTime("1970-01-01T00:00:00.02Z"));
     assertNull(fromCloudTime(""));
     assertNull(fromCloudTime("1970-01-01T00:00:00"));
+    assertNull(fromCloudTime("1970-01-01T00:00:00.1e3Z"));
   }
 
   @Test
