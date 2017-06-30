@@ -38,7 +38,6 @@ option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
 /*
@@ -65,129 +64,6 @@ message Target {
   // (Required) The local name of an input or output defined on the primitive
   // transform.
   string name = 2;
-}
-
-// (Deprecated) Information defining a PCollection
-//
-// Migrate to Runner API.
-message PCollection {
-  // (Required) A reference to a coder.
-  string coder_reference = 1 [deprecated = true];
-
-  // TODO: Windowing strategy, ...
-}
-
-// (Deprecated) A primitive transform within Apache Beam.
-//
-// Migrate to Runner API.
-message PrimitiveTransform {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1 [deprecated = true];
-
-  // (Required) A function spec that is used by this primitive
-  // transform to process data.
-  FunctionSpec function_spec = 2 [deprecated = true];
-
-  // A map of distinct input names to target definitions.
-  // For example, in CoGbk this represents the tag name associated with each
-  // distinct input name and a list of primitive transforms that are associated
-  // with the specified input.
-  map<string, Target.List> inputs = 3 [deprecated = true];
-
-  // A map from local output name to PCollection definitions. For example, in
-  // DoFn this represents the tag name associated with each distinct output.
-  map<string, PCollection> outputs = 4 [deprecated = true];
-
-  // TODO: Should we model side inputs as a special type of input for a
-  // primitive transform or should it be modeled as the relationship that
-  // the predecessor input will be a view primitive transform.
-  // A map of from side input names to side inputs.
-  map<string, SideInput> side_inputs = 5 [deprecated = true];
-
-  // The user name of this step.
-  // TODO: This should really be in display data and not at this level
-  string step_name = 6 [deprecated = true];
-}
-
-/*
- * User Definable Functions
- *
- * This is still unstable mainly due to how we model the side input.
- */
-
-// (Deprecated) Defines the common elements of user-definable functions,
-// to allow the SDK to express the information the runner needs to execute work.
-//
-// Migrate to Runner API.
-message FunctionSpec {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1 [deprecated = true];
-
-  // (Required) A globally unique name representing this user definable
-  // function.
-  //
-  // User definable functions use the urn encodings registered such that another
-  // may implement the user definable function within another language.
-  //
-  // For example:
-  //    urn:org.apache.beam:coder:kv:1.0
-  string urn = 2 [deprecated = true];
-
-  // (Required) Reference to specification of execution environment required to
-  // invoke this function.
-  string environment_reference = 3 [deprecated = true];
-
-  // Data used to parameterize this function. Depending on the urn, this may be
-  // optional or required.
-  google.protobuf.Any data = 4 [deprecated = true];
-}
-
-// (Deprecated) Migrate to Runner API.
-message SideInput {
-  // TODO: Coder?
-
-  // For RunnerAPI.
-  Target input = 1 [deprecated = true];
-
-  // For FnAPI.
-  FunctionSpec view_fn = 2 [deprecated = true];
-}
-
-// (Deprecated) Defines how to encode values into byte streams and decode
-// values from byte streams. A coder can be parameterized by additional
-// properties which may or may not be language agnostic.
-//
-// Coders using the urn:org.apache.beam:coder namespace must have their
-// encodings registered such that another may implement the encoding within
-// another language.
-//
-// For example:
-//    urn:org.apache.beam:coder:kv:1.0
-//    urn:org.apache.beam:coder:iterable:1.0
-//
-// Migrate to Runner API.
-message Coder {
-  // TODO: This looks weird when compared to the other function specs
-  // which use URN to differentiate themselves. Should "Coder" be embedded
-  // inside the FunctionSpec data block.
-
-  // The data associated with this coder used to reconstruct it.
-  FunctionSpec function_spec = 1 [deprecated = true];
-
-  // A list of component coder references.
-  //
-  // For a key-value coder, there must be exactly two component coder references
-  // where the first reference represents the key coder and the second reference
-  // is the value coder.
-  //
-  // For an iterable coder, there must be exactly one component coder reference
-  // representing the value coder.
-  //
-  // TODO: Perhaps this is redundant with the data of the FunctionSpec
-  // for known coders?
-  repeated string component_coder_reference = 2 [deprecated = true];
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -278,33 +154,20 @@ message ProcessBundleDescriptor {
   // refer to this.
   string id = 1;
 
-  // (Deprecated) A list of primitive transforms that should
-  // be used to construct the bundle processing graph.
-  //
-  // Migrate to Runner API definitions found within transforms field.
-  repeated PrimitiveTransform primitive_transform = 2 [deprecated = true];
-
-  // (Deprecated) The set of all coders referenced in this bundle.
-  //
-  // Migrate to Runner API defintions found within codersyyy field.
-  repeated Coder coders = 4 [deprecated = true];
-
   // (Required) A map from pipeline-scoped id to PTransform.
-  map<string, org.apache.beam.runner_api.v1.PTransform> transforms = 5;
+  map<string, org.apache.beam.runner_api.v1.PTransform> transforms = 2;
 
   // (Required) A map from pipeline-scoped id to PCollection.
-  map<string, org.apache.beam.runner_api.v1.PCollection> pcollections = 6;
+  map<string, org.apache.beam.runner_api.v1.PCollection> pcollections = 3;
 
   // (Required) A map from pipeline-scoped id to WindowingStrategy.
-  map<string, org.apache.beam.runner_api.v1.WindowingStrategy> windowing_strategies = 7;
+  map<string, org.apache.beam.runner_api.v1.WindowingStrategy> windowing_strategies = 4;
 
   // (Required) A map from pipeline-scoped id to Coder.
-  // TODO: Rename to "coders" once deprecated coders field is removed. Unique
-  // name is choosen to make it an easy search/replace
-  map<string, org.apache.beam.runner_api.v1.Coder> codersyyy = 8;
+  map<string, org.apache.beam.runner_api.v1.Coder> coders = 5;
 
   // (Required) A map from pipeline-scoped id to Environment.
-  map<string, org.apache.beam.runner_api.v1.Environment> environments = 9;
+  map<string, org.apache.beam.runner_api.v1.Environment> environments = 6;
 }
 
 // A request to process a given bundle.
@@ -385,14 +248,14 @@ message PrimitiveTransformSplit {
   //
   // For example, a remote GRPC source will have a specific urn and data
   // block containing an ElementCountRestriction.
-  FunctionSpec completed_restriction = 2;
+  org.apache.beam.runner_api.v1.FunctionSpec completed_restriction = 2;
 
   // (Required) A function specification describing the restriction
   // representing the remainder of work for the primitive transform.
   //
   // FOr example, a remote GRPC source will have a specific urn and data
   // block contain an ElemntCountSkipRestriction.
-  FunctionSpec remaining_restriction = 3;
+  org.apache.beam.runner_api.v1.FunctionSpec remaining_restriction = 3;
 }
 
 message ProcessBundleSplitResponse {
