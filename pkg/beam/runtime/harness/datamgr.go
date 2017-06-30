@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const chunkSize = int(4e6) // Bytes to put in a single gRPC message. Max is slightly higher.
+
 // DataManager manages data channels to the FnHarness. A fixed number of channels
 // are generally used, each managing multiple logical byte streams.
 type DataManager struct {
@@ -198,24 +200,16 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 		r.cur = b
 	}
 
-	n := len(buf)
-	if len(r.cur) < n {
-		n = len(r.cur)
-	}
-
-	for i := 0; i < n; i++ {
-		buf[i] = r.cur[i]
-	}
+	n := copy(buf, r.cur)
 
 	if len(r.cur) == n {
 		r.cur = nil
 	} else {
 		r.cur = r.cur[n:]
 	}
+
 	return n, nil
 }
-
-// TODO: less naive writer.
 
 type dataWriter struct {
 	buf []byte
@@ -225,8 +219,49 @@ type dataWriter struct {
 }
 
 func (w *dataWriter) Close() error {
+	// Don't acquire the locks as Flush will do so.
+	err := w.Flush()
+	if err != nil {
+		return err
+	}
+
+	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
+	defer w.ch.client.CloseSend()
+	delete(w.ch.writers, w.id.String())
+	target := &pb.Target{PrimitiveTransformReference: w.id.Target.ID, Name: w.id.Target.Name}
+	msg := &pb.Elements{
+		Data: []*pb.Elements_Data{
+			{
+				InstructionReference: w.id.InstID,
+				Target:               target,
+				// Empty data == sentinel
+			},
+		},
+	}
+	err = w.ch.client.Send(msg)
+	if err == nil {
+		return w.ch.client.CloseSend()
+	}
+
+	// Otherwise, we're still going to try and close the channel, but now we have two errors to report.
+	errClose := w.ch.client.CloseSend()
+	if errClose == nil {
+		return err
+	}
+
+	// Let the user know about all the problems.
+	return fmt.Errorf("Send error: %v close error: %v", err, errClose)
+}
+
+func (w *dataWriter) Flush() error {
+	w.ch.mu.Lock()
+	defer w.ch.mu.Unlock()
+
+	if w.buf == nil {
+		return nil
+	}
 
 	target := &pb.Target{PrimitiveTransformReference: w.id.Target.ID, Name: w.id.Target.Name}
 	msg := &pb.Elements{
@@ -236,21 +271,25 @@ func (w *dataWriter) Close() error {
 				Target:               target,
 				Data:                 w.buf,
 			},
-			{
-				InstructionReference: w.id.InstID,
-				Target:               target,
-				// Empty data == sentinel
-			},
 		},
 	}
 	w.buf = nil
-	delete(w.ch.writers, w.id.String())
-
-	log.Print("Sending ..")
 	return w.ch.client.Send(msg)
 }
 
 func (w *dataWriter) Write(p []byte) (n int, err error) {
+	if len(p) > chunkSize {
+		panic(fmt.Sprintf("Incoming message too big for transport: %d > %d", len(p), chunkSize))
+	}
+
+	if len(w.buf)+len(p) > chunkSize {
+		// We can't fit this message into the buffer. We need to flush the buffer
+		if err := w.Flush(); err != nil {
+			return 0, err
+		}
+	}
+
+	// At this point there's room in the buffer one way or another.
 	w.buf = append(w.buf, p...)
 	return len(p), nil
 }
