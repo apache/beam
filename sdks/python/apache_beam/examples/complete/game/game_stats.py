@@ -57,7 +57,6 @@ NOTE: When specifying a different runner, additional runner-specific options
 
 from __future__ import absolute_import
 from __future__ import division
-from __future__ import print_function
 
 import argparse
 import csv
@@ -67,9 +66,11 @@ from datetime import datetime
 import apache_beam as beam
 from apache_beam.transforms import combiners
 
+
 def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
   """Converts a unix timestamp into a formatted string."""
   return datetime.fromtimestamp(t).strftime(fmt)
+
 
 def parse_game_event(elem):
   """Parses the raw game event info into a Python dictionary.
@@ -93,6 +94,7 @@ def parse_game_event(elem):
   except:  # pylint: disable=bare-except
     logging.error('Parse error on "%s"', elem)
 
+
 class FormatTeamScores(beam.DoFn):
   """Formats the data into the output format
 
@@ -105,6 +107,7 @@ class FormatTeamScores(beam.DoFn):
     window = timestamp2str(int(window.start))
     yield 'window_start: %s, total_score: %s, team: %s' % (window, score, team)
 
+
 class CalculateSpammyUsers(beam.PTransform):
   """Filter out all but those users with a high clickrate, which we will
   consider as 'spammy' uesrs.
@@ -114,6 +117,7 @@ class CalculateSpammyUsers(beam.PTransform):
   larger than (mean * SCORE_WEIGHT).
   """
   SCORE_WEIGHT = 2.5
+
   def expand(self, user_scores):
     sum_scores = (
         user_scores
@@ -135,10 +139,12 @@ class CalculateSpammyUsers(beam.PTransform):
     )
     return filtered
 
+
 class UserSessionActivity(beam.DoFn):
   """Calculate and output an element's session duration, in seconds."""
   def process(self, elem, window=beam.DoFn.WindowParam):
     yield (window.end.micros - window.start.micros) / 1000000
+
 
 def main():
   """Main entry point; defines and runs the hourly_team_score pipeline."""
@@ -249,6 +255,7 @@ def main():
      | beam.CombineGlobally(combiners.MeanCombineFn()).without_defaults()
      | 'WriteAvgSessionLength' >> beam.io.WriteToText(args.output+'-sessions')
     )
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

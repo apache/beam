@@ -65,7 +65,6 @@ NOTE: When specifying a different runner, additional runner-specific options
 
 from __future__ import absolute_import
 from __future__ import division
-from __future__ import print_function
 
 import argparse
 import csv
@@ -75,9 +74,11 @@ from datetime import datetime
 import apache_beam as beam
 from apache_beam.transforms import trigger
 
+
 def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
   """Converts a unix timestamp into a formatted string."""
   return datetime.fromtimestamp(t).strftime(fmt)
+
 
 def parse_game_event(elem):
   """Parses the raw game event info into a Python dictionary.
@@ -101,6 +102,7 @@ def parse_game_event(elem):
   except:  # pylint: disable=bare-except
     logging.error('Parse error on "%s"', elem)
 
+
 class FormatTeamScores(beam.DoFn):
   """Formats the data into the output format
 
@@ -112,6 +114,7 @@ class FormatTeamScores(beam.DoFn):
     team, score = team_score
     start = timestamp2str(int(window.start))
     yield 'window_start: %s, total_score: %s, team: %s' % (start, score, team)
+
 
 class CalculateTeamScoreSums(beam.PTransform):
   """Calculates scores for each team within the configured window duration.
@@ -139,6 +142,7 @@ class CalculateTeamScoreSums(beam.PTransform):
         | 'SumTeamScores' >> beam.CombinePerKey(sum)
     )
 
+
 class CalculateUserScoreSums(beam.PTransform):
   """Extract user/score pairs from the event stream using processing time, via
   global windowing.
@@ -162,6 +166,7 @@ class CalculateUserScoreSums(beam.PTransform):
             lambda elem: (elem['user'], elem['score']))
         | 'SumUserScores' >> beam.CombinePerKey(sum)
     )
+
 
 def main():
   """Main entry point; defines and runs the hourly_team_score pipeline."""
@@ -212,6 +217,7 @@ def main():
          lambda (user, score): 'total_score: %s, user: %s' % (score, user))
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output+'-user_scores')
     )
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

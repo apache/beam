@@ -54,6 +54,7 @@ import logging
 
 import apache_beam as beam
 
+
 def parse_game_event(elem):
   """Parses the raw game event info into a Python dictionary.
 
@@ -76,6 +77,7 @@ def parse_game_event(elem):
   except:  # pylint: disable=bare-except
     logging.error('Parse error on "%s"', elem)
 
+
 class UserScore(beam.PTransform):
   def expand(self, pcoll):
     return (
@@ -86,6 +88,7 @@ class UserScore(beam.PTransform):
             lambda elem: (elem['user'], elem['score']))
         | 'SumUserScores' >> beam.CombinePerKey(sum)
     )
+
 
 def main():
   """Main entry point; defines and runs the user_score pipeline."""
@@ -112,6 +115,7 @@ def main():
          lambda (user, score): 'total_score: %s, user: %s' % (score, user))
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output)
     )
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -64,10 +64,10 @@ from __future__ import division
 import argparse
 import csv
 import logging
-import time
 from datetime import datetime
 
 import apache_beam as beam
+
 
 def str2timestamp(s, fmt='%Y-%m-%d-%H-%M'):
   """Converts a string into a unix timestamp."""
@@ -75,9 +75,11 @@ def str2timestamp(s, fmt='%Y-%m-%d-%H-%M'):
   epoch = datetime.utcfromtimestamp(0)
   return (dt - epoch).total_seconds()
 
+
 def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
   """Converts a unix timestamp into a formatted string."""
   return datetime.fromtimestamp(t).strftime(fmt)
+
 
 def parse_game_event(elem):
   """Parses the raw game event info into a Python dictionary.
@@ -101,6 +103,7 @@ def parse_game_event(elem):
   except:  # pylint: disable=bare-except
     logging.error('Parse error on "%s"', elem)
 
+
 class FormatTeamScores(beam.DoFn):
   """Formats the data into the output format
 
@@ -112,6 +115,7 @@ class FormatTeamScores(beam.DoFn):
     team, score = elem
     window = timestamp2str(int(window.start))
     yield 'window_start: %s, total_score: %s, team: %s' % (window, score, team)
+
 
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
@@ -148,6 +152,7 @@ class HourlyTeamScore(beam.PTransform):
             lambda elem: (elem['team'], elem['score']))
         | 'SumTeamScores' >> beam.CombinePerKey(sum)
     )
+
 
 def main():
   """Main entry point; defines and runs the hourly_team_score pipeline."""
@@ -194,6 +199,7 @@ def main():
      | 'FormatTeamScores' >> beam.ParDo(FormatTeamScores())
      | 'WriteTeamScoreSums' >> beam.io.WriteToText(args.output)
     )
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
