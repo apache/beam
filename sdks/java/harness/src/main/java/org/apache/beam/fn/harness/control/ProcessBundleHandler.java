@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing
- * the set of required runners for each {@link org.apache.beam.fn.v1.BeamFnApi.FunctionSpec},
+ * the set of required runners for each {@link RunnerApi.FunctionSpec},
  * wiring them together based upon the {@code input} and {@code output} map definitions.
  *
  * <p>Finally executes the DAG based graph by starting all runners in reverse topological order,
@@ -166,7 +166,7 @@ public class ProcessBundleHandler {
             pTransform,
             processBundleInstructionId,
             processBundleDescriptor.getPcollectionsMap(),
-            processBundleDescriptor.getCodersyyyMap(),
+            processBundleDescriptor.getCodersMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
             addFinishFunction);
