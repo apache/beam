@@ -29,11 +29,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -320,6 +322,67 @@ public class CombineTest implements Serializable {
             Arrays.asList(
                 KV.of("a", "2:11"), KV.of("a", "5:4"), KV.of("b", "5:1"), KV.of("b", "13:13")));
     PAssert.that(combineGloballyWithContext).containsInAnyOrder("2:11", "5:14", "13:13");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testSlidingWindowsCombine() {
+    PCollection<String> input =
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of("a", new Instant(1L)),
+                    TimestampedValue.of("b", new Instant(2L)),
+                    TimestampedValue.of("c", new Instant(3L))))
+            .apply(
+                Window.<String>into(
+                    SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
+    PCollection<List<String>> combined =
+        input.apply(
+            Combine.globally(
+                    new CombineFn<String, List<String>, List<String>>() {
+                      @Override
+                      public List<String> createAccumulator() {
+                        return new ArrayList<>();
+                      }
+
+                      @Override
+                      public List<String> addInput(List<String> accumulator, String input) {
+                        accumulator.add(input);
+                        return accumulator;
+                      }
+
+                      @Override
+                      public List<String> mergeAccumulators(Iterable<List<String>> accumulators) {
+                        // Mutate all of the accumulators. Instances should be used in only one
+                        // place, and not
+                        // reused after merging.
+                        List<String> cur = createAccumulator();
+                        for (List<String> accumulator : accumulators) {
+                          accumulator.addAll(cur);
+                          cur = accumulator;
+                        }
+                        return cur;
+                      }
+
+                      @Override
+                      public List<String> extractOutput(List<String> accumulator) {
+                        List<String> result = new ArrayList<>(accumulator);
+                        Collections.sort(result);
+                        return result;
+                      }
+                    })
+                .withoutDefaults());
+
+    PAssert.that(combined)
+        .containsInAnyOrder(
+            ImmutableList.of("a"),
+            ImmutableList.of("a", "b"),
+            ImmutableList.of("a", "b", "c"),
+            ImmutableList.of("b", "c"),
+            ImmutableList.of("c"));
+
     pipeline.run();
   }
 
