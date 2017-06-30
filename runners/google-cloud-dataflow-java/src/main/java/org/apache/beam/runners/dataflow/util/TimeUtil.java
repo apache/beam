@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import com.google.common.base.Strings;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -98,24 +99,17 @@ public final class TimeUtil {
     int hour = Integer.valueOf(matcher.group(4));
     int minute = Integer.valueOf(matcher.group(5));
     int second = Integer.valueOf(matcher.group(6));
-    int millis = 0;
-
-    String frac = matcher.group(7);
-    if (frac != null) {
-      int fracs = Integer.valueOf(frac);
-      if (frac.length() == 3) {  // millisecond resolution
-        millis = fracs;
-      } else if (frac.length() == 6) {  // microsecond resolution
-        millis = fracs / 1000;
-      } else if (frac.length() == 9) {  // nanosecond resolution
-        millis = fracs / 1000000;
-      } else {
-        return null;
-      }
-    }
+    int millis = computeMillis(matcher.group(7));
 
     return new DateTime(year, month, day, hour, minute, second, millis,
         ISOChronology.getInstanceUTC()).toInstant();
+  }
+
+  private static int computeMillis(String frac) {
+    if (frac == null) {
+      return 0;
+    }
+    return Integer.valueOf(frac.length() > 3 ? frac.substring(0, 3) : Strings.padEnd(frac, 3, '0'));
   }
 
   /**
