@@ -17,10 +17,13 @@
  */
 package org.apache.beam.dsls.sql.transform;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
@@ -28,6 +31,13 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
+import org.apache.beam.sdk.coders.BigDecimalCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -71,9 +81,7 @@ public class BeamAggregationTransforms implements Serializable{
         outRecord.addField(aggFieldNames.get(idx), kvRecord.getValue().getFieldValue(idx));
       }
 
-      // if (c.pane().isLast()) {
       c.output(outRecord);
-      // }
     }
   }
 
@@ -137,7 +145,7 @@ public class BeamAggregationTransforms implements Serializable{
    * An adaptor class to invoke Calcite UDAF instances in Beam {@code CombineFn}.
    */
   public static class AggregationAdaptor
-    extends CombineFn<BeamSqlRow, List<BeamSqlRow>, BeamSqlRow> {
+    extends CombineFn<BeamSqlRow, AggregationAccumulator, BeamSqlRow> {
     private List<BeamSqlUdaf> aggregators;
     private List<BeamSqlExpression> sourceFieldExps;
     private BeamSqlRecordType finalRecordType;
@@ -159,176 +167,128 @@ public class BeamAggregationTransforms implements Serializable{
         outFieldsType.add(outFieldType);
 
         switch (call.getAggregation().getName()) {
-        case "COUNT":
-          aggregators.add(new BeamBuiltinAggregations.Count());
-          break;
-        case "MAX":
-          switch (call.type.getSqlTypeName()) {
-          case INTEGER:
-            aggregators.add(new BeamBuiltinAggregations.Max<Integer>(outFieldType));
+          case "COUNT":
+            aggregators.add(new BeamBuiltinAggregations.Count());
             break;
-          case SMALLINT:
-            aggregators.add(new BeamBuiltinAggregations.Max<Short>(outFieldType));
+          case "MAX":
+            aggregators.add(BeamBuiltinAggregations.Max.create(call.type.getSqlTypeName()));
             break;
-          case TINYINT:
-            aggregators.add(new BeamBuiltinAggregations.Max<Byte>(outFieldType));
+          case "MIN":
+            aggregators.add(BeamBuiltinAggregations.Min.create(call.type.getSqlTypeName()));
             break;
-          case BIGINT:
-            aggregators.add(new BeamBuiltinAggregations.Max<Long>(outFieldType));
+          case "SUM":
+            aggregators.add(BeamBuiltinAggregations.Sum.create(call.type.getSqlTypeName()));
             break;
-          case FLOAT:
-            aggregators.add(new BeamBuiltinAggregations.Max<Float>(outFieldType));
-            break;
-          case DOUBLE:
-            aggregators.add(new BeamBuiltinAggregations.Max<Double>(outFieldType));
-            break;
-          case TIMESTAMP:
-            aggregators.add(new BeamBuiltinAggregations.Max<Date>(outFieldType));
-            break;
-          case DECIMAL:
-            aggregators.add(new BeamBuiltinAggregations.Max<BigDecimal>(outFieldType));
+          case "AVG":
+            aggregators.add(BeamBuiltinAggregations.Avg.create(call.type.getSqlTypeName()));
             break;
           default:
-            throw new UnsupportedOperationException();
-          }
-          break;
-        case "MIN":
-          switch (call.type.getSqlTypeName()) {
-          case INTEGER:
-            aggregators.add(new BeamBuiltinAggregations.Min<Integer>(outFieldType));
-            break;
-          case SMALLINT:
-            aggregators.add(new BeamBuiltinAggregations.Min<Short>(outFieldType));
-            break;
-          case TINYINT:
-            aggregators.add(new BeamBuiltinAggregations.Min<Byte>(outFieldType));
-            break;
-          case BIGINT:
-            aggregators.add(new BeamBuiltinAggregations.Min<Long>(outFieldType));
-            break;
-          case FLOAT:
-            aggregators.add(new BeamBuiltinAggregations.Min<Float>(outFieldType));
-            break;
-          case DOUBLE:
-            aggregators.add(new BeamBuiltinAggregations.Min<Double>(outFieldType));
-            break;
-          case TIMESTAMP:
-            aggregators.add(new BeamBuiltinAggregations.Min<Date>(outFieldType));
-            break;
-          case DECIMAL:
-            aggregators.add(new BeamBuiltinAggregations.Min<BigDecimal>(outFieldType));
-            break;
-          default:
-            throw new UnsupportedOperationException();
-          }
-          break;
-        case "SUM":
-          switch (call.type.getSqlTypeName()) {
-          case INTEGER:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Integer>(outFieldType));
-            break;
-          case SMALLINT:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Short>(outFieldType));
-            break;
-          case TINYINT:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Byte>(outFieldType));
-            break;
-          case BIGINT:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Long>(outFieldType));
-            break;
-          case FLOAT:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Float>(outFieldType));
-            break;
-          case DOUBLE:
-            aggregators.add(new BeamBuiltinAggregations.Sum<Double>(outFieldType));
-            break;
-          case DECIMAL:
-            aggregators.add(new BeamBuiltinAggregations.Sum<BigDecimal>(outFieldType));
-            break;
-          default:
-            throw new UnsupportedOperationException();
-          }
-          break;
-        case "AVG":
-          switch (call.type.getSqlTypeName()) {
-          case INTEGER:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Integer>(outFieldType));
-            break;
-          case SMALLINT:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Short>(outFieldType));
-            break;
-          case TINYINT:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Byte>(outFieldType));
-            break;
-          case BIGINT:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Long>(outFieldType));
-            break;
-          case FLOAT:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Float>(outFieldType));
-            break;
-          case DOUBLE:
-            aggregators.add(new BeamBuiltinAggregations.Avg<Double>(outFieldType));
-            break;
-          case DECIMAL:
-            aggregators.add(new BeamBuiltinAggregations.Avg<BigDecimal>(outFieldType));
-            break;
-          default:
-            throw new UnsupportedOperationException();
-          }
-          break;
-        default:
-          if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-            // handle UDAF.
-            SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
-            AggregateFunctionImpl fn = (AggregateFunctionImpl) udaf.function;
-            try {
-              aggregators.add((BeamSqlUdaf) fn.declaringClass.newInstance());
-            } catch (Exception e) {
-              throw new IllegalStateException(e);
+            if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+              // handle UDAF.
+              SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
+              AggregateFunctionImpl fn = (AggregateFunctionImpl) udaf.function;
+              try {
+                aggregators.add((BeamSqlUdaf) fn.declaringClass.newInstance());
+              } catch (Exception e) {
+                throw new IllegalStateException(e);
+              }
+            } else {
+              throw new UnsupportedOperationException(
+                  String.format("Aggregator [%s] is not supported",
+                  call.getAggregation().getName()));
             }
-          } else {
-            throw new UnsupportedOperationException();
-          }
+          break;
         }
       }
       finalRecordType = BeamSqlRecordType.create(outFieldsName, outFieldsType);
     }
     @Override
-    public List<BeamSqlRow> createAccumulator() {
-      List<BeamSqlRow> initialAccu = new ArrayList<>();
+    public AggregationAccumulator createAccumulator() {
+      AggregationAccumulator initialAccu = new AggregationAccumulator();
       for (BeamSqlUdaf agg : aggregators) {
-        initialAccu.add(agg.init());
+        initialAccu.accumulatorElements.add(agg.init());
       }
       return initialAccu;
     }
     @Override
-    public List<BeamSqlRow> addInput(List<BeamSqlRow> accumulator, BeamSqlRow input) {
-      List<BeamSqlRow> deltaAcc = new ArrayList<>();
+    public AggregationAccumulator addInput(AggregationAccumulator accumulator, BeamSqlRow input) {
+      AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        deltaAcc.add(aggregators.get(idx).add(accumulator.get(idx),
+        deltaAcc.accumulatorElements.add(
+            aggregators.get(idx).add(accumulator.accumulatorElements.get(idx),
             sourceFieldExps.get(idx).evaluate(input).getValue()));
       }
       return deltaAcc;
     }
     @Override
-    public List<BeamSqlRow> mergeAccumulators(Iterable<List<BeamSqlRow>> accumulators) {
-      List<BeamSqlRow> deltaAcc = new ArrayList<>();
+    public AggregationAccumulator mergeAccumulators(Iterable<AggregationAccumulator> accumulators) {
+      AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        List<BeamSqlRow> accs = new ArrayList<>();
-        while (accumulators.iterator().hasNext()) {
-          accs.add(accumulators.iterator().next().get(idx));
+        List accs = new ArrayList<>();
+        Iterator<AggregationAccumulator> ite = accumulators.iterator();
+        while (ite.hasNext()) {
+          accs.add(ite.next().accumulatorElements.get(idx));
         }
-        deltaAcc.add(aggregators.get(idx).merge(accs));
+        deltaAcc.accumulatorElements.add(aggregators.get(idx).merge(accs));
       }
       return deltaAcc;
     }
     @Override
-    public BeamSqlRow extractOutput(List<BeamSqlRow> accumulator) {
+    public BeamSqlRow extractOutput(AggregationAccumulator accumulator) {
       BeamSqlRow result = new BeamSqlRow(finalRecordType);
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        result.addField(idx, aggregators.get(idx).result(accumulator.get(idx)));
+        result.addField(idx, aggregators.get(idx).result(accumulator.accumulatorElements.get(idx)));
       }
       return result;
+    }
+    @Override
+    public Coder<AggregationAccumulator> getAccumulatorCoder(
+        CoderRegistry registry, Coder<BeamSqlRow> inputCoder)
+        throws CannotProvideCoderException {
+      registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
+      List<Coder> aggAccuCoderList = new ArrayList<>();
+      for (BeamSqlUdaf udaf : aggregators) {
+        aggAccuCoderList.add(udaf.getAccumulatorCoder(registry));
+      }
+      return new AggregationAccumulatorCoder(aggAccuCoderList);
+    }
+  }
+
+  /**
+   * A class to holder varied accumulator objects.
+   */
+  public static class AggregationAccumulator{
+    private List accumulatorElements = new ArrayList<>();
+  }
+
+  /**
+   * Coder for {@link AggregationAccumulator}.
+   */
+  public static class AggregationAccumulatorCoder extends CustomCoder<AggregationAccumulator>{
+    private VarIntCoder sizeCoder = VarIntCoder.of();
+    private List<Coder> elementCoders;
+
+    public AggregationAccumulatorCoder(List<Coder> elementCoders) {
+      this.elementCoders = elementCoders;
+    }
+
+    @Override
+    public void encode(AggregationAccumulator value, OutputStream outStream)
+        throws CoderException, IOException {
+      sizeCoder.encode(value.accumulatorElements.size(), outStream);
+      for (int idx = 0; idx < value.accumulatorElements.size(); ++idx) {
+        elementCoders.get(idx).encode(value.accumulatorElements.get(idx), outStream);
+      }
+    }
+
+    @Override
+    public AggregationAccumulator decode(InputStream inStream) throws CoderException, IOException {
+      AggregationAccumulator accu = new AggregationAccumulator();
+      int size = sizeCoder.decode(inStream);
+      for (int idx = 0; idx < size; ++idx) {
+        accu.accumulatorElements.add(elementCoders.get(idx).decode(inStream));
+      }
+      return accu;
     }
   }
 }

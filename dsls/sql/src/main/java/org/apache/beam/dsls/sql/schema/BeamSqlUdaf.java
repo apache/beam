@@ -18,6 +18,10 @@
 package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -28,31 +32,41 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * 2. The type of {@code InputT} and {@code OutputT} can only be Interger/Long/Short/Byte/Double
  * /Float/Date/BigDecimal, mapping as SQL type INTEGER/BIGINT/SMALLINT/TINYINE/DOUBLE/FLOAT
  * /TIMESTAMP/DECIMAL;<br>
- * 3. wrap intermediate data in a {@link BeamSqlRow}, and do not rely on elements in class;<br>
- * 4. The intermediate value of UDAF function is stored in a {@code BeamSqlRow} object.<br>
+ * 3. Keep intermediate data in {@code AccumT}, and do not rely on elements in class;<br>
  */
-public abstract class BeamSqlUdaf<InputT, OutputT> implements Serializable {
+public abstract class BeamSqlUdaf<InputT, AccumT, OutputT> implements Serializable {
   public BeamSqlUdaf(){}
 
   /**
    * create an initial aggregation object, equals to {@link CombineFn#createAccumulator()}.
    */
-  public abstract BeamSqlRow init();
+  public abstract AccumT init();
 
   /**
    * add an input value, equals to {@link CombineFn#addInput(Object, Object)}.
    */
-  public abstract BeamSqlRow add(BeamSqlRow accumulator, InputT input);
+  public abstract AccumT add(AccumT accumulator, InputT input);
 
   /**
    * merge aggregation objects from parallel tasks, equals to
    *  {@link CombineFn#mergeAccumulators(Iterable)}.
    */
-  public abstract BeamSqlRow merge(Iterable<BeamSqlRow> accumulators);
+  public abstract AccumT merge(Iterable<AccumT> accumulators);
 
   /**
    * extract output value from aggregation object, equals to
    * {@link CombineFn#extractOutput(Object)}.
    */
-  public abstract OutputT result(BeamSqlRow accumulator);
+  public abstract OutputT result(AccumT accumulator);
+
+  /**
+   * get the coder for AccumT which stores the intermediate result.
+   * By default it's fetched from {@link CoderRegistry}.
+   */
+  public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry)
+      throws CannotProvideCoderException {
+    return registry.getCoder(
+        (Class<AccumT>) ((ParameterizedType) getClass()
+        .getGenericSuperclass()).getActualTypeArguments()[1]);
+  }
 }
