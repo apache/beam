@@ -166,6 +166,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         + Arrays.toString(args) + "].");
   }
 
+  public String getOptionName(Method method) {
+    return gettersToPropertyNames.get(method.getName());
+  }
+
   private void writeObject(java.io.ObjectOutputStream stream)
       throws IOException {
     throw new NotSerializableException(

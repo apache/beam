@@ -26,14 +26,17 @@ from __future__ import absolute_import
 import collections
 import logging
 
+import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.core import _GroupAlsoByWindow
+from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -45,6 +48,13 @@ __all__ = ['DirectRunner']
 # Type variables.
 K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
+
+
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
+class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
+  """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
+  pass
 
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
@@ -79,18 +89,77 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
+  def apply__GroupByKeyOnly(self, transform, pcoll):
+    if (transform.__class__ == _GroupByKeyOnly and
+        pcoll.pipeline._options.view_as(StandardOptions).streaming):
+      # Use specialized streaming implementation, if requested.
+      type_hints = transform.get_type_hints()
+      return pcoll | (_StreamingGroupByKeyOnly()
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
+    return transform.expand(pcoll)
+
   def apply__GroupAlsoByWindow(self, transform, pcoll):
     if (transform.__class__ == _GroupAlsoByWindow and
         pcoll.pipeline._options.view_as(StandardOptions).streaming):
       # Use specialized streaming implementation, if requested.
-      raise NotImplementedError(
-          'Streaming support is not yet available on the DirectRunner.')
-      # TODO(ccy): enable when streaming implementation is plumbed through.
-      # type_hints = transform.get_type_hints()
-      # return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
-      #                 .with_input_types(*type_hints.input_types[0])
-      #                 .with_output_types(*type_hints.output_types[0]))
+      type_hints = transform.get_type_hints()
+      return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
     return transform.expand(pcoll)
+
+  def apply_ReadStringsFromPubSub(self, transform, pcoll):
+    try:
+      from google.cloud import pubsub as unused_pubsub
+    except ImportError:
+      raise ImportError('Google Cloud PubSub not available, please install '
+                        'apache_beam[gcp]')
+    # Execute this as a native transform.
+    output = PCollection(pcoll.pipeline)
+    output.element_type = unicode
+    return output
+
+  def apply_WriteStringsToPubSub(self, transform, pcoll):
+    try:
+      from google.cloud import pubsub
+    except ImportError:
+      raise ImportError('Google Cloud PubSub not available, please install '
+                        'apache_beam[gcp]')
+    project = transform._sink.project
+    topic_name = transform._sink.topic_name
+
+    class DirectWriteToPubSub(beam.DoFn):
+      _topic = None
+
+      def __init__(self, project, topic_name):
+        self.project = project
+        self.topic_name = topic_name
+
+      def start_bundle(self):
+        if self._topic is None:
+          self._topic = pubsub.Client(project=self.project).topic(
+              self.topic_name)
+        self._buffer = []
+
+      def process(self, elem):
+        self._buffer.append(elem.encode('utf-8'))
+        if len(self._buffer) >= 100:
+          self._flush()
+
+      def finish_bundle(self):
+        self._flush()
+
+      def _flush(self):
+        if self._buffer:
+          with self._topic.batch() as batch:
+            for datum in self._buffer:
+              batch.publish(datum)
+          self._buffer = []
+
+    output = pcoll | beam.ParDo(DirectWriteToPubSub(project, topic_name))
+    output.element_type = unicode
+    return output
 
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""

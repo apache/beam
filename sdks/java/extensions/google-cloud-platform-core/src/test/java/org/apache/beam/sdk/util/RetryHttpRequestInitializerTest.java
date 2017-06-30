@@ -49,10 +49,11 @@ import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.hamcrest.Matchers;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -66,6 +67,8 @@ import org.mockito.stubbing.Answer;
  */
 @RunWith(JUnit4.class)
 public class RetryHttpRequestInitializerTest {
+
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(RetryHttpRequestInitializer.class);
 
   @Mock private PrivateKey mockPrivateKey;
   @Mock private LowLevelHttpRequest mockLowLevelRequest;
@@ -135,6 +138,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).execute();
     verify(mockLowLevelResponse).getStatusCode();
+    expectedLogs.verifyNotLogged("Request failed");
   }
 
   /**
@@ -153,7 +157,7 @@ public class RetryHttpRequestInitializerTest {
       HttpResponse response = result.executeUnparsed();
       assertNotNull(response);
     } catch (HttpResponseException e) {
-      Assert.assertThat(e.getMessage(), Matchers.containsString("403"));
+      assertThat(e.getMessage(), Matchers.containsString("403"));
     }
 
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
@@ -162,6 +166,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).execute();
     verify(mockLowLevelResponse).getStatusCode();
+    expectedLogs.verifyWarn("Request failed with code 403");
   }
 
   /**
@@ -188,6 +193,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(3)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(3)).execute();
     verify(mockLowLevelResponse, times(3)).getStatusCode();
+    expectedLogs.verifyDebug("Request failed with code 503");
   }
 
   /**
@@ -211,6 +217,7 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(2)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(2)).execute();
     verify(mockLowLevelResponse).getStatusCode();
+    expectedLogs.verifyDebug("Request failed with IOException");
   }
 
   /**
@@ -224,19 +231,22 @@ public class RetryHttpRequestInitializerTest {
       int n = 0;
       @Override
       public Integer answer(InvocationOnMock invocation) {
-        return (n++ < retries - 1) ? 503 : 200;
+        return n++ < retries ? 503 : 9999;
       }});
 
     Storage.Buckets.Get result = storage.buckets().get("test");
-    HttpResponse response = result.executeUnparsed();
-    assertNotNull(response);
+    try {
+      result.executeUnparsed();
+      fail();
+    } catch (Throwable t) {
+    }
 
     verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
-    verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(),
-        anyString());
-    verify(mockLowLevelRequest, times(retries)).setTimeout(anyInt(), anyInt());
-    verify(mockLowLevelRequest, times(retries)).execute();
-    verify(mockLowLevelResponse, times(retries)).getStatusCode();
+    verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
+    verify(mockLowLevelRequest, times(retries + 1)).setTimeout(anyInt(), anyInt());
+    verify(mockLowLevelRequest, times(retries + 1)).execute();
+    verify(mockLowLevelResponse, times(retries + 1)).getStatusCode();
+    expectedLogs.verifyWarn("performed 10 retries due to unsuccessful status codes");
   }
 
   /**
@@ -276,6 +286,7 @@ public class RetryHttpRequestInitializerTest {
     } catch (Throwable e) {
       assertThat(e, Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
       assertEquals(1 + defaultNumberOfRetries, executeCount.get());
+      expectedLogs.verifyWarn("performed 10 retries due to IOExceptions");
     }
   }
 }

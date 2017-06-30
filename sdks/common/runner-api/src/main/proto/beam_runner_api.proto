@@ -433,6 +433,9 @@ message WindowingStrategy {
   // (Required) The duration, in milliseconds, beyond the end of a window at
   // which the window becomes droppable.
   int64 allowed_lateness = 8;
+
+  // (Required) Indicate whether empty on-time panes should be omitted.
+  OnTimeBehavior OnTimeBehavior = 9;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -476,6 +479,17 @@ enum ClosingBehavior {
 
   // Only emit output when new data has arrives since the last output
   EMIT_IF_NONEMPTY = 1;
+}
+
+// Controls whether or not an aggregating transform should output data
+// when an on-time pane is empty.
+enum OnTimeBehavior {
+  // Always fire the on-time pane. Even if there is no new data since
+  // the previous firing, an element will be produced.
+  FIRE_ALWAYS = 0;
+
+  // Only fire the on-time pane if there is new data since the previous firing.
+  FIRE_IF_NONEMPTY = 1;
 }
 
 // When a number of windowed, timestamped inputs are aggregated, the timestamp

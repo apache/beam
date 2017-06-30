@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -662,11 +662,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 
@@ -807,11 +803,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 

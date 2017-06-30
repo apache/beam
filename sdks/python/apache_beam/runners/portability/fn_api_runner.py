@@ -174,12 +174,17 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       return {tag: pcollection_id(op_ix, out_ix)
               for out_ix, tag in enumerate(getattr(op, 'output_tags', ['out']))}
 
+    def only_element(iterable):
+      element, = iterable
+      return element
+
     for op_ix, (stage_name, operation) in enumerate(map_task):
       transform_id = uniquify(stage_name)
 
       if isinstance(operation, operation_specs.WorkerInMemoryWrite):
         # Write this data back to the runner.
-        runner_sinks[(transform_id, 'out')] = operation
+        target_name = only_element(get_inputs(operation).keys())
+        runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=sdk_worker.DATA_OUTPUT_URN,
             parameter=proto_utils.pack_Any(data_operation_spec))
@@ -190,7 +195,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                        maptask_executor_runner.InMemorySource)
             and isinstance(operation.source.source.default_output_coder(),
                            WindowedValueCoder)):
-          input_data[(transform_id, 'input')] = self._reencode_elements(
+          target_name = only_element(get_outputs(op_ix).keys())
+          input_data[(transform_id, target_name)] = self._reencode_elements(
               operation.source.source.read(None),
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
@@ -309,7 +315,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             sink_op.output_buffer.append(e)
         return
 
-  def execute_map_tasks(self, ordered_map_tasks, direct=True):
+  def execute_map_tasks(self, ordered_map_tasks, direct=False):
     if direct:
       controller = FnApiRunner.DirectController()
     else:

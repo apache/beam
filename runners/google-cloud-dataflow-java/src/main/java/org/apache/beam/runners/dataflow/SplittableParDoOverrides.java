@@ -64,7 +64,7 @@ class SplittableParDoOverrides {
             appliedTransform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(appliedTransform),
-          new SplittableParDo<>(appliedTransform.getTransform()));
+          SplittableParDo.forJavaParDo(appliedTransform.getTransform()));
     }
 
     @Override

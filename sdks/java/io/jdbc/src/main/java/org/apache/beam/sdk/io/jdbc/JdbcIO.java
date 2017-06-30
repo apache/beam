@@ -133,7 +133,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class JdbcIO {
   /**
    * Read data from a JDBC datasource.

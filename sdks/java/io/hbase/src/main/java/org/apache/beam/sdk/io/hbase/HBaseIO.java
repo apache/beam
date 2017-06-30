@@ -140,7 +140,7 @@ import org.slf4j.LoggerFactory;
  * it can evolve or be different in some aspects, but the idea is that users can easily migrate
  * from one to the other</p>.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class HBaseIO {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseIO.class);
 
