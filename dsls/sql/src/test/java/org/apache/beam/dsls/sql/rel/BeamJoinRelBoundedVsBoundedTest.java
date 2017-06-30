@@ -18,14 +18,15 @@
 
 package org.apache.beam.dsls.sql.rel;
 
+import java.sql.Types;
 import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.planner.MockedBeamSqlTable;
+import org.apache.beam.dsls.sql.TestUtils;
+import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,24 +42,28 @@ public class BeamJoinRelBoundedVsBoundedTest {
   @BeforeClass
   public static void prepare() {
     beamSqlEnv.registerTable("ORDER_DETAILS",
-        MockedBeamSqlTable
-            .of(SqlTypeName.INTEGER, "order_id",
-                SqlTypeName.INTEGER, "site_id",
-                SqlTypeName.INTEGER, "price",
-
-                1, 2, 3,
-                2, 3, 3,
-                3, 4, 5));
+        MockedBoundedTable.of(
+            Types.INTEGER, "order_id",
+            Types.INTEGER, "site_id",
+            Types.INTEGER, "price"
+        ).addRows(
+            1, 2, 3,
+            2, 3, 3,
+            3, 4, 5
+        )
+    );
 
     beamSqlEnv.registerTable("ORDER_DETAILS0",
-        MockedBeamSqlTable
-            .of(SqlTypeName.INTEGER, "order_id0",
-                SqlTypeName.INTEGER, "site_id0",
-                SqlTypeName.INTEGER, "price0",
-
-                1, 2, 3,
-                2, 3, 3,
-                3, 4, 5));
+        MockedBoundedTable.of(
+            Types.INTEGER, "order_id0",
+            Types.INTEGER, "site_id0",
+            Types.INTEGER, "price0"
+        ).addRows(
+            1, 2, 3,
+            2, 3, 3,
+            3, 4, 5
+        )
+    );
 
   }
 
@@ -73,16 +78,17 @@ public class BeamJoinRelBoundedVsBoundedTest {
         ;
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
-        SqlTypeName.INTEGER, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.INTEGER, "price",
-        SqlTypeName.INTEGER, "order_id0",
-        SqlTypeName.INTEGER, "site_id0",
-        SqlTypeName.INTEGER, "price0",
-
-        2, 3, 3, 1, 2, 3
-        ).getInputRecords());
+    PAssert.that(rows).containsInAnyOrder(
+        TestUtils.RowsBuilder.of(
+            Types.INTEGER, "order_id",
+            Types.INTEGER, "site_id",
+            Types.INTEGER, "price",
+            Types.INTEGER, "order_id0",
+            Types.INTEGER, "site_id0",
+            Types.INTEGER, "price0"
+        ).addRows(
+            2, 3, 3, 1, 2, 3
+        ).getRows());
     pipeline.run();
   }
 
@@ -98,18 +104,19 @@ public class BeamJoinRelBoundedVsBoundedTest {
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     pipeline.enableAbandonedNodeEnforcement(false);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
-        SqlTypeName.INTEGER, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.INTEGER, "price",
-        SqlTypeName.INTEGER, "order_id0",
-        SqlTypeName.INTEGER, "site_id0",
-        SqlTypeName.INTEGER, "price0",
-
-        1, 2, 3, null, null, null,
-        2, 3, 3, 1, 2, 3,
-        3, 4, 5, null, null, null
-    ).getInputRecords());
+    PAssert.that(rows).containsInAnyOrder(
+        TestUtils.RowsBuilder.of(
+            Types.INTEGER, "order_id",
+            Types.INTEGER, "site_id",
+            Types.INTEGER, "price",
+            Types.INTEGER, "order_id0",
+            Types.INTEGER, "site_id0",
+            Types.INTEGER, "price0"
+        ).addRows(
+            1, 2, 3, null, null, null,
+            2, 3, 3, 1, 2, 3,
+            3, 4, 5, null, null, null
+        ).getRows());
     pipeline.run();
   }
 
@@ -124,18 +131,19 @@ public class BeamJoinRelBoundedVsBoundedTest {
         ;
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
-        SqlTypeName.INTEGER, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.INTEGER, "price",
-        SqlTypeName.INTEGER, "order_id0",
-        SqlTypeName.INTEGER, "site_id0",
-        SqlTypeName.INTEGER, "price0",
-
-        2, 3, 3, 1, 2, 3,
-        null, null, null, 2, 3, 3,
-        null, null, null, 3, 4, 5
-    ).getInputRecords());
+    PAssert.that(rows).containsInAnyOrder(
+        TestUtils.RowsBuilder.of(
+            Types.INTEGER, "order_id",
+            Types.INTEGER, "site_id",
+            Types.INTEGER, "price",
+            Types.INTEGER, "order_id0",
+            Types.INTEGER, "site_id0",
+            Types.INTEGER, "price0"
+        ).addRows(
+            2, 3, 3, 1, 2, 3,
+            null, null, null, 2, 3, 3,
+            null, null, null, 3, 4, 5
+        ).getRows());
     pipeline.run();
   }
 
@@ -150,20 +158,21 @@ public class BeamJoinRelBoundedVsBoundedTest {
         ;
 
     PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
-    PAssert.that(rows).containsInAnyOrder(MockedBeamSqlTable.of(
-        SqlTypeName.INTEGER, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.INTEGER, "price",
-        SqlTypeName.INTEGER, "order_id0",
-        SqlTypeName.INTEGER, "site_id0",
-        SqlTypeName.INTEGER, "price0",
-
-        2, 3, 3, 1, 2, 3,
-        1, 2, 3, null, null, null,
-        3, 4, 5, null, null, null,
-        null, null, null, 2, 3, 3,
-        null, null, null, 3, 4, 5
-    ).getInputRecords());
+    PAssert.that(rows).containsInAnyOrder(
+        TestUtils.RowsBuilder.of(
+          Types.INTEGER, "order_id",
+          Types.INTEGER, "site_id",
+          Types.INTEGER, "price",
+          Types.INTEGER, "order_id0",
+          Types.INTEGER, "site_id0",
+          Types.INTEGER, "price0"
+        ).addRows(
+          2, 3, 3, 1, 2, 3,
+          1, 2, 3, null, null, null,
+          3, 4, 5, null, null, null,
+          null, null, null, 2, 3, 3,
+          null, null, null, 3, 4, 5
+        ).getRows());
     pipeline.run();
   }
 
