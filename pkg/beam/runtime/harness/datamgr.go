@@ -228,7 +228,6 @@ func (w *dataWriter) Close() error {
 	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
-	defer w.ch.client.CloseSend()
 	delete(w.ch.writers, w.id.String())
 	target := &pb.Target{PrimitiveTransformReference: w.id.Target.ID, Name: w.id.Target.Name}
 	msg := &pb.Elements{
@@ -240,19 +239,10 @@ func (w *dataWriter) Close() error {
 			},
 		},
 	}
-	err = w.ch.client.Send(msg)
-	if err == nil {
-		return w.ch.client.CloseSend()
-	}
 
-	// Otherwise, we're still going to try and close the channel, but now we have two errors to report.
-	errClose := w.ch.client.CloseSend()
-	if errClose == nil {
-		return err
-	}
-
-	// Let the user know about all the problems.
-	return fmt.Errorf("Send error: %v close error: %v", err, errClose)
+	// TODO(wcn): if this send fails, we have a data channel that's lingering that
+	// the runner is still waiting on. Need some way to identify these and resolve them.
+	return w.ch.client.Send(msg)
 }
 
 func (w *dataWriter) Flush() error {
