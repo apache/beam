@@ -415,7 +415,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
-      name='out')
+      name=only_element(transform_proto.inputs.keys()))
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,

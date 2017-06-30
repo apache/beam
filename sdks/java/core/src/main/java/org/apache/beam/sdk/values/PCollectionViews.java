@@ -21,6 +21,7 @@ import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.io.IOException;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -136,6 +138,18 @@ public class PCollectionViews {
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy,
         valueCoder);
+  }
+
+  /**
+   * Expands a list of {@link PCollectionView} into the form needed for
+   * {@link PTransform#getAdditionalInputs()}.
+   */
+  public static Map<TupleTag<?>, PValue> toAdditionalInputs(Iterable<PCollectionView<?>> views) {
+    ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+    for (PCollectionView<?> view : views) {
+      additionalInputs.put(view.getTagInternal(), view.getPCollection());
+    }
+    return additionalInputs.build();
   }
 
   /**

@@ -33,7 +33,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
-
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -42,8 +42,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.commons.text.RandomStringGenerator;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,11 +59,6 @@ public class SpannerWriteIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
-    @Description("Project ID for Spanner")
-    @Default.String("apache-beam-testing")
-    String getProjectId();
-    void setProjectId(String value);
-
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -86,13 +79,16 @@ public class SpannerWriteIT {
   private DatabaseAdminClient databaseAdminClient;
   private SpannerTestPipelineOptions options;
   private String databaseName;
+  private String project;
 
   @Before
   public void setUp() throws Exception {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    spanner = SpannerOptions.newBuilder().setProjectId(options.getProjectId()).build().getService();
+    project = options.as(GcpOptions.class).getProject();
+
+    spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 
     databaseName = generateDatabaseName();
 
@@ -116,9 +112,8 @@ public class SpannerWriteIT {
   }
 
   private String generateDatabaseName() {
-    String random = new RandomStringGenerator.Builder().build()
-        .generate(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length())
-        .toLowerCase();
+    String random = RandomUtils
+        .randomAlphaNumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 
@@ -128,7 +123,7 @@ public class SpannerWriteIT {
         .apply(ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
             SpannerIO.write()
-                .withProjectId(options.getProjectId())
+                .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
@@ -136,7 +131,7 @@ public class SpannerWriteIT {
     DatabaseClient databaseClient =
         spanner.getDatabaseClient(
             DatabaseId.of(
-                options.getProjectId(), options.getInstanceId(), databaseName));
+                project, options.getInstanceId(), databaseName));
 
     ResultSet resultSet =
         databaseClient
@@ -150,7 +145,7 @@ public class SpannerWriteIT {
   @After
   public void tearDown() throws Exception {
     databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
-    spanner.closeAsync().get();
+    spanner.close();
   }
 
   private static class GenerateMutations extends DoFn<Long, Mutation> {
@@ -166,7 +161,7 @@ public class SpannerWriteIT {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
       Long key = c.element();
       builder.set("Key").to(key);
-      builder.set("Value").to(new RandomStringGenerator.Builder().build().generate(valueSize));
+      builder.set("Value").to(RandomUtils.randomAlphaNumeric(valueSize));
       Mutation mutation = builder.build();
       c.output(mutation);
     }

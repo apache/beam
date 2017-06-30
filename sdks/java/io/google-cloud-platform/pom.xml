@@ -93,7 +93,12 @@
 
     <dependency>
       <groupId>com.google.api</groupId>
-      <artifactId>api-common</artifactId>
+      <artifactId>gax-grpc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-core-grpc</artifactId>
     </dependency>
 
     <dependency>
@@ -251,12 +256,6 @@
     <dependency>
       <groupId>com.google.api.grpc</groupId>
       <artifactId>proto-google-common-protos</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-text</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <!--  Test dependencies -->

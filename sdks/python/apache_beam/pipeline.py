@@ -466,9 +466,19 @@ class Pipeline(object):
     self.transforms_stack.pop()
     return pvalueish_result
 
+  def __reduce__(self):
+    # Some transforms contain a reference to their enclosing pipeline,
+    # which in turn reference all other transforms (resulting in quadratic
+    # time/space to pickle each transform individually).  As we don't
+    # require pickled pipelines to be executable, break the chain here.
+    return str, ('Pickled pipeline stub.',)
+
   def _verify_runner_api_compatible(self):
     class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       ok = True  # Really a nonlocal.
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
         if transform_node.side_inputs:
@@ -548,7 +558,7 @@ class PipelineVisitor(object):
     pass
 
   def visit_transform(self, transform_node):
-    """Callback for visiting a transform node in the pipeline DAG."""
+    """Callback for visiting a transform leaf node in the pipeline DAG."""
     pass
 
   def enter_composite_transform(self, transform_node):

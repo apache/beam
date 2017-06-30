@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory;
  *       .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
  * }</pre>
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class HCatalogIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(HCatalogIO.class);

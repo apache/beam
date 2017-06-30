@@ -21,7 +21,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -42,8 +41,8 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class AfterFirstStateMachineTest {
 
-  @Mock private OnceTriggerStateMachine mockTrigger1;
-  @Mock private OnceTriggerStateMachine mockTrigger2;
+  @Mock private TriggerStateMachine mockTrigger1;
+  @Mock private TriggerStateMachine mockTrigger2;
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
     return Mockito.<TriggerStateMachine.TriggerContext>any();

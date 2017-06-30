@@ -23,7 +23,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental;
  * have fired.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterAllStateMachine extends OnceTriggerStateMachine {
+public class AfterAllStateMachine extends TriggerStateMachine {
 
   private AfterAllStateMachine(List<TriggerStateMachine> subTriggers) {
     super(subTriggers);
@@ -42,11 +41,11 @@ public class AfterAllStateMachine extends OnceTriggerStateMachine {
    * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static OnceTriggerStateMachine of(TriggerStateMachine... triggers) {
+  public static TriggerStateMachine of(TriggerStateMachine... triggers) {
     return new AfterAllStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
   }
 
-  public static OnceTriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {
+  public static TriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {
     return new AfterAllStateMachine(ImmutableList.copyOf(triggers));
   }
 
@@ -78,24 +77,21 @@ public class AfterAllStateMachine extends OnceTriggerStateMachine {
    */
   @Override
   public boolean shouldFire(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subtrigger : context.trigger().subTriggers()) {
-      if (!context.forTrigger(subtrigger).trigger().isFinished()
-          && !subtrigger.invokeShouldFire(context)) {
+    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
+      if (!context.forTrigger(subTrigger).trigger().isFinished()
+          && !subTrigger.invokeShouldFire(context)) {
         return false;
       }
     }
     return true;
   }
 
-  /**
-   * Invokes {@link #onFire} for all subtriggers, eliding redundant calls to {@link #shouldFire}
-   * because they all must be ready to fire.
-   */
   @Override
-  public void onOnlyFiring(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subtrigger : context.trigger().subTriggers()) {
-      subtrigger.invokeOnFire(context);
+  public void onFire(TriggerContext context) throws Exception {
+    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
+      subTrigger.invokeOnFire(context);
     }
+    context.trigger().setFinished(true);
   }
 
   @Override
@@ -103,7 +99,6 @@ public class AfterAllStateMachine extends OnceTriggerStateMachine {
     StringBuilder builder = new StringBuilder("AfterAll.of(");
     Joiner.on(", ").appendTo(builder, subTriggers);
     builder.append(")");
-
     return builder.toString();
   }
 }
