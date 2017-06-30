@@ -98,7 +98,7 @@ class BeamBuiltinAggregations {
       }
     }
 
-    private SqlTypeName fieldType;
+    private final SqlTypeName fieldType;
     private Max(SqlTypeName fieldType) {
       this.fieldType = fieldType;
     }
@@ -131,27 +131,7 @@ class BeamBuiltinAggregations {
 
     @Override
     public Coder<T> getAccumulatorCoder(CoderRegistry registry) throws CannotProvideCoderException {
-      switch (fieldType) {
-        case INTEGER:
-          return (Coder<T>) VarIntCoder.of();
-        case SMALLINT:
-          return (Coder<T>) SerializableCoder.of(Short.class);
-        case TINYINT:
-          return (Coder<T>) ByteCoder.of();
-        case BIGINT:
-          return (Coder<T>) VarLongCoder.of();
-        case FLOAT:
-          return (Coder<T>) SerializableCoder.of(Float.class);
-        case DOUBLE:
-          return (Coder<T>) DoubleCoder.of();
-        case TIMESTAMP:
-          return (Coder<T>) SerializableCoder.of(Date.class);
-        case DECIMAL:
-          return (Coder<T>) BigDecimalCoder.of();
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in MAX", fieldType));
-      }
+      return BeamBuiltinAggregations.getSqlTypeCoder(fieldType);
     }
   }
 
@@ -183,7 +163,7 @@ class BeamBuiltinAggregations {
       }
     }
 
-    private SqlTypeName fieldType;
+    private final SqlTypeName fieldType;
     private Min(SqlTypeName fieldType) {
       this.fieldType = fieldType;
     }
@@ -216,27 +196,7 @@ class BeamBuiltinAggregations {
 
     @Override
     public Coder<T> getAccumulatorCoder(CoderRegistry registry) throws CannotProvideCoderException {
-      switch (fieldType) {
-        case INTEGER:
-          return (Coder<T>) VarIntCoder.of();
-        case SMALLINT:
-          return (Coder<T>) SerializableCoder.of(Short.class);
-        case TINYINT:
-          return (Coder<T>) ByteCoder.of();
-        case BIGINT:
-          return (Coder<T>) VarLongCoder.of();
-        case FLOAT:
-          return (Coder<T>) SerializableCoder.of(Float.class);
-        case DOUBLE:
-          return (Coder<T>) DoubleCoder.of();
-        case TIMESTAMP:
-          return (Coder<T>) SerializableCoder.of(Date.class);
-        case DECIMAL:
-          return (Coder<T>) BigDecimalCoder.of();
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in MIN", fieldType));
-      }
+      return BeamBuiltinAggregations.getSqlTypeCoder(fieldType);
     }
   }
 
@@ -423,4 +383,30 @@ class BeamBuiltinAggregations {
     }
   }
 
+  /**
+   * Find {@link Coder} for Beam SQL field types.
+   */
+  private static Coder getSqlTypeCoder(SqlTypeName sqlType) {
+    switch (sqlType) {
+      case INTEGER:
+        return VarIntCoder.of();
+      case SMALLINT:
+        return SerializableCoder.of(Short.class);
+      case TINYINT:
+        return ByteCoder.of();
+      case BIGINT:
+        return VarLongCoder.of();
+      case FLOAT:
+        return SerializableCoder.of(Float.class);
+      case DOUBLE:
+        return DoubleCoder.of();
+      case TIMESTAMP:
+        return SerializableCoder.of(Date.class);
+      case DECIMAL:
+        return BigDecimalCoder.of();
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Cannot find a Coder for data type [%s]", sqlType));
+    }
+  }
 }
