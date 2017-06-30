@@ -291,16 +291,20 @@ func translateWindow(w *window.Window) proto.Message {
 			WindowingStrategy: &rnapi_pb.WindowingStrategy{
 				WindowFn: &rnapi_pb.SdkFunctionSpec{
 					Spec: &rnapi_pb.FunctionSpec{
-						Urn: "beam:window_fn:global_windows:v0.1",
+						Urn: "beam:windowfn:global_windows:v0.1",
 					},
 				},
-				WindowCoderId:   "Coder",
-				ClosingBehavior: rnapi_pb.ClosingBehavior_EMIT_IF_NONEMPTY,
+				MergeStatus:      rnapi_pb.MergeStatus_NON_MERGING,
+				AccumulationMode: rnapi_pb.AccumulationMode_DISCARDING,
+				WindowCoderId:    "Coder",
 				Trigger: &rnapi_pb.Trigger{
 					Trigger: &rnapi_pb.Trigger_Default_{
 						Default: &rnapi_pb.Trigger_Default{},
 					},
 				},
+				OutputTime:      rnapi_pb.OutputTime_END_OF_WINDOW,
+				ClosingBehavior: rnapi_pb.ClosingBehavior_EMIT_IF_NONEMPTY,
+				AllowedLateness: 0,
 			},
 		},
 	}
