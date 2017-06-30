@@ -126,7 +126,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	log.Printf("Submitted job: %v", upd.Id)
 	printJob(upd)
-	log.Printf("Link: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, *project)
+	if *endpoint == "" {
+		// TODO(wcn): Need to burn this from version history as this is an internal link.
+		// TODO(wcn): convert these to externalizable links.
+		log.Printf("Link: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, *project)
+	}
+	log.Printf("Stackdriver link: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", *project, upd.Id)
 
 	if !*block {
 		return nil
