@@ -11,8 +11,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 var (

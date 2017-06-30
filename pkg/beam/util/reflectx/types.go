@@ -28,6 +28,44 @@ var (
 	ByteSlice = reflect.TypeOf((*[]byte)(nil)).Elem()
 )
 
+// IsNumber returns true iff the given type is an integer, float, or complex.
+func IsNumber(t reflect.Type) bool {
+	return IsInteger(t) || IsFloat(t) || IsComplex(t)
+}
+
+// IsInteger returns true iff the given type is an integer, such as
+// uint16, int, or int64.
+func IsInteger(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsFloat returns true iff the given type is float32 or float64.
+func IsFloat(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Float32, reflect.Float64:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsComplex returns true iff the given type is complex64 or complex128.
+func IsComplex(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Complex64, reflect.Complex128:
+		return true
+	default:
+		return false
+	}
+}
+
 // SkipPtr returns the target of a Ptr type, if a Ptr. Otherwise itself.
 func SkipPtr(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Ptr {

@@ -13,8 +13,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 // Options used purely at pipeline construction-time can just be flags.
@@ -27,7 +27,7 @@ func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
 	p = p.Composite("CountWords")
 
 	col := beam.ParDo(p, extractFn, lines)
-	return count.PerElement(p, col)
+	return stats.Count(p, col)
 }
 
 func formatFn(w string, c int) string {

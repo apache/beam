@@ -10,8 +10,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 // TODO(herohde) 5/30/2017: fully implement https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/AutoComplete.java
