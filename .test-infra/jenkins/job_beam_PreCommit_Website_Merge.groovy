@@ -32,9 +32,10 @@ job('beam_PreCommit_Website_Merge') {
   steps {
     // Run the following shell script as a build step.
     shell '''
-        # Install RVM.
-        gpg --keyserver hkp://keys.gnupg.net --recv-keys \\
-            409B6B1796C275462A1703113804BB82D39DC0E3
+        # Install RVM per instructions at https://rvm.io/rvm/install.
+        RVM_GPG_KEY=409B6B1796C275462A1703113804BB82D39DC0E3
+        gpg --keyserver hkp://keys.gnupg.net --recv-keys $RVM_GPG_KEY
+            
         \\curl -sSL https://get.rvm.io | bash
         source /home/jenkins/.rvm/scripts/rvm
 
