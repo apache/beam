@@ -118,6 +118,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public PipelineOptions pipelineOptions() {
+            return pipelineOptions;
+          }
+
+          @Override
           public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
             throw new IllegalStateException(
                 "Should not access startBundleContext() from @"
