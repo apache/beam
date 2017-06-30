@@ -3,8 +3,8 @@ package beam
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // PCollection is an immutable collection of values of type 'A', which must be

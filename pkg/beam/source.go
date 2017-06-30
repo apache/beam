@@ -3,7 +3,7 @@ package beam
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // TODO(herohde): more sophisticated source/sink model as per Fn API.

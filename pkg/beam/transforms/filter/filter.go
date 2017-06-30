@@ -6,13 +6,13 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 var (
-	sig = userfn.MakePredicate(typex.TType) // T -> bool
+	sig = funcx.MakePredicate(typex.TType) // T -> bool
 )
 
 func init() {
@@ -37,7 +37,7 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollec
 	p = p.Composite("filter.Filter")
 
 	t := typex.SkipW(col.Type()).Type()
-	userfn.MustSatisfy(fn, userfn.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
 
 	return beam.ParDo(p, &filterFn{Filter: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}}, col)
 }

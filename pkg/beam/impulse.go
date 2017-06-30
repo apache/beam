@@ -1,7 +1,7 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // Impulse emits a single empty []byte into the global window. The resulting

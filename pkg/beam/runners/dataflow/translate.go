@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/window"
-	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/runnerapi/org_apache_beam_runner_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	df "google.golang.org/api/dataflow/v1b3"
 )
 

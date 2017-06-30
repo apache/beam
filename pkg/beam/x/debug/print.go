@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // Print prints out all data. Use with care.

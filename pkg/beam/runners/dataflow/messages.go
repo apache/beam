@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
 

@@ -1,6 +1,6 @@
 package beam
 
-import "github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+import "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
