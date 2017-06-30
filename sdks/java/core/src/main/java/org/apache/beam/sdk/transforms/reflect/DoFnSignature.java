@@ -297,9 +297,8 @@ public abstract class DoFnSignature {
     }
 
     /** Returns a {@link PipelineOptionsParameter}. */
-    public static PipelineOptionsParameter pipelineOptions(
-        TypeDescriptor<? extends PipelineOptions> pipelineOptionsT) {
-      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter(pipelineOptionsT);
+    public static PipelineOptionsParameter pipelineOptions() {
+      return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     }
 
     /**
@@ -326,7 +325,6 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class PipelineOptionsParameter extends Parameter {
       PipelineOptionsParameter() {}
-      public abstract TypeDescriptor<? extends PipelineOptions> pipelineOptionsT();
     }
 
     /**

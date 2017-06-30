@@ -342,21 +342,6 @@ public class DoFnSignaturesTest {
         Matchers.<Parameter>hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
   }
 
-  interface SubPipelineOptions extends PipelineOptions {}
-
-  @Test
-  public void testPipelineOptionsSubclassParameter() throws Exception {
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(new DoFn<String, String>() {
-          @ProcessElement
-          public void process(ProcessContext c, SubPipelineOptions options) {}
-        }.getClass());
-
-    assertThat(
-        sig.processElement().extraParameters(),
-        Matchers.<Parameter>hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
-  }
-
   @Test
   public void testDeclAndUsageOfTimerInSuperclass() throws Exception {
     DoFnSignature sig =

@@ -49,7 +49,6 @@ import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import net.bytebuddy.implementation.bytecode.constant.ClassConstant;
 import net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
@@ -64,7 +63,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -545,24 +543,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   /**
-   * This wrapper exists to convert checked exceptions to unchecked exceptions, since if this fails
-   * the library itself is malformed.
-   */
-  private static MethodDescription getPipelineOptionsAsMethod() {
-    String asMethodName = "as";
-    try {
-      return new MethodDescription.ForLoadedMethod(
-          PipelineOptions.class.getMethod(asMethodName, Class.class));
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          String.format(
-              "Failed to locate required method %s.%s",
-              PipelineOptions.class.getSimpleName(), asMethodName),
-          e);
-    }
-  }
-
-  /**
    * Calls a zero-parameter getter on the {@link DoFnInvoker.ArgumentProvider}, which must be on top
    * of the stack.
    */
@@ -651,11 +631,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.PipelineOptionsParameter p) {
-            return new StackManipulation.Compound(
-                simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD),
-                ClassConstant.of(
-                    new TypeDescription.ForLoadedType(p.pipelineOptionsT().getRawType())),
-                MethodInvocation.invoke(getPipelineOptionsAsMethod()));
+            return simpleExtraContextParameter(PIPELINE_OPTIONS_PARAMETER_METHOD);
           }
         });
   }

@@ -2961,8 +2961,8 @@ public class ParDoTest implements Serializable {
             ParDo.of(
                 new DoFn<Integer, String>() {
                   @ProcessElement
-                  public void process(ProcessContext c, MyOptions options) {
-                    c.output(options.getFakeOption());
+                  public void process(ProcessContext c, PipelineOptions options) {
+                    c.output(options.as(MyOptions.class).getFakeOption());
                   }
                 }));
 
@@ -2994,8 +2994,8 @@ public class ParDoTest implements Serializable {
                       }
 
                       @OnTimer(timerId)
-                      public void onTimer(OnTimerContext c, MyOptions options) {
-                        c.output(options.getFakeOption());
+                      public void onTimer(OnTimerContext c, PipelineOptions options) {
+                        c.output(options.as(MyOptions.class).getFakeOption());
                       }
                     }));
 

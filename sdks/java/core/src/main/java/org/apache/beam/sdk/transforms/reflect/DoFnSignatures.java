@@ -803,12 +803,12 @@ public class DoFnSignatures {
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
-    } else if (PipelineOptions.class.isAssignableFrom(rawType)) {
+    } else if (PipelineOptions.class.equals(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasPipelineOptionsParamter(),
           "Multiple %s parameters",
           PipelineOptions.class.getSimpleName());
-      return Parameter.pipelineOptions((TypeDescriptor<? extends PipelineOptions>) paramT);
+      return Parameter.pipelineOptions();
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasRestrictionTrackerParameter(),
