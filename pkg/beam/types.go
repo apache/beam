@@ -3,7 +3,7 @@ package beam
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // IMPLEMENTATION NOTE: functions and types in this file are assumed to be

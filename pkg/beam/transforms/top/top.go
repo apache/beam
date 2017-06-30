@@ -8,14 +8,14 @@ import (
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 var (
-	sig = userfn.MakePredicate(typex.TType, typex.TType) // (T, T) -> bool
+	sig = funcx.MakePredicate(typex.TType, typex.TType) // (T, T) -> bool
 )
 
 func init() {
@@ -32,7 +32,7 @@ func Globally(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) b
 		panic(fmt.Sprintf("n must be > 0"))
 	}
 	t := typex.SkipW(col.Type()).Type()
-	userfn.MustSatisfy(less, userfn.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
 	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
@@ -51,7 +51,7 @@ func PerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) bea
 	}
 
 	t := typex.SkipW(col.Type()).Components()[1].Type()
-	userfn.MustSatisfy(less, userfn.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
 	keyed := beam.GroupByKey(p, col)
 	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, keyed)

@@ -1,7 +1,7 @@
 package beam
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // Pipeline manages a directed acyclic graph of primitive PTransforms, and the

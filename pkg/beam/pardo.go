@@ -3,7 +3,7 @@ package beam
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
 // TryParDo attempts to insert a ParDo transform into the pipeline. It may fail

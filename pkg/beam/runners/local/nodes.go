@@ -7,9 +7,9 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 )
 
 // Impulse emits its single element in one invocation.

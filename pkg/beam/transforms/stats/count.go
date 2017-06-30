@@ -2,7 +2,7 @@ package stats
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // Count counts the number of elements in a collection. It expects a

@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	dotlib "github.com/apache/beam/sdks/go/pkg/beam/util/dot"
+	dotlib "github.com/apache/beam/sdks/go/pkg/beam/core/util/dot"
 )
 
 // Code for making DOT graphs of the Graph data structure

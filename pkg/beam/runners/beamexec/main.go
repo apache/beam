@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/harness"
 )
 
 var (
