@@ -64,7 +64,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
     try {
         OnTimerMethodSpecifier onTimerMethodSpecifier =
-                OnTimerMethodSpecifier.create(fnClass, timerId);
+                OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
         Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
 
         OnTimerInvoker<InputT, OutputT> invoker =
@@ -97,6 +97,14 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    * The field name for the delegate of {@link DoFn} subclass that a bytebuddy invoker will call.
    */
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
+
+  /**
+   * A cache of constructors of generated {@link OnTimerInvoker} classes,
+   * keyed by {@link OnTimerMethodSpecifier}.
+   *
+   * <p>Needed because generating an invoker class is expensive, and to avoid generating an
+   * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
+   */
   private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorCache =
           CacheBuilder.newBuilder().build(
           new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
