@@ -69,21 +69,6 @@ import org.apache.beam.sdk.values.PDone;
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
  * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
  *
- * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner - {@link TextIO.Write#withWindowedWrites()}
- * will cause windowing and triggering to be preserved. When producing windowed writes with a
- * streaming runner that supports triggers, the number of output shards must be set explicitly using
- * {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
- * value, so you may need not set it yourself.
- *
- * <p>A {@link FilenamePolicy} can also be set in case you
- * need better control over naming files created by unique windows. {@link DefaultFilenamePolicy}
- * policy for producing unique filenames might not be appropriate for your use case.
- *
- * <p>TextIO also supports dynamic, value-dependent file destinations. If using
- *
- * <p>Any existing files with the same names as generated output files will be overwritten.
- *
  * <p>For example:
  *
  * <pre>{@code
@@ -93,10 +78,51 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // Same as above, only with Gzip compression:
  * PCollection<String> lines = ...;
- * lines.apply(TextIO.write().to("/path/to/file.txt"));
+ * lines.apply(TextIO.write().to("/path/to/file.txt"))
  *      .withSuffix(".txt")
  *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
  * }</pre>
+ *
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner - {@link TextIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. If setting an explicit template using
+ * {@link TextIO.Write#withShardNameTemplate(String)}, make sure that the template contains
+ * placeholders for the window and the pane; W is expanded into the window text, and P into the
+ * pane; the default template will include both the window and the pane in the filename.
+ *
+ * <p>If you want better control over how filenames are generated than the default policy allows, a
+ * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
+ *
+ * <p>TextIO also supports dynamic, value-dependent file destinations. The most general form of
+ * this is done via {@link TextIO.Write#to(DynamicDestinations)}. A {@link DynamicDestinations}
+ * class allows you to convert any input value into a custom destination object, and map that
+ * destination object to a {@link FilenamePolicy}. This allows using different filename policies
+ * (or more commonly, differently-configured instances of the same policy) based on the input
+ * record. Often this is used in conjunction
+ * with {@link TextIO#writeCustomType(SerializableFunction)}, which allows your
+ * {@link DynamicDestinations} object to examine the input type and takes a format function to
+ * convert that type to a string for writing.
+ *
+ * <p>A convenience shortcut is provided for the case where the default naming policy is used, but
+ * different configurations of this policy are wanted based on the input record. Default naming
+ * policies can be configured using the {@link DefaultFilenamePolicy.Params} object.
+ *
+ * <pre>{@code
+ * PCollection<UserEvent>> lines = ...;
+ * lines.apply(TextIO.<UserEvent>writeCustomType(new FormatEvent())
+ *      .to(new SerializableFunction<UserEvent, Params>() {
+ *         public String apply(UserEvent value) {
+ *           return new Params().withBaseFilename(baseDirectory + "/" + value.country());
+ *         }
+ *       }),
+ *       new Params().withBaseFilename(baseDirectory + "/empty");
+ * }</pre>
+ *
+ * <p>Any existing files with the same names as generated output files will be overwritten.
+ *
  */
 public class TextIO {
   /**
@@ -649,6 +675,7 @@ public class TextIO {
     /**
      * See {@link TypedWrite#to(FilenamePolicy)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
       return new Write(inner.to(filenamePolicy));
     }
@@ -656,6 +683,7 @@ public class TextIO {
     /**
      * See {@link TypedWrite#to(DynamicDestinations)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write to(DynamicDestinations<String, ?> dynamicDestinations) {
       return new Write(inner.to(dynamicDestinations));
     }
@@ -663,6 +691,7 @@ public class TextIO {
     /**
      * See {@link TypedWrite#to(SerializableFunction, Params)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write to(
         SerializableFunction<String, Params> destinationFunction, Params emptyDestination) {
       return new Write(inner.to(destinationFunction, emptyDestination));

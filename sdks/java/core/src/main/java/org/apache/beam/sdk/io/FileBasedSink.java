@@ -225,6 +225,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    * <p>Users can define a custom type to represent destinations, and provide a mapping to turn
    * this destination type into an instance of {@link FilenamePolicy}.
    */
+  @Experimental(Kind.FILESYSTEM)
   public abstract static class DynamicDestinations<T, DestinationT>
       implements HasDisplayData, Serializable {
     /**
@@ -294,6 +295,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   /**
    * A naming policy for output files.
    */
+  @Experimental(Kind.FILESYSTEM)
   public abstract static class FilenamePolicy implements Serializable {
     /**
      * Context used for generating a name based on shard number, and num shards.
