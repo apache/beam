@@ -39,8 +39,10 @@ import org.apache.beam.sdk.values.PDone;
  * Mocked table for bounded data sources.
  */
 public class MockedBoundedTable extends MockedTable {
-  public static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
-  private List<BeamSqlRow> rows = new ArrayList<>();
+  /** rows written to this table. */
+  private static final ConcurrentLinkedQueue<BeamSqlRow> CONTENT = new ConcurrentLinkedQueue<>();
+  /** rows flow out from this table. */
+  private final List<BeamSqlRow> rows = new ArrayList<>();
 
   public MockedBoundedTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);
@@ -63,6 +65,20 @@ public class MockedBoundedTable extends MockedTable {
     return new MockedBoundedTable(buildBeamSqlRecordType(args));
   }
 
+
+  /**
+   * Add rows to the builder.
+   *
+   * <p>Sample usage:
+   *
+   * <pre>{@code
+   * addRows(
+   *   1, 3, "james", -- first row
+   *   2, 5, "bond"   -- second row
+   *   ...
+   * )
+   * }</pre>
+   */
   public MockedBoundedTable addRows(Object... args) {
     List<BeamSqlRow> rows = buildRows(getRecordType(), args);
     this.rows.addAll(rows);

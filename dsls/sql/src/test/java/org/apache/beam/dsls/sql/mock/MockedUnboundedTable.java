@@ -39,7 +39,9 @@ import org.joda.time.Instant;
  * A mocked unbounded table.
  */
 public class MockedUnboundedTable extends MockedTable {
-  private List<Pair<Duration, List<BeamSqlRow>>> timestampedRows = new ArrayList<>();
+  /** rows flow out from this table with the specified watermark instant. */
+  private final List<Pair<Duration, List<BeamSqlRow>>> timestampedRows = new ArrayList<>();
+  /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
   private MockedUnboundedTable(BeamSqlRecordType beamSqlRecordType) {
     super(beamSqlRecordType);
@@ -67,6 +69,20 @@ public class MockedUnboundedTable extends MockedTable {
     return this;
   }
 
+  /**
+   * Add rows to the builder.
+   *
+   * <p>Sample usage:
+   *
+   * <pre>{@code
+   * addRows(
+   *   duration,      -- duration which stands for the corresponding watermark instant
+   *   1, 3, "james", -- first row
+   *   2, 5, "bond"   -- second row
+   *   ...
+   * )
+   * }</pre>
+   */
   public MockedUnboundedTable addRows(Duration duration, Object... args) {
     List<BeamSqlRow> rows = buildRows(getRecordType(), args);
     // record the watermark + rows
