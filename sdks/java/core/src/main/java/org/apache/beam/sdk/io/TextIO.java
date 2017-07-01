@@ -30,8 +30,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.DefaultDynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -76,9 +74,13 @@ import org.apache.beam.sdk.values.PDone;
  * will cause windowing and triggering to be preserved. When producing windowed writes with a
  * streaming runner that supports triggers, the number of output shards must be set explicitly using
  * {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
- * value, so you may need not set it yourself. A {@link FilenamePolicy} can also be set in case you
+ * value, so you may need not set it yourself.
+ *
+ * <p>A {@link FilenamePolicy} can also be set in case you
  * need better control over naming files created by unique windows. {@link DefaultFilenamePolicy}
  * policy for producing unique filenames might not be appropriate for your use case.
+ *
+ * <p>TextIO also supports dynamic, value-dependent file destinations. If using
  *
  * <p>Any existing files with the same names as generated output files will be overwritten.
  *
@@ -358,8 +360,8 @@ public class TextIO {
     }
 
     /**
-     * Use a {@link FileBasedSink.FilenamePolicy} to name written files. A
-     * directory for temporary files must be specified using {@link #withTempDirectory}.
+     * Writes to files named according to the given {@link FileBasedSink.FilenamePolicy}.
+     * A directory for temporary files must be specified using {@link #withTempDirectory}.
      */
     public TypedWrite<T> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
@@ -383,7 +385,7 @@ public class TextIO {
      */
     public TypedWrite<T> to(
         SerializableFunction<T, Params> destinationFunction, Params emptyDestination) {
-      return to(new DefaultDynamicDestinations<T>(destinationFunction, emptyDestination));
+      return to(DynamicFileDestinations.toDefaultPolicies(destinationFunction, emptyDestination));
     }
 
     /**
@@ -525,8 +527,7 @@ public class TextIO {
               getFilenameSuffix(),
               getWindowedWrites());
         }
-        dynamicDestinations =
-            new ConstantFilenamePolicy<>(usedFilenamePolicy);
+        dynamicDestinations = DynamicFileDestinations.constant(usedFilenamePolicy);
       }
       return expandTyped(input, dynamicDestinations);
     }

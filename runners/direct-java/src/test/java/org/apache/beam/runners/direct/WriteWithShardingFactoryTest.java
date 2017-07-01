@@ -39,7 +39,7 @@ import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
@@ -54,7 +54,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -141,18 +141,12 @@ public class WriteWithShardingFactoryTest implements Serializable {
     PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
             new FileBasedSink<Object, Void>(StaticValueProvider.of(outputDirectory),
-                new ConstantFilenamePolicy<>(null)) {
+                DynamicFileDestinations.constant(null)) {
               @Override
               public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");
               }
-            },
-            new SerializableFunction<Object, Object>() {
-              @Override
-              public Object apply(Object input) {
-                return input;
-              }
-            });
+            }, SerializableFunctions.identity());
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 

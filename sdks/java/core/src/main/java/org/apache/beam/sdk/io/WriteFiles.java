@@ -24,6 +24,9 @@ import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.hash.Hashing;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,8 +36,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
@@ -340,20 +345,34 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
+  // Hash the destination in a manner that we can then use as a key in a GBK. Since Java's
+  // hashCode isn't guaranteed to be stable across machines, we instead serialize the destination
+  // and use murmur3_32 to hash it. We enforce that destinationCoder must be deterministic, so
+  // this can be used as a key.
+  private static <DestinationT> int hashDestination(
+      DestinationT destination, Coder<DestinationT> destinationCoder) throws IOException {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    destinationCoder.encode(destination, outputStream);
+    return Hashing.murmur3_32().hashBytes(outputStream.toByteArray()).asInt();
+  }
+
   /**
    * Writes all the elements in a bundle using a {@link Writer} produced by the
    * {@link WriteOperation} associated with the {@link FileBasedSink}.
    */
   private class WriteBundles extends DoFn<UserT, FileResult<DestinationT>> {
-    private final TupleTag<KV<ShardedKey<DestinationT>, UserT>> unwrittedRecordsTag;
+    private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private Map<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> writers;
+    Coder<DestinationT> destinationCoder;
     private boolean windowedWrites;
     int spilledShardNum = UNKNOWN_SHARDNUM;
 
     WriteBundles(boolean windowedWrites,
-      TupleTag<KV<ShardedKey<DestinationT>, UserT>> unwrittedRecordsTag) {
+       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
+       Coder<DestinationT> destinationCoder) {
       this.windowedWrites = windowedWrites;
-      this.unwrittedRecordsTag = unwrittedRecordsTag;
+      this.unwrittenRecordsTag = unwrittenRecordsTag;
+      this.destinationCoder = destinationCoder;
     }
 
     @StartBundle
@@ -398,8 +417,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           } else {
             spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
           }
-          c.output(unwrittedRecordsTag, KV.of(
-              ShardedKey.of(destination, spilledShardNum), c.element()));
+          c.output(unwrittenRecordsTag, KV.of(
+              ShardedKey.of(hashDestination(destination, destinationCoder), spilledShardNum),
+              c.element()));
           return;
         }
       }
@@ -410,7 +430,15 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     public void finishBundle(FinishBundleContext c) throws Exception {
       for (Map.Entry<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> entry
           : writers.entrySet()) {
-        FileResult<DestinationT> result = entry.getValue().close();
+        Writer<OutputT, DestinationT> writer = entry.getValue();
+        FileResult<DestinationT> result;
+        try {
+          result = writer.close();
+        } catch (Exception e) {
+          // If anything goes wrong, make sure to delete the temporary file.
+          writer.cleanup();
+          throw e;
+        }
         BoundedWindow window = entry.getKey().window;
         c.output(result, window.maxTimestamp(), window);
       }
@@ -429,7 +457,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * single iterable.
    */
   private class WriteShardedBundles
-      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<UserT>>, FileResult<DestinationT>> {
+      extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
     ShardAssignment shardNumberAssignment;
     WriteShardedBundles(ShardAssignment shardNumberAssignment) {
       this.shardNumberAssignment = shardNumberAssignment;
@@ -437,37 +465,45 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      // In a sharded write, single input element represents one shard. We can open and close
-      // the writer in each call to processElement.
-      // TODO: This forces us to shuffle the entire destination on each element. We could instead
-      // just shuffle a hash, and keep a (small) map of writers->destination here.
-      DestinationT destination = c.element().getKey().getKey();
-      LOG.info("Opening writer for write operation {}", writeOperation);
-      Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
-      if (windowedWrites) {
-        int shardNumber = shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
-            ? c.element().getKey().getShardNumber() : UNKNOWN_SHARDNUM;
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), shardNumber,
-        destination);
-      } else {
-        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
-      }
-      LOG.debug("Done opening writer");
-
-      try {
-        for (UserT inputT : c.element().getValue()) {
-          writeOrClose(writer, formatFunction.apply(inputT));
+       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
+       // in this iterable. The number of destinations is generally very small (1000s or less), so
+       // there will rarely be hash collisions.
+        Map<DestinationT, Writer<OutputT, DestinationT>> writers = Maps.newHashMap();
+        for (UserT input : c.element().getValue()) {
+          DestinationT destination = sink.getDynamicDestinations().getDestination(input);
+          Writer<OutputT, DestinationT> writer = writers.get(destination);
+          if (writer == null) {
+            LOG.debug("Opening writer for write operation {}", writeOperation);
+            writer = writeOperation.createWriter();
+            if (windowedWrites) {
+              int shardNumber = shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
+                  ? c.element().getKey().getShardNumber() : UNKNOWN_SHARDNUM;
+              writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), shardNumber,
+                  destination);
+            } else {
+              writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
+            }
+            LOG.debug("Done opening writer");
+            writers.put(destination, writer);
+          }
+          writeOrClose(writer, formatFunction.apply(input));
         }
 
-        // Close the writer; if this throws let the error propagate.
-        FileResult<DestinationT> result = writer.close();
-        c.output(result);
-      } catch (Exception e) {
-        // If anything goes wrong, make sure to delete the temporary file.
-        writer.cleanup();
-        throw e;
+        // Close all writers.
+        for (Map.Entry<DestinationT, Writer<OutputT, DestinationT>> entry : writers.entrySet()) {
+          Writer<OutputT, DestinationT> writer = entry.getValue();
+          FileResult<DestinationT> result;
+          try {
+            // Close the writer; if this throws let the error propagate.
+            result = writer.close();
+            c.output(result);
+          } catch (Exception e) {
+            // If anything goes wrong, make sure to delete the temporary file.
+            writer.cleanup();
+            throw e;
+          }
+        }
       }
-    }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -483,6 +519,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     } catch (Exception e) {
       try {
         writer.close();
+        // If anything goes wrong, make sure to delete the temporary file.
+        writer.cleanup();
       } catch (Exception closeException) {
         if (closeException instanceof InterruptedException) {
           // Do not silently ignore interrupted state.
@@ -495,20 +533,23 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private class ApplyShardingKey extends DoFn<UserT, KV<ShardedKey<DestinationT>, UserT>> {
+  private class ApplyShardingKey extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
     private final PCollectionView<Integer> numShardsView;
     private final ValueProvider<Integer> numShardsProvider;
     private int shardNumber;
+    Coder<DestinationT> destinationCoder;
 
     ApplyShardingKey(PCollectionView<Integer> numShardsView,
-                     ValueProvider<Integer> numShardsProvider) {
+                     ValueProvider<Integer> numShardsProvider,
+                     Coder<DestinationT> destinationCoder) {
+      this.destinationCoder = destinationCoder;
       this.numShardsView = numShardsView;
       this.numShardsProvider = numShardsProvider;
       shardNumber = UNKNOWN_SHARDNUM;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context) throws IOException {
       final int shardCount;
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
@@ -528,8 +569,17 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       } else {
         shardNumber = (shardNumber + 1) % shardCount;
       }
+      // We avoid using destination itself as a sharding key, because destination is often large.
+      // e.g. when using {@link DefaultFilenamePolicy}, the destination contains the entire path
+      // to the file. Often most of the path is constant across all destinations, just the path
+      // suffix is appended by the destination function. Instead we key by a 32-bit hash (carefully
+      // chosen to be guaranteed stable), and call getDestination again in the next ParDo to resolve
+      // the destinations. This does mean that multiple destinations might end up on the same shard,
+      // however the number of collisions should be small, so there's no need to worry about memory
+      // issues.
       DestinationT destination = sink.getDynamicDestinations().getDestination(context.element());
-      context.output(KV.of(ShardedKey.of(destination, shardNumber), context.element()));
+      context.output(KV.of(ShardedKey.of(hashDestination(
+          destination, destinationCoder), shardNumber), context.element()));
     }
   }
 
@@ -587,7 +637,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     try {
       destinationCoder = sink.getDynamicDestinations().getDestinationCoderWithDefault(
           input.getPipeline().getCoderRegistry());
+      destinationCoder.verifyDeterministic();
     }  catch (CannotProvideCoderException e) {
+      throw new RuntimeException(e);
+    } catch (NonDeterministicException e) {
       throw new RuntimeException(e);
     }
 
@@ -595,11 +648,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>(
           "writtenRecordsTag");
-      TupleTag<KV<ShardedKey<DestinationT>, UserT>> unwrittedRecordsTag = new TupleTag<>(
+      TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittedRecordsTag = new TupleTag<>(
           "unwrittenRecordsTag");
       String writeName = windowedWrites ? "WriteWindowedBundles" : "WriteBundles";
       PCollectionTuple writeTuple = input.apply(writeName, ParDo.of(
-          new WriteBundles(windowedWrites, unwrittedRecordsTag))
+          new WriteBundles(windowedWrites, unwrittedRecordsTag, destinationCoder))
           .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles = writeTuple.get(writtenRecordsTag)
        .setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
@@ -608,8 +661,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         PCollection<FileResult<DestinationT>> writtenGroupedFiles =
             writeTuple
                 .get(unwrittedRecordsTag)
-                .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), input.getCoder()))
-                .apply("GroupUnwritten", GroupByKey.<ShardedKey<DestinationT>, UserT>create())
+                .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+                .apply("GroupUnwritten", GroupByKey.<ShardedKey<Integer>, UserT>create())
                 .apply("WriteUnwritten", ParDo.of(
                     new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE)))
                 .setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
@@ -623,14 +676,15 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       } else {
         numShardsView = null;
       }
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<UserT>>> sharded =
+      PCollection<KV<ShardedKey<Integer>, Iterable<UserT>>> sharded =
           input
               .apply("ApplyShardLabel", ParDo.of(
                   new ApplyShardingKey(numShardsView,
-                      (numShardsView != null) ? null : numShardsProvider))
+                      (numShardsView != null) ? null : numShardsProvider,
+                      destinationCoder))
                   .withSideInputs(sideInputs))
-              .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), input.getCoder()))
-              .apply("GroupIntoShards", GroupByKey.<ShardedKey<DestinationT>, UserT>create());
+              .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+              .apply("GroupIntoShards", GroupByKey.<ShardedKey<Integer>, UserT>create());
       shardedWindowCoder =
           (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
       // Since this path might be used by streaming runners processing triggers, it's important

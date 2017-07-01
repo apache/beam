@@ -32,7 +32,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.LocalResources;
@@ -56,7 +56,7 @@ import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -547,18 +547,12 @@ public class PTransformMatchersTest implements Serializable {
     WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
             new FileBasedSink<Integer, Void>(StaticValueProvider.of(outputDirectory),
-            new ConstantFilenamePolicy<Integer>(null)) {
+            DynamicFileDestinations.constant(null)) {
               @Override
               public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;
               }
-            },
-            new SerializableFunction<Integer, Integer>() {
-              @Override
-              public Integer apply(Integer input) {
-                return input;
-              }
-            });
+            }, SerializableFunctions.<Integer>identity());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));

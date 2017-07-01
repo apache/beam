@@ -36,7 +36,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
@@ -362,12 +362,7 @@ public class TFRecordIO {
                   getShardTemplate(),
                   getFilenameSuffix(),
                   getCompressionType()),
-          new SerializableFunction<byte[], byte[]>() {
-            @Override
-            public byte[] apply(byte[] input) {
-              return input;
-            }
-          });
+          SerializableFunctions.<byte[]>identity());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -565,7 +560,7 @@ public class TFRecordIO {
         @Nullable String suffix,
         TFRecordIO.CompressionType compressionType) {
       super(outputPrefix,
-          new ConstantFilenamePolicy<byte[]>(
+          DynamicFileDestinations.constant(
           DefaultFilenamePolicy.fromStandardParameters(
                   outputPrefix, shardTemplate, suffix, false)),
                   writableByteChannelFactory(compressionType));

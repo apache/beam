@@ -30,11 +30,11 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 /**
  * Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}.
  */
-public class DynamicDestinationHelpers {
+public class DynamicFileDestinations {
   /**
    * Always returns a constant {@link FilenamePolicy}.
    */
-  public static class ConstantFilenamePolicy<T> extends DynamicDestinations<T, Void> {
+  private static class ConstantFilenamePolicy<T> extends DynamicDestinations<T, Void> {
     private final FilenamePolicy filenamePolicy;
 
     public ConstantFilenamePolicy(FilenamePolicy filenamePolicy) {
@@ -71,11 +71,12 @@ public class DynamicDestinationHelpers {
    * A base class for a {@link DynamicDestinations} object that returns differently-configured
    * instances of {@link DefaultFilenamePolicy}.
    */
-  public static class DefaultDynamicDestinations<UserT> extends DynamicDestinations<UserT, Params> {
+  private static class DefaultPolicyDestinations<UserT> extends DynamicDestinations<UserT,
+  Params> {
     SerializableFunction<UserT, Params> destinationFunction;
     Params emptyDestination;
 
-    public DefaultDynamicDestinations(SerializableFunction<UserT, Params> destinationFunction,
+    public DefaultPolicyDestinations(SerializableFunction<UserT, Params> destinationFunction,
                                       Params emptyDestination) {
       this.destinationFunction = destinationFunction;
       this.emptyDestination = emptyDestination;
@@ -101,5 +102,17 @@ public class DynamicDestinationHelpers {
     public FilenamePolicy getFilenamePolicy(DefaultFilenamePolicy.Params params) {
       return DefaultFilenamePolicy.fromParams(params);
     }
+  }
+
+  /**
+   * Returns a {@link DynamicDestinations} that always returns the same {@link FilenamePolicy}.
+   */
+  public static <T> DynamicDestinations<T, Void> constant(FilenamePolicy filenamePolicy) {
+    return new ConstantFilenamePolicy<>(filenamePolicy);
+  }
+
+  public static <UserT> DynamicDestinations<UserT, Params> toDefaultPolicies(
+      SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
+    return new DefaultPolicyDestinations(destinationFunction, emptyDestination);
   }
 }

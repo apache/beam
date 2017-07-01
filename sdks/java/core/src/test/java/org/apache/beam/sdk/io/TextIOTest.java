@@ -42,7 +42,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -69,9 +71,12 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -90,6 +95,7 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -210,7 +216,7 @@ public class TextIOTest {
     });
   }
 
-  private <T> void runTestRead(String[] expected) throws Exception {
+  private void runTestRead(String[] expected) throws Exception {
     File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
     String filename = tmpFile.getPath();
 
@@ -305,11 +311,10 @@ public class TextIOTest {
 
     @Override
     public FilenamePolicy getFilenamePolicy(String destination) {
-      DefaultFilenamePolicy.Params params = DefaultFilenamePolicy.Params.fromStandardParameters(
+      return DefaultFilenamePolicy.fromStandardParameters(
           StaticValueProvider.of(baseDir.resolve("file_" + destination + ".txt",
               StandardResolveOptions.RESOLVE_FILE)),
           null, null, false);
-      return DefaultFilenamePolicy.fromParams(params);
     }
   }
 
@@ -349,6 +354,104 @@ public class TextIOTest {
     assertOutputFiles(Iterables.toArray(Iterables.filter(elements, new StartsWith("c")),
         String.class),
         null, null, 0, baseDir.resolve("file_c.txt", StandardResolveOptions.RESOLVE_FILE),
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  private static class UserWriteType {
+    String destination;
+    String metadata;
+
+    UserWriteType() {
+      this.destination = "";
+      this.metadata = "";
+    }
+
+    UserWriteType(String destination, String metadata) {
+      this.destination = destination;
+      this.metadata = metadata;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("destination: %s metadata : %s", destination, metadata);
+    }
+  }
+
+  private static class SerializeUserWrite implements SerializableFunction<UserWriteType, String> {
+    @Override
+    public String apply(UserWriteType input) {
+      return input.toString();
+    }
+  }
+
+  private static class UserWriteDestination implements SerializableFunction<UserWriteType, Params> {
+    private ResourceId baseDir;
+    UserWriteDestination(ResourceId baseDir) {
+      this.baseDir = baseDir;
+    }
+    @Override
+    public Params apply(UserWriteType input) {
+      return new Params().withBaseFilename(
+          baseDir.resolve("file_" + input.destination.substring(0, 1) + ".txt",
+              StandardResolveOptions.RESOLVE_FILE));
+    }
+  }
+
+  private static class ExtractWriteDestination implements Function<UserWriteType, String> {
+    @Override
+    public String apply(@Nullable UserWriteType input) {
+      return input.destination;
+    }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testDynamicDefaultFilenamePolicy() throws Exception {
+    ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
+        tempFolder, "testDynamicDestinations").toString(), true);
+
+    List<UserWriteType> elements = Lists.newArrayList(
+        new UserWriteType("aaaa", "first"),
+        new UserWriteType("aaab", "second"),
+        new UserWriteType("baaa", "third"),
+        new UserWriteType("baab", "fourth"),
+        new UserWriteType("caaa", "fifth"),
+        new UserWriteType("caab", "sixth"));
+    PCollection<UserWriteType> input = p.apply(Create.of(elements));
+    input.apply(TextIO.writeCustomType(new SerializeUserWrite())
+        .to(new UserWriteDestination(baseDir), new Params())
+        .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
+    p.run();
+
+    String[] aElements = Iterables.toArray(
+            Iterables.transform(Iterables.filter(
+                elements,
+                Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())),
+            Functions.toStringFunction()),
+            String.class);
+    String[] bElements = Iterables.toArray(
+        Iterables.transform(Iterables.filter(
+            elements,
+            Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())),
+            Functions.toStringFunction()),
+        String.class);
+    String[] cElements = Iterables.toArray(
+        Iterables.transform(Iterables.filter(
+            elements,
+            Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())),
+            Functions.toStringFunction()),
+        String.class);
+    assertOutputFiles(aElements, null, null, 0,
+        baseDir.resolve("file_a.txt", StandardResolveOptions.RESOLVE_FILE),
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+    assertOutputFiles(
+        bElements, null, null, 0,
+        baseDir.resolve("file_b.txt", StandardResolveOptions.RESOLVE_FILE),
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+    assertOutputFiles(
+        cElements, null, null, 0,
+        baseDir.resolve("file_c.txt", StandardResolveOptions.RESOLVE_FILE),
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
   }
 

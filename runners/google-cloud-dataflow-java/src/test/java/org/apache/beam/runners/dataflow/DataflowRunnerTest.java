@@ -76,7 +76,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -1291,7 +1291,7 @@ public class DataflowRunnerTest implements Serializable {
 
     TestSink(String tmpFolder) {
       super(StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
-          new ConstantFilenamePolicy<>(null));
+          DynamicFileDestinations.constant(null));
     }
     @Override
     public WriteOperation<Object, Void> createWriteOperation() {

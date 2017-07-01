@@ -83,46 +83,70 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   public static class Params implements Serializable {
     private ValueProvider<ResourceId> baseFilename;
     private String shardTemplate;
+    boolean explicitTemplate;
     private String suffix;
 
-    public Params(ValueProvider<ResourceId> baseFilename, String shardTemplate, String suffix) {
+    /**
+     * Construct a default Params object. The shard template will be set to the default
+     * {@link #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} value.
+     */
+    public Params() {
+      this.shardTemplate = DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
+      this.suffix = "";
+      this.explicitTemplate = false;
+    }
+
+    private Params(ValueProvider<ResourceId> baseFilename, String shardTemplate, String suffix,
+      boolean explicitTemplate) {
       this.baseFilename = baseFilename;
       this.shardTemplate = shardTemplate;
       this.suffix = suffix;
-    }
-
-    public Params(ResourceId baseFilename, String shardTemplate, String suffix) {
-      this(StaticValueProvider.of(baseFilename), shardTemplate, suffix);
+      this.explicitTemplate = explicitTemplate;
     }
 
     /**
-     * A helper function to construct a {@link DefaultFilenamePolicy.Params} using the standard
-     * filename parameters, namely a provided {@link ResourceId} for the output prefix, and
-     * possibly-null shard name template and suffix.
-     *
-     * <p>Any filename component of the provided resource will be used as the filename prefix.
-     *
-     * <p>If provided, the shard name template will be used; otherwise {@link
-     * #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} will be used for non-windowed file names and {@link
-     * #DEFAULT_WINDOWED_SHARD_TEMPLATE} will be used for windowed file names.
-     *
-     * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
+     * Specify that writes are windowed. This affects the default shard template, changing it to
+     * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE}.
      */
-    public static Params fromStandardParameters(
-        ValueProvider<ResourceId> baseFilename,
-        @Nullable String shardTemplate,
-        @Nullable String filenameSuffix,
-        boolean windowedWrites) {
-      // Pick the appropriate default policy based on whether windowed writes are being performed.
-      String defaultTemplate =
-          windowedWrites ? DEFAULT_WINDOWED_SHARD_TEMPLATE : DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
-      return new Params(baseFilename,
-          firstNonNull(shardTemplate, defaultTemplate),
-          firstNonNull(filenameSuffix, ""));
+    public Params withWindowedWrites() {
+      String template = this.shardTemplate;
+      if (!explicitTemplate) {
+        template = DEFAULT_WINDOWED_SHARD_TEMPLATE;
+      }
+      return new Params(baseFilename, template, suffix, explicitTemplate);
+    }
+
+    /**
+     * Sets the base filename.
+     */
+    public Params withBaseFilename(ResourceId baseFilename) {
+      return withBaseFilename(StaticValueProvider.of(baseFilename));
+    }
+
+    /**
+     * Like {@link #withBaseFilename(ResourceId)}, but takes in a {@link ValueProvider}.
+     */
+    public Params withBaseFilename(ValueProvider<ResourceId> baseFilename) {
+      return new Params(baseFilename, shardTemplate, suffix, explicitTemplate);
+    }
+
+    /**
+     * Sets the shard template.
+     */
+    public Params withShardTemplate(String shardTemplate) {
+      return new Params(baseFilename, shardTemplate, suffix, true);
+    }
+
+    /**
+     * Sets the suffix.
+     */
+    public Params withSuffix(String suffix) {
+      return new Params(baseFilename, shardTemplate, suffix, explicitTemplate);
     }
   }
 
   /**
+   * A Coder for {@link Params}.
    */
   public static class ParamsCoder extends AtomicCoder<Params> {
     private static final ParamsCoder INSTANCE = new ParamsCoder();
@@ -149,7 +173,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
           stringCoder.decode(inStream));
       String shardTemplate = stringCoder.decode(inStream);
       String suffix = stringCoder.decode(inStream);
-      return new Params(prefix, shardTemplate, suffix);
+      return new Params()
+          .withBaseFilename(prefix)
+          .withShardTemplate(shardTemplate)
+          .withSuffix(suffix);
     }
   }
 
@@ -176,8 +203,17 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       @Nullable String shardTemplate,
       @Nullable String filenameSuffix,
       boolean windowedWrites) {
-    return fromParams(
-        Params.fromStandardParameters(baseFilename, shardTemplate, filenameSuffix, windowedWrites));
+    Params params = new Params().withBaseFilename(baseFilename);
+    if (shardTemplate != null) {
+      params = params.withShardTemplate(shardTemplate);
+    }
+    if (filenameSuffix != null) {
+      params = params.withSuffix(filenameSuffix);
+    }
+    if (windowedWrites) {
+      params = params.withWindowedWrites();
+    }
+    return fromParams(params);
   }
 
   /**

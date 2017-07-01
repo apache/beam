@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -42,7 +41,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
     return new SimpleSink<>(
         tempDirectory,
-        new ConstantFilenamePolicy<String>(filenamePolicy),
+        DynamicFileDestinations.<String>constant(filenamePolicy),
         CompressionType.UNCOMPRESSED);
   }
 
@@ -50,12 +49,13 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       ResourceId baseDirectory, String prefix, String shardTemplate, String suffix,
       WritableByteChannelFactory writableByteChannelFactory) {
     DynamicDestinations<String, Void> dynamicDestinations =
-        new ConstantFilenamePolicy<>(
+        DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
-                new Params(
-                    baseDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE),
-                    shardTemplate,
-                    suffix)));
+                new Params()
+                    .withBaseFilename(baseDirectory.resolve(
+                        prefix, StandardResolveOptions.RESOLVE_FILE))
+                    .withShardTemplate(shardTemplate)
+                    .withSuffix(suffix)));
     return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
   }
 

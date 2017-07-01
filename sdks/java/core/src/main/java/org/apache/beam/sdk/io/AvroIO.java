@@ -34,7 +34,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DynamicDestinationHelpers.ConstantFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
@@ -124,13 +123,6 @@ import org.apache.beam.sdk.values.PDone;
  * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
-  private static class IdentityFormatter<T> implements SerializableFunction<T, T> {
-    @Override
-    public T apply(T input) {
-      return input;
-    }
-  }
-
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
    *
@@ -363,7 +355,8 @@ public class AvroIO {
     }
 
     /**
-     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     * Writes to files named according to the given {@link FileBasedSink.FilenamePolicy}.
+     * A directory for temporary files must be specified using {@link #withTempDirectory}.
      */
     public Write<T> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
@@ -481,8 +474,8 @@ public class AvroIO {
             DefaultFilenamePolicy.fromStandardParameters(
                 getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
-      DynamicDestinations<T, Void> dynamicDestinations =
-          new ConstantFilenamePolicy<>(usedFilenamePolicy);
+      DynamicDestinations<T, Void> dynamicDestinations = DynamicFileDestinations.constant(
+          usedFilenamePolicy);
       return expandTyped(input, dynamicDestinations);
     }
 

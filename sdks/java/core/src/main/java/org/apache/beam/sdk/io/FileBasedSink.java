@@ -53,6 +53,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -119,10 +120,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Supported file systems are those registered with {@link FileSystems}.
  *
- * @param <T> the type of values written to the sink.
+ * @param <OutputT> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
-public abstract class FileBasedSink<T, DestinationT> implements Serializable, HasDisplayData {
+public abstract class FileBasedSink<OutputT, DestinationT> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /**
@@ -453,7 +454,7 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
    * Return a subclass of {@link WriteOperation} that will manage the write
    * to the sink.
    */
-  public abstract WriteOperation<T, DestinationT> createWriteOperation();
+  public abstract WriteOperation<OutputT, DestinationT> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
@@ -1159,8 +1160,8 @@ public abstract class FileBasedSink<T, DestinationT> implements Serializable, Ha
   }
 
   /**
-   * Provides hints about how to generate output files, such as a suggested filename suffix (based
-   * on the compression type), and the file MIME type.
+   * Provides hints about how to generate output files, such as a suggested filename suffix
+   * (e.g. based on the compression type), and the file MIME type.
    */
   public interface OutputFileHints extends Serializable {
     /**
