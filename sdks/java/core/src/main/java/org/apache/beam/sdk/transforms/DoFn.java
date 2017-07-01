@@ -385,7 +385,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
    *  {@literal @StateId("my-state-id")}
-   *  {@literal private final StateSpec<K, ValueState<MyState>>} myStateSpec =
+   *  {@literal private final StateSpec<ValueState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
    *  {@literal @ProcessElement}
