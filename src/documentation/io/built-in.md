@@ -72,10 +72,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <th>Name</th><th>Language</th><th>JIRA</th>
   </tr>
   <tr>
-    <td>AMQP</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1237">BEAM-1237</a></td>
-  </tr>
-  <tr>
     <td>Apache DistributedLog</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
   </tr>
