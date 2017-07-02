@@ -331,7 +331,7 @@ public class TextIOTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDynamicDestinations() throws Exception {
     ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
         tempFolder, "testDynamicDestinations").toString(), true);
@@ -406,7 +406,7 @@ public class TextIOTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDynamicDefaultFilenamePolicy() throws Exception {
     ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
         tempFolder, "testDynamicDestinations").toString(), true);
