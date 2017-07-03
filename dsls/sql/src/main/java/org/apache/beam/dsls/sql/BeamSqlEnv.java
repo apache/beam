@@ -43,9 +43,9 @@ import org.apache.calcite.tools.Frameworks;
  * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and
  * a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv {
-  SchemaPlus schema;
-  BeamQueryPlanner planner;
+public class BeamSqlEnv implements Serializable{
+  transient SchemaPlus schema;
+  transient BeamQueryPlanner planner;
 
   public BeamSqlEnv() {
     schema = Frameworks.createRootSchema(true);
