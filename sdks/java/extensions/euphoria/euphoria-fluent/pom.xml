@@ -22,7 +22,7 @@
   <parent>
     <groupId>cz.seznam.euphoria</groupId>
     <artifactId>euphoria-parent</artifactId>
-    <version>0.7.1</version>
+    <version>0.7.2-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
