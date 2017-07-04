@@ -47,11 +47,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -1049,6 +1045,27 @@ public class KafkaIO {
       curBatch = Iterators.cycle(nonEmpty);
     }
 
+    private void setupInitialOffset(PartitionState p) {
+      Read<K, V> spec = source.spec;
+
+      if (p.nextOffset != UNINITIALIZED_OFFSET) {
+        consumer.seek(p.topicPartition, p.nextOffset);
+      } else {
+        // nextOffset is unininitialized here, meaning start reading from latest record as of now
+        // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
+        // Remember the current position without waiting until the first record is read. This
+        // ensures checkpoint is accurate even if the reader is closed before reading any records.
+        Instant startReadTime = spec.getStartReadTime();
+        if (startReadTime != null) {
+          p.nextOffset =
+              consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
+          consumer.seek(p.topicPartition, p.nextOffset);
+        } else {
+          p.nextOffset = consumer.position(p.topicPartition);
+        }
+      }
+    }
+
     @Override
     public boolean start() throws IOException {
       Read<K, V> spec = source.spec;
@@ -1065,22 +1082,31 @@ public class KafkaIO {
       keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
       valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
 
-      for (PartitionState p : partitionStates) {
-        if (p.nextOffset != UNINITIALIZED_OFFSET) {
-          consumer.seek(p.topicPartition, p.nextOffset);
-        } else {
-          // nextOffset is unininitialized here, meaning start reading from latest record as of now
-          // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
-          // Remember the current position without waiting until the first record is read. This
-          // ensures checkpoint is accurate even if the reader is closed before reading any records.
-          Instant startReadTime = spec.getStartReadTime();
-          if (startReadTime != null) {
-            p.nextOffset =
-                consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
-            consumer.seek(p.topicPartition, p.nextOffset);
-          } else {
-            p.nextOffset = consumer.position(p.topicPartition);
+      // Seek to start offsets for the partitions. This is the first interaction with the server.
+      // Unfortunately it can block forever in case of network errors like ACL issues.
+      // Seek in a separate thread and throw an error if it does not complete in one minute.
+      for (final PartitionState p : partitionStates) {
+        ExecutorService seekThread = Executors.newSingleThreadExecutor();
+        Future<?> future = consumerPollThread.submit(new Runnable() {
+          @Override
+          public void run() {
+            setupInitialOffset(p);
           }
+        });
+
+        try {
+          future.get(1, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+          String msg = this + ": Timeout while initializing partition " + p + ". " +
+              "Most likely because consumer could not reach Kafka servers over the network.";
+          LOG.error("{}", msg, e);
+          throw new IOException(msg, e);
+        } catch (Exception e) {
+          LOG.error("{}: Exception while trying set start offset for {}", this, p, e);
+          throw new IOException("Could not start partition " + p, e);
+        } finally {
+          consumer.wakeup();
+          seekThread.shutdown();
         }
 
         LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
