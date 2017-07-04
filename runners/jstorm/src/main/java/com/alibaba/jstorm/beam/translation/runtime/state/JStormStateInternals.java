@@ -58,11 +58,14 @@ public class JStormStateInternals<K> implements StateInternals {
     private final K key;
     private final IKvStoreManager kvStoreManager;
     private final TimerService timerService;
+    private final int executorId;
 
-    public JStormStateInternals(K key, IKvStoreManager kvStoreManager, TimerService timerService) {
+    public JStormStateInternals(K key, IKvStoreManager kvStoreManager,
+                                TimerService timerService, int executorId) {
         this.key = key;
         this.kvStoreManager = checkNotNull(kvStoreManager, "kvStoreManager");
         this.timerService = checkNotNull(timerService, "timerService");
+        this.executorId = executorId;
     }
 
     @Nullable
@@ -90,7 +93,7 @@ public class JStormStateInternals<K> implements StateInternals {
             public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
                 try {
                     return new JStormValueState<>(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(id));
+                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)));
                 } catch (IOException e) {
                     throw new RuntimeException();
                 }
@@ -100,8 +103,8 @@ public class JStormStateInternals<K> implements StateInternals {
             public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
                 try {
                     return new JStormBagState(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(id),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
+                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
                 } catch (IOException e) {
                     throw new RuntimeException();
                 }
@@ -119,7 +122,7 @@ public class JStormStateInternals<K> implements StateInternals {
                 Coder<KeyT> mapKeyCoder,
                 Coder<ValueT> mapValueCoder) {
                 try {
-                    return new JStormMapState<>(getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(id));
+                    return new JStormMapState<>(getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(getStoreId(id)));
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -134,8 +137,8 @@ public class JStormStateInternals<K> implements StateInternals {
                 try {
                     BagState<AccumT> accumBagState = new JStormBagState(
                             getKey(), namespace,
-                            kvStoreManager.<ComposedKey, AccumT>getOrCreate(id),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
+                            kvStoreManager.<ComposedKey, AccumT>getOrCreate(getStoreId(id)),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
                     return new JStormCombiningState<>(accumBagState, combineFn);
                 } catch (IOException e) {
                     throw new RuntimeException();
@@ -160,8 +163,8 @@ public class JStormStateInternals<K> implements StateInternals {
                 try {
                     BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState(
                             getKey(), namespace,
-                            kvStoreManager.<ComposedKey, Combine.Holder<Instant>>getOrCreate(id),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + id));
+                            kvStoreManager.<ComposedKey, Combine.Holder<Instant>>getOrCreate(getStoreId(id)),
+                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
 
                     Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
                             new BinaryCombineFn<Instant>() {
@@ -181,5 +184,9 @@ public class JStormStateInternals<K> implements StateInternals {
                 }
             }
         });
+    }
+
+    private String getStoreId(String stateId) {
+        return String.format("%s-%s", stateId, executorId);
     }
 }

@@ -174,7 +174,7 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
         // process a batch
         String streamId = input.getSourceStreamId();
         ITupleExt tuple = (ITupleExt) input;
-        Iterator<List<Object>> valueIterator = tuple.valueIterator();
+        Iterator<List<Object>> valueIterator = tuple.batchValues().iterator();
         if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(streamId)) {
             while (valueIterator.hasNext()) {
                 processWatermark((Long) valueIterator.next().get(0), input.getSourceTask());

@@ -20,6 +20,8 @@ package com.alibaba.jstorm.beam.util;
 import com.alibaba.jstorm.beam.translation.runtime.Executor;
 
 import com.alibaba.jstorm.beam.translation.runtime.GroupByWindowExecutor;
+import com.alibaba.jstorm.beam.translation.runtime.MultiStatefulDoFnExecutor;
+import com.alibaba.jstorm.beam.translation.runtime.StatefulDoFnExecutor;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -40,6 +42,9 @@ public class RunnerUtils {
 
     public static boolean isGroupByKeyExecutor (Executor executor) {
         if (executor instanceof GroupByWindowExecutor) {
+            return true;
+        } else if (executor instanceof StatefulDoFnExecutor ||
+                executor instanceof MultiStatefulDoFnExecutor) {
             return true;
         } else {
             return false;

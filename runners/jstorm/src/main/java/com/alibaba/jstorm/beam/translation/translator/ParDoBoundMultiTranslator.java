@@ -22,11 +22,16 @@ import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.runtime.DoFnExecutor;
 import com.alibaba.jstorm.beam.translation.runtime.MultiOutputDoFnExecutor;
+import com.alibaba.jstorm.beam.translation.runtime.MultiStatefulDoFnExecutor;
 import com.google.common.collect.ImmutableList;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.*;
 
@@ -71,19 +76,38 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
             sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
         }
 
-        DoFnExecutor<InputT, OutputT> executor = new MultiOutputDoFnExecutor<>(
-                userGraphContext.getStepName(),
-                description,
-                userGraphContext.getOptions(),
-                transform.getFn(),
-                WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                input.getWindowingStrategy(),
-                inputTag,
-                transform.getSideInputs(),
-                sideInputTagToView.build(),
-                mainOutputTag,
-                sideOutputTags,
-                localToExternalTupleTagMap);
+        DoFnExecutor executor;
+        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+        if (signature.stateDeclarations().size() > 0
+                || signature.timerDeclarations().size() > 0) {
+            executor = new MultiStatefulDoFnExecutor<>(
+                    userGraphContext.getStepName(),
+                    description,
+                    userGraphContext.getOptions(),
+                    (DoFn<KV, OutputT>) transform.getFn(),
+                    (Coder) WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+                    input.getWindowingStrategy(),
+                    (TupleTag<KV>) inputTag,
+                    transform.getSideInputs(),
+                    sideInputTagToView.build(),
+                    mainOutputTag,
+                    sideOutputTags,
+                    localToExternalTupleTagMap);
+        } else {
+            executor = new MultiOutputDoFnExecutor<>(
+                    userGraphContext.getStepName(),
+                    description,
+                    userGraphContext.getOptions(),
+                    transform.getFn(),
+                    WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+                    input.getWindowingStrategy(),
+                    inputTag,
+                    transform.getSideInputs(),
+                    sideInputTagToView.build(),
+                    mainOutputTag,
+                    sideOutputTags,
+                    localToExternalTupleTagMap);
+        }
 
         context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
     }

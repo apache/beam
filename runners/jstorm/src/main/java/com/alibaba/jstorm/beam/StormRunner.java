@@ -181,7 +181,7 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
         public State cancel() throws IOException {
             //localCluster.deactivate(getTopologyName());
             localCluster.killTopology(getTopologyName());
-            //localCluster.shutdown();
+            localCluster.shutdown();
             JStormUtils.sleepMs(1000);
             return State.CANCELLED;
         }

@@ -18,7 +18,6 @@
 package com.alibaba.jstorm.beam.translation.runtime;
 
 import com.alibaba.jstorm.beam.StormPipelineOptions;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -28,7 +27,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +50,7 @@ public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<Input
         }
     }
 
-    private Map<TupleTag<?>, TupleTag<?>> localTupleTagMap;
+    protected Map<TupleTag<?>, TupleTag<?>> localTupleTagMap;
 
     public MultiOutputDoFnExecutor(
             String stepName,

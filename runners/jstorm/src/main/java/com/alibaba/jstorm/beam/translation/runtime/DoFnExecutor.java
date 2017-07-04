@@ -85,9 +85,9 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     protected final String stepName;
 
-    private int internalDoFnExecutorId;
+    protected int internalDoFnExecutorId;
 
-    private final String description;
+    protected final String description;
 
     protected final TupleTag<OutputT> mainTupleTag;
     protected final List<TupleTag<?>> sideOutputTags;
@@ -96,22 +96,22 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected transient StormPipelineOptions pipelineOptions;
 
     protected DoFn<InputT, OutputT> doFn;
-    private final Coder<WindowedValue<InputT>> inputCoder;
+    protected final Coder<WindowedValue<InputT>> inputCoder;
     protected DoFnInvoker<InputT, OutputT> doFnInvoker;
     protected OutputManager outputManager;
     protected WindowingStrategy<?, ?> windowingStrategy;
-    private final TupleTag<InputT> mainInputTag;
+    protected final TupleTag<InputT> mainInputTag;
     protected Collection<PCollectionView<?>> sideInputs;
-    private SideInputHandler sideInputHandler;
-    private final Map<TupleTag, PCollectionView<?>> sideInputTagToView;
+    protected SideInputHandler sideInputHandler;
+    protected final Map<TupleTag, PCollectionView<?>> sideInputTagToView;
 
     // Initialize during runtime
     protected ExecutorContext executorContext;
     protected ExecutorsBolt executorsBolt;
     protected TimerInternals timerInternals;
-    private transient StateInternals pushbackStateInternals;
-    private transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
-    private transient StateTag<WatermarkHoldState> watermarkHoldTag;
+    protected transient StateInternals pushbackStateInternals;
+    protected transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
+    protected transient StateTag<WatermarkHoldState> watermarkHoldTag;
     protected transient IKvStoreManager kvStoreManager;
     protected DefaultStepContext stepContext;
     protected transient MetricClient metricClient;
@@ -161,7 +161,8 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         // TODO: what should be set for key in here?
         timerInternals = new JStormTimerInternals(null /* key */, this, context.getExecutorsBolt().timerService());
         kvStoreManager = context.getKvStoreManager();
-        stepContext = new DefaultStepContext(timerInternals, new JStormStateInternals("state", kvStoreManager, executorsBolt.timerService()));
+        stepContext = new DefaultStepContext(timerInternals,
+                new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
         metricClient = new MetricClient(executorContext.getTopologyContext());
     }
 
@@ -180,7 +181,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
             pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
             watermarkHoldTag =
                     StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
-            pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService());
+            pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
             sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
             pushbackRunner = SimplePushbackSideInputDoFnRunner.create(getDoFnRunner(), sideInputs, sideInputHandler);
         }
@@ -199,7 +200,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         }
     }
 
-    private <T> void processMainInput(WindowedValue<T> elem) {
+    protected <T> void processMainInput(WindowedValue<T> elem) {
        if (sideInputs.isEmpty()) {
            runner.processElement((WindowedValue<InputT>) elem);
        } else {
@@ -220,7 +221,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
        }
     }
 
-    private void processSideInput(TupleTag tag, WindowedValue elem) {
+    protected void processSideInput(TupleTag tag, WindowedValue elem) {
         LOG.debug(String.format("side inputs: %s, %s.", tag, elem));
 
         PCollectionView<?> sideInputView = sideInputTagToView.get(tag);
