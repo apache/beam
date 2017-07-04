@@ -364,6 +364,33 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testUnreachableKafkaBrokers() {
+    // Expect an exception when the Kafka brokers are not reachable on the workers.
+    // We specify partitions explicitly so that splitting does not involve server interaction.
+    // Set intialization timeout to 10ms so that test does not take long.
+
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Timeout while initializing partition");
+    thrown.expectMessage("Check network connectivity");
+
+    int numElements = 1000;
+    PCollection<Long> input = p
+        .apply(KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+            .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .updateConsumerProperties(ImmutableMap.<String, Object>of(
+                KafkaIO.PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG, 10L))
+            .withMaxNumRecords(10)
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   public void testUnboundedSourceWithSingleTopic() {
     // same as testUnboundedSource, but with single topic
 

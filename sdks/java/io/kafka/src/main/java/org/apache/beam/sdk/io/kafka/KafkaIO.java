@@ -47,7 +47,13 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -843,6 +849,16 @@ public class KafkaIO {
     }
   }
 
+  /**
+   * Limit on time it takes to initialize a partition in {@link UnboundedKafkaReader#start()},
+   * which involves fetching offset information the servers. Kafka consumer blocks forever
+   * in case of a network issue. We cancel the request after this timeout and throw an error.
+   */
+  private static final long PARTITION_INITIALIZATION_TIMEOUT_MS = 60 * 1000;
+  @VisibleForTesting
+  static final String PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG =
+      "kafkaio.partition.initialization.timeout.ms"; // Meant for tests only.
+
   private static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     private final UnboundedKafkaSource<K, V> source;
@@ -980,7 +996,7 @@ public class KafkaIO {
           TopicPartition partition = new TopicPartition(ckptMark.getTopic(),
                                                         ckptMark.getPartition());
           checkState(partition.equals(assigned),
-                     "checkpointed partition %s and assigned partition %s don't match",
+                "checkpointed partition %s and assigned partition %s don't match",
                      partition, assigned);
 
           partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
@@ -1082,30 +1098,33 @@ public class KafkaIO {
       keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
       valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
 
-      // Seek to start offsets for the partitions. This is the first interaction with the server.
-      // Unfortunately it can block forever in case of network errors like ACL issues.
-      // Seek in a separate thread and throw an error if it does not complete in one minute.
+      // Seek to start offset for each partition. This is the first interaction with the server.
+      // Unfortunately it can block forever in case of network issues like incorrect ACLs.
+      // Initialize partition in a separate thread and cancel it if takes longer than minute.
       for (final PartitionState p : partitionStates) {
         ExecutorService seekThread = Executors.newSingleThreadExecutor();
-        Future<?> future = consumerPollThread.submit(new Runnable() {
-          @Override
+        Future<?> future =  consumerPollThread.submit(new Runnable() {
           public void run() {
             setupInitialOffset(p);
           }
         });
 
         try {
-          future.get(1, TimeUnit.MINUTES);
+          // allow test to override the timeout.
+          Long timeout = (Long) source.spec.getConsumerConfig().get(
+              PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG);
+          future.get(timeout != null ? timeout : PARTITION_INITIALIZATION_TIMEOUT_MS,
+                     TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
-          String msg = this + ": Timeout while initializing partition " + p + ". " +
-              "Most likely because consumer could not reach Kafka servers over the network.";
+          consumer.wakeup(); // This unblocks consumer stuck on network I/O.
+          String msg = this + ": Timeout while initializing partition " + p.topicPartition + ". "
+              + "Kafka client may not be able to connect to servers. "
+              + "Check network connectivity.";
           LOG.error("{}", msg, e);
           throw new IOException(msg, e);
         } catch (Exception e) {
-          LOG.error("{}: Exception while trying set start offset for {}", this, p, e);
-          throw new IOException("Could not start partition " + p, e);
+          throw new IOException(e);
         } finally {
-          consumer.wakeup();
           seekThread.shutdown();
         }
 
@@ -1116,7 +1135,6 @@ public class KafkaIO {
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
       consumerPollThread.submit(
           new Runnable() {
-            @Override
             public void run() {
               consumerPollLoop();
             }
@@ -1346,8 +1364,12 @@ public class KafkaIO {
       // might block to enqueue right after availableRecordsQueue.poll() below.
       while (!isShutdown) {
 
-        consumer.wakeup();
-        offsetConsumer.wakeup();
+        if (consumer != null) {
+          consumer.wakeup();
+        }
+        if (offsetConsumer != null) {
+          offsetConsumer.wakeup();
+        }
         availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
         try {
           isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
