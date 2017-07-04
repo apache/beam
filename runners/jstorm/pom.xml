@@ -31,7 +31,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <jstorm.core.version>2.4.0-SNAPSHOT</jstorm.core.version>
+    <jstorm.core.version>2.5.0-SNAPSHOT</jstorm.core.version>
     <beam.version>2.0.0</beam.version>
   </properties>
 
@@ -40,7 +40,7 @@
       <!-- This profile adds execution of ValidatesRunner integration tests
            against a JStorm local cluster. -->
       <id>local-validates-runner-tests</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation><activeByDefault>true</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>
@@ -57,6 +57,11 @@
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.UsesSetState,
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo
+                  </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
@@ -65,7 +70,7 @@
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
-                        "--runner=org.apache.beam.runners.jstorm.JStormRunner"
+                        "--runner=com.alibaba.jstorm.beam.TestJStormRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
