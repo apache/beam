@@ -20,21 +20,28 @@ package com.alibaba.jstorm.beam.translation.translator;
 import com.alibaba.jstorm.beam.StormPipelineOptions;
 
 import com.alibaba.jstorm.beam.TestJStormRunner;
+import com.google.common.base.MoreObjects;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.*;
 
@@ -55,8 +62,6 @@ public class ParDoTest implements Serializable {
     public void testParDo() throws IOException {
         StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
         options.setRunner(TestJStormRunner.class);
-        options.setLocalMode(true);
-
         Pipeline pipeline = Pipeline.create(options);
 
         List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -75,8 +80,6 @@ public class ParDoTest implements Serializable {
     public void testParDoWithSideInputs() throws IOException {
         StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
         options.setRunner(TestJStormRunner.class);
-        options.setLocalMode(true);
-
         Pipeline pipeline = Pipeline.create(options);
 
         List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -118,8 +121,6 @@ public class ParDoTest implements Serializable {
 
         StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
         options.setRunner(TestJStormRunner.class);
-        options.setLocalMode(true);
-
         Pipeline pipeline = Pipeline.create(options);
 
         PCollectionTuple outputs = pipeline
@@ -156,8 +157,6 @@ public class ParDoTest implements Serializable {
     public void testNoWindowFnDoesNotReassignWindows() {
         StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
         options.setRunner(TestJStormRunner.class);
-        options.setLocalMode(true);
-
         Pipeline pipeline = Pipeline.create(options);
 
         final PCollection<Long> initialWindows =
@@ -200,6 +199,165 @@ public class ParDoTest implements Serializable {
                         Window.<Boolean>configure().triggering(Never.ever())
                                 .withAllowedLateness(Duration.ZERO)
                                 .accumulatingFiredPanes());
+        pipeline.run();
+    }
+
+    @Test
+    public void testValueStateSameId() {
+        StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
+        options.setRunner(TestJStormRunner.class);
+        Pipeline pipeline = Pipeline.create(options);
+
+        final String stateId = "foo";
+
+        DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+                new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+                    @StateId(stateId)
+                    private final StateSpec<ValueState<Integer>> intState =
+                            StateSpecs.value(VarIntCoder.of());
+
+                    @ProcessElement
+                    public void processElement(
+                            ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+                        Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+                        c.output(KV.of("sizzle", currentValue));
+                        state.write(currentValue + 1);
+                    }
+                };
+
+        DoFn<KV<String, Integer>, Integer> fn2 =
+                new DoFn<KV<String, Integer>, Integer>() {
+
+                    @StateId(stateId)
+                    private final StateSpec<ValueState<Integer>> intState =
+                            StateSpecs.value(VarIntCoder.of());
+
+                    @ProcessElement
+                    public void processElement(
+                            ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+                        Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
+                        c.output(currentValue);
+                        state.write(currentValue + 13);
+                    }
+                };
+
+        PCollection<KV<String, Integer>> intermediate =
+                pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+                        .apply("First stateful ParDo", ParDo.of(fn));
+
+        PCollection<Integer> output =
+                intermediate.apply("Second stateful ParDo", ParDo.of(fn2));
+
+        PAssert.that(intermediate)
+                .containsInAnyOrder(KV.of("sizzle", 0), KV.of("sizzle", 1), KV.of("sizzle", 2));
+        PAssert.that(output).containsInAnyOrder(13, 26, 39);
+        pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    public void testValueStateTaggedOutput() {
+        StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
+        options.setRunner(TestJStormRunner.class);
+        Pipeline pipeline = Pipeline.create(options);
+
+        final String stateId = "foo";
+
+        final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
+        final TupleTag<Integer> oddTag = new TupleTag<Integer>() {};
+
+        DoFn<KV<String, Integer>, Integer> fn =
+                new DoFn<KV<String, Integer>, Integer>() {
+
+                    @StateId(stateId)
+                    private final StateSpec<ValueState<Integer>> intState =
+                            StateSpecs.value(VarIntCoder.of());
+
+                    @ProcessElement
+                    public void processElement(
+                            ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+                        Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+                        if (currentValue % 2 == 0) {
+                            c.output(currentValue);
+                        } else {
+                            c.output(oddTag, currentValue);
+                        }
+                        state.write(currentValue + 1);
+                    }
+                };
+
+        PCollectionTuple output =
+                pipeline.apply(
+                        Create.of(
+                                KV.of("hello", 42),
+                                KV.of("hello", 97),
+                                KV.of("hello", 84),
+                                KV.of("goodbye", 33),
+                                KV.of("hello", 859),
+                                KV.of("goodbye", 83945)))
+                        .apply(ParDo.of(fn).withOutputTags(evenTag, TupleTagList.of(oddTag)));
+
+        PCollection<Integer> evens = output.get(evenTag);
+        PCollection<Integer> odds = output.get(oddTag);
+
+        // There are 0 and 2 from "hello" and just 0 from "goodbye"
+        PAssert.that(evens).containsInAnyOrder(0, 2, 0);
+
+        // There are 1 and 3 from "hello" and just "1" from "goodbye"
+        PAssert.that(odds).containsInAnyOrder(1, 3, 1);
+        pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+    public void testMapStateCoderInference() {
+        StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
+        options.setRunner(TestJStormRunner.class);
+        Pipeline pipeline = Pipeline.create(options);
+
+        final String stateId = "foo";
+        final String countStateId = "count";
+        Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+        pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+
+        DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+                new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+                    @StateId(stateId)
+                    private final StateSpec<MapState<String, MyInteger>> mapState = StateSpecs.map();
+
+                    @StateId(countStateId)
+                    private final StateSpec<CombiningState<Integer, int[], Integer>>
+                            countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
+                            Sum.ofIntegers());
+
+                    @ProcessElement
+                    public void processElement(
+                            ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+                            @StateId(countStateId) CombiningState<Integer, int[], Integer>
+                                    count) {
+                        KV<String, Integer> value = c.element().getValue();
+                        state.put(value.getKey(), new MyInteger(value.getValue()));
+                        count.add(1);
+                        if (count.read() >= 4) {
+                            Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
+                            for (Map.Entry<String, MyInteger> entry : iterate) {
+                                c.output(KV.of(entry.getKey(), entry.getValue()));
+                            }
+                        }
+                    }
+                };
+
+        PCollection<KV<String, MyInteger>> output =
+                pipeline.apply(
+                        Create.of(
+                                KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+                                KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+                        .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+        PAssert.that(output).containsInAnyOrder(KV.of("a", new MyInteger(97)),
+                KV.of("b", new MyInteger(42)), KV.of("c", new MyInteger(12)));
         pipeline.run();
     }
 
@@ -306,6 +464,71 @@ public class ParDoTest implements Serializable {
                 c.output(additionalOutputTupleTag,
                     additionalOutputTupleTag.getId() + ": " + value);
             }
+        }
+    }
+
+    private static class MyInteger implements Comparable<MyInteger> {
+        private final int value;
+
+        MyInteger(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (!(o instanceof MyInteger)) {
+                return false;
+            }
+
+            MyInteger myInteger = (MyInteger) o;
+
+            return value == myInteger.value;
+
+        }
+
+        @Override
+        public int hashCode() {
+            return value;
+        }
+
+        @Override
+        public int compareTo(MyInteger o) {
+            return Integer.compare(this.getValue(), o.getValue());
+        }
+
+        @Override
+        public String toString() {
+            return "MyInteger{" + "value=" + value + '}';
+        }
+    }
+
+    private static class MyIntegerCoder extends AtomicCoder<MyInteger> {
+        private static final MyIntegerCoder INSTANCE = new MyIntegerCoder();
+
+        private final VarIntCoder delegate = VarIntCoder.of();
+
+        public static MyIntegerCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(MyInteger value, OutputStream outStream)
+                throws CoderException, IOException {
+            delegate.encode(value.getValue(), outStream);
+        }
+
+        @Override
+        public MyInteger decode(InputStream inStream) throws CoderException,
+                IOException {
+            return new MyInteger(delegate.decode(inStream));
         }
     }
 
