@@ -906,13 +906,13 @@ public class KafkaIO {
 
     // Maintains approximate average over last 1000 elements
     private static class MovingAvg {
-      private static final int movingAvgWindow = 1000;
+      private static final int MOVING_AVG_WINDOW = 1000;
       private double avg = 0;
       private long numUpdates = 0;
 
       void update(double quantity) {
         numUpdates++;
-        avg += (quantity - avg) / Math.min(movingAvgWindow, numUpdates);
+        avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
       }
 
       double get() {
