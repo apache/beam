@@ -97,7 +97,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
         final StateInternalsFactory<K> stateFactory = new StateInternalsFactory<K>() {
             @Override
             public StateInternals stateInternalsForKey(K key) {
-                return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService());
+                return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
             }
         };
         TimerInternalsFactory<K> timerFactory = new TimerInternalsFactory<K>() {

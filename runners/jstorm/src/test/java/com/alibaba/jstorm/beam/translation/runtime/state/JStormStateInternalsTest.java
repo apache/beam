@@ -66,7 +66,7 @@ public class JStormStateInternalsTest {
                 "test",
                 tmp.toString(),
                 new KryoSerializer());
-        jstormStateInternals = new JStormStateInternals("key-1", kvStoreManager, new TimerServiceImpl());
+        jstormStateInternals = new JStormStateInternals("key-1", kvStoreManager, new TimerServiceImpl(), 0);
     }
 
     @Test

@@ -36,7 +36,7 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
     private TestJStormRunner(StormPipelineOptions options) {
         this.options = options;
         Map conf = Maps.newHashMap();
-        conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
+        //conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
         options.setTopologyConfig(conf);
         options.setLocalMode(true);
         stormRunner = StormRunner.fromOptions(checkNotNull(options, "options"));

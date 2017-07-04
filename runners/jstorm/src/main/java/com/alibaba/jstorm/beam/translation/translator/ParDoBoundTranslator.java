@@ -21,18 +21,16 @@ import java.util.List;
 import java.util.Map;
 
 import avro.shaded.com.google.common.collect.Lists;
+import com.alibaba.jstorm.beam.translation.runtime.StatefulDoFnExecutor;
 import com.google.common.collect.ImmutableList;
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 
 import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.runtime.DoFnExecutor;
@@ -71,18 +69,37 @@ public class ParDoBoundTranslator<InputT, OutputT>
             sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
         }
 
-        DoFnExecutor<InputT, OutputT> executor = new DoFnExecutor<>(
-                userGraphContext.getStepName(),
-                description,
-                userGraphContext.getOptions(),
-                transform.getFn(),
-                WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                input.getWindowingStrategy(),
-                (TupleTag<InputT>) inputTag,
-                transform.getSideInputs(),
-                sideInputTagToView.build(),
-                mainOutputTag,
-                sideOutputTags);
+        DoFnExecutor executor;
+        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+        if (signature.stateDeclarations().size() > 0
+                || signature.timerDeclarations().size() > 0) {
+            executor = new StatefulDoFnExecutor<>(
+                    userGraphContext.getStepName(),
+                    description,
+                    userGraphContext.getOptions(),
+                    (DoFn<KV, OutputT>) transform.getFn(),
+                    (Coder) WindowedValue.getFullCoder(
+                            input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+                    input.getWindowingStrategy(),
+                    (TupleTag<KV>) inputTag,
+                    transform.getSideInputs(),
+                    sideInputTagToView.build(),
+                    mainOutputTag,
+                    sideOutputTags);
+        } else {
+            executor = new DoFnExecutor<>(
+                    userGraphContext.getStepName(),
+                    description,
+                    userGraphContext.getOptions(),
+                    transform.getFn(),
+                    WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+                    input.getWindowingStrategy(),
+                    (TupleTag<InputT>) inputTag,
+                    transform.getSideInputs(),
+                    sideInputTagToView.build(),
+                    mainOutputTag,
+                    sideOutputTags);
+        }
 
         context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
     }

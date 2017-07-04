@@ -34,9 +34,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class DefaultStepContext implements ExecutionContext.StepContext {
 
-    private final TimerInternals timerInternals;
+    private TimerInternals timerInternals;
 
-    private final StateInternals stateInternals;
+    private StateInternals stateInternals;
 
     public DefaultStepContext(TimerInternals timerInternals, StateInternals stateInternals) {
         this.timerInternals = checkNotNull(timerInternals, "timerInternals");
@@ -77,5 +77,13 @@ public class DefaultStepContext implements ExecutionContext.StepContext {
     @Override
     public TimerInternals timerInternals() {
         return timerInternals;
+    }
+
+    public void setStateInternals(StateInternals stateInternals) {
+        this.stateInternals = stateInternals;
+    }
+
+    public void setTimerInternals(TimerInternals timerInternals) {
+        this.timerInternals = timerInternals;
     }
 }
