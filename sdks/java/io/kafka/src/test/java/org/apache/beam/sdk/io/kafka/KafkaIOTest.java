@@ -83,6 +83,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -356,6 +357,35 @@ public class KafkaIOTest {
 
     PCollection<Long> input = p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnreachableKafkaBrokers() {
+    // Expect an exception when the Kafka brokers are not reachable on the workers.
+    // We specify partitions explicitly so that splitting does not involve server interaction.
+    // Set request timeout to 10ms so that test does not take long.
+
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
+
+    int numElements = 1000;
+    PCollection<Long> input = p
+        .apply(KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+            .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .updateConsumerProperties(ImmutableMap.<String, Object>of(
+                ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
+                ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
+                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
+                ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+            .withMaxNumRecords(10)
             .withoutMetadata())
         .apply(Values.<Long>create());
 
