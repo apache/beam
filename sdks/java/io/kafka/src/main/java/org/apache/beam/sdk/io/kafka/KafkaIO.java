@@ -1090,7 +1090,7 @@ public class KafkaIO {
 
       // Seek to start offset for each partition. This is the first interaction with the server.
       // Unfortunately it can block forever in case of network issues like incorrect ACLs.
-      // Initialize partition in a separate thread and cancel it if takes longer than minute.
+      // Initialize partition in a separate thread and cancel it if takes longer than a minute.
       for (final PartitionState p : partitionStates) {
         Future<?> future =  consumerPollThread.submit(new Runnable() {
           public void run() {
