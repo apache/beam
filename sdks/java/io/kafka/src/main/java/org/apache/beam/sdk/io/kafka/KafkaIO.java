@@ -849,16 +849,6 @@ public class KafkaIO {
     }
   }
 
-  /**
-   * Limit on time it takes to initialize a partition in {@link UnboundedKafkaReader#start()},
-   * which involves fetching offset information the servers. Kafka consumer blocks forever
-   * in case of a network issue. We cancel the request after this timeout and throw an error.
-   */
-  private static final long PARTITION_INITIALIZATION_TIMEOUT_MS = 60 * 1000;
-  @VisibleForTesting
-  static final String PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG =
-      "kafkaio.partition.initialization.timeout.ms"; // Meant for tests only.
-
   private static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     private final UnboundedKafkaSource<K, V> source;
@@ -1102,7 +1092,6 @@ public class KafkaIO {
       // Unfortunately it can block forever in case of network issues like incorrect ACLs.
       // Initialize partition in a separate thread and cancel it if takes longer than minute.
       for (final PartitionState p : partitionStates) {
-        ExecutorService seekThread = Executors.newSingleThreadExecutor();
         Future<?> future =  consumerPollThread.submit(new Runnable() {
           public void run() {
             setupInitialOffset(p);
@@ -1110,11 +1099,10 @@ public class KafkaIO {
         });
 
         try {
-          // allow test to override the timeout.
-          Long timeout = (Long) source.spec.getConsumerConfig().get(
-              PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG);
-          future.get(timeout != null ? timeout : PARTITION_INITIALIZATION_TIMEOUT_MS,
-                     TimeUnit.MILLISECONDS);
+          // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
+          Integer timeout = (Integer) source.spec.getConsumerConfig().get(
+              ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
+          future.get(timeout != null ? 2 * timeout : 60 * 1000, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
           consumer.wakeup(); // This unblocks consumer stuck on network I/O.
           String msg = this + ": Timeout while initializing partition " + p.topicPartition + ". "
@@ -1124,10 +1112,7 @@ public class KafkaIO {
           throw new IOException(msg, e);
         } catch (Exception e) {
           throw new IOException(e);
-        } finally {
-          seekThread.shutdown();
         }
-
         LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
       }
 

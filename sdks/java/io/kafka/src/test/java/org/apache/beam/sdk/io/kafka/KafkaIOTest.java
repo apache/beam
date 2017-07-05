@@ -83,6 +83,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -367,7 +368,7 @@ public class KafkaIOTest {
   public void testUnreachableKafkaBrokers() {
     // Expect an exception when the Kafka brokers are not reachable on the workers.
     // We specify partitions explicitly so that splitting does not involve server interaction.
-    // Set intialization timeout to 10ms so that test does not take long.
+    // Set request timeout to 10ms so that test does not take long.
 
     thrown.expect(Exception.class);
     thrown.expectMessage("Timeout while initializing partition");
@@ -381,7 +382,10 @@ public class KafkaIOTest {
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .updateConsumerProperties(ImmutableMap.<String, Object>of(
-                KafkaIO.PARTITION_INITIALIZATION_TIMEOUT_MS_CONFIG, 10L))
+                ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
+                ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
+                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
+                ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
             .withMaxNumRecords(10)
             .withoutMetadata())
         .apply(Values.<Long>create());
