@@ -986,7 +986,7 @@ public class KafkaIO {
           TopicPartition partition = new TopicPartition(ckptMark.getTopic(),
                                                         ckptMark.getPartition());
           checkState(partition.equals(assigned),
-                "checkpointed partition %s and assigned partition %s don't match",
+                     "checkpointed partition %s and assigned partition %s don't match",
                      partition, assigned);
 
           partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
