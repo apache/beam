@@ -159,7 +159,7 @@
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
-    <maven-exec-plugin.version>1.4.0</maven-exec-plugin.version>
+    <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
