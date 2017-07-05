@@ -78,11 +78,11 @@ from apache_beam.options.pipeline_options import SetupOptions
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
+BEAM_CONTAINER_VERSION = '2.1.0'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.1.0-20170621'
+BEAM_FNAPI_CONTAINER_VERSION = '2.1.0'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
