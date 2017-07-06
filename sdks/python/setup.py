@@ -120,9 +120,9 @@ GCP_REQUIREMENTS = [
   'google-apitools>=0.5.10,<=0.5.11',
   'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
   'googledatastore==7.0.1',
-  'google-cloud-pubsub==0.25.0',
+  'google-cloud-pubsub==0.26.0',
   # GCP packages required by tests
-  'google-cloud-bigquery>=0.23.0,<0.25.0',
+  'google-cloud-bigquery>=0.23.0,<0.26.0',
 ]
 
 
