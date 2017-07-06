@@ -302,7 +302,7 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.
 
-### ValidatesRunner (Working Title)
+### ValidatesRunner
 
 ValidatesRunner tests contain components of both component and end-to-end
 tests. They fulfill the typical purpose of a component test - they are meant to
