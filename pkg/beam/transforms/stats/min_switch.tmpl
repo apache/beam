@@ -1,0 +1,27 @@
+package stats
+
+import (
+    "fmt"
+    "reflect"
+
+    "github.com/apache/beam/sdks/go/pkg/beam"
+)
+
+func minSwitch(p *beam.Pipeline, t reflect.Type, col beam.PCollection) beam.PCollection {
+    switch t.String() {
+{{- range .X}}
+    case "{{.Type}}":
+		return beam.Combine(p, min{{.Name}}Fn, col)
+{{- end}}
+	default:
+		panic(fmt.Sprintf("Unexpected number type: %v", t))
+	}
+}
+{{range .X}}
+func min{{.Name}}Fn(x, y {{.Type}}) {{.Type}} {
+	if x < y {
+		return x
+	}
+	return y
+}
+{{end}}
