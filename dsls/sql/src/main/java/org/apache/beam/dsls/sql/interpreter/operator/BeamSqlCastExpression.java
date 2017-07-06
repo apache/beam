@@ -59,7 +59,10 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
           DateTimeFormat.forPattern("yy.MM.dd HH:mm:ss.SSSSSSSSS").getParser(),
           DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS").getParser(),
           DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yyyy.MM.dd HH:mm:ss.SSSSSSSSS").getParser() }).toFormatter()
+          DateTimeFormat.forPattern("yyyy.MM.dd HH:mm:ss.SSSSSSSSS").getParser(),
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSSz").getParser(),
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS z").getParser()
+      }).toFormatter()
       .withPivotYear(2020);
 
   public BeamSqlCastExpression(List<BeamSqlExpression> operands, SqlTypeName castType) {
