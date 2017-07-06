@@ -29,6 +29,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/">XML</a></p>
   </td>
   <td>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/amqp">AMQP</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kafka">Apache Kafka</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -71,10 +72,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <th>Name</th><th>Language</th><th>JIRA</th>
   </tr>
   <tr>
-    <td>AMQP</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1237">BEAM-1237</a></td>
-  </tr>
-  <tr>
     <td>Apache DistributedLog</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
   </tr>
@@ -93,6 +90,10 @@ This table contains I/O transforms that are currently planned or in-progress. St
   <tr>
     <td>Couchbase</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
+  </tr>
+  <tr>
+    <td>InfluxDB</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546</a></td>
   </tr>
   <tr>
     <td>JSON</td><td>Java</td>
