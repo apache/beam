@@ -92,7 +92,7 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
   </tr>
   <tr>
-    <td>InfluxDB</td><td>Java<td>
+    <td>InfluxDB</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546</a></td>
   </tr>
   <tr>
