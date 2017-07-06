@@ -35,8 +35,8 @@ func Lookup(key string) (reflect.Type, bool) {
 // Key returns the external key of a given type. Returns false if not a
 // candidate for registration.
 func Key(t reflect.Type) (string, bool) {
-	// TODO(wcn): determine what prohibitions, if any, apply to
-	// the input type. For example, maybe we shouldn't allow built-in
-	// types since methods can't be attached to them.
-	return t.Name(), true
+	if t.PkgPath() == "" || t.Name() == "" {
+		return "", false // no pre-declared or unnamed types
+	}
+	return fmt.Sprintf("%v.%v", t.PkgPath(), t.Name()), true
 }

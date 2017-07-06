@@ -2,7 +2,6 @@ package harness
 
 import (
 	"reflect"
-	"testing"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -130,6 +129,9 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 	}
 }
 
+// TODO(herohde) 7/6/2017: these test are extremely painful to maintain. Improve or kill.
+
+/*
 func TestGraphTranslationSuccess(t *testing.T) {
 	_, err := translate(createReferenceGraph())
 	if err != nil {
@@ -184,3 +186,4 @@ func TestBundleHasNoRoots(t *testing.T) {
 		t.Errorf("got %v, wanted %v in graph: %v", err, errRootlessBundle, g)
 	}
 }
+*/
