@@ -21,6 +21,8 @@ import com.google.common.base.Joiner;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -53,7 +55,8 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     } else {
       //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
       BaseBeamTable sourceTable = sqlEnv.findTable(sourceName);
-      return sourceTable.buildIOReader(inputPCollections.getPipeline());
+      return sourceTable.buildIOReader(inputPCollections.getPipeline())
+          .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
     }
   }
 
