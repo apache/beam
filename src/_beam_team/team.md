@@ -146,4 +146,10 @@ members:
     organization: PayPal
     roles: committer
     time_zone: "+2"
+  - name: Jingsong Lee
+    apache_id: lzljs3620320
+    email: lzljs3620320 [at] apache [dot] org
+    organization: Alibaba
+    roles: committer
+    time_zone: "+8"
 ---
