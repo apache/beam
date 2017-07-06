@@ -57,12 +57,14 @@ import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAcosExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAsinExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtan2Expression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLnExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPiExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
@@ -282,6 +284,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
         case "POWER":
           ret = new BeamSqlPowerExpression(subExps);
+          break;
+        case "PI":
+          ret = new BeamSqlPiExpression(subExps);
+          break;
+        case "ATAN2":
+          ret = new BeamSqlAtan2Expression(subExps);
           break;
 
         // string operators
