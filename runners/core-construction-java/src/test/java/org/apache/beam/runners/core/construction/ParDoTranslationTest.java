@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -150,6 +151,8 @@ public class ParDoTranslationTest {
                   "foo", inputs, output.expand(), parDo, p),
               Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
+      Pipeline rehydratedPipeline = Pipeline.create();
+
       Components protoComponents = components.toComponents();
       RunnerApi.PTransform protoTransform = protoComponents.getTransformsOrThrow(transformId);
       ParDoPayload parDoPayload =
@@ -158,7 +161,11 @@ public class ParDoTranslationTest {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             ParDoTranslation.fromProto(
-                sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
+                rehydratedPipeline,
+                sideInput,
+                view.getTagInternal().getId(),
+                protoTransform,
+                protoComponents);
         assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(

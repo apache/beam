@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
@@ -40,15 +41,19 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Coder<Iterable<WindowedValue<?>>> coder;
 
+  private final transient PCollection<?> pCollection;
+
   /**
    * Create a new {@link RunnerPCollectionView} from the provided components.
    */
   RunnerPCollectionView(
+      @Nullable PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
       WindowMappingFn<?> windowMappingFn,
       @Nullable WindowingStrategy<?, ?> windowingStrategy,
       @Nullable Coder<Iterable<WindowedValue<?>>> coder) {
+    this.pCollection = pCollection;
     this.tag = tag;
     this.viewFn = viewFn;
     this.windowMappingFn = windowMappingFn;
@@ -59,8 +64,7 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   @Nullable
   @Override
   public PCollection<?> getPCollection() {
-    throw new IllegalStateException(
-        String.format("Cannot call getPCollection on a %s", getClass().getSimpleName()));
+    return pCollection;
   }
 
   @Override
@@ -92,5 +96,20 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   public Map<TupleTag<?>, PValue> expand() {
     throw new UnsupportedOperationException(String.format(
         "A %s cannot be expanded", RunnerPCollectionView.class.getSimpleName()));
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionView)) {
+      return false;
+    }
+    @SuppressWarnings("unchecked")
+    PCollectionView<?> otherView = (PCollectionView<?>) other;
+    return tag.equals(otherView.getTagInternal());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(tag);
   }
 }

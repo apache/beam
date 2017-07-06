@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,6 +46,19 @@ public class PCollectionTranslation {
         .setIsBounded(toProto(pCollection.isBounded()))
         .setWindowingStrategyId(windowingStrategyId)
         .build();
+  }
+
+  public static PCollection<?> fromProto(
+      Pipeline pipeline, RunnerApi.PCollection pCollection, RunnerApi.Components components)
+      throws IOException {
+    return new RunnerApiPCollection<>(
+        pipeline,
+        CoderTranslation.fromProto(
+            components.getCodersOrThrow(pCollection.getCoderId()), components),
+        fromProto(pCollection.getIsBounded()),
+        WindowingStrategyTranslation.fromProto(
+            components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()),
+            components));
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {
@@ -93,6 +107,19 @@ public class PCollectionTranslation {
                 RunnerApi.IsBounded.class.getCanonicalName(),
                 IsBounded.class.getCanonicalName(),
                 isBounded));
+    }
+  }
+
+  private static class RunnerApiPCollection<T> extends PCollection<T> {
+    private RunnerApiPCollection(
+        Pipeline p,
+        Coder<T> coder,
+        IsBounded isBounded,
+        WindowingStrategy<?, ?> windowingStrategy) {
+      super(p);
+      setCoder(coder);
+      setIsBoundedInternal(isBounded);
+      setWindowingStrategyInternal(windowingStrategy);
     }
   }
 }
