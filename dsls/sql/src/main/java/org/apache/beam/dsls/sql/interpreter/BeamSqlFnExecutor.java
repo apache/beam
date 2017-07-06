@@ -282,9 +282,6 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "POWER":
           ret = new BeamSqlPowerExpression(subExps);
           break;
-        case "POW":
-          ret = new BeamSqlPowerExpression(subExps);
-          break;
 
         // string operators
         case "||":

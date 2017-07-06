@@ -19,11 +19,11 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
-
 
 /**
  * {@code BeamSqlMathBinaryExpression} for 'POWER' function.
@@ -36,34 +36,9 @@ public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
 
   @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
       BeamSqlPrimitive rightOp) {
-    BeamSqlPrimitive result = null;
-    if (SqlTypeName.INT_TYPES.contains(leftOp.getOutputType()) && SqlTypeName.INT_TYPES
-        .contains(rightOp.getOutputType())) {
-
-      result = BeamSqlPrimitive.of(SqlTypeName.BIGINT, SqlFunctions.toLong(SqlFunctions
-          .power(SqlFunctions.toLong(leftOp.getValue()), SqlFunctions.toLong(rightOp.getValue()))));
-
-    } else if (SqlTypeName.APPROX_TYPES.contains(leftOp.getOutputType()) || SqlTypeName.APPROX_TYPES
-        .contains(rightOp.getOutputType())) {
-
-      result = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions
-          .power(SqlFunctions.toDouble(leftOp.getValue()),
-              SqlFunctions.toDouble(rightOp.getValue())));
-
-    } else if (SqlTypeName.INT_TYPES.equals(leftOp.getOutputType()) && SqlTypeName.DECIMAL
-        .equals(rightOp.getOutputType())) {
-
-      result = BeamSqlPrimitive.of(SqlTypeName.DOUBLE,
-          SqlFunctions.power(leftOp.getLong(), SqlFunctions.toBigDecimal(rightOp.getValue())));
-
-    } else if (SqlTypeName.DECIMAL.equals(leftOp.getOutputType()) || SqlTypeName.DECIMAL
-        .equals(rightOp.getOutputType())) {
-
-      result = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions
-          .power(SqlFunctions.toBigDecimal(leftOp.getValue()),
-              SqlFunctions.toBigDecimal(rightOp.getValue())));
-    }
-    return result;
+    return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, SqlFunctions
+        .power(SqlFunctions.toDouble(leftOp.getValue()),
+            SqlFunctions.toDouble(rightOp.getValue())));
   }
 
 }

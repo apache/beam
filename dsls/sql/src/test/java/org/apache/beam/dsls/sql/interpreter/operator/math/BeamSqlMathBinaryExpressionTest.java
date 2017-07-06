@@ -147,18 +147,18 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
-    assertEquals(4L, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+    assertEquals(4.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
     // power(integer,long) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 3L));
-    assertEquals(8L, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+    assertEquals(8.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
 
     // power(long,long) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
-    assertEquals(4L, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+    assertEquals(4.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
 
     //     power(double, int) => double
     operands.clear();
@@ -176,16 +176,7 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.2));
-    assertEquals(4.59479341998814,
-        new BeamSqlPowerExpression(operands).evaluate(record).getValue());
-
-    // operand with a BeamSqlInputRefExpression
-    operands.clear();
-    BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
-    operands.add(ref0);
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
-
-    Assert.assertEquals(1524155677489L,
+    assertEquals(Math.pow(2, 2.2),
         new BeamSqlPowerExpression(operands).evaluate(record).getValue());
   }
 
