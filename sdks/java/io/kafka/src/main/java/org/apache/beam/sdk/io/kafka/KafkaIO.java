@@ -1051,11 +1051,11 @@ public class KafkaIO {
       curBatch = Iterators.cycle(nonEmpty);
     }
 
-    private void setupInitialOffset(PartitionState p) {
+    private void setupInitialOffset(PartitionState pState) {
       Read<K, V> spec = source.spec;
 
-      if (p.nextOffset != UNINITIALIZED_OFFSET) {
-        consumer.seek(p.topicPartition, p.nextOffset);
+      if (pState.nextOffset != UNINITIALIZED_OFFSET) {
+        consumer.seek(pState.topicPartition, pState.nextOffset);
       } else {
         // nextOffset is unininitialized here, meaning start reading from latest record as of now
         // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
@@ -1063,17 +1063,20 @@ public class KafkaIO {
         // ensures checkpoint is accurate even if the reader is closed before reading any records.
         Instant startReadTime = spec.getStartReadTime();
         if (startReadTime != null) {
-          p.nextOffset =
-              consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
-          consumer.seek(p.topicPartition, p.nextOffset);
+          pState.nextOffset =
+              consumerSpEL.offsetForTime(consumer, pState.topicPartition, spec.getStartReadTime());
+          consumer.seek(pState.topicPartition, pState.nextOffset);
         } else {
-          p.nextOffset = consumer.position(p.topicPartition);
+          pState.nextOffset = consumer.position(pState.topicPartition);
         }
       }
     }
 
     @Override
     public boolean start() throws IOException {
+      final int defaultPartitionInitTimeout = 60 * 1000;
+      final int kafkaRequestTimeoutMultiple = 2;
+
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
       consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
@@ -1091,35 +1094,42 @@ public class KafkaIO {
       // Seek to start offset for each partition. This is the first interaction with the server.
       // Unfortunately it can block forever in case of network issues like incorrect ACLs.
       // Initialize partition in a separate thread and cancel it if takes longer than a minute.
-      for (final PartitionState p : partitionStates) {
+      for (final PartitionState pState : partitionStates) {
         Future<?> future =  consumerPollThread.submit(new Runnable() {
           public void run() {
-            setupInitialOffset(p);
+            setupInitialOffset(pState);
           }
         });
 
         try {
           // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
-          Integer timeout = (Integer) source.spec.getConsumerConfig().get(
+          Integer reqTimeout = (Integer) source.spec.getConsumerConfig().get(
               ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
-          future.get(timeout != null ? 2 * timeout : 60 * 1000, TimeUnit.MILLISECONDS);
+          future.get(reqTimeout != null ? kafkaRequestTimeoutMultiple * reqTimeout
+                         : defaultPartitionInitTimeout,
+                     TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
           consumer.wakeup(); // This unblocks consumer stuck on network I/O.
-          String msg = this + ": Timeout while initializing partition " + p.topicPartition + ". "
-              + "Kafka client may not be able to connect to servers. "
-              + "Check network connectivity.";
-          LOG.error("{}", msg, e);
-          throw new IOException(msg, e);
+          // Likely reason : Kafka servers are configured to advertise internal ips, but
+          // those ips are not accessible from workers outside.
+          String msg = String.format(
+              "%s: Timeout while initializing partition '%s'. "
+                  + "Kafka client may not be able to connect to servers.",
+              this, pState.topicPartition);
+          LOG.error("{}", msg);
+          throw new IOException(msg);
         } catch (Exception e) {
           throw new IOException(e);
         }
-        LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
+        LOG.info("{}: reading from {} starting at offset {}",
+                 name, pState.topicPartition, pState.nextOffset);
       }
 
       // Start consumer read loop.
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
       consumerPollThread.submit(
           new Runnable() {
+            @Override
             public void run() {
               consumerPollLoop();
             }

@@ -371,8 +371,7 @@ public class KafkaIOTest {
     // Set request timeout to 10ms so that test does not take long.
 
     thrown.expect(Exception.class);
-    thrown.expectMessage("Timeout while initializing partition");
-    thrown.expectMessage("Check network connectivity");
+    thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
 
     int numElements = 1000;
     PCollection<Long> input = p
