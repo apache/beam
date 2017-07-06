@@ -57,12 +57,16 @@ import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAcosExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAsinExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtan2Expression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCeilExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlFloorExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLnExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPiExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
@@ -70,6 +74,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlTanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -286,6 +291,15 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "POWER":
           ret = new BeamSqlPowerExpression(subExps);
           break;
+        case "PI":
+          ret = new BeamSqlPiExpression();
+          break;
+        case "ATAN2":
+          ret = new BeamSqlAtan2Expression(subExps);
+          break;
+        case "TRUNCATE":
+          ret = new BeamSqlTruncateExpression(subExps);
+          break;
 
         // string operators
         case "||":
@@ -321,9 +335,17 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "REINTERPRET":
           return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
         case "CEIL":
-          return new BeamSqlDateCeilExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            return new BeamSqlCeilExpression(subExps);
+          } else {
+            return new BeamSqlDateCeilExpression(subExps);
+          }
         case "FLOOR":
-          return new BeamSqlDateFloorExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            return new BeamSqlFloorExpression(subExps);
+          } else {
+            return new BeamSqlDateFloorExpression(subExps);
+          }
         case "EXTRACT_DATE":
         case "EXTRACT":
           return new BeamSqlExtractExpression(subExps);
