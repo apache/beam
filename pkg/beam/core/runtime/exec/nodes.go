@@ -13,7 +13,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // Discard silently discard all elements. It is implicitly inserted for any
@@ -313,6 +312,7 @@ type Combine struct {
 	Out  []Node
 
 	accum reflect.Value // global accumulator, only used/valid if isPerKey == false
+	first bool
 
 	isPerKey, usesKey bool
 }
@@ -343,6 +343,7 @@ func (n *Combine) Up(ctx context.Context) error {
 		panic(fmt.Sprintf("CreateAccumulator failed: %v", err))
 	}
 	n.accum = a
+	n.first = true
 	return nil
 }
 
@@ -390,6 +391,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		if err != nil {
 			panic(fmt.Sprintf("CreateAccumulator failed: %v", err))
 		}
+		first := true
 
 		stream := values[0].Open()
 		for {
@@ -401,10 +403,11 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 				panic(err) // see below
 			}
 
-			a, err = n.addInput(ctx, a, value.Elm, v.Elm, value.Timestamp)
+			a, err = n.addInput(ctx, a, value.Elm, v.Elm, value.Timestamp, first)
 			if err != nil {
 				panic(fmt.Sprintf("AddInput failed: %v", err))
 			}
+			first = false
 		}
 		stream.Close()
 
@@ -423,23 +426,29 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 
 	// Accumulate globally
 
-	a, err := n.addInput(ctx, n.accum, reflect.Value{}, value.Elm, value.Timestamp)
+	a, err := n.addInput(ctx, n.accum, reflect.Value{}, value.Elm, value.Timestamp, n.first)
 	if err != nil {
 		panic(fmt.Sprintf("AddInput failed: %v", err))
 	}
 	n.accum = a
+	n.first = false
 	return nil
 }
 
-func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value, timestamp typex.EventTime) (reflect.Value, error) {
+func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value, timestamp typex.EventTime, first bool) (reflect.Value, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Edge.CombineFn.AddInputFn()
 	if fn == nil {
-		// Merge function only. The input value is an accumulator.
+		// Merge function only. The input value is an accumulator. We only do a binary
+		// merge if we've actually seen a value.
+		if first {
+			return value, nil
+		}
 
-		list := reflectx.MakeSlice(accum.Type(), accum, value)
-		return n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Call([]reflect.Value{list})[0], nil
+		// TODO(herohde) 7/5/2017: do we want to allow addInput to be optional
+		// if non-binary merge is defined?
+		return n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Call([]reflect.Value{accum, value})[0], nil
 	}
 
 	// (1) Populate contexts

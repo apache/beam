@@ -7,7 +7,9 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 type Grade struct {
@@ -74,6 +76,12 @@ func main() {
 
 	chad := top.Globally(p, students, 1, greater)
 	beam.ParDo0(p, printTopFn, chad)
+
+	// (4) Print min/max grades
+
+	grades := beam.ParDo(p, func(g Grade) float32 { return g.GPA }, students)
+	debug.Print(p, stats.Min(p, grades))
+	debug.Print(p, stats.Max(p, grades))
 
 	if err := beamexec.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
