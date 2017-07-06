@@ -412,8 +412,7 @@ precommit and postcommit testing.</p>
 <h3 id="precommit">Precommit</h3>
 
 <p>For precommit testing, Beam uses
-<a href="https://builds.apache.org/view/Beam/">Jenkins</a>,
-<a href="http://travis-ci.org/apache/beam">Travis</a>, and a code coverage tool
+<a href="https://builds.apache.org/view/Beam/">Jenkins</a> and a code coverage tool
 called <a href="https://coveralls.io/github/apache/beam">Coveralls</a>, hooked up
 to <a href="https://github.com/apache/beam">Github</a>, to ensure that pull
 requests meet a certain quality bar. These precommits verify correctness via two
@@ -427,10 +426,9 @@ that this hits the appropriate tradeoff between a desire for short (ideally
 function in the way in which they are intended.</p>
 
 <p>Precommit tests are kicked off when a user makes a Pull Request against the
-<code class="highlighter-rouge">apache/beam</code> repository and the Travis, Jenkins, and Coveralls statuses
-are displayed at the bottom of the pull request page. Clicking on “Details” will
-open the status page in the selected tool; there, test status and output can be
-viewed.</p>
+<code class="highlighter-rouge">apache/beam</code> repository and the Jenkins and Coveralls statuses are displayed at
+the bottom of the pull request page. Clicking on “Details” will open the status
+page in the selected tool; there, test status and output can be viewed.</p>
 
 <h3 id="postcommit">Postcommit</h3>
 
