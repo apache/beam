@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -152,7 +153,8 @@ public class ParDoTranslation {
     builder.setDoFn(toProto(parDo.getFn(), parDo.getMainOutputTag()));
     builder.setSplittable(signature.processElement().isSplittable());
     for (PCollectionView<?> sideInput : parDo.getSideInputs()) {
-      builder.putSideInputs(sideInput.getTagInternal().getId(), toProto(sideInput));
+      String localPCollectionName = components.registerPCollection(sideInput.getPCollection());
+      builder.putSideInputs(localPCollectionName, toProto(sideInput));
     }
     for (Parameter parameter : parameters) {
       Optional<RunnerApi.Parameter> protoParameter = toProto(parameter);
@@ -268,7 +270,11 @@ public class ParDoTranslation {
     for (Map.Entry<String, SideInput> sideInput : payload.getSideInputsMap().entrySet()) {
       views.add(
           fromProto(
-              sideInput.getValue(), sideInput.getKey(), parDoProto, sdkComponents.toComponents()));
+              application.getPipeline(),
+              sideInput.getValue(),
+              sideInput.getKey(),
+              parDoProto,
+              sdkComponents.toComponents()));
     }
     return views;
   }
@@ -527,19 +533,31 @@ public class ParDoTranslation {
   }
 
   public static PCollectionView<?> fromProto(
-      SideInput sideInput, String id, RunnerApi.PTransform parDoTransform, Components components)
+      Pipeline pipeline,
+      SideInput sideInput,
+      String id,
+      RunnerApi.PTransform parDoTransform,
+      Components components)
       throws IOException {
-    return fromProtoAndPCollection(sideInput, id, null, parDoTransform, components);
+
+    // This may be a PCollection defined in another language, but we should be
+    // able to rehydrate it enough to stick it in a side input. The coder may not
+    // be grokkable in Java.
+    PCollection<?> pCollection =
+        PCollectionTranslation.fromProto(
+            pipeline, components.getPcollectionsOrThrow(id), components);
+
+    return fromProtoAndPCollection(sideInput, id, pCollection, parDoTransform, components);
   }
 
   /**
-   * Create a {@link PCollectionView} from a side input spec and an already-deserialized
-   * {@link PCollection} that should be wired up.
+   * Create a {@link PCollectionView} from a side input spec and an already-deserialized {@link
+   * PCollection} that should be wired up.
    */
   public static PCollectionView<?> fromProtoAndPCollection(
       SideInput sideInput,
       String id,
-      @Nullable PCollection<?> pCollection,
+      PCollection<?> pCollection,
       RunnerApi.PTransform parDoTransform,
       Components components)
       throws IOException {
