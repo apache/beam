@@ -1743,16 +1743,9 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
         <version>${maven-dependency-plugin.version}</version>
-        <executions>
-          <execution>
-            <goals><goal>analyze-only</goal></goals>
-            <configuration>
-              <!-- Ignore runtime-only dependencies in analysis -->
-              <ignoreNonCompile>true</ignoreNonCompile>
-              <failOnWarning>true</failOnWarning>
-            </configuration>
-          </execution>
-        </executions>
+        <configuration>
+          <failOnWarning>true</failOnWarning>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
