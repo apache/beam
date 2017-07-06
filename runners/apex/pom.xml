@@ -61,10 +61,7 @@
       <groupId>org.apache.apex</groupId>
       <artifactId>malhar-library</artifactId>
       <version>${apex.malhar.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
        <groupId>com.fasterxml.jackson.core</groupId>

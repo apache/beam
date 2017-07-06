@@ -71,12 +71,6 @@
     </dependency>
 
     <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <version>${apache.commons.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
@@ -130,6 +124,13 @@
       <classifier>tests</classifier>
       <scope>test</scope>
       <version>${hive.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${apache.commons.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
