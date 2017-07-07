@@ -1593,6 +1593,108 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  public void testStateNotKeyed() {
+    final String stateId = "foo";
+
+    DoFn<String, Integer> fn =
+        new DoFn<String, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("KvCoder");
+
+    pipeline.apply(Create.of("hello", "goodbye", "hello again")).apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testStateNotDeterministic() {
+    final String stateId = "foo";
+
+    // DoubleCoder is not deterministic, so this should crash
+    DoFn<KV<Double, String>, Integer> fn =
+        new DoFn<KV<Double, String>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("deterministic");
+
+    pipeline
+        .apply(Create.of(KV.of(1.0, "hello"), KV.of(5.4, "goodbye"), KV.of(7.2, "hello again")))
+        .apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testTimerNotKeyed() {
+    final String timerId = "foo";
+
+    DoFn<String, Integer> fn =
+        new DoFn<String, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @TimerId(timerId) Timer timer) {}
+
+          @OnTimer(timerId)
+          public void onTimer() {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("timer");
+    thrown.expectMessage("KvCoder");
+
+    pipeline.apply(Create.of("hello", "goodbye", "hello again")).apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testTimerNotDeterministic() {
+    final String timerId = "foo";
+
+    // DoubleCoder is not deterministic, so this should crash
+    DoFn<KV<Double, String>, Integer> fn =
+        new DoFn<KV<Double, String>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @TimerId(timerId) Timer timer) {}
+
+          @OnTimer(timerId)
+          public void onTimer() {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("timer");
+    thrown.expectMessage("deterministic");
+
+    pipeline
+        .apply(Create.of(KV.of(1.0, "hello"), KV.of(5.4, "goodbye"), KV.of(7.2, "hello again")))
+        .apply(ParDo.of(fn));
+  }
+
+  @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateCoderInference() {
     final String stateId = "foo";
