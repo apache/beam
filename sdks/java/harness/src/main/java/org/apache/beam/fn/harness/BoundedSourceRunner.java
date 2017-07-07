@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
@@ -64,6 +65,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     public BoundedSourceRunner<InputT, OutputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
         String pTransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,

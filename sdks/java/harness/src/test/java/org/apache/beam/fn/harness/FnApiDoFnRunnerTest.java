@@ -126,6 +126,7 @@ public class FnApiDoFnRunnerTest {
     new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
+        null /* beamFnStateClient */,
         pTransformId,
         pTransform,
         Suppliers.ofInstance("57L")::get,
