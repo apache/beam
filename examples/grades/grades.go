@@ -83,11 +83,13 @@ func main() {
 	chad := top.Globally(p, students, 1, greater)
 	beam.ParDo0(p, printTopFn, chad)
 
-	// (4) Print min/max grades
+	// (4) Print min/max/sum/mean grades
 
 	grades := beam.ParDo(p, func(g Grade) float32 { return g.GPA }, students)
-	debug.Print(p, stats.Min(p, grades))
-	debug.Print(p, stats.Max(p, grades))
+	debug.Printf(p, "Min: %v", stats.Min(p, grades))
+	debug.Printf(p, "Max: %v", stats.Max(p, grades))
+	debug.Printf(p, "Sum: %v", stats.Sum(p, grades))
+	debug.Printf(p, "Mean: %v", stats.Mean(p, grades))
 
 	if err := beam.Run(context.Background(), *runner, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
