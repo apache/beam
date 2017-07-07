@@ -500,8 +500,15 @@ class DataflowRunner(PipelineRunner):
     lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, AsSideInput)
-      si_label = 'SideInput-' + self._get_unique_step_name()
-      si_full_label = '%s/%s' % (transform_node.full_label, si_label)
+      step_number = self._get_unique_step_name()
+      si_label = 'SideInput-' + step_number
+      pcollection_label = '%s.%s' % (
+          side_pval.pvalue.producer.full_label.split('/')[-1],
+          side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
+      si_full_label = '%s/%s(%s)' % (transform_node.full_label,
+                                     side_pval.__class__.__name__,
+                                     pcollection_label)
+
       self._add_singleton_step(
           si_label, si_full_label, side_pval.pvalue.tag,
           self._cache.get_pvalue(side_pval.pvalue))
