@@ -43,7 +43,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   private static final long serialVersionUID = -4109539010014189725L;
   private final DoFn<InputT, OutputT> fn;
-  private final transient PipelineOptions options;
+  private final byte[] serializedOptions;
   private final Collection<PCollectionView<?>> sideInputs;
   private final DoFnRunners.OutputManager outputManager;
   private final TupleTag<OutputT> mainOutputTag;
@@ -61,7 +61,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       StepContext stepContext,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = doFn;
-    this.options = pipelineOptions;
+    this.serializedOptions = TranslatorUtils.serializePipelineOptions(pipelineOptions);
     this.sideInputs = sideInputs;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
@@ -72,6 +72,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
       ReadyCheckingSideInputReader sideInputReader) {
+    PipelineOptions options = TranslatorUtils.deserializePipelineOptions(serializedOptions);
     DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
         options, fn, sideInputReader, outputManager, mainOutputTag,
         sideOutputTags, stepContext, windowingStrategy);

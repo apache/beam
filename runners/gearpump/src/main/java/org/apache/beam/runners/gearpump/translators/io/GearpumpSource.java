@@ -18,9 +18,6 @@
 
 package org.apache.beam.runners.gearpump.translators.io;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.time.Instant;
 
@@ -48,11 +45,7 @@ public abstract class GearpumpSource<T> implements DataSource {
   private boolean available = false;
 
   GearpumpSource(PipelineOptions options) {
-    try {
-      this.serializedOptions = new ObjectMapper().writeValueAsBytes(options);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    this.serializedOptions = TranslatorUtils.serializePipelineOptions(options);
   }
 
   protected abstract Source.Reader<T> createReader(PipelineOptions options) throws IOException;
@@ -60,8 +53,7 @@ public abstract class GearpumpSource<T> implements DataSource {
   @Override
   public void open(TaskContext context, Instant startTime) {
     try {
-      PipelineOptions options = new ObjectMapper()
-          .readValue(serializedOptions, PipelineOptions.class);
+      PipelineOptions options = TranslatorUtils.deserializePipelineOptions(serializedOptions);
       this.reader = createReader(options);
       this.available = reader.start();
     } catch (Exception e) {

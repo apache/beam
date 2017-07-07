@@ -18,8 +18,11 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -141,6 +145,21 @@ public class TranslatorUtils {
     }
   }
 
+  public static byte[] serializePipelineOptions(PipelineOptions options) {
+    try {
+      return new ObjectMapper().writeValueAsBytes(options);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static PipelineOptions deserializePipelineOptions(byte[] serializedOptions) {
+    try {
+      return new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   /**
    * This is copied from org.apache.beam.sdk.transforms.join.RawUnionValue.
