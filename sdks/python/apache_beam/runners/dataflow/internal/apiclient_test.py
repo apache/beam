@@ -22,7 +22,6 @@ from mock import Mock
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 
-from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.dataflow.internal.clients import dataflow
 
 # Protect against environments where apitools library is not available.
@@ -40,9 +39,7 @@ class UtilTest(unittest.TestCase):
   @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_create_application_client(self):
     pipeline_options = PipelineOptions()
-    apiclient.DataflowApplicationClient(
-        pipeline_options,
-        DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
+    apiclient.DataflowApplicationClient(pipeline_options)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions(

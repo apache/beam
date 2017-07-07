@@ -46,8 +46,8 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -64,12 +64,6 @@ class DataflowRunner(PipelineRunner):
   after the service created the job and  will not wait for the job to finish
   if blocking is set to False.
   """
-
-  # Environment version information. It is passed to the service during a
-  # a job submission and is used by the service to establish what features
-  # are expected by the workers.
-  BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
-  STREAMING_ENVIRONMENT_MAJOR_VERSION = '1'
 
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DataflowRunner.
@@ -268,15 +262,9 @@ class DataflowRunner(PipelineRunner):
     if test_options.dry_run:
       return None
 
-    standard_options = pipeline._options.view_as(StandardOptions)
-    if standard_options.streaming:
-      job_version = DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
-    else:
-      job_version = DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
-
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline._options, job_version)
+        pipeline._options)
 
     # Create the job
     result = DataflowPipelineResult(
