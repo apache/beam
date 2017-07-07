@@ -87,69 +87,73 @@ public class BeamSqlRow implements Serializable {
       case INTEGER:
         if (!(fieldValue instanceof Integer)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case SMALLINT:
         if (!(fieldValue instanceof Short)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case TINYINT:
         if (!(fieldValue instanceof Byte)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case DOUBLE:
         if (!(fieldValue instanceof Double)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case BIGINT:
         if (!(fieldValue instanceof Long)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case FLOAT:
         if (!(fieldValue instanceof Float)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case DECIMAL:
         if (!(fieldValue instanceof BigDecimal)) {
-          throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+          throw new IllegalArgumentException(getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case VARCHAR:
       case CHAR:
         if (!(fieldValue instanceof String)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case TIME:
         if (!(fieldValue instanceof GregorianCalendar)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       case TIMESTAMP:
       case DATE:
         if (!(fieldValue instanceof Date)) {
           throw new IllegalArgumentException(
-              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+              getTypeMismatchErrorMessage(fieldValue, fieldType));
         }
         break;
       default:
         throw new UnsupportedOperationException("Data type: " + fieldType + " not supported yet!");
     }
     dataValues.set(index, fieldValue);
+  }
+
+  private String getTypeMismatchErrorMessage(Object fieldValue, SqlTypeName fieldType) {
+    return String.format("[%s](%s) doesn't match type [%s]",
+        fieldValue, fieldValue.getClass(), fieldType);
   }
 
   public Object getFieldValue(String fieldName) {
@@ -270,6 +274,7 @@ public class BeamSqlRow implements Serializable {
           return fieldValue;
         }
       case TIMESTAMP:
+      case DATE:
         if (!(fieldValue instanceof Date)) {
           throw new IllegalArgumentException(
               String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));

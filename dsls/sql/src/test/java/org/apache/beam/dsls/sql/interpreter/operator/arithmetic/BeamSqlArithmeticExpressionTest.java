@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
@@ -82,10 +81,10 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test public void testPlus() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
-    // integer + integer => long
+    // integer + integer => integer
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(2L, new BeamSqlPlusExpression(operands).evaluate(record).getValue());
+    assertEquals(2, new BeamSqlPlusExpression(operands).evaluate(record).getValue());
 
     // integer + long => long
     operands.clear();
@@ -99,11 +98,11 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
     assertEquals(2L, new BeamSqlPlusExpression(operands).evaluate(record).getValue());
 
-    // float + long => double
+    // float + long => float
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 1.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Double.valueOf(Double.valueOf(1.1F) + 1),
+    assertEquals(Float.valueOf(1.1F + 1),
         new BeamSqlPlusExpression(operands).evaluate(record).getValue());
 
     // double + long => double
@@ -119,7 +118,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     // integer + integer => long
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(1L, new BeamSqlMinusExpression(operands).evaluate(record).getValue());
+    assertEquals(1, new BeamSqlMinusExpression(operands).evaluate(record).getValue());
 
     // integer + long => long
     operands.clear();
@@ -137,8 +136,8 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 2.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Double.valueOf(Double.valueOf(2.1F) - 1),
-        new BeamSqlMinusExpression(operands).evaluate(record).getValue());
+    assertEquals(2.1F - 1L,
+        new BeamSqlMinusExpression(operands).evaluate(record).getValue().floatValue(), 0.1);
 
     // double + long => double
     operands.clear();
@@ -150,10 +149,10 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test public void testMultiply() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
-    // integer + integer => long
+    // integer + integer => integer
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(2L, new BeamSqlMultiplyExpression(operands).evaluate(record).getValue());
+    assertEquals(2, new BeamSqlMultiplyExpression(operands).evaluate(record).getValue());
 
     // integer + long => long
     operands.clear();
@@ -171,7 +170,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 2.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Double.valueOf(Double.valueOf(2.1F) * 1),
+    assertEquals(Float.valueOf(2.1F * 1L),
         new BeamSqlMultiplyExpression(operands).evaluate(record).getValue());
 
     // double + long => double
@@ -184,10 +183,10 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test public void testDivide() {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
-    // integer + integer => long
+    // integer + integer => integer
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(2L, new BeamSqlDivideExpression(operands).evaluate(record).getValue());
+    assertEquals(2, new BeamSqlDivideExpression(operands).evaluate(record).getValue());
 
     // integer + long => long
     operands.clear();
@@ -205,7 +204,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 2.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Double.valueOf(Double.valueOf(2.1F) / 1),
+    assertEquals(2.1F / 1,
         new BeamSqlDivideExpression(operands).evaluate(record).getValue());
 
     // double + long => double
@@ -221,7 +220,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     // integer + integer => long
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
-    assertEquals(1L, new BeamSqlModExpression(operands).evaluate(record).getValue());
+    assertEquals(1, new BeamSqlModExpression(operands).evaluate(record).getValue());
 
     // integer + long => long
     operands.clear();
@@ -234,18 +233,5 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 3L));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
     assertEquals(1L, new BeamSqlModExpression(operands).evaluate(record).getValue());
-
-    // float + long => double
-    operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 3.1F));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
-    assertEquals(Double.valueOf(Double.valueOf(3.1F) % 2),
-        new BeamSqlModExpression(operands).evaluate(record).getValue());
-
-    // double + long => double
-    operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 3.1));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
-    assertEquals(1.1, new BeamSqlModExpression(operands).evaluate(record).getValue());
   }
 }
