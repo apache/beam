@@ -457,6 +457,15 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
+    DynamicDestinations<T, Void> resolveDynamicDestinations() {
+      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+      if (usedFilenamePolicy == null) {
+        usedFilenamePolicy =
+            DefaultFilenamePolicy.fromStandardParameters(
+                getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
+      }
+      return DynamicFileDestinations.constant(usedFilenamePolicy);
+    }
     @Override
     public PDone expand(PCollection<T> input) {
       checkArgument(getFilenamePrefix() != null || getTempDirectory() != null,
@@ -467,16 +476,7 @@ public class AvroIO {
             "shardTemplate and filenameSuffix should only be used with the default "
                 + "filename policy");
       }
-
-      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
-      if (usedFilenamePolicy == null) {
-        usedFilenamePolicy =
-            DefaultFilenamePolicy.fromStandardParameters(
-                getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
-      }
-      DynamicDestinations<T, Void> dynamicDestinations = DynamicFileDestinations.constant(
-          usedFilenamePolicy);
-      return expandTyped(input, dynamicDestinations);
+      return expandTyped(input, resolveDynamicDestinations());
     }
 
     public <DestinationT> PDone expandTyped(
@@ -505,11 +505,8 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      String outputPrefixString = null;
-      if (getFilenamePrefix() != null) {
-        outputPrefixString = getFilenamePrefix().isAccessible()
-        ? getFilenamePrefix().get().toString() : getFilenamePrefix().toString();
-      }
+      resolveDynamicDestinations().populateDisplayData(builder);
+
       String tempDirectory = null;
       if (getTempDirectory() != null) {
         tempDirectory = getTempDirectory().isAccessible()
@@ -518,12 +515,6 @@ public class AvroIO {
       builder
           .add(DisplayData.item("schema", getRecordClass())
             .withLabel("Record Schema"))
-          .addIfNotNull(DisplayData.item("filePrefix", outputPrefixString)
-            .withLabel("Output File Prefix"))
-          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
-              .withLabel("Output Shard Name Template"))
-          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
-              .withLabel("Output File Suffix"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
               .withLabel("Maximum Output Shards"),
               0)

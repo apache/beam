@@ -530,19 +530,7 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
-    @Override
-    public PDone expand(PCollection<T> input) {
-      checkState(getFilenamePrefix() != null || getTempDirectory() != null,
-          "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
-           + "transform.");
-      checkState(getFilenamePolicy() == null || getDynamicDestinations() == null,
-      "Cannot specify both a filename policy and dynamic destinations");
-      if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
-        checkState(getShardTemplate() == null && getFilenameSuffix() == null,
-        "shardTemplate and filenameSuffix should only be used with the default "
-        + "filename policy");
-      }
-
+    private DynamicDestinations<T, ?> resolveDynamicDestinations() {
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
@@ -555,7 +543,22 @@ public class TextIO {
         }
         dynamicDestinations = DynamicFileDestinations.constant(usedFilenamePolicy);
       }
-      return expandTyped(input, dynamicDestinations);
+      return dynamicDestinations;
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      checkState(getFilenamePrefix() != null || getTempDirectory() != null,
+          "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
+           + "transform.");
+      checkState(getFilenamePolicy() == null || getDynamicDestinations() == null,
+      "Cannot specify both a filename policy and dynamic destinations");
+      if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
+        checkState(getShardTemplate() == null && getFilenameSuffix() == null,
+        "shardTemplate and filenameSuffix should only be used with the default "
+        + "filename policy");
+      }
+      return expandTyped(input, resolveDynamicDestinations());
     }
 
     public <DestinationT> PDone expandTyped(
@@ -586,23 +589,13 @@ public class TextIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      String prefixString = "";
-      if (getFilenamePrefix() != null) {
-        prefixString = getFilenamePrefix().isAccessible()
-            ? getFilenamePrefix().get().toString() : getFilenamePrefix().toString();
-      }
+      resolveDynamicDestinations().populateDisplayData(builder);
       String tempDirectory = null;
       if (getTempDirectory() != null) {
         tempDirectory = getTempDirectory().isAccessible()
             ? getTempDirectory().get().toString() : getTempDirectory().toString();
       }
       builder
-          .addIfNotNull(DisplayData.item("filePrefix", prefixString)
-            .withLabel("Output File Prefix"))
-          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
-            .withLabel("Output File Suffix"))
-          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
-            .withLabel("Output Shard Name Template"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
             .withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(DisplayData.item("tempDirectory", tempDirectory)
