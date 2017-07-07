@@ -3,10 +3,7 @@ package stats
 import (
 	"fmt"
 
-	"reflect"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -25,24 +22,12 @@ import (
 func Min(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Min")
 
-	var t reflect.Type
-	switch {
-	case typex.IsWKV(col.Type()):
-		t = typex.SkipW(col.Type()).Components()[1].Type()
-		col = beam.GroupByKey(p, col)
-
-	case typex.IsWGBK(col.Type()):
-		t = typex.SkipW(col.Type()).Components()[1].Type()
-
-	default:
-		t = typex.SkipW(col.Type()).Type()
-	}
-
+	t, prepped := makeCombinable(p, col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
 		panic(fmt.Sprintf("Min requires a non-complex number: %v", t))
 	}
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return minSwitch(p, t, col)
+	return minSwitch(p, t, prepped)
 }
