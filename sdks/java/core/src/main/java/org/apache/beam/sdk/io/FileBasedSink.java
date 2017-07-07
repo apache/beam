@@ -33,8 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -78,6 +77,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.joda.time.Instant;
@@ -273,22 +273,17 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       }
       // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
       // We must first use reflection to figure out what the type parameter is.
-      for (Type superclass = getClass().getGenericSuperclass();
-           superclass != null;
-           superclass = ((Class) superclass).getGenericSuperclass()) {
-        if (superclass instanceof ParameterizedType) {
-          ParameterizedType parameterized = (ParameterizedType) superclass;
-          if (parameterized.getRawType() == DynamicDestinations.class) {
-            // DestinationT is the second parameter.
-            Type parameter = parameterized.getActualTypeArguments()[1];
-            @SuppressWarnings("unchecked")
-            Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
-            return registry.getCoder(parameterClass);
-          }
-        }
+      TypeDescriptor<?> superDescriptor = TypeDescriptor.of(getClass()).getSupertype(
+          DynamicDestinations.class);
+      if (!superDescriptor.getRawType().equals(DynamicDestinations.class)) {
+        throw new AssertionError(
+            "Couldn't find the DynamicDestinations superclass of " + this.getClass());
       }
-      throw new AssertionError(
-          "Couldn't find the DynamicDestinations superclass of " + this.getClass());
+      TypeVariable typeVariable = superDescriptor.getTypeParameter("DestinationT");
+      @SuppressWarnings("unchecked")
+      TypeDescriptor<DestinationT> descriptor =
+          (TypeDescriptor<DestinationT>) superDescriptor.resolveType(typeVariable);
+      return registry.getCoder(descriptor);
     }
   }
 
