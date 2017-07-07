@@ -101,8 +101,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP).evaluate(record).getValue());
   }
 
-  @Test(expected = RuntimeException.class)
-  public void testForCastTypeNotSupported() {
+  @Test(expected = RuntimeException.class) public void testForCastTypeNotSupported() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, Calendar.getInstance().getTime()));
     Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
