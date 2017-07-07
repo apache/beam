@@ -2,10 +2,13 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -27,6 +30,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	time.Sleep(1 * time.Minute)
 
 	setupRemoteLogging(ctx, loggingEndpoint)
+	setupDiagnosticRecording()
+
+	recordHeader()
 
 	// Connect to FnAPI control server. Receive and execute work.
 	// TODO: setup data manager, DoFn register
@@ -71,6 +77,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		graphs: make(map[string]*graph.Graph),
 		data:   &DataManager{},
 	}
+
+	var cpuProfBuf bytes.Buffer
 	for {
 		req, err := client.Recv()
 		if err != nil {
@@ -78,14 +86,29 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			wg.Wait()
 
 			if err == io.EOF {
+				recordFooter()
 				return nil
 			}
 			return fmt.Errorf("Recv failed: %v", err)
 		}
 
 		log.Printf("RECV: %v", proto.MarshalTextString(req))
+		recordInstructionRequest(req)
 
+		if isEnabled("cpu_profiling") {
+			cpuProfBuf.Reset()
+			pprof.StartCPUProfile(&cpuProfBuf)
+		}
 		resp := ctrl.handleInstruction(ctx, req)
+
+		if isEnabled("cpu_profiling") {
+			pprof.StopCPUProfile()
+			if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
+				log.Printf("Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
+			}
+		}
+
+		recordInstructionResponse(resp)
 		if resp != nil {
 			respc <- resp
 		}
