@@ -165,6 +165,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
             case BIGINT:
               realValue = rawValue.longValue();
               break;
+            case DECIMAL:
+              realValue = rawValue;
+              break;
             default:
               throw new IllegalStateException("type/realType mismatch: "
                   + type + " VS " + realType);
