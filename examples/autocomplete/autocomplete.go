@@ -9,7 +9,9 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
@@ -19,6 +21,8 @@ import (
 var (
 	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	n     = flag.Int("top", 3, "Number of completions")
+
+	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -31,7 +35,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	beamexec.Init()
+	beam.Init()
 
 	log.Print("Running autocomplete")
 
@@ -47,7 +51,7 @@ func main() {
 	})
 	debug.Print(p, hits)
 
-	if err := beamexec.Run(context.Background(), p); err != nil {
+	if err := beam.Run(context.Background(), *runner, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

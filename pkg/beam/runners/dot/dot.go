@@ -13,6 +13,10 @@ import (
 	dotlib "github.com/apache/beam/sdks/go/pkg/beam/core/util/dot"
 )
 
+func init() {
+	beam.RegisterRunner("dot", Execute)
+}
+
 // Code for making DOT graphs of the Graph data structure
 
 var dotFile = flag.String("dot_file", "", "DOT output file to create")

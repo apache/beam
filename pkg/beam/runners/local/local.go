@@ -10,6 +10,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 )
 
+func init() {
+	beam.RegisterRunner("local", Execute)
+}
+
 // Execute runs the pipeline in-process.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Print("Pipeline:")

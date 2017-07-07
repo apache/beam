@@ -6,10 +6,16 @@ import (
 	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+)
+
+var (
+	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 type Grade struct {
@@ -38,7 +44,7 @@ func printTopFn(list []Grade) {
 
 func main() {
 	flag.Parse()
-	beamexec.Init()
+	beam.Init()
 
 	data := []Grade{
 		{"Adam", 2.3},
@@ -83,7 +89,7 @@ func main() {
 	debug.Print(p, stats.Min(p, grades))
 	debug.Print(p, stats.Max(p, grades))
 
-	if err := beamexec.Run(context.Background(), p); err != nil {
+	if err := beam.Run(context.Background(), *runner, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

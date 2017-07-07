@@ -1,3 +1,4 @@
+// Package harness implements the SDK side of the Beam FnAPI.
 package harness
 
 import (
