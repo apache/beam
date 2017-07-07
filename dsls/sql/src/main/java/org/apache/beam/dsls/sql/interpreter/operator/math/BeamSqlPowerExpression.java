@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
@@ -31,6 +32,7 @@ public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlPowerExpression(List<BeamSqlExpression> operands) {
     super(operands);
+    this.outputType = SqlTypeName.DOUBLE;
   }
 
   @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,
