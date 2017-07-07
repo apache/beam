@@ -28,7 +28,7 @@
     <beam.version>@project.version@</beam.version>
 
     <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
-    <maven-exec-plugin.version>1.4.0</maven-exec-plugin.version>
+    <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <slf4j.version>1.7.14</slf4j.version>
   </properties>
 

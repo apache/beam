@@ -290,6 +290,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public PipelineOptions pipelineOptions() {
+              return getPipelineOptions();
+            }
+
+            @Override
             public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
                 DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
