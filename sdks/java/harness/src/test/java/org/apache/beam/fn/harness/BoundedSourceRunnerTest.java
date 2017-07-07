@@ -140,6 +140,7 @@ public class BoundedSourceRunnerTest {
     new BoundedSourceRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
+        null /* beamFnStateClient */,
         "pTransformId",
         pTransform,
         Suppliers.ofInstance("57L")::get,
