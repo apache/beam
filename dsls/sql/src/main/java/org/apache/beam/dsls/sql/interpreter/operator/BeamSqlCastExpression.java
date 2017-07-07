@@ -54,15 +54,12 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
           DateTimeFormat.forPattern("yyyy/MM/dd").getParser(),
           DateTimeFormat.forPattern("yyyy.MM.dd").getParser(),
           // datetime formats
-          DateTimeFormat.forPattern("yy-MM-dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yy/MM/dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yy.MM.dd HH:mm:ss.SSSSSSSSS").getParser(),
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").getParser(),
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssz").getParser(),
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss z").getParser(),
           DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss.SSSSSSSSS").getParser(),
-          DateTimeFormat.forPattern("yyyy.MM.dd HH:mm:ss.SSSSSSSSS").getParser(),
           DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSSz").getParser(),
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS z").getParser()
-      }).toFormatter()
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS z").getParser() }).toFormatter()
       .withPivotYear(2020);
 
   public BeamSqlCastExpression(List<BeamSqlExpression> operands, SqlTypeName castType) {
@@ -107,8 +104,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
         return BeamSqlPrimitive.of(castOutputType,
             toTimeStamp(opValueEvaluated(index, inputRecord), outputTimestampFormat));
     }
-    throw new RuntimeException(
-        String.format("Cast to type %s not supported", castOutputType));
+    throw new RuntimeException(String.format("Cast to type %s not supported", castOutputType));
   }
 
   private Date toDate(Object inputDate, String outputFormat) {
@@ -123,7 +119,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
   private Timestamp toTimeStamp(Object inputTimestamp, String outputFormat) {
     try {
       return Timestamp.valueOf(
-          dateTimeFormatter.parseLocalDateTime(inputTimestamp.toString()).secondOfMinute()
+          dateTimeFormatter.parseDateTime(inputTimestamp.toString()).secondOfMinute()
               .roundCeilingCopy().toString(outputFormat));
     } catch (IllegalArgumentException | UnsupportedOperationException e) {
       return null;
