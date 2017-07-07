@@ -12,7 +12,9 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
@@ -20,6 +22,8 @@ import (
 // Options used purely at pipeline construction-time can just be flags.
 var (
 	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
+
+	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 // CountWords is a composite transform.
@@ -44,7 +48,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	beamexec.Init()
+	beam.Init()
 
 	log.Print("Running wordcount")
 
@@ -58,7 +62,7 @@ func main() {
 	formatted := beam.ParDo(p, formatFn, counted)
 	debug.Print(p, formatted)
 
-	if err := beamexec.Run(context.Background(), p); err != nil {
+	if err := beam.Run(context.Background(), *runner, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

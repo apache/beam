@@ -11,12 +11,16 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 )
 
 var (
 	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/shakespeare/kinglear.txt"), "Files to read.")
 	output = flag.String("output", "/tmp/dag/out.", "Prefix of output.")
+
+	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 func init() {
@@ -70,7 +74,7 @@ func extractFn(line string, emit func(string)) {
 
 func main() {
 	flag.Parse()
-	beamexec.Init()
+	beam.Init()
 
 	log.Print("Running dag")
 
@@ -90,7 +94,7 @@ func main() {
 	textio.Write(p, *output, small)
 	textio.Write(p, *output, big)
 
-	if err := beamexec.Run(context.Background(), p); err != nil {
+	if err := beam.Run(context.Background(), *runner, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

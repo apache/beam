@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -36,6 +37,11 @@ var (
 	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 )
+
+func init() {
+	// Note that we also _ import harness/init to setup the remote execution hook.
+	beam.RegisterRunner("dataflow", Execute)
+}
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
