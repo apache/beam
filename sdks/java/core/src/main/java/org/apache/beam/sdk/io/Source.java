@@ -20,13 +20,11 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.joda.time.Instant;
-
 
 /**
  * Base class for defining input formats and creating a {@code Source} for reading the input.
@@ -66,7 +64,6 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Returns the default {@code Coder} to use for the data read from this source.
    */
-  @Nullable
   public abstract Coder<T> getDefaultOutputCoder();
 
   /**

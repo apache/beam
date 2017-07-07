@@ -1152,7 +1152,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingUnboundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
-    private Coder<T> defaultOutputCoder;
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -1162,23 +1161,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return defaultOutputCoder;
+      return source.getDefaultOutputCoder();
     }
 
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      PCollection<T> collection;
       if (source.requiresDeduping()) {
-        collection = Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
             .apply(new Deduplicate<T>());
       } else {
-        collection =  Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
             .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
       }
-      defaultOutputCoder = collection.getCoder();
-      return collection;
     }
 
     /**
@@ -1271,7 +1267,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
-    private Coder<T> defaultOutputCoder;
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
@@ -1281,20 +1276,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return defaultOutputCoder;
+      return source.getDefaultOutputCoder();
     }
 
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      PCollection<T> collection = Pipeline.applyTransform(
-          input, new UnboundedReadFromBoundedSource<>(source))
+      return Pipeline.applyTransform(input, new UnboundedReadFromBoundedSource<>(source))
           .setIsBoundedInternal(IsBounded.BOUNDED);
-
-      defaultOutputCoder = collection.getCoder();
-
-      return collection;
     }
   }
 

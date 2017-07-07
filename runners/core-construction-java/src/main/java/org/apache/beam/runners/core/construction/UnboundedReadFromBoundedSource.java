@@ -76,7 +76,6 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
   private final BoundedSource<T> source;
-  private Coder<T> defaultOutputCoder;
 
   /**
    * Constructs a {@link PTransform} that performs an unbounded read from a {@link BoundedSource}.
@@ -87,17 +86,13 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   public PCollection<T> expand(PBegin input) {
-    PCollection<T> collection = input.getPipeline().apply(
+    return input.getPipeline().apply(
         Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
-
-    defaultOutputCoder = collection.getCoder();
-
-    return collection;
   }
 
   @Override
   protected Coder<T> getDefaultOutputCoder() {
-    return defaultOutputCoder;
+    return source.getDefaultOutputCoder();
   }
 
   @Override
