@@ -267,6 +267,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
     public BoundedWindow window() {
       throw new UnsupportedOperationException(
           "Cannot access window outside of @ProcessElement and @OnTimer methods.");
@@ -375,6 +380,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
     public void output(OutputT output) {
       outputTo(mainOutputConsumers,
           WindowedValue.of(
@@ -461,6 +471,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public PipelineOptions getPipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
       return pipelineOptions;
     }
 
