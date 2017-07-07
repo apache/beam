@@ -22,6 +22,7 @@ import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRecordType;
 import static org.apache.beam.dsls.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
@@ -84,7 +85,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public MockedUnboundedTable addRows(Duration duration, Object... args) {
-    List<BeamSqlRow> rows = buildRows(getRecordType(), args);
+    List<BeamSqlRow> rows = buildRows(getRecordType(), Arrays.asList(args));
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;

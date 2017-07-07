@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -28,7 +29,6 @@ import org.apache.beam.sdk.transforms.DoFn;
  * Test utilities.
  */
 public class TestUtils {
-
   /**
    * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}.
    */
@@ -116,6 +116,16 @@ public class TestUtils {
      * <p>Note: check the class javadoc for for detailed example.
      */
     public RowsBuilder addRows(final Object... args) {
+      this.rows.addAll(buildRows(type, Arrays.asList(args)));
+      return this;
+    }
+
+    /**
+     * Add rows to the builder.
+     *
+     * <p>Note: check the class javadoc for for detailed example.
+     */
+    public RowsBuilder addRows(final List args) {
       this.rows.addAll(buildRows(type, args));
       return this;
     }
@@ -169,14 +179,14 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static List<BeamSqlRow> buildRows(BeamSqlRecordType type, Object... args) {
+  public static List<BeamSqlRow> buildRows(BeamSqlRecordType type, List args) {
     List<BeamSqlRow> rows = new ArrayList<>();
     int fieldCount = type.size();
 
-    for (int i = 0; i < args.length; i += fieldCount) {
+    for (int i = 0; i < args.size(); i += fieldCount) {
       BeamSqlRow row = new BeamSqlRow(type);
       for (int j = 0; j < fieldCount; j++) {
-        row.addField(j, args[i + j]);
+        row.addField(j, args.get(i + j));
       }
       rows.add(row);
     }

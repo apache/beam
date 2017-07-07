@@ -21,6 +21,7 @@ import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRecordType;
 import static org.apache.beam.dsls.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
@@ -65,6 +66,13 @@ public class MockedBoundedTable extends MockedTable {
     return new MockedBoundedTable(buildBeamSqlRecordType(args));
   }
 
+  /**
+   * Build a mocked bounded table with the specified type.
+   */
+  public static MockedBoundedTable of(final BeamSqlRecordType type) {
+    return new MockedBoundedTable(type);
+  }
+
 
   /**
    * Add rows to the builder.
@@ -80,7 +88,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public MockedBoundedTable addRows(Object... args) {
-    List<BeamSqlRow> rows = buildRows(getRecordType(), args);
+    List<BeamSqlRow> rows = buildRows(getRecordType(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }
