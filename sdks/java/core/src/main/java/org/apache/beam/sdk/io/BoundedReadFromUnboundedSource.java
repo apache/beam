@@ -58,6 +58,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
           .withInitialBackoff(Duration.millis(10))
           .withMaxBackoff(Duration.standardSeconds(10));
 
+  private Coder<T> defaultOutputCoder;
+
   /**
    * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
    * of data from the given {@link UnboundedSource}.  The bound is specified as a number
@@ -114,12 +116,18 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
             }
           }));
     }
-    return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
+
+    PCollection<T> collection = read
+        .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
+
+    defaultOutputCoder = collection.getCoder();
+
+    return collection;
   }
 
   @Override
   protected Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+    return defaultOutputCoder;
   }
 
   @Override
