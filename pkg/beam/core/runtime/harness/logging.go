@@ -61,6 +61,9 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 		list := &pb.LogEntry_List{
 			LogEntries: []*pb.LogEntry{msg},
 		}
+
+		recordLogEntries(list)
+
 		if err := client.Send(list); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n%v", err, msg)
 			return err

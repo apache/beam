@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
 	"golang.org/x/oauth2/google"
@@ -36,6 +37,10 @@ var (
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+
+	// SDK options
+	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles")
+	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
 )
 
 func init() {
@@ -54,7 +59,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	// NOTE: We may set any harness options here, before exporting options
+
+	if *cpuProfiling != "" {
+		beam.PipelineOptions.Set("cpu_profiling", "true")
+		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+	}
+
+	if *sessionRecording != "" {
+		beam.PipelineOptions.Set("session_recording", "true")
+		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
+	}
+
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary to GCS.

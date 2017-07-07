@@ -114,6 +114,8 @@ func (m *DataChannel) read(ctx context.Context) {
 			panic(fmt.Errorf("channel %v bad: %v", m.port, err))
 		}
 
+		recordStreamReceive(msg)
+
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
@@ -242,6 +244,7 @@ func (w *dataWriter) Close() error {
 
 	// TODO(wcn): if this send fails, we have a data channel that's lingering that
 	// the runner is still waiting on. Need some way to identify these and resolve them.
+	recordStreamSend(msg)
 	return w.ch.client.Send(msg)
 }
 
@@ -264,6 +267,7 @@ func (w *dataWriter) Flush() error {
 		},
 	}
 	w.buf = nil
+	recordStreamSend(msg)
 	return w.ch.client.Send(msg)
 }
 
