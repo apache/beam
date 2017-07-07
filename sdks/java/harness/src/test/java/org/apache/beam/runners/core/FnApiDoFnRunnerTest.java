@@ -44,6 +44,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.runners.core.PTransformRunnerFactory.Registrar;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,16 +63,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link DoFnRunnerFactory}. */
+/** Tests for {@link FnApiDoFnRunner}. */
 @RunWith(JUnit4.class)
-public class DoFnRunnerFactoryTest {
+public class FnApiDoFnRunnerTest {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Coder<WindowedValue<String>> STRING_CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String STRING_CODER_SPEC_ID = "999L";
   private static final RunnerApi.Coder STRING_CODER_SPEC;
-  private static final String URN = "urn:org.apache.beam:dofn:java:0.1";
 
   static {
     try {
@@ -132,7 +132,7 @@ public class DoFnRunnerFactoryTest {
             Long.parseLong(mainOutputId), TestDoFn.mainOutput,
             Long.parseLong(additionalOutputId), TestDoFn.additionalOutput));
     RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn("urn:org.apache.beam:dofn:java:0.1")
+        .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
         .setParameter(Any.pack(BytesValue.newBuilder()
             .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
             .build()))
@@ -155,7 +155,7 @@ public class DoFnRunnerFactoryTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new DoFnRunnerFactory.Factory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         pTransformId,
@@ -199,8 +199,9 @@ public class DoFnRunnerFactoryTest {
   public void testRegistration() {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
-      if (registrar instanceof DoFnRunnerFactory.Registrar) {
-        assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
+      if (registrar instanceof FnApiDoFnRunner.Registrar) {
+        assertThat(registrar.getPTransformRunnerFactories(),
+            IsMapContaining.hasKey(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN));
         return;
       }
     }
