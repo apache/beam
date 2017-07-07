@@ -43,7 +43,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
    * {@link SqlTypeName#DATE}, {@link SqlTypeName#TIMESTAMP}.
    */
   private static final DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
-      .append(null, new DateTimeParser[] {
+      .append(null/*printer*/, new DateTimeParser[] {
           // date formats
           DateTimeFormat.forPattern("yy-MM-dd").getParser(),
           DateTimeFormat.forPattern("yy/MM/dd").getParser(),
