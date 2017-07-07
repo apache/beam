@@ -34,13 +34,13 @@ import org.apache.beam.sdk.util.MimeTypes;
  * '\n'} represented in {@code UTF-8} format as the record separator. Each record (including the
  * last) is terminated.
  */
-class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> {
+class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {
   @Nullable private final String header;
   @Nullable private final String footer;
 
   TextSink(
       ValueProvider<ResourceId> baseOutputFilename,
-      DynamicDestinations<UserT, DestinationT> dynamicDestinations,
+      DynamicDestinations<UserT, DestinationT, String> dynamicDestinations,
       @Nullable String header,
       @Nullable String footer,
       WritableByteChannelFactory writableByteChannelFactory) {
@@ -50,13 +50,13 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> 
   }
 
   @Override
-  public WriteOperation<String, DestinationT> createWriteOperation() {
+  public WriteOperation<DestinationT, String> createWriteOperation() {
     return new TextWriteOperation<>(this, header, footer);
   }
 
   /** A {@link WriteOperation WriteOperation} for text files. */
   private static class TextWriteOperation<DestinationT>
-      extends WriteOperation<String, DestinationT> {
+      extends WriteOperation<DestinationT, String> {
     @Nullable private final String header;
     @Nullable private final String footer;
 
@@ -67,20 +67,20 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<String, DestinationT> 
     }
 
     @Override
-    public Writer<String, DestinationT> createWriter() throws Exception {
+    public Writer<DestinationT, String> createWriter() throws Exception {
       return new TextWriter<>(this, header, footer);
     }
   }
 
   /** A {@link Writer Writer} for text files. */
-  private static class TextWriter<DestinationT> extends Writer<String, DestinationT> {
+  private static class TextWriter<DestinationT> extends Writer<DestinationT, String> {
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;
     private OutputStreamWriter out;
 
     public TextWriter(
-        WriteOperation<String, DestinationT> writeOperation,
+        WriteOperation<DestinationT, String> writeOperation,
         @Nullable String header,
         @Nullable String footer) {
       super(writeOperation, MimeTypes.TEXT);

@@ -24,10 +24,12 @@ import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -61,10 +63,10 @@ class WriteWithShardingFactory<InputT>
       AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
           transform) {
     try {
-      WriteFiles<InputT, ?, ?> replacement =
-          WriteFiles.to(
-              WriteFilesTranslation.getSink(transform),
-              WriteFilesTranslation.getFormatFunction(transform));
+      List<PCollectionView<?>> sideInputs =
+          WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+      FileBasedSink sink = WriteFilesTranslation.getSink(transform);
+      WriteFiles<InputT, ?, ?> replacement = WriteFiles.to(sink).withSideInputs(sideInputs);
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }

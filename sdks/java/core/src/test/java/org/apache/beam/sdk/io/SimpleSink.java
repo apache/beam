@@ -28,10 +28,10 @@ import org.apache.beam.sdk.util.MimeTypes;
 /**
  * A simple {@link FileBasedSink} that writes {@link String} values as lines with header and footer.
  */
-class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
+class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, String> {
   public SimpleSink(
       ResourceId tempDirectory,
-      DynamicDestinations<String, DestinationT> dynamicDestinations,
+      DynamicDestinations<String, DestinationT, String> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     super(StaticValueProvider.of(tempDirectory), dynamicDestinations, writableByteChannelFactory);
   }
@@ -50,7 +50,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       String shardTemplate,
       String suffix,
       WritableByteChannelFactory writableByteChannelFactory) {
-    DynamicDestinations<String, Void> dynamicDestinations =
+    DynamicDestinations<String, Void, String> dynamicDestinations =
         DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
                 new Params()
@@ -67,7 +67,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
   }
 
   static final class SimpleWriteOperation<DestinationT>
-      extends WriteOperation<String, DestinationT> {
+      extends WriteOperation<DestinationT, String> {
     public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
       super(sink, tempOutputDirectory);
     }
@@ -82,7 +82,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
     }
   }
 
-  static final class SimpleWriter<DestinationT> extends Writer<String, DestinationT> {
+  static final class SimpleWriter<DestinationT> extends Writer<DestinationT, String> {
     static final String HEADER = "header";
     static final String FOOTER = "footer";
 

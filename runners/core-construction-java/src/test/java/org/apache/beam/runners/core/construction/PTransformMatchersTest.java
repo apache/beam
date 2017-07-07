@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -549,15 +548,14 @@ public class PTransformMatchersTest implements Serializable {
             false);
     WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
-            new FileBasedSink<Integer, Void>(
+            new FileBasedSink<Integer, Void, Integer>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
+                DynamicFileDestinations.<Integer>constant(new FakeFilenamePolicy())) {
               @Override
-              public WriteOperation<Integer, Void> createWriteOperation() {
+              public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;
               }
-            },
-            SerializableFunctions.<Integer>identity());
+            });
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));

@@ -375,6 +375,8 @@ message WriteFilesPayload {
   bool windowed_writes = 3;
 
   bool runner_determined_sharding = 4;
+
+  map<string, SideInput> side_inputs = 5;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
