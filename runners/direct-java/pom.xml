@@ -156,7 +156,7 @@
                 <beamTestPipelineOptions>
                   [
                     "--runner=DirectRunner",
-                    "--unitTest"
+                    "--runnerDeterminedSharding=false"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
