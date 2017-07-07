@@ -20,10 +20,8 @@ package org.apache.beam.sdk.testing;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
-import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -51,14 +49,6 @@ public interface TestPipelineOptions extends PipelineOptions {
   @Nullable
   Long getTestTimeoutSeconds();
   void setTestTimeoutSeconds(Long value);
-
-  @Default.Boolean(false)
-  @Internal
-  @Hidden
-  @org.apache.beam.sdk.options.Description(
-      "Indicates whether this is an automatically-run unit test.")
-  boolean isUnitTest();
-  void setUnitTest(boolean unitTest);
 
   /**
    * Factory for {@link PipelineResult} matchers which always pass.
