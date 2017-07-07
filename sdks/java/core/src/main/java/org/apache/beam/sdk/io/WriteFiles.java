@@ -76,7 +76,9 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -164,6 +166,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    return PCollectionViews.toAdditionalInputs(sink.getDynamicDestinations().getSideInputs());
   }
 
   @Override
@@ -400,6 +407,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // destinations go to different writers.
       // In the case of unwindowed writes, the window and the pane will always be the same, and
       // the map will only have a single element.
+      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       DestinationT destination = sink.getDynamicDestinations().getDestination(c.element());
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<OutputT, DestinationT> writer = writers.get(key);
@@ -478,6 +486,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
       // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
@@ -502,7 +511,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           writers.put(destination, writer);
         }
         writeOrClose(writer, formatFunction.apply(input));
-        }
+      }
 
       // Close all writers.
       for (Map.Entry<DestinationT, Writer<OutputT, DestinationT>> entry : writers.entrySet()) {
@@ -668,6 +677,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       throw new RuntimeException(e);
     }
 
+    List<PCollectionView<?>> dynamicDestinationsSideInputs = Lists.newArrayList();
+    dynamicDestinationsSideInputs.addAll(sink.getDynamicDestinations().getSideInputs());
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
@@ -678,6 +689,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           input.apply(
               writeName,
               ParDo.of(new WriteBundles(windowedWrites, unwrittedRecordsTag, destinationCoder))
+                  .withSideInputs(dynamicDestinationsSideInputs)
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
           writeTuple
@@ -692,7 +704,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
               .apply("GroupUnwritten", GroupByKey.<ShardedKey<Integer>, UserT>create())
               .apply(
                   "WriteUnwritten",
-                  ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE)))
+                  ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE))
+                  .withSideInputs(dynamicDestinationsSideInputs))
               .setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
       results =
           PCollectionList.of(writtenBundleFiles)
@@ -778,6 +791,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         sideInputs.add(numShardsView);
       }
+      sideInputs.addAll(dynamicDestinationsSideInputs);
 
       // Finalize the write in another do-once ParDo on the singleton collection containing the
       // Writer. The results from the per-bundle writes are given as an Iterable side input.
@@ -795,6 +809,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       LOG.info("Finalizing write operation {}.", writeOperation);
+                      sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
                       // We must always output at least 1 shard, and honor user-specified numShards
                       // if
                       // set.

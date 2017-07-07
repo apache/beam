@@ -67,6 +67,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -74,6 +75,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
@@ -199,7 +201,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
   }
 
-  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
@@ -217,6 +219,54 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public abstract static class DynamicDestinations<UserT, DestinationT>
       implements HasDisplayData, Serializable {
+    interface SideInputAccessor {
+      <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
+    }
+
+    private SideInputAccessor sideInputAccessor;
+
+    static class SideInputAccessorViaProcessContext implements SideInputAccessor {
+      private DoFn<?, ?>.ProcessContext processContext;
+
+      SideInputAccessorViaProcessContext(DoFn<?, ?>.ProcessContext processContext) {
+        this.processContext = processContext;
+      }
+
+      @Override
+      public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+        return processContext.sideInput(view);
+      }
+    }
+
+    /**
+     * Override to specify that this object needs access to one or more side inputs. This side
+     * inputs must be globally windowed, as they will be accessed from the global window.
+     */
+    public List<PCollectionView<?>> getSideInputs() {
+      return Lists.newArrayList();
+    }
+
+    /**
+     * Returns the value of a given side input. The view must be present in
+     * {@link #getSideInputs()}.
+     */
+    protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      checkArgument(
+          getSideInputs().contains(view),
+          "View %s not declared in getSideInputs() (%s)",
+          view,
+          getSideInputs());
+      return sideInputAccessor.sideInput(view);
+    }
+
+    final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
+      this.sideInputAccessor = sideInputAccessor;
+    }
+
+    final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+      this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+    }
+
     /**
      * Returns an object that represents at a high level the destination being written to. May not
      * return null. A destination must have deterministic hash and equality methods defined.
@@ -249,7 +299,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
     // Gets the destination coder. If the user does not provide one, try to find one in the coder
     // registry. If no coder can be found, throws CannotProvideCoderException.
-    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
@@ -343,6 +393,11 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @SuppressWarnings("unchecked")
   public <UserT> DynamicDestinations<UserT, DestinationT> getDynamicDestinations() {
     return (DynamicDestinations<UserT, DestinationT>) dynamicDestinations;
+  }
+
+  public <UserT> void setDynamicDestinations(
+      DynamicDestinations<UserT, DestinationT> dynamicDestinations) {
+    this.dynamicDestinations = dynamicDestinations;
   }
 
   /**
@@ -932,6 +987,13 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     /** Return the WriteOperation that this Writer belongs to. */
     public WriteOperation<OutputT, DestinationT> getWriteOperation() {
       return writeOperation;
+    }
+
+    /**
+     * Return the user destination object for this writer.
+     */
+    public DestinationT getDestination() {
+      return  destination;
     }
   }
 

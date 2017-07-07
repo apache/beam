@@ -22,17 +22,21 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.WriteFilesPayload;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
 /**
@@ -58,12 +63,17 @@ public class WriteFilesTranslation {
 
   @VisibleForTesting
   static WriteFilesPayload toProto(WriteFiles<?, ?, ?> transform) {
+    Map<String, SideInput> sideInputs = Maps.newHashMap();
+    for (PCollectionView<?> view : transform.getSink().getDynamicDestinations().getSideInputs()) {
+      sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.toProto(view));
+    }
     return WriteFilesPayload.newBuilder()
         .setSink(toProto(transform.getSink()))
         .setFormatFunction(toProto(transform.getFormatFunction()))
         .setWindowedWrites(transform.isWindowedWrites())
         .setRunnerDeterminedSharding(
             transform.getNumShards() == null && transform.getSharding() == null)
+        .putAllDynamicDestinationSideInputs(sideInputs)
         .build();
   }
 
@@ -131,6 +141,28 @@ public class WriteFilesTranslation {
       throws IOException {
     return (FileBasedSink<OutputT, DestinationT>)
         sinkFromProto(getWriteFilesPayload(transform).getSink());
+  }
+
+  public static <UserT, DestinationT, OutputT>
+      List<PCollectionView<?>> getDynamicDestinationSideInputs(
+          AppliedPTransform<
+                  PCollection<UserT>, PDone, ? extends PTransform<PCollection<UserT>, PDone>>
+              transform)
+          throws IOException {
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
+    List<PCollectionView<?>> views = Lists.newArrayList();
+    Map<String, SideInput> sideInputs =
+        getWriteFilesPayload(transform).getDynamicDestinationSideInputsMap();
+    for (Map.Entry<String, SideInput> entry : sideInputs.entrySet()) {
+      views.add(
+          ParDoTranslation.viewFromProto(
+              entry.getValue(),
+              entry.getKey(),
+              transformProto,
+              sdkComponents.toComponents()));
+    }
+    return views;
   }
 
   public static <InputT, OutputT> SerializableFunction<InputT, OutputT> getFormatFunction(

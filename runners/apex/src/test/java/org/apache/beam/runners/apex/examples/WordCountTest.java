@@ -19,6 +19,9 @@ package org.apache.beam.runners.apex.examples;
 
 import com.google.common.collect.Sets;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
@@ -26,8 +29,11 @@ import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Description;
@@ -44,6 +50,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 
@@ -51,6 +58,7 @@ import org.junit.Test;
  * Windowed word count example on Apex runner.
  */
 public class WordCountTest {
+  private static Path tempFolder;
 
   static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
     private static final long serialVersionUID = 1L;
@@ -113,15 +121,25 @@ public class WordCountTest {
     p.run().waitUntilFinish();
   }
 
+  @BeforeClass
+  public static void setupClass() throws IOException {
+    tempFolder = Files.createTempDirectory("TextIOTest");
+  }
+
   @Test
   public void testWordCountExample() throws Exception {
     PipelineOptionsFactory.register(WordCountOptions.class);
     WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
     options.setRunner(TestApexRunner.class);
     options.setApplicationName("StreamingWordCount");
+
     String inputFile = WordCountTest.class.getResource("/words.txt").getFile();
     options.setInputFile(new File(inputFile).getAbsolutePath());
-    String outputFilePrefix = "target/wordcountresult.txt";
+
+    ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
+        "testWordCountExample").toAbsolutePath().toString(), true);
+    String outputFilePrefix = baseDir.resolve(
+        "target/wordcountresult.txt", StandardResolveOptions.RESOLVE_FILE).toString();
     options.setOutput(outputFilePrefix);
 
     File outFile1 = new File(outputFilePrefix + "-00000-of-00002");

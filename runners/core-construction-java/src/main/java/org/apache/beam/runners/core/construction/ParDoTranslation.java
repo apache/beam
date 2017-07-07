@@ -484,7 +484,7 @@ public class ParDoTranslation {
         });
   }
 
-  private static SideInput toProto(PCollectionView<?> view) {
+  public static SideInput toProto(PCollectionView<?> view) {
     Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder()

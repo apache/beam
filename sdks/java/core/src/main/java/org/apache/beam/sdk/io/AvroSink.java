@@ -17,93 +17,87 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.collect.ImmutableMap;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
+import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** A {@link FileBasedSink} for Avro files. */
-class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
-  private final AvroCoder<T> coder;
-  private final SerializableAvroCodecFactory codec;
-  private final ImmutableMap<String, Object> metadata;
+class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<OutputT, DestinationT> {
+  private final DynamicAvroDestinations<UserT, DestinationT> dynamicDestinations;
+  private final boolean genericRecords;
 
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
-      DynamicDestinations<T, DestinationT> dynamicDestinations,
-      AvroCoder<T> coder,
-      SerializableAvroCodecFactory codec,
-      ImmutableMap<String, Object> metadata) {
+      DynamicAvroDestinations<UserT, DestinationT> dynamicDestinations,
+      boolean genericRecords) {
     // Avro handle compression internally using the codec.
     super(outputPrefix, dynamicDestinations, CompressionType.UNCOMPRESSED);
-    this.coder = coder;
-    this.codec = codec;
-    this.metadata = metadata;
+    this.dynamicDestinations = dynamicDestinations;
+    this.genericRecords = genericRecords;
   }
 
   @Override
-  public WriteOperation<T, DestinationT> createWriteOperation() {
-    return new AvroWriteOperation<>(this, coder, codec, metadata);
+  public WriteOperation<OutputT, DestinationT> createWriteOperation() {
+    return new AvroWriteOperation<>(this, dynamicDestinations, genericRecords);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
-  private static class AvroWriteOperation<T, DestinationT> extends WriteOperation<T, DestinationT> {
-    private final AvroCoder<T> coder;
-    private final SerializableAvroCodecFactory codec;
-    private final ImmutableMap<String, Object> metadata;
+  private static class AvroWriteOperation<OutputT, DestinationT>
+      extends WriteOperation<OutputT, DestinationT> {
+    private final DynamicAvroDestinations<?, DestinationT> dynamicDestinations;
+    private final boolean genericRecords;
 
     private AvroWriteOperation(
-        AvroSink<T, DestinationT> sink,
-        AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec,
-        ImmutableMap<String, Object> metadata) {
+        AvroSink<?, DestinationT, OutputT> sink,
+        DynamicAvroDestinations<?, DestinationT> dynamicDestinations,
+        boolean genericRecords) {
       super(sink);
-      this.coder = coder;
-      this.codec = codec;
-      this.metadata = metadata;
+      this.dynamicDestinations = dynamicDestinations;
+      this.genericRecords = genericRecords;
     }
 
     @Override
-    public Writer<T, DestinationT> createWriter() throws Exception {
-      return new AvroWriter<>(this, coder, codec, metadata);
+    public Writer<OutputT, DestinationT> createWriter() throws Exception {
+      return new AvroWriter<>(this, dynamicDestinations, genericRecords);
     }
   }
 
   /** A {@link Writer Writer} for Avro files. */
-  private static class AvroWriter<T, DestinationT> extends Writer<T, DestinationT> {
-    private final AvroCoder<T> coder;
-    private DataFileWriter<T> dataFileWriter;
-    private SerializableAvroCodecFactory codec;
-    private final ImmutableMap<String, Object> metadata;
+  private static class AvroWriter<OutputT, DestinationT> extends Writer<OutputT, DestinationT> {
+    private DataFileWriter<OutputT> dataFileWriter;
+    private final DynamicAvroDestinations<?, DestinationT> dynamicDestinations;
+    private final boolean genericRecords;
 
     public AvroWriter(
-        WriteOperation<T, DestinationT> writeOperation,
-        AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec,
-        ImmutableMap<String, Object> metadata) {
+        WriteOperation<OutputT, DestinationT> writeOperation,
+        DynamicAvroDestinations<?, DestinationT> dynamicDestinations,
+        boolean genericRecords) {
       super(writeOperation, MimeTypes.BINARY);
-      this.coder = coder;
-      this.codec = codec;
-      this.metadata = metadata;
+      this.dynamicDestinations = dynamicDestinations;
+      this.genericRecords = genericRecords;
     }
 
     @SuppressWarnings("deprecation") // uses internal test functionality.
     @Override
     protected void prepareWrite(WritableByteChannel channel) throws Exception {
-      DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
-          ? new GenericDatumWriter<T>(coder.getSchema())
-          : new ReflectDatumWriter<T>(coder.getSchema());
+      DestinationT destination = getDestination();
+      CodecFactory codec = dynamicDestinations.getCodec(destination);
+      Schema schema = dynamicDestinations.getSchema(destination);
+      Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
 
-      dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec.getCodec());
+      DatumWriter<OutputT> datumWriter = genericRecords
+          ? new GenericDatumWriter<OutputT>(schema)
+          : new ReflectDatumWriter<OutputT>(schema);
+      dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();
         if (v instanceof String) {
@@ -118,11 +112,11 @@ class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
                   + v.getClass().getSimpleName());
         }
       }
-      dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
+      dataFileWriter.create(schema, Channels.newOutputStream(channel));
     }
 
     @Override
-    public void write(T value) throws Exception {
+    public void write(OutputT value) throws Exception {
       dataFileWriter.append(value);
     }
 

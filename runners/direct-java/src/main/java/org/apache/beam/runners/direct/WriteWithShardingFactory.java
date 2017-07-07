@@ -24,10 +24,17 @@ import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -36,6 +43,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -56,14 +64,67 @@ class WriteWithShardingFactory<InputT>
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
+  static final class WrappedDynamicDestinations<UserT, DestinationT>
+  extends DynamicDestinations<UserT, DestinationT> {
+    private List<PCollectionView<?>> sideInputs;
+    private DynamicDestinations<UserT, DestinationT> inner;
+
+    WrappedDynamicDestinations(DynamicDestinations<UserT, DestinationT> inner,
+                               List<PCollectionView<?>> sideInputs) {
+      this.inner = inner;
+      this.sideInputs = sideInputs;
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
+
+    @Override
+    public DestinationT getDestination(UserT element) {
+      return inner.getDestination(element);
+    }
+
+    @Override
+    public DestinationT getDefaultDestination() {
+      return inner.getDefaultDestination();
+    }
+
+    @Override
+    public Coder<DestinationT> getDestinationCoder() {
+      return inner.getDestinationCoder();
+    }
+
+    @Override
+    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+        throws CannotProvideCoderException {
+      return inner.getDestinationCoderWithDefault(registry);
+    }
+
+    @Override
+    public FilenamePolicy getFilenamePolicy(DestinationT destination) {
+      return inner.getFilenamePolicy(destination);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      inner.populateDisplayData(builder);
+    }
+  }
+
   @Override
   public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
       AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
           transform) {
     try {
+      List<PCollectionView<?>> sideInputs =
+          WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+      FileBasedSink sink = WriteFilesTranslation.getSink(transform);
+      sink.setDynamicDestinations(
+          new WrappedDynamicDestinations(sink.getDynamicDestinations(), sideInputs));
       WriteFiles<InputT, ?, ?> replacement =
           WriteFiles.to(
-              WriteFilesTranslation.getSink(transform),
+              sink,
               WriteFilesTranslation.getFormatFunction(transform));
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();

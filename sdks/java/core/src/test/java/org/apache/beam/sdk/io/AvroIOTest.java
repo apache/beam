@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -41,6 +42,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -48,6 +50,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
@@ -55,6 +58,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -77,6 +81,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -535,17 +540,118 @@ public class AvroIOTest {
     assertThat(actualElements, containsInAnyOrder(allElements.toArray()));
   }
 
+  private static final Schema.Parser parser = new Schema.Parser();
+
+  private static final String SCHEMA_TEMPLATE_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"TestTemplateSchema\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"$$full\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"$$suffix\", \"type\": [\"int\", \"null\"]},\n"
+          + " ]\n"
+          + "}";
+  private static String schemaFromPrefix(String prefix) {
+    return SCHEMA_TEMPLATE_STRING.replace("$$", prefix);
+  }
+
+  private static class TestDynamicDestinations extends DynamicAvroDestinations<String, String> {
+    ResourceId baseDir;
+    PCollectionView<Map<String, String>> schemaView;
+
+    TestDynamicDestinations(ResourceId baseDir, PCollectionView<Map<String, String>> schemaView) {
+      this.baseDir = baseDir;
+      this.schemaView = schemaView;
+    }
+
+    @Override
+    public Schema getSchema(String destination) {
+      // Return a per-destination schema.
+      String schema = sideInput(schemaView).get(destination);
+      return parser.parse(schema);
+    }
+
+    @Override
+    public Map<String, Object> getMetadata(String destination) {
+      return super.getMetadata(destination);
+    }
+
+    @Override
+    public CodecFactory getCodec(String destination) {
+      return super.getCodec(destination);
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return ImmutableList.<PCollectionView<?>>builder().add(schemaView).build();
+    }
+
+    @Override
+    public String getDestination(String element) {
+      // Destination is based on first character of string.
+      return element.substring(0, 1);
+    }
+
+    @Override
+    public String getDefaultDestination() {
+      return "";
+    }
+
+    @Override
+    public FilenamePolicy getFilenamePolicy(String destination) {
+      return DefaultFilenamePolicy.fromStandardParameters(
+          StaticValueProvider.of(baseDir.resolve("file_" + destination + ".txt",
+              StandardResolveOptions.RESOLVE_FILE)),
+          null, null, false);    }
+  }
+
+  private static class TestDynamicFormat implements SerializableFunction<String, GenericRecord> {
+    @Override
+    public GenericRecord apply(String input) {
+      String prefix = input.substring(0, 1);
+      GenericRecord record = new GenericData.Record(parser.parse(schemaFromPrefix(prefix)));
+      record.put(prefix + "full", input);
+      record.put(prefix + "suffix", input.substring(1));
+      return record;
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinations() throws Exception {
+   ResourceId baseDir = FileSystems.matchNewResource(Files.createTempDirectory(
+        tmpFolder.getRoot().toPath(), "testDynamicDestinations").toString(), true);
+
+    List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
+    Map<String, String> schemaMap = Maps.newHashMap();
+    for (String element : elements) {
+      String prefix = element.substring(0, 1);
+      schemaMap.put(prefix, schemaFromPrefix(prefix));
+    }
+    PCollectionView<Map<String, String>> schemaView =
+        p.apply("createSchemaView", Create.of(schemaMap)).apply(View.<String, String>asMap());
+
+    PCollection<String> input =
+        p.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
+    input.apply(AvroIO.writeCustomType(new TestDynamicFormat(), true)
+        .to(new TestDynamicDestinations(baseDir, schemaView))
+        .withTempDirectory(baseDir));
+    p.run();
+  }
+
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
-    AvroIO.Write<String> write = AvroIO.write(String.class).to("/tmp/foo/baz");
-    assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
+    AvroIO.Write<String> write = AvroIO.write(String.class)
+        .to("/tmp/foo/baz");
+    assertEquals(CodecFactory.deflateCodec(6).toString(), write.inner.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
-    AvroIO.Write<String> write =
-        AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.snappyCodec());
-    assertEquals(SNAPPY_CODEC, write.getCodec().toString());
+    AvroIO.Write<String> write = AvroIO.write(String.class)
+        .to("/tmp/foo/baz")
+        .withCodec(CodecFactory.snappyCodec());
+    assertEquals(SNAPPY_CODEC, write.inner.getCodec().toString());
   }
 
   @Test
@@ -556,7 +662,7 @@ public class AvroIOTest {
 
     assertEquals(
         CodecFactory.deflateCodec(9).toString(),
-        SerializableUtils.clone(write.getCodec()).getCodec().toString());
+        SerializableUtils.clone(write.inner.getCodec()).getCodec().toString());
   }
 
   @Test
@@ -567,7 +673,7 @@ public class AvroIOTest {
 
     assertEquals(
         CodecFactory.xzCodec(9).toString(),
-        SerializableUtils.clone(write.getCodec()).getCodec().toString());
+        SerializableUtils.clone(write.inner.getCodec()).getCodec().toString());
   }
 
   @Test
@@ -618,7 +724,8 @@ public class AvroIOTest {
 
     String shardNameTemplate =
         firstNonNull(
-            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+            write.inner.getShardTemplate(),
+            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
 
     assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
   }
@@ -710,7 +817,13 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
-    assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "schema",
+            "{\"type\":\"record\",\"name\":\"GenericClass\",\"namespace\":\"org.apache.beam.sdk.io"
+            + ".AvroIOTest$\",\"fields\":[{\"name\":\"intField\",\"type\":\"int\"},"
+            + "{\"name\":\"stringField\",\"type\":\"string\"}]}"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
   }
