@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"runtime"
+	rt "runtime"
 	"unsafe"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
@@ -146,11 +147,11 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 
 	case u.Recv != nil:
 		t := reflect.TypeOf(u.Recv)
-		k, ok := graph.Key(reflectx.SkipPtr(t))
+		k, ok := runtime.TypeKey(reflectx.SkipPtr(t))
 		if !ok {
 			return nil, fmt.Errorf("bad recv: %v", u.Recv)
 		}
-		if _, ok := graph.Lookup(k); !ok {
+		if _, ok := runtime.LookupType(k); !ok {
 			return nil, fmt.Errorf("recv type must be registered: %v", t)
 		}
 		typ, err := encodeType(t)
@@ -192,7 +193,7 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 // EncodeUserFn translates the preprocessed representation of a Beam user function
 // into the wire representation, capturing all the inputs and outputs needed.
 func EncodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
-	symbol := runtime.FuncForPC(uintptr(u.Fn.Pointer())).Name()
+	symbol := rt.FuncForPC(uintptr(u.Fn.Pointer())).Name()
 	t, err := encodeType(u.Fn.Type())
 	if err != nil {
 		return nil, fmt.Errorf("encode: bad function type: %v", err)
@@ -301,8 +302,8 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
 	case reflect.Struct:
-		if k, ok := graph.Key(t); ok {
-			if _, present := graph.Lookup(k); present {
+		if k, ok := runtime.TypeKey(t); ok {
+			if _, present := runtime.LookupType(k); present {
 				// External type. Serialize by key and lookup in registry
 				// on decoding side.
 
@@ -507,7 +508,7 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		return ret, nil
 
 	case v1.Type_EXTERNAL:
-		ret, ok := graph.Lookup(t.ExternalKey)
+		ret, ok := runtime.LookupType(t.ExternalKey)
 		if !ok {
 			return nil, fmt.Errorf("external key not found: %v", t.ExternalKey)
 		}
@@ -734,11 +735,11 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		window, err := EncodeWindow(c.Window)
+		w, err := EncodeWindow(c.Window)
 		if err != nil {
 			return nil, err
 		}
-		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, window}, IsWrapper: true}, nil
+		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
 
 	case coder.Bytes:
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
@@ -808,13 +809,13 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		window, err := DecodeWindow(c.Components[1])
+		w, err := DecodeWindow(c.Components[1])
 		if err != nil {
 			return nil, err
 		}
 		t := typex.New(typex.WindowedValueType, elm.T)
 
-		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: window}, nil
+		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
 
 	case streamType:
 		return nil, fmt.Errorf("stream must be pair value: %+v", c)

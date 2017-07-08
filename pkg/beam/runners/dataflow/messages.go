@@ -20,7 +20,7 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 // pipelineOptions models Job/Environment/SdkPipelineOptions
 type pipelineOptions struct {
 	DisplayData []*displayData `json:"display_data,omitempty"`
-	// Options interface{} `json:"options,omitempty"`
+	Options     interface{}    `json:"options,omitempty"`
 }
 
 // NOTE(herohde) 2/9/2017: most of the v1b3 messages are weakly-typed json
