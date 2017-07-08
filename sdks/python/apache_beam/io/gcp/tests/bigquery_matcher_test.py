@@ -53,7 +53,7 @@ class BigqueryMatcherTest(unittest.TestCase):
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project',
         'mock_query',
-        'da39a3ee5e6b4b0d3255bfef95601890afd80709')
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8')
     hc_assert_that(self._mock_result, matcher)
 
   @patch.object(bigquery, 'Client')
