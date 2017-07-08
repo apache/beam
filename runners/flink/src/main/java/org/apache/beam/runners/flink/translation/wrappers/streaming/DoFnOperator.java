@@ -23,6 +23,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -802,13 +803,21 @@ public class DoFnOperator<InputT, OutputT>
 
       tagToLabel = transformTupleTagsToLabels(mainTag, mapping);
 
+      ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> labelsToCodersBuilder =
+          ImmutableMap.builder();
+      for (Map.Entry<TupleTag<?>, Integer> entry : tagToLabel.entrySet()) {
+        labelsToCodersBuilder.put(entry.getValue(), coderMapping.get(entry.getKey()));
+      }
+
       StateTag<BagState<KV<Integer, WindowedValue<?>>>> bufferTag =
-          StateTags.bag("bundle-buffer-tag", new TaggedKvCoder(tagToLabel, coderMapping));
+          StateTags.bag("bundle-buffer-tag", new TaggedKvCoder(labelsToCodersBuilder.build()));
       bufferState = stateInternals.state(StateNamespaces.global(), bufferTag);
     }
 
     /**
-     * Transform TupleTags to labels. Integer is easier to serialize than TupleTag.
+     * Transform TupleTags to labels. The list of outputs is ordered, so we can associate output tags with index and
+     * Integer is easier to serialize than TupleTag.
+     *
      * Returns a BiMap for easier reversal query.
      */
     private static BiMap<TupleTag<?>, Integer> transformTupleTagsToLabels(
@@ -874,20 +883,16 @@ public class DoFnOperator<InputT, OutputT>
    */
   private static class TaggedKvCoder extends StructuredCoder<KV<Integer, WindowedValue<?>>> {
 
-    private BiMap<TupleTag<?>, Integer> tagToLabel;
-    private Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping;
+    private Map<Integer, Coder<WindowedValue<?>>> labelsToCoders;
 
-    TaggedKvCoder(
-        BiMap<TupleTag<?>, Integer> tagToLabel,
-        Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping) {
-      this.tagToLabel = tagToLabel;
-      this.coderMapping = coderMapping;
+    TaggedKvCoder(Map<Integer, Coder<WindowedValue<?>>> labelsToCoders) {
+      this.labelsToCoders = labelsToCoders;
     }
 
     @Override
     public void encode(KV<Integer, WindowedValue<?>> kv, OutputStream out)
         throws IOException {
-      Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(kv.getKey()));
+      Coder<WindowedValue<?>> coder = labelsToCoders.get(kv.getKey());
       VarIntCoder.of().encode(kv.getKey(), out);
       coder.encode(kv.getValue(), out);
     }
@@ -896,7 +901,7 @@ public class DoFnOperator<InputT, OutputT>
     public KV<Integer, WindowedValue<?>> decode(InputStream in)
         throws IOException {
       Integer label = VarIntCoder.of().decode(in);
-      Coder<WindowedValue<?>> coder = coderMapping.get(tagToLabel.inverse().get(label));
+      Coder<WindowedValue<?>> coder = labelsToCoders.get(label);
       WindowedValue<?> value = coder.decode(in);
       return KV.<Integer, WindowedValue<?>>of(label, value);
     }
