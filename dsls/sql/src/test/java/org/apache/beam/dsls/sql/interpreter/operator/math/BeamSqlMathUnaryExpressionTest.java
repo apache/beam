@@ -293,4 +293,22 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlSignExpression(operands).evaluate(record).getValue());
   }
 
+  @Test public void testForPi() {
+    Assert.assertEquals(Math.PI, new BeamSqlPiExpression().evaluate(record).getValue());
+  }
+
+  @Test public void testForCeil() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.68687979));
+    Assert.assertEquals(Math.ceil(2.68687979),
+        new BeamSqlCeilExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForFloor() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.68687979));
+    Assert.assertEquals(Math.floor(2.68687979),
+        new BeamSqlFloorExpression(operands).evaluate(record).getValue());
+  }
+
 }

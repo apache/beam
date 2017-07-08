@@ -1,19 +1,17 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
-import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
-
 
 /**
  * Base class for the PI function.
  */
 public class BeamSqlPiExpression extends BeamSqlExpression {
 
-  public BeamSqlPiExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.ANY);
+  public BeamSqlPiExpression() {
+    this.outputType = SqlTypeName.DOUBLE;
   }
 
   @Override public boolean accept() {
