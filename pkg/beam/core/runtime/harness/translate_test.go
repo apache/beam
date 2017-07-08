@@ -4,7 +4,7 @@ import (
 	"reflect"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
@@ -36,7 +36,7 @@ func (s symlookup) Sym2Addr(name string) (uintptr, error) {
 var fakeSymbols symlookup
 
 func init() {
-	graph.Register(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
 	graphx.SymbolResolver = fakeSymbols
 }
 

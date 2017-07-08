@@ -1,8 +1,6 @@
 package beam
 
-import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-)
+import "github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 
 // Pipeline manages a directed acyclic graph of primitive PTransforms, and the
 // PCollections that the PTransforms consume and produce. Each Pipeline is

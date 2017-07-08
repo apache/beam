@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 )
@@ -13,7 +13,7 @@ import (
 // TODO(herohde) 6/27/2017: find a better home for this functionality.
 
 func init() {
-	graph.Register(reflect.TypeOf((*DataFnValue)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*DataFnValue)(nil)).Elem())
 }
 
 // DataFnValue is a serialization-wrapper of a function reference. Given that the

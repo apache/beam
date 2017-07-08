@@ -1,4 +1,4 @@
-package graph
+package runtime
 
 import (
 	"fmt"
@@ -9,13 +9,17 @@ import (
 
 var types = make(map[string]reflect.Type)
 
-// Register inserts "external" structs into a global type registry to bypass
+// RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
 // init() only.
-func Register(t reflect.Type) {
+func RegisterType(t reflect.Type) {
+	if initialized {
+		panic("Init hooks have already run. Register type during init() instead.")
+	}
+
 	t = reflectx.SkipPtr(t)
 
-	k, ok := Key(t)
+	k, ok := TypeKey(t)
 	if !ok {
 		panic(fmt.Sprintf("invalid registration type: %v", t))
 	}
@@ -26,15 +30,15 @@ func Register(t reflect.Type) {
 	types[k] = t
 }
 
-// Lookup looks up a type in the global type registry by external key.
-func Lookup(key string) (reflect.Type, bool) {
+// LookupType looks up a type in the global type registry by external key.
+func LookupType(key string) (reflect.Type, bool) {
 	t, ok := types[key]
 	return t, ok
 }
 
-// Key returns the external key of a given type. Returns false if not a
+// TypeKey returns the external key of a given type. Returns false if not a
 // candidate for registration.
-func Key(t reflect.Type) (string, bool) {
+func TypeKey(t reflect.Type) (string, bool) {
 	if t.PkgPath() == "" || t.Name() == "" {
 		return "", false // no pre-declared or unnamed types
 	}

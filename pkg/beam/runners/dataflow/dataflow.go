@@ -54,6 +54,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
+	// NOTE: We may set any harness options here, before exporting options
+	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary to GCS.
 
@@ -88,6 +90,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: findPipelineFlags(),
+				Options:     options,
 			}),
 			WorkerPools: []*df.WorkerPool{{
 				Kind: "harness",
