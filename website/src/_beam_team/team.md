@@ -92,6 +92,12 @@ members:
     organization: data Artisans
     roles: committer, PMC
     time_zone: "+1"
+  - name: Jingsong Lee
+    apache_id: lzljs3620320
+    email: lzljs3620320 [at] apache [dot] org
+    organization: Alibaba
+    roles: committer
+    time_zone: "+8"
   - name: Stas Levin
     apache_id: staslevin
     email: staslevin [at] apache [dot] org
@@ -146,10 +152,4 @@ members:
     organization: PayPal
     roles: committer
     time_zone: "+2"
-  - name: Jingsong Lee
-    apache_id: lzljs3620320
-    email: lzljs3620320 [at] apache [dot] org
-    organization: Alibaba
-    roles: committer
-    time_zone: "+8"
 ---
