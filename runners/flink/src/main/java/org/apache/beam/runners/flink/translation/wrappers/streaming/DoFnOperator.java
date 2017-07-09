@@ -815,10 +815,10 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     /**
-     * Transform TupleTags to labels. The list of outputs is ordered, so we can associate output tags with index and
-     * Integer is easier to serialize than TupleTag.
+     * Transform TupleTags to labels. The list of outputs is ordered, so we can associate output
+     * tags with index and Integer is easier to serialize than TupleTag.
      *
-     * Returns a BiMap for easier reversal query.
+     * <p>Returns a BiMap for easier reversal query.
      */
     private static BiMap<TupleTag<?>, Integer> transformTupleTagsToLabels(
         TupleTag<?> mainTag,
