@@ -110,7 +110,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
-            CalciteUtils.toBeamRecordType(getRowType()), getAggCallList())));
+            CalciteUtils.toBeamRecordType(getRowType()), getAggCallList(), windowFieldIdx)));
     mergedStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
 
     return mergedStream;
