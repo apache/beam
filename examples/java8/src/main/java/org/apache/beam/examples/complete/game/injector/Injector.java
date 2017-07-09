@@ -167,7 +167,7 @@ class Injector {
       return startTimeInMillis;
     }
     long getEndTimeInMillis() {
-      return startTimeInMillis + (expirationPeriod * 60 * 1000);
+      return startTimeInMillis + (expirationPeriod * 60L * 1000L);
     }
     String getRandomUser() {
       int userNum = random.nextInt(numMembers);
