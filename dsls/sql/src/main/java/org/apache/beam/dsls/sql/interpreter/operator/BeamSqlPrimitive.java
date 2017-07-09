@@ -97,6 +97,10 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     return (Date) getValue();
   }
 
+  public BigDecimal getDecimal() {
+    return (BigDecimal) getValue();
+  }
+
   @Override
   public boolean accept() {
     if (value == null) {

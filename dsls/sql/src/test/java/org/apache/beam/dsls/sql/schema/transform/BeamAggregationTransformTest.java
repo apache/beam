@@ -122,7 +122,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
 
     //4. flat KV to a single record
     PCollection<BeamSqlRow> mergedStream = aggregatedStream.apply("mergeRecord",
-        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls)));
+        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls, -1)));
     mergedStream.setCoder(outRecordCoder);
 
     //assert function BeamAggregationTransform.AggregationGroupByKeyFn
