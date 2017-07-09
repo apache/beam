@@ -59,13 +59,16 @@ public class BeamAggregationTransforms implements Serializable{
   public static class MergeAggregationRecord extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
     private BeamSqlRecordType outRecordType;
     private List<String> aggFieldNames;
+    private int windowStartFieldIdx;
 
-    public MergeAggregationRecord(BeamSqlRecordType outRecordType, List<AggregateCall> aggList) {
+    public MergeAggregationRecord(BeamSqlRecordType outRecordType, List<AggregateCall> aggList
+        , int windowStartFieldIdx) {
       this.outRecordType = outRecordType;
       this.aggFieldNames = new ArrayList<>();
       for (AggregateCall ac : aggList) {
         aggFieldNames.add(ac.getName());
       }
+      this.windowStartFieldIdx = windowStartFieldIdx;
     }
 
     @ProcessElement
@@ -79,6 +82,9 @@ public class BeamAggregationTransforms implements Serializable{
       }
       for (int idx = 0; idx < aggFieldNames.size(); ++idx) {
         outRecord.addField(aggFieldNames.get(idx), kvRecord.getValue().getFieldValue(idx));
+      }
+      if (windowStartFieldIdx != -1) {
+        outRecord.addField(windowStartFieldIdx, outRecord.getWindowStart().toDate());
       }
 
       c.output(outRecord);
