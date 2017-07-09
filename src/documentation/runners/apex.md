@@ -42,9 +42,9 @@ The following example will reduce the number of required containers by collocati
 and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.
 
 ```
-dt.application.*.operator.*.attr.MEMORY_MB=64
-dt.stream.*.prop.locality=CONTAINER_LOCAL
-dt.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
+apex.application.*.operator.*.attr.MEMORY_MB=64
+apex.stream.*.prop.locality=CONTAINER_LOCAL
+apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
 ```
 
 
