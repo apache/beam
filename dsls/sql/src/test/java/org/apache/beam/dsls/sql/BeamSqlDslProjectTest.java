@@ -160,4 +160,18 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testProjectUnknwoField() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int_na FROM TABLE_A";
+
+    PCollection<BeamSqlRow> result =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
+        .apply("testProjectUnknwoField", BeamSql.query(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
 }
