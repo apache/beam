@@ -86,7 +86,7 @@ import org.slf4j.LoggerFactory;
  * not interesting.
  */
 @SuppressWarnings("rawtypes")
-public class ApiSurface {
+public abstract  class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
   /** A factory method to create a {@link Class} matcher for classes residing in a given package. */
@@ -321,25 +321,26 @@ public class ApiSurface {
   ///////////////
 
   /** Returns an empty {@link ApiSurface}. */
-  public static ApiSurface empty() {
+  private  ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
-    return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
+    return ofRootClassesAndPatternsToPrune(Collections.<Class<?>>emptySet(),
+            Collections.<Pattern>emptySet());
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public static ApiSurface ofPackage(String packageName, ClassLoader classLoader)
+  public  ApiSurface ofPackage(String packageName, ClassLoader classLoader)
       throws IOException {
-    return ApiSurface.empty().includingPackage(packageName, classLoader);
+    return empty().includingPackage(packageName, classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public static ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
+  public  ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
     return ofPackage(aPackage.getName(), classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing just the surface of the given class. */
-  public static ApiSurface ofClass(Class<?> clazz) {
-    return ApiSurface.empty().includingClass(clazz);
+  public  ApiSurface ofClass(Class<?> clazz) {
+    return empty().includingClass(clazz);
   }
 
   /**
@@ -368,7 +369,7 @@ public class ApiSurface {
     LOG.debug("Including package {} and subpackages: {}", packageName, newRootClasses);
     newRootClasses.addAll(rootClasses);
 
-    return new ApiSurface(newRootClasses, patternsToPrune);
+    return ofRootClassesAndPatternsToPrune(newRootClasses, patternsToPrune);
   }
 
   /** Returns an {@link ApiSurface} like this one, but also including the given class. */
@@ -377,7 +378,7 @@ public class ApiSurface {
     LOG.debug("Including class {}", clazz);
     newRootClasses.add(clazz);
     newRootClasses.addAll(rootClasses);
-    return new ApiSurface(newRootClasses, patternsToPrune);
+    return ofRootClassesAndPatternsToPrune(newRootClasses, patternsToPrune);
   }
 
   /**
@@ -408,7 +409,7 @@ public class ApiSurface {
     Set<Pattern> newPatterns = Sets.newHashSet();
     newPatterns.addAll(patternsToPrune);
     newPatterns.add(pattern);
-    return new ApiSurface(rootClasses, newPatterns);
+    return ofRootClassesAndPatternsToPrune(rootClasses, newPatterns);
   }
 
   /** See {@link #pruningPattern(Pattern)}. */
@@ -419,6 +420,9 @@ public class ApiSurface {
   /** Returns all public classes originally belonging to the package in the {@link ApiSurface}. */
   public Set<Class<?>> getRootClasses() {
     return rootClasses;
+  }
+  public Set<Pattern> getPatternsToPrune(){
+    return patternsToPrune;
   }
 
   /** Returns exposed types in this set, including arrays and primitives as specified. */
@@ -496,7 +500,7 @@ public class ApiSurface {
   private Pattern prunedPattern = null;
   private Set<Type> visited = null;
 
-  private ApiSurface(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
+  protected ApiSurface(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
     this.rootClasses = rootClasses;
     this.patternsToPrune = patternsToPrune;
   }
@@ -821,19 +825,15 @@ public class ApiSurface {
   private boolean exposed(int modifiers) {
     return 0 != (modifiers & (Modifier.PUBLIC | Modifier.PROTECTED));
   }
-
-  ////////////////////////////////////////////////////////////////////////////
-
   /**
-   * All classes transitively reachable via only public method signatures of the SDK.
-   *
-   * <p>Note that our idea of "public" does not include various internal-only APIs.
-   */
-  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam", classLoader)
-        .pruningPattern("org[.]apache[.]beam[.].*Test")
-        // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-        .pruningPrefix("java");
-  }
+   * This method provides the definition of the API surface for the implementing package.
+   **/
+  public abstract ApiSurface buildApiSurface() throws IOException;
+  /**
+   * Method that acts as a constructor.
+   * Since this class is Abstract this Method provides a way to instantiate objects
+   * from the subclass.
+   **/
+  protected abstract  ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
+                                                              Set<Pattern> patternsToPrune);
 }

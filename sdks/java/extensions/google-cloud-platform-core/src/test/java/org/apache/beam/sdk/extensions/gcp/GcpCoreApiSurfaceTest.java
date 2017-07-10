@@ -22,8 +22,13 @@ import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
+
+import java.util.Collections;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.sdk.util.GcpCoreApiSurface;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,14 +40,9 @@ public class GcpCoreApiSurfaceTest {
 
   @Test
   public void testGcpCoreApiSurface() throws Exception {
-    final Package thisPackage = getClass().getPackage();
-    final ClassLoader thisClassLoader = getClass().getClassLoader();
-    final ApiSurface apiSurface =
-        ApiSurface.ofPackage(thisPackage, thisClassLoader)
-            .pruningPattern("org[.]apache[.]beam[.].*Test.*")
-            .pruningPattern("org[.]apache[.]beam[.].*IT")
-            .pruningPattern("java[.]lang.*")
-            .pruningPattern("java[.]util.*");
+    final ApiSurface apiSurface = new GcpCoreApiSurface(Collections.<Class<?>>emptySet(),
+            Collections.<Pattern>emptySet())
+            .buildApiSurface();
 
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =

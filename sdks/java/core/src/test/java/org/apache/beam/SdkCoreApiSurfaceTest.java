@@ -21,8 +21,13 @@ import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
+
+import java.util.Collections;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.sdk.util.CoreSdkApiSurface;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,8 +53,9 @@ public class SdkCoreApiSurfaceTest {
             // via Avro
             "org.joda.time",
             "org.junit");
-
+    ApiSurface surface = new CoreSdkApiSurface(Collections.<Class<?>>emptySet(),
+            Collections.<Pattern>emptySet()).buildApiSurface();
     assertThat(
-        ApiSurface.getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
+        surface, containsOnlyPackages(allowed));
   }
 }
