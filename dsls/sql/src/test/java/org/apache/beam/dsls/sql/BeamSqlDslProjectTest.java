@@ -160,4 +160,19 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testProjectUnknownField() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    exceptions.expectMessage("Column 'f_int_na' not found in any table");
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int_na FROM TABLE_A";
+
+    PCollection<BeamSqlRow> result =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
+        .apply("testProjectUnknownField", BeamSql.query(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
 }
