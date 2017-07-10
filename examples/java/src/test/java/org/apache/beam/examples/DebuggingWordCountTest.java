@@ -35,6 +35,14 @@ import org.junit.runners.JUnit4;
 public class DebuggingWordCountTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  private String getFilePath(String filePath) {
+      if (filePath.contains(":")) {
+          String restPath = filePath.replace("\\", "/").split(":")[1];
+          return restPath;
+      }
+      return filePath;
+  }
+
   @Test
   public void testDebuggingWordCount() throws Exception {
     File inputFile = tmpFolder.newFile();
@@ -45,8 +53,8 @@ public class DebuggingWordCountTest {
         StandardCharsets.UTF_8);
     WordCountOptions options =
         TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
-    options.setInputFile(inputFile.getAbsolutePath());
-    options.setOutput(outputFile.getAbsolutePath());
+    options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
+    options.setOutput(getFilePath(outputFile.getAbsolutePath()));
     DebuggingWordCount.main(TestPipeline.convertToArgs(options));
   }
 }
