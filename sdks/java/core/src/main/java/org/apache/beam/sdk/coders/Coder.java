@@ -187,27 +187,21 @@ public abstract class Coder<T> implements Serializable {
   public abstract void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
-   * Verifies all of the provided coders are deterministic. If any are not, throws a {@link
+   * Verifies the provided coders is deterministic. If it is not, throws a {@link
    * NonDeterministicException} for the {@code target} {@link Coder}.
    */
-  public static void verifyDeterministic(Coder<?> target, String message, Iterable<Coder<?>> coders)
+  protected final void verifyComponentDeterministic(String message, Coder<?> component)
       throws NonDeterministicException {
-    for (Coder<?> coder : coders) {
-      try {
-        coder.verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new NonDeterministicException(target, message, e);
-      }
+    checkArgument(
+        !this.equals(component),
+        "Cannot call verifyComponentDeterministic with the current %s %s as the component",
+        Coder.class.getSimpleName(),
+        this);
+    try {
+      component.verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new NonDeterministicException(this, message, e);
     }
-  }
-
-  /**
-   * Verifies all of the provided coders are deterministic. If any are not, throws a {@link
-   * NonDeterministicException} for the {@code target} {@link Coder}.
-   */
-  public static void verifyDeterministic(Coder<?> target, String message, Coder<?>... coders)
-      throws NonDeterministicException {
-    verifyDeterministic(target, message, Arrays.asList(coders));
   }
 
   /**

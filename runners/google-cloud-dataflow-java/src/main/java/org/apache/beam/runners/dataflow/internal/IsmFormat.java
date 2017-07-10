@@ -359,9 +359,11 @@ public class IsmFormat {
 
     @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {
-      verifyDeterministic(
-          this, "Key component coders expected to be deterministic.", keyComponentCoders);
-      verifyDeterministic(this, "Value coder expected to be deterministic.", valueCoder);
+      for (Coder<?> keyComponentCoder : keyComponentCoders) {
+        verifyComponentDeterministic(
+            "Key component coders expected to be deterministic.", keyComponentCoder);
+      }
+      verifyComponentDeterministic("Value coder expected to be deterministic.", valueCoder);
     }
 
     @Override
@@ -523,7 +525,7 @@ public class IsmFormat {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(this, "Expected key coder to be deterministic", keyCoder);
+      verifyComponentDeterministic("Expected key coder to be deterministic", keyCoder);
     }
   }
 

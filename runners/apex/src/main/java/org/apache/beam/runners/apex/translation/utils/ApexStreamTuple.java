@@ -204,10 +204,8 @@ public interface ApexStreamTuple<T> {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(
-          this,
-          this.getClass().getSimpleName() + " requires a deterministic valueCoder",
-          valueCoder);
+      verifyComponentDeterministic(
+          this.getClass().getSimpleName() + " requires a deterministic valueCoder", valueCoder);
     }
 
     /**

@@ -118,8 +118,8 @@ public class TimestampedValue<V> {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(
-          this, "TimestampedValueCoder requires a deterministic valueCoder", valueCoder);
+      verifyComponentDeterministic(
+          "TimestampedValueCoder requires a deterministic valueCoder", valueCoder);
     }
 
     @Override
