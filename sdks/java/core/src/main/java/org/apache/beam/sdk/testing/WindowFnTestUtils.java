@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -67,14 +68,30 @@ public class WindowFnTestUtils {
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFn(
       WindowFn<T, W> windowFn,
       List<Long> timestamps) throws Exception {
+    // lift List<Timestamp> into List<TimestampedValue> to factorize implementation
+    List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
+    for (Long timestamp : timestamps){
+      timestampedValues.add(TimestampedValue.of((T) null, new Instant(timestamp)));
+    }
+    return runWindowFnWithValue(windowFn, timestampedValues);
 
-    final TestWindowSet<W, String> windowSet = new TestWindowSet<W, String>();
-    for (final Long timestamp : timestamps) {
-      for (W window : windowFn.assignWindows(
-          new TestAssignContext<T, W>(new Instant(timestamp), windowFn))) {
-        windowSet.put(window, timestampValue(timestamp));
+  }
+
+  /**
+   * Runs the {@link WindowFn} over the provided input, returning a map
+   * of windows to the timestamps in those windows. This version allows to pass a list of
+   * {@link TimestampedValue} in case the values are used to assign windows.
+   */
+  public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFnWithValue(
+      WindowFn<T, W> windowFn,
+      List<TimestampedValue<T>> timestampedValues) throws Exception {
+
+    final TestWindowSet<W, String> windowSet = new TestWindowSet<>();
+    for (final TimestampedValue<T> element : timestampedValues) {
+      for (W window : assignedWindowsWithValue(windowFn, element)) {
+        windowSet.put(window, timestampValue(element.getTimestamp().getMillis()));
       }
-      windowFn.mergeWindows(new TestMergeContext<T, W>(windowSet, windowFn));
+      windowFn.mergeWindows(new TestMergeContext<>(windowSet, windowFn));
     }
     Map<W, Set<String>> actual = new HashMap<>();
     for (W window : windowSet.windows()) {
@@ -83,9 +100,24 @@ public class WindowFnTestUtils {
     return actual;
   }
 
+  /**
+  * runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}.
+   */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindows(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    return windowFn.assignWindows(new TestAssignContext<T, W>(new Instant(timestamp), windowFn));
+    // lift Timestamp into TimestampedValue to factorize implementation
+    return assignedWindowsWithValue(windowFn,
+        TimestampedValue.of((T) null, new Instant(timestamp)));
+  }
+
+  /**
+   * runs {@link WindowFn#assignWindows(WindowFn.AssignContext)}. This version allows passing
+   * a {@link TimestampedValue} in case the value is needed to assign windows.
+   */
+  public static <T, W extends BoundedWindow> Collection<W> assignedWindowsWithValue(
+      WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
+    return windowFn.assignWindows(
+        new TestAssignContext<>(timestampedValue, windowFn));
   }
 
   private static String timestampValue(long timestamp) {
@@ -97,21 +129,21 @@ public class WindowFnTestUtils {
    */
   private static class TestAssignContext<T, W extends BoundedWindow>
       extends WindowFn<T, W>.AssignContext {
-    private Instant timestamp;
+    private TimestampedValue<T> timestampedValue;
 
-    public TestAssignContext(Instant timestamp, WindowFn<T, W> windowFn) {
+    public TestAssignContext(TimestampedValue<T> timestampedValue, WindowFn<T, W> windowFn) {
       windowFn.super();
-      this.timestamp = timestamp;
+      this.timestampedValue = timestampedValue;
     }
 
     @Override
     public T element() {
-      return null;
+      return timestampedValue.getValue();
     }
 
     @Override
     public Instant timestamp() {
-      return timestamp;
+      return timestampedValue.getTimestamp();
     }
 
     @Override
@@ -197,9 +229,21 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimes(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    Collection<W> windows = WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp);
+    // lift Timestamp into TimestampedValue to factorize implementation
+    validateNonInterferingOutputTimesWithValue(windowFn,
+        TimestampedValue.of((T) null, new Instant(timestamp)));
+  }
+  /**
+   * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
+   * verifies that result of {@code windowFn.getOutputTimestamp} for each window is within the
+   * proper bound. This version allows passing a {@link TimestampedValue}
+   * in case the value is needed to assign windows.
+   */
+  public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimesWithValue(
+      WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
+    Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
 
-    Instant instant = new Instant(timestamp);
+    Instant instant = timestampedValue.getTimestamp();
     for (W window : windows) {
       Instant outputTimestamp = windowFn.getOutputTime(instant, window);
       assertFalse("getOutputTime must be greater than or equal to input timestamp",
@@ -208,6 +252,7 @@ public class WindowFnTestUtils {
           outputTimestamp.isAfter(window.maxTimestamp()));
     }
   }
+
 
   /**
    * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
@@ -220,7 +265,25 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    Collection<W> windows = WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp);
+    // lift Timestamp into TimestampedValue to factorize implementation
+    validateGetOutputTimestampWithValue(windowFn,
+        TimestampedValue.of((T) null, new Instant(timestamp)));
+  }
+
+
+  /**
+   * Assigns the given {@code timestampedValue} to windows using the specified {@code windowFn}, and
+   * verifies that result of {@link WindowFn#getOutputTime windowFn.getOutputTime} for later windows
+   * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
+   * windows.
+   *
+   * <p>This verifies that overlapping windows don't interfere at all. Depending on the
+   * {@code windowFn} this may be stricter than desired. This version allows passing
+   * a {@link TimestampedValue} in case the value is needed to assign windows.
+   */
+  public static <T, W extends BoundedWindow> void validateGetOutputTimestampWithValue(
+      WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
+    Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
     List<W> sortedWindows = new ArrayList<>(windows);
     Collections.sort(sortedWindows, new Comparator<BoundedWindow>() {
       @Override
@@ -229,7 +292,7 @@ public class WindowFnTestUtils {
       }
     });
 
-    Instant instant = new Instant(timestamp);
+    Instant instant = timestampedValue.getTimestamp();
     Instant endOfPrevious = null;
     for (W window : sortedWindows) {
       Instant outputTimestamp = windowFn.getOutputTime(instant, window);
@@ -252,6 +315,7 @@ public class WindowFnTestUtils {
     }
   }
 
+
   /**
    * Verifies that later-ending merged windows from any of the timestamps hold up output of
    * earlier-ending windows, using the provided {@link WindowFn} and {@link TimestampCombiner}.
@@ -269,15 +333,46 @@ public class WindowFnTestUtils {
       TimestampCombiner timestampCombiner,
       List<List<Long>> timestampsPerWindow) throws Exception {
 
+    // lift List<List<Timestamp>> into List<List<TimestampedValue>> to factorize implementation
+    List<List<TimestampedValue<T>>> timestampValuesPerWindow = new ArrayList<>();
+    for (List<Long> timestamps : timestampsPerWindow){
+      List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
+      for (Long timestamp : timestamps){
+        TimestampedValue<T> tv = TimestampedValue.of(null, new Instant(timestamp));
+        timestampedValues.add(tv);
+      }
+      timestampValuesPerWindow.add(timestampedValues);
+    }
+    validateGetOutputTimestampsWithValue(windowFn, timestampCombiner, timestampValuesPerWindow);
+  }
+
+  /**
+   * Verifies that later-ending merged windows from any of the timestampValues hold up output of
+   * earlier-ending windows, using the provided {@link WindowFn} and {@link TimestampCombiner}.
+   *
+   * <p>Given a list of lists of timestampValues, where each list is expected to merge into a single
+   * window with end times in ascending order, assigns and merges windows for each list (as though
+   * each were a separate key/user session). Then combines each timestamp in the list according to
+   * the provided {@link TimestampCombiner}.
+   *
+   * <p>Verifies that a overlapping windows do not hold each other up via the watermark.
+   * This version allows passing {@link TimestampedValue} in case
+   * the value is needed to assign windows.
+   */
+  public static <T, W extends IntervalWindow>
+  void validateGetOutputTimestampsWithValue(
+      WindowFn<T, W> windowFn,
+      TimestampCombiner timestampCombiner,
+      List<List<TimestampedValue<T>>> timestampValuesPerWindow) throws Exception {
+
     // Assign windows to each timestamp, then merge them, storing the merged windows in
-    // a list in corresponding order to timestampsPerWindow
+    // a list in corresponding order to timestampValuesPerWindow
     final List<W> windows = new ArrayList<>();
-    for (List<Long> timestampsForWindow : timestampsPerWindow) {
+    for (List<TimestampedValue<T>> timestampValuesForWindow : timestampValuesPerWindow) {
       final Set<W> windowsToMerge = new HashSet<>();
 
-      for (long timestamp : timestampsForWindow) {
-        windowsToMerge.addAll(
-            WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp));
+      for (TimestampedValue<T> element : timestampValuesForWindow) {
+        windowsToMerge.addAll(assignedWindowsWithValue(windowFn, element));
       }
 
       windowFn.mergeWindows(windowFn.new MergeContext() {
@@ -293,16 +388,16 @@ public class WindowFnTestUtils {
       });
     }
 
-    // Map every list of input timestamps to an output timestamp
+    // Map every list of input timestampValues timestamps to an output timestamp
     final List<Instant> combinedOutputTimestamps = new ArrayList<>();
-    for (int i = 0; i < timestampsPerWindow.size(); ++i) {
-      List<Long> timestampsForWindow = timestampsPerWindow.get(i);
+    for (int i = 0; i < timestampValuesPerWindow.size(); ++i) {
+      List<TimestampedValue<T>> timestampValuesForWindow = timestampValuesPerWindow.get(i);
       W window = windows.get(i);
 
       List<Instant> outputInstants = new ArrayList<>();
-      for (long inputTimestamp : timestampsForWindow) {
+      for (TimestampedValue<T> element : timestampValuesForWindow) {
         outputInstants.add(
-            assignOutputTime(timestampCombiner, new Instant(inputTimestamp), window));
+            assignOutputTime(timestampCombiner, new Instant(element.getTimestamp()), window));
       }
 
       combinedOutputTimestamps.add(combineOutputTimes(timestampCombiner, outputInstants));
