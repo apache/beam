@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.common;
+
+package org.apache.beam.sdk.io.gcp;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -47,6 +48,7 @@ public class GcpApiSurface extends ApiSurface {
                         Collections.<Pattern>emptySet()).ofPackage(thisPackage, thisClassLoader)
                         .pruningClass(GcpApiSurface.class)
                         .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+                        .pruningPattern("org[.]apache[.]beam[.].*testing.*")
                         .pruningPattern("org[.]apache[.]beam[.].*IT")
                         .pruningPattern("java[.]lang.*")
                         .pruningPattern("java[.]util.*");

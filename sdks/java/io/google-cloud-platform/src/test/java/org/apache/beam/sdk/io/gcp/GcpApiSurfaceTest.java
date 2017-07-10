@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.apache.beam.sdk.io.gcp.common.GcpApiSurface;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
