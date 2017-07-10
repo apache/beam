@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp;
+
+
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.util.ApiSurface;
 /**
  * Specialization of {{@link ApiSurface}} that exposes the API surface for the GCP Core SDK.
  */
@@ -35,6 +38,7 @@ public class GcpCoreApiSurface extends ApiSurface {
         final ApiSurface apiSurface = new GcpCoreApiSurface(Collections.<Class<?>>emptySet(),
                 Collections.<Pattern>emptySet())
                         .ofPackage(thisPackage, thisClassLoader)
+                        .pruningClass(GcpCoreApiSurface.class)
                         .pruningPattern("org[.]apache[.]beam[.].*Test.*")
                         .pruningPattern("org[.]apache[.]beam[.].*IT")
                         .pruningPattern("java[.]lang.*")
