@@ -32,36 +32,36 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** A {@link FileBasedSink} for Avro files. */
-class AvroSink<T> extends FileBasedSink<T> {
+class AvroSink<T, DestinationT> extends FileBasedSink<T, DestinationT> {
   private final AvroCoder<T> coder;
   private final SerializableAvroCodecFactory codec;
   private final ImmutableMap<String, Object> metadata;
 
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
-      FilenamePolicy filenamePolicy,
+      DynamicDestinations<T, DestinationT> dynamicDestinations,
       AvroCoder<T> coder,
       SerializableAvroCodecFactory codec,
       ImmutableMap<String, Object> metadata) {
     // Avro handle compression internally using the codec.
-    super(outputPrefix, filenamePolicy, CompressionType.UNCOMPRESSED);
+    super(outputPrefix, dynamicDestinations, CompressionType.UNCOMPRESSED);
     this.coder = coder;
     this.codec = codec;
     this.metadata = metadata;
   }
 
   @Override
-  public WriteOperation<T> createWriteOperation() {
+  public WriteOperation<T, DestinationT> createWriteOperation() {
     return new AvroWriteOperation<>(this, coder, codec, metadata);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
-  private static class AvroWriteOperation<T> extends WriteOperation<T> {
+  private static class AvroWriteOperation<T, DestinationT> extends WriteOperation<T, DestinationT> {
     private final AvroCoder<T> coder;
     private final SerializableAvroCodecFactory codec;
     private final ImmutableMap<String, Object> metadata;
 
-    private AvroWriteOperation(AvroSink<T> sink,
+    private AvroWriteOperation(AvroSink<T, DestinationT> sink,
                                AvroCoder<T> coder,
                                SerializableAvroCodecFactory codec,
                                ImmutableMap<String, Object> metadata) {
@@ -72,19 +72,19 @@ class AvroSink<T> extends FileBasedSink<T> {
     }
 
     @Override
-    public Writer<T> createWriter() throws Exception {
+    public Writer<T, DestinationT> createWriter() throws Exception {
       return new AvroWriter<>(this, coder, codec, metadata);
     }
   }
 
   /** A {@link Writer Writer} for Avro files. */
-  private static class AvroWriter<T> extends Writer<T> {
+  private static class AvroWriter<T, DestinationT> extends Writer<T, DestinationT> {
     private final AvroCoder<T> coder;
     private DataFileWriter<T> dataFileWriter;
     private SerializableAvroCodecFactory codec;
     private final ImmutableMap<String, Object> metadata;
 
-    public AvroWriter(WriteOperation<T> writeOperation,
+    public AvroWriter(WriteOperation<T, DestinationT> writeOperation,
                       AvroCoder<T> coder,
                       SerializableAvroCodecFactory codec,
                       ImmutableMap<String, Object> metadata) {

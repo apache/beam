@@ -20,25 +20,31 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A default {@link FilenamePolicy} for windowed and unwindowed files. This policy is constructed
@@ -51,10 +57,7 @@ import org.slf4j.LoggerFactory;
  * {@code WriteOneFilePerWindow} example pipeline.
  */
 public final class DefaultFilenamePolicy extends FilenamePolicy {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultFilenamePolicy.class);
-
-  /** The default sharding name template used in {@link #constructUsingStandardParameters}. */
+  /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
   /** The default windowed sharding name template used when writing windowed files.
@@ -67,57 +70,163 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       "W-P" + DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
 
   /*
-   * pattern for both windowed and non-windowed file names
+   * pattern for both windowed and non-windowed file names.
    */
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+|W|P)");
 
+  /**
+   * Encapsulates constructor parameters to {@link DefaultFilenamePolicy}.
+   *
+   * <p>This is used as the {@code DestinationT} argument to allow {@link DefaultFilenamePolicy}
+   * objects to be dynamically generated.
+   */
+  public static class Params implements Serializable {
+    private ValueProvider<ResourceId> baseFilename;
+    private String shardTemplate;
+    boolean explicitTemplate;
+    private String suffix;
+
+    /**
+     * Construct a default Params object. The shard template will be set to the default
+     * {@link #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} value.
+     */
+    public Params() {
+      this.shardTemplate = DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
+      this.suffix = "";
+      this.explicitTemplate = false;
+    }
+
+    private Params(ValueProvider<ResourceId> baseFilename, String shardTemplate, String suffix,
+      boolean explicitTemplate) {
+      this.baseFilename = baseFilename;
+      this.shardTemplate = shardTemplate;
+      this.suffix = suffix;
+      this.explicitTemplate = explicitTemplate;
+    }
+
+    /**
+     * Specify that writes are windowed. This affects the default shard template, changing it to
+     * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE}.
+     */
+    public Params withWindowedWrites() {
+      String template = this.shardTemplate;
+      if (!explicitTemplate) {
+        template = DEFAULT_WINDOWED_SHARD_TEMPLATE;
+      }
+      return new Params(baseFilename, template, suffix, explicitTemplate);
+    }
+
+    /**
+     * Sets the base filename.
+     */
+    public Params withBaseFilename(ResourceId baseFilename) {
+      return withBaseFilename(StaticValueProvider.of(baseFilename));
+    }
+
+    /**
+     * Like {@link #withBaseFilename(ResourceId)}, but takes in a {@link ValueProvider}.
+     */
+    public Params withBaseFilename(ValueProvider<ResourceId> baseFilename) {
+      return new Params(baseFilename, shardTemplate, suffix, explicitTemplate);
+    }
+
+    /**
+     * Sets the shard template.
+     */
+    public Params withShardTemplate(String shardTemplate) {
+      return new Params(baseFilename, shardTemplate, suffix, true);
+    }
+
+    /**
+     * Sets the suffix.
+     */
+    public Params withSuffix(String suffix) {
+      return new Params(baseFilename, shardTemplate, suffix, explicitTemplate);
+    }
+  }
+
+  /**
+   * A Coder for {@link Params}.
+   */
+  public static class ParamsCoder extends AtomicCoder<Params> {
+    private static final ParamsCoder INSTANCE = new ParamsCoder();
+    private Coder<String> stringCoder = StringUtf8Coder.of();
+
+    public static ParamsCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(Params value, OutputStream outStream)
+        throws IOException {
+      if (value == null) {
+        throw new CoderException("cannot encode a null value");
+      }
+      stringCoder.encode(value.baseFilename.get().toString(), outStream);
+      stringCoder.encode(value.shardTemplate, outStream);
+      stringCoder.encode(value.suffix, outStream);
+    }
+
+    @Override
+    public Params decode(InputStream inStream) throws IOException {
+      ResourceId prefix = FileBasedSink.convertToFileResourceIfPossible(
+          stringCoder.decode(inStream));
+      String shardTemplate = stringCoder.decode(inStream);
+      String suffix = stringCoder.decode(inStream);
+      return new Params()
+          .withBaseFilename(prefix)
+          .withShardTemplate(shardTemplate)
+          .withSuffix(suffix);
+    }
+  }
+
+  private final Params params;
   /**
    * Constructs a new {@link DefaultFilenamePolicy}.
    *
    * @see DefaultFilenamePolicy for more information on the arguments to this function.
    */
   @VisibleForTesting
-  DefaultFilenamePolicy(ValueProvider<String> prefix, String shardTemplate, String suffix) {
-    this.prefix = prefix;
-    this.shardTemplate = shardTemplate;
-    this.suffix = suffix;
+  DefaultFilenamePolicy(Params params) {
+    this.params = params;
+
   }
 
   /**
-   * A helper function to construct a {@link DefaultFilenamePolicy} using the standard filename
-   * parameters, namely a provided {@link ResourceId} for the output prefix, and possibly-null
-   * shard name template and suffix.
+   * Construct a {@link DefaultFilenamePolicy}.
    *
-   * <p>Any filename component of the provided resource will be used as the filename prefix.
-   *
-   * <p>If provided, the shard name template will be used; otherwise
-   * {@link #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} will be used for non-windowed file names and
-   * {@link #DEFAULT_WINDOWED_SHARD_TEMPLATE} will be used for windowed file names.
-   *
-   * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
+   * <p>This is a shortcut for {@code DefaultFilenamePolicy.fromParams(Params
+   * .fromStandardParameters(baseFilename, shardTemplate, filenameSuffix, windowedWrites)}.
    */
-  public static DefaultFilenamePolicy constructUsingStandardParameters(
-      ValueProvider<ResourceId> outputPrefix,
+  public static DefaultFilenamePolicy fromStandardParameters(
+      ValueProvider<ResourceId> baseFilename,
       @Nullable String shardTemplate,
       @Nullable String filenameSuffix,
       boolean windowedWrites) {
-    // Pick the appropriate default policy based on whether windowed writes are being performed.
-    String defaultTemplate =
-        windowedWrites ? DEFAULT_WINDOWED_SHARD_TEMPLATE : DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
-    return new DefaultFilenamePolicy(
-        NestedValueProvider.of(outputPrefix, new ExtractFilename()),
-        firstNonNull(shardTemplate, defaultTemplate),
-        firstNonNull(filenameSuffix, ""));
+    Params params = new Params().withBaseFilename(baseFilename);
+    if (shardTemplate != null) {
+      params = params.withShardTemplate(shardTemplate);
+    }
+    if (filenameSuffix != null) {
+      params = params.withSuffix(filenameSuffix);
+    }
+    if (windowedWrites) {
+      params = params.withWindowedWrites();
+    }
+    return fromParams(params);
   }
 
-  private final ValueProvider<String> prefix;
-  private final String shardTemplate;
-  private final String suffix;
+  /**
+   * Construct a {@link DefaultFilenamePolicy} from a {@link Params} object.
+   */
+  public static DefaultFilenamePolicy fromParams(Params params) {
+    return new DefaultFilenamePolicy(params);
+  }
 
   /**
    * Constructs a fully qualified name from components.
    *
-   * <p>The name is built from a prefix, shard template (with shard numbers
+   * <p>The name is built from a base filename, shard template (with shard numbers
    * applied), and a suffix.  All components are required, but may be empty
    * strings.
    *
@@ -129,13 +238,15 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * <p>The numbers are formatted with leading zeros to match the length of the
    * repeated sequence of letters.
    *
-   * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
+   * <p>For example, if baseFilename = "path/to/output", shardTemplate = "-SSS-of-NNN", and
    * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
-   * produced:  "output-001-of-100.txt".
+   * produced:  "path/to/output-001-of-100.txt".
    */
-  static String constructName(
-      String prefix, String shardTemplate, String suffix, int shardNum, int numShards,
+  static ResourceId constructName(
+      ResourceId baseFilename, String shardTemplate, String suffix, int shardNum,
+      int numShards,
       String paneStr, String windowStr) {
+    String prefix = extractFilename(baseFilename);
     // Matcher API works with StringBuffer, rather than StringBuilder.
     StringBuffer sb = new StringBuffer();
     sb.append(prefix);
@@ -165,27 +276,32 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     m.appendTail(sb);
 
     sb.append(suffix);
-    return sb.toString();
+    return baseFilename.getCurrentDirectory().resolve(sb.toString(),
+        StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Override
   @Nullable
-  public ResourceId unwindowedFilename(ResourceId outputDirectory, Context context,
-      String extension) {
-    String filename = constructName(prefix.get(), shardTemplate, suffix, context.getShardNumber(),
-        context.getNumShards(), null, null) + extension;
-    return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+  public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+    return constructName(
+        params.baseFilename.get(),
+        params.shardTemplate,
+        params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
+        context.getShardNumber(),
+        context.getNumShards(),
+        null,
+        null);
   }
 
   @Override
-  public ResourceId windowedFilename(ResourceId outputDirectory,
-      WindowedContext context, String extension) {
+  public ResourceId windowedFilename(
+      WindowedContext context, OutputFileHints outputFileHints) {
     final PaneInfo paneInfo = context.getPaneInfo();
     String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(context.getWindow());
-    String filename = constructName(prefix.get(), shardTemplate, suffix, context.getShardNumber(),
-        context.getNumShards(), paneStr, windowStr) + extension;
-    return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+    return constructName(params.baseFilename.get(), params.shardTemplate,
+    params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
+        context.getShardNumber(), context.getNumShards(), paneStr, windowStr);
   }
 
   /*
@@ -216,24 +332,33 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     String filenamePattern;
-    if (prefix.isAccessible()) {
-      filenamePattern = String.format("%s%s%s", prefix.get(), shardTemplate, suffix);
+    if (params.baseFilename.isAccessible()) {
+      filenamePattern = String.format("%s%s%s", params.baseFilename.get(),
+          params.shardTemplate, params.suffix);
     } else {
-      filenamePattern = String.format("%s%s%s", prefix, shardTemplate, suffix);
+      filenamePattern = String.format("%s%s%s", params.baseFilename, params.shardTemplate,
+          params.suffix);
     }
-    builder.add(
-        DisplayData.item("filenamePattern", filenamePattern)
+
+    String outputPrefixString = null;
+      outputPrefixString = params.baseFilename.isAccessible()
+          ? params.baseFilename.get().toString() : params.baseFilename.toString();
+    builder.add(DisplayData.item("filenamePattern", filenamePattern)
             .withLabel("Filename Pattern"));
+    builder.add(DisplayData.item("filePrefix", outputPrefixString)
+            .withLabel("Output File Prefix"));
+    builder.add(DisplayData.item("fileSuffix", params.suffix)
+        .withLabel("Output file Suffix"));
+    builder.add(DisplayData.item("shardNameTemplate", params.shardTemplate)
+        .withLabel("Output Shard Name Template"));
   }
 
-  private static class ExtractFilename implements SerializableFunction<ResourceId, String> {
-    @Override
-    public String apply(ResourceId input) {
-      if (input.isDirectory()) {
-        return "";
-      } else {
-        return firstNonNull(input.getFilename(), "");
-      }
+
+  private static String extractFilename(ResourceId input) {
+    if (input.isDirectory()) {
+      return "";
+    } else {
+      return firstNonNull(input.getFilename(), "");
     }
   }
 }
