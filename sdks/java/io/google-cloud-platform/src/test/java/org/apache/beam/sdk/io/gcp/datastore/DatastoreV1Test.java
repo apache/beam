@@ -51,6 +51,7 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.CommitResponse;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
 import com.google.datastore.v1.GqlQuery;
@@ -682,6 +683,29 @@ public class DatastoreV1Test {
     }
   }
 
+  /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
+  @Test
+  public void testDatatoreWriterFnRetriesErrors() throws Exception {
+    List<Mutation> mutations = new ArrayList<>();
+    int numRpcs = 2;
+    for (int i = 0; i < DATASTORE_BATCH_UPDATE_ENTITIES_START * numRpcs; ++i) {
+      mutations.add(
+          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
+    }
+
+    CommitResponse successfulCommit = CommitResponse.getDefaultInstance();
+    when(mockDatastore.commit(any(CommitRequest.class))).thenReturn(successfulCommit)
+      .thenThrow(
+          new DatastoreException("commit", Code.DEADLINE_EXCEEDED, "", null))
+      .thenReturn(successfulCommit);
+
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
+        null, mockDatastoreFactory, new FakeWriteBatcher());
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBundle(mutations);
+  }
+
   /**
    * Tests {@link DatastoreV1.Read#getEstimatedSizeBytes} to fetch and return estimated size for a
    * query.
@@ -814,6 +838,31 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnWithBatchesExactMultiple() throws Exception {
     readFnTest(5 * QUERY_BATCH_LIMIT);
+  }
+
+  /** Tests that {@link ReadFn} retries after an error. */
+  @Test
+  public void testReadFnRetriesErrors() throws Exception {
+    // An empty query to read entities.
+    Query query = Query.newBuilder().setLimit(
+        Int32Value.newBuilder().setValue(1)).build();
+
+    // Use mockResponseForQuery to generate results.
+    when(mockDatastore.runQuery(any(RunQueryRequest.class)))
+        .thenThrow(
+            new DatastoreException("RunQuery", Code.DEADLINE_EXCEEDED, "", null))
+        .thenAnswer(new Answer<RunQueryResponse>() {
+          @Override
+          public RunQueryResponse answer(InvocationOnMock invocationOnMock) throws Throwable {
+            Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+            return mockResponseForQuery(q);
+          }
+        });
+
+    ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<Entity> entities = doFnTester.processBundle(query);
   }
 
   @Test
@@ -1096,7 +1145,7 @@ public class DatastoreV1Test {
     }
     @Override
     public int nextBatchSize(long timeSinceEpochMillis) {
-      return DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START;
+      return DATASTORE_BATCH_UPDATE_ENTITIES_START;
     }
   }
 }

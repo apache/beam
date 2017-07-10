@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
@@ -65,6 +66,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -236,6 +238,14 @@ public class DatastoreV1 {
    */
   @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
+
+  /**
+   * Non-retryable errors.
+   * See https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes .
+   */
+  private static final Set<Code> NON_RETRYABLE_ERRORS =
+    ImmutableSet.of(Code.FAILED_PRECONDITION, Code.INVALID_ARGUMENT, Code.PERMISSION_DENIED,
+        Code.UNAUTHENTICATED);
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
@@ -840,6 +850,14 @@ public class DatastoreV1 {
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
+      private final Counter rpcErrors =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
+      private final Counter rpcSuccesses =
+        Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+      private static final int MAX_RETRIES = 5;
+      private static final FluentBackoff RUNQUERY_BACKOFF =
+        FluentBackoff.DEFAULT
+        .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
       public ReadFn(V1Options options) {
         this(options, new V1DatastoreFactory());
@@ -855,6 +873,28 @@ public class DatastoreV1 {
       public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
+      }
+
+      private RunQueryResponse runQueryWithRetries(RunQueryRequest request) throws Exception {
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = RUNQUERY_BACKOFF.backoff();
+        while (true) {
+          try {
+            RunQueryResponse response = datastore.runQuery(request);
+            rpcSuccesses.inc();
+            return response;
+          } catch (DatastoreException exception) {
+            rpcErrors.inc();
+
+            if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
+              throw exception;
+            }
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              LOG.error("Aborting after {} retries.", MAX_RETRIES);
+              throw exception;
+            }
+          }
+        }
       }
 
       /** Read and output entities for the given query. */
@@ -878,7 +918,7 @@ public class DatastoreV1 {
           }
 
           RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
-          RunQueryResponse response = datastore.runQuery(request);
+          RunQueryResponse response = runQueryWithRetries(request);
 
           currentBatch = response.getBatch();
 
@@ -1328,6 +1368,9 @@ public class DatastoreV1 {
               exception.getCode(), exception.getMessage());
           rpcErrors.inc();
 
+          if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
+            throw exception;
+          }
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;
