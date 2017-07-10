@@ -17,17 +17,17 @@ import (
 // For example:
 //
 //    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    min := stats.Min(col)   // PCollection<int> with 1 as the only element.
+//    min := stats.Min(p, col)   // PCollection<int> with 1 as the only element.
 //
 func Min(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Min")
 
-	t, prepped := makeCombinable(p, col)
+	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
 		panic(fmt.Sprintf("Min requires a non-complex number: %v", t))
 	}
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return minSwitch(p, t, prepped)
+	return minSwitch(p, t, col)
 }

@@ -19,17 +19,17 @@ import (
 // For example:
 //
 //    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    mean := stats.Mean(col)   // PCollection<float64> with 6.8 as the only element.
+//    mean := stats.Mean(p, col)   // PCollection<float64> with 6.8 as the only element.
 //
 func Mean(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Mean")
 
-	t, prepped := makeCombinable(p, col)
+	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
 		panic(fmt.Sprintf("Mean requires a non-complex number: %v", t))
 	}
 
-	return beam.Combine(p, &meanFn{}, prepped)
+	return beam.Combine(p, &meanFn{}, col)
 }
 
 // TODO(herohde) 7/7/2017: the accumulator should be serializable with a Coder.

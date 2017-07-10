@@ -17,17 +17,17 @@ import (
 // For example:
 //
 //    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    max := stats.Max(col)   // PCollection<int> with 11 as the only element.
+//    max := stats.Max(p, col)   // PCollection<int> with 11 as the only element.
 //
 func Max(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Max")
 
-	t, prepped := makeCombinable(p, col)
+	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
 		panic(fmt.Sprintf("Max requires a non-complex number: %v", t))
 	}
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return maxSwitch(p, t, prepped)
+	return maxSwitch(p, t, col)
 }

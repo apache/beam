@@ -49,7 +49,7 @@ func main() {
 	cap := beam.ParDo(p, strings.ToUpper, words) // Library function.
 	if *short {
 		// Conditional pipeline construction. Function literals.
-		cap = filter.Filter(p, cap, func(s string) bool {
+		cap = filter.Include(p, cap, func(s string) bool {
 			return len(s) < 5
 		})
 	}

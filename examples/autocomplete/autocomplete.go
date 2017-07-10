@@ -46,7 +46,7 @@ func main() {
 	}
 	words := beam.ParDo(p, extractFn, lines)
 
-	hits := top.Globally(p, words, *n, func(a, b string) bool {
+	hits := top.Largest(p, words, *n, func(a, b string) bool {
 		return len(a) < len(b)
 	})
 	debug.Print(p, hits)

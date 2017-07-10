@@ -36,8 +36,5 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err := dotlib.Render(edges, nodes, &buf); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(*dotFile, buf.Bytes(), 0644); err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(*dotFile, buf.Bytes(), 0644)
 }

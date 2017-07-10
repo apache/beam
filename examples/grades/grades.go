@@ -27,12 +27,8 @@ func less(a, b Grade) bool {
 	return a.GPA < b.GPA
 }
 
-func greater(a, b Grade) bool {
-	return a.GPA > b.GPA
-}
-
 func alphabetically(a, b Grade) bool {
-	return a.Name > b.Name
+	return a.Name < b.Name
 }
 
 func printTopFn(list []Grade) {
@@ -64,7 +60,7 @@ func main() {
 
 	// (1) Print top 3 students overall by GPA
 
-	best := top.Globally(p, students, 3, less)
+	best := top.Largest(p, students, 3, less)
 	beam.ParDo0(p, printTopFn, best)
 
 	// (2) Print top student per initial (then ordered by name)
@@ -72,15 +68,15 @@ func main() {
 	keyed := beam.ParDo(p, func(g Grade) (string, Grade) {
 		return g.Name[:1], g
 	}, students)
-	keyedBest := top.PerKey(p, keyed, 1, less)
-	unkeyed := beam.FlattenCol(p, beam.DropKey(p, keyedBest))
+	keyedBest := top.Largest(p, keyed, 1, less)
+	unkeyed := beam.Flatten(p, beam.DropKey(p, keyedBest))
 
-	altBest := top.Globally(p, unkeyed, 30, alphabetically)
+	altBest := top.Smallest(p, unkeyed, 30, alphabetically)
 	beam.ParDo0(p, printTopFn, altBest)
 
 	// (3) Print Chad
 
-	chad := top.Globally(p, students, 1, greater)
+	chad := top.Smallest(p, students, 1, less)
 	beam.ParDo0(p, printTopFn, chad)
 
 	// (4) Print min/max/sum/mean grades

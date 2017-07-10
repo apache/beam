@@ -17,17 +17,17 @@ import (
 // For example:
 //
 //    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    sum := stats.Sum(col)   // PCollection<int> with 34 as the only element.
+//    sum := stats.Sum(p, col)   // PCollection<int> with 34 as the only element.
 //
 func Sum(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Sum")
 
-	t, prepped := makeCombinable(p, col)
+	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
 		panic(fmt.Sprintf("Sum requires a non-complex number: %v", t))
 	}
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return sumSwitch(p, t, prepped)
+	return sumSwitch(p, t, col)
 }
