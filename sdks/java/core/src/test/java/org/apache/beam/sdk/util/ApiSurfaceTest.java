@@ -43,7 +43,8 @@ import org.junit.runners.JUnit4;
 /** Functionality tests for ApiSurface. */
 @RunWith(JUnit4.class)
 public class ApiSurfaceTest {
-  private  class ApiSurfaceTestImpl extends  ApiSurface{
+    /** Test class implementation.*/
+  public  class ApiSurfaceTestImpl extends  ApiSurface{
       public ApiSurfaceTestImpl(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
           super(rootClasses, patternsToPrune);
       }
@@ -54,16 +55,16 @@ public class ApiSurfaceTest {
       }
 
       @Override
-      protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
-          return new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
-                  Collections.<Pattern>emptySet());
+      protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
+                                                           Set<Pattern> patternsToPrune) {
+          return new ApiSurfaceTestImpl(rootClasses, patternsToPrune);
       }
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private void assertExposed(final Class classToExamine, final Class... exposedClasses) {
 
-    final ApiSurface apiSurface = new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
+     ApiSurface apiSurface = new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
             Collections.<Pattern>emptySet())
             .ofClass(classToExamine)
             .pruningPrefix("java");

@@ -45,7 +45,6 @@ public class GcpCoreApiSurface extends ApiSurface {
     @Override
     protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
                                                          Set<Pattern> patternsToPrune) {
-        return new GcpCoreApiSurface(Collections.<Class<?>>emptySet(),
-                Collections.<Pattern>emptySet());
+        return new GcpCoreApiSurface(rootClasses, patternsToPrune);
     }
 }

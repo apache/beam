@@ -45,16 +45,16 @@ public class GcpApiSurface extends ApiSurface {
         ApiSurface apiSurface =
                 new GcpApiSurface(Collections.<Class<?>>emptySet(),
                         Collections.<Pattern>emptySet()).ofPackage(thisPackage, thisClassLoader)
+                        .pruningClass(GcpApiSurface.class)
                         .pruningPattern("org[.]apache[.]beam[.].*Test.*")
                         .pruningPattern("org[.]apache[.]beam[.].*IT")
                         .pruningPattern("java[.]lang.*")
                         .pruningPattern("java[.]util.*");
-        return new GcpApiSurface(apiSurface.getRootClasses(), apiSurface.getPatternsToPrune());
+        return  apiSurface;
     }
     @Override
     protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
                                                          Set<Pattern> patternsToPrune) {
-        return new CoreSdkApiSurface(Collections.<Class<?>>emptySet(),
-                Collections.<Pattern>emptySet());
+        return new CoreSdkApiSurface(rootClasses, patternsToPrune);
     }
 }

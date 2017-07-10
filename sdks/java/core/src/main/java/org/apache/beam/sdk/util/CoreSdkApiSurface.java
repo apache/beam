@@ -54,7 +54,6 @@ public class CoreSdkApiSurface extends ApiSurface {
     @Override
     protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
                                                          Set<Pattern> patternsToPrune) {
-        return new CoreSdkApiSurface(Collections.<Class<?>>emptySet(),
-                Collections.<Pattern>emptySet());
+        return new CoreSdkApiSurface(rootClasses, patternsToPrune);
     }
 }
