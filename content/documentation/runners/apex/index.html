@@ -175,9 +175,9 @@ hdfs dfs -put pom.xml /tmp/input/
 The following example will reduce the number of required containers by collocating the operators into the same container
 and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>dt.application.*.operator.*.attr.MEMORY_MB=64
-dt.stream.*.prop.locality=CONTAINER_LOCAL
-dt.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
+<div class="highlighter-rouge"><pre class="highlight"><code>apex.application.*.operator.*.attr.MEMORY_MB=64
+apex.stream.*.prop.locality=CONTAINER_LOCAL
+apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
 </code></pre>
 </div>
 
