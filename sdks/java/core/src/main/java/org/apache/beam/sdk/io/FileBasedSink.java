@@ -212,6 +212,22 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /**
+   * Returns a {@link SerializableFunction} that calls
+   * {@link #convertToFileResourceIfPossible(String)}.
+   */
+  @Experimental(Kind.FILESYSTEM)
+  public static SerializableFunction<String, ResourceId> convertToFileResourceFunction() {
+    return new FileToResourceFunction();
+  }
+
+  private static class FileToResourceFunction implements SerializableFunction<String,ResourceId> {
+    @Override
+    public ResourceId apply(String outputPrefix) {
+      return convertToFileResourceIfPossible(outputPrefix);
+    }
+  }
+
+  /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
    * underlying channel. The default is to not compress the output using
    * {@link CompressionType#UNCOMPRESSED}.

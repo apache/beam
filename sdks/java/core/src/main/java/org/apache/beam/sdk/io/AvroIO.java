@@ -340,13 +340,8 @@ public class AvroIO {
      * Like {@link #to(String)}.
      */
     public Write<T> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          new SerializableFunction<String, ResourceId>() {
-            @Override
-            public ResourceId apply(String input) {
-              return FileBasedSink.convertToFileResourceIfPossible(input);
-            }
-          }));
+      return toResource(
+          NestedValueProvider.of(outputPrefix, FileBasedSink.convertToFileResourceFunction()));
     }
 
     /**

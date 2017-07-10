@@ -35,6 +35,7 @@ import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -59,6 +60,8 @@ import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -88,16 +91,16 @@ import org.junit.runners.JUnit4;
  * Tests for AvroIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
-public class AvroIOTest {
+public class AvroIOTest implements Serializable {
 
   @Rule
-  public TestPipeline p = TestPipeline.create();
+  public final transient TestPipeline p = TestPipeline.create();
 
   @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  public transient ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testAvroIOGetName() {
@@ -146,6 +149,46 @@ public class AvroIOTest {
      .apply(AvroIO.write(GenericClass.class)
          .to(outputFile.getAbsolutePath())
          .withoutSharding());
+    p.run();
+
+    PCollection<GenericClass> input =
+        p.apply(
+            AvroIO.read(GenericClass.class)
+                .from(outputFile.getAbsolutePath()));
+
+    PAssert.that(input).containsInAnyOrder(values);
+    p.run();
+  }
+
+  /** Options with ValueProviders for testing runtime support. */
+  public interface RuntimeTestOptions extends PipelineOptions {
+    ValueProvider<String> getOutput();
+    void setOutput(ValueProvider<String> output);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadASingleRuntimeFile() throws Throwable {
+    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
+        new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+    final String outputPath = outputFile.getAbsolutePath();
+
+    RuntimeTestOptions options = p.getOptions().as(RuntimeTestOptions.class);
+    p.apply(Create.of(values))
+        .apply(AvroIO.write(GenericClass.class)
+            .to(new ValueProvider<String>() {
+              @Override
+              public String get() {
+                return outputPath;
+              }
+
+              @Override
+              public boolean isAccessible() {
+                return false;
+              }
+            })
+            .withoutSharding());
     p.run();
 
     PCollection<GenericClass> input =
@@ -316,9 +359,6 @@ public class AvroIOTest {
     }
   }
 
-  @Rule
-  public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
-
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWrite() throws Throwable {
@@ -367,7 +407,7 @@ public class AvroIOTest {
 
     FilenamePolicy policy =
         new WindowedFilenamePolicy(FileBasedSink.convertToFileResourceIfPossible(baseFilename));
-    windowedAvroWritePipeline
+    p
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
         .apply(
@@ -377,7 +417,7 @@ public class AvroIOTest {
                     StaticValueProvider.of(FileSystems.matchNewResource(baseDir.toString(), true)))
                 .withWindowedWrites()
                 .withNumShards(2));
-    windowedAvroWritePipeline.run();
+    p.run();
 
     // Validate that the data written matches the expected elements in the expected order
     List<File> expectedFiles = new ArrayList<>();
