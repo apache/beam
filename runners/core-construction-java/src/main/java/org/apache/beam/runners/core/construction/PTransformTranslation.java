@@ -55,6 +55,10 @@ public class PTransformTranslation {
   // Less well-known. And where shall these live?
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
 
+  /**
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
+   * as part of the translation for a `ParDo` side input.
+   */
   @Deprecated
   public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
 

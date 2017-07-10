@@ -728,6 +728,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
+   *
+   * @deprecated use {@link Setup} or {@link StartBundle} instead. This method will be removed in a
+   * future release.
    */
   @Deprecated
   public final void prepareForProcessing() {}
