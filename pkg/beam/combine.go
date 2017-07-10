@@ -3,7 +3,10 @@ package beam
 import (
 	"fmt"
 
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // TryCombine attempts to insert a Combine transform into the pipeline. It may fail
@@ -25,6 +28,15 @@ func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Opt
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
 	}
 
+	if typex.IsWKV(col.Type()) {
+		// If KV, we need to first insert a GBK.
+
+		col, err = TryGroupByKey(p, col)
+		if err != nil {
+			return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
+		}
+	}
+
 	in := []*graph.Node{col.n}
 	for _, s := range side {
 		in = append(in, s.Input.n)
@@ -42,9 +54,26 @@ func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Opt
 // global or per-key, depending on the input:
 //
 //    PCollection<T>        : global combine
-//    PCollection<GBK<K,V>> : per-key combine
+//    PCollection<KV<K,T>>  : per-key combine (and a GBK is inserted)
+//    PCollection<GBK<K,T>> : per-key combine
 //
 // For a per-key combine, the Combine may optionally take a key parameter.
 func Combine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombine(p, combinefn, col, opts...))
+}
+
+// FindCombineType returns the value type, A, of a global or per-key combine from
+// an incoming PCollection<A>, PCollection<KV<K,A>> or PCollection<GBK<K,A>>. The
+// value type is expected to be a concrete type.
+func FindCombineType(col PCollection) reflect.Type {
+	switch {
+	case typex.IsWKV(col.Type()):
+		return typex.SkipW(col.Type()).Components()[1].Type()
+
+	case typex.IsWGBK(col.Type()):
+		return typex.SkipW(col.Type()).Components()[1].Type()
+
+	default:
+		return typex.SkipW(col.Type()).Type()
+	}
 }

@@ -35,6 +35,34 @@ func TestCombineFn3String(t *testing.T) {
 	}
 }
 
+// TestCombineFn3RevString verifies that the accumulator correctly
+// maintains the top 3 shorest strings.
+func TestCombineFn3RevString(t *testing.T) {
+	less := func(a, b string) bool {
+		return len(a) < len(b)
+	}
+	fn := &combineFn{N: 3, Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, Reversed: true}
+
+	tests := []struct {
+		Elms     []string
+		Expected []string
+	}{
+		{[]string{}, nil},
+		{[]string{"foo"}, []string{"foo"}},
+		{[]string{"1", "2", "3", "4", "5"}, []string{"1", "2", "3"}},
+		{[]string{"a1", "b22", "c22", "d333", "e22"}, []string{"a1", "b22", "c22"}},
+	}
+
+	for _, test := range tests {
+		a := load(fn, test.Elms...)
+
+		actual := output(fn, a)
+		if !reflect.DeepEqual(actual, test.Expected) {
+			t.Errorf("CombineFn(3; %v) = %v, want %v", test.Elms, actual, test.Expected)
+		}
+	}
+}
+
 // TestCombineFnMerge verifies that accumulators merge correctly.
 func TestCombineFnMerge(t *testing.T) {
 	less := func(a, b string) bool {

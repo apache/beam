@@ -19,36 +19,56 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
 }
 
-// NOTE(herohde) 3/24/2017: the filter is an example of the user code being
-// used inside a 'generic' DoFn. The encoded form would here be a poor choice.
-
-// Filter filters the elements of a PCollection<A> based on the given function,
-// which must be of the form: A -> bool. Filter removes all element for which
+// Include filters the elements of a PCollection<A> based on the given function,
+// which must be of the form: A -> bool. Include removes all element for which
 // the filter function returns false. It returns a PCollection of the same type
 // as the input. For example:
 //
 //    words := beam.Create(p, "a", "b", "long", "alsolong")
-//    short := filter.Filter(p, words, func(s string) bool {
+//    short := filter.Include(p, words, func(s string) bool {
 //        return len(s) < 3
 //    })
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	p = p.Composite("filter.Filter")
+func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
+	p = p.Composite("filter.Include")
 
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
 
-	return beam.ParDo(p, &filterFn{Filter: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}}, col)
+	return beam.ParDo(p, &filterFn{Predicate: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}, Include: true}, col)
+}
+
+// Exclude filters the elements of a PCollection<A> based on the given function,
+// which must be of the form: A -> bool. Exclude removes all element for which
+// the filter function returns true. It returns a PCollection of the same type
+// as the input. For example:
+//
+//    words := beam.Create(p, "a", "b", "long", "alsolong")
+//    long := filter.Exclude(p, words, func(s string) bool {
+//        return len(s) < 3
+//    })
+//
+// Here, "long" will contain "long" and "alsolong" at runtime.
+func Exclude(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
+	p = p.Composite("filter.Exclude")
+
+	t := typex.SkipW(col.Type()).Type()
+	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
+
+	return beam.ParDo(p, &filterFn{Predicate: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}, Include: false}, col)
 }
 
 type filterFn struct {
-	Filter graphx.DataFnValue `json:"filter"`
+	// Filter is the predicate
+	Predicate graphx.DataFnValue `json:"predicate"`
+	// Include indicates whether to include or exclude elements that satisfy the predicate.
+	Include bool `json:"include"`
 }
 
 func (f *filterFn) ProcessElement(elm typex.T, emit func(typex.T)) {
-	ret := f.Filter.Fn.Call([]reflect.Value{reflect.ValueOf(elm)})
-	if ret[0].Bool() {
+	ret := f.Predicate.Fn.Call([]reflect.Value{reflect.ValueOf(elm)})
+	if ret[0].Bool() == f.Include {
 		emit(elm)
 	}
 }

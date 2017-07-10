@@ -22,39 +22,60 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
 }
 
-// Globally returns the top N elements of the incoming PCollection<T>, using the
-// given comparator, less : T x T -> bool. It returns a single-element
-// PCollection<[]T> with a slice of the N largest elements.
-func Globally(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Composite(fmt.Sprintf("top.Globally(%v)", n))
+// Largest returns the largest N elements either globally or per-key of the
+// incoming PCollection, depending on its type:
+//
+//    PCollection<T>        : globally
+//    PCollection<KV<K,T>>  : per-key
+//    PCollection<GBK<K,T>> : per-key
+//
+// The order is defined by the comparator, less : T x T -> bool. It returns
+// a single-element PCollection<[]T> or PCollection<K,[]T> with a slice of the
+// N largest elements either globally or per key.
+//
+// Example use:
+//
+//    col := beam.Create(p, 1, 11, 7, 5, 10)
+//    top2 := stats.Largest(p, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
+//
+func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	p = p.Composite(fmt.Sprintf("top.Largest(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
 	}
-	t := typex.SkipW(col.Type()).Type()
+	t := beam.FindCombineType(col)
 	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
 	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
-// PerKey returns the top N elements for each key of the incoming PCollection<KV<A,B>>,
-// using the given comparator, less : B x B -> bool. It returns a PCollection<KV<A,[]B>>
-// with a single slice of the N largest elements for each key.
-func PerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Composite(fmt.Sprintf("top.PerKey(%v)", n))
+// Smallest returns the smallest N elements either globally or per-key of the
+// incoming PCollection, depending on its type:
+//
+//    PCollection<T>        : globally
+//    PCollection<KV<K,T>>  : per-key
+//    PCollection<GBK<K,T>> : per-key
+//
+// The order is defined by the comparator, less : T x T -> bool. It returns
+// a single-element PCollection<[]T> or PCollection<K,[]T> with a slice of the
+// N smallest elements either globally or per key.
+//
+// Example use:
+//
+//    col := beam.Create(p, 1, 11, 7, 5, 10)
+//    bottom2 := stats.Smallest(p, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
+//
+func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	p = p.Composite(fmt.Sprintf("top.Smallest(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
 	}
-	if !typex.IsWKV(col.Type()) {
-		panic(fmt.Sprintf("type must be a KV: %v", col.Type()))
-	}
-
-	t := typex.SkipW(col.Type()).Components()[1].Type()
+	t := beam.FindCombineType(col)
 	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
-	keyed := beam.GroupByKey(p, col)
-	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, keyed)
+	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
 }
 
 // TODO(herohde) 5/25/2017: the accumulator should be serializable with a Coder.
@@ -70,10 +91,12 @@ type accum struct {
 
 // combineFn is the internal CombineFn. It maintains accumulators containing
 // sorted lists of element of the underlying type, A, up to size N, under the
-// Less ordering on A.
+// Less ordering on A. The natural order maintains the largest elements.
 type combineFn struct {
 	// Less is the < order on the underlying type, A.
 	Less graphx.DataFnValue `json:"less"`
+	// Reversed indicates whether the ordering should be reversed.
+	Reversed bool `json:"reversed"`
 	// N is the number of elements to keep.
 	N int `json:"n"`
 }
@@ -107,9 +130,15 @@ func (f *combineFn) ExtractOutput(a accum) []typex.T {
 }
 
 func (f *combineFn) trim(ret []reflect.Value) accum {
-	sort.SliceStable(ret, func(i, j int) bool {
-		return f.Less.Fn.Call([]reflect.Value{ret[j], ret[i]})[0].Bool() // uses >
-	})
+	if f.Reversed {
+		sort.SliceStable(ret, func(i, j int) bool {
+			return f.Less.Fn.Call([]reflect.Value{ret[i], ret[j]})[0].Bool() // uses <
+		})
+	} else {
+		sort.SliceStable(ret, func(i, j int) bool {
+			return f.Less.Fn.Call([]reflect.Value{ret[j], ret[i]})[0].Bool() // uses >
+		})
+	}
 	if len(ret) > f.N {
 		ret = ret[:f.N]
 	}
