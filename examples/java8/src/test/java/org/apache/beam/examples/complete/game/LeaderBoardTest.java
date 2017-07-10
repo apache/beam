@@ -276,6 +276,8 @@ public class LeaderBoardTest implements Serializable {
         .addElements(event(TestUser.RED_ONE, 4, Duration.standardMinutes(2)),
             event(TestUser.BLUE_TWO, 3, Duration.ZERO),
             event(TestUser.BLUE_ONE, 3, Duration.standardMinutes(3)))
+        // Move the watermark to the end of the window to output on time
+        .advanceWatermarkTo(baseTime.plus(TEAM_WINDOW_DURATION))
         // Move the watermark past the end of the allowed lateness plus the end of the window
         .advanceWatermarkTo(baseTime.plus(ALLOWED_LATENESS)
             .plus(TEAM_WINDOW_DURATION).plus(Duration.standardMinutes(1)))

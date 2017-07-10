@@ -23,11 +23,12 @@
 class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(context) {
+  static void setTopLevelWebsiteJobProperties(context,
+                                              String branch = 'asf-site') {
     setTopLevelJobProperties(
             context,
             'beam-site',
-            'asf-site',
+            branch,
             'beam',
             30)
   }

@@ -43,7 +43,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <gearpump.version>0.8.4-SNAPSHOT</gearpump.version>
+    <gearpump.version>0.8.4</gearpump.version>
   </properties>
 
   <profiles>
@@ -58,7 +58,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>runnable-on-service-tests</id>
+                <id>validates-runner-tests</id>
                 <phase>integration-test</phase>
                 <goals>
                   <goal>test</goal>
