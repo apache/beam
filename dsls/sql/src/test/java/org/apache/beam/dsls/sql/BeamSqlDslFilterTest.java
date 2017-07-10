@@ -75,4 +75,42 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testFromInvalidTableName1() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
+
+    PCollection<BeamSqlRow> result =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        .apply("testFromInvalidTableName1", BeamSql.query(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFromInvalidTableName2() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT * FROM PCOLLECTION_NA";
+
+    PCollection<BeamSqlRow> result = inputA1.apply(BeamSql.simpleQuery(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testInvalidFilter() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
+
+    PCollection<BeamSqlRow> result = inputA1.apply(BeamSql.simpleQuery(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
 }

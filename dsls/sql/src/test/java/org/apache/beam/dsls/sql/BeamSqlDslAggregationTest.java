@@ -257,4 +257,31 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testWindowOnNoneTimestampField() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
+        + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
+    PCollection<BeamSqlRow> result =
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        .apply("testWindowOnNoneTimestampField", BeamSql.query(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testUnsupportedDistinct() throws Exception {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<BeamSqlRow> result =
+        inputA1.apply("testUnsupportedDistinct", BeamSql.simpleQuery(sql));
+
+    pipeline.run().waitUntilFinish();
+  }
 }
