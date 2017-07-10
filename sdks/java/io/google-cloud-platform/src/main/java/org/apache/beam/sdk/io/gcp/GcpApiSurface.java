@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.sdk.util.CoreSdkApiSurface;
 
 
 /**
@@ -57,6 +56,6 @@ public class GcpApiSurface extends ApiSurface {
     @Override
     protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
                                                          Set<Pattern> patternsToPrune) {
-        return new CoreSdkApiSurface(rootClasses, patternsToPrune);
+        return new GcpApiSurface(rootClasses, patternsToPrune);
     }
 }
