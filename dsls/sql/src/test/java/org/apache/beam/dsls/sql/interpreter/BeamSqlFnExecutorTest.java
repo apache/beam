@@ -64,6 +64,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -292,7 +293,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.TRIM,
         Arrays.asList(
-            rexBuilder.makeLiteral("BOTH"),
+            rexBuilder.makeFlag(SqlTrimFunction.Flag.BOTH),
             rexBuilder.makeLiteral("HELLO"),
             rexBuilder.makeLiteral("HELLO")
         )
