@@ -30,6 +30,8 @@ package org.apache.beam.sdk.testing;
  *     }
  * </code></pre>
  */
+// CHECKSTYLE.OFF: MissingDeprecated
 @Deprecated
+// CHECKSTYLE.ONN: MissingDeprecated
 public interface StreamingIT {
 }

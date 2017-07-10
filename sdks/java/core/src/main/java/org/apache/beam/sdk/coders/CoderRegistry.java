@@ -235,7 +235,9 @@ public class CoderRegistry {
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <InputT, OutputT> Coder<OutputT> getCoder(
       TypeDescriptor<OutputT> typeDescriptor,
@@ -255,7 +257,9 @@ public class CoderRegistry {
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <InputT, OutputT> Coder<OutputT> getOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
@@ -277,7 +281,9 @@ public class CoderRegistry {
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <T, OutputT> Coder<OutputT> getCoder(
       Class<? extends T> subClass,

@@ -114,9 +114,9 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
   }
 
   /**
-   * The runner harness is meant to send the source over the Beam Fn Data API which would be
-   * consumed by the {@link #runReadLoop}. Drop this method once the runner harness sends the
-   * source instead of unpacking it from the data block of the function specification.
+   * @deprecated The runner harness is meant to send the source over the Beam Fn Data API which
+   * would be consumed by the {@link #runReadLoop}. Drop this method once the runner harness sends
+   * the source instead of unpacking it from the data block of the function specification.
    */
   @Deprecated
   public void start() throws Exception {

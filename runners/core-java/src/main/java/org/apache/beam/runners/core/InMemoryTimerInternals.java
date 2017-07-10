@@ -107,6 +107,9 @@ public class InMemoryTimerInternals implements TimerInternals {
     setTimer(TimerData.of(timerId, namespace, target, timeDomain));
   }
 
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
@@ -136,6 +139,9 @@ public class InMemoryTimerInternals implements TimerInternals {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId) {
@@ -145,6 +151,9 @@ public class InMemoryTimerInternals implements TimerInternals {
     }
   }
 
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {

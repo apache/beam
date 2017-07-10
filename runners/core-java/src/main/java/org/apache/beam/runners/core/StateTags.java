@@ -302,6 +302,9 @@ public class StateTags {
       this.spec = spec;
     }
 
+    /**
+     * @deprecated use {@link StateSpec#bind} method via {@link #getSpec} for now.
+     */
     @Override
     @Deprecated
     public StateT bind(StateTag.StateBinder binder) {

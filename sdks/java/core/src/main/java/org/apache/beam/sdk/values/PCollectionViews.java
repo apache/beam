@@ -186,7 +186,9 @@ public class PCollectionViews {
     /**
      * Returns if a default value was specified.
      */
+    // CHECKSTYLE.OFF: MissingDeprecated
     @Deprecated
+    // CHECKSTYLE.ON: MissingDeprecated
     @Internal
     public boolean hasDefault() {
       return hasDefault;

@@ -86,7 +86,9 @@ public class CreatePCollectionViewTranslation {
             PCollectionView.class.getSimpleName());
   }
 
+  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   static class CreatePCollectionViewTranslator
       implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
     @Override
@@ -113,8 +115,10 @@ public class CreatePCollectionViewTranslation {
   }
 
   /** Registers {@link CreatePCollectionViewTranslator}. */
+  // CHECKSTYLE.OFF: MissingDeprecated
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>

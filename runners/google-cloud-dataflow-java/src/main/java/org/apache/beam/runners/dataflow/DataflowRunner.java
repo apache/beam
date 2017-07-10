@@ -1292,7 +1292,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * A marker {@link DoFn} for writing the contents of a {@link PCollection} to a streaming
    * {@link PCollectionView} backend implementation.
    */
+  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
+  // CHECKSTYLE.ON: MissingDeprecated
   public static class StreamingPCollectionViewWriterFn<T> extends DoFn<Iterable<T>, T> {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
