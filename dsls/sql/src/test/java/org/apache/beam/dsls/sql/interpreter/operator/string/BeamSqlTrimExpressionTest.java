@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -43,7 +44,7 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     assertTrue(new BeamSqlTrimExpression(operands).accept());
 
     operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "LEADING"));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertTrue(new BeamSqlTrimExpression(operands).accept());
@@ -57,21 +58,21 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
 
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "LEADING"));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.LEADING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals("__hehe",
         new BeamSqlTrimExpression(operands).evaluate(record).getValue());
 
     operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "TRAILING"));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.TRAILING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals("hehe__",
         new BeamSqlTrimExpression(operands).evaluate(record).getValue());
 
     operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "BOTH"));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "__"));
     assertEquals("__",
