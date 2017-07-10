@@ -372,7 +372,7 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>findbugs-maven-plugin</artifactId>
           <configuration>
-            <skip>true</skip>
+            <!-- skip>true</skip-->
           </configuration>
         </plugin>
       </plugins>
