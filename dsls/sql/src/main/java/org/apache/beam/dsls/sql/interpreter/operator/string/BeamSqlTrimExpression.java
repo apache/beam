@@ -19,10 +19,10 @@
 package org.apache.beam.dsls.sql.interpreter.operator.string;
 
 import java.util.List;
-
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -48,7 +48,7 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
 
     if (operands.size() == 3
         && (
-        !SqlTypeName.CHAR_TYPES.contains(opType(0))
+        SqlTypeName.SYMBOL != opType(0)
             || !SqlTypeName.CHAR_TYPES.contains(opType(1))
             || !SqlTypeName.CHAR_TYPES.contains(opType(2)))
         ) {
@@ -63,16 +63,16 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
       return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
           opValueEvaluated(0, inputRecord).toString().trim());
     } else {
-      String type = opValueEvaluated(0, inputRecord);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRecord);
       String targetStr = opValueEvaluated(1, inputRecord);
       String containingStr = opValueEvaluated(2, inputRecord);
 
       switch (type) {
-        case "LEADING":
+        case LEADING:
           return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, leadingTrim(containingStr, targetStr));
-        case "TRAILING":
+        case TRAILING:
           return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, trailingTrim(containingStr, targetStr));
-        case "BOTH":
+        case BOTH:
         default:
           return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
               trailingTrim(leadingTrim(containingStr, targetStr), targetStr));
