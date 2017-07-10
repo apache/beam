@@ -24,7 +24,7 @@ Figure 1 describes the back-end steps from a SQL statement to a Beam `PTransform
 
 **Figure 1** workflow of Beam SQL DSL
 
-Given a PCollection and the query as input, first of all the input PCollections is registered as a table in the schema repository. Then it's processed as:
+Given a PCollection and the query as input, first of all the input PCollection is registered as a table in the schema repository. Then it's processed as:
 
 1. SQL query is parsed according to grammar to generate a SQL Abstract Syntax Tree;
 2. Validate against table schema, and output a logical plan represented with relational algebras;
@@ -108,7 +108,7 @@ SELECT f_int, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int, SESSION(f_time
 
 Note: distinct aggregation is not supported yet.
 
-**4. Join (inner, left_outer, right_out);**
+**4. Join (inner, left_outer, right_outer);**
 
 The scenarios of join can be categorized into 3 cases:
 
@@ -151,7 +151,7 @@ PCollection<BeamSqlRow> result =
 
 **create and specify User Defined Aggregate Function (UDAF)**
 
-A UDAF aggregates a set of grouped scalar values, and output a single scalar value. To create a UDAF function, it's required to extent `org.apache.beam.dsls.sql.schema.BeamSqlUdaf<InputT, AccumT, OutputT>`, which defines 4 methods to process an aggregation:
+A UDAF aggregates a set of grouped scalar values, and output a single scalar value. To create a UDAF function, it's required to extend `org.apache.beam.dsls.sql.schema.BeamSqlUdaf<InputT, AccumT, OutputT>`, which defines 4 methods to process an aggregation:
 
 1. init(), to create an initial accumulate value;
 2. add(), to apply a new value to existing accumulate value;
