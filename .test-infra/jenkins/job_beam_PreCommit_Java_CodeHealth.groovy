@@ -27,9 +27,8 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
-  profiles = [
+  profiles = [ // TODO: Some of these are definitely not necessary.
     'release',
-    'include-runners',
     'jenkins-precommit',
     'direct-runner',
     'dataflow-runner',
@@ -40,11 +39,12 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(','),
-    '-pl \'!sdks/python\'',
+    "-P${profiles.join(',')}",
+    "-pl '!sdks/python'",
     'checkstyle:check',
     'findbugs:check',
-    'rat:check'
+    'rat:check',
+    // TODO: Need something here for javadoc.
   ]
   goals(args.join(' '))
 }

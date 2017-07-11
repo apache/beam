@@ -27,9 +27,7 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
-  profiles = [
-    'release',
-    'include-runners',
+  profiles = [ // TODO: Is jenkins-precommit enough here?
     'jenkins-precommit',
     'direct-runner',
     'dataflow-runner',
@@ -43,7 +41,7 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
     "-P${profiles.join(',')}",
     'failsafe:integration-test',
     // TODO: PUT APPROPRIATE ARGS / OTHER PIECES OF THE INCANTATION HERE.
-    '-pl \'!sdks/python\'',
+    "-pl '!sdks/python'",
   ]
   goals(args.join(' '))
 }
