@@ -45,6 +45,16 @@ func (c Coder) String() string {
 
 // TODO: select optimal coder based on type, notably handling int, string, etc.
 
+// TODO(herohde) 7/11/2017: figure out best way to let transformation use
+// coders (like passert). For now, we just allow them to grab in the internal
+// coder. Maybe it's cleaner to pull Encode/Decode into beam instead, if
+// adequate.
+
+// UnwrapCoder returns the internal coder.
+func UnwrapCoder(c Coder) *coder.Coder {
+	return c.coder
+}
+
 // NewCoder infers a Coder for any bound full type.
 func NewCoder(t typex.FullType) Coder {
 	c, err := inferCoder(t)
@@ -107,11 +117,11 @@ func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
 // Concrete and universal custom coders both have a similar signature.
 // Conversion is handled by reflection.
 
-func jsonEnc(in typex.T) ([]byte, error) {
+func JSONEnc(in typex.T) ([]byte, error) {
 	return json.Marshal(in)
 }
 
-func jsonDec(t reflect.Type, in []byte) (typex.T, error) {
+func JSONDec(t reflect.Type, in []byte) (typex.T, error) {
 	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
 		return nil, err
@@ -120,7 +130,7 @@ func jsonDec(t reflect.Type, in []byte) (typex.T, error) {
 }
 
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
-	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
+	c, err := coder.NewCustomCoder("json", t, JSONEnc, JSONDec)
 	if err != nil {
 		return nil, fmt.Errorf("invalid coder: %v", err)
 	}

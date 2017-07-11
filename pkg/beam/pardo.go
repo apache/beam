@@ -257,3 +257,48 @@ func ParDo2(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCo
 	}
 	return ret[0], ret[1]
 }
+
+// ParDo3 inserts a ParDo with 3 outputs into the pipeline.
+func ParDo3(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
+	if len(ret) != 3 {
+		panic(fmt.Sprintf("expected 3 output. Found: %v", ret))
+	}
+	return ret[0], ret[1], ret[2]
+}
+
+// ParDo4 inserts a ParDo with 4 outputs into the pipeline.
+func ParDo4(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
+	if len(ret) != 4 {
+		panic(fmt.Sprintf("expected 4 output. Found: %v", ret))
+	}
+	return ret[0], ret[1], ret[2], ret[3]
+}
+
+// ParDo5 inserts a ParDo with 5 outputs into the pipeline.
+func ParDo5(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
+	if len(ret) != 5 {
+		panic(fmt.Sprintf("expected 5 output. Found: %v", ret))
+	}
+	return ret[0], ret[1], ret[2], ret[3], ret[4]
+}
+
+// ParDo6 inserts a ParDo with 6 outputs into the pipeline.
+func ParDo6(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
+	if len(ret) != 6 {
+		panic(fmt.Sprintf("expected 6 output. Found: %v", ret))
+	}
+	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]
+}
+
+// ParDo7 inserts a ParDo with 7 outputs into the pipeline.
+func ParDo7(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
+	if len(ret) != 7 {
+		panic(fmt.Sprintf("expected 7 output. Found: %v", ret))
+	}
+	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
+}

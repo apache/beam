@@ -10,11 +10,11 @@ func TestJSONCoder(t *testing.T) {
 	tests := []int{43, 12431235, -2, 0, 1}
 
 	for _, test := range tests {
-		data, err := jsonEnc(test)
+		data, err := JSONEnc(test)
 		if err != nil {
 			t.Fatalf("Failed to encode %v: %v", tests, err)
 		}
-		decoded, err := jsonDec(reflectx.Int, data)
+		decoded, err := JSONDec(reflectx.Int, data)
 		if err != nil {
 			t.Fatalf("Failed to decode: %v", err)
 		}
