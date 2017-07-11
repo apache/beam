@@ -55,6 +55,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -701,6 +702,49 @@ public class TextIOReadTest {
   }
 
   @Test
+  public void testReadWithOverlappingDelimiters() throws Exception {
+    Set<String> delimiters = new HashSet<>(Arrays.asList(
+        new String[] {"a", "ab", "abc", "b", "bc", "c"}));
+    runTestReadWithDataAndDelimiters("a".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("ab".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("abc".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("abca".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("abcab".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("abcabc".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("abcabca".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", "", ""));
+
+    delimiters = new HashSet<>(Arrays.asList(new String[] {"a", "aa", "aaa"}));
+    runTestReadWithDataAndDelimiters("a".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("aa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("aaa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of(""));
+    runTestReadWithDataAndDelimiters("aaaa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("aaaaa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("aaaaaa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", ""));
+    runTestReadWithDataAndDelimiters("aaaaaaa".getBytes(StandardCharsets.UTF_8),
+        delimiters, ImmutableList.of("", "", ""));
+  }
+
+  private void runTestReadWithDataAndDelimiters(byte[] data, Set<String> delimiters,
+      List<String> expectedResults) throws Exception {
+    TextSource source = prepareSourceWithDelimiters(data, delimiters);
+    List<String> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertThat(actual, containsInAnyOrder(new ArrayList<>(expectedResults).toArray(new String[0])));
+  }
+
+  @Test
   public void testSplittingSourceWithEmptyLines() throws Exception {
     TextSource source = prepareSource("\n\n\n".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
@@ -760,6 +804,13 @@ public class TextIOReadTest {
     Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
     Files.write(path, data);
     return new TextSource(ValueProvider.StaticValueProvider.of(path.toString()));
+  }
+
+  private TextSource prepareSourceWithDelimiters(byte[] data, Set<String> delimiters)
+      throws IOException {
+    Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
+    Files.write(path, data);
+    return new TextSource(ValueProvider.StaticValueProvider.of(path.toString()), delimiters);
   }
 
   @Test
