@@ -1,13 +1,13 @@
 #!groovy
 import hudson.model.Result
 
-def ghprbArgs = [
+List<Object> ghprbArgs = [
     string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
     string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),
     string(name: 'ghprbPullId', value: "${ghprbPullId}")
 ]
 
-def sha1Arg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/head")]
+List<Object> sha1Arg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/head")]
 
 try {
     javaBuildNum = -1

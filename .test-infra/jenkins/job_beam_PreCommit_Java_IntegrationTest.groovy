@@ -23,59 +23,14 @@ import common_job_properties
 mavenJob('beam_PreCommit_Java_IntegrationTest') {
   description('Part of the PreCommit Pipeline. Runs Java Failsafe integration tests.')
 
+  common_job_properties.setPipelineJobProperties(delegate, 25, "Java Integration Tests")
+
   parameters {
     stringParam(
       'buildNum',
       'N/A',
       'Build number of beam_PreCommit_Java_Build to copy from.')
-    stringParam(
-      'ghprbGhRepository',
-      'N/A',
-      'Repository name for use by ghprb plugin.')
-    stringParam(
-      'ghprbActualCommit',
-      'N/A',
-      'Commit ID for use by ghprb plugin.')
-    stringParam(
-      'ghprbPullId',
-      'N/A',
-      'PR # for use by ghprb plugin.')
   }
-
-  // Set JDK version.
-  jdk('JDK 1.8 (latest)')
-
-  // Restrict this project to run only on Jenkins executors as specified
-  label('beam')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  wrappers {
-    timeout {
-      absolute(20)
-      abortBuild()
-    }
-    credentialsBinding {
-      string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-    }
-    downstreamCommitStatus {
-      context('Jenkins: Java Integration Tests')
-      triggeredStatus("Java Integration Tests Pending")
-      startedStatus("Running Java Integration Tests")
-      statusUrl()
-      completedStatus('SUCCESS', "Java Integration Tests Passed")
-      completedStatus('FAILURE', "Java Integration Tests Failed")
-      completedStatus('ERROR', "Error Executing Java Integration Tests")
-    }
-    // Set SPARK_LOCAL_IP for spark tests.
-    environmentVariables {
-      env('SPARK_LOCAL_IP', '127.0.0.1')
-    }
-  }
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
 
   preBuildSteps {
     copyArtifacts("beam_PreCommit_Java_Build") {

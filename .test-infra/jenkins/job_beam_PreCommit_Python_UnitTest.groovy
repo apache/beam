@@ -23,74 +23,8 @@ import common_job_properties
 mavenJob('beam_PreCommit_Python_UnitTest') {
   description('Part of the PreCommit Pipeline. Runs Python unit tests.')
 
-  parameters {
-    stringParam(
-      'sha1',
-      'master',
-      'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
-    stringParam(
-      'ghprbGhRepository',
-      'N/A',
-      'Repository name for use by ghprb plugin.')
-    stringParam(
-      'ghprbActualCommit',
-      'N/A',
-      'Commit ID for use by ghprb plugin.')
-    stringParam(
-      'ghprbPullId',
-      'N/A',
-      'PR # for use by ghprb plugin.')
-  }
-
-  // Set JDK version.
-  jdk('JDK 1.8 (latest)')
-
-  // Restrict this project to run only on Jenkins executors as specified
-  label('beam')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  wrappers {
-    timeout {
-      absolute(20)
-      abortBuild()
-    }
-    credentialsBinding {
-      string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-    }
-    downstreamCommitStatus {
-      context('Jenkins: Python Unit Tests')
-      triggeredStatus("Python Unit Tests Pending")
-      startedStatus("Running Python Unit Tests")
-      statusUrl()
-      completedStatus('SUCCESS', "Python Unit Tests Passed")
-      completedStatus('FAILURE', "Python Unit Tests Failed")
-      completedStatus('ERROR', "Error Executing Python Unit Tests")
-    }
-    // Set SPARK_LOCAL_IP for spark tests.
-    environmentVariables {
-      env('SPARK_LOCAL_IP', '127.0.0.1')
-    }
-  }
-
-  // Source code management.
-  scm {
-    git {
-      remote {
-        github("apache/beam")
-        refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                '+refs/pull/*:refs/remotes/origin/pr/*')
-      }
-      branch('${sha1}')
-      extensions {
-        cleanAfterCheckout()
-      }
-    }
-  }
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  common_job_properties.setPipelineJobProperties(delegate, 25, "Python Unit Tests")
+  common_job_properties.setPipelineBuildJobProperties(delegate)
 
   // Construct Maven goals for this job.
   profiles = [

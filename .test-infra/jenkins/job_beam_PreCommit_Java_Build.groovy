@@ -23,77 +23,14 @@ import common_job_properties
 mavenJob('beam_PreCommit_Java_Build') {
   description('Part of the PreCommit Pipeline. Builds Java SDK and archives artifacts.')
 
-  properties {
-    githubProjectUrl('https://github.com/apache/beam/')
-  }
+  common_job_properties.setPipelineJobProperties(delegate, 15, "Java Build")
+  common_job_properties.setPipelineBuildJobProperties(delegate)
 
   configure { project ->
     project / 'properties' / 'hudson.plugins.copyartifact.CopyArtifactPermissionProperty' / 'projectNameList' {
       'string' "beam_*"
     }
   }
-
-  parameters {
-    stringParam(
-      'sha1',
-      'master',
-      'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
-    stringParam(
-      'ghprbGhRepository',
-      'N/A',
-      'Repository name for use by ghprb plugin.')
-    stringParam(
-      'ghprbActualCommit',
-      'N/A',
-      'Commit ID for use by ghprb plugin.')
-    stringParam(
-      'ghprbPullId',
-      'N/A',
-      'PR # for use by ghprb plugin.')
-  }
-
-  wrappers {
-    timeout {
-      absolute(15)
-      abortBuild()
-    }
-    downstreamCommitStatus {
-      context('Jenkins: Java Build')
-      triggeredStatus("Java Build Pending")
-      startedStatus("Running Java Build")
-      statusUrl()
-      completedStatus('SUCCESS', "Java Build Passed")
-      completedStatus('FAILURE', "Java Build Failed")
-      completedStatus('ERROR', "Error Executing Java Build")
-    }
-  }
-
-  // Set JDK version.
-  jdk('JDK 1.8 (latest)')
-
-  // Restrict this project to run only on Jenkins executors as specified
-  label('beam')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  // Source code management.
-  scm {
-    git {
-      remote {
-        github("apache/beam")
-        refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                '+refs/pull/*:refs/remotes/origin/pr/*')
-      }
-      branch('${sha1}')
-      extensions {
-        cleanAfterCheckout()
-      }
-    }
-  }
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
 
   // Construct Maven goals for this job.
   profiles = [
