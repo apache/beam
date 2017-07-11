@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.io.gcp package" href="apache_beam.io.gcp.html" />
+    <link rel="prev" title="apache_beam.internal.gcp package" href="apache_beam.internal.gcp.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.html" title="apache_beam.io.gcp package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.gcp.html" title="apache_beam.internal.gcp package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.io package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#apache-beam-io-avroio-module">apache_beam.io.avroio module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-concat-source-module">apache_beam.io.concat_source module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-filebasedsink-module">apache_beam.io.filebasedsink module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-filebasedsource-module">apache_beam.io.filebasedsource module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-filesystem-module">apache_beam.io.filesystem module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-filesystems-module">apache_beam.io.filesystems module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-iobase-module">apache_beam.io.iobase module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-localfilesystem-module">apache_beam.io.localfilesystem module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-range-trackers-module">apache_beam.io.range_trackers module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-source-test-utils-module">apache_beam.io.source_test_utils module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-textio-module">apache_beam.io.textio module</a></li>
+<li><a class="reference internal" href="#apache-beam-io-tfrecordio-module">apache_beam.io.tfrecordio module</a></li>
+<li><a class="reference internal" href="#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.internal.gcp.html"
+                        title="previous chapter">apache_beam.internal.gcp package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.io.gcp.html"
+                        title="next chapter">apache_beam.io.gcp package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.io.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-io-package">
+<h1>apache_beam.io package<a class="headerlink" href="#apache-beam-io-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.gcp.html">apache_beam.io.gcp package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.datastore.html">apache_beam.io.gcp.datastore package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-datastoreio-module">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-fake-datastore-module">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-helper-module">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-query-splitter-module">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.internal.html">apache_beam.io.gcp.internal package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.internal.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.tests.html">apache_beam.io.gcp.tests package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.tests.html#apache-beam-io-gcp-tests-bigquery-matcher-module">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-bigquery-module">apache_beam.io.gcp.bigquery module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-gcsfilesystem-module">apache_beam.io.gcp.gcsfilesystem module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-gcsio-module">apache_beam.io.gcp.gcsio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-pubsub-module">apache_beam.io.gcp.pubsub module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.gcp.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-avroio-module">
+<h2>apache_beam.io.avroio module<a class="headerlink" href="#apache-beam-io-avroio-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-concat-source-module">
+<h2>apache_beam.io.concat_source module<a class="headerlink" href="#apache-beam-io-concat-source-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-filebasedsink-module">
+<h2>apache_beam.io.filebasedsink module<a class="headerlink" href="#apache-beam-io-filebasedsink-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-filebasedsource-module">
+<h2>apache_beam.io.filebasedsource module<a class="headerlink" href="#apache-beam-io-filebasedsource-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-filesystem-module">
+<h2>apache_beam.io.filesystem module<a class="headerlink" href="#apache-beam-io-filesystem-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-filesystems-module">
+<h2>apache_beam.io.filesystems module<a class="headerlink" href="#apache-beam-io-filesystems-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-iobase-module">
+<h2>apache_beam.io.iobase module<a class="headerlink" href="#apache-beam-io-iobase-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-localfilesystem-module">
+<h2>apache_beam.io.localfilesystem module<a class="headerlink" href="#apache-beam-io-localfilesystem-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-range-trackers-module">
+<h2>apache_beam.io.range_trackers module<a class="headerlink" href="#apache-beam-io-range-trackers-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-source-test-utils-module">
+<h2>apache_beam.io.source_test_utils module<a class="headerlink" href="#apache-beam-io-source-test-utils-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-textio-module">
+<h2>apache_beam.io.textio module<a class="headerlink" href="#apache-beam-io-textio-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-io-tfrecordio-module">
+<h2>apache_beam.io.tfrecordio module<a class="headerlink" href="#apache-beam-io-tfrecordio-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-contents">
+<h2>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="apache_beam.io.gcp.html" title="apache_beam.io.gcp package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.gcp.html" title="apache_beam.internal.gcp package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

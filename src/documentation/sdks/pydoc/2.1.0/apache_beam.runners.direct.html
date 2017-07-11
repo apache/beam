@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.testing package" href="apache_beam.testing.html" />
+    <link rel="prev" title="apache_beam.runners.dataflow.native_io package" href="apache_beam.runners.dataflow.native_io.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="apache_beam.testing.html" title="apache_beam.testing package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" accesskey="U">apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.runners.direct package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-bundle-factory-module">apache_beam.runners.direct.bundle_factory module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-clock-module">apache_beam.runners.direct.clock module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-consumer-tracking-pipeline-visitor-module">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-direct-metrics-module">apache_beam.runners.direct.direct_metrics module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-direct-runner-module">apache_beam.runners.direct.direct_runner module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-evaluation-context-module">apache_beam.runners.direct.evaluation_context module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-executor-module">apache_beam.runners.direct.executor module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-helper-transforms-module">apache_beam.runners.direct.helper_transforms module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-transform-evaluator-module">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-util-module">apache_beam.runners.direct.util module</a></li>
+<li><a class="reference internal" href="#apache-beam-runners-direct-watermark-manager-module">apache_beam.runners.direct.watermark_manager module</a></li>
+<li><a class="reference internal" href="#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.native_io.html"
+                        title="previous chapter">apache_beam.runners.dataflow.native_io package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.testing.html"
+                        title="next chapter">apache_beam.testing package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.runners.direct.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-runners-direct-package">
+<h1>apache_beam.runners.direct package<a class="headerlink" href="#apache-beam-runners-direct-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-bundle-factory-module">
+<h2>apache_beam.runners.direct.bundle_factory module<a class="headerlink" href="#apache-beam-runners-direct-bundle-factory-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-clock-module">
+<h2>apache_beam.runners.direct.clock module<a class="headerlink" href="#apache-beam-runners-direct-clock-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-consumer-tracking-pipeline-visitor-module">
+<h2>apache_beam.runners.direct.consumer_tracking_pipeline_visitor module<a class="headerlink" href="#apache-beam-runners-direct-consumer-tracking-pipeline-visitor-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-direct-metrics-module">
+<h2>apache_beam.runners.direct.direct_metrics module<a class="headerlink" href="#apache-beam-runners-direct-direct-metrics-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-direct-runner-module">
+<h2>apache_beam.runners.direct.direct_runner module<a class="headerlink" href="#apache-beam-runners-direct-direct-runner-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-evaluation-context-module">
+<h2>apache_beam.runners.direct.evaluation_context module<a class="headerlink" href="#apache-beam-runners-direct-evaluation-context-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-executor-module">
+<h2>apache_beam.runners.direct.executor module<a class="headerlink" href="#apache-beam-runners-direct-executor-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-helper-transforms-module">
+<h2>apache_beam.runners.direct.helper_transforms module<a class="headerlink" href="#apache-beam-runners-direct-helper-transforms-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-transform-evaluator-module">
+<h2>apache_beam.runners.direct.transform_evaluator module<a class="headerlink" href="#apache-beam-runners-direct-transform-evaluator-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-util-module">
+<h2>apache_beam.runners.direct.util module<a class="headerlink" href="#apache-beam-runners-direct-util-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-runners-direct-watermark-manager-module">
+<h2>apache_beam.runners.direct.watermark_manager module<a class="headerlink" href="#apache-beam-runners-direct-watermark-manager-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-contents">
+<h2>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="apache_beam.testing.html" title="apache_beam.testing package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" >apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
