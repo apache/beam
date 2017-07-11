@@ -595,31 +595,22 @@ class PTransformWithSideInputs(PTransform):
     return '%s(%s)' % (self.__class__.__name__, self.fn.default_label())
 
 
-class CallablePTransform(PTransform):
+class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
 
-  def __init__(self, fn):
-    # pylint: disable=super-init-not-called
-    # This  is a helper class for a function decorator. Only when the class
-    # is called (and __call__ invoked) we will have all the information
-    # needed to initialize the super class.
-    self.fn = fn
-    self._args = ()
-    self._kwargs = {}
+  def __init__(self, fn, *args, **kwargs):
+    super(_PTransformFnPTransform, self).__init__()
+    self._fn = fn
+    self._args = args
+    self._kwargs = kwargs
 
   def display_data(self):
-    res = {'fn': (self.fn.__name__
-                  if hasattr(self.fn, '__name__')
-                  else self.fn.__class__),
+    res = {'fn': (self._fn.__name__
+                  if hasattr(self._fn, '__name__')
+                  else self._fn.__class__),
            'args': DisplayDataItem(str(self._args)).drop_if_default('()'),
            'kwargs': DisplayDataItem(str(self._kwargs)).drop_if_default('{}')}
     return res
-
-  def __call__(self, *args, **kwargs):
-    super(CallablePTransform, self).__init__()
-    self._args = args
-    self._kwargs = kwargs
-    return self
 
   def expand(self, pcoll):
     # Since the PTransform will be implemented entirely as a function
@@ -629,18 +620,18 @@ class CallablePTransform(PTransform):
     kwargs = dict(self._kwargs)
     args = tuple(self._args)
     try:
-      if 'type_hints' in inspect.getargspec(self.fn).args:
+      if 'type_hints' in inspect.getargspec(self._fn).args:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
       pass
-    return self.fn(pcoll, *args, **kwargs)
+    return self._fn(pcoll, *args, **kwargs)
 
   def default_label(self):
     if self._args:
       return '%s(%s)' % (
-          label_from_callable(self.fn), label_from_callable(self._args[0]))
-    return label_from_callable(self.fn)
+          label_from_callable(self._fn), label_from_callable(self._args[0]))
+    return label_from_callable(self._fn)
 
 
 def ptransform_fn(fn):
@@ -684,7 +675,11 @@ def ptransform_fn(fn):
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
   """
-  return CallablePTransform(fn)
+  # TODO(robertwb): Consider removing staticmethod to allow for self parameter.
+
+  def callable_ptransform_factory(*args, **kwargs):
+    return _PTransformFnPTransform(fn, *args, **kwargs)
+  return callable_ptransform_factory
 
 
 def label_from_callable(fn):
