@@ -809,7 +809,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                   new DoFn<Void, Integer>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
-                      LOG.info("Finalizing write operation {}.", writeOperation);
                       sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
                       // We must always output at least 1 shard, and honor user-specified numShards
                       // if

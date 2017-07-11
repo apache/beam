@@ -30,6 +30,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -634,8 +636,29 @@ public class AvroIOTest {
         p.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
     input.apply(AvroIO.writeCustomType(new TestDynamicFormat(), true)
         .to(new TestDynamicDestinations(baseDir, schemaView))
+        .withoutSharding()
         .withTempDirectory(baseDir));
     p.run();
+
+    // Validate that the data written matches the expected elements in the expected order.
+
+    List<String> prefixes = Lists.newArrayList();
+    for (String element : elements) {
+      prefixes.add(element.substring(0, 1));
+    }
+    prefixes = ImmutableSet.copyOf(prefixes).asList();
+    for (String prefix : prefixes) {
+      File expectedFile = new File(baseDir.resolve("file_" + prefix + ".txt-00000-of-00001",
+          StandardResolveOptions.RESOLVE_FILE).toString());
+      assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
+      try (DataFileReader<GenericClass> reader =
+               new DataFileReader<>(expectedFile,
+                   new ReflectDatumReader<GenericClass>(
+                       ReflectData.get().getSchema(GenericClass.class)))) {
+
+      }
+      expectedFile.delete();
+    }
   }
 
   @Test
