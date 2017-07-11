@@ -27,9 +27,7 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
-  profiles = [
-    'release',
-    'include-runners',
+  profiles = [ // TODO: Are all of these necessary?
     'direct-runner',
     'dataflow-runner',
     'spark-runner',
@@ -41,8 +39,8 @@ mavenJob('beam_PreCommit_Java_UnitTest') {
     '-e',
     "-P${profiles.join(',')}",
     'surefire:test@default-test',
-    'coveralls:report',
-    '-pl \'!sdks/python\'',
+    'coveralls:report', // TODO: Will this work?
+    "-pl '!sdks/python'",
     '-DrepoToken=$COVERALLS_REPO_TOKEN',
     '-DpullRequest=$ghprbPullId',
   ]

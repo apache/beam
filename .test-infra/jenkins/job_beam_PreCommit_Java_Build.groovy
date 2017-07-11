@@ -34,11 +34,11 @@ mavenJob('beam_PreCommit_Java_Build') {
       'string' "beam_*"
     }
   }
+
   // TODO: Add configuration controlling how long to keep artifacts for.
 
   // Construct Maven goals for this job.
   profiles = [
-    'include-runners',
     'direct-runner',
     'dataflow-runner',
     'spark-runner',
@@ -46,18 +46,17 @@ mavenJob('beam_PreCommit_Java_Build') {
     'apex-runner'
   ]
   args = [
-
     '-B',
     '-e',
-    '-P' + profiles.join(','),
+    "-P${profiles.join(',')}",
     'clean',
     'install',
-    '-pl \'!sdks/python\'',
+    "-pl '!sdks/python'",
     '-DskipTests',
-    '-Dcheckstyle.skip',
-    '-Dfindbugs.skip',
-    '-Dmaven.javadoc.skip',
-    '-Drat.skip'
+    '-Dcheckstyle.skip', // TODO: I think this line is necessary. Verify.
+    '-Dfindbugs.skip', // TODO: Do we need now that -Prelease is gone?
+    '-Dmaven.javadoc.skip', // TODO: Javadoc still seems to run, figure out what also to skip.
+    '-Drat.skip' // TODO: Do we need now that -Prelease is gone?
   ]
   goals(args.join(' '))
 
