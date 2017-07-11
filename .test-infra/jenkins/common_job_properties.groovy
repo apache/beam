@@ -219,10 +219,19 @@ class common_job_properties {
     }
   }
 
+  static def mapToArgList(LinkedHashMap<String, String> inputArgs) {
+    List argList = []
+    inputArgs.each({
+        // FYI: Replacement only works with double quotes.
+      key, value -> argList.add("--$key=$value")
+    })
+    return argList.join(' ')
+  }
+
   // Configures the argument list for performance tests, adding the standard
   // performance test job arguments.
   private static def genPerformanceArgs(def argMap) {
-    def standard_args = [
+    LinkedHashMap<String, String> standardArgs = [
       project: 'apache-beam-testing',
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
@@ -231,13 +240,8 @@ class common_job_properties {
       official: 'true'
     ]
     // Note: in case of key collision, keys present in ArgMap win.
-    def joined_args = standard_args.plus(argMap)
-    def argList = []
-    joined_args.each({
-        // FYI: Replacement only works with double quotes.
-        key, value -> argList.add("--$key=$value")
-    })
-    return argList.join(' ')
+    LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
+    return mapToArgList(joinedArgs)
   }
 
   // Adds the standard performance test job steps.
@@ -256,4 +260,87 @@ class common_job_properties {
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
+
+  static def setPipelineJobProperties(def context, int tout, String descriptor) {
+    context.parameters {
+      stringParam(
+              'ghprbGhRepository',
+              'N/A',
+              'Repository name for use by ghprb plugin.')
+      stringParam(
+              'ghprbActualCommit',
+              'N/A',
+              'Commit ID for use by ghprb plugin.')
+      stringParam(
+              'ghprbPullId',
+              'N/A',
+              'PR # for use by ghprb plugin.')
+
+    }
+
+    // Set JDK version.
+    jdk('JDK 1.8 (latest)')
+
+    // Restrict this project to run only on Jenkins executors as specified
+    label('beam')
+
+    // Execute concurrent builds if necessary.
+    concurrentBuild()
+
+    wrappers {
+      timeout {
+        absolute(tout)
+        abortBuild()
+      }
+      credentialsBinding {
+        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+      }
+      downstreamCommitStatus {
+        context("Jenkins: ${descriptor}")
+        triggeredStatus("${descriptor} Pending")
+        startedStatus("Running ${descriptor}")
+        statusUrl()
+        completedStatus('SUCCESS', "${descriptor} Passed")
+        completedStatus('FAILURE', "${descriptor} Failed")
+        completedStatus('ERROR', "Error Executing ${descriptor}")
+      }
+      // Set SPARK_LOCAL_IP for spark tests.
+      environmentVariables {
+        env('SPARK_LOCAL_IP', '127.0.0.1')
+      }
+    }
+
+    // Set Maven parameters.
+    setMavenConfig(context)
+
+  }
+
+  static def setPipelineBuildJobProperties(def context) {
+    context.properties {
+      githubProjectUrl('https://github.com/apache/beam/')
+    }
+
+    context.parameters {
+      stringParam(
+              'sha1',
+              'master',
+              'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
+    }
+
+    // Source code management.
+    context.scm {
+      git {
+        remote {
+          github("apache/beam")
+          refspec('+refs/heads/*:refs/remotes/origin/* ' +
+                  '+refs/pull/*:refs/remotes/origin/pr/*')
+        }
+        branch('${sha1}')
+        extensions {
+          cleanAfterCheckout()
+        }
+      }
+    }
+  }
+
 }

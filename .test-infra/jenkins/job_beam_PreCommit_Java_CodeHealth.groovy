@@ -23,59 +23,14 @@ import common_job_properties
 mavenJob('beam_PreCommit_Java_CodeHealth') {
   description('Part of the PreCommit Pipeline. Runs Java code health checks.')
 
+  common_job_properties.setPipelineJobProperties(delegate, 15, "Java Code Health")
+
   parameters {
     stringParam(
       'buildNum',
       'N/A',
       'Build number of beam_PreCommit_Java_Build to copy from.')
-    stringParam(
-      'ghprbGhRepository',
-      'N/A',
-      'Repository name for use by ghprb plugin.')
-    stringParam(
-      'ghprbActualCommit',
-      'N/A',
-      'Commit ID for use by ghprb plugin.')
-    stringParam(
-      'ghprbPullId',
-      'N/A',
-      'PR # for use by ghprb plugin.')
   }
-
-  // Set JDK version.
-  jdk('JDK 1.8 (latest)')
-
-  // Restrict this project to run only on Jenkins executors as specified
-  label('beam')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
-  wrappers {
-    timeout {
-      absolute(20)
-      abortBuild()
-    }
-    credentialsBinding {
-      string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-    }
-    downstreamCommitStatus {
-      context('Jenkins: Java Code Health')
-      triggeredStatus("Java Code Health Pending")
-      startedStatus("Running Java Code Health")
-      statusUrl()
-      completedStatus('SUCCESS', "Java Code Health Passed")
-      completedStatus('FAILURE', "Java Code Health Failed")
-      completedStatus('ERROR', "Error Executing Java Code Health")
-    }
-    // Set SPARK_LOCAL_IP for spark tests.
-    environmentVariables {
-      env('SPARK_LOCAL_IP', '127.0.0.1')
-    }
-  }
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
 
   preBuildSteps {
     copyArtifacts("beam_PreCommit_Java_Build") {
