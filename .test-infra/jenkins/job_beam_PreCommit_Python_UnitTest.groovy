@@ -27,20 +27,9 @@ mavenJob('beam_PreCommit_Python_UnitTest') {
   common_job_properties.setPipelineBuildJobProperties(delegate)
 
   // Construct Maven goals for this job.
-  profiles = [
-    'release',
-    'include-runners',
-    'jenkins-precommit',
-    'direct-runner',
-    'dataflow-runner',
-    'spark-runner',
-    'flink-runner',
-    'apex-runner'
-  ]
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(','),
     'clean install',
     '-pl sdks/python',
   ]

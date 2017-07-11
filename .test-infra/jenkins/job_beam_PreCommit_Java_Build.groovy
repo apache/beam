@@ -38,7 +38,6 @@ mavenJob('beam_PreCommit_Java_Build') {
 
   // Construct Maven goals for this job.
   profiles = [
-    'release',
     'include-runners',
     'direct-runner',
     'dataflow-runner',
