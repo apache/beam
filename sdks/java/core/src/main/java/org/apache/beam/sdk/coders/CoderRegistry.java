@@ -234,10 +234,11 @@ public class CoderRegistry {
    * type uses the given {@link Coder}.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
-  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <InputT, OutputT> Coder<OutputT> getCoder(
       TypeDescriptor<OutputT> typeDescriptor,
@@ -256,10 +257,11 @@ public class CoderRegistry {
    * used for its input elements.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
-  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <InputT, OutputT> Coder<OutputT> getOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
@@ -280,10 +282,11 @@ public class CoderRegistry {
    * subclass, given {@link Coder Coders} to use for all other type parameters (if any).
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
-  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Internal
   public <T, OutputT> Coder<OutputT> getCoder(
       Class<? extends T> subClass,
