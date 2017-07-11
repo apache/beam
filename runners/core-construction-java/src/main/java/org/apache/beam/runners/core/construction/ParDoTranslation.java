@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -507,26 +506,6 @@ public class ParDoTranslation {
     builder.setViewFn(toProto(view.getViewFn()));
     builder.setWindowMappingFn(toProto(view.getWindowMappingFn()));
     return builder.build();
-  }
-
-  public static PCollectionView<?> viewFromProto(
-      Pipeline pipeline,
-      SideInput sideInput,
-      String localName,
-      RunnerApi.PTransform parDoTransform,
-      Components components)
-      throws IOException {
-
-    String pCollectionId = parDoTransform.getInputsOrThrow(localName);
-
-    // This may be a PCollection defined in another language, but we should be
-    // able to rehydrate it enough to stick it in a side input. The coder may not
-    // be grokkable in Java.
-    PCollection<?> pCollection =
-        PCollectionTranslation.fromProto(
-            pipeline, components.getPcollectionsOrThrow(pCollectionId), components);
-
-    return viewFromProto(sideInput, localName, pCollection, parDoTransform, components);
   }
 
   /**
