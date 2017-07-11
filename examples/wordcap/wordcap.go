@@ -10,18 +10,14 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 var (
 	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	short = flag.Bool("short", false, "Filter out long words.")
-
-	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -55,7 +51,7 @@ func main() {
 	}
 	debug.Print(p, cap) // Debug helper.
 
-	if err := beam.Run(context.Background(), *runner, p); err != nil {
+	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

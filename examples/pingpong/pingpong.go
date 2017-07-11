@@ -11,16 +11,12 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
 
 var (
 	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
-
-	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 // stitch constructs two composite PTranformations that provide input to each other. It
@@ -111,7 +107,7 @@ func main() {
 	textio.Write(p, *output, small2)
 	textio.Write(p, *output, big2)
 
-	if err := beam.Run(context.Background(), *runner, p); err != nil {
+	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

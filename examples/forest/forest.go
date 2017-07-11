@@ -6,17 +6,13 @@ import (
 	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 var (
 	n     = flag.Int("count", 2, "Number of trees")
 	depth = flag.Int("depth", 3, "Depth of each tree")
-
-	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 func tree(p *beam.Pipeline, depth int) beam.PCollection {
@@ -49,7 +45,7 @@ func main() {
 		debug.Print(p, t)
 	}
 
-	if err := beam.Run(context.Background(), *runner, p); err != nil {
+	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
