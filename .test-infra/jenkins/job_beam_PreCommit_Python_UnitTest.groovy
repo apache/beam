@@ -25,9 +25,9 @@ mavenJob('beam_PreCommit_Python_UnitTest') {
 
   parameters {
     stringParam(
-      'buildNum',
-      'N/A',
-      'Build number of beam_PreCommit_Python_Build to copy from.')
+      'sha1',
+      'master',
+      'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
     stringParam(
       'ghprbGhRepository',
       'N/A',
@@ -74,16 +74,23 @@ mavenJob('beam_PreCommit_Python_UnitTest') {
     }
   }
 
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
-
-  preBuildSteps {
-    copyArtifacts("beam_PreCommit_Python_Build") {
-      buildSelector {
-        buildNumber('${buildNum}')
+  // Source code management.
+  scm {
+    git {
+      remote {
+        github("apache/beam")
+        refspec('+refs/heads/*:refs/remotes/origin/* ' +
+                '+refs/pull/*:refs/remotes/origin/pr/*')
+      }
+      branch('${sha1}')
+      extensions {
+        cleanAfterCheckout()
       }
     }
   }
+
+  // Set Maven parameters.
+  common_job_properties.setMavenConfig(delegate)
 
   // Construct Maven goals for this job.
   profiles = [
