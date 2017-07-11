@@ -24,21 +24,7 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
   description('Part of the PreCommit Pipeline. Runs Java Failsafe integration tests.')
 
   common_job_properties.setPipelineJobProperties(delegate, 25, "Java Integration Tests")
-
-  parameters {
-    stringParam(
-      'buildNum',
-      'N/A',
-      'Build number of beam_PreCommit_Java_Build to copy from.')
-  }
-
-  preBuildSteps {
-    copyArtifacts("beam_PreCommit_Java_Build") {
-      buildSelector {
-        buildNumber('${buildNum}')
-      }
-    }
-  }
+  common_job_properties.setPipelineDownstreamJobProperties('beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
   profiles = [
