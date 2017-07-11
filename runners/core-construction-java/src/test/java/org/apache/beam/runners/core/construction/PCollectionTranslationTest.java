@@ -113,6 +113,28 @@ public class PCollectionTranslationTest {
 
   @Test
   public void testEncodeDecodeCycle() throws Exception {
+    // Encode
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PCollection protoCollection =
+        PCollectionTranslation.toProto(testCollection, sdkComponents);
+    RunnerApi.Components protoComponents = sdkComponents.toComponents();
+
+    // Decode
+    Pipeline pipeline = Pipeline.create();
+    PCollection<?> decodedCollection =
+        PCollectionTranslation.fromProto(pipeline, protoCollection, protoComponents);
+
+    // Verify
+    assertThat(decodedCollection.getCoder(), Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
+    assertThat(
+        decodedCollection.getWindowingStrategy(),
+        Matchers.<WindowingStrategy<?, ?>>equalTo(
+            testCollection.getWindowingStrategy().fixDefaults()));
+    assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
+  }
+
+  @Test
+  public void testEncodeDecodeFields() throws Exception {
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.PCollection protoCollection = PCollectionTranslation
         .toProto(testCollection, sdkComponents);
