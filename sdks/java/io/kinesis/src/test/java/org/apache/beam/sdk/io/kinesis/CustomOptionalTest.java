@@ -18,24 +18,27 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import com.google.common.testing.EqualsTester;
+
 import java.util.NoSuchElementException;
+
 import org.junit.Test;
 
 /**
  * Tests {@link CustomOptional}.
  */
 public class CustomOptionalTest {
-    @Test(expected = NoSuchElementException.class)
-    public void absentThrowsNoSuchElementExceptionOnGet() {
-        CustomOptional.absent().get();
-    }
 
-    @Test
-    public void testEqualsAndHashCode() {
-        new EqualsTester()
-            .addEqualityGroup(CustomOptional.absent(), CustomOptional.absent())
-            .addEqualityGroup(CustomOptional.of(3), CustomOptional.of(3))
-            .addEqualityGroup(CustomOptional.of(11))
-            .addEqualityGroup(CustomOptional.of("3")).testEquals();
-    }
+  @Test(expected = NoSuchElementException.class)
+  public void absentThrowsNoSuchElementExceptionOnGet() {
+    CustomOptional.absent().get();
+  }
+
+  @Test
+  public void testEqualsAndHashCode() {
+    new EqualsTester()
+        .addEqualityGroup(CustomOptional.absent(), CustomOptional.absent())
+        .addEqualityGroup(CustomOptional.of(3), CustomOptional.of(3))
+        .addEqualityGroup(CustomOptional.of(11))
+        .addEqualityGroup(CustomOptional.of("3")).testEquals();
+  }
 }
