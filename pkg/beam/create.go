@@ -14,6 +14,8 @@ func init() {
 	RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
 }
 
+// TODO(herohde) 7/11/2017: add variants that use coder encoding.
+
 // Create inserts a fixed set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type W<A>.
 // For example:
