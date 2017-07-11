@@ -284,28 +284,32 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   @Nullable
-  public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+  public ResourceId unwindowedFilename(
+      int shardNumber, int numShards, OutputFileHints outputFileHints) {
     return constructName(
         params.baseFilename.get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
-        context.getShardNumber(),
-        context.getNumShards(),
+        shardNumber,
+        numShards,
         null,
         null);
   }
 
   @Override
-  public ResourceId windowedFilename(WindowedContext context, OutputFileHints outputFileHints) {
-    final PaneInfo paneInfo = context.getPaneInfo();
+  public ResourceId windowedFilename(int shardNumber,
+                                     int numShards,
+                                     BoundedWindow window,
+                                     PaneInfo paneInfo,
+                                     OutputFileHints outputFileHints) {
     String paneStr = paneInfoToString(paneInfo);
-    String windowStr = windowToString(context.getWindow());
+    String windowStr = windowToString(window);
     return constructName(
         params.baseFilename.get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
-        context.getShardNumber(),
-        context.getNumShards(),
+        shardNumber,
+        numShards,
         paneStr,
         windowStr);
   }

@@ -48,7 +48,6 @@ import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
@@ -218,7 +217,7 @@ public class FileBasedSinkTest {
               .getSink()
               .getDynamicDestinations()
               .getFilenamePolicy(null)
-              .unwindowedFilename(new Context(i, numFiles), CompressionType.UNCOMPRESSED);
+              .unwindowedFilename(i, numFiles, CompressionType.UNCOMPRESSED);
       assertTrue(new File(outputFilename.toString()).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
@@ -301,8 +300,7 @@ public class FileBasedSinkTest {
               .getSink()
               .getDynamicDestinations()
               .getFilenamePolicy(null)
-              .unwindowedFilename(
-                  new Context(i, inputFilenames.size()), CompressionType.UNCOMPRESSED));
+              .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED));
     }
 
     // Copy input files to output files.
@@ -320,7 +318,7 @@ public class FileBasedSinkTest {
     List<ResourceId> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       filenames.add(
-          policy.unwindowedFilename(new Context(i, numFiles), CompressionType.UNCOMPRESSED));
+          policy.unwindowedFilename(i, numFiles, CompressionType.UNCOMPRESSED));
     }
     return filenames;
   }

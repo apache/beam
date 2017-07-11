@@ -28,7 +28,9 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.format.DateTimeFormatter;
@@ -88,14 +90,18 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext context, OutputFileHints outputFileHints) {
-      IntervalWindow window = (IntervalWindow) context.getWindow();
+    public ResourceId windowedFilename(int shardNumber,
+                                       int numShards,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       OutputFileHints outputFileHints) {
+      IntervalWindow intervalWindow = (IntervalWindow) window;
       String filename =
           String.format(
               "%s-%s-of-%s%s",
-              filenamePrefixForWindow(window),
-              context.getShardNumber(),
-              context.getNumShards(),
+              filenamePrefixForWindow(intervalWindow),
+              shardNumber,
+              numShards,
               outputFileHints.getSuggestedFilenameSuffix());
       return baseFilename
           .getCurrentDirectory()
@@ -103,7 +109,8 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Unsupported.");
     }
   }
