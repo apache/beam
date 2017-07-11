@@ -19,9 +19,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator.date;
 
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.TimeZone;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
@@ -29,16 +27,16 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for LOCALTIME and LOCALTIME(precison).
+ * {@code BeamSqlExpression} for LOCALTIMESTAMP and CURRENT_TIMESTAMP.
  *
- * <p>Returns the current date and time in the session time zone in a value of datatype TIME, with
- * precision digits of precision.
+ * <p>Returns the current date and time in the session time zone in a value of datatype TIMESTAMP,
+ * with precision digits of precision.
  *
  * <p>NOTE: for simplicity, we will ignore the {@code precision} param.
  */
-public class BeamSqlLocalTimeExpression extends BeamSqlExpression {
-  public BeamSqlLocalTimeExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.TIME);
+public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
+  public BeamSqlCurrentTimestampExpression(List<BeamSqlExpression> operands) {
+    super(operands, SqlTypeName.TIMESTAMP);
   }
   @Override public boolean accept() {
     int opCount = getOperands().size();
@@ -46,8 +44,6 @@ public class BeamSqlLocalTimeExpression extends BeamSqlExpression {
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    GregorianCalendar ret = new GregorianCalendar(TimeZone.getDefault());
-    ret.setTime(new Date());
-    return BeamSqlPrimitive.of(outputType, ret);
+    return BeamSqlPrimitive.of(outputType, new Date());
   }
 }
