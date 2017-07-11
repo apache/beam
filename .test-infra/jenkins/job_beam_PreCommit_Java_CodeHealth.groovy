@@ -24,7 +24,7 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   description('Part of the PreCommit Pipeline. Runs Java code health checks.')
 
   common_job_properties.setPipelineJobProperties(delegate, 15, "Java Code Health")
-  common_job_properties.setPipelineDownstreamJobProperties('beam_PreCommit_Java_Build')
+  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
   profiles = [

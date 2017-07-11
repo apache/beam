@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+import common_job_properties
+
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.
 pipelineJob('beam_PreCommit_Pipeline') {
@@ -70,19 +72,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
   definition {
     cpsScm {
       // Source code management.
-      scm {
-        git {
-          remote {
-            github("apache/beam")
-            refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                    '+refs/pull/*:refs/remotes/origin/pr/*')
-          }
-          branch('${sha1}')
-          extensions {
-            cleanAfterCheckout()
-          }
-        }
-      }
+      common_job_properties.setBeamSCM(delegate, 'beam')
       scriptPath('.test-infra/jenkins/PreCommit_Pipeline.groovy')
     }
   }

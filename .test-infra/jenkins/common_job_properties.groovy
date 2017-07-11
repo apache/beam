@@ -22,8 +22,24 @@
 //  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
+  static void setBeamSCM(def context, String repositoryName) {
+    context.scm {
+      git {
+        remote {
+          github("apache/${repositoryName}")
+          refspec('+refs/heads/*:refs/remotes/origin/* ' +
+                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
+        }
+        branch('${sha1}')
+        extensions {
+          cleanAfterCheckout()
+        }
+      }
+    }
+  }
+
   // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(context,
+  static void setTopLevelWebsiteJobProperties(def context,
                                               String branch = 'asf-site') {
     setTopLevelJobProperties(
             context,
@@ -34,7 +50,7 @@ class common_job_properties {
   }
 
   // Sets common top-level job properties for main repository jobs.
-  static void setTopLevelMainJobProperties(context,
+  static void setTopLevelMainJobProperties(def context,
                                            String branch = 'master',
                                            int timeout = 100,
                                            String jenkinsExecutorLabel = 'beam') {
@@ -48,7 +64,7 @@ class common_job_properties {
 
   // Sets common top-level job properties. Accessed through one of the above
   // methods to protect jobs from internal details of param defaults.
-  private static void setTopLevelJobProperties(context,
+  private static void setTopLevelJobProperties(def context,
                                                String repositoryName,
                                                String defaultBranch,
                                                String jenkinsExecutorLabel,
@@ -71,19 +87,7 @@ class common_job_properties {
     }
 
     // Source code management.
-    context.scm {
-      git {
-        remote {
-          github("apache/${repositoryName}")
-          refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
-        }
-        branch('${sha1}')
-        extensions {
-          cleanAfterCheckout()
-        }
-      }
-    }
+    setBeamSCM(context, repositoryName)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -323,19 +327,7 @@ class common_job_properties {
     }
 
     // Source code management.
-    context.scm {
-      git {
-        remote {
-          github("apache/beam")
-          refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
-        }
-        branch('${sha1}')
-        extensions {
-          cleanAfterCheckout()
-        }
-      }
-    }
+    setBeamSCM(context, 'beam')
   }
 
   static def setPipelineDownstreamJobProperties(def context, String jobName) {
