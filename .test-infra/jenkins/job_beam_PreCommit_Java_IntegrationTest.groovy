@@ -24,7 +24,7 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
   description('Part of the PreCommit Pipeline. Runs Java Failsafe integration tests.')
 
   common_job_properties.setPipelineJobProperties(delegate, 25, "Java Integration Tests")
-  common_job_properties.setPipelineDownstreamJobProperties('beam_PreCommit_Java_Build')
+  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
   profiles = [
@@ -40,8 +40,9 @@ mavenJob('beam_PreCommit_Java_IntegrationTest') {
   args = [
     '-B',
     '-e',
-    '-P' + profiles.join(','),
+    "-P${profiles.join(',')}",
     'failsafe:integration-test',
+    // TODO: PUT APPROPRIATE ARGS / OTHER PIECES OF THE INCANTATION HERE.
     '-pl \'!sdks/python\'',
   ]
   goals(args.join(' '))
