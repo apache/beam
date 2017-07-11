@@ -30,7 +30,7 @@ Here are some resources with information about how to test your pipelines.
   <li class="language-java">The <a href="{{ site.baseurl }}/get-started/wordcount-example/#testing-your-pipeline-via-passert">Apache Beam WordCount Example</a> contains an example of logging and testing a pipeline with <a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/PAssert.html"><code>PAssert</code></a>.</li>
 
   <!-- Python specific links -->
-  <li class="language-py">You can use <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/util.py#L206">assert_that</a> to test your pipeline. The Python <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">WordCount Debugging Example</a> contains an example of logging and testing with <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/util.py#L206"><code>assert_that</code></a>.</li>
+  <li class="language-py">You can use <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/testing/util.py#L76">assert_that</a> to test your pipeline. The Python <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">WordCount Debugging Example</a> contains an example of logging and testing with <code>assert_that</code></a>.</li>
 </ul>
 
 ## Direct Runner prerequisites and setup
