@@ -1,0 +1,377 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.coders package" href="apache_beam.coders.html" />
+    <link rel="prev" title="apache_beam" href="index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#apache-beam-error-module">apache_beam.error module</a></li>
+<li><a class="reference internal" href="#apache-beam-pipeline-module">apache_beam.pipeline module</a></li>
+<li><a class="reference internal" href="#apache-beam-pvalue-module">apache_beam.pvalue module</a></li>
+<li><a class="reference internal" href="#apache-beam-version-module">apache_beam.version module</a></li>
+<li><a class="reference internal" href="#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">apache_beam</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.coders.html"
+                        title="next chapter">apache_beam.coders package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-package">
+<h1>apache_beam package<a class="headerlink" href="#apache-beam-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-coder-impl-module">apache_beam.coders.coder_impl module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-coders-module">apache_beam.coders.coders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-coders-test-common-module">apache_beam.coders.coders_test_common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-observable-module">apache_beam.coders.observable module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-proto2-coder-test-messages-pb2-module">apache_beam.coders.proto2_coder_test_messages_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-slow-stream-module">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-stream-module">apache_beam.coders.stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-typecoders-module">apache_beam.coders.typecoders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#apache-beam-internal-gcp-auth-module">apache_beam.internal.gcp.auth module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#apache-beam-internal-gcp-json-value-module">apache_beam.internal.gcp.json_value module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#apache-beam-internal-pickler-module">apache_beam.internal.pickler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#apache-beam-internal-util-module">apache_beam.internal.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.html">apache_beam.io.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.datastore.html">apache_beam.io.gcp.datastore package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l7"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#submodules">Submodules</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-datastoreio-module">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-fake-datastore-module">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-helper-module">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#apache-beam-io-gcp-datastore-v1-query-splitter-module">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.internal.html">apache_beam.io.gcp.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.internal.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.tests.html">apache_beam.io.gcp.tests package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#apache-beam-io-gcp-tests-bigquery-matcher-module">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-bigquery-module">apache_beam.io.gcp.bigquery module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-gcsfilesystem-module">apache_beam.io.gcp.gcsfilesystem module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-gcsio-module">apache_beam.io.gcp.gcsio module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#apache-beam-io-gcp-pubsub-module">apache_beam.io.gcp.pubsub module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-avroio-module">apache_beam.io.avroio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-concat-source-module">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-filebasedsink-module">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-filebasedsource-module">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-filesystem-module">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-filesystems-module">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-iobase-module">apache_beam.io.iobase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-localfilesystem-module">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-range-trackers-module">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-source-test-utils-module">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-textio-module">apache_beam.io.textio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#apache-beam-io-tfrecordio-module">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#apache-beam-metrics-cells-module">apache_beam.metrics.cells module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#apache-beam-metrics-execution-module">apache_beam.metrics.execution module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#apache-beam-metrics-metric-module">apache_beam.metrics.metric module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#apache-beam-metrics-metricbase-module">apache_beam.metrics.metricbase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#apache-beam-options-pipeline-options-module">apache_beam.options.pipeline_options module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#apache-beam-options-pipeline-options-validator-module">apache_beam.options.pipeline_options_validator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#apache-beam-options-value-provider-module">apache_beam.options.value_provider module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.options.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.portability.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.portability.api.html">apache_beam.portability.api package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-beam-fn-api-pb2-module">apache_beam.portability.api.beam_fn_api_pb2 module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-beam-fn-api-pb2-grpc-module">apache_beam.portability.api.beam_fn_api_pb2_grpc module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-beam-runner-api-pb2-module">apache_beam.portability.api.beam_runner_api_pb2 module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-beam-runner-api-pb2-grpc-module">apache_beam.portability.api.beam_runner_api_pb2_grpc module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-standard-window-fns-pb2-module">apache_beam.portability.api.standard_window_fns_pb2 module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#apache-beam-portability-api-standard-window-fns-pb2-grpc-module">apache_beam.portability.api.standard_window_fns_pb2_grpc module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.portability.api.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.portability.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html">apache_beam.runners.dataflow.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#apache-beam-runners-dataflow-internal-apiclient-module">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#apache-beam-runners-dataflow-internal-dependency-module">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#apache-beam-runners-dataflow-internal-names-module">apache_beam.runners.dataflow.internal.names module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache-beam-runners-dataflow-native-io-iobase-module">apache_beam.runners.dataflow.native_io.iobase module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache-beam-runners-dataflow-native-io-streaming-create-module">apache_beam.runners.dataflow.native_io.streaming_create module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#apache-beam-runners-dataflow-dataflow-metrics-module">apache_beam.runners.dataflow.dataflow_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#apache-beam-runners-dataflow-dataflow-runner-module">apache_beam.runners.dataflow.dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#apache-beam-runners-dataflow-ptransform-overrides-module">apache_beam.runners.dataflow.ptransform_overrides module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#apache-beam-runners-dataflow-test-dataflow-runner-module">apache_beam.runners.dataflow.test_dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-bundle-factory-module">apache_beam.runners.direct.bundle_factory module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-clock-module">apache_beam.runners.direct.clock module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-consumer-tracking-pipeline-visitor-module">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-direct-metrics-module">apache_beam.runners.direct.direct_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-direct-runner-module">apache_beam.runners.direct.direct_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-evaluation-context-module">apache_beam.runners.direct.evaluation_context module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-executor-module">apache_beam.runners.direct.executor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-helper-transforms-module">apache_beam.runners.direct.helper_transforms module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-transform-evaluator-module">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-util-module">apache_beam.runners.direct.util module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#apache-beam-runners-direct-watermark-manager-module">apache_beam.runners.direct.watermark_manager module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#apache-beam-runners-common-module">apache_beam.runners.common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#apache-beam-runners-pipeline-context-module">apache_beam.runners.pipeline_context module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#apache-beam-runners-runner-module">apache_beam.runners.runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#apache-beam-testing-pipeline-verifiers-module">apache_beam.testing.pipeline_verifiers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#apache-beam-testing-test-pipeline-module">apache_beam.testing.test_pipeline module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#apache-beam-testing-test-stream-module">apache_beam.testing.test_stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#apache-beam-testing-test-utils-module">apache_beam.testing.test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#apache-beam-testing-util-module">apache_beam.testing.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.testing.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-combiners-module">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-core-module">apache_beam.transforms.core module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-cy-combiners-module">apache_beam.transforms.cy_combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-display-module">apache_beam.transforms.display module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-ptransform-module">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-sideinputs-module">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-timeutil-module">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-trigger-module">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-util-module">apache_beam.transforms.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#apache-beam-transforms-window-module">apache_beam.transforms.window module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#apache-beam-typehints-decorators-module">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#apache-beam-typehints-opcodes-module">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#apache-beam-typehints-trivial-inference-module">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#apache-beam-typehints-typecheck-module">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#apache-beam-typehints-typehints-module">apache_beam.typehints.typehints module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-annotations-module">apache_beam.utils.annotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-counters-module">apache_beam.utils.counters module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-plugin-module">apache_beam.utils.plugin module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-processes-module">apache_beam.utils.processes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-profiler-module">apache_beam.utils.profiler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-proto-utils-module">apache_beam.utils.proto_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-retry-module">apache_beam.utils.retry module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-timestamp-module">apache_beam.utils.timestamp module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-urns-module">apache_beam.utils.urns module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#apache-beam-utils-windowed-value-module">apache_beam.utils.windowed_value module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-error-module">
+<h2>apache_beam.error module<a class="headerlink" href="#apache-beam-error-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-pipeline-module">
+<h2>apache_beam.pipeline module<a class="headerlink" href="#apache-beam-pipeline-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-pvalue-module">
+<h2>apache_beam.pvalue module<a class="headerlink" href="#apache-beam-pvalue-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="apache-beam-version-module">
+<h2>apache_beam.version module<a class="headerlink" href="#apache-beam-version-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-contents">
+<h2>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
