@@ -86,9 +86,11 @@ public class CreatePCollectionViewTranslation {
             PCollectionView.class.getSimpleName());
   }
 
-  // CHECKSTYLE.OFF: MissingDeprecated
+  /**
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
+   * as part of the translation for a `ParDo` side input.
+   */
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   static class CreatePCollectionViewTranslator
       implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
     @Override
@@ -114,11 +116,14 @@ public class CreatePCollectionViewTranslation {
     }
   }
 
-  /** Registers {@link CreatePCollectionViewTranslator}. */
-  // CHECKSTYLE.OFF: MissingDeprecated
+  /**
+   * Registers {@link CreatePCollectionViewTranslator}.
+   *
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
+   * as part of the translation for a `ParDo` side input.
+   */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>

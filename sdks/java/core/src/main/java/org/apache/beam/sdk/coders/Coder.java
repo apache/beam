@@ -56,10 +56,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * @param <T> the type of values being encoded and decoded
  */
 public abstract class Coder<T> implements Serializable {
-  /** The context in which encoding or decoding is being done. */
-  // CHECKSTYLE.OFF: MissingDeprecated
+  /**
+   * The context in which encoding or decoding is being done.
+   *
+   * @deprecated to implement a coder, do not use any `Context`. Just implement only those abstract
+   * methods which do not accept a `Context` and leave the default implementations for methods
+   * accepting a `Context`.
+   */
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
@@ -129,10 +133,10 @@ public abstract class Coder<T> implements Serializable {
    * @throws IOException if writing to the {@code OutputStream} fails
    * for some reason
    * @throws CoderException if the value could not be encoded for some reason
+   *
+   * @deprecated only implement and call {@link #encode(Object value, OutputStream)}
    */
-  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Experimental(Kind.CODER_CONTEXT)
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
@@ -156,10 +160,10 @@ public abstract class Coder<T> implements Serializable {
    * @throws IOException if reading from the {@code InputStream} fails
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
+   *
+   * @deprecated only implement and call {@link #decode(InputStream)}
    */
-  // CHECKSTYLE.OFF: MissingDeprecated
   @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Experimental(Kind.CODER_CONTEXT)
   public T decode(InputStream inStream, Context context)
       throws CoderException, IOException {

@@ -111,9 +111,6 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
             getClass().getCanonicalName()));
   }
 
-  // CHECKSTYLE.OFF: MissingDeprecated
-  @Deprecated
-  // CHECKSTYLE.ON: MissingDeprecated
   @Override
   public Instant getOutputTime(Instant inputTimestamp, BoundedWindow window) {
     return inputTimestamp;
