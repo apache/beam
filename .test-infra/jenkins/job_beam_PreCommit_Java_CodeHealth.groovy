@@ -24,21 +24,7 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   description('Part of the PreCommit Pipeline. Runs Java code health checks.')
 
   common_job_properties.setPipelineJobProperties(delegate, 15, "Java Code Health")
-
-  parameters {
-    stringParam(
-      'buildNum',
-      'N/A',
-      'Build number of beam_PreCommit_Java_Build to copy from.')
-  }
-
-  preBuildSteps {
-    copyArtifacts("beam_PreCommit_Java_Build") {
-      buildSelector {
-        buildNumber('${buildNum}')
-      }
-    }
-  }
+  common_job_properties.setPipelineDownstreamJobProperties('beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
   profiles = [
