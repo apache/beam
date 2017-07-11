@@ -17,25 +17,19 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import com.google.auto.value.AutoValue;
-
-import java.io.Serializable;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
@@ -53,10 +47,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on an independent Postgres instance.
  *
- * <p>This test requires a running instance of Postgres, and the test dataset must exist in the
- * database. `JdbcTestDataSet` will create the read table.
- *
- * <p>You can run this test by doing the following:
+ * <p>This test requires a running instance of Postgres. Pass in connection information using
+ * PipelineOptions:
  * <pre>
  *  mvn -e -Pio-it verify -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions='[
  *  "--postgresServerName=1.2.3.4",
@@ -73,6 +65,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOIT.class);
+  public static final int EXPECTED_ROW_COUNT = 1000;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
 
@@ -87,15 +80,29 @@ public class JdbcIOIT {
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
-    dataSource = JdbcTestDataSet.getDataSource(options);
+    dataSource = getDataSource(options);
 
-    tableName = JdbcTestDataSet.getWriteTableName();
-    JdbcTestDataSet.createDataTable(dataSource, tableName);
+    tableName = JdbcTestHelper.getWriteTableName();
+    JdbcTestHelper.createDataTable(dataSource, tableName);
+  }
+
+  private static PGSimpleDataSource getDataSource(IOTestPipelineOptions options)
+      throws SQLException {
+    PGSimpleDataSource dataSource = new PGSimpleDataSource();
+
+    dataSource.setDatabaseName(options.getPostgresDatabaseName());
+    dataSource.setServerName(options.getPostgresServerName());
+    dataSource.setPortNumber(options.getPostgresPort());
+    dataSource.setUser(options.getPostgresUsername());
+    dataSource.setPassword(options.getPostgresPassword());
+    dataSource.setSsl(options.getPostgresSsl());
+
+    return dataSource;
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    JdbcTestDataSet.cleanUpDataTable(dataSource, tableName);
+    JdbcTestHelper.cleanUpDataTable(dataSource, tableName);
   }
 
   /**
@@ -116,12 +123,12 @@ public class JdbcIOIT {
    * the database.)
    */
   private void runWrite() {
-    pipelineWrite.apply(GenerateSequence.from(0).to(JdbcTestDataSet.EXPECTED_ROW_COUNT))
-        .apply(ParDo.of(new DeterministicallyConstructTestRowFn()))
+    pipelineWrite.apply(GenerateSequence.from(0).to((long) EXPECTED_ROW_COUNT))
+        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(JdbcIO.<TestRow>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withStatement(String.format("insert into %s values(?, ?)", tableName))
-            .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
+            .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
     pipelineWrite.run().waitUntilFinish();
   }
@@ -129,7 +136,7 @@ public class JdbcIOIT {
   /**
    * Read the test dataset from postgres and validate its contents.
    *
-   * <p>When doing the validation, we wish to ensure that we both:
+   * <p>When doing the validation, we wish to ensure that we:
    * 1. Ensure *all* the rows are correct
    * 2. Provide enough information in assertions such that it is easy to spot obvious errors (e.g.
    *    all elements have a similar mistake, or "only 5 elements were generated" and the user wants
@@ -149,92 +156,32 @@ public class JdbcIOIT {
         pipelineRead.apply(JdbcIO.<TestRow>read()
         .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
         .withQuery(String.format("select name,id from %s;", tableName))
-        .withRowMapper(new CreateTestRowOfNameAndId())
+        .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
         .withCoder(SerializableCoder.of(TestRow.class)));
 
     PAssert.thatSingleton(
         namesAndIds.apply("Count All", Count.<TestRow>globally()))
-        .isEqualTo(JdbcTestDataSet.EXPECTED_ROW_COUNT);
+        .isEqualTo((long) EXPECTED_ROW_COUNT);
 
     PCollection<String> consolidatedHashcode = namesAndIds
-        .apply(ParDo.of(new SelectNameFn()))
+        .apply(ParDo.of(new TestRow.SelectNameFn()))
         .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(JdbcTestDataSet.EXPECTED_HASH_CODE);
+    PAssert.that(consolidatedHashcode)
+        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(EXPECTED_ROW_COUNT));
 
     PCollection<List<TestRow>> frontOfList =
         namesAndIds.apply(Top.<TestRow>smallest(500));
-    Iterable<TestRow> expectedFrontOfList = getExpectedValues(0, 500);
+    Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);
     PAssert.thatSingletonIterable(frontOfList).containsInAnyOrder(expectedFrontOfList);
 
 
     PCollection<List<TestRow>> backOfList =
         namesAndIds.apply(Top.<TestRow>largest(500));
     Iterable<TestRow> expectedBackOfList =
-        getExpectedValues((int) (JdbcTestDataSet.EXPECTED_ROW_COUNT - 500),
-            (int) JdbcTestDataSet.EXPECTED_ROW_COUNT);
+        TestRow.getExpectedValues((int) (EXPECTED_ROW_COUNT - 500),
+            (int) EXPECTED_ROW_COUNT);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     pipelineRead.run().waitUntilFinish();
-  }
-
-  @AutoValue
-  abstract static class TestRow implements Serializable, Comparable<TestRow> {
-    static TestRow create(Integer id, String name) {
-      return new AutoValue_JdbcIOIT_TestRow(id, name);
-    }
-
-    abstract Integer id();
-    abstract String name();
-
-    public int compareTo(TestRow other) {
-      return id().compareTo(other.id());
-    }
-  }
-
-  private static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {
-    @Override
-    public TestRow mapRow(ResultSet resultSet) throws Exception {
-      return TestRow.create(
-          resultSet.getInt("id"), resultSet.getString("name"));
-    }
-  }
-
-  private static class PrepareStatementFromTestRow
-      implements JdbcIO.PreparedStatementSetter<TestRow> {
-    @Override
-    public void setParameters(TestRow element, PreparedStatement statement)
-        throws SQLException {
-      statement.setLong(1, element.id());
-      statement.setString(2, element.name());
-    }
-  }
-
-  private static TestRow expectedValueTestRow(Long seed) {
-    return TestRow.create(seed.intValue(), "Testval" + seed);
-  }
-
-  private Iterable<TestRow> getExpectedValues(int rangeStart, int rangeEnd) {
-    List<TestRow> ret = new ArrayList<TestRow>(rangeEnd - rangeStart + 1);
-    for (int i = rangeStart; i < rangeEnd; i++) {
-      ret.add(expectedValueTestRow((long) i));
-    }
-    return ret;
-  }
-
-  /**
-   * Given a Long as a seed value, constructs a test data row used by the IT for testing writes.
-   */
-  private static class DeterministicallyConstructTestRowFn extends DoFn<Long, TestRow> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(expectedValueTestRow(c.element()));
-    }
-  }
-
-  private static class SelectNameFn extends DoFn<TestRow, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(c.element().name());
-    }
   }
 }
