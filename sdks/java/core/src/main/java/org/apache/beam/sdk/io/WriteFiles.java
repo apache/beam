@@ -170,7 +170,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
   @Override
   public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-    return PCollectionViews.toAdditionalInputs(sink.getDynamicDestinations().getSideInputs());
+    return PCollectionViews.toAdditionalInputs(sink.getSideInputs());
   }
 
   @Override
@@ -678,7 +678,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     List<PCollectionView<?>> dynamicDestinationsSideInputs = Lists.newArrayList();
-    dynamicDestinationsSideInputs.addAll(sink.getDynamicDestinations().getSideInputs());
+    dynamicDestinationsSideInputs.addAll(sink.getSideInputs());
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
@@ -741,7 +741,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       results =
           sharded.apply(
               "WriteShardedBundles",
-              ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_WHEN_WRITING)));
+              ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_WHEN_WRITING))
+                  .withSideInputs(dynamicDestinationsSideInputs));
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
 

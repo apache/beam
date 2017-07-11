@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParamete
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -202,6 +203,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   }
 
   private DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private List<PCollectionView<?>> sideInputs;
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
@@ -243,7 +245,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * inputs must be globally windowed, as they will be accessed from the global window.
      */
     public List<PCollectionView<?>> getSideInputs() {
-      return Lists.newArrayList();
+      return ImmutableList.of();
     }
 
     /**
@@ -395,9 +397,17 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     return (DynamicDestinations<UserT, DestinationT>) dynamicDestinations;
   }
 
-  public <UserT> void setDynamicDestinations(
-      DynamicDestinations<UserT, DestinationT> dynamicDestinations) {
-    this.dynamicDestinations = dynamicDestinations;
+  /** Returns the list of side inputs used by this sink. */
+  public List<PCollectionView<?>> getSideInputs() {
+    return (sideInputs != null) ? sideInputs : dynamicDestinations.getSideInputs();
+  }
+
+  /**
+  * Sets the list of side inputs used by this sink. Will override what DynamicDestinations
+  * returns.
+  */
+  public void setSideInputs(List<PCollectionView<?>> sideInputs) {
+    this.sideInputs = sideInputs;
   }
 
   /**

@@ -540,15 +540,13 @@ public class AvroIOTest {
     assertThat(actualElements, containsInAnyOrder(allElements.toArray()));
   }
 
-  private static final Schema.Parser parser = new Schema.Parser();
-
   private static final String SCHEMA_TEMPLATE_STRING =
       "{\"namespace\": \"example.avro\",\n"
           + " \"type\": \"record\",\n"
-          + " \"name\": \"TestTemplateSchema\",\n"
+          + " \"name\": \"TestTemplateSchema$$\",\n"
           + " \"fields\": [\n"
           + "     {\"name\": \"$$full\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"$$suffix\", \"type\": [\"int\", \"null\"]},\n"
+          + "     {\"name\": \"$$suffix\", \"type\": [\"string\", \"null\"]}\n"
           + " ]\n"
           + "}";
   private static String schemaFromPrefix(String prefix) {
@@ -568,7 +566,7 @@ public class AvroIOTest {
     public Schema getSchema(String destination) {
       // Return a per-destination schema.
       String schema = sideInput(schemaView).get(destination);
-      return parser.parse(schema);
+      return new Schema.Parser().parse(schema);
     }
 
     @Override
@@ -609,7 +607,8 @@ public class AvroIOTest {
     @Override
     public GenericRecord apply(String input) {
       String prefix = input.substring(0, 1);
-      GenericRecord record = new GenericData.Record(parser.parse(schemaFromPrefix(prefix)));
+      GenericRecord record = new GenericData.Record(
+          new Schema.Parser().parse(schemaFromPrefix(prefix)));
       record.put(prefix + "full", input);
       record.put(prefix + "suffix", input.substring(1));
       return record;

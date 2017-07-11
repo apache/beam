@@ -64,54 +64,6 @@ class WriteWithShardingFactory<InputT>
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
-  static final class WrappedDynamicDestinations<UserT, DestinationT>
-  extends DynamicDestinations<UserT, DestinationT> {
-    private List<PCollectionView<?>> sideInputs;
-    private DynamicDestinations<UserT, DestinationT> inner;
-
-    WrappedDynamicDestinations(DynamicDestinations<UserT, DestinationT> inner,
-                               List<PCollectionView<?>> sideInputs) {
-      this.inner = inner;
-      this.sideInputs = sideInputs;
-    }
-
-    @Override
-    public List<PCollectionView<?>> getSideInputs() {
-      return sideInputs;
-    }
-
-    @Override
-    public DestinationT getDestination(UserT element) {
-      return inner.getDestination(element);
-    }
-
-    @Override
-    public DestinationT getDefaultDestination() {
-      return inner.getDefaultDestination();
-    }
-
-    @Override
-    public Coder<DestinationT> getDestinationCoder() {
-      return inner.getDestinationCoder();
-    }
-
-    @Override
-    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
-        throws CannotProvideCoderException {
-      return inner.getDestinationCoderWithDefault(registry);
-    }
-
-    @Override
-    public FilenamePolicy getFilenamePolicy(DestinationT destination) {
-      return inner.getFilenamePolicy(destination);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      inner.populateDisplayData(builder);
-    }
-  }
-
   @Override
   public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
       AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
@@ -120,8 +72,7 @@ class WriteWithShardingFactory<InputT>
       List<PCollectionView<?>> sideInputs =
           WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
       FileBasedSink sink = WriteFilesTranslation.getSink(transform);
-      sink.setDynamicDestinations(
-          new WrappedDynamicDestinations(sink.getDynamicDestinations(), sideInputs));
+      sink.setSideInputs(sideInputs);
       WriteFiles<InputT, ?, ?> replacement =
           WriteFiles.to(
               sink,
