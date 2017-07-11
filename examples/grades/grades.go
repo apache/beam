@@ -6,16 +6,10 @@ import (
 	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
-)
-
-var (
-	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 type Grade struct {
@@ -87,7 +81,7 @@ func main() {
 	debug.Printf(p, "Sum: %v", stats.Sum(p, grades))
 	debug.Printf(p, "Mean: %v", stats.Mean(p, grades))
 
-	if err := beam.Run(context.Background(), *runner, p); err != nil {
+	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

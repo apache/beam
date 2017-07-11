@@ -11,16 +11,12 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
 
 var (
 	real = flag.Int("real_dice", 20, "Actual dice to use (cropped to formal).")
 	dice = flag.Int("dice", 6, "Formal dice to use.")
-
-	runner = flag.String("runner", "local", "Pipeline runner.")
 )
 
 func init() {
@@ -109,7 +105,7 @@ func main() {
 		beam.SideInput{Input: roll(p)},
 	)
 
-	if err := beam.Run(context.Background(), *runner, p); err != nil {
+	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
