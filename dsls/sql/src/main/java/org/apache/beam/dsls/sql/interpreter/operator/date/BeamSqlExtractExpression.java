@@ -43,24 +43,18 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *   <li>DAYOFYEAR(date) =&gt; EXTRACT(DOY FROM date)</li>
  *   <li>DAYOFMONTH(date) =&gt; EXTRACT(DAY FROM date)</li>
  *   <li>DAYOFWEEK(date) =&gt; EXTRACT(DOW FROM date)</li>
- *   <li>HOUR(date) =&gt; EXTRACT(HOUR FROM date)</li>
- *   <li>MINUTE(date) =&gt; EXTRACT(MINUTE FROM date)</li>
- *   <li>SECOND(date) =&gt; EXTRACT(SECOND FROM date)</li>
  * </ul>
  */
 public class BeamSqlExtractExpression extends BeamSqlExpression {
   private static final Map<TimeUnitRange, Integer> typeMapping = new HashMap<>();
   static {
-    typeMapping.put(TimeUnitRange.HOUR, Calendar.HOUR_OF_DAY);
-    typeMapping.put(TimeUnitRange.MINUTE, Calendar.MINUTE);
-    typeMapping.put(TimeUnitRange.SECOND, Calendar.SECOND);
     typeMapping.put(TimeUnitRange.DOW, Calendar.DAY_OF_WEEK);
     typeMapping.put(TimeUnitRange.DOY, Calendar.DAY_OF_YEAR);
     typeMapping.put(TimeUnitRange.WEEK, Calendar.WEEK_OF_YEAR);
   }
 
   public BeamSqlExtractExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.INTEGER);
+    super(operands, SqlTypeName.BIGINT);
   }
   @Override public boolean accept() {
     return operands.size() == 2
@@ -81,22 +75,19 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
             unit,
             timeByDay
         );
-        return BeamSqlPrimitive.of(outputType, extracted.intValue());
+        return BeamSqlPrimitive.of(outputType, extracted);
 
-      case HOUR:
-      case MINUTE:
-      case SECOND:
       case DOY:
       case DOW:
       case WEEK:
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date(time));
-        return BeamSqlPrimitive.of(outputType, calendar.get(typeMapping.get(unit)));
+        return BeamSqlPrimitive.of(outputType, (long) calendar.get(typeMapping.get(unit)));
 
       case QUARTER:
         calendar = Calendar.getInstance();
         calendar.setTime(new Date(time));
-        int ret = calendar.get(Calendar.MONTH) / 3;
+        long ret = calendar.get(Calendar.MONTH) / 3;
         if (ret * 3 < calendar.get(Calendar.MONTH)) {
           ret += 1;
         }

@@ -30,11 +30,11 @@ import org.junit.Test;
 /**
  * Test for BeamSqlLocalTimestampExpression.
  */
-public class BeamSqlLocalTimestampExpressionTest extends BeamSqlDateExpressionTestBase {
+public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     assertEquals(SqlTypeName.TIMESTAMP,
-        new BeamSqlLocalTimestampExpression(operands).evaluate(record).getOutputType());
+        new BeamSqlCurrentTimestampExpression(operands).evaluate(record).getOutputType());
   }
 }
