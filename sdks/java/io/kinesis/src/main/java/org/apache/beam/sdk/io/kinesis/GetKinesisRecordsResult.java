@@ -21,6 +21,7 @@ import static com.google.common.collect.Lists.transform;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.google.common.base.Function;
+
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -28,27 +29,29 @@ import javax.annotation.Nullable;
  * Represents the output of 'get' operation on Kinesis stream.
  */
 class GetKinesisRecordsResult {
-    private final List<KinesisRecord> records;
-    private final String nextShardIterator;
 
-    public GetKinesisRecordsResult(List<UserRecord> records, String nextShardIterator,
-                                   final String streamName, final String shardId) {
-        this.records = transform(records, new Function<UserRecord, KinesisRecord>() {
-            @Nullable
-            @Override
-            public KinesisRecord apply(@Nullable UserRecord input) {
-                assert input != null;  // to make FindBugs happy
-                return new KinesisRecord(input, streamName, shardId);
-            }
-        });
-        this.nextShardIterator = nextShardIterator;
-    }
+  private final List<KinesisRecord> records;
+  private final String nextShardIterator;
 
-    public List<KinesisRecord> getRecords() {
-        return records;
-    }
+  public GetKinesisRecordsResult(List<UserRecord> records, String nextShardIterator,
+      final String streamName, final String shardId) {
+    this.records = transform(records, new Function<UserRecord, KinesisRecord>() {
 
-    public String getNextShardIterator() {
-        return nextShardIterator;
-    }
+      @Nullable
+      @Override
+      public KinesisRecord apply(@Nullable UserRecord input) {
+        assert input != null;  // to make FindBugs happy
+        return new KinesisRecord(input, streamName, shardId);
+      }
+    });
+    this.nextShardIterator = nextShardIterator;
+  }
+
+  public List<KinesisRecord> getRecords() {
+    return records;
+  }
+
+  public String getNextShardIterator() {
+    return nextShardIterator;
+  }
 }
