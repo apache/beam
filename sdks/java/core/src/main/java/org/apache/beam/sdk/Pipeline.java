@@ -496,7 +496,7 @@ public class Pipeline {
    *
    * @see Pipeline#apply
    */
-  private <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(
+  protected <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(
       String name, InputT input, PTransform<? super InputT, OutputT> transform) {
     String namePrefix = transforms.getCurrent().getFullName();
     String uniqueName = uniquifyInternal(namePrefix, name);

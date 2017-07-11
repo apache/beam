@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -39,9 +40,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Rule;
@@ -251,8 +255,11 @@ public class TestPipelineTest implements Serializable {
 
       private final transient TestPipeline pipeline = TestPipeline.create();
 
+      private final transient ExpectedException innerException = ExpectedException.none();
+
       @Rule
-      public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
+      public final transient RuleChain chain =
+          RuleChain.outerRule(exception).around(pipeline).around(innerException);
 
       @Category(ValidatesRunner.class)
       @Test
@@ -323,6 +330,32 @@ public class TestPipelineTest implements Serializable {
         exception.expectMessage(P_ASSERT);
         // dangling PAssert
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
+      }
+
+      @Category(NeedsRunner.class)
+      @Test
+      public void testConstructionErrorNeedsRunner() throws Exception {
+        final RuntimeException expectedError = new RuntimeException("Expected Construction Error");
+        innerException.expect(sameInstance(expectedError));
+        pipeline.apply(new PTransform<PBegin, POutput>() {
+          @Override
+          public POutput expand(PBegin input) {
+            throw expectedError;
+          }
+        });
+      }
+
+      @Category(ValidatesRunner.class)
+      @Test
+      public void testConstructionErrorValidatesRunner() throws Exception {
+        final RuntimeException expectedError = new RuntimeException("Expected Construction Error");
+        innerException.expect(sameInstance(expectedError));
+        pipeline.apply(new PTransform<PBegin, POutput>() {
+          @Override
+          public POutput expand(PBegin input) {
+            throw expectedError;
+          }
+        });
       }
 
       /**

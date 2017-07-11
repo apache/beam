@@ -51,8 +51,12 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -104,6 +108,7 @@ import org.junit.runners.model.Statement;
 public class TestPipeline extends Pipeline implements TestRule {
 
   private final PipelineOptions options;
+  private boolean constructionHasFailed = false;
 
   private static class PipelineRunEnforcement {
 
@@ -319,7 +324,13 @@ public class TestPipeline extends Pipeline implements TestRule {
         // the flow, preventing the enforcement(s) from being activated.
         // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.get().afterUserCodeFinished();
+
+        // If construction failed, then to reach here the test code must have caught the exception
+        // and succeeded. This suggests the test was verifying a specific construction error, and
+        // thus is expected.
+        if (!constructionHasFailed) {
+          enforcement.get().afterUserCodeFinished();
+        }
       }
     };
   }
@@ -541,6 +552,28 @@ public class TestPipeline extends Pipeline implements TestRule {
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       empty = false;
+    }
+  }
+
+  @Override
+  protected <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(String name,
+      InputT input, PTransform<? super InputT, OutputT> transform) {
+    try {
+      return super.applyInternal(name, input, transform);
+    } catch (Throwable t) {
+      constructionHasFailed = true;
+      throw t;
+    }
+  }
+
+
+  @Override
+  public void replaceAll(List<PTransformOverride> overrides) {
+    try {
+      super.replaceAll(overrides);
+    } catch (Throwable t) {
+      constructionHasFailed = true;
+      throw t;
     }
   }
 }
