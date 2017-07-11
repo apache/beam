@@ -27,7 +27,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
  */
 public class BeamSqlDivideExpression extends BeamSqlArithmeticExpression {
   public BeamSqlDivideExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, operands.get(0).getOutputType());
   }
 
   @Override protected BigDecimal calc(BigDecimal left, BigDecimal right) {

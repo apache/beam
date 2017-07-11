@@ -20,16 +20,21 @@ package org.apache.beam.dsls.sql.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 /**
- * Test for BeamSqlCurrentTimeExpression.
+ * Test for BeamSqlLocalTimeExpression.
  */
 public class BeamSqlCurrentTimeExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test
   public void test() {
-    assertEquals(SqlTypeName.TIMESTAMP,
-        new BeamSqlCurrentTimeExpression().evaluate(record).getOutputType());
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    assertEquals(SqlTypeName.TIME,
+        new BeamSqlCurrentTimeExpression(operands).evaluate(record).getOutputType());
   }
 }
