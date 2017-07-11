@@ -367,9 +367,12 @@ message WriteFilesPayload {
   // (Required) The SdkFunctionSpec of the FileBasedSink.
   SdkFunctionSpec sink = 1;
 
-  bool windowed_writes = 2;
+  // (Required) The format function.
+  SdkFunctionSpec format_function = 2;
 
-  bool runner_determined_sharding = 3;
+  bool windowed_writes = 3;
+
+  bool runner_determined_sharding = 4;
 }
 
 // A coder, the binary format for serialization and deserialization of data in

@@ -23,8 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -158,21 +158,16 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     }
     // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
     // We must first use reflection to figure out what the type parameter is.
-    for (Type superclass = getClass().getGenericSuperclass();
-        superclass != null;
-        superclass = ((Class) superclass).getGenericSuperclass()) {
-      if (superclass instanceof ParameterizedType) {
-        ParameterizedType parameterized = (ParameterizedType) superclass;
-        if (parameterized.getRawType() == DynamicDestinations.class) {
-          // DestinationT is the second parameter.
-          Type parameter = parameterized.getActualTypeArguments()[1];
-          @SuppressWarnings("unchecked")
-          Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
-          return registry.getCoder(parameterClass);
-        }
-      }
+    TypeDescriptor<?> superDescriptor =
+        TypeDescriptor.of(getClass()).getSupertype(DynamicDestinations.class);
+    if (!superDescriptor.getRawType().equals(DynamicDestinations.class)) {
+      throw new AssertionError(
+          "Couldn't find the DynamicDestinations superclass of " + this.getClass());
     }
-    throw new AssertionError(
-        "Couldn't find the DynamicDestinations superclass of " + this.getClass());
+    TypeVariable typeVariable = superDescriptor.getTypeParameter("DestinationT");
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<DestinationT> descriptor =
+        (TypeDescriptor<DestinationT>) superDescriptor.resolveType(typeVariable);
+    return registry.getCoder(descriptor);
   }
 }
