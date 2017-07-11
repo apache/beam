@@ -22,10 +22,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains Test helper methods used by both Integration and Unit Tests in
@@ -34,8 +35,10 @@ import org.slf4j.LoggerFactory;
 class JdbcTestHelper {
   static final String READ_TABLE_NAME = "BEAM_TEST_READ";
 
-  static String getWriteTableName() {
-    return "BEAMTEST" + org.joda.time.Instant.now().getMillis();
+  static String getWriteTableName() throws ParseException {
+    SimpleDateFormat formatter = new SimpleDateFormat();
+    formatter.applyPattern("yyyy_MM_dd_HH_mm_ss_S");
+    return "BEAMTEST_" + formatter.format(new Date());
   }
 
   static void createDataTable(

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.util.List;
 
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -75,7 +76,7 @@ public class JdbcIOIT {
   public TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws SQLException {
+  public static void setup() throws SQLException, ParseException {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
