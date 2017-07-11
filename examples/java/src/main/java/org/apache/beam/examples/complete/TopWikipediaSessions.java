@@ -167,7 +167,8 @@ public class TopWikipediaSessions {
               new DoFn<String, String>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
-                  if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {
+                  long hashCode = c.element().hashCode();
+                  if (Math.abs(hashCode) <= Integer.MAX_VALUE * samplingThreshold) {
                     c.output(c.element());
                   }
                 }
@@ -191,7 +192,6 @@ public class TopWikipediaSessions {
     @Default.String(EXPORTED_WIKI_TABLE)
     String getInput();
     void setInput(String value);
-
     @Description("File to output results to")
     @Validation.Required
     String getOutput();
