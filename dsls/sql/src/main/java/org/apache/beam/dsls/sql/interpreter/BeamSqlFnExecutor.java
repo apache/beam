@@ -46,11 +46,10 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyE
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimeExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.logical.BeamSqlOrExpression;
@@ -332,7 +331,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
 
         // date functions
-        case "REINTERPRET":
+        case "Reinterpret":
           return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
         case "CEIL":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
@@ -349,13 +348,15 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "EXTRACT_DATE":
         case "EXTRACT":
           return new BeamSqlExtractExpression(subExps);
+
         case "LOCALTIME":
-          return new BeamSqlLocalTimeExpression(subExps);
-        case "LOCALTIMESTAMP":
-          return new BeamSqlLocalTimestampExpression(subExps);
         case "CURRENT_TIME":
+          return new BeamSqlCurrentTimeExpression(subExps);
+
         case "CURRENT_TIMESTAMP":
-          return new BeamSqlCurrentTimeExpression();
+        case "LOCALTIMESTAMP":
+          return new BeamSqlCurrentTimestampExpression(subExps);
+
         case "CURRENT_DATE":
           return new BeamSqlCurrentDateExpression();
 
