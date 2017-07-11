@@ -58,8 +58,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
@@ -96,9 +94,9 @@ import org.slf4j.LoggerFactory;
  * <p>The process of writing to file-based sink is as follows:
  *
  * <ol>
- *   <li>An optional subclass-defined initialization,
- *   <li>a parallel write of bundles to temporary files, and finally,
- *   <li>these temporary files are renamed with final output filenames.
+ * <li>An optional subclass-defined initialization,
+ * <li>a parallel write of bundles to temporary files, and finally,
+ * <li>these temporary files are renamed with final output filenames.
  * </ol>
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
@@ -125,46 +123,36 @@ import org.slf4j.LoggerFactory;
 public abstract class FileBasedSink<OutputT, DestinationT> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
-  /**
-   * Directly supported file output compression types.
-   */
+  /** Directly supported file output compression types. */
   public enum CompressionType implements WritableByteChannelFactory {
-    /**
-     * No compression, or any other transformation, will be used.
-     */
+    /** No compression, or any other transformation, will be used. */
     UNCOMPRESSED("", null) {
       @Override
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
         return channel;
       }
     },
-    /**
-     * Provides GZip output transformation.
-     */
+    /** Provides GZip output transformation. */
     GZIP(".gz", MimeTypes.BINARY) {
       @Override
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
         return Channels.newChannel(new GZIPOutputStream(Channels.newOutputStream(channel), true));
       }
     },
-    /**
-     * Provides BZip2 output transformation.
-     */
+    /** Provides BZip2 output transformation. */
     BZIP2(".bz2", MimeTypes.BINARY) {
       @Override
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels
-            .newChannel(new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
+        return Channels.newChannel(
+            new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
       }
     },
-    /**
-     * Provides deflate output transformation.
-     */
+    /** Provides deflate output transformation. */
     DEFLATE(".deflate", MimeTypes.BINARY) {
       @Override
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels
-            .newChannel(new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
+        return Channels.newChannel(
+            new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
       }
     };
 
@@ -182,7 +170,8 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
 
     @Override
-    @Nullable public String getMimeType() {
+    @Nullable
+    public String getMimeType() {
       return mimeType;
     }
   }
@@ -213,8 +202,8 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
-   * underlying channel. The default is to not compress the output using
-   * {@link CompressionType#UNCOMPRESSED}.
+   * underlying channel. The default is to not compress the output using {@link
+   * CompressionType#UNCOMPRESSED}.
    */
   private final WritableByteChannelFactory writableByteChannelFactory;
 
@@ -285,85 +274,20 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public abstract static class FilenamePolicy implements Serializable {
     /**
-     * Context used for generating a name based on shard number, and num shards.
-     * The policy must produce unique filenames for unique {@link Context} objects.
-     *
-     * <p>Be careful about adding fields to this as existing strategies will not notice the new
-     * fields, and may not produce unique filenames.
-     */
-    public static class Context {
-      private int shardNumber;
-      private int numShards;
-
-
-      public Context(int shardNumber, int numShards) {
-        this.shardNumber = shardNumber;
-        this.numShards = numShards;
-      }
-
-      public int getShardNumber() {
-        return shardNumber;
-      }
-
-
-      public int getNumShards() {
-        return numShards;
-      }
-    }
-
-    /**
-     * Context used for generating a name based on window, pane, shard number, and num shards.
-     * The policy must produce unique filenames for unique {@link WindowedContext} objects.
-     *
-     * <p>Be careful about adding fields to this as existing strategies will not notice the new
-     * fields, and may not produce unique filenames.
-     */
-    public static class WindowedContext {
-      private int shardNumber;
-      private int numShards;
-      private BoundedWindow window;
-      private PaneInfo paneInfo;
-
-      public WindowedContext(
-          BoundedWindow window,
-          PaneInfo paneInfo,
-          int shardNumber,
-          int numShards) {
-        this.window = window;
-        this.paneInfo = paneInfo;
-        this.shardNumber = shardNumber;
-        this.numShards = numShards;
-      }
-
-      public BoundedWindow getWindow() {
-        return window;
-      }
-
-      public PaneInfo getPaneInfo() {
-        return paneInfo;
-      }
-
-      public int getShardNumber() {
-        return shardNumber;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
-    }
-
-    /**
      * When a sink has requested windowed or triggered output, this method will be invoked to return
      * the file {@link ResourceId resource} to be created given the base output directory and a
      * {@link OutputFileHints} containing information about the file, including a suggested
      * extension (e.g. coming from {@link CompressionType}).
      *
-     * <p>The {@link WindowedContext} object gives access to the window and pane, as well as
-     * sharding information. The policy must return unique and consistent filenames for different
-     * windows and panes.
+     * <p>The policy must return unique and consistent filenames for different windows and panes.
      */
     @Experimental(Kind.FILESYSTEM)
-    public abstract ResourceId windowedFilename(WindowedContext c, OutputFileHints outputFileHints);
+    public abstract ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints);
 
     /**
      * When a sink has not requested windowed or triggered output, this method will be invoked to
@@ -371,18 +295,16 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * a {@link OutputFileHints} containing information about the file, including a suggested (e.g.
      * coming from {@link CompressionType}).
      *
-     * <p>The {@link Context} object only provides sharding information, which is used by the policy
-     * to generate unique and consistent filenames.
+     * <p>The shardNumber and numShards parameters, should be used by the policy to generate unique
+     * and consistent filenames.
      */
     @Experimental(Kind.FILESYSTEM)
     @Nullable
-    public abstract ResourceId unwindowedFilename(Context c, OutputFileHints outputFileHints);
+    public abstract ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints);
 
-    /**
-     * Populates the display data.
-     */
-    public void populateDisplayData(DisplayData.Builder builder) {
-    }
+    /** Populates the display data. */
+    public void populateDisplayData(DisplayData.Builder builder) {}
   }
 
   /** The directory to which files will be written. */
@@ -449,11 +371,11 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    * written,
    *
    * <ol>
-   *   <li>{@link WriteOperation#finalize} is given a list of the temporary files containing the
-   *       output bundles.
-   *   <li>During finalize, these temporary files are copied to final output locations and named
-   *       according to a file naming template.
-   *   <li>Finally, any temporary files that were created during the write are removed.
+   * <li>{@link WriteOperation#finalize} is given a list of the temporary files containing the
+   *     output bundles.
+   * <li>During finalize, these temporary files are copied to final output locations and named
+   *     according to a file naming template.
+   * <li>Finally, any temporary files that were created during the write are removed.
    * </ol>
    *
    * <p>Subclass implementations of WriteOperation must implement {@link
@@ -558,9 +480,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      */
     public abstract Writer<OutputT, DestinationT> createWriter() throws Exception;
 
-    /**
-     * Indicates that the operation will be performing windowed writes.
-     */
+    /** Indicates that the operation will be performing windowed writes. */
     public void setWindowedWrites(boolean windowedWrites) {
       this.windowedWrites = windowedWrites;
     }
@@ -659,9 +579,11 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
-      checkState(numDistinctShards == outputFilenames.size(),
-         "Only generated %s distinct file names for %s files.",
-         numDistinctShards, outputFilenames.size());
+      checkState(
+          numDistinctShards == outputFilenames.size(),
+          "Only generated %s distinct file names for %s files.",
+          numDistinctShards,
+          outputFilenames.size());
 
       return outputFilenames;
     }
@@ -726,8 +648,9 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       // ignore the exception for now to avoid failing the pipeline.
       if (shouldRemoveTemporaryDirectory) {
         try {
-          MatchResult singleMatch = Iterables.getOnlyElement(
-              FileSystems.match(Collections.singletonList(tempDir.toString() + "*")));
+          MatchResult singleMatch =
+              Iterables.getOnlyElement(
+                  FileSystems.match(Collections.singletonList(tempDir.toString() + "*")));
           for (Metadata matchResult : singleMatch.metadata()) {
             matches.add(matchResult.resourceId());
           }
@@ -807,18 +730,16 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
 
-    /**
-     * The channel to write to.
-     */
+    /** The channel to write to. */
     private WritableByteChannel channel;
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
      *
-     * <p>This is the default for the sink, but it may be overridden by a supplied
-     * {@link WritableByteChannelFactory}. For example, {@link TextIO.Write} uses
-     * {@link MimeTypes#TEXT} by default but if {@link CompressionType#BZIP2} is set then
-     * the MIME type will be overridden to {@link MimeTypes#BINARY}.
+     * <p>This is the default for the sink, but it may be overridden by a supplied {@link
+     * WritableByteChannelFactory}. For example, {@link TextIO.Write} uses {@link MimeTypes#TEXT} by
+     * default but if {@link CompressionType#BZIP2} is set then the MIME type will be overridden to
+     * {@link MimeTypes#BINARY}.
      */
     private final String mimeType;
 
@@ -843,14 +764,12 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      */
     protected void writeHeader() throws Exception {}
 
-    /**
-     * Writes footer at the end of output files. Nothing by default; subclasses may override.
-     */
+    /** Writes footer at the end of output files. Nothing by default; subclasses may override. */
     protected void writeFooter() throws Exception {}
 
     /**
-     * Called after all calls to {@link #writeHeader}, {@link #write} and {@link #writeFooter}.
-     * If any resources opened in the write processes need to be flushed, flush them here.
+     * Called after all calls to {@link #writeHeader}, {@link #write} and {@link #writeFooter}. If
+     * any resources opened in the write processes need to be flushed, flush them here.
      */
     protected void finishWrite() throws Exception {}
 
@@ -875,9 +794,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       open(uId, window, paneInfo, shard, destination);
     }
 
-    /**
-     * Called for each value in the bundle.
-     */
+    /** Called for each value in the bundle. */
     public abstract void write(OutputT value) throws Exception;
 
     /**
@@ -982,7 +899,9 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
       checkState(
           channel.isOpen(),
-          "Channel %s to %s should only be closed by its owner: %s", channel, outputFile);
+          "Channel %s to %s should only be closed by its owner: %s",
+          channel,
+          outputFile);
 
       LOG.debug("Closing channel to {}.", outputFile);
       try {
@@ -1063,10 +982,9 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
       if (getWindow() != null) {
         return policy.windowedFilename(
-            new WindowedContext(getWindow(), getPaneInfo(), getShard(), numShards),
-            outputFileHints);
+            getShard(), numShards, getWindow(), getPaneInfo(), outputFileHints);
       } else {
-        return policy.unwindowedFilename(new Context(getShard(), numShards), outputFileHints);
+        return policy.unwindowedFilename(getShard(), numShards, outputFileHints);
       }
     }
 
@@ -1154,7 +1072,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      *
      * @see MimeTypes
      * @see <a href=
-     *      'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
+     *     'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
      */
     @Nullable
     String getMimeType();
