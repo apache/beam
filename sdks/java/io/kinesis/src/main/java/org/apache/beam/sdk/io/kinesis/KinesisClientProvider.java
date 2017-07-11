@@ -27,7 +27,7 @@ import java.io.Serializable;
  * <p>Please note, that any instance of {@link KinesisClientProvider} must be
  * {@link Serializable} to ensure it can be sent to worker machines.
  */
-interface KinesisClientProvider extends Serializable {
+public interface KinesisClientProvider extends Serializable {
 
   AmazonKinesis get();
 }
