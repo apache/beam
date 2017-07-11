@@ -162,9 +162,9 @@ public class ParDoTranslationTest {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             ParDoTranslation.viewFromProto(
-                rehydratedPipeline,
                 sideInput,
                 view.getTagInternal().getId(),
+                view.getPCollection(),
                 protoTransform,
                 protoComponents);
         assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
