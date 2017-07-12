@@ -563,7 +563,8 @@ public class ApiSurface {
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
-        || getPrunedPattern().matcher(clazz.getName()).matches();
+        || getPrunedPattern().matcher(clazz.getName()).matches()
+        || getPrunedPattern().matcher(clazz.getPackage().getName()).matches();
   }
 
   /** Whether a type has already beens sufficiently processed. */
