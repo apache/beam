@@ -159,24 +159,29 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testTumbleWindow() throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
+    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+        + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
+        + " FROM TABLE_A "
         + "GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<BeamSqlRow> result =
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testTumbleWindow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(
+        Arrays.asList("f_int2", "size", "window_start"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
+    record1.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
     record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:00:00").getTime()));
     record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
 
     BeamSqlRow record2 = new BeamSqlRow(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 1L);
+    record2.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
     record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
     record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 03:00:00").getTime()));
 
@@ -190,35 +195,42 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testHopWindow() throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION "
+    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+        + " HOP_START(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE) AS `window_start`"
+        + " FROM PCOLLECTION "
         + "GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
     PCollection<BeamSqlRow> result =
         inputA1.apply("testHopWindow", BeamSql.simpleQuery(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(
+        Arrays.asList("f_int2", "size", "window_start"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
+    record1.addField("window_start", FORMAT.parse("2017-01-01 00:30:00"));
     record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 00:30:00").getTime()));
     record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 01:30:00").getTime()));
 
     BeamSqlRow record2 = new BeamSqlRow(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 3L);
+    record2.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
     record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:00:00").getTime()));
     record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
 
     BeamSqlRow record3 = new BeamSqlRow(resultType);
     record3.addField("f_int2", 0);
     record3.addField("size", 1L);
+    record3.addField("window_start", FORMAT.parse("2017-01-01 01:30:00"));
     record3.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:30:00").getTime()));
     record3.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:30:00").getTime()));
 
     BeamSqlRow record4 = new BeamSqlRow(resultType);
     record4.addField("f_int2", 0);
     record4.addField("size", 1L);
+    record4.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
     record4.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
     record4.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 03:00:00").getTime()));
 
@@ -232,24 +244,29 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
    */
   @Test
   public void testSessionWindow() throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
+    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+        + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`"
+        + " FROM TABLE_A "
         + "GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<BeamSqlRow> result =
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
         .apply("testSessionWindow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(
+        Arrays.asList("f_int2", "size", "window_start"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
     BeamSqlRow record1 = new BeamSqlRow(resultType);
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
+    record1.addField("window_start", FORMAT.parse("2017-01-01 01:01:03"));
     record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:01:03").getTime()));
     record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 01:11:03").getTime()));
 
     BeamSqlRow record2 = new BeamSqlRow(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 1L);
+    record2.addField("window_start", FORMAT.parse("2017-01-01 02:04:03"));
     record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:04:03").getTime()));
     record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:09:03").getTime()));
 
