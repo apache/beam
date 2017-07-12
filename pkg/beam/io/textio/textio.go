@@ -2,71 +2,147 @@ package textio
 
 import (
 	"bufio"
-	"io/ioutil"
+	"context"
+	"fmt"
+	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*readFileFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
 }
 
-// Read reads a local file and returns the lines as a PCollection<string>. The
+// Read reads a set of file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.
-func Read(p *beam.Pipeline, filename string) beam.PCollection {
+func Read(p *beam.Pipeline, glob string) beam.PCollection {
 	p = p.Composite("textio.Read")
-	return beam.Source(p, &readFileFn{Filename: filename})
+
+	validateScheme(glob)
+	return read(p, beam.Create(p, glob))
 }
 
-type readFileFn struct {
-	Filename string `json:"filename"`
+func validateScheme(glob string) {
+	if strings.TrimSpace(glob) == "" {
+		panic("empty file glob provided")
+	}
+	scheme := getScheme(glob)
+	if _, ok := registry[scheme]; !ok {
+		panic(fmt.Sprintf("textio scheme %v not registered", scheme))
+	}
 }
 
-func (r *readFileFn) ProcessElement(emit func(string)) error {
-	log.Printf("Reading from %v", r.Filename)
+func getScheme(glob string) string {
+	if index := strings.Index(glob, "://"); index > 0 {
+		return glob[:index]
+	}
+	return "default"
+}
 
-	file, err := os.Open(r.Filename)
+func newFileSystem(ctx context.Context, glob string) (FileSystem, error) {
+	scheme := getScheme(glob)
+	mkfs, ok := registry[scheme]
+	if !ok {
+		return nil, fmt.Errorf("textio scheme %v not registered for %v", scheme, glob)
+	}
+	return mkfs(ctx), nil
+}
+
+// ReadAll expands and reads the filename given as globs by the incoming
+// PCollection<string>. It returns the lines of all files as a single
+// PCollection<string>. The newlines are not part of the lines.
+func ReadAll(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
+	p = p.Composite("textio.ReadAll")
+
+	return read(p, col)
+}
+
+func read(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
+	files := beam.ParDo(p, expandFn, col)
+	return beam.ParDo(p, readFn, files)
+}
+
+func expandFn(ctx context.Context, glob string, emit func(string)) error {
+	if strings.TrimSpace(glob) == "" {
+		return nil // ignore empty string elements here
+	}
+
+	fs, err := newFileSystem(ctx, glob)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer fs.Close()
 
-	scanner := bufio.NewScanner(file)
+	files, err := fs.List(ctx, glob)
+	if err != nil {
+		return err
+	}
+	for _, filename := range files {
+		emit(filename)
+	}
+	return nil
+}
+
+func readFn(ctx context.Context, filename string, emit func(string)) error {
+	log.Printf("Reading from %v", filename)
+
+	fs, err := newFileSystem(ctx, filename)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
+
+	fd, err := fs.OpenRead(ctx, filename)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+
+	scanner := bufio.NewScanner(fd)
 	for scanner.Scan() {
 		emit(scanner.Text())
 	}
 	return scanner.Err()
 }
 
-// Write writes a PCollection<string> to a local file as separate lines. The
+// TODO(herohde) 7/12/2017: extend Write to write to a series of files
+// as well as allow sharding.
+
+// Write writes a PCollection<string> to a file as separate lines. The
 // writer add a newline after each element.
 func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
 	p = p.Composite("textio.Write")
+
+	validateScheme(filename)
 	beam.Sink(p, &writeFileFn{Filename: filename}, col)
 }
 
 type writeFileFn struct {
 	Filename string `json:"filename"`
 
+	fs     FileSystem
+	fd     io.WriteCloser
 	writer *bufio.Writer
-	fd     *os.File
 }
 
-func (w *writeFileFn) Setup() error {
-	if err := os.MkdirAll(filepath.Dir(w.Filename), 0755); err != nil {
-		return err
-	}
-	fd, err := ioutil.TempFile(filepath.Dir(w.Filename), filepath.Base(w.Filename))
+func (w *writeFileFn) Setup(ctx context.Context) error {
+	fs, err := newFileSystem(ctx, w.Filename)
 	if err != nil {
 		return err
 	}
-	log.Printf("Writing to %v", fd.Name())
+	fd, err := fs.OpenWrite(ctx, w.Filename)
+	if err != nil {
+		fs.Close()
+		return err
+	}
 
+	log.Printf("Writing to %v", w.Filename)
+
+	w.fs = fs
 	w.fd = fd
 	w.writer = bufio.NewWriterSize(fd, 1<<20)
 	return nil
@@ -81,6 +157,8 @@ func (w *writeFileFn) ProcessElement(line string) error {
 }
 
 func (w *writeFileFn) Teardown() error {
+	defer w.fs.Close()
+
 	if err := w.writer.Flush(); err != nil {
 		return err
 	}

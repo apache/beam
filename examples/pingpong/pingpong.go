@@ -104,8 +104,8 @@ func main() {
 	subset(p, small, small2)
 	subset(p, big2, big)
 
-	textio.Write(p, *output, small2)
-	textio.Write(p, *output, big2)
+	textio.Write(p, *output+"small.txt", small2)
+	textio.Write(p, *output+"big.txt", big2)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
