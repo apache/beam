@@ -314,11 +314,6 @@ functionality, but runner functionality as well. They are more lightweight than
 a traditional end-to-end test and, because of their well-scoped nature, provide
 good signal as to what exactly is working or broken against a particular runner.
 
-The name “ValidatesRunner” is an artifact of when Beam was still the Google
-Cloud Dataflow SDK and [will be
-changing](https://issues.apache.org/jira/browse/BEAM-655) to something more
-indicative of its use in the coming months.
-
 ### E2E
 
 End-to-End tests are meant to verify at the very highest level that the Beam
