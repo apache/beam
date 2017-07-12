@@ -135,4 +135,49 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(1234567L, new BeamSqlRoundExpression(operands).evaluate(record).getValue());
   }
 
+  @Test public void testPowerFunction() {
+    // test power functions with operands of type bigint, int,
+    // tinyint, smallint, double, decimal
+    List<BeamSqlExpression> operands = new ArrayList<>();
+
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.0));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
+    Assert.assertEquals(16.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+    // power(integer,integer) => long
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
+    assertEquals(4.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+    // power(integer,long) => long
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 3L));
+    assertEquals(8.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+
+    // power(long,long) => long
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
+    assertEquals(4.0, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+
+    //     power(double, int) => double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 1.1));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
+    assertEquals(1.1, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+
+    // power(double, long) => double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 1.1));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
+    assertEquals(1.1, new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+
+    // power(integer, double) => double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.2));
+    assertEquals(Math.pow(2, 2.2),
+        new BeamSqlPowerExpression(operands).evaluate(record).getValue());
+  }
+
 }
