@@ -28,14 +28,19 @@ mavenJob('beam_PreCommit_Java_Build') {
   // Set properties common to PreCommit initial jobs.
   common_job_properties.setPipelineBuildJobProperties(delegate)
 
-  // The CopyArtifact plugin doesn't support the job DSL so we have to configure it manually.
   configure { project ->
+    // The CopyArtifact plugin doesn't support the job DSL so we have to configure it manually.
     project / 'properties' / 'hudson.plugins.copyartifact.CopyArtifactPermissionProperty' / 'projectNameList' {
       'string' "beam_*"
     }
+    // The Build Discarder also doesn't support the job DSL in the right way so we have to configure it manually.
+    project / 'properties' / 'jenkins.model.BuildDiscarderProperty' / 'strategy'(class:'hudson.tasks.LogRotator') {
+      'daysToKeep'(-1)
+      'numToKeep'(-1)
+      'artifactDaysToKeep'(1)
+      'artifactNumToKeep'(-1)
+    }
   }
-
-  // TODO: Add configuration controlling how long to keep artifacts for.
 
   // Construct Maven goals for this job.
   profiles = [
@@ -51,12 +56,10 @@ mavenJob('beam_PreCommit_Java_Build') {
     "-P${profiles.join(',')}",
     'clean',
     'install',
-    "-pl '!sdks/python'",
+    "-pl '!sdks/python,!sdks/java/javadoc'",
     '-DskipTests',
-    '-Dcheckstyle.skip', // TODO: I think this line is necessary. Verify.
-    '-Dfindbugs.skip', // TODO: Do we need now that -Prelease is gone?
+    '-Dcheckstyle.skip',
     '-Dmaven.javadoc.skip', // TODO: Javadoc still seems to run, figure out what also to skip.
-    '-Drat.skip' // TODO: Do we need now that -Prelease is gone?
   ]
   goals(args.join(' '))
 
