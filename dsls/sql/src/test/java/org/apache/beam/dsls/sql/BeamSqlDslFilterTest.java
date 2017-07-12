@@ -25,18 +25,30 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
 /**
- * Tests for WHERE queries.
+ * Tests for WHERE queries with BOUNDED PCollection.
  */
 public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   /**
-   * single filter.
+   * single filter with bounded PCollection.
    */
   @Test
-  public void testSingleFilter() throws Exception {
+  public void testSingleFilterWithBounded() throws Exception {
+    runSingleFilter(boundedInput1);
+  }
+
+  /**
+   * single filter with unbounded PCollection.
+   */
+  @Test
+  public void testSingleFilterWithUnbounded() throws Exception {
+    runSingleFilter(unboundedInput1);
+  }
+
+  private void runSingleFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<BeamSqlRow> result =
-        inputA1.apply("testSingleFilter", BeamSql.simpleQuery(sql));
+        input.apply("testSingleFilter", BeamSql.simpleQuery(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -44,15 +56,27 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   }
 
   /**
-   * composite filters.
+   * composite filters with bounded PCollection.
    */
   @Test
-  public void testCompositeFilter() throws Exception {
+  public void testCompositeFilterWithBounded() throws Exception {
+    runCompositeFilter(boundedInput1);
+  }
+
+  /**
+   * composite filters with unbounded PCollection.
+   */
+  @Test
+  public void testCompositeFilterWithUnbounded() throws Exception {
+    runCompositeFilter(unboundedInput1);
+  }
+
+  private void runCompositeFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A"
         + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testCompositeFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
@@ -61,14 +85,26 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   }
 
   /**
-   * nothing return with filters.
+   * nothing return with filters in bounded PCollection.
    */
   @Test
-  public void testNoReturnFilter() throws Exception {
+  public void testNoReturnFilterWithBounded() throws Exception {
+    runNoReturnFilter(boundedInput1);
+  }
+
+  /**
+   * nothing return with filters in unbounded PCollection.
+   */
+  @Test
+  public void testNoReturnFilterWithUnbounded() throws Exception {
+    runNoReturnFilter(unboundedInput1);
+  }
+
+  private void runNoReturnFilter(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();
@@ -85,7 +121,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
         .apply("testFromInvalidTableName1", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
@@ -99,7 +135,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<BeamSqlRow> result = inputA1.apply(BeamSql.simpleQuery(sql));
+    PCollection<BeamSqlRow> result = boundedInput1.apply(BeamSql.simpleQuery(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -112,7 +148,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<BeamSqlRow> result = inputA1.apply(BeamSql.simpleQuery(sql));
+    PCollection<BeamSqlRow> result = boundedInput1.apply(BeamSql.simpleQuery(sql));
 
     pipeline.run().waitUntilFinish();
   }
