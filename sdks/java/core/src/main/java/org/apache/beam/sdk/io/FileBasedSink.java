@@ -220,7 +220,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     return new FileToResourceFunction();
   }
 
-  private static class FileToResourceFunction implements SerializableFunction<String,ResourceId> {
+  private static class FileToResourceFunction implements SerializableFunction<String, ResourceId> {
     @Override
     public ResourceId apply(String outputPrefix) {
       return convertToFileResourceIfPossible(outputPrefix);
