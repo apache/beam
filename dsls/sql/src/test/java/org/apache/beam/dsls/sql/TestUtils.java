@@ -75,12 +75,35 @@ public class TestUtils {
     /**
      * Create a RowsBuilder with the specified row type info.
      *
-     * <p>Note: check the class javadoc for for detailed example.
+     * <p>For example:
+     * <pre>{@code
+     * TestUtils.RowsBuilder.of(
+     *   Types.INTEGER, "order_id",
+     *   Types.INTEGER, "sum_site_id",
+     *   Types.VARCHAR, "buyer"
+     * )}</pre>
      *
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
       BeamSqlRecordType beamSQLRecordType = buildBeamSqlRecordType(args);
+      RowsBuilder builder = new RowsBuilder();
+      builder.type = beamSQLRecordType;
+
+      return builder;
+    }
+
+    /**
+     * Create a RowsBuilder with the specified row type info.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * TestUtils.RowsBuilder.of(
+     *   beamSqlRecordType
+     * )}</pre>
+     * @beamSQLRecordType the record type.
+     */
+    public static RowsBuilder of(final BeamSqlRecordType beamSQLRecordType) {
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRecordType;
 
