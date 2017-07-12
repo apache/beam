@@ -29,7 +29,6 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   // Construct Maven goals for this job.
   profiles = [ // TODO: Some of these are definitely not necessary.
     'release',
-    'jenkins-precommit',
     'direct-runner',
     'dataflow-runner',
     'spark-runner',
@@ -41,6 +40,7 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
     '-e',
     "-P${profiles.join(',')}",
     "-pl '!sdks/python'",
+    // TODO: This incantation fails in the root -- figure out why.
     'checkstyle:check',
     'findbugs:check',
     'rat:check',
