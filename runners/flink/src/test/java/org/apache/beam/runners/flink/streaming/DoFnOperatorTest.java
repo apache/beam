@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
@@ -135,6 +136,7 @@ public class DoFnOperatorTest {
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow("Hello")));
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -194,6 +196,7 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("extra: two"),
             WindowedValue.valueInGlobalWindow("got: hello")));
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -285,6 +288,7 @@ public class DoFnOperatorTest {
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         emptyIterable());
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -411,6 +415,7 @@ public class DoFnOperatorTest {
     // ensure the state was garbage collected
     assertEquals(0, testHarness.numKeyedStateEntries());
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -497,6 +502,7 @@ public class DoFnOperatorTest {
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(helloElement, worldElement));
 
+    testHarness.processWatermark1(new Watermark(Long.MAX_VALUE));
     testHarness.close();
 
   }
