@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
@@ -51,7 +53,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -116,7 +117,14 @@ public class TrafficRoutes {
 
     @Override
     public boolean equals(Object object) {
-      return EqualsBuilder.reflectionEquals(this, object, "stationId", "avgSpeed");
+      if (object == null) {
+        return false;
+      }
+      if (object.getClass() != getClass()) {
+        return false;
+      }
+      StationSpeed otherStationSpeed = (StationSpeed) object;
+      return Objects.equals(this.timestamp, otherStationSpeed.timestamp);
     }
 
     @Override
