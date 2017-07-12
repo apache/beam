@@ -28,9 +28,11 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -53,8 +55,13 @@ public class BeamSqlDslBase {
   public static BeamSqlRecordType recordTypeInTableA;
   public static List<BeamSqlRow> recordsInTableA;
 
-  public PCollection<BeamSqlRow> inputA1;
-  public PCollection<BeamSqlRow> inputA2;
+  //bounded PCollections
+  public PCollection<BeamSqlRow> boundedInput1;
+  public PCollection<BeamSqlRow> boundedInput2;
+
+  //unbounded PCollections
+  public PCollection<BeamSqlRow> unboundedInput1;
+  public PCollection<BeamSqlRow> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
@@ -69,11 +76,37 @@ public class BeamSqlDslBase {
 
   @Before
   public void preparePCollections(){
-    inputA1 = PBegin.in(pipeline).apply("inputA1", Create.of(recordsInTableA)
-        .withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
+    boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
+        Create.of(recordsInTableA).withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
 
-    inputA2 = PBegin.in(pipeline).apply("inputA2", Create.of(recordsInTableA.get(0))
-        .withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
+    boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
+        Create.of(recordsInTableA.get(0)).withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
+
+    unboundedInput1 = prepareUnboundedPCollection1();
+    unboundedInput2 = prepareUnboundedPCollection2();
+  }
+
+  private PCollection<BeamSqlRow> prepareUnboundedPCollection1() {
+    TestStream.Builder<BeamSqlRow> values = TestStream
+        .create(new BeamSqlRowCoder(recordTypeInTableA));
+
+    for (BeamSqlRow row : recordsInTableA) {
+      values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+      values = values.addElements(row);
+    }
+
+    return PBegin.in(pipeline).apply("unboundedInput1", values.advanceWatermarkToInfinity());
+  }
+
+  private PCollection<BeamSqlRow> prepareUnboundedPCollection2() {
+    TestStream.Builder<BeamSqlRow> values = TestStream
+        .create(new BeamSqlRowCoder(recordTypeInTableA));
+
+    BeamSqlRow row = recordsInTableA.get(0);
+    values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+    values = values.addElements(row);
+
+    return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
   }
 
   private static List<BeamSqlRow> prepareInputRecordsInTableA() throws ParseException{
