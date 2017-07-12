@@ -28,18 +28,30 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
 /**
- * Tests for field-project in queries.
+ * Tests for field-project in queries with BOUNDED PCollection.
  */
 public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   /**
-   * select all fields.
+   * select all fields with bounded PCollection.
    */
   @Test
-  public void testSelectAll() throws Exception {
+  public void testSelectAllWithBounded() throws Exception {
+    runSelectAll(boundedInput2);
+  }
+
+  /**
+   * select all fields with unbounded PCollection.
+   */
+  @Test
+  public void testSelectAllWithUnbounded() throws Exception {
+    runSelectAll(unboundedInput2);
+  }
+
+  private void runSelectAll(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION";
 
     PCollection<BeamSqlRow> result =
-        inputA2.apply("testSelectAll", BeamSql.simpleQuery(sql));
+        input.apply("testSelectAll", BeamSql.simpleQuery(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -47,14 +59,26 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   }
 
   /**
-   * select partial fields.
+   * select partial fields with bounded PCollection.
    */
   @Test
-  public void testPartialFields() throws Exception {
+  public void testPartialFieldsWithBounded() throws Exception {
+    runPartialFields(boundedInput2);
+  }
+
+  /**
+   * select partial fields with unbounded PCollection.
+   */
+  @Test
+  public void testPartialFieldsWithUnbounded() throws Exception {
+    runPartialFields(unboundedInput2);
+  }
+
+  private void runPartialFields(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFields", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
@@ -70,14 +94,26 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   }
 
   /**
-   * select partial fields for multiple rows.
+   * select partial fields for multiple rows with bounded PCollection.
    */
   @Test
-  public void testPartialFieldsInMultipleRow() throws Exception {
+  public void testPartialFieldsInMultipleRowWithBounded() throws Exception {
+    runPartialFieldsInMultipleRow(boundedInput1);
+  }
+
+  /**
+   * select partial fields for multiple rows with unbounded PCollection.
+   */
+  @Test
+  public void testPartialFieldsInMultipleRowWithUnbounded() throws Exception {
+    runPartialFieldsInMultipleRow(unboundedInput1);
+  }
+
+  private void runPartialFieldsInMultipleRow(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
@@ -105,14 +141,26 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   }
 
   /**
-   * select partial fields.
+   * select partial fields with bounded PCollection.
    */
   @Test
-  public void testPartialFieldsInRows() throws Exception {
+  public void testPartialFieldsInRowsWithBounded() throws Exception {
+    runPartialFieldsInRows(boundedInput1);
+  }
+
+  /**
+   * select partial fields with unbounded PCollection.
+   */
+  @Test
+  public void testPartialFieldsInRowsWithUnbounded() throws Exception {
+    runPartialFieldsInRows(unboundedInput1);
+  }
+
+  private void runPartialFieldsInRows(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA1)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
@@ -140,14 +188,26 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   }
 
   /**
-   * select literal field.
+   * select literal field with bounded PCollection.
    */
   @Test
-  public void testLiteralField() throws Exception {
+  public void testLiteralFieldWithBounded() throws Exception {
+    runLiteralField(boundedInput2);
+  }
+
+  /**
+   * select literal field with unbounded PCollection.
+   */
+  @Test
+  public void testLiteralFieldWithUnbounded() throws Exception {
+    runLiteralField(unboundedInput2);
+  }
+
+  public void runLiteralField(PCollection<BeamSqlRow> input) throws Exception {
     String sql = "SELECT 1 as literal_field FROM TABLE_A";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
         .apply("testLiteralField", BeamSql.query(sql));
 
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("literal_field"),
@@ -170,7 +230,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     String sql = "SELECT f_int_na FROM TABLE_A";
 
     PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), inputA2)
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
         .apply("testProjectUnknownField", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
