@@ -30,7 +30,7 @@
  
 
     <properties>
-        <tika.version>1.15</tika.version>
+        <tika.version>1.16</tika.version>
     </properties>
     
     <dependencies>
