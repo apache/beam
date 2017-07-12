@@ -21,6 +21,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -74,36 +75,38 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
     switch (castOutputType) {
       case INTEGER:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toInt(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.INTEGER, SqlFunctions.toInt(opValueEvaluated(index, inputRecord)));
       case DOUBLE:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toDouble(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.DOUBLE, SqlFunctions.toDouble(opValueEvaluated(index, inputRecord)));
       case SMALLINT:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toShort(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.SMALLINT, SqlFunctions.toShort(opValueEvaluated(index, inputRecord)));
       case TINYINT:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toByte(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.TINYINT, SqlFunctions.toByte(opValueEvaluated(index, inputRecord)));
       case BIGINT:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toLong(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.BIGINT, SqlFunctions.toLong(opValueEvaluated(index, inputRecord)));
       case DECIMAL:
-        return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toBigDecimal(opValueEvaluated(index, inputRecord)));
+        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
+            SqlFunctions.toBigDecimal(opValueEvaluated(index, inputRecord)));
       case FLOAT:
         return BeamSqlPrimitive
-            .of(castOutputType, SqlFunctions.toFloat(opValueEvaluated(index, inputRecord)));
+            .of(SqlTypeName.FLOAT, SqlFunctions.toFloat(opValueEvaluated(index, inputRecord)));
       case CHAR:
       case VARCHAR:
-        return BeamSqlPrimitive.of(castOutputType, opValueEvaluated(index, inputRecord).toString());
+        return BeamSqlPrimitive
+            .of(SqlTypeName.VARCHAR, opValueEvaluated(index, inputRecord).toString());
       case DATE:
         return BeamSqlPrimitive
-            .of(castOutputType, toDate(opValueEvaluated(index, inputRecord), outputDateFormat));
+            .of(SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRecord), outputDateFormat));
       case TIMESTAMP:
-        return BeamSqlPrimitive.of(castOutputType,
+        return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
             toTimeStamp(opValueEvaluated(index, inputRecord), outputTimestampFormat));
     }
-    throw new RuntimeException(String.format("Cast to type %s not supported", castOutputType));
+    throw new UnsupportedOperationException(
+        String.format("Cast to type %s not supported", castOutputType));
   }
 
   private Date toDate(Object inputDate, String outputFormat) {
@@ -111,7 +114,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
       return Date
           .valueOf(dateTimeFormatter.parseLocalDate(inputDate.toString()).toString(outputFormat));
     } catch (IllegalArgumentException | UnsupportedOperationException e) {
-      return null;
+      throw new UnsupportedOperationException("Can't be cast to type 'Date'");
     }
   }
 
@@ -121,7 +124,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
           dateTimeFormatter.parseDateTime(inputTimestamp.toString()).secondOfMinute()
               .roundCeilingCopy().toString(outputFormat));
     } catch (IllegalArgumentException | UnsupportedOperationException e) {
-      return null;
+      throw new UnsupportedOperationException("Can't be cast to type 'Timestamp'");
     }
   }
 }
