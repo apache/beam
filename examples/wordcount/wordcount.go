@@ -1,25 +1,24 @@
 package main
 
-// See: https://github.com/GoogleCloudPlatform/DataflowJavaSDK-examples/blob/master/src/main/java/com/google/cloud/dataflow/examples/WordCount.java
+// See: https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java
 
 import (
 	"context"
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
 // Options used purely at pipeline construction-time can just be flags.
 var (
-	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
+	input  = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
+	output = flag.String("output", "", "Output file (required).")
 )
 
 // CountWords is a composite transform.
@@ -46,17 +45,19 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
+	// Input validation is done as usual. Note that it must be after Init().
+	if *output == "" {
+		log.Fatal("No output provided")
+	}
+
 	log.Print("Running wordcount")
 
 	// Construct a pipeline to count words.
 	p := beam.NewPipeline()
-	lines, err := textio.Immediate(p, *input)
-	if err != nil {
-		log.Fatalf("Failed to read %v: %v", *input, err)
-	}
+	lines := textio.Read(p, *input)
 	counted := CountWords(p, lines)
 	formatted := beam.ParDo(p, formatFn, counted)
-	debug.Print(p, formatted)
+	textio.Write(p, *output, formatted)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
