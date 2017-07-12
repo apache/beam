@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -545,11 +546,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     returned by {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    * <li>The type of restrictions used by all of these methods must be the same.
+   * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
+   *     indicate whether there is more work to be done for the current element.
    * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters, such as
    *     {@link BoundedWindow}.
    * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or
    *     {@link UnboundedPerElement}, but not both at the same time. If it's not annotated with
-   *     either of these, it's assumed to be {@link BoundedPerElement}.
+   *     either of these, it's assumed to be {@link BoundedPerElement} if its {@link
+   *     ProcessElement} method returns {@code void} and {@link UnboundedPerElement} if it
+   *     returns a {@link ProcessContinuation}.
    * </ul>
    *
    * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
@@ -677,8 +682,48 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
-  /** Temporary, do not use. See https://issues.apache.org/jira/browse/BEAM-1904 */
-  public class ProcessContinuation {}
+  // This can't be put into ProcessContinuation itself due to the following problem:
+  // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
+  private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
+      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO);
+
+  /**
+   * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
+   * be done for the current element.
+   *
+   * <p>If the {@link ProcessElement} call completes because of a failed {@code tryClaim()} call
+   * on the {@link RestrictionTracker}, then the call MUST return {@link #stop()}.
+   */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  @AutoValue
+  public abstract static class ProcessContinuation {
+    /** Indicates that there is no more work to be done for the current element. */
+    public static ProcessContinuation stop() {
+      return PROCESS_CONTINUATION_STOP;
+    }
+
+    /** Indicates that there is more work to be done for the current element. */
+    public static ProcessContinuation resume() {
+      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO);
+    }
+
+    /**
+     * If false, the {@link DoFn} promises that there is no more work remaining for the current
+     * element, so the runner should not resume the {@link ProcessElement} call.
+     */
+    public abstract boolean shouldResume();
+
+    /**
+     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
+     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     */
+    public abstract Duration resumeDelay();
+
+    /** Builder method to set the value of {@link #resumeDelay()}. */
+    public ProcessContinuation withResumeDelay(Duration resumeDelay) {
+      return new AutoValue_DoFn_ProcessContinuation(shouldResume(), resumeDelay);
+    }
+  }
 
   /**
    * Finalize the {@link DoFn} construction to prepare for processing.

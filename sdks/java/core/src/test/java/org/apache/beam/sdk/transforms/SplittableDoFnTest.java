@@ -19,10 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
-import static org.hamcrest.Matchers.greaterThan;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Ordering;
@@ -33,7 +33,6 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -74,10 +73,16 @@ public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
-      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(KV.of(c.element(), (int) i));
+        if (numIterations % 3 == 0) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -206,10 +211,10 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlock extends DoFn<String, Integer> {
     private static final int MAX_INDEX = 98765;
 
-    private final TupleTag<Integer> numProcessCalls;
+    private final int numClaimsPerCall;
 
-    private SDFWithMultipleOutputsPerBlock(TupleTag<Integer> numProcessCalls) {
-      this.numProcessCalls = numProcessCalls;
+    private SDFWithMultipleOutputsPerBlock(int numClaimsPerCall) {
+      this.numClaimsPerCall = numClaimsPerCall;
     }
 
     private static int snapToNextBlock(int index, int[] blockStarts) {
@@ -222,15 +227,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      c.output(numProcessCalls, 1);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim(blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -242,26 +252,10 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
-    TupleTag<Integer> main = new TupleTag<>();
-    TupleTag<Integer> numProcessCalls = new TupleTag<>();
-    PCollectionTuple outputs =
-        p.apply(Create.of("foo"))
-            .apply(
-                ParDo.of(new SDFWithMultipleOutputsPerBlock(numProcessCalls))
-                    .withOutputTags(main, TupleTagList.of(numProcessCalls)));
-    PAssert.thatSingleton(outputs.get(main).apply(Count.<Integer>globally()))
+    PCollection<Integer> outputs = p.apply(Create.of("foo"))
+        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
+    PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
         .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
-    // Verify that more than 1 process() call was involved, i.e. that there was checkpointing.
-    PAssert.thatSingleton(
-            outputs.get(numProcessCalls).setCoder(VarIntCoder.of()).apply(Sum.integersGlobally()))
-        .satisfies(
-            new SerializableFunction<Integer, Void>() {
-              @Override
-              public Void apply(Integer input) {
-                assertThat(input, greaterThan(1));
-                return null;
-              }
-            });
     p.run();
   }
 
@@ -341,12 +335,12 @@ public class SplittableDoFnTest implements Serializable {
       extends DoFn<Integer, KV<String, Integer>> {
     private static final int MAX_INDEX = 98765;
     private final PCollectionView<String> sideInput;
-    private final TupleTag<Integer> numProcessCalls;
+    private final int numClaimsPerCall;
 
     public SDFWithMultipleOutputsPerBlockAndSideInput(
-        PCollectionView<String> sideInput, TupleTag<Integer> numProcessCalls) {
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
       this.sideInput = sideInput;
-      this.numProcessCalls = numProcessCalls;
+      this.numClaimsPerCall = numClaimsPerCall;
     }
 
     private static int snapToNextBlock(int index, int[] blockStarts) {
@@ -359,15 +353,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      c.output(numProcessCalls, 1);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim(blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -400,15 +399,14 @@ public class SplittableDoFnTest implements Serializable {
             .apply("window 2", Window.<String>into(FixedWindows.of(Duration.millis(2))))
             .apply("singleton", View.<String>asSingleton());
 
-    TupleTag<KV<String, Integer>> main = new TupleTag<>();
-    TupleTag<Integer> numProcessCalls = new TupleTag<>();
-    PCollectionTuple res =
+    PCollection<KV<String, Integer>> res =
         mainInput.apply(
-            ParDo.of(new SDFWithMultipleOutputsPerBlockAndSideInput(sideInput, numProcessCalls))
-                .withSideInputs(sideInput)
-                .withOutputTags(main, TupleTagList.of(numProcessCalls)));
+            ParDo.of(
+                    new SDFWithMultipleOutputsPerBlockAndSideInput(
+                        sideInput, 3 /* numClaimsPerCall */))
+                .withSideInputs(sideInput));
     PCollection<KV<String, Iterable<Integer>>> grouped =
-        res.get(main).apply(GroupByKey.<String, Integer>create());
+        res.apply(GroupByKey.<String, Integer>create());
 
     PAssert.that(grouped.apply(Keys.<String>create()))
         .containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
@@ -424,22 +422,6 @@ public class SplittableDoFnTest implements Serializable {
                 for (KV<String, Iterable<Integer>> kv : input) {
                   assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
                 }
-                return null;
-              }
-            });
-
-    // Verify that more than 1 process() call was involved, i.e. that there was checkpointing.
-    PAssert.thatSingleton(
-            res.get(numProcessCalls)
-                .setCoder(VarIntCoder.of())
-                .apply(Sum.integersGlobally().withoutDefaults()))
-        // This should hold in all windows, but verifying a particular window is sufficient.
-        .inOnlyPane(new IntervalWindow(new Instant(0), new Instant(1)))
-        .satisfies(
-            new SerializableFunction<Integer, Void>() {
-              @Override
-              public Void apply(Integer input) {
-                assertThat(input, greaterThan(1));
                 return null;
               }
             });
