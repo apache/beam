@@ -110,7 +110,9 @@ public class TrafficRoutes {
 
     @Override
     public int compareTo(StationSpeed other) {
-      return Long.compare(this.timestamp, other.timestamp);
+      long x = this.timestamp.longValue();
+      long y = other.timestamp.longValue();
+      return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
   }
 

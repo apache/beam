@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
@@ -478,7 +479,8 @@ public class TriggerExample {
       Instant timestamp = Instant.now();
       if (Math.random() < THRESHOLD){
         int range = MAX_DELAY - MIN_DELAY;
-        int delayInMinutes = (int) (Math.random() * range) + MIN_DELAY;
+        final Random random = new Random();
+        int delayInMinutes = random.nextInt(range) + MIN_DELAY;
         long delayInMillis = TimeUnit.MINUTES.toMillis(delayInMinutes);
         timestamp = new Instant(timestamp.getMillis() - delayInMillis);
       }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -121,7 +122,8 @@ public class TfIdf {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      for (String entry : directory.list()) {
+      Optional<String[]> optional = Optional.fromNullable(directory.list());
+      for (String entry : optional.or(new String[] {})) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
