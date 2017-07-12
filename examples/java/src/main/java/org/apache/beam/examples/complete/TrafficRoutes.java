@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -110,9 +111,17 @@ public class TrafficRoutes {
 
     @Override
     public int compareTo(StationSpeed other) {
-      long x = this.timestamp.longValue();
-      long y = other.timestamp.longValue();
-      return (x < y) ? -1 : ((x == y) ? 0 : 1);
+      return Long.compare(this.timestamp, other.timestamp);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      return EqualsBuilder.reflectionEquals(this, object, "stationId", "avgSpeed");
+    }
+
+    @Override
+    public int hashCode() {
+      return this.timestamp.hashCode();
     }
   }
 
