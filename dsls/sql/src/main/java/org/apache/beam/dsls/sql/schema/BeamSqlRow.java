@@ -152,48 +152,48 @@ public class BeamSqlRow implements Serializable {
     dataValues.set(index, fieldValue);
   }
 
-  public byte getByte(int idx) {
-    return (Byte) getFieldValue(idx);
-  }
-
-  public short getShort(int idx) {
-    return (Short) getFieldValue(idx);
-  }
-
-  public int getInteger(int idx) {
-    return (Integer) getFieldValue(idx);
-  }
-
-  public float getFloat(int idx) {
-    return (Float) getFieldValue(idx);
-  }
-
-  public double getDouble(int idx) {
-    return (Double) getFieldValue(idx);
-  }
-
-  public long getLong(int idx) {
-    return (Long) getFieldValue(idx);
-  }
-
-  public String getString(int idx) {
-    return (String) getFieldValue(idx);
-  }
-
-  public Date getDate(int idx) {
-    return (Date) getFieldValue(idx);
-  }
-
-  public GregorianCalendar getGregorianCalendar(int idx) {
-    return (GregorianCalendar) getFieldValue(idx);
-  }
-
-  public BigDecimal getBigDecimal(int idx) {
-    return (BigDecimal) getFieldValue(idx);
-  }
-
   public Object getFieldValue(String fieldName) {
     return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
+  }
+
+  public byte getByte(String fieldName) {
+    return (Byte) getFieldValue(fieldName);
+  }
+
+  public short getShort(String fieldName) {
+    return (Short) getFieldValue(fieldName);
+  }
+
+  public int getInteger(String fieldName) {
+    return (Integer) getFieldValue(fieldName);
+  }
+
+  public float getFloat(String fieldName) {
+    return (Float) getFieldValue(fieldName);
+  }
+
+  public double getDouble(String fieldName) {
+    return (Double) getFieldValue(fieldName);
+  }
+
+  public long getLong(String fieldName) {
+    return (Long) getFieldValue(fieldName);
+  }
+
+  public String getString(String fieldName) {
+    return (String) getFieldValue(fieldName);
+  }
+
+  public Date getDate(String fieldName) {
+    return (Date) getFieldValue(fieldName);
+  }
+
+  public GregorianCalendar getGregorianCalendar(String fieldName) {
+    return (GregorianCalendar) getFieldValue(fieldName);
+  }
+
+  public BigDecimal getBigDecimal(String fieldName) {
+    return (BigDecimal) getFieldValue(fieldName);
   }
 
   public Object getFieldValue(int fieldIdx) {
@@ -279,6 +279,46 @@ public class BeamSqlRow implements Serializable {
       default:
         throw new UnsupportedOperationException("Data type: " + fieldType + " not supported yet!");
     }
+  }
+
+  public byte getByte(int idx) {
+    return (Byte) getFieldValue(idx);
+  }
+
+  public short getShort(int idx) {
+    return (Short) getFieldValue(idx);
+  }
+
+  public int getInteger(int idx) {
+    return (Integer) getFieldValue(idx);
+  }
+
+  public float getFloat(int idx) {
+    return (Float) getFieldValue(idx);
+  }
+
+  public double getDouble(int idx) {
+    return (Double) getFieldValue(idx);
+  }
+
+  public long getLong(int idx) {
+    return (Long) getFieldValue(idx);
+  }
+
+  public String getString(int idx) {
+    return (String) getFieldValue(idx);
+  }
+
+  public Date getDate(int idx) {
+    return (Date) getFieldValue(idx);
+  }
+
+  public GregorianCalendar getGregorianCalendar(int idx) {
+    return (GregorianCalendar) getFieldValue(idx);
+  }
+
+  public BigDecimal getBigDecimal(int idx) {
+    return (BigDecimal) getFieldValue(idx);
   }
 
   public int size() {
