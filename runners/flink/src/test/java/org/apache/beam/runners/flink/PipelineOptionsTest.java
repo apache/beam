@@ -192,8 +192,8 @@ public class PipelineOptionsTest {
             GlobalWindow.INSTANCE,
             PaneInfo.NO_FIRING)));
 
+    testHarness.processWatermark(Long.MAX_VALUE);
     testHarness.close();
-
   }
 
   @Test
