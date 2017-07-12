@@ -19,14 +19,17 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,6 +53,8 @@ public class KinesisReaderTest {
   private ShardRecordsIterator firstIterator, secondIterator;
   @Mock
   private KinesisRecord a, b, c, d;
+  @Mock
+  private KinesisSource kinesisSource;
 
   private KinesisReader reader;
 
@@ -67,7 +72,7 @@ public class KinesisReaderTest {
     when(c.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(d.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
 
-    reader = new KinesisReader(kinesis, generator, null);
+    reader = new KinesisReader(kinesis, generator, kinesisSource, Duration.ZERO, Duration.ZERO);
   }
 
   @Test
@@ -195,4 +200,31 @@ public class KinesisReaderTest {
     return record;
   }
 
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
+      throws TransientKinesisException {
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenThrow(TransientKinesisException.class)
+        .thenReturn(20L);
+
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(20);
+  }
+
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
+      throws TransientKinesisException {
+    KinesisReader backlogCachingReader = new KinesisReader(kinesis, generator, kinesisSource,
+        Duration.ZERO, Duration.standardSeconds(30));
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenReturn(20L);
+
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+  }
 }

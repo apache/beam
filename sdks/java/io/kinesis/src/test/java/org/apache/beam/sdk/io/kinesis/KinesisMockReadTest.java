@@ -51,8 +51,9 @@ public class KinesisMockReadTest {
     PCollection<AmazonKinesisMock.TestData> result = p
         .apply(
             KinesisIO.read()
-                .from("stream", InitialPositionInStream.TRIM_HORIZON)
-                .withClientProvider(new AmazonKinesisMock.Provider(testData, 10))
+                .withStreamName("stream")
+                .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
+                .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
                 .withMaxNumRecords(noOfShards * noOfEventsPerShard))
         .apply(ParDo.of(new KinesisRecordToTestData()));
     PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));

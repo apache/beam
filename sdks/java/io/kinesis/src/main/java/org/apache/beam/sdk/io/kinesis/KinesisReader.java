@@ -62,25 +62,41 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private static final int MIN_WATERMARK_SPREAD = 2;
 
   private final SimplifiedKinesisClient kinesis;
-  private final UnboundedSource<KinesisRecord, ?> source;
+  private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
   private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private MovingFunction minReadTimestampMsSinceEpoch;
   private Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private long lastBacklogBytes;
+  private Instant backlogBytesLastCheckTime = new Instant(0L);
+  private Duration upToDateThreshold;
+  private Duration backlogBytesCheckThreshold;
 
-  public KinesisReader(SimplifiedKinesisClient kinesis,
+  KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
-      UnboundedSource<KinesisRecord, ?> source) {
+      KinesisSource source,
+      Duration upToDateThreshold) {
+    this(kinesis, initialCheckpointGenerator, source, upToDateThreshold,
+        Duration.standardSeconds(30));
+  }
+
+  KinesisReader(SimplifiedKinesisClient kinesis,
+      CheckpointGenerator initialCheckpointGenerator,
+      KinesisSource source,
+      Duration upToDateThreshold,
+      Duration backlogBytesCheckThreshold) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.initialCheckpointGenerator =
-        checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
+    this.initialCheckpointGenerator = checkNotNull(initialCheckpointGenerator,
+        "initialCheckpointGenerator");
     this.source = source;
     this.minReadTimestampMsSinceEpoch = new MovingFunction(SAMPLE_PERIOD.getMillis(),
         SAMPLE_UPDATE.getMillis(),
         MIN_WATERMARK_SPREAD,
         MIN_WATERMARK_MESSAGES,
         Min.ofLongs());
+    this.upToDateThreshold = upToDateThreshold;
+    this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
   }
 
   /**
@@ -181,4 +197,28 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     return source;
   }
 
+  /**
+   * Returns total size of all records that remain in Kinesis stream after current watermark.
+   * When currently processed record is not further behind than {@link #upToDateThreshold}
+   * then this method returns 0.
+   */
+  @Override
+  public long getTotalBacklogBytes() {
+    Instant watermark = getWatermark();
+    if (watermark.plus(upToDateThreshold).isAfterNow()) {
+      return 0L;
+    }
+    if (backlogBytesLastCheckTime.plus(backlogBytesCheckThreshold).isAfterNow()) {
+      return lastBacklogBytes;
+    }
+    try {
+      lastBacklogBytes = kinesis.getBacklogBytes(source.getStreamName(), watermark);
+      backlogBytesLastCheckTime = Instant.now();
+    } catch (TransientKinesisException e) {
+      LOG.warn("Transient exception occurred.", e);
+    }
+    LOG.info("Total backlog bytes for {} stream with {} watermark: {}", source.getStreamName(),
+        watermark, lastBacklogBytes);
+    return lastBacklogBytes;
+  }
 }
