@@ -472,7 +472,7 @@ public class DoFnOperator<InputT, OutputT>
       // hold back by the pushed back values waiting for side inputs
       long pushedBackInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
 
-      timerService.advanceWatermark(pushedBackInputWatermark);
+      timerService.advanceWatermark(toFlinkRuntimeWatermark(pushedBackInputWatermark));
 
       Instant watermarkHold = stateInternals.watermarkHold();
 
@@ -498,6 +498,17 @@ public class DoFnOperator<InputT, OutputT>
       // maybe output a new watermark
       processWatermark1(new Watermark(currentInputWatermark));
     }
+  }
+
+  /**
+   * Converts a Beam watermark to a Flink watermark. This is only relevant when considering what
+   * event-time timers to fire: in Beam, a watermark {@code T} says there will not be any elements
+   * with a timestamp {@code < T} in the future. A Flink watermark {@code T} says there will not be
+   * any elements with a timestamp {@code <= T} in the future. We correct this by subtracting
+   * {@code 1} from a Beam watermark before passing to any relevant Flink runtime components.
+   */
+  private static long toFlinkRuntimeWatermark(long beamWatermark) {
+    return beamWatermark - 1;
   }
 
   /**
