@@ -46,7 +46,7 @@ public class BeamSqlStringFunctionsIntegrationTest {
         + "UPPER('hello') as up,"
         + "LOWER('HELLO') as lo,"
         + "POSITION('world' IN 'helloworld') as po,"
-        + "POSITION('world' IN 'helloworld' FROM 1) as po1,"
+        + "POSITION('world' IN 'helloworldworld' FROM 7) as po1,"
         + "TRIM(' hello ') as tr,"
         + "TRIM(LEADING ' ' FROM ' hello ') as tr1,"
         + "TRIM(TRAILING ' ' FROM ' hello ') as tr2,"
@@ -82,7 +82,7 @@ public class BeamSqlStringFunctionsIntegrationTest {
             // 1 -> 5(lo)
             "hello world", 5, 5, "HELLO", "hello",
             // 6 -> 10()
-            5, 5, "hello", "hello ", " hello",
+            5, 10, "hello", "hello ", " hello",
             // 11 -> 15
             "hello", "w3resou3rce", "ello", "el", "Hello World"
         ).getRows());
