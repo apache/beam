@@ -262,7 +262,7 @@ Beam supports running Python SDK tests using Maven. For this, navigate to root d
 Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.
 
 ### Create a pull request
-Organize your commits to make your reviewer’s job easier. Reviewers normally prefer multiple small pull requests, instead of a single large pull request. Within a pull request, a relatively small number of commits that break the problem into logical steps is preferred. For most pull requests, you'll squash your changes down to 1 commit. You can use the following command to re-order, squash, edit, or change description of individual commits.
+Organize your commits to make a committer’s job easier when reviewing. Committers normally prefer multiple small pull requests, instead of a single large pull request. Within a pull request, a relatively small number of commits that break the problem into logical steps is preferred. For most pull requests, you'll squash your changes down to 1 commit. You can use the following command to re-order, squash, edit, or change description of individual commits.
 
     $ git rebase -i origin/master
 
@@ -272,23 +272,23 @@ Navigate to the [Beam GitHub mirror](https://github.com/apache/beam) to create a
 
 	[BEAM-<JIRA-issue-#>] <Title of the pull request>
 
-Please include a descriptive pull request message to help make the reviewer’s job easier. It’s fine to refer to existing design docs or the contents of the associated JIRA as appropriate.
+Please include a descriptive pull request message to help make the comitter’s job easier when reviewing. It’s fine to refer to existing design docs or the contents of the associated JIRA as appropriate.
 
 If you know a good committer to review your pull request, please make a comment like the following. If not, don’t worry -- a committer will pick it up.
 
-	Hi @<GitHub-reviewer-username>, can you please take a look?
+	Hi @<GitHub-committer-username>, can you please take a look?
 
-When choosing a reviewer, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main reviewer, you can explicitly cc them using `@<GitHub-reviewer-username>`.
+When choosing a committer to review, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main committer, you can explicitly cc them using `@<GitHub-committer-username>`.
 
 ### Code Review and Revision
-During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the reviewer. When you make a revision, always push it in a new commit.
+During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the committer when reviewing. When you make a revision, always push it in a new commit.
 
 Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins. Please make sure those tests pass; the contribution cannot be merged otherwise.
 
 ### LGTM
-Once the reviewer is happy with the change, they’ll respond with an LGTM (“*looks good to me!*”). At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.
+Once the committer is happy with the change, they’ll respond with an LGTM (“*looks good to me!*”). At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.
 
-In the case both the author and the reviewer are committers, either can merge the pull request. Just be sure to communicate clearly whose responsibility it is in this particular case.
+In the case the author is also a committer, either can merge the pull request. Just be sure to communicate clearly whose responsibility it is in this particular case.
 
 Thank you for your contribution to Beam!
 
@@ -302,7 +302,7 @@ From another local branch, run:
 	$ git push <GitHub_user> --delete <my-branch>
 
 ## Commit (committers only)
-Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author or reviewer to do the merge. Just be explicit about whose job it is!)
+Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)
 
 Pull requests should not be merged before the review has received an explicit LGTM from another committer. Exceptions to this rule may be made rarely, on a case-by-case basis only, in the committer’s discretion for situations such as build breakages.
 
