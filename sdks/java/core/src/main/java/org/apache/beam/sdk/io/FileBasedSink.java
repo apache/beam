@@ -497,23 +497,31 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * idempotent, as it may be executed multiple times in the case of failure or for redundancy. It
      * is a best practice to attempt to try to make this method atomic.
      *
+     * <p>Returns the set of temporary files generated. Callers must call
+     * {@link #removeTemporaryFiles(Set)} to cleanup these files.
+     *
      * @param writerResults the results of writes (FileResult).
      */
-    public void finalize(Iterable<FileResult<DestinationT>> writerResults) throws Exception {
+     public Set<ResourceId> finalize(
+         Iterable<FileResult<DestinationT>> writerResults) throws Exception {
       // Collect names of temporary files and rename them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
+       return outputFilenames.keySet();
+    }
 
-      // Optionally remove temporary files.
-      // We remove the entire temporary directory, rather than specifically removing the files
-      // from writerResults, because writerResults includes only successfully completed bundles,
-      // and we'd like to clean up the failed ones too.
-      // Note that due to GCS eventual consistency, matching files in the temp directory is also
-      // currently non-perfect and may fail to delete some files.
-      //
-      // When windows or triggers are specified, files are generated incrementally so deleting
-      // the entire directory in finalize is incorrect.
-      removeTemporaryFiles(outputFilenames.keySet(), !windowedWrites);
+    /* Remove temporary files after finalization.
+     *
+     * <p>We remove the entire temporary directory, rather than specifically removing the files from
+     * writerResults, because writerResults includes only successfully completed bundles, and we'd
+     * like to clean up the failed ones too. Note that due to GCS eventual consistency, matching
+     * files in the temp directory is also currently non-perfect and may fail to delete some files.
+     *
+     * <p>When windows or triggers are specified, files are generated incrementally so deleting the
+     * entire directory in finalize is incorrect.
+     */
+    public void removeTemporaryFiles(Set<ResourceId> filenames) throws IOException {
+      removeTemporaryFiles(filenames, !windowedWrites);
     }
 
     @Experimental(Kind.FILESYSTEM)

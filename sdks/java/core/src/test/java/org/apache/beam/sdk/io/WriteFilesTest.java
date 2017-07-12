@@ -449,16 +449,23 @@ public class WriteFilesTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDynamicDestinationsBounded() throws Exception {
-    testDynamicDestinationsHelper(true);
+    testDynamicDestinationsHelper(true, false);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testDynamicDestinationsUnbounded() throws Exception {
-    testDynamicDestinationsHelper(false);
+    testDynamicDestinationsHelper(false, false);
   }
 
-  private void testDynamicDestinationsHelper(boolean bounded) throws IOException {
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsFillEmptyShards() throws Exception {
+    testDynamicDestinationsHelper(true, true);
+  }
+
+  private void testDynamicDestinationsHelper(boolean bounded, boolean emptyShards)
+      throws IOException {
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =
         new SimpleSink<>(
@@ -469,15 +476,21 @@ public class WriteFilesTest {
     options.setTestFlag("test_value");
     Pipeline p = TestPipeline.create(options);
 
-    List<String> inputs = Lists.newArrayList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
+    final int numInputs = 100;
+    List<String> inputs = Lists.newArrayList();
+    for (int i = 0; i < numInputs; ++i) {
+      inputs.add(Integer.toString(i));
+    }
     // Prepare timestamps for the elements.
     List<Long> timestamps = new ArrayList<>();
     for (long i = 0; i < inputs.size(); i++) {
       timestamps.add(i + 1);
     }
-
+    // If emptyShards==true make numShards larger than the number of elements per destination.
+    // This will force every destination to generate some empty shards.
+    int numShards = emptyShards ? 2 * numInputs / 5 : 2;
     WriteFiles<String, Integer, String> writeFiles =
-        WriteFiles.to(sink, new TestDynamicFormatFunction()).withNumShards(1);
+        WriteFiles.to(sink, new TestDynamicFormatFunction()).withNumShards(numShards);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     if (!bounded) {
@@ -492,8 +505,11 @@ public class WriteFilesTest {
     for (int i = 0; i < 5; ++i) {
       ResourceId base =
           getBaseOutputDirectory().resolve("file_" + i, StandardResolveOptions.RESOLVE_FILE);
-      List<String> expected = Lists.newArrayList("record_" + i, "record_" + (i + 5));
-      checkFileContents(base.toString(), expected, Optional.of(1));
+      List<String> expected = Lists.newArrayList();
+      for (int j = i; j < numInputs; j += 5) {
+        expected.add("record_" + j);
+      }
+      checkFileContents(base.toString(), expected, Optional.of(numShards));
     }
   }
 
@@ -674,6 +690,7 @@ public class WriteFilesTest {
     }
     if (numExpectedShards.isPresent()) {
       assertEquals(numExpectedShards.get().intValue(), outputFiles.size());
+      //check filenames
     }
 
     List<String> actual = Lists.newArrayList();

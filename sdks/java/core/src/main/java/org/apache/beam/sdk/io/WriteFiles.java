@@ -24,10 +24,12 @@ import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -44,6 +46,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -594,6 +597,20 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
+  Map<DestinationT, List<FileResult<DestinationT>>> perDestinationResults(
+      Iterable<FileResult<DestinationT>> results) {
+    Map<DestinationT, List<FileResult<DestinationT>>> perDestination = Maps.newHashMap();
+    for (FileResult<DestinationT> result : results) {
+      List<FileResult<DestinationT>> destinationList = perDestination.get(result.getDestination());
+      if (destinationList == null) {
+        destinationList = Lists.newArrayList();
+        perDestination.put(result.getDestination(), destinationList);
+      }
+      destinationList.add(result);
+    }
+    return perDestination;
+  }
+
   /**
    * A write is performed as sequence of three {@link ParDo}'s.
    *
@@ -737,11 +754,17 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                   new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>, Integer>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
-                      LOG.info("Finalizing write operation {}.", writeOperation);
-                      List<FileResult<DestinationT>> results =
-                          Lists.newArrayList(c.element().getValue());
-                      writeOperation.finalize(results);
-                      LOG.debug("Done finalizing write operation");
+                      Set<ResourceId> tempFiles = Sets.newHashSet();
+                      Map<DestinationT, List<FileResult<DestinationT>>> results =
+                          perDestinationResults(c.element().getValue());
+                      for (Map.Entry<DestinationT, List<FileResult<DestinationT>>> entry :
+                          results.entrySet()) {
+                        LOG.info("Finalizing write operation {} for destination {} num shards: {}.",
+                            writeOperation, entry.getKey(), entry.getValue().size());
+                        tempFiles.addAll(writeOperation.finalize(entry.getValue()));
+                        LOG.debug("Done finalizing write operation for {}.", entry.getKey());
+                      }
+                      writeOperation.removeTemporaryFiles(tempFiles);
                     }
                   }));
     } else {
@@ -769,11 +792,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       LOG.info("Finalizing write operation {}.", writeOperation);
-                      List<FileResult<DestinationT>> results =
-                          Lists.newArrayList(c.sideInput(resultsView));
-                      LOG.debug(
-                          "Side input initialized to finalize write operation {}.", writeOperation);
-
                       // We must always output at least 1 shard, and honor user-specified numShards
                       // if
                       // set.
@@ -785,31 +803,63 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                       } else {
                         minShardsNeeded = 1;
                       }
-                      int extraShardsNeeded = minShardsNeeded - results.size();
-                      if (extraShardsNeeded > 0) {
-                        LOG.info(
-                            "Creating {} empty output shards in addition to {} written "
-                                + "for a total of {}.",
-                            extraShardsNeeded,
-                            results.size(),
-                            minShardsNeeded);
-                        for (int i = 0; i < extraShardsNeeded; ++i) {
-                          Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
-                          writer.openUnwindowed(
-                              UUID.randomUUID().toString(),
-                              UNKNOWN_SHARDNUM,
-                              sink.getDynamicDestinations().getDefaultDestination());
-                          FileResult<DestinationT> emptyWrite = writer.close();
-                          results.add(emptyWrite);
-                        }
-                        LOG.debug("Done creating extra shards.");
+                      Set<ResourceId> tempFiles = Sets.newHashSet();
+                      Map<DestinationT, List<FileResult<DestinationT>>> perDestination =
+                          perDestinationResults(c.sideInput(resultsView));
+                      for (Map.Entry<DestinationT, List<FileResult<DestinationT>>> entry :
+                          perDestination.entrySet()) {
+                        tempFiles.addAll(finalizeForDestinationFillEmptyShards(
+                            entry.getKey(), entry.getValue(), minShardsNeeded));
                       }
-                      writeOperation.finalize(results);
-                      LOG.debug("Done finalizing write operation {}", writeOperation);
+                      if (perDestination.isEmpty()) {
+                        // If there is no input at all, write empty files to the default
+                        // destination.
+                        tempFiles.addAll(finalizeForDestinationFillEmptyShards(
+                            getSink().getDynamicDestinations().getDefaultDestination(),
+                            Lists.<FileResult<DestinationT>>newArrayList(),
+                            minShardsNeeded));
+                      }
+                      writeOperation.removeTemporaryFiles(tempFiles);
                     }
                   })
               .withSideInputs(sideInputs.build()));
     }
     return PDone.in(input.getPipeline());
+  }
+
+  /**
+   * Finalize a list of files for a single destination. If a minimum number of shards is needed,
+   * this function will generate empty files for this destination to ensure that all shards are
+   * generated.
+   */
+  private Set<ResourceId> finalizeForDestinationFillEmptyShards(
+      DestinationT destination, List<FileResult<DestinationT>> results, int minShardsNeeded)
+      throws Exception {
+    LOG.info(
+        "Finalizing write operation {} for destination {} num shards {}.",
+        writeOperation,
+        destination,
+        results.size());
+    int extraShardsNeeded = minShardsNeeded - results.size();
+    if (extraShardsNeeded > 0) {
+      LOG.info(
+          "Creating {} empty output shards in addition to {} written "
+              + "for a total of {} for destination {}.",
+          extraShardsNeeded,
+          results.size(),
+          minShardsNeeded,
+          destination);
+      for (int i = 0; i < extraShardsNeeded; ++i) {
+        Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
+        // Currently this code path is only called in the unwindowed case.
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
+        FileResult<DestinationT> emptyWrite = writer.close();
+        results.add(emptyWrite);
+      }
+      LOG.debug("Done creating extra shards for {}.", destination);
+    }
+    Set<ResourceId> tempFiles = writeOperation.finalize(results);
+    LOG.debug("Done finalizing write operation {} for destination {}", writeOperation, destination);
+    return tempFiles;
   }
 }
