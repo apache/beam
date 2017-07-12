@@ -31,8 +31,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 /**
  * prepare input records to test {@link BeamSql}.
@@ -43,14 +45,16 @@ import org.junit.ClassRule;
 public class BeamSqlDslBase {
   public static final DateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-  @ClassRule
-  public static TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public ExpectedException exceptions = ExpectedException.none();
 
   public static BeamSqlRecordType recordTypeInTableA;
   public static List<BeamSqlRow> recordsInTableA;
 
-  public static PCollection<BeamSqlRow> inputA1;
-  public static PCollection<BeamSqlRow> inputA2;
+  public PCollection<BeamSqlRow> inputA1;
+  public PCollection<BeamSqlRow> inputA2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
@@ -61,7 +65,10 @@ public class BeamSqlDslBase {
             Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER));
 
     recordsInTableA = prepareInputRecordsInTableA();
+  }
 
+  @Before
+  public void preparePCollections(){
     inputA1 = PBegin.in(pipeline).apply("inputA1", Create.of(recordsInTableA)
         .withCoder(new BeamSqlRowCoder(recordTypeInTableA)));
 
