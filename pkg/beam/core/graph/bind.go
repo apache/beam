@@ -46,7 +46,7 @@ import (
 //     output:   [W<KV<string, float>>]
 //
 // Here, the inbound shape and output types are different from before.
-func Bind(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
+func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
 	inbound, kinds, err := findInbound(fn, in...)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -60,6 +60,13 @@ func Bind(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, []
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	for k, v := range typedefs {
+		if _, exists := subst[k]; exists {
+			return nil, nil, nil, nil, fmt.Errorf("type %v already defined by fn", k)
+		}
+		subst[k] = v
+	}
+
 	out, err := typex.Substitute(outbound, subst)
 	if err != nil {
 		return nil, nil, nil, nil, err

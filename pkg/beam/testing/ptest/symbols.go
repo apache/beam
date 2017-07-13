@@ -3,10 +3,10 @@ package ptest
 import (
 	"fmt"
 	"reflect"
-	"runtime"
+	rt "runtime"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 )
 
 var symbolResolver = &resolver{registry: make(map[string]uintptr)}
@@ -15,7 +15,7 @@ func init() {
 	// Setup manual symbol resolution for unit tests, where there dwarf
 	// tables are not present. We automatically register the default
 	// universal coders for convenience.
-	graphx.SymbolResolver = symbolResolver
+	runtime.SymbolResolver = symbolResolver
 
 	RegisterFn(beam.JSONEnc)
 	RegisterFn(beam.JSONDec)
@@ -33,7 +33,7 @@ func (r *resolver) Register(fn interface{}) {
 	}
 
 	ptr := reflect.ValueOf(fn).Pointer()
-	name := runtime.FuncForPC(ptr).Name()
+	name := rt.FuncForPC(ptr).Name()
 	r.registry[name] = ptr
 }
 

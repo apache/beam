@@ -14,6 +14,9 @@ import (
 //
 // Instead, add such functionality in the core packages.
 
+// TODO(herohde) 7/13/2017: these forwards alone pull in runtime. Is there a use
+// case for separate package?
+
 // RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
 // init() only.

@@ -57,7 +57,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 				// be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
-				c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
+				c, err := graphx.EncodeCoderRef(edge.Input[i].From.Coder)
 				if err != nil {
 					return nil, err
 				}
@@ -83,7 +83,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 		for _, out := range edge.Output {
 			ref := nodes[out.To.ID()]
-			coder, err := graphx.EncodeCoder(out.To.Coder)
+			coder, err := graphx.EncodeCoderRef(out.To.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -98,7 +98,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			// Dataflow seems to require at least one output. We insert
 			// a bogus one (named "bogus") and remove it in the harness.
 
-			coder, err := graphx.EncodeCoder(edge.Input[0].From.Coder)
+			coder, err := graphx.EncodeCoderRef(edge.Input[0].From.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -195,7 +195,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}
 
 		// TODO(herohde) 5/30/2017: we need the accumulator coder here instead.
-		c, err := graphx.EncodeCoder(edge.Input[0].From.Coder)
+		c, err := graphx.EncodeCoderRef(edge.Input[0].From.Coder)
 		if err != nil {
 			return "", properties{}, err
 		}

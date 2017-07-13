@@ -7,7 +7,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 )
 
 // Declare the DoFn that is used in the test graph
@@ -37,7 +36,7 @@ var fakeSymbols symlookup
 
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
-	graphx.SymbolResolver = fakeSymbols
+	runtime.SymbolResolver = fakeSymbols
 }
 
 func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {

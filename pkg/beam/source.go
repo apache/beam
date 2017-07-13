@@ -16,17 +16,20 @@ func Source(p *Pipeline, dofn interface{}, opts ...Option) PCollection {
 
 // TrySource inserts a Source into the pipeline.
 func TrySource(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) {
-	side := parseOpts(opts)
+	side, defs := parseOpts(opts)
 	if len(side) > 0 {
 		return PCollection{}, fmt.Errorf("sources cannot have side input: %v", side)
 	}
-
+	typedefs, err := makeTypedefs(defs)
+	if err != nil {
+		return PCollection{}, err
+	}
 	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid DoFn: %v", err)
 	}
 
-	edge, err := graph.NewSource(p.real, p.parent, fn)
+	edge, err := graph.NewSource(p.real, p.parent, fn, typedefs)
 	if err != nil {
 		return PCollection{}, err
 	}

@@ -48,7 +48,8 @@ func (c Coder) String() string {
 // TODO(herohde) 7/11/2017: figure out best way to let transformation use
 // coders (like passert). For now, we just allow them to grab in the internal
 // coder. Maybe it's cleaner to pull Encode/Decode into beam instead, if
-// adequate.
+// adequate. The issue is that we would need non-windowed coding. Maybe focus on
+// coder registry and construction: then type -> coder might be adequate.
 
 // UnwrapCoder returns the internal coder.
 func UnwrapCoder(c Coder) *coder.Coder {

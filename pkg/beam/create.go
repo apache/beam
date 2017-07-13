@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -63,29 +60,13 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 		fn.Values = append(fn.Values, value)
 	}
 
-	dofn, err := graph.NewDoFn(fn)
-	if err != nil {
+	imp := Impulse(p)
+
+	ret, err := TryParDo(p, fn, imp, TypeDefinition{Var: typex.TType, T: t})
+	if err != nil || len(ret) != 1 {
 		panic(fmt.Sprintf("internal error: %v", err))
 	}
-
-	// (1) Insert empty impulse as trigger.
-
-	imp := graph.NewImpulse(p.real, p.parent, []byte{})
-
-	// (2) Insert the create ParDo manually, because the return type cannot be
-	// inferred from the signature.
-
-	n := p.real.NewNode(typex.NewW(typex.New(t)), window.NewGlobalWindow())
-
-	edge := p.real.NewEdge(p.parent)
-	edge.Op = graph.ParDo
-	edge.DoFn = dofn
-	edge.Input = []*graph.Inbound{{Kind: graph.Main, From: imp.Output[0].To, Type: typex.NewW(typex.New(reflectx.ByteSlice))}}
-	edge.Output = []*graph.Outbound{{To: n, Type: typex.NewW(typex.New(typex.TType))}}
-
-	ret := PCollection{edge.Output[0].To}
-	ret.SetCoder(NewCoder(ret.Type()))
-	return ret, nil
+	return ret[0], nil
 }
 
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.

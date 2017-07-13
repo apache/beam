@@ -16,7 +16,7 @@ func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Opt
 	if !col.IsValid() {
 		return PCollection{}, fmt.Errorf("invalid main pcollection")
 	}
-	side := parseOpts(opts)
+	side, _ := parseOpts(opts)
 	for i, in := range side {
 		if !in.Input.IsValid() {
 			return PCollection{}, fmt.Errorf("invalid side pcollection: index %v", i)

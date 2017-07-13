@@ -7,7 +7,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -36,7 +35,7 @@ func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
 
-	return beam.ParDo(p, &filterFn{Predicate: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}, Include: true}, col)
+	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: true}, col)
 }
 
 // Exclude filters the elements of a PCollection<A> based on the given function,
@@ -56,12 +55,12 @@ func Exclude(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
 
-	return beam.ParDo(p, &filterFn{Predicate: graphx.DataFnValue{Fn: reflect.ValueOf(fn)}, Include: false}, col)
+	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: false}, col)
 }
 
 type filterFn struct {
-	// Filter is the predicate
-	Predicate graphx.DataFnValue `json:"predicate"`
+	// Predicate is the encoded predicate.
+	Predicate beam.EncodedFn `json:"predicate"`
 	// Include indicates whether to include or exclude elements that satisfy the predicate.
 	Include bool `json:"include"`
 }
