@@ -83,7 +83,7 @@ public class JdbcIOIT {
 
     dataSource = getDataSource(options);
 
-    tableName = JdbcTestHelper.getWriteTableName();
+    tableName = JdbcTestHelper.getTableName("IT");
     JdbcTestHelper.createDataTable(dataSource, tableName);
   }
 
@@ -118,8 +118,8 @@ public class JdbcIOIT {
   /**
    * Writes the test dataset to postgres.
    *
-   * <p>This test does not attempt to validate the data - we do so in the read test. This does make
-   * it harder to tell whether a test failed in the write or read phase, but the tests are much
+   * <p>This method does not attempt to validate the data - we do so in the read test. This does
+   * make it harder to tell whether a test failed in the write or read phase, but the tests are much
    * easier to maintain (don't need any separate code to write test data for read tests to
    * the database.)
    */
@@ -175,12 +175,11 @@ public class JdbcIOIT {
     Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);
     PAssert.thatSingletonIterable(frontOfList).containsInAnyOrder(expectedFrontOfList);
 
-
     PCollection<List<TestRow>> backOfList =
         namesAndIds.apply(Top.<TestRow>largest(500));
     Iterable<TestRow> expectedBackOfList =
-        TestRow.getExpectedValues((int) (EXPECTED_ROW_COUNT - 500),
-            (int) EXPECTED_ROW_COUNT);
+        TestRow.getExpectedValues(EXPECTED_ROW_COUNT - 500,
+            EXPECTED_ROW_COUNT);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     pipelineRead.run().waitUntilFinish();

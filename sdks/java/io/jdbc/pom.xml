@@ -170,6 +170,5 @@
       <artifactId>beam-sdks-java-io-common</artifactId>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
 </project>

@@ -33,12 +33,10 @@ import org.apache.beam.sdk.io.common.TestRow;
  * {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
 class JdbcTestHelper {
-  static final String READ_TABLE_NAME = "BEAM_TEST_READ";
-
-  static String getWriteTableName() throws ParseException {
+  static String getTableName(String testIdentifier) throws ParseException {
     SimpleDateFormat formatter = new SimpleDateFormat();
     formatter.applyPattern("yyyy_MM_dd_HH_mm_ss_S");
-    return "BEAMTEST_" + formatter.format(new Date());
+    return String.format("BEAMTEST_%s_%s", testIdentifier, formatter.format(new Date()));
   }
 
   static void createDataTable(

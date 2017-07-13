@@ -91,7 +91,8 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
   }
 
   /**
-   * Precalculated hashes - you can calculate these by running HashingFn on TestRow.name().
+   * Precalculated hashes - you can calculate an entry by running HashingFn on
+   * the name() for the rows generated from seeds in [0, n).
    */
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
       1000, "7d94d63a41164be058a9680002914358"

@@ -67,6 +67,7 @@ public class JdbcIOTest implements Serializable {
   private static ClientDataSource dataSource;
 
   private static int port;
+  private static String readTableName;
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -112,14 +113,16 @@ public class JdbcIOTest implements Serializable {
     dataSource.setServerName("localhost");
     dataSource.setPortNumber(port);
 
-    JdbcTestHelper.createDataTable(dataSource, JdbcTestHelper.READ_TABLE_NAME);
-    addInitialData(dataSource, JdbcTestHelper.READ_TABLE_NAME);
+    readTableName = JdbcTestHelper.getTableName("UT_READ");
+
+    JdbcTestHelper.createDataTable(dataSource, readTableName);
+    addInitialData(dataSource, readTableName);
   }
 
   @AfterClass
   public static void shutDownDatabase() throws Exception {
     try {
-      JdbcTestHelper.cleanUpDataTable(dataSource, JdbcTestHelper.READ_TABLE_NAME);
+      JdbcTestHelper.cleanUpDataTable(dataSource, readTableName);
     } finally {
       if (derbyServer != null) {
         derbyServer.shutdown();
@@ -208,7 +211,7 @@ public class JdbcIOTest implements Serializable {
     PCollection<TestRow> rows = pipeline.apply(
         JdbcIO.<TestRow>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withQuery("select name,id from " + JdbcTestHelper.READ_TABLE_NAME)
+            .withQuery("select name,id from " + readTableName)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
             .withCoder(SerializableCoder.of(TestRow.class)));
 
@@ -229,7 +232,7 @@ public class JdbcIOTest implements Serializable {
              JdbcIO.<TestRow>read()
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                      .withQuery(String.format("select name,id from %s where name = ?",
-                         JdbcTestHelper.READ_TABLE_NAME))
+                         readTableName))
                      .withStatementPreparator(new JdbcIO.StatementPreparator() {
                        @Override
                        public void setParameters(PreparedStatement preparedStatement)
@@ -255,7 +258,7 @@ public class JdbcIOTest implements Serializable {
   public void testWrite() throws Exception {
     final long rowsToAdd = 1000L;
 
-    String tableName = JdbcTestHelper.getWriteTableName();
+    String tableName = JdbcTestHelper.getTableName("UT_WRITE");
     JdbcTestHelper.createDataTable(dataSource, tableName);
     try {
       ArrayList<KV<Integer, String>> data = new ArrayList<>();
@@ -299,7 +302,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws Exception {
-
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(JdbcIO.<KV<Integer, String>>write()
