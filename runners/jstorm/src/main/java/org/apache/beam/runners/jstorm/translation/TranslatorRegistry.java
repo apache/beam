@@ -49,30 +49,12 @@ public class TranslatorRegistry {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedSourceTranslator());
-    // TRANSLATORS.put(Write.Bound.class, new WriteSinkStreamingTranslator());
-    // TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
-
     TRANSLATORS.put(ParDo.SingleOutput.class, new ParDoBoundTranslator());
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoBoundMultiTranslator());
-
-    //TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslator<>());
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator<>());
-
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslator());
-
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslator());
-
     TRANSLATORS.put(ViewTranslator.CreateJStormPCollectionView.class, new ViewTranslator());
-
-    /**
-     * Currently, empty translation is required for combine and reshuffle.
-     * Because, the transforms will be mapped to GroupByKey and Pardo finally.
-     * So we only need to translator the finally transforms.
-     * If any improvement is required, the composite transforms will be translated in the future.
-     */
-    // TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
-    // TRANSLATORS.put(Globally.class, new CombineGloballyTranslator());
-    // TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslator());
   }
 
   public static TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
