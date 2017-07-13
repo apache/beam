@@ -70,8 +70,10 @@ import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -594,14 +596,18 @@ public class WriteFilesTest {
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext context, OutputFileHints outputFileHints) {
-      IntervalWindow window = (IntervalWindow) context.getWindow();
+    public ResourceId windowedFilename(int shardNumber,
+                                       int numShards,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       OutputFileHints outputFileHints) {
+      IntervalWindow intervalWindow = (IntervalWindow) window;
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
-              filenamePrefixForWindow(window),
-              context.getShardNumber(),
-              context.getNumShards(),
+              filenamePrefixForWindow(intervalWindow),
+              shardNumber,
+              numShards,
               outputFileHints.getSuggestedFilenameSuffix(),
               suffix);
       return baseFilename
@@ -610,15 +616,16 @@ public class WriteFilesTest {
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
       String prefix =
           baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
               prefix,
-              context.getShardNumber(),
-              context.getNumShards(),
+              shardNumber,
+              numShards,
               outputFileHints.getSuggestedFilenameSuffix(),
               suffix);
       return baseFilename

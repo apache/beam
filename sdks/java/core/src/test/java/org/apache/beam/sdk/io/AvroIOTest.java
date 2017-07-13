@@ -68,8 +68,10 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -284,7 +286,11 @@ public class AvroIOTest {
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext input, OutputFileHints outputFileHints) {
+    public ResourceId windowedFilename(int shardNumber,
+                                       int numShards,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       OutputFileHints outputFileHints) {
       String filenamePrefix =
           outputFilePrefix.isDirectory() ? "" : firstNonNull(outputFilePrefix.getFilename(), "");
 
@@ -292,11 +298,11 @@ public class AvroIOTest {
           String.format(
               "%s-%s-%s-of-%s-pane-%s%s%s",
               filenamePrefix,
-              input.getWindow(),
-              input.getShardNumber(),
-              input.getNumShards() - 1,
-              input.getPaneInfo().getIndex(),
-              input.getPaneInfo().isLast() ? "-final" : "",
+              window,
+              shardNumber,
+              numShards - 1,
+              paneInfo.getIndex(),
+              paneInfo.isLast() ? "-final" : "",
               outputFileHints.getSuggestedFilenameSuffix());
       return outputFilePrefix
           .getCurrentDirectory()
@@ -304,7 +310,8 @@ public class AvroIOTest {
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context input, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 

@@ -58,8 +58,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
@@ -285,85 +283,20 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public abstract static class FilenamePolicy implements Serializable {
     /**
-     * Context used for generating a name based on shard number, and num shards.
-     * The policy must produce unique filenames for unique {@link Context} objects.
-     *
-     * <p>Be careful about adding fields to this as existing strategies will not notice the new
-     * fields, and may not produce unique filenames.
-     */
-    public static class Context {
-      private int shardNumber;
-      private int numShards;
-
-
-      public Context(int shardNumber, int numShards) {
-        this.shardNumber = shardNumber;
-        this.numShards = numShards;
-      }
-
-      public int getShardNumber() {
-        return shardNumber;
-      }
-
-
-      public int getNumShards() {
-        return numShards;
-      }
-    }
-
-    /**
-     * Context used for generating a name based on window, pane, shard number, and num shards.
-     * The policy must produce unique filenames for unique {@link WindowedContext} objects.
-     *
-     * <p>Be careful about adding fields to this as existing strategies will not notice the new
-     * fields, and may not produce unique filenames.
-     */
-    public static class WindowedContext {
-      private int shardNumber;
-      private int numShards;
-      private BoundedWindow window;
-      private PaneInfo paneInfo;
-
-      public WindowedContext(
-          BoundedWindow window,
-          PaneInfo paneInfo,
-          int shardNumber,
-          int numShards) {
-        this.window = window;
-        this.paneInfo = paneInfo;
-        this.shardNumber = shardNumber;
-        this.numShards = numShards;
-      }
-
-      public BoundedWindow getWindow() {
-        return window;
-      }
-
-      public PaneInfo getPaneInfo() {
-        return paneInfo;
-      }
-
-      public int getShardNumber() {
-        return shardNumber;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
-    }
-
-    /**
      * When a sink has requested windowed or triggered output, this method will be invoked to return
      * the file {@link ResourceId resource} to be created given the base output directory and a
      * {@link OutputFileHints} containing information about the file, including a suggested
      * extension (e.g. coming from {@link CompressionType}).
      *
-     * <p>The {@link WindowedContext} object gives access to the window and pane, as well as
-     * sharding information. The policy must return unique and consistent filenames for different
-     * windows and panes.
+     * <p>The policy must return unique and consistent filenames for different windows and panes.
      */
     @Experimental(Kind.FILESYSTEM)
-    public abstract ResourceId windowedFilename(WindowedContext c, OutputFileHints outputFileHints);
+    public abstract ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints);
 
     /**
      * When a sink has not requested windowed or triggered output, this method will be invoked to
@@ -371,12 +304,13 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * a {@link OutputFileHints} containing information about the file, including a suggested (e.g.
      * coming from {@link CompressionType}).
      *
-     * <p>The {@link Context} object only provides sharding information, which is used by the policy
-     * to generate unique and consistent filenames.
+     * <p>The shardNumber and numShards parameters, should be used by the policy to generate
+     * unique and consistent filenames.
      */
     @Experimental(Kind.FILESYSTEM)
     @Nullable
-    public abstract ResourceId unwindowedFilename(Context c, OutputFileHints outputFileHints);
+    public abstract ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints);
 
     /**
      * Populates the display data.
@@ -1063,10 +997,9 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
       if (getWindow() != null) {
         return policy.windowedFilename(
-            new WindowedContext(getWindow(), getPaneInfo(), getShard(), numShards),
-            outputFileHints);
+            getShard(), numShards, getWindow(), getPaneInfo(), outputFileHints);
       } else {
-        return policy.unwindowedFilename(new Context(getShard(), numShards), outputFileHints);
+        return policy.unwindowedFilename(getShard(), numShards, outputFileHints);
       }
     }
 
