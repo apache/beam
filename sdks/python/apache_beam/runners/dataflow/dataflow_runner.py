@@ -498,7 +498,7 @@ class DataflowRunner(PipelineRunner):
     si_dict = {}
     # We must call self._cache.get_pvalue exactly once due to refcounting.
     si_labels = {}
-    full_label_counts = defaultdict(lambda : 0)
+    full_label_counts = defaultdict(lambda: 0)
     lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, AsSideInput)
