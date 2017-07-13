@@ -67,10 +67,16 @@ public class SdkRepackImmuListSerializer extends Serializer<ImmutableList<Object
 
     config.registerSerialization(ImmutableList.of().getClass(), SdkRepackImmuListSerializer.class);
     config.registerSerialization(ImmutableList.of(1).getClass(), SdkRepackImmuListSerializer.class);
-    config.registerSerialization(ImmutableList.of(1, 2, 3).subList(1, 2).getClass(), SdkRepackImmuListSerializer.class);
-    config.registerSerialization(ImmutableList.of().reverse().getClass(), SdkRepackImmuListSerializer.class);
+    config.registerSerialization(
+        ImmutableList.of(1, 2, 3).subList(1, 2).getClass(),
+        SdkRepackImmuListSerializer.class);
+    config.registerSerialization(
+        ImmutableList.of().reverse().getClass(),
+        SdkRepackImmuListSerializer.class);
 
-    config.registerSerialization(Lists.charactersOf("KryoRocks").getClass(), SdkRepackImmuListSerializer.class);
+    config.registerSerialization(
+        Lists.charactersOf("KryoRocks").getClass(),
+        SdkRepackImmuListSerializer.class);
 
     Table<Integer, Integer, Integer> baseTable = HashBasedTable.create();
     baseTable.put(1, 2, 3);

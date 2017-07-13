@@ -48,7 +48,8 @@ public class ParDoBoundTranslator<InputT, OutputT>
   private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslator.class);
 
   @Override
-  public void translateNode(ParDo.SingleOutput<InputT, OutputT> transform, TranslationContext context) {
+  public void translateNode(
+      ParDo.SingleOutput<InputT, OutputT> transform, TranslationContext context) {
     final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
     final TupleTag<?> inputTag = userGraphContext.getInputTag();
     PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
@@ -56,7 +57,8 @@ public class ParDoBoundTranslator<InputT, OutputT>
     TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
     List<TupleTag<?>> sideOutputTags = Lists.newArrayList();
 
-    Map<TupleTag<?>, PValue> allInputs = avro.shaded.com.google.common.collect.Maps.newHashMap(userGraphContext.getInputs());
+    Map<TupleTag<?>, PValue> allInputs =
+        avro.shaded.com.google.common.collect.Maps.newHashMap(userGraphContext.getInputs());
     for (PCollectionView pCollectionView : transform.getSideInputs()) {
       allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
     }
@@ -93,7 +95,8 @@ public class ParDoBoundTranslator<InputT, OutputT>
           description,
           userGraphContext.getOptions(),
           transform.getFn(),
-          WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          WindowedValue.getFullCoder(
+              input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
           input.getWindowingStrategy(),
           (TupleTag<InputT>) inputTag,
           transform.getSideInputs(),

@@ -63,8 +63,10 @@ public class DefaultStepContext implements ExecutionContext.StepContext {
   }
 
   @Override
-  public <T, W extends BoundedWindow> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
-                                                                    Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder) throws IOException {
+  public <T, W extends BoundedWindow> void writePCollectionViewData(
+      TupleTag<?> tag, Iterable<WindowedValue<T>> data,
+      Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder)
+      throws IOException {
     throw new UnsupportedOperationException("Writing side-input data is not supported.");
   }
 

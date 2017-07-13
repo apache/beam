@@ -34,9 +34,9 @@ public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<Input
   private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
 
   /**
-   * For multi-output scenario,a "local" tuple tag is used in producer currently while a generated tag
-   * is used in downstream consumer. So before output, we need to map this "local" tag to "external"
-   * tag. See PCollectionTuple for details.
+   * For multi-output scenario,a "local" tuple tag is used in producer currently while a generated
+   * tag is used in downstream consumer. So before output, we need to map this "local" tag to
+   * "external" tag. See PCollectionTuple for details.
    */
   public class MultiOutputDoFnExecutorOutputManager extends DoFnExecutorOutputManager {
     @Override

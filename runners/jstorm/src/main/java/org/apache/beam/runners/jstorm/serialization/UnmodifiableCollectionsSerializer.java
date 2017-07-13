@@ -37,8 +37,8 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
           .getDeclaredField("m");
       SOURCE_MAP_FIELD.setAccessible(true);
     } catch (final Exception e) {
-      throw new RuntimeException("Could not access source collection" +
-          " field in java.util.Collections$UnmodifiableCollection.", e);
+      throw new RuntimeException("Could not access source collection"
+          + " field in java.util.Collections$UnmodifiableCollection.", e);
     }
   }
 
@@ -53,7 +53,8 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
   @Override
   public void write(final Kryo kryo, final Output output, final Object object) {
     try {
-      final UnmodifiableCollection unmodifiableCollection = UnmodifiableCollection.valueOfType(object.getClass());
+      final UnmodifiableCollection unmodifiableCollection =
+          UnmodifiableCollection.valueOfType(object.getClass());
       // the ordinal could be replaced by s.th. else (e.g. a explicitely managed "id")
       output.writeInt(unmodifiableCollection.ordinal(), true);
       kryo.writeClassAndObject(output, unmodifiableCollection.sourceCollectionField.get(object));
@@ -69,8 +70,10 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
   @Override
   public Object copy(Kryo kryo, Object original) {
     try {
-      final UnmodifiableCollection unmodifiableCollection = UnmodifiableCollection.valueOfType(original.getClass());
-      Object sourceCollectionCopy = kryo.copy(unmodifiableCollection.sourceCollectionField.get(original));
+      final UnmodifiableCollection unmodifiableCollection =
+          UnmodifiableCollection.valueOfType(original.getClass());
+      Object sourceCollectionCopy =
+          kryo.copy(unmodifiableCollection.sourceCollectionField.get(original));
       return unmodifiableCollection.create(sourceCollectionCopy);
     } catch (final RuntimeException e) {
       // Don't eat and wrap RuntimeExceptions
@@ -81,13 +84,17 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
   }
 
   private static enum UnmodifiableCollection {
-    COLLECTION(Collections.unmodifiableCollection(Arrays.asList("")).getClass(), SOURCE_COLLECTION_FIELD) {
+    COLLECTION(
+        Collections.unmodifiableCollection(Arrays.asList("")).getClass(),
+        SOURCE_COLLECTION_FIELD) {
       @Override
       public Object create(final Object sourceCollection) {
         return Collections.unmodifiableCollection((Collection<?>) sourceCollection);
       }
     },
-    RANDOM_ACCESS_LIST(Collections.unmodifiableList(new ArrayList<Void>()).getClass(), SOURCE_COLLECTION_FIELD) {
+    RANDOM_ACCESS_LIST(
+        Collections.unmodifiableList(new ArrayList<Void>()).getClass(),
+        SOURCE_COLLECTION_FIELD) {
       @Override
       public Object create(final Object sourceCollection) {
         return Collections.unmodifiableList((List<?>) sourceCollection);
@@ -105,7 +112,9 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
         return Collections.unmodifiableSet((Set<?>) sourceCollection);
       }
     },
-    SORTED_SET(Collections.unmodifiableSortedSet(new TreeSet<Void>()).getClass(), SOURCE_COLLECTION_FIELD) {
+    SORTED_SET(
+        Collections.unmodifiableSortedSet(new TreeSet<Void>()).getClass(),
+        SOURCE_COLLECTION_FIELD) {
       @Override
       public Object create(final Object sourceCollection) {
         return Collections.unmodifiableSortedSet((SortedSet<?>) sourceCollection);
@@ -118,7 +127,9 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
       }
 
     },
-    SORTED_MAP(Collections.unmodifiableSortedMap(new TreeMap<Void, Void>()).getClass(), SOURCE_MAP_FIELD) {
+    SORTED_MAP(
+        Collections.unmodifiableSortedMap(new TreeMap<Void, Void>()).getClass(),
+        SOURCE_MAP_FIELD) {
       @Override
       public Object create(final Object sourceCollection) {
         return Collections.unmodifiableSortedMap((SortedMap<?, ?>) sourceCollection);

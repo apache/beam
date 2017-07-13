@@ -26,7 +26,8 @@ public class WindowAssignTranslator<T> extends TransformTranslator.Default<Windo
   @Override
   public void translateNode(Window.Assign<T> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
     context.getUserGraphContext().setWindowed();
     WindowAssignExecutor executor = new WindowAssignExecutor(
         description,

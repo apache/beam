@@ -47,7 +47,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
     extends TransformTranslator.Default<ParDo.MultiOutput<InputT, OutputT>> {
 
   @Override
-  public void translateNode(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
+  public void translateNode(
+      ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
     final TupleTag<InputT> inputTag = (TupleTag<InputT>) userGraphContext.getInputTag();
     PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
@@ -86,7 +87,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
           description,
           userGraphContext.getOptions(),
           (DoFn<KV, OutputT>) transform.getFn(),
-          (Coder) WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          (Coder) WindowedValue.getFullCoder(
+              input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
           input.getWindowingStrategy(),
           (TupleTag<KV>) inputTag,
           transform.getSideInputs(),
@@ -100,7 +102,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
           description,
           userGraphContext.getOptions(),
           transform.getFn(),
-          WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          WindowedValue.getFullCoder(
+              input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
           input.getWindowingStrategy(),
           inputTag,
           transform.getSideInputs(),

@@ -67,7 +67,8 @@ public class JStormStateInternalsTest {
         "test",
         tmp.toString(),
         new KryoSerializer(Maps.newHashMap()));
-    jstormStateInternals = new JStormStateInternals("key-1", kvStoreManager, new TimerServiceImpl(), 0);
+    jstormStateInternals = new JStormStateInternals(
+        "key-1", kvStoreManager, new TimerServiceImpl(), 0);
   }
 
   @Test
@@ -160,7 +161,8 @@ public class JStormStateInternalsTest {
   @Test
   public void testMapState() throws Exception {
     MapState<Integer, Integer> mapStateA = jstormStateInternals.state(
-        StateNamespaces.global(), StateTags.map("state-id-a", BigEndianIntegerCoder.of(), BigEndianIntegerCoder.of()));
+        StateNamespaces.global(),
+        StateTags.map("state-id-a", BigEndianIntegerCoder.of(), BigEndianIntegerCoder.of()));
     mapStateA.put(1, 1);
     mapStateA.put(2, 22);
     mapStateA.put(1, 12);

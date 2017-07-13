@@ -129,8 +129,11 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
       // init kv store manager
       String storeName = String.format("task-%d", context.getThisTaskId());
       String stateStorePath = String.format("%s/beam/%s", context.getWorkerIdDir(), storeName);
-      IKvStoreManager kvStoreManager = isStatefulBolt ? KvStoreManagerFactory.getKvStoreManagerWithMonitor(context, storeName, stateStorePath, isStatefulBolt) :
-          KvStoreManagerFactory.getKvStoreManager(stormConf, storeName, stateStorePath, isStatefulBolt);
+      IKvStoreManager kvStoreManager = isStatefulBolt ?
+          KvStoreManagerFactory.getKvStoreManagerWithMonitor(
+              context, storeName, stateStorePath, isStatefulBolt) :
+          KvStoreManagerFactory.getKvStoreManager(
+              stormConf, storeName, stateStorePath, isStatefulBolt);
       this.executorContext = ExecutorContext.of(context, this, kvStoreManager);
 
       // init time service
@@ -198,7 +201,9 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
   private void processWatermark(long watermarkTs, int sourceTask) {
     long newWaterMark = timerService.updateInputWatermark(sourceTask, watermarkTs);
     LOG.debug("Recv waterMark-{} from task-{}, newWaterMark={}",
-        (new Instant(watermarkTs)).toDateTime(), sourceTask, (new Instant(newWaterMark)).toDateTime());
+        (new Instant(watermarkTs)).toDateTime(),
+        sourceTask,
+        (new Instant(newWaterMark)).toDateTime());
     if (newWaterMark != 0) {
       // Some buffer windows are going to be triggered.
       doFnStartBundle();

@@ -37,14 +37,16 @@ public class JStormTimerInternals<K> implements TimerInternals {
   private final TimerService timerService;
 
 
-  public JStormTimerInternals(@Nullable K key, DoFnExecutor<?, ?> doFnExecutor, TimerService timerService) {
+  public JStormTimerInternals(
+      @Nullable K key, DoFnExecutor<?, ?> doFnExecutor, TimerService timerService) {
     this.key = key;
     this.doFnExecutor = checkNotNull(doFnExecutor, "doFnExecutor");
     this.timerService = checkNotNull(timerService, "timerService");
   }
 
   @Override
-  public void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+  public void setTimer(
+      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
     setTimer(TimerData.of(timerId, namespace, target, timeDomain));
   }
 

@@ -23,7 +23,10 @@ import com.google.auto.value.AutoValue;
 
 @AutoValue
 public abstract class ExecutorContext {
-  public static ExecutorContext of(TopologyContext topologyContext, ExecutorsBolt bolt, IKvStoreManager kvStoreManager) {
+  public static ExecutorContext of(
+      TopologyContext topologyContext,
+      ExecutorsBolt bolt,
+      IKvStoreManager kvStoreManager) {
     return new AutoValue_ExecutorContext(topologyContext, bolt, kvStoreManager);
   }
 

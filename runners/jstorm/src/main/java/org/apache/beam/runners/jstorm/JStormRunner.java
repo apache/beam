@@ -72,7 +72,8 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
   }
 
   public static JStormRunner fromOptions(PipelineOptions options) {
-    JStormPipelineOptions pipelineOptions = PipelineOptionsValidator.validate(JStormPipelineOptions.class, options);
+    JStormPipelineOptions pipelineOptions = PipelineOptionsValidator.validate(
+        JStormPipelineOptions.class, options);
     return new JStormRunner(pipelineOptions);
   }
 
@@ -119,7 +120,8 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     LOG.info("ExecutionGraphContext=\n{}", context.getExecutionGraphContext());
 
     for (Stream stream : context.getExecutionGraphContext().getStreams()) {
-      LOG.info(stream.getProducer().getComponentId() + " --> " + stream.getConsumer().getComponentId());
+      LOG.info(
+          stream.getProducer().getComponentId() + " --> " + stream.getConsumer().getComponentId());
     }
 
     String topologyName = options.getJobName();
@@ -131,7 +133,10 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
         config);
   }
 
-  private JStormRunnerResult runTopology(String topologyName, StormTopology topology, Config config) {
+  private JStormRunnerResult runTopology(
+      String topologyName,
+      StormTopology topology,
+      Config config) {
     try {
       if (StormConfig.local_mode(config)) {
         LocalCluster localCluster = LocalCluster.getInstance();
@@ -148,7 +153,8 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     }
   }
 
-  private AbstractComponent getComponent(String id, TranslationContext.ExecutionGraphContext context) {
+  private AbstractComponent getComponent(
+      String id, TranslationContext.ExecutionGraphContext context) {
     AbstractComponent component = null;
     AdaptorBasicSpout spout = context.getSpout(id);
     if (spout != null) {
@@ -162,9 +168,11 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     return component;
   }
 
-  private StormTopology getTopology(JStormPipelineOptions options, TranslationContext.ExecutionGraphContext context) {
+  private StormTopology getTopology(
+      JStormPipelineOptions options, TranslationContext.ExecutionGraphContext context) {
     boolean isExactlyOnce = options.getExactlyOnceTopology();
-    TopologyBuilder builder = isExactlyOnce ? new TransactionTopologyBuilder() : new TopologyBuilder();
+    TopologyBuilder builder =
+        isExactlyOnce ? new TransactionTopologyBuilder() : new TopologyBuilder();
 
     int parallelismNumber = options.getParallelismNumber();
     Map<String, AdaptorBasicSpout> spouts = context.getSpouts();
@@ -181,7 +189,9 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
       IRichBolt bolt = getBolt(isExactlyOnce, context.getBolt(destBoltId));
       BoltDeclarer declarer = declarers.get(destBoltId);
       if (declarer == null) {
-        declarer = builder.setBolt(destBoltId, bolt,
+        declarer = builder.setBolt(
+            destBoltId,
+            bolt,
             getParallelismNum(context.getBolt(destBoltId), parallelismNumber));
         declarers.put(destBoltId, declarer);
       }
@@ -241,7 +251,9 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
       if (spout instanceof UnboundedSourceSpout) {
         ret = new TxUnboundedSourceSpout((UnboundedSourceSpout) spout);
       } else {
-        String error = String.format("The specified type(%s) is not supported in exactly once mode yet!", spout.getClass().toString());
+        String error = String.format(
+            "The specified type(%s) is not supported in exactly once mode yet!",
+            spout.getClass().toString());
         throw new RuntimeException(error);
       }
     } else {

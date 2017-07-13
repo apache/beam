@@ -461,7 +461,8 @@ public class CombineTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testAccumulatingCombine() {
-    runTestAccumulatingCombine(TABLE, 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
+    runTestAccumulatingCombine(
+        TABLE, 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
   }
 
   @Test
@@ -748,10 +749,12 @@ public class CombineTest implements Serializable {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
         KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
 
-    assertThat("Combine.perKey.withHotKeyFanout should include the combineFn in its primitive "
-        + "transform", displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
-    assertThat("Combine.perKey.withHotKeyFanout(int) should include the fanout in its primitive "
-        + "transform", displayData, hasItem(hasDisplayItem("fanout", hotKeyFanout)));
+    assertThat(
+        "Combine.perKey.withHotKeyFanout should include the combineFn in its primitive "
+            + "transform", displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
+    assertThat(
+        "Combine.perKey.withHotKeyFanout(int) should include the fanout in its primitive "
+            + "transform", displayData, hasItem(hasDisplayItem("fanout", hotKeyFanout)));
   }
 
   ////////////////////////////////////////////////////////////////////////////

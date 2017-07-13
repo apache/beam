@@ -52,7 +52,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
+public class GroupByWindowExecutor<K, V>
+    extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
   private static final long serialVersionUID = -7563050475488610553L;
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupByWindowExecutor.class);
@@ -76,7 +77,18 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
       WindowingStrategy<?, ?> windowingStrategy,
       TupleTag<KV<K, Iterable<V>>> mainTupleTag, List<TupleTag<?>> sideOutputTags) {
     // The doFn will be created when runtime. Just pass "null" here
-    super(stepName, description, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
+    super(
+        stepName,
+        description,
+        pipelineOptions,
+        null,
+        null,
+        windowingStrategy,
+        null,
+        null,
+        null,
+        mainTupleTag,
+        sideOutputTags);
 
     this.outputManager = new GroupByWindowOutputManager();
     UserGraphContext userGraphContext = context.getUserGraphContext();
@@ -88,13 +100,17 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
     final StateInternalsFactory<K> stateFactory = new StateInternalsFactory<K>() {
       @Override
       public StateInternals stateInternalsForKey(K key) {
-        return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
+        return new JStormStateInternals<K>(
+            key, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
       }
     };
     TimerInternalsFactory<K> timerFactory = new TimerInternalsFactory<K>() {
       @Override
       public TimerInternals timerInternalsForKey(K key) {
-        return new JStormTimerInternals<>(key, GroupByWindowExecutor.this, executorContext.getExecutorsBolt().timerService());
+        return new JStormTimerInternals<>(
+            key,
+            GroupByWindowExecutor.this,
+            executorContext.getExecutorsBolt().timerService());
       }
     };
 
@@ -110,7 +126,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
   protected DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getDoFnRunner() {
     doFn = getGroupByWindowDoFn();
 
-    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> simpleRunner = DoFnRunners.<KeyedWorkItem<K, V>, KV<K, Iterable<V>>>simpleRunner(
+    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> simpleRunner = DoFnRunners.simpleRunner(
         this.pipelineOptions,
         this.doFn,
         NullSideInputReader.empty(),
@@ -120,10 +136,11 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
         this.stepContext,
         this.windowingStrategy);
 
-    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.lateDataDroppingRunner(
-        simpleRunner,
-        this.stepContext,
-        this.windowingStrategy);
+    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner =
+        DoFnRunners.lateDataDroppingRunner(
+            simpleRunner,
+            this.stepContext,
+            this.windowingStrategy);
     return new DoFnRunnerWithMetrics<>(
         stepName, doFnRunner, MetricsReporter.create(metricClient));
   }

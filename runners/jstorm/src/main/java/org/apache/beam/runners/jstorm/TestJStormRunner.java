@@ -51,7 +51,8 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     try {
       int numberOfAssertions = PAssert.countAsserts(pipeline);
 
-      LOG.info("Running JStorm job {} with {} expected assertions.", result.getTopologyName(), numberOfAssertions);
+      LOG.info("Running JStorm job {} with {} expected assertions.",
+               result.getTopologyName(), numberOfAssertions);
       if (numberOfAssertions == 0) {
         // If assert number is zero, wait 5 sec
         JStormUtils.sleepMs(5000);
@@ -78,26 +79,28 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
 
   private Optional<Boolean> checkForPAssertSuccess(int expectedNumberOfAssertions) {
     int successes = 0;
-    for (AsmMetric metric : JStormMetrics.search(PAssert.SUCCESS_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
+    for (AsmMetric metric :
+        JStormMetrics.search(PAssert.SUCCESS_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
       successes += ((Long) metric.getValue(AsmWindow.M1_WINDOW)).intValue();
     }
     int failures = 0;
-    for (AsmMetric metric : JStormMetrics.search(PAssert.FAILURE_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
+    for (AsmMetric metric :
+        JStormMetrics.search(PAssert.FAILURE_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
       failures += ((Long) metric.getValue(AsmWindow.M1_WINDOW)).intValue();
     }
 
     if (failures > 0) {
       LOG.info("Found {} success, {} failures out of {} expected assertions.",
-          successes, failures, expectedNumberOfAssertions);
+               successes, failures, expectedNumberOfAssertions);
       return Optional.of(false);
     } else if (successes >= expectedNumberOfAssertions) {
       LOG.info("Found {} success, {} failures out of {} expected assertions.",
-          successes, failures, expectedNumberOfAssertions);
+               successes, failures, expectedNumberOfAssertions);
       return Optional.of(true);
     }
 
     LOG.info("Found {} success, {} failures out of {} expected assertions.",
-        successes, failures, expectedNumberOfAssertions);
+             successes, failures, expectedNumberOfAssertions);
     return Optional.absent();
   }
 

@@ -119,7 +119,8 @@ public class JStormStateInternals<K> implements StateInternals {
           Coder<KeyT> mapKeyCoder,
           Coder<ValueT> mapValueCoder) {
         try {
-          return new JStormMapState<>(getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(getStoreId(id)));
+          return new JStormMapState<>(
+              getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(getStoreId(id)));
         } catch (IOException e) {
           throw new RuntimeException(e);
         }

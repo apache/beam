@@ -155,10 +155,12 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
   protected void initService(ExecutorContext context) {
     // TODO: what should be set for key in here?
-    timerInternals = new JStormTimerInternals(null /* key */, this, context.getExecutorsBolt().timerService());
+    timerInternals = new JStormTimerInternals(
+        null /* key */, this, context.getExecutorsBolt().timerService());
     kvStoreManager = context.getKvStoreManager();
     stepContext = new DefaultStepContext(timerInternals,
-        new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
+        new JStormStateInternals(
+            null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
     metricClient = new MetricClient(executorContext.getTopologyContext());
   }
 
@@ -166,7 +168,8 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
   public void init(ExecutorContext context) {
     this.executorContext = context;
     this.executorsBolt = context.getExecutorsBolt();
-    this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
+    this.pipelineOptions =
+        this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
 
     initService(context);
 
@@ -175,10 +178,12 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
       pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
       watermarkHoldTag =
           StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
-      pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
+      pushbackStateInternals = new JStormStateInternals(
+          null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
       sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
       runner = getDoFnRunner();
-      pushbackRunner = SimplePushbackSideInputDoFnRunner.create(runner, sideInputs, sideInputHandler);
+      pushbackRunner =
+          SimplePushbackSideInputDoFnRunner.create(runner, sideInputs, sideInputHandler);
     } else {
       runner = getDoFnRunner();
     }
@@ -282,9 +287,11 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     if (pushbackRunner != null) {
-      pushbackRunner.onTimer(timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+      pushbackRunner.onTimer(
+          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
     } else {
-      runner.onTimer(timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+      runner.onTimer(
+          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
     }
   }
 

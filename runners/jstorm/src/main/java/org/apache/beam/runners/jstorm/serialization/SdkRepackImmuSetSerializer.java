@@ -59,10 +59,13 @@ public class SdkRepackImmuSetSerializer extends Serializer<ImmutableSet<Object>>
 
     config.registerSerialization(ImmutableSet.of().getClass(), SdkRepackImmuSetSerializer.class);
     config.registerSerialization(ImmutableSet.of(1).getClass(), SdkRepackImmuSetSerializer.class);
-    config.registerSerialization(ImmutableSet.of(1, 2, 3).getClass(), SdkRepackImmuSetSerializer.class);
+    config.registerSerialization(
+        ImmutableSet.of(1, 2, 3).getClass(),
+        SdkRepackImmuSetSerializer.class);
 
     config.registerSerialization(
-        Sets.immutableEnumSet(SomeEnum.A, SomeEnum.B, SomeEnum.C).getClass(), SdkRepackImmuSetSerializer.class);
+        Sets.immutableEnumSet(SomeEnum.A, SomeEnum.B, SomeEnum.C).getClass(),
+        SdkRepackImmuSetSerializer.class);
   }
 
   private enum SomeEnum {

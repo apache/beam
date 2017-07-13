@@ -62,7 +62,8 @@ public class ImmutableSetSerializer extends Serializer<ImmutableSet<Object>> {
     config.registerSerialization(ImmutableSet.of(1, 2, 3).getClass(), ImmutableSetSerializer.class);
 
     config.registerSerialization(
-        Sets.immutableEnumSet(SomeEnum.A, SomeEnum.B, SomeEnum.C).getClass(), ImmutableSetSerializer.class);
+        Sets.immutableEnumSet(SomeEnum.A, SomeEnum.B, SomeEnum.C).getClass(),
+        ImmutableSetSerializer.class);
   }
 
   private enum SomeEnum {

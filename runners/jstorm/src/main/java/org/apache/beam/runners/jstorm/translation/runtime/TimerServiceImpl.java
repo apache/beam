@@ -42,11 +42,13 @@ public class TimerServiceImpl implements TimerService {
   private transient ExecutorContext executorContext;
   private transient Map<Integer, DoFnExecutor> idToDoFnExecutor;
 
-  private final ConcurrentMap<Integer, Long> upStreamTaskToInputWatermark = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Integer, Long> upStreamTaskToInputWatermark =
+      new ConcurrentHashMap<>();
   private final PriorityQueue<Long> inputWatermarks = new PriorityQueue<>();
   private final PriorityQueue<Instant> watermarkHolds = new PriorityQueue<>();
   private final Map<String, Instant> namespaceToWatermarkHold = new HashMap<>();
-  private transient final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue = new PriorityQueue<>();
+  private transient final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
+      new PriorityQueue<>();
   private final Map<TimerInternals.TimerData, Set<Pair<Integer, Object>>>
       timerDataToKeyedExecutors = Maps.newHashMap();
 

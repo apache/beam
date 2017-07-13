@@ -40,7 +40,8 @@ public class WindowBoundTranslator<T> extends TransformTranslator.Default<Window
     } else if (transform.getWindowFn() instanceof SlidingWindows) {
       context.getUserGraphContext().setWindowed();
     } else {
-      throw new UnsupportedOperationException("Not supported window type currently: " + transform.getWindowFn());
+      throw new UnsupportedOperationException(
+          "Not supported window type currently: " + transform.getWindowFn());
     }
   }
 }

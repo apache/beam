@@ -35,7 +35,8 @@ public class BoundedSourceTranslator<T> extends TransformTranslator.Default<Read
   @Override
   public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
     TupleTag<?> outputTag = userGraphContext.getOutputTag();
     PValue outputValue = userGraphContext.getOutput();
@@ -44,6 +45,7 @@ public class BoundedSourceTranslator<T> extends TransformTranslator.Default<Read
         new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter(transform.getSource()),
         userGraphContext.getOptions(), outputTag);
 
-    context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(outputTag, outputValue));
+    context.getExecutionGraphContext().registerSpout(
+        spout, TaggedPValue.of(outputTag, outputValue));
   }
 }

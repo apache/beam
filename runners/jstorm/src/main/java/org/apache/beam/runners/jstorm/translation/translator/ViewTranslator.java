@@ -40,11 +40,14 @@ import org.apache.beam.sdk.values.PCollectionViews;
 /**
  * A {@link TransformTranslator} for executing {@link View Views} in JStorm runner.
  */
-public class ViewTranslator extends TransformTranslator.Default<ViewTranslator.CreateJStormPCollectionView<?, ?>> {
+public class ViewTranslator
+    extends TransformTranslator.Default<ViewTranslator.CreateJStormPCollectionView<?, ?>> {
   @Override
-  public void translateNode(CreateJStormPCollectionView<?, ?> transform, TranslationContext context) {
+  public void translateNode(
+      CreateJStormPCollectionView<?, ?> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    String description = describeTransform(
+        transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
     ViewExecutor viewExecutor = new ViewExecutor(description, userGraphContext.getOutputTag());
     context.addTransformExecutor(viewExecutor);
   }

@@ -26,7 +26,10 @@ public class ImmutableMapSerializer extends Serializer<ImmutableMap<Object, ? ex
   }
 
   @Override
-  public ImmutableMap<Object, Object> read(Kryo kryo, Input input, Class<ImmutableMap<Object, ? extends Object>> type) {
+  public ImmutableMap<Object, Object> read(
+      Kryo kryo,
+      Input input,
+      Class<ImmutableMap<Object, ? extends Object>> type) {
     Map map = kryo.readObject(input, HashMap.class);
     return ImmutableMap.copyOf(map);
   }
@@ -44,13 +47,17 @@ public class ImmutableMapSerializer extends Serializer<ImmutableMap<Object, ? ex
     Object o2 = new Object();
 
     config.registerSerialization(ImmutableMap.of(o1, o1).getClass(), ImmutableMapSerializer.class);
-    config.registerSerialization(ImmutableMap.of(o1, o1, o2, o2).getClass(), ImmutableMapSerializer.class);
+    config.registerSerialization(
+        ImmutableMap.of(o1, o1, o2, o2).getClass(),
+        ImmutableMapSerializer.class);
     Map<DummyEnum, Object> enumMap = new EnumMap<DummyEnum, Object>(DummyEnum.class);
     for (DummyEnum e : DummyEnum.values()) {
       enumMap.put(e, o1);
     }
 
-    config.registerSerialization(ImmutableMap.copyOf(enumMap).getClass(), ImmutableMapSerializer.class);
+    config.registerSerialization(
+        ImmutableMap.copyOf(enumMap).getClass(),
+        ImmutableMapSerializer.class);
   }
 
   private enum DummyEnum {

@@ -111,7 +111,8 @@ public class TxUnboundedSourceSpout implements ITransactionSpoutExecutor {
       sourceSpout.open(conf, context, collector);
       String storeName = String.format("task-%s", context.getThisTaskId());
       String storePath = String.format("%s/beam/%s", context.getWorkerIdDir(), storeName);
-      kvStoreManager = KvStoreManagerFactory.getKvStoreManagerWithMonitor(context, storeName, storePath, true);
+      kvStoreManager = KvStoreManagerFactory.getKvStoreManagerWithMonitor(
+          context, storeName, storePath, true);
 
       reader = sourceSpout.getUnboundedSourceReader();
     } catch (IOException e) {

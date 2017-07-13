@@ -69,20 +69,31 @@ public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
 
     config.registerSerialization(ImmutableList.of().getClass(), ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().getClass()), ImmutableListSerializer.class);
+        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().getClass()),
+        ImmutableListSerializer.class);
     config.registerSerialization(ImmutableList.of(1).getClass(), ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1).getClass()), ImmutableListSerializer.class);
-    config.registerSerialization(ImmutableList.of(1, 2, 3).subList(1, 2).getClass(), ImmutableListSerializer.class);
+        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1).getClass()),
+        ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1, 2, 3).subList(1, 2).getClass()), ImmutableListSerializer.class);
-    config.registerSerialization(ImmutableList.of().reverse().getClass(), ImmutableListSerializer.class);
+        ImmutableList.of(1, 2, 3).subList(1, 2).getClass(),
+        ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().reverse().getClass()), ImmutableListSerializer.class);
+        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1, 2, 3).subList(1, 2).getClass()),
+        ImmutableListSerializer.class);
+    config.registerSerialization(
+        ImmutableList.of().reverse().getClass(),
+        ImmutableListSerializer.class);
+    config.registerSerialization(
+        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().reverse().getClass()),
+        ImmutableListSerializer.class);
 
-    config.registerSerialization(Lists.charactersOf("KryoRocks").getClass(), ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(Lists.charactersOf("KryoRocks").getClass()), ImmutableListSerializer.class);
+        Lists.charactersOf("KryoRocks").getClass(),
+        ImmutableListSerializer.class);
+    config.registerSerialization(
+        RunnerUtils.getBeamSdkRepackClass(Lists.charactersOf("KryoRocks").getClass()),
+        ImmutableListSerializer.class);
 
     Table<Integer, Integer, Integer> baseTable = HashBasedTable.create();
     baseTable.put(1, 2, 3);
@@ -90,7 +101,8 @@ public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
     Table<Integer, Integer, Integer> table = ImmutableTable.copyOf(baseTable);
     config.registerSerialization(table.values().getClass(), ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(table.values().getClass()), ImmutableListSerializer.class);
+        RunnerUtils.getBeamSdkRepackClass(table.values().getClass()),
+        ImmutableListSerializer.class);
 
   }
 }

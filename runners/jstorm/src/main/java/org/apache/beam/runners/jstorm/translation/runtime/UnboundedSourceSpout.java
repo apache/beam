@@ -114,7 +114,8 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
   public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
     try {
       this.collector = collector;
-      this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
+      this.pipelineOptions =
+          this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
 
       createSourceReader(null);
 
@@ -146,7 +147,8 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
         Object value = reader.getCurrent();
         Instant timestamp = reader.getCurrentTimestamp();
 
-        WindowedValue wv = WindowedValue.of(value, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+        WindowedValue wv =
+            WindowedValue.of(value, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
         LOG.debug("Source output: " + wv.getValue());
         if (keyedEmit(outputTag.getId())) {
           KV kv = (KV) wv.getValue();

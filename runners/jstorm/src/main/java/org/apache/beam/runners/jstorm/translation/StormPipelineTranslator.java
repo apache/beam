@@ -61,8 +61,10 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
                 new ReflectiveOneToOneOverrideFactory(ViewTranslator.ViewAsMultimap.class)))
             .add(PTransformOverride.of(PTransformMatchers.classEqualTo(View.AsSingleton.class),
                 new ReflectiveOneToOneOverrideFactory(ViewTranslator.ViewAsSingleton.class)))
-            .add(PTransformOverride.of(PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
-                new ReflectiveOneToOneOverrideFactory((ViewTranslator.CombineGloballyAsSingletonView.class))))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                new ReflectiveOneToOneOverrideFactory(
+                    (ViewTranslator.CombineGloballyAsSingletonView.class))))
             .build();
     pipeline.replaceAll(transformOverrides);
     pipeline.traverseTopologically(this);
@@ -101,7 +103,8 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
       TransformTranslator translator = TranslatorRegistry.getTranslator(transform);
       if (translator == null || !applyCanTranslate(transform, node, translator)) {
         LOG.info(node.getTransform().getClass().toString());
-        throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+        throw new UnsupportedOperationException(
+            "The transform " + transform + " is currently not supported.");
       }
       applyStreamingTransform(transform, node, translator);
     }
@@ -111,8 +114,10 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     LOG.info(genSpaces(this.depth) + "visiting value {}", value);
   }
 
-  private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform, TransformHierarchy.Node node,
-                                                                    TransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyStreamingTransform(
+      PTransform<?, ?> transform,
+      TransformHierarchy.Node node,
+      TransformTranslator<?> translator) {
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
     @SuppressWarnings("unchecked")
@@ -125,7 +130,10 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     context.getUserGraphContext().recordOutputTaggedPValue();
   }
 
-  private <T extends PTransform<?, ?>> boolean applyCanTranslate(PTransform<?, ?> transform, TransformHierarchy.Node node, TransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> boolean applyCanTranslate(
+      PTransform<?, ?> transform,
+      TransformHierarchy.Node node,
+      TransformTranslator<?> translator) {
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
     @SuppressWarnings("unchecked")
@@ -163,10 +171,13 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     }
 
     @Override
-    public PTransformReplacement<InputT, OutputT> getReplacementTransform(AppliedPTransform<InputT, OutputT, TransformT> appliedPTransform) {
+    public PTransformReplacement<InputT, OutputT> getReplacementTransform(
+        AppliedPTransform<InputT, OutputT, TransformT> appliedPTransform) {
       PTransform<InputT, OutputT> originalPTransform = appliedPTransform.getTransform();
       PTransform<InputT, OutputT> replacedPTransform = InstanceBuilder.ofType(replacement)
-          .withArg((Class<PTransform<InputT, OutputT>>) originalPTransform.getClass(), originalPTransform)
+          .withArg(
+              (Class<PTransform<InputT, OutputT>>) originalPTransform.getClass(),
+              originalPTransform)
           .build();
       InputT inputT = (InputT) Iterables.getOnlyElement(appliedPTransform.getInputs().values());
       return PTransformReplacement.of(inputT, replacedPTransform);

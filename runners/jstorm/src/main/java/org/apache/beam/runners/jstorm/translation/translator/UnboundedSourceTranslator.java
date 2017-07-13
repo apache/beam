@@ -32,7 +32,8 @@ import org.apache.beam.sdk.values.TupleTag;
 public class UnboundedSourceTranslator<T> extends TransformTranslator.Default<Read.Unbounded<T>> {
   public void translateNode(Read.Unbounded<T> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
     TupleTag<?> tag = userGraphContext.getOutputTag();
     PValue output = userGraphContext.getOutput();

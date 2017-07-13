@@ -43,7 +43,8 @@ import org.slf4j.LoggerFactory;
 public class TranslatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TranslatorRegistry.class);
 
-  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSLATORS = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSLATORS =
+      new HashMap<>();
 
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedSourceTranslator());
@@ -64,8 +65,9 @@ public class TranslatorRegistry {
     TRANSLATORS.put(ViewTranslator.CreateJStormPCollectionView.class, new ViewTranslator());
 
     /**
-     * Currently, empty translation is required for combine and reshuffle. Because, the transforms will be
-     * mapped to GroupByKey and Pardo finally. So we only need to translator the finally transforms.
+     * Currently, empty translation is required for combine and reshuffle.
+     * Because, the transforms will be mapped to GroupByKey and Pardo finally.
+     * So we only need to translator the finally transforms.
      * If any improvement is required, the composite transforms will be translated in the future.
      */
     // TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());

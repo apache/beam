@@ -42,7 +42,8 @@ public class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<Grou
   @Override
   public void translateNode(GroupByKey<K, V> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
     input = (PCollection<KV<K, V>>) userGraphContext.getInput();
     output = (PCollection<KV<K, Iterable<V>>>) userGraphContext.getOutput();

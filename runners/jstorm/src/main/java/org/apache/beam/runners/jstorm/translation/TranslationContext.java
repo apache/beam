@@ -70,7 +70,8 @@ public class TranslationContext {
     return userGraphContext;
   }
 
-  private void addStormStreamDef(TaggedPValue input, String destComponentName, Stream.Grouping grouping) {
+  private void addStormStreamDef(
+      TaggedPValue input, String destComponentName, Stream.Grouping grouping) {
     Stream.Producer producer = executionGraphContext.getProducer(input.getValue());
     if (!producer.getComponentId().equals(destComponentName)) {
       Stream.Consumer consumer = Stream.Consumer.of(destComponentName, grouping);
@@ -113,11 +114,13 @@ public class TranslationContext {
    * @return true if there is multiple input streams, or upstream executor output the same stream
    * to different executors
    */
-  private boolean isMultipleInputOrOutput(ExecutorsBolt upstreamExecutorsBolt, Map<TupleTag<?>, PValue> inputs) {
+  private boolean isMultipleInputOrOutput(
+      ExecutorsBolt upstreamExecutorsBolt, Map<TupleTag<?>, PValue> inputs) {
     if (inputs.size() > 1) {
       return true;
     } else {
-      final Sets.SetView<TupleTag> intersection = Sets.intersection(upstreamExecutorsBolt.getExecutors().keySet(), inputs.keySet());
+      final Sets.SetView<TupleTag> intersection =
+          Sets.intersection(upstreamExecutorsBolt.getExecutors().keySet(), inputs.keySet());
       if (!intersection.isEmpty()) {
         // there is already a different executor consume the same input
         return true;
@@ -132,14 +135,20 @@ public class TranslationContext {
   }
 
   public void addTransformExecutor(Executor executor, List<PValue> sideInputs) {
-    addTransformExecutor(executor, userGraphContext.getInputs(), userGraphContext.getOutputs(), sideInputs);
+    addTransformExecutor(
+        executor, userGraphContext.getInputs(), userGraphContext.getOutputs(), sideInputs);
   }
 
-  public void addTransformExecutor(Executor executor, Map<TupleTag<?>, PValue> inputs, Map<TupleTag<?>, PValue> outputs) {
+  public void addTransformExecutor(
+      Executor executor, Map<TupleTag<?>, PValue> inputs, Map<TupleTag<?>, PValue> outputs) {
     addTransformExecutor(executor, inputs, outputs, Collections.EMPTY_LIST);
   }
 
-  public void addTransformExecutor(Executor executor, Map<TupleTag<?>, PValue> inputs, Map<TupleTag<?>, PValue> outputs, List<PValue> sideInputs) {
+  public void addTransformExecutor(
+      Executor executor,
+      Map<TupleTag<?>, PValue> inputs,
+      Map<TupleTag<?>, PValue> outputs,
+      List<PValue> sideInputs) {
     String name = null;
 
     ExecutorsBolt bolt = null;
@@ -213,7 +222,8 @@ public class TranslationContext {
       TupleTag tag = userGraphContext.findTupleTag(sideInput);
       bolt.addExecutor(tag, executor);
       checkState(!bolt.getOutputTags().contains(tag));
-      addStormStreamDef(TaggedPValue.of(tag, sideInput), name, Stream.Grouping.of(Stream.Grouping.Type.ALL));
+      addStormStreamDef(
+          TaggedPValue.of(tag, sideInput), name, Stream.Grouping.of(Stream.Grouping.Type.ALL));
     }
 
     bolt.registerExecutor(executor);

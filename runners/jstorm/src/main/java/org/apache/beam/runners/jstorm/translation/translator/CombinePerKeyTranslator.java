@@ -19,6 +19,7 @@ package org.apache.beam.runners.jstorm.translation.translator;
 
 import org.apache.beam.sdk.transforms.Combine;
 
-public class CombinePerKeyTranslator<K, InputT, OutputT> extends TransformTranslator.Default<Combine.PerKey<K, InputT, OutputT>> {
+public class CombinePerKeyTranslator<K, InputT, OutputT>
+    extends TransformTranslator.Default<Combine.PerKey<K, InputT, OutputT>> {
 
 }
