@@ -52,19 +52,19 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
  * with the number of shards, index of the particular file, current window and pane information,
  * using {@link #constructName}.
  *
- * <p>Most users will use this {@link DefaultFilenamePolicy}. For more advanced
- * uses in generating different files for each window and other sharding controls, see the
- * {@code WriteOneFilePerWindow} example pipeline.
+ * <p>Most users will use this {@link DefaultFilenamePolicy}. For more advanced uses in generating
+ * different files for each window and other sharding controls, see the {@code
+ * WriteOneFilePerWindow} example pipeline.
  */
 public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
-  /** The default windowed sharding name template used when writing windowed files.
-   *  This is used as default in cases when user did not specify shard template to
-   *  be used and there is a need to write windowed files. In cases when user does
-   *  specify shard template to be used then provided template will be used for both
-   *  windowed and non-windowed file names.
+  /**
+   * The default windowed sharding name template used when writing windowed files. This is used as
+   * default in cases when user did not specify shard template to be used and there is a need to
+   * write windowed files. In cases when user does specify shard template to be used then provided
+   * template will be used for both windowed and non-windowed file names.
    */
   private static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
       "W-P" + DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
@@ -190,11 +190,11 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * <p>This is a shortcut for:
    *
    * <pre>{@code
-   *   DefaultFilenamePolicy.fromParams(new Params()
-   *     .withBaseFilename(baseFilename)
-   *     .withShardTemplate(shardTemplate)
-   *     .withSuffix(filenameSuffix)
-   *     .withWindowedWrites())
+   * DefaultFilenamePolicy.fromParams(new Params()
+   *   .withBaseFilename(baseFilename)
+   *   .withShardTemplate(shardTemplate)
+   *   .withSuffix(filenameSuffix)
+   *   .withWindowedWrites())
    * }</pre>
    *
    * <p>Where the respective {@code with} methods are invoked only if the value is non-null or true.
@@ -284,28 +284,33 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   @Nullable
-  public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+  public ResourceId unwindowedFilename(
+      int shardNumber, int numShards, OutputFileHints outputFileHints) {
     return constructName(
         params.baseFilename.get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
-        context.getShardNumber(),
-        context.getNumShards(),
+        shardNumber,
+        numShards,
         null,
         null);
   }
 
   @Override
-  public ResourceId windowedFilename(WindowedContext context, OutputFileHints outputFileHints) {
-    final PaneInfo paneInfo = context.getPaneInfo();
+  public ResourceId windowedFilename(
+      int shardNumber,
+      int numShards,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      OutputFileHints outputFileHints) {
     String paneStr = paneInfoToString(paneInfo);
-    String windowStr = windowToString(context.getWindow());
+    String windowStr = windowToString(window);
     return constructName(
         params.baseFilename.get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
-        context.getShardNumber(),
-        context.getNumShards(),
+        shardNumber,
+        numShards,
         paneStr,
         windowStr);
   }

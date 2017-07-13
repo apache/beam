@@ -70,8 +70,10 @@ import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -89,17 +91,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for the WriteFiles PTransform.
- */
+/** Tests for the WriteFiles PTransform. */
 @RunWith(JUnit4.class)
 public class WriteFilesTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public final TestPipeline p = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @SuppressWarnings("unchecked") // covariant cast
   private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
@@ -114,12 +111,12 @@ public class WriteFilesTest {
 
   private static final PTransform<PCollection<String>, PCollectionView<Integer>>
       SHARDING_TRANSFORM =
-      new PTransform<PCollection<String>, PCollectionView<Integer>>() {
-        @Override
-        public PCollectionView<Integer> expand(PCollection<String> input) {
-          return null;
-        }
-      };
+          new PTransform<PCollection<String>, PCollectionView<Integer>>() {
+            @Override
+            public PCollectionView<Integer> expand(PCollection<String> input) {
+              return null;
+            }
+          };
 
   private static class WindowAndReshuffle<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final Window<T> window;
@@ -161,18 +158,20 @@ public class WriteFilesTest {
   }
 
   private String getBaseOutputFilename() {
-    return getBaseOutputDirectory()
-        .resolve("file", StandardResolveOptions.RESOLVE_FILE).toString();
+    return getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE).toString();
   }
 
-  /**
-   * Test a WriteFiles transform with a PCollection of elements.
-   */
+  /** Test a WriteFiles transform with a PCollection of elements. */
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws IOException {
-    List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
-        "Intimidating pigeon", "Pedantic gull", "Frisky finch");
+    List<String> inputs =
+        Arrays.asList(
+            "Critical canary",
+            "Apprehensive eagle",
+            "Intimidating pigeon",
+            "Pedantic gull",
+            "Frisky finch");
     runWrite(
         inputs,
         IDENTITY_MAP,
@@ -180,9 +179,7 @@ public class WriteFilesTest {
         WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
-  /**
-   * Test that WriteFiles with an empty input still produces one shard.
-   */
+  /** Test that WriteFiles with an empty input still produces one shard. */
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
@@ -191,8 +188,7 @@ public class WriteFilesTest {
         IDENTITY_MAP,
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
-    checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
-        Optional.of(1));
+    checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(), Optional.of(1));
   }
 
   /**
@@ -212,7 +208,6 @@ public class WriteFilesTest {
   private ResourceId getBaseOutputDirectory() {
     return LocalResources.fromFile(tmpFolder.getRoot(), true)
         .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY);
-
   }
 
   private SimpleSink<Void> makeSimpleSink() {
@@ -267,9 +262,7 @@ public class WriteFilesTest {
             .withNumShards(20));
   }
 
-  /**
-   * Test a WriteFiles transform with an empty PCollection.
-   */
+  /** Test a WriteFiles transform with an empty PCollection. */
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws IOException {
@@ -281,14 +274,17 @@ public class WriteFilesTest {
         WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
-  /**
-   * Test a WriteFiles with a windowed PCollection.
-   */
+  /** Test a WriteFiles with a windowed PCollection. */
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWindowed() throws IOException {
-    List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
-        "Intimidating pigeon", "Pedantic gull", "Frisky finch");
+    List<String> inputs =
+        Arrays.asList(
+            "Critical canary",
+            "Apprehensive eagle",
+            "Intimidating pigeon",
+            "Pedantic gull",
+            "Frisky finch");
     runWrite(
         inputs,
         new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
@@ -296,14 +292,17 @@ public class WriteFilesTest {
         WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
   }
 
-  /**
-   * Test a WriteFiles with sessions.
-   */
+  /** Test a WriteFiles with sessions. */
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithSessions() throws IOException {
-    List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
-        "Intimidating pigeon", "Pedantic gull", "Frisky finch");
+    List<String> inputs =
+        Arrays.asList(
+            "Critical canary",
+            "Apprehensive eagle",
+            "Intimidating pigeon",
+            "Pedantic gull",
+            "Frisky finch");
 
     runWrite(
         inputs,
@@ -589,19 +588,24 @@ public class WriteFilesTest {
     public String filenamePrefixForWindow(IntervalWindow window) {
       String prefix =
           baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
-      return String.format("%s%s-%s",
-          prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
+      return String.format(
+          "%s%s-%s", prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext context, OutputFileHints outputFileHints) {
-      IntervalWindow window = (IntervalWindow) context.getWindow();
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints) {
+      IntervalWindow intervalWindow = (IntervalWindow) window;
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
-              filenamePrefixForWindow(window),
-              context.getShardNumber(),
-              context.getNumShards(),
+              filenamePrefixForWindow(intervalWindow),
+              shardNumber,
+              numShards,
               outputFileHints.getSuggestedFilenameSuffix(),
               suffix);
       return baseFilename
@@ -610,17 +614,14 @@ public class WriteFilesTest {
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context context, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
       String prefix =
           baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
-              prefix,
-              context.getShardNumber(),
-              context.getNumShards(),
-              outputFileHints.getSuggestedFilenameSuffix(),
-              suffix);
+              prefix, shardNumber, numShards, outputFileHints.getSuggestedFilenameSuffix(), suffix);
       return baseFilename
           .getCurrentDirectory()
           .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
@@ -656,12 +657,14 @@ public class WriteFilesTest {
 
     Optional<Integer> numShards =
         (write.getNumShards() != null)
-            ? Optional.of(write.getNumShards().get()) : Optional.<Integer>absent();
+            ? Optional.of(write.getNumShards().get())
+            : Optional.<Integer>absent();
     checkFileContents(baseName, inputs, numShards);
   }
 
-  static void checkFileContents(String baseName, List<String> inputs,
-                                Optional<Integer> numExpectedShards) throws IOException {
+  static void checkFileContents(
+      String baseName, List<String> inputs, Optional<Integer> numExpectedShards)
+      throws IOException {
     List<File> outputFiles = Lists.newArrayList();
     final String pattern = baseName + "*";
     List<Metadata> metadata =
@@ -690,12 +693,11 @@ public class WriteFilesTest {
     assertThat(actual, containsInAnyOrder(inputs.toArray()));
   }
 
-  /**
-   * Options for test, exposed for PipelineOptionsFactory.
-   */
+  /** Options for test, exposed for PipelineOptionsFactory. */
   public interface WriteOptions extends TestPipelineOptions {
     @Description("Test flag and value")
     String getTestFlag();
+
     void setTestFlag(String value);
   }
 

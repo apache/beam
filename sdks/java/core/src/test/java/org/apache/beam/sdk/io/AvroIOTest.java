@@ -68,8 +68,10 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -84,20 +86,15 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for AvroIO Read and Write transforms.
- */
+/** Tests for AvroIO Read and Write transforms. */
 @RunWith(JUnit4.class)
 public class AvroIOTest {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testAvroIOGetName() {
@@ -109,11 +106,14 @@ public class AvroIOTest {
   static class GenericClass {
     int intField;
     String stringField;
+
     public GenericClass() {}
+
     public GenericClass(int intValue, String stringValue) {
       this.intField = intValue;
       this.stringField = stringValue;
     }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
@@ -121,10 +121,12 @@ public class AvroIOTest {
           .add("stringField", stringField)
           .toString();
     }
+
     @Override
     public int hashCode() {
       return Objects.hash(intField, stringField);
     }
+
     @Override
     public boolean equals(Object other) {
       if (other == null || !(other instanceof GenericClass)) {
@@ -138,20 +140,16 @@ public class AvroIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadASingleFile() throws Throwable {
-    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
-        new GenericClass(5, "bar"));
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-     .apply(AvroIO.write(GenericClass.class)
-         .to(outputFile.getAbsolutePath())
-         .withoutSharding());
+        .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     p.run();
 
     PCollection<GenericClass> input =
-        p.apply(
-            AvroIO.read(GenericClass.class)
-                .from(outputFile.getAbsolutePath()));
+        p.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
@@ -161,25 +159,25 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testAvroIOCompressedWriteAndReadASingleFile() throws Throwable {
-    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
-        new GenericClass(5, "bar"));
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-     .apply(AvroIO.write(GenericClass.class)
-         .to(outputFile.getAbsolutePath())
-         .withoutSharding()
-         .withCodec(CodecFactory.deflateCodec(9)));
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(outputFile.getAbsolutePath())
+                .withoutSharding()
+                .withCodec(CodecFactory.deflateCodec(9)));
     p.run();
 
-    PCollection<GenericClass> input = p
-        .apply(AvroIO.read(GenericClass.class)
-            .from(outputFile.getAbsolutePath()));
+    PCollection<GenericClass> input =
+        p.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
-    DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
-        new GenericDatumReader());
+    DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
     assertEquals("deflate", dataFileStream.getMetaString("avro.codec"));
   }
 
@@ -187,25 +185,25 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testAvroIONullCodecWriteAndReadASingleFile() throws Throwable {
-    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
-        new GenericClass(5, "bar"));
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.write(GenericClass.class)
-          .to(outputFile.getAbsolutePath())
-          .withoutSharding()
-          .withCodec(CodecFactory.nullCodec()));
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(outputFile.getAbsolutePath())
+                .withoutSharding()
+                .withCodec(CodecFactory.nullCodec()));
     p.run();
 
-    PCollection<GenericClass> input = p
-        .apply(AvroIO.read(GenericClass.class)
-            .from(outputFile.getAbsolutePath()));
+    PCollection<GenericClass> input =
+        p.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
-    DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
-        new GenericDatumReader());
+    DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
     assertEquals("null", dataFileStream.getMetaString("avro.codec"));
   }
 
@@ -214,12 +212,15 @@ public class AvroIOTest {
     int intField;
     String stringField;
     @Nullable String nullableField;
+
     public GenericClassV2() {}
+
     public GenericClassV2(int intValue, String stringValue, String nullableValue) {
       this.intField = intValue;
       this.stringField = stringValue;
       this.nullableField = nullableValue;
     }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
@@ -228,10 +229,12 @@ public class AvroIOTest {
           .add("nullableField", nullableField)
           .toString();
     }
+
     @Override
     public int hashCode() {
       return Objects.hash(intField, stringField, nullableField);
     }
+
     @Override
     public boolean equals(Object other) {
       if (other == null || !(other instanceof GenericClassV2)) {
@@ -245,32 +248,28 @@ public class AvroIOTest {
   }
 
   /**
-   * Tests that {@code AvroIO} can read an upgraded version of an old class, as long as the
-   * schema resolution process succeeds. This test covers the case when a new, {@code @Nullable}
-   * field has been added.
+   * Tests that {@code AvroIO} can read an upgraded version of an old class, as long as the schema
+   * resolution process succeeds. This test covers the case when a new, {@code @Nullable} field has
+   * been added.
    *
    * <p>For more information, see http://avro.apache.org/docs/1.7.7/spec.html#Schema+Resolution
    */
   @Test
   @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
-    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
-        new GenericClass(5, "bar"));
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.write(GenericClass.class)
-          .to(outputFile.getAbsolutePath())
-          .withoutSharding());
+        .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     p.run();
 
-    List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
-        new GenericClassV2(5, "bar", null));
+    List<GenericClassV2> expected =
+        ImmutableList.of(new GenericClassV2(3, "hi", null), new GenericClassV2(5, "bar", null));
 
     PCollection<GenericClassV2> input =
-        p.apply(
-            AvroIO.read(GenericClassV2.class)
-                .from(outputFile.getAbsolutePath()));
+        p.apply(AvroIO.read(GenericClassV2.class).from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(expected);
     p.run();
@@ -284,7 +283,12 @@ public class AvroIOTest {
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext input, OutputFileHints outputFileHints) {
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints) {
       String filenamePrefix =
           outputFilePrefix.isDirectory() ? "" : firstNonNull(outputFilePrefix.getFilename(), "");
 
@@ -292,11 +296,11 @@ public class AvroIOTest {
           String.format(
               "%s-%s-%s-of-%s-pane-%s%s%s",
               filenamePrefix,
-              input.getWindow(),
-              input.getShardNumber(),
-              input.getNumShards() - 1,
-              input.getPaneInfo().getIndex(),
-              input.getPaneInfo().isLast() ? "-final" : "",
+              window,
+              shardNumber,
+              numShards - 1,
+              paneInfo.getIndex(),
+              paneInfo.isLast() ? "-final" : "",
               outputFileHints.getSuggestedFilenameSuffix());
       return outputFilePrefix
           .getCurrentDirectory()
@@ -304,7 +308,8 @@ public class AvroIOTest {
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context input, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
       throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 
@@ -316,8 +321,7 @@ public class AvroIOTest {
     }
   }
 
-  @Rule
-  public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
+  @Rule public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
 
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
@@ -328,27 +332,31 @@ public class AvroIOTest {
     Instant base = new Instant(0);
     ArrayList<GenericClass> allElements = new ArrayList<>();
     ArrayList<TimestampedValue<GenericClass>> firstWindowElements = new ArrayList<>();
-    ArrayList<Instant> firstWindowTimestamps = Lists.newArrayList(
-        base.plus(Duration.standardSeconds(0)), base.plus(Duration.standardSeconds(10)),
-        base.plus(Duration.standardSeconds(20)), base.plus(Duration.standardSeconds(30)));
+    ArrayList<Instant> firstWindowTimestamps =
+        Lists.newArrayList(
+            base.plus(Duration.standardSeconds(0)), base.plus(Duration.standardSeconds(10)),
+            base.plus(Duration.standardSeconds(20)), base.plus(Duration.standardSeconds(30)));
 
     Random random = new Random();
     for (int i = 0; i < 100; ++i) {
       GenericClass item = new GenericClass(i, String.valueOf(i));
       allElements.add(item);
-      firstWindowElements.add(TimestampedValue.of(item,
-          firstWindowTimestamps.get(random.nextInt(firstWindowTimestamps.size()))));
+      firstWindowElements.add(
+          TimestampedValue.of(
+              item, firstWindowTimestamps.get(random.nextInt(firstWindowTimestamps.size()))));
     }
 
     ArrayList<TimestampedValue<GenericClass>> secondWindowElements = new ArrayList<>();
-    ArrayList<Instant> secondWindowTimestamps = Lists.newArrayList(
-        base.plus(Duration.standardSeconds(60)), base.plus(Duration.standardSeconds(70)),
-        base.plus(Duration.standardSeconds(80)), base.plus(Duration.standardSeconds(90)));
+    ArrayList<Instant> secondWindowTimestamps =
+        Lists.newArrayList(
+            base.plus(Duration.standardSeconds(60)), base.plus(Duration.standardSeconds(70)),
+            base.plus(Duration.standardSeconds(80)), base.plus(Duration.standardSeconds(90)));
     for (int i = 100; i < 200; ++i) {
       GenericClass item = new GenericClass(i, String.valueOf(i));
       allElements.add(new GenericClass(i, String.valueOf(i)));
-      secondWindowElements.add(TimestampedValue.of(item,
-          secondWindowTimestamps.get(random.nextInt(secondWindowTimestamps.size()))));
+      secondWindowElements.add(
+          TimestampedValue.of(
+              item, secondWindowTimestamps.get(random.nextInt(secondWindowTimestamps.size()))));
     }
 
     TimestampedValue<GenericClass>[] firstWindowArray =
@@ -356,14 +364,17 @@ public class AvroIOTest {
     TimestampedValue<GenericClass>[] secondWindowArray =
         secondWindowElements.toArray(new TimestampedValue[100]);
 
-    TestStream<GenericClass> values = TestStream.create(AvroCoder.of(GenericClass.class))
-        .advanceWatermarkTo(new Instant(0))
-        .addElements(firstWindowArray[0],
-            Arrays.copyOfRange(firstWindowArray, 1, firstWindowArray.length))
-        .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
-        .addElements(secondWindowArray[0],
-        Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
-        .advanceWatermarkToInfinity();
+    TestStream<GenericClass> values =
+        TestStream.create(AvroCoder.of(GenericClass.class))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(
+                firstWindowArray[0],
+                Arrays.copyOfRange(firstWindowArray, 1, firstWindowArray.length))
+            .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+            .addElements(
+                secondWindowArray[0],
+                Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
+            .advanceWatermarkToInfinity();
 
     FilenamePolicy policy =
         new WindowedFilenamePolicy(FileBasedSink.convertToFileResourceIfPossible(baseFilename));
@@ -384,11 +395,17 @@ public class AvroIOTest {
     for (int shard = 0; shard < 2; shard++) {
       for (int window = 0; window < 2; window++) {
         Instant windowStart = new Instant(0).plus(Duration.standardMinutes(window));
-        IntervalWindow intervalWindow = new IntervalWindow(
-            windowStart, Duration.standardMinutes(1));
+        IntervalWindow intervalWindow =
+            new IntervalWindow(windowStart, Duration.standardMinutes(1));
         expectedFiles.add(
-            new File(baseFilename + "-" + intervalWindow.toString() + "-" + shard
-                + "-of-1" + "-pane-0-final"));
+            new File(
+                baseFilename
+                    + "-"
+                    + intervalWindow.toString()
+                    + "-"
+                    + shard
+                    + "-of-1"
+                    + "-pane-0-final"));
       }
     }
 
@@ -396,9 +413,10 @@ public class AvroIOTest {
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getAbsolutePath(), outputFile.exists());
       try (DataFileReader<GenericClass> reader =
-               new DataFileReader<>(outputFile,
-                   new ReflectDatumReader<GenericClass>(
-                       ReflectData.get().getSchema(GenericClass.class)))) {
+          new DataFileReader<>(
+              outputFile,
+              new ReflectDatumReader<GenericClass>(
+                  ReflectData.get().getSchema(GenericClass.class)))) {
         Iterators.addAll(actualElements, reader);
       }
       outputFile.delete();
@@ -408,25 +426,22 @@ public class AvroIOTest {
 
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
-    AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("/tmp/foo/baz");
+    AvroIO.Write<String> write = AvroIO.write(String.class).to("/tmp/foo/baz");
     assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
-    AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("/tmp/foo/baz")
-        .withCodec(CodecFactory.snappyCodec());
+    AvroIO.Write<String> write =
+        AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.snappyCodec());
     assertEquals(SNAPPY_CODEC, write.getCodec().toString());
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
-    AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("/tmp/foo/baz")
-        .withCodec(CodecFactory.deflateCodec(9));
+    AvroIO.Write<String> write =
+        AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.deflateCodec(9));
 
     assertEquals(
         CodecFactory.deflateCodec(9).toString(),
@@ -436,9 +451,8 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomXZCodec() throws Exception {
-    AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("/tmp/foo/baz")
-        .withCodec(CodecFactory.xzCodec(9));
+    AvroIO.Write<String> write =
+        AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.xzCodec(9));
 
     assertEquals(
         CodecFactory.xzCodec(9).toString(),
@@ -449,27 +463,31 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testMetadata() throws Exception {
-    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
-        new GenericClass(5, "bar"));
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.write(GenericClass.class)
-            .to(outputFile.getAbsolutePath())
-            .withoutSharding()
-            .withMetadata(ImmutableMap.<String, Object>of(
-                "stringKey", "stringValue",
-                "longKey", 100L,
-                "bytesKey", "bytesValue".getBytes())));
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(outputFile.getAbsolutePath())
+                .withoutSharding()
+                .withMetadata(
+                    ImmutableMap.<String, Object>of(
+                        "stringKey",
+                        "stringValue",
+                        "longKey",
+                        100L,
+                        "bytesKey",
+                        "bytesValue".getBytes())));
     p.run();
 
-    DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
-        new GenericDatumReader());
+    DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
     assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
     assertEquals(100L, dataFileStream.getMetaLong("longKey"));
     assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
   }
-
 
   @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
   private void runTestWrite(String[] expectedElements, int numShards) throws IOException {
@@ -488,8 +506,8 @@ public class AvroIOTest {
     p.run();
 
     String shardNameTemplate =
-        firstNonNull(write.getShardTemplate(),
-            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
+        firstNonNull(
+            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
 
     assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
   }
@@ -517,8 +535,8 @@ public class AvroIOTest {
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getName(), outputFile.exists());
       try (DataFileReader<String> reader =
-          new DataFileReader<>(outputFile,
-              new ReflectDatumReader(ReflectData.get().getSchema(String.class)))) {
+          new DataFileReader<>(
+              outputFile, new ReflectDatumReader(ReflectData.get().getSchema(String.class)))) {
         Iterators.addAll(actualElements, reader);
       }
     }
@@ -560,18 +578,21 @@ public class AvroIOTest {
         AvroIO.readGenericRecords(Schema.create(Schema.Type.STRING)).from("/foo.*");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("AvroIO.Read should include the file pattern in its primitive transform",
-        displayData, hasItem(hasDisplayItem("filePattern")));
+    assertThat(
+        "AvroIO.Read should include the file pattern in its primitive transform",
+        displayData,
+        hasItem(hasDisplayItem("filePattern")));
   }
 
   @Test
   public void testWriteDisplayData() {
-    AvroIO.Write<GenericClass> write = AvroIO.write(GenericClass.class)
-        .to("/foo")
-        .withShardNameTemplate("-SS-of-NN-")
-        .withSuffix("bar")
-        .withNumShards(100)
-        .withCodec(CodecFactory.snappyCodec());
+    AvroIO.Write<GenericClass> write =
+        AvroIO.write(GenericClass.class)
+            .to("/foo")
+            .withShardNameTemplate("-SS-of-NN-")
+            .withSuffix("bar")
+            .withNumShards(100)
+            .withCodec(CodecFactory.snappyCodec());
 
     DisplayData displayData = DisplayData.from(write);
 
