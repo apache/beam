@@ -415,10 +415,11 @@ public class BigQueryIO {
     }
 
     /**
-     * Use new SplittableDoFn-compatible source implementation.
+     * Use new template-compatible source implementation.
      *
-     * <p>Use new SplittableDoFn-compatible source implementation. This implementation is also
-     * compatible with repeated template invocations.
+     * <p>Use new template-compatible source implementation. This implementation is
+     * compatible with repeated template invocations. It does not support dynamic work
+     * rebalancing.
      */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public Read withNewSource() {
@@ -430,7 +431,7 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
-    private BigQuerySourceBase applySourceTransform(String jobUuid) {
+    private BigQuerySourceBase createSource(String jobUuid) {
       BigQuerySourceBase source;
       if (getQuery() != null
           && (!getQuery().isAccessible() || !Strings.isNullOrEmpty(getQuery().get()))) {
@@ -533,15 +534,19 @@ public class BigQueryIO {
     @Override
     public PCollection<TableRow> expand(PBegin input) {
       Pipeline p = input.getPipeline();
-      final String staticJobUuid = BigQueryHelpers.randomUUIDString();
-
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection = null;
+      PCollection<TableRow> rows;
       if (!getUseNewSource()) {
         // Create a singleton job ID token at construction time.
+        final String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView = p
             .apply("TriggerIdCreation", Create.of(staticJobUuid))
             .apply("ViewId", View.<String>asSingleton());
+        // Apply the traditional Source model.
+        rows = p.apply(
+            org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid)))
+            .setCoder(getDefaultOutputCoder());
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection = p
@@ -555,16 +560,7 @@ public class BigQueryIO {
                 }));
         jobIdTokenView = jobIdTokenCollection
             .apply("ViewId", View.<String>asSingleton());
-      }
 
-      PCollection<TableRow> rows;
-      if (!getUseNewSource()) {
-        // Apply the traditional Source model.
-        rows = p.apply(
-            org.apache.beam.sdk.io.Read.from(applySourceTransform(staticJobUuid)))
-            .setCoder(getDefaultOutputCoder());
-      } else {
-        // Apply the DoFn version.
         final TupleTag<String> filesTag =
             new TupleTag<String>(){};
         final TupleTag<String> tableSchemaTag =
@@ -576,7 +572,7 @@ public class BigQueryIO {
                   public void processElement(ProcessContext c)
                       throws Exception {
                     String jobUuid = c.element();
-                    BigQuerySourceBase source = applySourceTransform(
+                    BigQuerySourceBase source = createSource(
                         jobUuid);
                     String schema = BigQueryHelpers.toJsonString(
                         source.getSchema(c.getPipelineOptions()));
@@ -605,21 +601,18 @@ public class BigQueryIO {
                       throws Exception {
                     TableSchema schema = BigQueryHelpers.fromJsonString(
                         c.sideInput(schemaView), TableSchema.class);
-                    String jobUuid = (String) c.sideInput(jobIdTokenView);
-                    BigQuerySourceBase source = applySourceTransform(jobUuid);
+                    String jobUuid = c.sideInput(jobIdTokenView);
+                    BigQuerySourceBase source = createSource(jobUuid);
                     List<BoundedSource<TableRow>> sources =
                     source.createSources(ImmutableList.of(
                         FileSystems.matchNewResource(
                             c.element(), false /* is directory */)), schema);
-                    for (BoundedSource<TableRow> avroSource : sources) {
-                      BoundedSource.BoundedReader<TableRow> reader =
-                          avroSource.createReader(c.getPipelineOptions());
-                      if (reader.start()) {
-                        c.output(reader.getCurrent());
-                        while (reader.advance()) {
-                          c.output(reader.getCurrent());
-                        }
-                      }
+                    checkArgument(sources.size() == 1, "Expected exactly one source.");
+                    BoundedSource<TableRow> avroSource = sources.get(0);
+                    BoundedSource.BoundedReader<TableRow> reader =
+                    avroSource.createReader(c.getPipelineOptions());
+                    for (boolean more = reader.start(); more; more = reader.advance()) {
+                      c.output(reader.getCurrent());
                     }
                   }
                 }).withSideInputs(schemaView, jobIdTokenView));
@@ -627,10 +620,10 @@ public class BigQueryIO {
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
             @Override
-            void cleanup(DoFn.ProcessContext c) throws Exception {
+            void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
               PipelineOptions options = c.getPipelineOptions();
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-              String jobUuid = (String) c.sideInput(jobIdTokenView);
+              String jobUuid = c.getJobId();
               final String extractDestinationDir =
                   resolveTempLocation(
                       bqOptions.getTempLocation(),

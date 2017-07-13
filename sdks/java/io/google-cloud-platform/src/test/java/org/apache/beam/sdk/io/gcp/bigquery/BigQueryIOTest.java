@@ -1737,7 +1737,7 @@ public class BigQueryIOTest implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(DoFn.ProcessContext c) throws Exception {
+          void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
             // no-op
           }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
@@ -1752,7 +1752,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(DoFn.ProcessContext c) throws Exception {
+          void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
             throw new RuntimeException("cleanup executed");
           }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
