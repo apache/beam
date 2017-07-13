@@ -42,7 +42,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -340,13 +339,8 @@ public class AvroIO {
      * Like {@link #to(String)}.
      */
     public Write<T> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          new SerializableFunction<String, ResourceId>() {
-            @Override
-            public ResourceId apply(String input) {
-              return FileBasedSink.convertToFileResourceIfPossible(input);
-            }
-          }));
+      return toResource(
+          NestedValueProvider.of(outputPrefix, FileBasedSink.convertToFileResourceFunction()));
     }
 
     /**
