@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -138,6 +139,28 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     /** Sets the suffix. */
     public Params withSuffix(String suffix) {
       return new Params(baseFilename, shardTemplate, suffix, explicitTemplate);
+    }
+
+    @Override
+    public int hashCode() {
+     return Objects.hashCode(baseFilename.get(), shardTemplate, suffix);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof Params)) {
+        return false;
+      }
+      Params other = (Params) o;
+      return baseFilename.get().equals(other.baseFilename.get())
+          && shardTemplate.equals(other.shardTemplate)
+          && suffix.equals(other.suffix);
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "baseFilename: %s shardTemplate: %s suffix: %s", baseFilename, shardTemplate, suffix);
     }
   }
 

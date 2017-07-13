@@ -218,7 +218,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
       implements HasDisplayData, Serializable {
     /**
      * Returns an object that represents at a high level the destination being written to. May not
-     * return null.
+     * return null. A destination must have deterministic hash and equality methods defined.
      */
     public abstract DestinationT getDestination(UserT element);
 
