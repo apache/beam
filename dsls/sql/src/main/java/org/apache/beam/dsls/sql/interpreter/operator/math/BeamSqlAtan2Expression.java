@@ -32,6 +32,7 @@ public class BeamSqlAtan2Expression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlAtan2Expression(List<BeamSqlExpression> operands) {
     super(operands);
+    this.outputType = SqlTypeName.DOUBLE;
   }
 
   @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,

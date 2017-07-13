@@ -32,12 +32,13 @@ public class BeamSqlCeilExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlCeilExpression(List<BeamSqlExpression> operands) {
     super(operands);
+    this.outputType = SqlTypeName.DOUBLE;
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     switch (getOutputType()) {
       case DECIMAL:
-        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.ceil(op.getBigDecimal()));
+        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.ceil(op.getDecimal()));
       default:
         return BeamSqlPrimitive
             .of(SqlTypeName.DOUBLE, SqlFunctions.ceil(SqlFunctions.toDouble(op.getValue())));

@@ -32,12 +32,13 @@ public class BeamSqlFloorExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlFloorExpression(List<BeamSqlExpression> operands) {
     super(operands);
+    this.outputType = SqlTypeName.DOUBLE;
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
     switch (getOutputType()) {
       case DECIMAL:
-        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.floor(op.getBigDecimal()));
+        return BeamSqlPrimitive.of(SqlTypeName.DECIMAL, SqlFunctions.floor(op.getDecimal()));
       default:
         return BeamSqlPrimitive
             .of(SqlTypeName.DOUBLE, SqlFunctions.floor(SqlFunctions.toDouble(op.getValue())));

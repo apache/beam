@@ -55,7 +55,7 @@ public class BeamSqlTruncateExpression extends BeamSqlMathBinaryExpression {
         break;
       case DECIMAL:
         result = BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
-            SqlFunctions.struncate(leftOp.getBigDecimal(), rightIntOperand));
+            SqlFunctions.struncate(leftOp.getDecimal(), rightIntOperand));
         break;
       default:
         break;
