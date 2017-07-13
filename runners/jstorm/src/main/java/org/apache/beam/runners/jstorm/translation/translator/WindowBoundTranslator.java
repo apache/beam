@@ -26,21 +26,21 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Translates a Window.Bound node into a Storm WindowedBolt
- * 
+ *
  * @param <T>
  */
 public class WindowBoundTranslator<T> extends TransformTranslator.Default<Window.Assign<T>> {
-    private static final Logger LOG = LoggerFactory.getLogger(WindowBoundTranslator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WindowBoundTranslator.class);
 
-    // Do nothing here currently. The assign of window strategy is included in AssignTranslator.
-    @Override
-    public void translateNode(Window.Assign<T> transform, TranslationContext context) {
-        if (transform.getWindowFn() instanceof FixedWindows) {
-            context.getUserGraphContext().setWindowed();
-        } else if (transform.getWindowFn() instanceof SlidingWindows) {
-            context.getUserGraphContext().setWindowed();
-        } else {
-            throw new UnsupportedOperationException("Not supported window type currently: " + transform.getWindowFn());
-        }
+  // Do nothing here currently. The assign of window strategy is included in AssignTranslator.
+  @Override
+  public void translateNode(Window.Assign<T> transform, TranslationContext context) {
+    if (transform.getWindowFn() instanceof FixedWindows) {
+      context.getUserGraphContext().setWindowed();
+    } else if (transform.getWindowFn() instanceof SlidingWindows) {
+      context.getUserGraphContext().setWindowed();
+    } else {
+      throw new UnsupportedOperationException("Not supported window type currently: " + transform.getWindowFn());
     }
+  }
 }

@@ -31,44 +31,46 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public interface TransformTranslator<T extends PTransform<?, ?>> {
 
-    void translateNode(T transform, TranslationContext context);
+  void translateNode(T transform, TranslationContext context);
 
-    /**
-     * Returns true if this translator can translate the given transform.
-     */
-    boolean canTranslate(T transform, TranslationContext context);
+  /**
+   * Returns true if this translator can translate the given transform.
+   */
+  boolean canTranslate(T transform, TranslationContext context);
 
-    class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
-        @Override
-        public void translateNode(T1 transform, TranslationContext context) {
+  class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
+    @Override
+    public void translateNode(T1 transform, TranslationContext context) {
 
-        }
-
-        @Override
-        public boolean canTranslate(T1 transform, TranslationContext context) {
-            return true;
-        }
-
-        static String describeTransform(
-                PTransform<?, ?> transform,
-                Map<TupleTag<?>, PValue> inputs,
-                Map<TupleTag<?>, PValue> outputs) {
-            return String.format("%s --> %s --> %s",
-                    Joiner.on('+').join(FluentIterable.from(inputs.entrySet())
-                            .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
-                                @Override
-                                public String apply(Map.Entry<TupleTag<?>, PValue> taggedPValue) {
-                                    return taggedPValue.getKey().getId();
-                                    // return taggedPValue.getValue().getName();
-                                }})),
-                    transform.getName(),
-                    Joiner.on('+').join(FluentIterable.from(outputs.entrySet())
-                            .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
-                                @Override
-                                public String apply(Map.Entry<TupleTag<?>, PValue> taggedPvalue) {
-                                    return taggedPvalue.getKey().getId();
-                                    //return taggedPValue.getValue().getName();
-                                }})));
-        }
     }
+
+    @Override
+    public boolean canTranslate(T1 transform, TranslationContext context) {
+      return true;
+    }
+
+    static String describeTransform(
+        PTransform<?, ?> transform,
+        Map<TupleTag<?>, PValue> inputs,
+        Map<TupleTag<?>, PValue> outputs) {
+      return String.format("%s --> %s --> %s",
+          Joiner.on('+').join(FluentIterable.from(inputs.entrySet())
+              .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
+                @Override
+                public String apply(Map.Entry<TupleTag<?>, PValue> taggedPValue) {
+                  return taggedPValue.getKey().getId();
+                  // return taggedPValue.getValue().getName();
+                }
+              })),
+          transform.getName(),
+          Joiner.on('+').join(FluentIterable.from(outputs.entrySet())
+              .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
+                @Override
+                public String apply(Map.Entry<TupleTag<?>, PValue> taggedPvalue) {
+                  return taggedPvalue.getKey().getId();
+                  //return taggedPValue.getValue().getName();
+                }
+              })));
+    }
+  }
 }

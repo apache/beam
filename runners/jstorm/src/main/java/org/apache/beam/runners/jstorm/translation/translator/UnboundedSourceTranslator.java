@@ -26,20 +26,20 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Translates a Read.Unbounded into a Storm spout.
- * 
+ *
  * @param <T>
  */
 public class UnboundedSourceTranslator<T> extends TransformTranslator.Default<Read.Unbounded<T>> {
-    public void translateNode(Read.Unbounded<T> transform, TranslationContext context) {
-        TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+  public void translateNode(Read.Unbounded<T> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
-        TupleTag<?> tag = userGraphContext.getOutputTag();
-        PValue output = userGraphContext.getOutput();
+    TupleTag<?> tag = userGraphContext.getOutputTag();
+    PValue output = userGraphContext.getOutput();
 
-        UnboundedSourceSpout spout = new UnboundedSourceSpout(
-                description,
-                transform.getSource(), userGraphContext.getOptions(), tag);
-        context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(tag, output));
-    }
+    UnboundedSourceSpout spout = new UnboundedSourceSpout(
+        description,
+        transform.getSource(), userGraphContext.getOptions(), tag);
+    context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(tag, output));
+  }
 }

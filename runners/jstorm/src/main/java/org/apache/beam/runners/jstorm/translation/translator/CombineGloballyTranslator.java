@@ -20,5 +20,5 @@ package org.apache.beam.runners.jstorm.translation.translator;
 import org.apache.beam.sdk.transforms.Combine;
 
 public class CombineGloballyTranslator<InputT, OutputT> extends TransformTranslator.Default<Combine.Globally<InputT, OutputT>> {
-    
+
 }

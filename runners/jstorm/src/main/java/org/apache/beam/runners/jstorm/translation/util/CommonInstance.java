@@ -18,8 +18,8 @@
 package org.apache.beam.runners.jstorm.translation.util;
 
 public class CommonInstance {
-    public static final String KEY = "Key";
-    public static final String VALUE = "Value";
+  public static final String KEY = "Key";
+  public static final String VALUE = "Value";
 
-    public static final String BEAM_WATERMARK_STREAM_ID = "BEAM_WATERMARK";
+  public static final String BEAM_WATERMARK_STREAM_ID = "BEAM_WATERMARK";
 }

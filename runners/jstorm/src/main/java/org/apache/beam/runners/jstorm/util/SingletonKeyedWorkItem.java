@@ -24,6 +24,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Singleton keyed word item.
+ *
  * @param <K>
  * @param <ElemT>
  */
@@ -38,7 +39,7 @@ public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT>
   }
 
   public static <K, ElemT> SingletonKeyedWorkItem<K, ElemT> of(K key, WindowedValue<ElemT> value) {
-      return new SingletonKeyedWorkItem<K, ElemT>(key, value);
+    return new SingletonKeyedWorkItem<K, ElemT>(key, value);
   }
 
   @Override

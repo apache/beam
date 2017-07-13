@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,67 +32,67 @@ import org.joda.time.Instant;
  */
 public class JStormTimerInternals<K> implements TimerInternals {
 
-    private final K key;
-    private final DoFnExecutor<?, ?> doFnExecutor;
-    private final TimerService timerService;
+  private final K key;
+  private final DoFnExecutor<?, ?> doFnExecutor;
+  private final TimerService timerService;
 
 
-    public JStormTimerInternals(@Nullable K key, DoFnExecutor<?, ?> doFnExecutor, TimerService timerService) {
-        this.key = key;
-        this.doFnExecutor = checkNotNull(doFnExecutor, "doFnExecutor");
-        this.timerService = checkNotNull(timerService, "timerService");
-    }
+  public JStormTimerInternals(@Nullable K key, DoFnExecutor<?, ?> doFnExecutor, TimerService timerService) {
+    this.key = key;
+    this.doFnExecutor = checkNotNull(doFnExecutor, "doFnExecutor");
+    this.timerService = checkNotNull(timerService, "timerService");
+  }
 
-    @Override
-    public void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-        setTimer(TimerData.of(timerId, namespace, target, timeDomain));
-    }
+  @Override
+  public void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+    setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+  }
 
-    @Override
-    @Deprecated
-    public void setTimer(TimerData timerData) {
-        timerService.setTimer(key, timerData, doFnExecutor);
-    }
+  @Override
+  @Deprecated
+  public void setTimer(TimerData timerData) {
+    timerService.setTimer(key, timerData, doFnExecutor);
+  }
 
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-        throw new UnsupportedOperationException(
-                "Canceling of a timer is not yet supported.");
-    }
+  @Override
+  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    throw new UnsupportedOperationException(
+        "Canceling of a timer is not yet supported.");
+  }
 
-    @Override
-    @Deprecated
-    public void deleteTimer(StateNamespace namespace, String timerId) {
-        throw new UnsupportedOperationException(
-                "Canceling of a timer is not yet supported.");
-    }
+  @Override
+  @Deprecated
+  public void deleteTimer(StateNamespace namespace, String timerId) {
+    throw new UnsupportedOperationException(
+        "Canceling of a timer is not yet supported.");
+  }
 
-    @Override
-    @Deprecated
-    public void deleteTimer(TimerData timerData) {
-        throw new UnsupportedOperationException(
-                "Canceling of a timer is not yet supported.");
-    }
+  @Override
+  @Deprecated
+  public void deleteTimer(TimerData timerData) {
+    throw new UnsupportedOperationException(
+        "Canceling of a timer is not yet supported.");
+  }
 
-    @Override
-    public Instant currentProcessingTime() {
-        return Instant.now();
-    }
+  @Override
+  public Instant currentProcessingTime() {
+    return Instant.now();
+  }
 
-    @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
-        return null;
-    }
+  @Override
+  @Nullable
+  public Instant currentSynchronizedProcessingTime() {
+    return null;
+  }
 
-    @Override
-    public Instant currentInputWatermarkTime() {
-        return new Instant(timerService.currentInputWatermark());
-    }
+  @Override
+  public Instant currentInputWatermarkTime() {
+    return new Instant(timerService.currentInputWatermark());
+  }
 
-    @Override
-    @Nullable
-    public Instant currentOutputWatermarkTime() {
-        return new Instant(timerService.currentOutputWatermark());
-    }
+  @Override
+  @Nullable
+  public Instant currentOutputWatermarkTime() {
+    return new Instant(timerService.currentOutputWatermark());
+  }
 }

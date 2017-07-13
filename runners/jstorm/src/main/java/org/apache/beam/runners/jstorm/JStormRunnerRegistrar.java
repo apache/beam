@@ -29,27 +29,28 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
  * {@link JStormRunner}.
  */
 public class JStormRunnerRegistrar {
-    private JStormRunnerRegistrar() {}
+  private JStormRunnerRegistrar() {
+  }
 
-    /**
-     * Register the {@link JStormPipelineOptions}.
-     */
-    @AutoService(PipelineOptionsRegistrar.class)
-    public static class Options implements PipelineOptionsRegistrar {
-        @Override
-        public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-            return ImmutableList.<Class<? extends PipelineOptions>> of(JStormPipelineOptions.class);
-        }
+  /**
+   * Register the {@link JStormPipelineOptions}.
+   */
+  @AutoService(PipelineOptionsRegistrar.class)
+  public static class Options implements PipelineOptionsRegistrar {
+    @Override
+    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+      return ImmutableList.<Class<? extends PipelineOptions>>of(JStormPipelineOptions.class);
     }
+  }
 
-    /**
-     * Register the {@link JStormRunner}.
-     */
-    @AutoService(PipelineRunnerRegistrar.class)
-    public static class Runner implements PipelineRunnerRegistrar {
-        @Override
-        public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-            return ImmutableList.<Class<? extends PipelineRunner<?>>> of(JStormRunner.class);
-        }
+  /**
+   * Register the {@link JStormRunner}.
+   */
+  @AutoService(PipelineRunnerRegistrar.class)
+  public static class Runner implements PipelineRunnerRegistrar {
+    @Override
+    public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(JStormRunner.class);
     }
+  }
 }

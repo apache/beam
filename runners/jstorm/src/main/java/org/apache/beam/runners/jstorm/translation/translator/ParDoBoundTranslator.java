@@ -43,65 +43,65 @@ import org.slf4j.LoggerFactory;
  * Translates a ParDo.Bound to a Storm {@link DoFnExecutor}.
  */
 public class ParDoBoundTranslator<InputT, OutputT>
-        extends TransformTranslator.Default<ParDo.SingleOutput<InputT, OutputT>> {
+    extends TransformTranslator.Default<ParDo.SingleOutput<InputT, OutputT>> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslator.class);
 
-    @Override
-    public void translateNode(ParDo.SingleOutput<InputT, OutputT> transform, TranslationContext context) {
-        final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        final TupleTag<?> inputTag = userGraphContext.getInputTag();
-        PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
+  @Override
+  public void translateNode(ParDo.SingleOutput<InputT, OutputT> transform, TranslationContext context) {
+    final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    final TupleTag<?> inputTag = userGraphContext.getInputTag();
+    PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
 
-        TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
-        List<TupleTag<?>> sideOutputTags = Lists.newArrayList();
+    TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
+    List<TupleTag<?>> sideOutputTags = Lists.newArrayList();
 
-        Map<TupleTag<?>, PValue> allInputs = avro.shaded.com.google.common.collect.Maps.newHashMap(userGraphContext.getInputs());
-        for (PCollectionView pCollectionView : transform.getSideInputs()) {
-            allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
-        }
-        String description = describeTransform(
-                transform,
-                allInputs,
-                userGraphContext.getOutputs());
-
-        ImmutableMap.Builder<TupleTag, PCollectionView<?>> sideInputTagToView = ImmutableMap.builder();
-        for (PCollectionView pCollectionView : transform.getSideInputs()) {
-            sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
-        }
-
-        DoFnExecutor executor;
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-        if (signature.stateDeclarations().size() > 0
-                || signature.timerDeclarations().size() > 0) {
-            executor = new StatefulDoFnExecutor<>(
-                    userGraphContext.getStepName(),
-                    description,
-                    userGraphContext.getOptions(),
-                    (DoFn<KV, OutputT>) transform.getFn(),
-                    (Coder) WindowedValue.getFullCoder(
-                            input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                    input.getWindowingStrategy(),
-                    (TupleTag<KV>) inputTag,
-                    transform.getSideInputs(),
-                    sideInputTagToView.build(),
-                    mainOutputTag,
-                    sideOutputTags);
-        } else {
-            executor = new DoFnExecutor<>(
-                    userGraphContext.getStepName(),
-                    description,
-                    userGraphContext.getOptions(),
-                    transform.getFn(),
-                    WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                    input.getWindowingStrategy(),
-                    (TupleTag<InputT>) inputTag,
-                    transform.getSideInputs(),
-                    sideInputTagToView.build(),
-                    mainOutputTag,
-                    sideOutputTags);
-        }
-
-        context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
+    Map<TupleTag<?>, PValue> allInputs = avro.shaded.com.google.common.collect.Maps.newHashMap(userGraphContext.getInputs());
+    for (PCollectionView pCollectionView : transform.getSideInputs()) {
+      allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
     }
+    String description = describeTransform(
+        transform,
+        allInputs,
+        userGraphContext.getOutputs());
+
+    ImmutableMap.Builder<TupleTag, PCollectionView<?>> sideInputTagToView = ImmutableMap.builder();
+    for (PCollectionView pCollectionView : transform.getSideInputs()) {
+      sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
+    }
+
+    DoFnExecutor executor;
+    DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    if (signature.stateDeclarations().size() > 0
+        || signature.timerDeclarations().size() > 0) {
+      executor = new StatefulDoFnExecutor<>(
+          userGraphContext.getStepName(),
+          description,
+          userGraphContext.getOptions(),
+          (DoFn<KV, OutputT>) transform.getFn(),
+          (Coder) WindowedValue.getFullCoder(
+              input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          input.getWindowingStrategy(),
+          (TupleTag<KV>) inputTag,
+          transform.getSideInputs(),
+          sideInputTagToView.build(),
+          mainOutputTag,
+          sideOutputTags);
+    } else {
+      executor = new DoFnExecutor<>(
+          userGraphContext.getStepName(),
+          description,
+          userGraphContext.getOptions(),
+          transform.getFn(),
+          WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          input.getWindowingStrategy(),
+          (TupleTag<InputT>) inputTag,
+          transform.getSideInputs(),
+          sideInputTagToView.build(),
+          mainOutputTag,
+          sideOutputTags);
+    }
+
+    context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
+  }
 }

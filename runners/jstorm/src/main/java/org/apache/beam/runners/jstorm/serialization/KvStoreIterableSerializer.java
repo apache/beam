@@ -11,44 +11,44 @@ import java.util.List;
 
 public class KvStoreIterableSerializer extends Serializer<KvStoreIterable<Object>> {
 
-    public KvStoreIterableSerializer() {
+  public KvStoreIterableSerializer() {
 
+  }
+
+  @Override
+  public void write(Kryo kryo, Output output, KvStoreIterable<Object> object) {
+    List<Object> values = Lists.newArrayList(object);
+    output.writeInt(values.size(), true);
+    for (Object elm : object) {
+      kryo.writeClassAndObject(output, elm);
+    }
+  }
+
+  @Override
+  public KvStoreIterable<Object> read(Kryo kryo, Input input, Class<KvStoreIterable<Object>> type) {
+    final int size = input.readInt(true);
+    List<Object> values = Lists.newArrayList();
+    for (int i = 0; i < size; ++i) {
+      values.add(kryo.readClassAndObject(input));
     }
 
-    @Override
-    public void write(Kryo kryo, Output output, KvStoreIterable<Object> object) {
-        List<Object> values = Lists.newArrayList(object);
-        output.writeInt(values.size(), true);
-        for (Object elm : object) {
-            kryo.writeClassAndObject(output, elm);
-        }
-    }
+    return new KvStoreIterable<Object>() {
+      Iterable<Object> values;
 
-    @Override
-    public KvStoreIterable<Object> read(Kryo kryo, Input input, Class<KvStoreIterable<Object>> type) {
-        final int size = input.readInt(true);
-        List<Object> values = Lists.newArrayList();
-        for (int i = 0; i < size; ++i) {
-            values.add(kryo.readClassAndObject(input));
-        }
+      @Override
+      public Iterator<Object> iterator() {
+        return values.iterator();
+      }
 
-        return new KvStoreIterable<Object>() {
-            Iterable<Object> values;
+      public KvStoreIterable init(Iterable<Object> values) {
+        this.values = values;
+        return this;
+      }
 
-            @Override
-            public Iterator<Object> iterator() {
-                return values.iterator();
-            }
-
-            public KvStoreIterable init(Iterable<Object> values) {
-                this.values = values;
-                return this;
-            }
-
-            @Override
-            public String toString() {
-                return values.toString();
-            }
-        }.init(values);
-    }
+      @Override
+      public String toString() {
+        return values.toString();
+      }
+    }.init(values);
+  }
 }

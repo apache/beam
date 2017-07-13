@@ -26,27 +26,28 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
 public class RunnerUtils {
-    /**
-     * Convert WindowedValue<KV<>> into KeyedWorkItem<K, WindowedValue<V>>
-     * @param elem
-     * @return
-     */
-    public static <K, V> KeyedWorkItem<K, V> toKeyedWorkItem(WindowedValue<KV<K, V>> elem) {
-        WindowedValue<KV<K, V>> kvElem = (WindowedValue<KV<K, V>>) elem;
-        SingletonKeyedWorkItem<K, V> workItem = SingletonKeyedWorkItem.of(
-                kvElem.getValue().getKey(),
-                kvElem.withValue(kvElem.getValue().getValue()));
-        return workItem;
-    }
+  /**
+   * Convert WindowedValue<KV<>> into KeyedWorkItem<K, WindowedValue<V>>
+   *
+   * @param elem
+   * @return
+   */
+  public static <K, V> KeyedWorkItem<K, V> toKeyedWorkItem(WindowedValue<KV<K, V>> elem) {
+    WindowedValue<KV<K, V>> kvElem = (WindowedValue<KV<K, V>>) elem;
+    SingletonKeyedWorkItem<K, V> workItem = SingletonKeyedWorkItem.of(
+        kvElem.getValue().getKey(),
+        kvElem.withValue(kvElem.getValue().getValue()));
+    return workItem;
+  }
 
-    public static boolean isGroupByKeyExecutor (Executor executor) {
-        if (executor instanceof GroupByWindowExecutor) {
-            return true;
-        } else if (executor instanceof StatefulDoFnExecutor ||
-                executor instanceof MultiStatefulDoFnExecutor) {
-            return true;
-        } else {
-            return false;
-        }
+  public static boolean isGroupByKeyExecutor(Executor executor) {
+    if (executor instanceof GroupByWindowExecutor) {
+      return true;
+    } else if (executor instanceof StatefulDoFnExecutor ||
+        executor instanceof MultiStatefulDoFnExecutor) {
+      return true;
+    } else {
+      return false;
     }
+  }
 }

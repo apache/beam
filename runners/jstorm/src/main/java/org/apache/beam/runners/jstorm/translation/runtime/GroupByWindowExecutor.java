@@ -53,103 +53,103 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
-    private static final long serialVersionUID = -7563050475488610553L;
+  private static final long serialVersionUID = -7563050475488610553L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(GroupByWindowExecutor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GroupByWindowExecutor.class);
 
-    private class GroupByWindowOutputManager implements DoFnRunners.OutputManager, Serializable {
-
-        @Override
-        public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            executorsBolt.processExecutorElem(tag, output);
-        }
-    }
-
-    private KvCoder<K, V> inputKvCoder;
-    private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
-
-    public GroupByWindowExecutor(
-            String stepName,
-            String description,
-            TranslationContext context,
-            JStormPipelineOptions pipelineOptions,
-            WindowingStrategy<?, ?> windowingStrategy,
-            TupleTag<KV<K, Iterable<V>>> mainTupleTag, List<TupleTag<?>> sideOutputTags) {
-        // The doFn will be created when runtime. Just pass "null" here
-        super(stepName, description, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
-
-        this.outputManager = new GroupByWindowOutputManager();
-        UserGraphContext userGraphContext = context.getUserGraphContext();
-        PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) userGraphContext.getInput();
-        this.inputKvCoder = (KvCoder<K, V>) input.getCoder();
-    }
-
-    private DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getGroupByWindowDoFn() {
-        final StateInternalsFactory<K> stateFactory = new StateInternalsFactory<K>() {
-            @Override
-            public StateInternals stateInternalsForKey(K key) {
-                return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
-            }
-        };
-        TimerInternalsFactory<K> timerFactory = new TimerInternalsFactory<K>() {
-            @Override
-            public TimerInternals timerInternalsForKey(K key) {
-                return new JStormTimerInternals<>(key, GroupByWindowExecutor.this, executorContext.getExecutorsBolt().timerService());
-            }
-        };
-
-        reduceFn = SystemReduceFn.buffering(inputKvCoder.getValueCoder());
-        DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFn =
-              GroupAlsoByWindowViaWindowSetNewDoFn.create(
-                  windowingStrategy, stateFactory, timerFactory, NullSideInputReader.empty(),
-                      (SystemReduceFn) reduceFn, outputManager, mainTupleTag);
-        return doFn;
-    }
+  private class GroupByWindowOutputManager implements DoFnRunners.OutputManager, Serializable {
 
     @Override
-    protected DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getDoFnRunner() {
-        doFn = getGroupByWindowDoFn();
-
-        DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> simpleRunner = DoFnRunners.<KeyedWorkItem<K, V>, KV<K, Iterable<V>>>simpleRunner(
-                this.pipelineOptions,
-                this.doFn,
-                NullSideInputReader.empty(),
-                this.outputManager,
-                this.mainTupleTag,
-                this.sideOutputTags,
-                this.stepContext,
-                this.windowingStrategy);
-
-        DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.lateDataDroppingRunner(
-                simpleRunner,
-                this.stepContext,
-                this.windowingStrategy);
-        return new DoFnRunnerWithMetrics<>(
-            stepName, doFnRunner, MetricsReporter.create(metricClient));
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      executorsBolt.processExecutorElem(tag, output);
     }
+  }
 
-    @Override
-    public void process(TupleTag tag, WindowedValue elem) {
-        /**
-         *  For GroupByKey, KV type elem is received. We need to convert the KV elem
-         *  into KeyedWorkItem first, which is the expected type in LateDataDroppingDoFnRunner.
-         */
-        KeyedWorkItem<K, V> keyedWorkItem = RunnerUtils.toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
-        runner.processElement(elem.withValue(keyedWorkItem));
-    }
+  private KvCoder<K, V> inputKvCoder;
+  private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
 
-    @Override
-    public void onTimer(Object key, TimerInternals.TimerData timerData) {
-        StateNamespace namespace = timerData.getNamespace();
-        checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+  public GroupByWindowExecutor(
+      String stepName,
+      String description,
+      TranslationContext context,
+      JStormPipelineOptions pipelineOptions,
+      WindowingStrategy<?, ?> windowingStrategy,
+      TupleTag<KV<K, Iterable<V>>> mainTupleTag, List<TupleTag<?>> sideOutputTags) {
+    // The doFn will be created when runtime. Just pass "null" here
+    super(stepName, description, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
 
-        runner.processElement(
-                WindowedValue.valueInGlobalWindow(
-                        KeyedWorkItems.<K, V>timersWorkItem((K) key, ImmutableList.of(timerData))));
-    }
+    this.outputManager = new GroupByWindowOutputManager();
+    UserGraphContext userGraphContext = context.getUserGraphContext();
+    PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) userGraphContext.getInput();
+    this.inputKvCoder = (KvCoder<K, V>) input.getCoder();
+  }
 
-    @Override
-    public String toString() {
-        return super.toString();
-    }
+  private DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getGroupByWindowDoFn() {
+    final StateInternalsFactory<K> stateFactory = new StateInternalsFactory<K>() {
+      @Override
+      public StateInternals stateInternalsForKey(K key) {
+        return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
+      }
+    };
+    TimerInternalsFactory<K> timerFactory = new TimerInternalsFactory<K>() {
+      @Override
+      public TimerInternals timerInternalsForKey(K key) {
+        return new JStormTimerInternals<>(key, GroupByWindowExecutor.this, executorContext.getExecutorsBolt().timerService());
+      }
+    };
+
+    reduceFn = SystemReduceFn.buffering(inputKvCoder.getValueCoder());
+    DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFn =
+        GroupAlsoByWindowViaWindowSetNewDoFn.create(
+            windowingStrategy, stateFactory, timerFactory, NullSideInputReader.empty(),
+            (SystemReduceFn) reduceFn, outputManager, mainTupleTag);
+    return doFn;
+  }
+
+  @Override
+  protected DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getDoFnRunner() {
+    doFn = getGroupByWindowDoFn();
+
+    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> simpleRunner = DoFnRunners.<KeyedWorkItem<K, V>, KV<K, Iterable<V>>>simpleRunner(
+        this.pipelineOptions,
+        this.doFn,
+        NullSideInputReader.empty(),
+        this.outputManager,
+        this.mainTupleTag,
+        this.sideOutputTags,
+        this.stepContext,
+        this.windowingStrategy);
+
+    DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.lateDataDroppingRunner(
+        simpleRunner,
+        this.stepContext,
+        this.windowingStrategy);
+    return new DoFnRunnerWithMetrics<>(
+        stepName, doFnRunner, MetricsReporter.create(metricClient));
+  }
+
+  @Override
+  public void process(TupleTag tag, WindowedValue elem) {
+    /**
+     *  For GroupByKey, KV type elem is received. We need to convert the KV elem
+     *  into KeyedWorkItem first, which is the expected type in LateDataDroppingDoFnRunner.
+     */
+    KeyedWorkItem<K, V> keyedWorkItem = RunnerUtils.toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
+    runner.processElement(elem.withValue(keyedWorkItem));
+  }
+
+  @Override
+  public void onTimer(Object key, TimerInternals.TimerData timerData) {
+    StateNamespace namespace = timerData.getNamespace();
+    checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+
+    runner.processElement(
+        WindowedValue.valueInGlobalWindow(
+            KeyedWorkItems.<K, V>timersWorkItem((K) key, ImmutableList.of(timerData))));
+  }
+
+  @Override
+  public String toString() {
+    return super.toString();
+  }
 }

@@ -30,101 +30,101 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TxExecutorsBolt implements ITransactionStatefulBoltExecutor {
-    private static final Logger LOG = LoggerFactory.getLogger(TxExecutorsBolt.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TxExecutorsBolt.class);
 
-    private static final String TIME_SERVICE_STORE_ID = "timer_service_store";
-    private static final String TIMER_SERVICE_KET = "timer_service_key";
+  private static final String TIME_SERVICE_STORE_ID = "timer_service_store";
+  private static final String TIMER_SERVICE_KET = "timer_service_key";
 
-    private ExecutorsBolt executorsBolt;
-    private IKvStoreManager kvStoreManager;
-    private IKvStore<String, TimerService> timerServiceStore;
+  private ExecutorsBolt executorsBolt;
+  private IKvStoreManager kvStoreManager;
+  private IKvStore<String, TimerService> timerServiceStore;
 
-    public TxExecutorsBolt(ExecutorsBolt executorsBolt) {
-        this.executorsBolt = executorsBolt;
-        this.executorsBolt.setStatefulBolt(true);
+  public TxExecutorsBolt(ExecutorsBolt executorsBolt) {
+    this.executorsBolt = executorsBolt;
+    this.executorsBolt.setStatefulBolt(true);
+  }
+
+  @Override
+  public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+    try {
+      executorsBolt.prepare(stormConf, context, collector);
+      kvStoreManager = executorsBolt.getExecutorContext().getKvStoreManager();
+      timerServiceStore = kvStoreManager.getOrCreate(TIME_SERVICE_STORE_ID);
+    } catch (IOException e) {
+      LOG.error("Failed to prepare stateful bolt", e);
+      throw new RuntimeException(e.getMessage());
     }
+  }
 
-    @Override
-    public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        try {
-            executorsBolt.prepare(stormConf, context, collector);
-            kvStoreManager = executorsBolt.getExecutorContext().getKvStoreManager();
-            timerServiceStore = kvStoreManager.getOrCreate(TIME_SERVICE_STORE_ID);
-        } catch (IOException e) {
-            LOG.error("Failed to prepare stateful bolt", e);
-            throw new RuntimeException(e.getMessage());
-        }
+  @Override
+  public void execute(Tuple input) {
+    executorsBolt.execute(input);
+  }
+
+  @Override
+  public void cleanup() {
+    executorsBolt.cleanup();
+  }
+
+  @Override
+  public void declareOutputFields(OutputFieldsDeclarer declarer) {
+    executorsBolt.declareOutputFields(declarer);
+  }
+
+  @Override
+  public Map<String, Object> getComponentConfiguration() {
+    return executorsBolt.getComponentConfiguration();
+  }
+
+  @Override
+  public void initState(Object userState) {
+    LOG.info("Begin to init from state: {}", userState);
+    restore(userState);
+  }
+
+  @Override
+  public Object finishBatch(long batchId) {
+    try {
+      timerServiceStore.put(TIMER_SERVICE_KET, executorsBolt.timerService());
+    } catch (IOException e) {
+      LOG.error("Failed to store current timer service status", e);
+      throw new RuntimeException(e.getMessage());
     }
+    kvStoreManager.checkpoint(batchId);
+    return null;
+  }
 
-    @Override
-    public void execute(Tuple input) {
-        executorsBolt.execute(input);
+  @Override
+  public Object commit(long batchId, Object state) {
+    return kvStoreManager.backup(batchId);
+  }
+
+  @Override
+  public void rollBack(Object userState) {
+    LOG.info("Begin to rollback from state: {}", userState);
+    restore(userState);
+  }
+
+  @Override
+  public void ackCommit(long batchId, long timeStamp) {
+    kvStoreManager.remove(batchId);
+  }
+
+  private void restore(Object userState) {
+    try {
+      // restore all states
+      kvStoreManager.restore(userState);
+
+      // init timer service
+      timerServiceStore = kvStoreManager.getOrCreate(TIME_SERVICE_STORE_ID);
+      TimerService timerService = timerServiceStore.get(TIMER_SERVICE_KET);
+      if (timerService == null) {
+        timerService = executorsBolt.initTimerService();
+      }
+      executorsBolt.setTimerService(timerService);
+    } catch (IOException e) {
+      LOG.error("Failed to restore state", e);
+      throw new RuntimeException(e.getMessage());
     }
-
-    @Override
-    public void cleanup() {
-        executorsBolt.cleanup();
-    }
-
-    @Override
-    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        executorsBolt.declareOutputFields(declarer);
-    }
-
-    @Override
-    public Map<String, Object> getComponentConfiguration() {
-        return executorsBolt.getComponentConfiguration();
-    }
-
-    @Override
-    public void initState(Object userState) {
-        LOG.info("Begin to init from state: {}", userState);
-        restore(userState);
-    }
-
-    @Override
-    public Object finishBatch(long batchId) {
-        try {
-            timerServiceStore.put(TIMER_SERVICE_KET, executorsBolt.timerService());
-        } catch (IOException e) {
-            LOG.error("Failed to store current timer service status", e);
-            throw new RuntimeException(e.getMessage());
-        }
-        kvStoreManager.checkpoint(batchId);
-        return null;
-    }
-
-    @Override
-    public Object commit(long batchId, Object state) {
-        return kvStoreManager.backup(batchId);
-    }
-
-    @Override
-    public void rollBack(Object userState) {
-        LOG.info("Begin to rollback from state: {}", userState);
-        restore(userState);
-    }
-
-    @Override
-    public void ackCommit(long batchId, long timeStamp) {
-        kvStoreManager.remove(batchId);
-    }
-
-    private void restore(Object userState) {
-        try {
-            // restore all states
-            kvStoreManager.restore(userState);
-
-            // init timer service
-            timerServiceStore = kvStoreManager.getOrCreate(TIME_SERVICE_STORE_ID);
-            TimerService timerService = timerServiceStore.get(TIMER_SERVICE_KET);
-            if (timerService == null) {
-                timerService = executorsBolt.initTimerService();
-            }
-            executorsBolt.setTimerService(timerService);
-        } catch (IOException e) {
-            LOG.error("Failed to restore state", e);
-            throw new RuntimeException(e.getMessage());
-        }
-    }
+  }
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,59 +29,60 @@ import org.apache.beam.sdk.transforms.Combine;
  * JStorm implementation of {@link CombiningState}.
  */
 public class JStormCombiningState<InputT, AccumT, OutputT>
-        implements CombiningState<InputT, AccumT, OutputT> {
+    implements CombiningState<InputT, AccumT, OutputT> {
 
-    @Nullable
-    private final BagState<AccumT> accumBagState;
-    private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
-    JStormCombiningState(
-            BagState<AccumT> accumBagState,
-            Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-        this.accumBagState = checkNotNull(accumBagState, "accumBagState");
-        this.combineFn = checkNotNull(combineFn, "combineFn");
-    }
+  @Nullable
+  private final BagState<AccumT> accumBagState;
+  private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
 
-    @Override
-    public AccumT getAccum() {
-        // TODO: replacing the accumBagState with the merged accum.
-        return combineFn.mergeAccumulators(accumBagState.read());
-    }
+  JStormCombiningState(
+      BagState<AccumT> accumBagState,
+      Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+    this.accumBagState = checkNotNull(accumBagState, "accumBagState");
+    this.combineFn = checkNotNull(combineFn, "combineFn");
+  }
 
-    @Override
-    public void addAccum(AccumT accumT) {
-        accumBagState.add(accumT);
-    }
+  @Override
+  public AccumT getAccum() {
+    // TODO: replacing the accumBagState with the merged accum.
+    return combineFn.mergeAccumulators(accumBagState.read());
+  }
 
-    @Override
-    public AccumT mergeAccumulators(Iterable<AccumT> iterable) {
-        return combineFn.mergeAccumulators(iterable);
-    }
+  @Override
+  public void addAccum(AccumT accumT) {
+    accumBagState.add(accumT);
+  }
 
-    @Override
-    public void add(InputT input) {
-        accumBagState.add(
-                combineFn.addInput(combineFn.createAccumulator(), input));
-    }
+  @Override
+  public AccumT mergeAccumulators(Iterable<AccumT> iterable) {
+    return combineFn.mergeAccumulators(iterable);
+  }
 
-    @Override
-    public ReadableState<Boolean> isEmpty() {
-        return accumBagState.isEmpty();
-    }
+  @Override
+  public void add(InputT input) {
+    accumBagState.add(
+        combineFn.addInput(combineFn.createAccumulator(), input));
+  }
 
-    @Override
-    public OutputT read() {
-        return combineFn.extractOutput(
-            combineFn.mergeAccumulators(accumBagState.read()));
-    }
+  @Override
+  public ReadableState<Boolean> isEmpty() {
+    return accumBagState.isEmpty();
+  }
 
-    @Override
-    public CombiningState<InputT, AccumT, OutputT> readLater() {
-        // TODO: support prefetch.
-        return this;
-    }
+  @Override
+  public OutputT read() {
+    return combineFn.extractOutput(
+        combineFn.mergeAccumulators(accumBagState.read()));
+  }
 
-    @Override
-    public void clear() {
-        accumBagState.clear();
-    }
+  @Override
+  public CombiningState<InputT, AccumT, OutputT> readLater() {
+    // TODO: support prefetch.
+    return this;
+  }
+
+  @Override
+  public void clear() {
+    accumBagState.clear();
+  }
 }

@@ -27,19 +27,19 @@ import org.apache.beam.sdk.values.PCollectionView;
  * No-op SideInputReader implementation.
  */
 public class DefaultSideInputReader implements SideInputReader, Serializable {
-    @Nullable
-    @Override
-    public <T> T get(PCollectionView<T> pCollectionView, BoundedWindow boundedWindow) {
-        return null;
-    }
+  @Nullable
+  @Override
+  public <T> T get(PCollectionView<T> pCollectionView, BoundedWindow boundedWindow) {
+    return null;
+  }
 
-    @Override
-    public <T> boolean contains(PCollectionView<T> pCollectionView) {
-        return false;
-    }
+  @Override
+  public <T> boolean contains(PCollectionView<T> pCollectionView) {
+    return false;
+  }
 
-    @Override
-    public boolean isEmpty() {
-        return true;
-    }
+  @Override
+  public boolean isEmpty() {
+    return true;
+  }
 }

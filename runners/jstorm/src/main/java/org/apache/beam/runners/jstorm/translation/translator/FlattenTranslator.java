@@ -28,20 +28,20 @@ import org.apache.beam.sdk.values.TupleTag;
 
 public class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollections<V>> {
 
-    @Override
-    public void translateNode(Flatten.PCollections<V> transform, TranslationContext context) {
-        TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+  @Override
+  public void translateNode(Flatten.PCollections<V> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-        // Since a new tag is created in PCollectionList, retrieve the real tag here.
-        Map<TupleTag<?>, PValue> inputs = Maps.newHashMap();
-        for (Map.Entry<TupleTag<?>, PValue> entry : userGraphContext.getInputs().entrySet()) {
-            PCollection<V> pc = (PCollection<V>) entry.getValue();
-            inputs.putAll(pc.expand());
-        }
-        System.out.println("Real inputs: " + inputs);
-        System.out.println("FlattenList inputs: " + userGraphContext.getInputs());
-        String description = describeTransform(transform, inputs, userGraphContext.getOutputs());
-        FlattenExecutor executor = new FlattenExecutor(description, userGraphContext.getOutputTag());
-        context.addTransformExecutor(executor, inputs, userGraphContext.getOutputs());
+    // Since a new tag is created in PCollectionList, retrieve the real tag here.
+    Map<TupleTag<?>, PValue> inputs = Maps.newHashMap();
+    for (Map.Entry<TupleTag<?>, PValue> entry : userGraphContext.getInputs().entrySet()) {
+      PCollection<V> pc = (PCollection<V>) entry.getValue();
+      inputs.putAll(pc.expand());
     }
+    System.out.println("Real inputs: " + inputs);
+    System.out.println("FlattenList inputs: " + userGraphContext.getInputs());
+    String description = describeTransform(transform, inputs, userGraphContext.getOutputs());
+    FlattenExecutor executor = new FlattenExecutor(description, userGraphContext.getOutputTag());
+    context.addTransformExecutor(executor, inputs, userGraphContext.getOutputs());
+  }
 }

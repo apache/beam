@@ -20,5 +20,5 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 import backtype.storm.topology.IRichSpout;
 
 public abstract class AdaptorBasicSpout extends AbstractComponent implements IRichSpout {
-    
+
 }

@@ -26,30 +26,31 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class ViewExecutor implements Executor {
 
-    private final String description;
-    private final TupleTag outputTag;
-    private ExecutorsBolt executorsBolt;
+  private final String description;
+  private final TupleTag outputTag;
+  private ExecutorsBolt executorsBolt;
 
-    public ViewExecutor(String description, TupleTag outputTag) {
-        this.description = description;
-        this.outputTag = outputTag;
-    }
+  public ViewExecutor(String description, TupleTag outputTag) {
+    this.description = description;
+    this.outputTag = outputTag;
+  }
 
-    @Override
-    public void init(ExecutorContext context) {
-        this.executorsBolt = context.getExecutorsBolt();
-    }
+  @Override
+  public void init(ExecutorContext context) {
+    this.executorsBolt = context.getExecutorsBolt();
+  }
 
-    @Override
-    public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
-        executorsBolt.processExecutorElem(outputTag, elem);
-    }
+  @Override
+  public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
+    executorsBolt.processExecutorElem(outputTag, elem);
+  }
 
-    @Override
-    public void cleanup() {}
+  @Override
+  public void cleanup() {
+  }
 
-    @Override
-    public String toString() {
-        return description;
-    }
+  @Override
+  public String toString() {
+    return description;
+  }
 }

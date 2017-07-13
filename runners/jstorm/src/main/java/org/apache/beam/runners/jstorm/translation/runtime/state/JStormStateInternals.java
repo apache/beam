@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,141 +49,142 @@ import org.joda.time.Instant;
  */
 public class JStormStateInternals<K> implements StateInternals {
 
-    private static final String STATE_INFO = "state-info:";
+  private static final String STATE_INFO = "state-info:";
 
-    @Nullable
-    private final K key;
-    private final IKvStoreManager kvStoreManager;
-    private final TimerService timerService;
-    private final int executorId;
+  @Nullable
+  private final K key;
+  private final IKvStoreManager kvStoreManager;
+  private final TimerService timerService;
+  private final int executorId;
 
-    public JStormStateInternals(K key, IKvStoreManager kvStoreManager,
-                                TimerService timerService, int executorId) {
-        this.key = key;
-        this.kvStoreManager = checkNotNull(kvStoreManager, "kvStoreManager");
-        this.timerService = checkNotNull(timerService, "timerService");
-        this.executorId = executorId;
-    }
+  public JStormStateInternals(K key, IKvStoreManager kvStoreManager,
+                              TimerService timerService, int executorId) {
+    this.key = key;
+    this.kvStoreManager = checkNotNull(kvStoreManager, "kvStoreManager");
+    this.timerService = checkNotNull(timerService, "timerService");
+    this.executorId = executorId;
+  }
 
-    @Nullable
-    @Override
-    public K getKey() {
-        return key;
-    }
+  @Nullable
+  @Override
+  public K getKey() {
+    return key;
+  }
 
-    @Override
-    public <T extends State> T state(
-        StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
-        // throw new UnsupportedOperationException("StateContext is not supported.");
-        /**
-         * TODO：
-         * Same implementation as state() which is without StateContext. This might be updated after
-         * we figure out if we really need StateContext for JStorm state internals.
-         */
-        return state(namespace, address);
-    }
+  @Override
+  public <T extends State> T state(
+      StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
+    // throw new UnsupportedOperationException("StateContext is not supported.");
+    /**
+     * TODO：
+     * Same implementation as state() which is without StateContext. This might be updated after
+     * we figure out if we really need StateContext for JStorm state internals.
+     */
+    return state(namespace, address);
+  }
 
-    @Override
-    public <T extends State> T state(final StateNamespace namespace, StateTag<T> address) {
-        return address.getSpec().bind(address.getId(), new StateBinder() {
-            @Override
-            public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
-                try {
-                    return new JStormValueState<>(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)));
-                } catch (IOException e) {
-                    throw new RuntimeException();
+  @Override
+  public <T extends State> T state(final StateNamespace namespace, StateTag<T> address) {
+    return address.getSpec().bind(address.getId(), new StateBinder() {
+      @Override
+      public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+        try {
+          return new JStormValueState<>(
+              getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)));
+        } catch (IOException e) {
+          throw new RuntimeException();
+        }
+      }
+
+      @Override
+      public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
+        try {
+          return new JStormBagState(
+              getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)),
+              kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
+        } catch (IOException e) {
+          throw new RuntimeException();
+        }
+      }
+
+      @Override
+      public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+          String id,
+          StateSpec<MapState<KeyT, ValueT>> spec,
+          Coder<KeyT> mapKeyCoder,
+          Coder<ValueT> mapValueCoder) {
+        try {
+          return new JStormMapState<>(getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(getStoreId(id)));
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT> CombiningState bindCombining(
+          String id,
+          StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+          Coder<AccumT> accumCoder,
+          Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+        try {
+          BagState<AccumT> accumBagState = new JStormBagState(
+              getKey(), namespace,
+              kvStoreManager.<ComposedKey, AccumT>getOrCreate(getStoreId(id)),
+              kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
+          return new JStormCombiningState<>(accumBagState, combineFn);
+        } catch (IOException e) {
+          throw new RuntimeException();
+        }
+      }
+
+
+      @Override
+      public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
+      bindCombiningWithContext(
+          String id,
+          StateSpec<CombiningState<InputT, AccumT, OutputT>> stateSpec, Coder<AccumT> coder,
+          CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFnWithContext) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public WatermarkHoldState bindWatermark(
+          String id,
+          StateSpec<WatermarkHoldState> spec,
+          final TimestampCombiner timestampCombiner) {
+        try {
+          BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState(
+              getKey(), namespace,
+              kvStoreManager.<ComposedKey, Combine.Holder<Instant>>getOrCreate(getStoreId(id)),
+              kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
+
+          Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
+              new BinaryCombineFn<Instant>() {
+                @Override
+                public Instant apply(Instant left, Instant right) {
+                  return timestampCombiner.combine(left, right);
                 }
-            }
+              };
+          return new JStormWatermarkHoldState(
+              namespace,
+              new JStormCombiningState<>(
+                  accumBagState,
+                  outputTimeCombineFn),
+              timestampCombiner,
+              timerService);
+        } catch (IOException e) {
+          throw new RuntimeException();
+        }
+      }
+    });
+  }
 
-            @Override
-            public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
-                try {
-                    return new JStormBagState(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(getStoreId(id)),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
-            }
-
-            @Override
-            public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-                String id,
-                StateSpec<MapState<KeyT, ValueT>> spec,
-                Coder<KeyT> mapKeyCoder,
-                Coder<ValueT> mapValueCoder) {
-                try {
-                    return new JStormMapState<>(getKey(), namespace, kvStoreManager.<KeyT, ValueT>getOrCreate(getStoreId(id)));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public <InputT, AccumT, OutputT> CombiningState bindCombining(
-                    String id,
-                    StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
-                    Coder<AccumT> accumCoder,
-                    Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-                try {
-                    BagState<AccumT> accumBagState = new JStormBagState(
-                            getKey(), namespace,
-                            kvStoreManager.<ComposedKey, AccumT>getOrCreate(getStoreId(id)),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
-                    return new JStormCombiningState<>(accumBagState, combineFn);
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
-            }
-
-
-            @Override
-            public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-            bindCombiningWithContext(
-                String id,
-                StateSpec<CombiningState<InputT, AccumT, OutputT>> stateSpec, Coder<AccumT> coder,
-                CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFnWithContext) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public WatermarkHoldState bindWatermark(
-                String id,
-                StateSpec<WatermarkHoldState> spec,
-                final TimestampCombiner timestampCombiner) {
-                try {
-                    BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState(
-                            getKey(), namespace,
-                            kvStoreManager.<ComposedKey, Combine.Holder<Instant>>getOrCreate(getStoreId(id)),
-                            kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
-
-                    Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
-                            new BinaryCombineFn<Instant>() {
-                                @Override
-                                public Instant apply(Instant left, Instant right) {
-                                  return timestampCombiner.combine(left, right);
-                                }};
-                    return new JStormWatermarkHoldState(
-                            namespace,
-                            new JStormCombiningState<>(
-                                    accumBagState,
-                                    outputTimeCombineFn),
-                            timestampCombiner,
-                            timerService);
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
-            }
-        });
-    }
-
-    private String getStoreId(String stateId) {
-        return String.format("%s-%s", stateId, executorId);
-    }
+  private String getStoreId(String stateId) {
+    return String.format("%s-%s", stateId, executorId);
+  }
 }

@@ -34,34 +34,34 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 public class MultiStatefulDoFnExecutor<OutputT> extends MultiOutputDoFnExecutor<KV, OutputT> {
 
-    public MultiStatefulDoFnExecutor(
-        String stepName, String description,
-        JStormPipelineOptions pipelineOptions, DoFn<KV, OutputT> doFn,
-        Coder<WindowedValue<KV>> inputCoder, WindowingStrategy<?, ?> windowingStrategy,
-        TupleTag<KV> mainInputTag, Collection<PCollectionView<?>> sideInputs,
-        Map<TupleTag, PCollectionView<?>> sideInputTagToView, TupleTag<OutputT> mainTupleTag,
-        List<TupleTag<?>> sideOutputTags, Map<TupleTag<?>, TupleTag<?>> localTupleTagMap) {
-        super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag, sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags, localTupleTagMap);
-    }
+  public MultiStatefulDoFnExecutor(
+      String stepName, String description,
+      JStormPipelineOptions pipelineOptions, DoFn<KV, OutputT> doFn,
+      Coder<WindowedValue<KV>> inputCoder, WindowingStrategy<?, ?> windowingStrategy,
+      TupleTag<KV> mainInputTag, Collection<PCollectionView<?>> sideInputs,
+      Map<TupleTag, PCollectionView<?>> sideInputTagToView, TupleTag<OutputT> mainTupleTag,
+      List<TupleTag<?>> sideOutputTags, Map<TupleTag<?>, TupleTag<?>> localTupleTagMap) {
+    super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag, sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags, localTupleTagMap);
+  }
 
-    @Override
-    public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
-        if (mainInputTag.equals(tag)) {
-            WindowedValue<KV> kvElem = (WindowedValue<KV>) elem;
-            stepContext.setTimerInternals(new JStormTimerInternals(kvElem.getValue().getKey(), this,
-                    executorContext.getExecutorsBolt().timerService()));
-            stepContext.setStateInternals(new JStormStateInternals<>(kvElem.getValue().getKey(),
-                    kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
-            processMainInput(elem);
-        } else {
-            processSideInput(tag, elem);
-        }
+  @Override
+  public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
+    if (mainInputTag.equals(tag)) {
+      WindowedValue<KV> kvElem = (WindowedValue<KV>) elem;
+      stepContext.setTimerInternals(new JStormTimerInternals(kvElem.getValue().getKey(), this,
+          executorContext.getExecutorsBolt().timerService()));
+      stepContext.setStateInternals(new JStormStateInternals<>(kvElem.getValue().getKey(),
+          kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
+      processMainInput(elem);
+    } else {
+      processSideInput(tag, elem);
     }
+  }
 
-    @Override
-    public void onTimer(Object key, TimerInternals.TimerData timerData) {
-        stepContext.setStateInternals(new JStormStateInternals<>(key,
-                kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
-        super.onTimer(key, timerData);
-    }
+  @Override
+  public void onTimer(Object key, TimerInternals.TimerData timerData) {
+    stepContext.setStateInternals(new JStormStateInternals<>(key,
+        kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
+    super.onTimer(key, timerData);
+  }
 }

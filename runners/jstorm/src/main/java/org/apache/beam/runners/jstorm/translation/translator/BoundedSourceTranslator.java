@@ -32,18 +32,18 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class BoundedSourceTranslator<T> extends TransformTranslator.Default<Read.Bounded<T>> {
 
-    @Override
-    public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
-        TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+  @Override
+  public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
-        TupleTag<?> outputTag = userGraphContext.getOutputTag();
-        PValue outputValue = userGraphContext.getOutput();
-        UnboundedSourceSpout spout = new UnboundedSourceSpout(
-                description,
-                new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter(transform.getSource()),
-                userGraphContext.getOptions(), outputTag);
+    TupleTag<?> outputTag = userGraphContext.getOutputTag();
+    PValue outputValue = userGraphContext.getOutput();
+    UnboundedSourceSpout spout = new UnboundedSourceSpout(
+        description,
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter(transform.getSource()),
+        userGraphContext.getOptions(), outputTag);
 
-        context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(outputTag, outputValue));
-    }
+    context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(outputTag, outputValue));
+  }
 }

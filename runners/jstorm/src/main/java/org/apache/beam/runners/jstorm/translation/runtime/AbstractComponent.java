@@ -28,41 +28,41 @@ import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
  * Enable user to add output stream definitions by API, rather than hard-code.
  */
 public abstract class AbstractComponent implements IComponent {
-    private Map<String, Fields> streamToFields = new HashMap<>();
-    private Map<String, Boolean> keyStreams = new HashMap<>();
-    private int parallelismNum = 0;
+  private Map<String, Fields> streamToFields = new HashMap<>();
+  private Map<String, Boolean> keyStreams = new HashMap<>();
+  private int parallelismNum = 0;
 
-    public void addOutputField(String streamId) {
-        addOutputField(streamId, new Fields(CommonInstance.VALUE));
-    }
+  public void addOutputField(String streamId) {
+    addOutputField(streamId, new Fields(CommonInstance.VALUE));
+  }
 
-    public void addOutputField(String streamId, Fields fields) {
-        streamToFields.put(streamId, fields);
-        keyStreams.put(streamId, false);
-    }
+  public void addOutputField(String streamId, Fields fields) {
+    streamToFields.put(streamId, fields);
+    keyStreams.put(streamId, false);
+  }
 
-    public void addKVOutputField(String streamId) {
-        streamToFields.put(streamId, new Fields(CommonInstance.KEY, CommonInstance.VALUE));
-        keyStreams.put(streamId, true);
-    }
+  public void addKVOutputField(String streamId) {
+    streamToFields.put(streamId, new Fields(CommonInstance.KEY, CommonInstance.VALUE));
+    keyStreams.put(streamId, true);
+  }
 
-    @Override
-    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        for (Map.Entry<String, Fields> entry : streamToFields.entrySet()) {
-            declarer.declareStream(entry.getKey(), entry.getValue());
-        }
+  @Override
+  public void declareOutputFields(OutputFieldsDeclarer declarer) {
+    for (Map.Entry<String, Fields> entry : streamToFields.entrySet()) {
+      declarer.declareStream(entry.getKey(), entry.getValue());
     }
+  }
 
-    public boolean keyedEmit(String streamId) {
-        Boolean isKeyedStream = keyStreams.get(streamId);
-        return isKeyedStream == null ? false : isKeyedStream;
-    }
+  public boolean keyedEmit(String streamId) {
+    Boolean isKeyedStream = keyStreams.get(streamId);
+    return isKeyedStream == null ? false : isKeyedStream;
+  }
 
-    public int getParallelismNum() {
-        return parallelismNum;
-    }
+  public int getParallelismNum() {
+    return parallelismNum;
+  }
 
-    public void setParallelismNum(int num) {
-        parallelismNum = num;
-    }
+  public void setParallelismNum(int num) {
+    parallelismNum = num;
+  }
 }

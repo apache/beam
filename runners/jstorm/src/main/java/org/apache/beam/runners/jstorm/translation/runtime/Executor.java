@@ -22,12 +22,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 public interface Executor extends Serializable {
-    /**
-     * Initialization during runtime
-     */
-    void init(ExecutorContext context);
+  /**
+   * Initialization during runtime
+   */
+  void init(ExecutorContext context);
 
-    <T> void  process(TupleTag<T> tag, WindowedValue<T> elem);
+  <T> void process(TupleTag<T> tag, WindowedValue<T> elem);
 
-    void cleanup();
+  void cleanup();
 }

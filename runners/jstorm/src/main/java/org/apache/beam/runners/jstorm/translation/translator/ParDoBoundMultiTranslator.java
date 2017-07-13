@@ -44,72 +44,72 @@ import org.apache.beam.sdk.values.TupleTag;
  * Translates a ParDo.BoundMulti to a Storm {@link DoFnExecutor}.
  */
 public class ParDoBoundMultiTranslator<InputT, OutputT>
-        extends TransformTranslator.Default<ParDo.MultiOutput<InputT, OutputT>> {
+    extends TransformTranslator.Default<ParDo.MultiOutput<InputT, OutputT>> {
 
-    @Override
-    public void translateNode(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
-        final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        final TupleTag<InputT> inputTag = (TupleTag<InputT>) userGraphContext.getInputTag();
-        PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
+  @Override
+  public void translateNode(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
+    final TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    final TupleTag<InputT> inputTag = (TupleTag<InputT>) userGraphContext.getInputTag();
+    PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
 
-        Map<TupleTag<?>, PValue> allOutputs = Maps.newHashMap(userGraphContext.getOutputs());
-        Map<TupleTag<?>, TupleTag<?>> localToExternalTupleTagMap = Maps.newHashMap();
-        for (Map.Entry<TupleTag<?>, PValue> entry : allOutputs.entrySet()) {
-            Iterator<TupleTag<?>> itr = ((PValueBase) entry.getValue()).expand().keySet().iterator();
-            localToExternalTupleTagMap.put(entry.getKey(), itr.next());
-        }
-
-        TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
-        List<TupleTag<?>> sideOutputTags = userGraphContext.getOutputTags();
-        sideOutputTags.remove(mainOutputTag);
-
-        Map<TupleTag<?>, PValue> allInputs = Maps.newHashMap(userGraphContext.getInputs());
-        for (PCollectionView pCollectionView : transform.getSideInputs()) {
-            allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
-        }
-        String description = describeTransform(
-                transform,
-                allInputs,
-                allOutputs);
-
-        ImmutableMap.Builder<TupleTag, PCollectionView<?>> sideInputTagToView = ImmutableMap.builder();
-        for (PCollectionView pCollectionView : transform.getSideInputs()) {
-            sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
-        }
-
-        DoFnExecutor executor;
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-        if (signature.stateDeclarations().size() > 0
-                || signature.timerDeclarations().size() > 0) {
-            executor = new MultiStatefulDoFnExecutor<>(
-                    userGraphContext.getStepName(),
-                    description,
-                    userGraphContext.getOptions(),
-                    (DoFn<KV, OutputT>) transform.getFn(),
-                    (Coder) WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                    input.getWindowingStrategy(),
-                    (TupleTag<KV>) inputTag,
-                    transform.getSideInputs(),
-                    sideInputTagToView.build(),
-                    mainOutputTag,
-                    sideOutputTags,
-                    localToExternalTupleTagMap);
-        } else {
-            executor = new MultiOutputDoFnExecutor<>(
-                    userGraphContext.getStepName(),
-                    description,
-                    userGraphContext.getOptions(),
-                    transform.getFn(),
-                    WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
-                    input.getWindowingStrategy(),
-                    inputTag,
-                    transform.getSideInputs(),
-                    sideInputTagToView.build(),
-                    mainOutputTag,
-                    sideOutputTags,
-                    localToExternalTupleTagMap);
-        }
-
-        context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
+    Map<TupleTag<?>, PValue> allOutputs = Maps.newHashMap(userGraphContext.getOutputs());
+    Map<TupleTag<?>, TupleTag<?>> localToExternalTupleTagMap = Maps.newHashMap();
+    for (Map.Entry<TupleTag<?>, PValue> entry : allOutputs.entrySet()) {
+      Iterator<TupleTag<?>> itr = ((PValueBase) entry.getValue()).expand().keySet().iterator();
+      localToExternalTupleTagMap.put(entry.getKey(), itr.next());
     }
+
+    TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
+    List<TupleTag<?>> sideOutputTags = userGraphContext.getOutputTags();
+    sideOutputTags.remove(mainOutputTag);
+
+    Map<TupleTag<?>, PValue> allInputs = Maps.newHashMap(userGraphContext.getInputs());
+    for (PCollectionView pCollectionView : transform.getSideInputs()) {
+      allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
+    }
+    String description = describeTransform(
+        transform,
+        allInputs,
+        allOutputs);
+
+    ImmutableMap.Builder<TupleTag, PCollectionView<?>> sideInputTagToView = ImmutableMap.builder();
+    for (PCollectionView pCollectionView : transform.getSideInputs()) {
+      sideInputTagToView.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
+    }
+
+    DoFnExecutor executor;
+    DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    if (signature.stateDeclarations().size() > 0
+        || signature.timerDeclarations().size() > 0) {
+      executor = new MultiStatefulDoFnExecutor<>(
+          userGraphContext.getStepName(),
+          description,
+          userGraphContext.getOptions(),
+          (DoFn<KV, OutputT>) transform.getFn(),
+          (Coder) WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          input.getWindowingStrategy(),
+          (TupleTag<KV>) inputTag,
+          transform.getSideInputs(),
+          sideInputTagToView.build(),
+          mainOutputTag,
+          sideOutputTags,
+          localToExternalTupleTagMap);
+    } else {
+      executor = new MultiOutputDoFnExecutor<>(
+          userGraphContext.getStepName(),
+          description,
+          userGraphContext.getOptions(),
+          transform.getFn(),
+          WindowedValue.getFullCoder(input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()),
+          input.getWindowingStrategy(),
+          inputTag,
+          transform.getSideInputs(),
+          sideInputTagToView.build(),
+          mainOutputTag,
+          sideOutputTags,
+          localToExternalTupleTagMap);
+    }
+
+    context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));
+  }
 }

@@ -33,56 +33,56 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class DefaultStepContext implements ExecutionContext.StepContext {
 
-    private TimerInternals timerInternals;
+  private TimerInternals timerInternals;
 
-    private StateInternals stateInternals;
+  private StateInternals stateInternals;
 
-    public DefaultStepContext(TimerInternals timerInternals, StateInternals stateInternals) {
-        this.timerInternals = checkNotNull(timerInternals, "timerInternals");
-        this.stateInternals = checkNotNull(stateInternals, "stateInternals");
-    }
+  public DefaultStepContext(TimerInternals timerInternals, StateInternals stateInternals) {
+    this.timerInternals = checkNotNull(timerInternals, "timerInternals");
+    this.stateInternals = checkNotNull(stateInternals, "stateInternals");
+  }
 
-    @Override
-    public String getStepName() {
-        return null;
-    }
+  @Override
+  public String getStepName() {
+    return null;
+  }
 
-    @Override
-    public String getTransformName() {
-        return null;
-    }
+  @Override
+  public String getTransformName() {
+    return null;
+  }
 
-    @Override
-    public void noteOutput(WindowedValue<?> windowedValue) {
+  @Override
+  public void noteOutput(WindowedValue<?> windowedValue) {
 
-    }
+  }
 
-    @Override
-    public void noteOutput(TupleTag<?> tupleTag, WindowedValue<?> windowedValue) {
+  @Override
+  public void noteOutput(TupleTag<?> tupleTag, WindowedValue<?> windowedValue) {
 
-    }
+  }
 
-    @Override
-    public <T, W extends BoundedWindow> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
-            Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder) throws IOException {
-        throw new UnsupportedOperationException("Writing side-input data is not supported.");
-    }
+  @Override
+  public <T, W extends BoundedWindow> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
+                                                                    Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder) throws IOException {
+    throw new UnsupportedOperationException("Writing side-input data is not supported.");
+  }
 
-    @Override
-    public StateInternals stateInternals() {
-        return stateInternals;
-    }
+  @Override
+  public StateInternals stateInternals() {
+    return stateInternals;
+  }
 
-    @Override
-    public TimerInternals timerInternals() {
-        return timerInternals;
-    }
+  @Override
+  public TimerInternals timerInternals() {
+    return timerInternals;
+  }
 
-    public void setStateInternals(StateInternals stateInternals) {
-        this.stateInternals = stateInternals;
-    }
+  public void setStateInternals(StateInternals stateInternals) {
+    this.stateInternals = stateInternals;
+  }
 
-    public void setTimerInternals(TimerInternals timerInternals) {
-        this.timerInternals = timerInternals;
-    }
+  public void setTimerInternals(TimerInternals timerInternals) {
+    this.timerInternals = timerInternals;
+  }
 }

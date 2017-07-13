@@ -31,44 +31,44 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, OutputT> {
-    private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
 
-    /**
-     * For multi-output scenario,a "local" tuple tag is used in producer currently while a generated tag
-     * is used in downstream consumer. So before output, we need to map this "local" tag to "external"
-     * tag. See PCollectionTuple for details.
-     */
-    public class MultiOutputDoFnExecutorOutputManager extends DoFnExecutorOutputManager {
-        @Override
-        public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            if (localTupleTagMap.containsKey(tag)) {
-                executorsBolt.processExecutorElem((TupleTag<T>) localTupleTagMap.get(tag), output);
-            } else {
-                executorsBolt.processExecutorElem(tag, output);
-            }
-        }
+  /**
+   * For multi-output scenario,a "local" tuple tag is used in producer currently while a generated tag
+   * is used in downstream consumer. So before output, we need to map this "local" tag to "external"
+   * tag. See PCollectionTuple for details.
+   */
+  public class MultiOutputDoFnExecutorOutputManager extends DoFnExecutorOutputManager {
+    @Override
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      if (localTupleTagMap.containsKey(tag)) {
+        executorsBolt.processExecutorElem((TupleTag<T>) localTupleTagMap.get(tag), output);
+      } else {
+        executorsBolt.processExecutorElem(tag, output);
+      }
     }
+  }
 
-    protected Map<TupleTag<?>, TupleTag<?>> localTupleTagMap;
+  protected Map<TupleTag<?>, TupleTag<?>> localTupleTagMap;
 
-    public MultiOutputDoFnExecutor(
-            String stepName,
-            String description,
-            JStormPipelineOptions pipelineOptions,
-            DoFn<InputT, OutputT> doFn,
-            Coder<WindowedValue<InputT>> inputCoder,
-            WindowingStrategy<?, ?> windowingStrategy,
-            TupleTag<InputT> mainInputTag,
-            Collection<PCollectionView<?>> sideInputs,
-            Map<TupleTag, PCollectionView<?>> sideInputTagToView,
-            TupleTag<OutputT> mainTupleTag,
-            List<TupleTag<?>> sideOutputTags,
-            Map<TupleTag<?>, TupleTag<?>> localTupleTagMap
-            ) {
-        super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag,
-                sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags);
-        this.localTupleTagMap = localTupleTagMap;
-        this.outputManager = new MultiOutputDoFnExecutorOutputManager();
-        LOG.info("localTupleTagMap: {}", localTupleTagMap);
-    }
+  public MultiOutputDoFnExecutor(
+      String stepName,
+      String description,
+      JStormPipelineOptions pipelineOptions,
+      DoFn<InputT, OutputT> doFn,
+      Coder<WindowedValue<InputT>> inputCoder,
+      WindowingStrategy<?, ?> windowingStrategy,
+      TupleTag<InputT> mainInputTag,
+      Collection<PCollectionView<?>> sideInputs,
+      Map<TupleTag, PCollectionView<?>> sideInputTagToView,
+      TupleTag<OutputT> mainTupleTag,
+      List<TupleTag<?>> sideOutputTags,
+      Map<TupleTag<?>, TupleTag<?>> localTupleTagMap
+  ) {
+    super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag,
+        sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags);
+    this.localTupleTagMap = localTupleTagMap;
+    this.outputManager = new MultiOutputDoFnExecutorOutputManager();
+    LOG.info("localTupleTagMap: {}", localTupleTagMap);
+  }
 }

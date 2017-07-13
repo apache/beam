@@ -30,62 +30,66 @@ import javax.annotation.Nullable;
 @AutoValue
 public abstract class Stream {
 
-    public abstract Producer getProducer();
-    public abstract Consumer getConsumer();
+  public abstract Producer getProducer();
 
-    public static Stream of(Producer producer, Consumer consumer) {
-        return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream(
-            producer, consumer);
+  public abstract Consumer getConsumer();
+
+  public static Stream of(Producer producer, Consumer consumer) {
+    return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream(
+        producer, consumer);
+  }
+
+  @AutoValue
+  public abstract static class Producer {
+    public abstract String getComponentId();
+
+    public abstract String getStreamId();
+
+    public abstract String getStreamName();
+
+    public static Producer of(String componentId, String streamId, String streamName) {
+      return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Producer(
+          componentId, streamId, streamName);
+    }
+  }
+
+  @AutoValue
+  public abstract static class Consumer {
+    public abstract String getComponentId();
+
+    public abstract Grouping getGrouping();
+
+    public static Consumer of(String componentId, Grouping grouping) {
+      return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Consumer(
+          componentId, grouping);
+    }
+  }
+
+  @AutoValue
+  public abstract static class Grouping {
+    public abstract Type getType();
+
+    @Nullable
+    public abstract List<String> getFields();
+
+    public static Grouping of(Type type) {
+      checkArgument(!Type.FIELDS.equals(type), "Fields grouping should provide key fields.");
+      return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
+          type, null /* fields */);
     }
 
-    @AutoValue
-    public abstract static class Producer {
-        public abstract String getComponentId();
-        public abstract String getStreamId();
-        public abstract String getStreamName();
-
-        public static Producer of(String componentId, String streamId, String streamName) {
-            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Producer(
-                    componentId, streamId, streamName);
-        }
+    public static Grouping byFields(List<String> fields) {
+      checkNotNull(fields, "fields");
+      checkArgument(!fields.isEmpty(), "No key fields were provided for field grouping!");
+      return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
+          Type.FIELDS, fields);
     }
 
-    @AutoValue
-    public abstract static class Consumer {
-        public abstract String getComponentId();
-        public abstract Grouping getGrouping();
-
-        public static Consumer of(String componentId, Grouping grouping) {
-            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Consumer(
-                    componentId, grouping);
-        }
+    /**
+     * Types of stream groupings Storm allows
+     */
+    public enum Type {
+      ALL, CUSTOM, DIRECT, SHUFFLE, LOCAL_OR_SHUFFLE, FIELDS, GLOBAL, NONE
     }
-
-    @AutoValue
-    public abstract static class Grouping {
-        public abstract Type getType();
-
-        @Nullable
-        public abstract List<String> getFields();
-
-        public static Grouping of(Type type) {
-            checkArgument(!Type.FIELDS.equals(type), "Fields grouping should provide key fields.");
-            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
-                    type, null /* fields */);
-        }
-
-        public static Grouping byFields(List<String> fields) {
-            checkNotNull(fields, "fields");
-            checkArgument(!fields.isEmpty(), "No key fields were provided for field grouping!");
-            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
-                    Type.FIELDS, fields);
-        }
-
-        /**
-         * Types of stream groupings Storm allows
-         */
-        public enum Type {
-            ALL, CUSTOM, DIRECT, SHUFFLE, LOCAL_OR_SHUFFLE, FIELDS, GLOBAL, NONE
-        }
-    }
+  }
 }

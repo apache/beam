@@ -70,13 +70,14 @@ public class WordCountBenchmark implements Serializable {
       expects.add(i);
     }
 
-    PCollection<String> output =  p.apply("ReadLines", GenerateSequence.from(0).to(maxSequence))
+    PCollection<String> output = p.apply("ReadLines", GenerateSequence.from(0).to(maxSequence))
         .apply("toKV", ParDo.of(new DoFn<Long, KV<String, Long>>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
             String key = String.format("key-%s", c.element() % totalKeys);
             c.output(KV.of(key, 1L));
-          }}))
+          }
+        }))
         .apply(Sum.<String>longsPerKey())
         .apply(Values.<Long>create())
         .apply(Sum.longsGlobally())
@@ -91,7 +92,8 @@ public class WordCountBenchmark implements Serializable {
             successCounter.inc();
             c.output("Stopped");
             System.out.println("Stopped");
-          }}));
+          }
+        }));
 
     // NOTE: PAssert can be used to verify the correctness. But, we exclude it from running
     // for benchmark.
