@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
-import com.alibaba.jstorm.beam.translation.translator.*;
 import org.apache.beam.runners.jstorm.translation.translator.BoundedSourceTranslator;
 import org.apache.beam.runners.jstorm.translation.translator.FlattenTranslator;
 import org.apache.beam.runners.jstorm.translation.translator.GroupByKeyTranslator;

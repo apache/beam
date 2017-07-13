@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.state.JStormStateInternals;
 import org.apache.beam.runners.jstorm.translation.runtime.timer.JStormTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
@@ -37,7 +37,7 @@ public class MultiStatefulDoFnExecutor<OutputT> extends MultiOutputDoFnExecutor<
 
     public MultiStatefulDoFnExecutor(
         String stepName, String description,
-        StormPipelineOptions pipelineOptions, DoFn<KV, OutputT> doFn,
+        JStormPipelineOptions pipelineOptions, DoFn<KV, OutputT> doFn,
         Coder<WindowedValue<KV>> inputCoder, WindowingStrategy<?, ?> windowingStrategy,
         TupleTag<KV> mainInputTag, Collection<PCollectionView<?>> sideInputs,
         Map<TupleTag, PCollectionView<?>> sideInputTagToView, TupleTag<OutputT> mainTupleTag,

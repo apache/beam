@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.state.JStormStateInternals;
 import org.apache.beam.runners.jstorm.translation.runtime.timer.JStormTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
@@ -35,7 +35,7 @@ import java.util.Map;
 
 public class StatefulDoFnExecutor<OutputT> extends DoFnExecutor<KV, OutputT> {
     public StatefulDoFnExecutor(
-            String stepName, String description, StormPipelineOptions pipelineOptions,
+            String stepName, String description, JStormPipelineOptions pipelineOptions,
             DoFn<KV, OutputT> doFn, Coder<WindowedValue<KV>> inputCoder,
             WindowingStrategy<?, ?> windowingStrategy, TupleTag<KV> mainInputTag,
             Collection<PCollectionView<?>> sideInputs, Map<TupleTag, PCollectionView<?>>

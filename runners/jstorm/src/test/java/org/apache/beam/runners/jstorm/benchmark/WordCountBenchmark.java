@@ -19,8 +19,6 @@ package org.apache.beam.runners.jstorm.benchmark;
 
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
-import org.apache.beam.runners.jstorm.StormRunner;
 import org.apache.beam.runners.jstorm.translation.translator.ParDoTest;
 import com.alibaba.jstorm.common.metric.AsmMetric;
 import com.alibaba.jstorm.metric.AsmWindow;

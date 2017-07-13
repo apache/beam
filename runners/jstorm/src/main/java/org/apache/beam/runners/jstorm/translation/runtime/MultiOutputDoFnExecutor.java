@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -55,7 +55,7 @@ public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<Input
     public MultiOutputDoFnExecutor(
             String stepName,
             String description,
-            StormPipelineOptions pipelineOptions,
+            JStormPipelineOptions pipelineOptions,
             DoFn<InputT, OutputT> doFn,
             Coder<WindowedValue<InputT>> inputCoder,
             WindowingStrategy<?, ?> windowingStrategy,
