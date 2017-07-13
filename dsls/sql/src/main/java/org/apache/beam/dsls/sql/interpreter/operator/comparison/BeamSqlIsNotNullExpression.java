@@ -15,23 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+package org.apache.beam.dsls.sql.interpreter.operator.comparison;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for 'IS NULL' operation.
+ * {@code BeamSqlExpression} for 'IS NOT NULL' operation.
  */
-public class BeamSqlIsNullExpression extends BeamSqlExpression {
+public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
 
-  private BeamSqlIsNullExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+  private BeamSqlIsNotNullExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
-  public BeamSqlIsNullExpression(BeamSqlExpression operand){
+  public BeamSqlIsNotNullExpression(BeamSqlExpression operand){
     this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 
@@ -46,6 +48,6 @@ public class BeamSqlIsNullExpression extends BeamSqlExpression {
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRow) {
     Object leftValue = operands.get(0).evaluate(inputRow).getValue();
-    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue == null);
+    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue != null);
   }
 }
