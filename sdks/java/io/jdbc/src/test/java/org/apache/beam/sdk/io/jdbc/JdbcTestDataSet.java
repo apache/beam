@@ -83,7 +83,7 @@ public class JdbcTestDataSet {
   }
 
   public static String createWriteDataTable(DataSource dataSource) throws SQLException {
-    String tableName = "BEAMTEST" + org.joda.time.Instant.now().getMillis();
+    String tableName = "BEAMTEST" + System.currentTimeMillis();
     createDataTable(dataSource, tableName);
     return tableName;
   }

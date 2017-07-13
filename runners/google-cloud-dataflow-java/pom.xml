@@ -287,11 +287,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-jackson2</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-dataflow</artifactId>
     </dependency>
@@ -299,11 +294,6 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-clouddebugger</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-storage</artifactId>
     </dependency>
 
     <dependency>
@@ -430,6 +420,18 @@
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-protos</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.http-client</groupId>
+      <artifactId>google-http-client-jackson2</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-storage</artifactId>
       <scope>test</scope>
     </dependency>
 
