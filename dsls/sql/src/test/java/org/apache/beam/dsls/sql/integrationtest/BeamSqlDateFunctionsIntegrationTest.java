@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.integrationtest1;
+package org.apache.beam.dsls.sql.integrationtest;
 
 import java.util.Date;
 import java.util.Iterator;
