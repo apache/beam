@@ -19,6 +19,9 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+
+import errno
+from socket import error as SocketError
 import sys
 
 # Protect against environments where datastore library is not available.
@@ -130,6 +133,11 @@ def retry_on_rpc_error(exception):
             err_code == code_pb2.UNAVAILABLE or
             err_code == code_pb2.UNKNOWN or
             err_code == code_pb2.INTERNAL)
+
+  if isinstance(exception, SocketError):
+    return (exception.errno == errno.ECONNRESET or
+            exception.errno == errno.ETIMEDOUT)
+
   return False
 
 
