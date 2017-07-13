@@ -23,16 +23,8 @@ import java.util.Calendar;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCastExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlIsNotNullExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlIsNullExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLargerThanEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLargerThanExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlReinterpretExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpression;
@@ -44,6 +36,14 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanOrEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNotNullExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNullExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -208,22 +208,22 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlNotExpression(subExps);
           break;
         case "=":
-          ret = new BeamSqlEqualExpression(subExps);
+          ret = new BeamSqlEqualsExpression(subExps);
           break;
         case "<>":
-          ret = new BeamSqlNotEqualExpression(subExps);
+          ret = new BeamSqlNotEqualsExpression(subExps);
           break;
         case ">":
-          ret = new BeamSqlLargerThanExpression(subExps);
+          ret = new BeamSqlGreaterThanExpression(subExps);
           break;
         case ">=":
-          ret = new BeamSqlLargerThanEqualExpression(subExps);
+          ret = new BeamSqlGreaterThanOrEqualsExpression(subExps);
           break;
         case "<":
           ret = new BeamSqlLessThanExpression(subExps);
           break;
         case "<=":
-          ret = new BeamSqlLessThanEqualExpression(subExps);
+          ret = new BeamSqlLessThanOrEqualsExpression(subExps);
           break;
 
         // arithmetic operators
