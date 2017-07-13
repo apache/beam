@@ -338,12 +338,35 @@ func (n *Combine) Up(ctx context.Context) error {
 		return nil
 	}
 
+	if err := n.invoke(ctx, n.Edge.CombineFn.SetupFn()); err != nil {
+		return err
+	}
+
 	a, err := n.newAccum(reflect.Value{})
 	if err != nil {
 		panic(fmt.Sprintf("CreateAccumulator failed: %v", err))
 	}
 	n.accum = a
 	n.first = true
+	return nil
+}
+
+func (n *Combine) invoke(ctx context.Context, fn *funcx.Fn) error {
+	if fn == nil {
+		return nil
+	}
+
+	// Setup/Teardown allows context and error only.
+
+	args := make([]reflect.Value, len(fn.Param))
+	if index, ok := fn.Context(); ok {
+		args[index] = reflect.ValueOf(ctx)
+	}
+
+	ret := fn.Fn.Call(args)
+	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
+		return ret[index].Interface().(error)
+	}
 	return nil
 }
 
@@ -522,6 +545,10 @@ func (n *Combine) Down(ctx context.Context) error {
 	out, err := n.extract(n.accum)
 	if err != nil {
 		panic(fmt.Sprintf("ExtractOutput failed: %v", err))
+	}
+
+	if err := n.invoke(ctx, n.Edge.CombineFn.TeardownFn()); err != nil {
+		return err
 	}
 
 	for _, unit := range n.Out {

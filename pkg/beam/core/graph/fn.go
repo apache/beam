@@ -91,11 +91,11 @@ const (
 	finishBundleName   = "FinishBundle"
 	teardownName       = "Teardown"
 
-	createAccumulator = "CreateAccumulator"
-	addInput          = "AddInput"
-	mergeAccumulators = "MergeAccumulators"
-	extractOutput     = "ExtractOutput"
-	compact           = "Compact"
+	createAccumulatorName = "CreateAccumulator"
+	addInputName          = "AddInput"
+	mergeAccumulatorsName = "MergeAccumulators"
+	extractOutputName     = "ExtractOutput"
+	compactName           = "Compact"
 
 	// TODO: ViewFn, etc.
 )
@@ -159,7 +159,7 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 	}
 
 	if _, ok := fn.methods[processElementName]; !ok {
-		return nil, fmt.Errorf("failed to find ProcessElement method: %v", fn)
+		return nil, fmt.Errorf("failed to find %v method: %v", processElementName, fn)
 	}
 
 	// TODO(herohde) 5/18/2017: validate the signatures, incl. consistency.
@@ -170,30 +170,40 @@ func AsDoFn(fn *Fn) (*DoFn, error) {
 // CombineFn represents a CombineFn.
 type CombineFn Fn
 
+// SetupFn returns the "Setup" function, if present.
+func (f *CombineFn) SetupFn() *funcx.Fn {
+	return f.methods[setupName]
+}
+
 // CreateAccumulatorFn returns the "CreateAccumulator" function, if present.
 func (f *CombineFn) CreateAccumulatorFn() *funcx.Fn {
-	return f.methods[createAccumulator]
+	return f.methods[createAccumulatorName]
 }
 
 // AddInputFn returns the "AddInput" function, if present.
 func (f *CombineFn) AddInputFn() *funcx.Fn {
-	return f.methods[addInput]
+	return f.methods[addInputName]
 }
 
 // MergeAccumulatorsFn returns the "MergeAccumulators" function. If it is the only
 // method present, then InputType == AccumulatorType == OutputType.
 func (f *CombineFn) MergeAccumulatorsFn() *funcx.Fn {
-	return f.methods[mergeAccumulators]
+	return f.methods[mergeAccumulatorsName]
 }
 
 // ExtractOutputFn returns the "ExtractOutput" function, if present.
 func (f *CombineFn) ExtractOutputFn() *funcx.Fn {
-	return f.methods[extractOutput]
+	return f.methods[extractOutputName]
 }
 
 // CompactFn returns the "Compact" function, if present.
 func (f *CombineFn) CompactFn() *funcx.Fn {
-	return f.methods[compact]
+	return f.methods[compactName]
+}
+
+// TeardownFn returns the "Teardown" function, if present.
+func (f *CombineFn) TeardownFn() *funcx.Fn {
+	return f.methods[teardownName]
 }
 
 // Name returns the name of the function or struct.
@@ -216,14 +226,14 @@ func AsCombineFn(fn *Fn) (*CombineFn, error) {
 		fn.methods = make(map[string]*funcx.Fn)
 	}
 	if fn.Fn != nil {
-		fn.methods[mergeAccumulators] = fn.Fn
+		fn.methods[mergeAccumulatorsName] = fn.Fn
 	}
-	if err := verifyValidNames(fn, createAccumulator, addInput, mergeAccumulators, extractOutput, compact); err != nil {
+	if err := verifyValidNames(fn, setupName, createAccumulatorName, addInputName, mergeAccumulatorsName, extractOutputName, compactName, teardownName); err != nil {
 		return nil, err
 	}
 
-	if _, ok := fn.methods[mergeAccumulators]; !ok {
-		return nil, fmt.Errorf("failed to find MergeAccumulators method: %v", fn)
+	if _, ok := fn.methods[mergeAccumulatorsName]; !ok {
+		return nil, fmt.Errorf("failed to find %v method: %v", mergeAccumulatorsName, fn)
 	}
 
 	// TODO(herohde) 5/24/2017: validate the signatures, incl. consistency.

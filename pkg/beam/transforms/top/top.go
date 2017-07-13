@@ -10,7 +10,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -47,7 +46,7 @@ func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) be
 	t := beam.FindCombineType(col)
 	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
-	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n}, col)
+	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
 // Smallest returns the smallest N elements either globally or per-key of the
@@ -75,7 +74,7 @@ func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) b
 	t := beam.FindCombineType(col)
 	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
 
-	return beam.Combine(p, &combineFn{Less: graphx.DataFnValue{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
 }
 
 // TODO(herohde) 5/25/2017: the accumulator should be serializable with a Coder.
@@ -94,7 +93,7 @@ type accum struct {
 // Less ordering on A. The natural order maintains the largest elements.
 type combineFn struct {
 	// Less is the < order on the underlying type, A.
-	Less graphx.DataFnValue `json:"less"`
+	Less beam.EncodedFn `json:"less"`
 	// Reversed indicates whether the ordering should be reversed.
 	Reversed bool `json:"reversed"`
 	// N is the number of elements to keep.

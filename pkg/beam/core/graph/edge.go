@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
@@ -226,22 +228,22 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 }
 
 // NewParDo inserts a new ParDo edge into the graph.
-func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge, error) {
-	return newDoFnNode(ParDo, g, s, u, in)
+func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
+	return newDoFnNode(ParDo, g, s, u, in, typedefs)
 }
 
 // NewSource inserts a Source transform.
-func NewSource(g *Graph, s *Scope, u *DoFn) (*MultiEdge, error) {
-	return newDoFnNode(Source, g, s, u, nil)
+func NewSource(g *Graph, s *Scope, u *DoFn, typedefs map[string]reflect.Type) (*MultiEdge, error) {
+	return newDoFnNode(Source, g, s, u, nil, typedefs)
 }
 
-func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge, error) {
+func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
 	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative. We should
 	// perhaps create a synthetic method for binding purposes? The main question is how to
 	// tell which side input binds to which if the signatures differ, which is a downside of
 	// positional binding.
 
-	inbound, kinds, outbound, out, err := Bind(u.ProcessElementFn(), NodeTypes(in)...)
+	inbound, kinds, outbound, out, err := Bind(u.ProcessElementFn(), typedefs, NodeTypes(in)...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +312,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 	}
 
-	inbound, kinds, outbound, out, err := Bind(synth, ts...)
+	inbound, kinds, outbound, out, err := Bind(synth, nil, ts...)
 	if err != nil {
 		if !isPerKey {
 			return nil, err
@@ -318,7 +320,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 
 		ts[0] = typex.NewWKV(t.Components()...) // Try W<GBK<A,B>> -> W<KV<A,B>>
 
-		inbound, kinds, outbound, out, err = Bind(synth, ts...)
+		inbound, kinds, outbound, out, err = Bind(synth, nil, ts...)
 		if err != nil {
 			return nil, err
 		}

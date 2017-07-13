@@ -210,7 +210,7 @@ func DecodeUserFn(ref *v1.UserFn) (*funcx.Fn, error) {
 		return nil, err
 	}
 
-	ptr, err := SymbolResolver.Sym2Addr(ref.Name)
+	ptr, err := runtime.SymbolResolver.Sym2Addr(ref.Name)
 	if err != nil {
 		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
@@ -681,8 +681,8 @@ func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
 	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c}}
 }
 
-// EncodeCoder returns the encoded form understood by the runner.
-func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
+// EncodeCoderRef returns the encoded form understood by the runner.
+func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 	switch c.Kind {
 	case coder.Custom:
 		ref, err := encodeCustomCoder(c.Custom)
@@ -700,11 +700,11 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 			return nil, fmt.Errorf("bad KV: %v", c)
 		}
 
-		key, err := EncodeCoder(c.Components[0])
+		key, err := EncodeCoderRef(c.Components[0])
 		if err != nil {
 			return nil, err
 		}
-		value, err := EncodeCoder(c.Components[1])
+		value, err := EncodeCoderRef(c.Components[1])
 		if err != nil {
 			return nil, err
 		}
@@ -715,11 +715,11 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 			return nil, fmt.Errorf("bad GBK: %v", c)
 		}
 
-		key, err := EncodeCoder(c.Components[0])
+		key, err := EncodeCoderRef(c.Components[0])
 		if err != nil {
 			return nil, err
 		}
-		value, err := EncodeCoder(c.Components[1])
+		value, err := EncodeCoderRef(c.Components[1])
 		if err != nil {
 			return nil, err
 		}
@@ -731,11 +731,11 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 			return nil, fmt.Errorf("bad windowed value: %v", c)
 		}
 
-		elm, err := EncodeCoder(c.Components[0])
+		elm, err := EncodeCoderRef(c.Components[0])
 		if err != nil {
 			return nil, err
 		}
-		w, err := EncodeWindow(c.Window)
+		w, err := encodeWindow(c.Window)
 		if err != nil {
 			return nil, err
 		}
@@ -750,8 +750,8 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 	}
 }
 
-// DecodeCoder extracts a usable coder from the encoded runner form.
-func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
+// DecodeCoderRef extracts a usable coder from the encoded runner form.
+func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
 	case bytesType:
 		return coder.NewBytes(), nil
@@ -761,7 +761,7 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 			return nil, fmt.Errorf("bad pair: %+v", c)
 		}
 
-		key, err := DecodeCoder(c.Components[0])
+		key, err := DecodeCoderRef(c.Components[0])
 		if err != nil {
 			return nil, err
 		}
@@ -776,7 +776,7 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 			kind = coder.GBK
 			root = typex.GBKType
 		}
-		value, err := DecodeCoder(elm)
+		value, err := DecodeCoderRef(elm)
 		if err != nil {
 			return nil, err
 		}
@@ -805,11 +805,11 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 			return nil, fmt.Errorf("bad windowed value: %+v", c)
 		}
 
-		elm, err := DecodeCoder(c.Components[0])
+		elm, err := DecodeCoderRef(c.Components[0])
 		if err != nil {
 			return nil, err
 		}
-		w, err := DecodeWindow(c.Components[1])
+		w, err := decodeWindow(c.Components[1])
 		if err != nil {
 			return nil, err
 		}
@@ -829,10 +829,10 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 // our code. These methods will be used by other packages, so exporting
 // them now.
 
-// EncodeWindow translates the preprocessed representation of a Beam coder
+// encodeWindow translates the preprocessed representation of a Beam coder
 // into the wire representation, capturing the underlying types used by
 // the coder.
-func EncodeWindow(w *window.Window) (*CoderRef, error) {
+func encodeWindow(w *window.Window) (*CoderRef, error) {
 	switch w.Kind() {
 	case window.GlobalWindow:
 		return &CoderRef{Type: globalWindowType}, nil
@@ -841,9 +841,9 @@ func EncodeWindow(w *window.Window) (*CoderRef, error) {
 	}
 }
 
-// DecodeWindow receives the wire representation of a Beam coder, extracting
+// decodeWindow receives the wire representation of a Beam coder, extracting
 // the preprocessed representation, expanding all types used by the coder.
-func DecodeWindow(w *CoderRef) (*window.Window, error) {
+func decodeWindow(w *CoderRef) (*window.Window, error) {
 	switch w.Type {
 	case globalWindowType:
 		return window.NewGlobalWindow(), nil

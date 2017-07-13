@@ -114,7 +114,7 @@ func TestBind(t *testing.T) {
 			t.Errorf("Invalid Fn: %v", err)
 			continue
 		}
-		_, _, _, actual, err := Bind(fn, test.In...)
+		_, _, _, actual, err := Bind(fn, nil, test.In...)
 		if err != nil {
 			if test.Out == nil {
 				continue // expected
@@ -125,6 +125,54 @@ func TestBind(t *testing.T) {
 
 		if !typex.IsEqualList(actual, test.Out) {
 			t.Errorf("Bind(%v, %v) = %v, want %v", fn, test.In, actual, test.Out)
+		}
+	}
+}
+
+func TestBindWithTypedefs(t *testing.T) {
+	tests := []struct {
+		In      []typex.FullType // Incoming Node type
+		Typedef map[string]reflect.Type
+		Fn      interface{}
+		Out     []typex.FullType // Outgoing Node type; nil == cannot bind
+	}{
+		{ // Typedefs are ignored, if not used
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
+			map[string]reflect.Type{"X": reflectx.Int},
+			func(int) int { return 0 },
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
+		},
+		{
+			nil,
+			map[string]reflect.Type{"X": reflectx.Int},
+			func() typex.X { return nil },
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
+		},
+		{
+			nil,
+			nil,
+			func() typex.X { return nil },
+			nil, // X not defined
+		},
+	}
+
+	for _, test := range tests {
+		fn, err := funcx.New(test.Fn)
+		if err != nil {
+			t.Errorf("Invalid Fn: %v", err)
+			continue
+		}
+		_, _, _, actual, err := Bind(fn, test.Typedef, test.In...)
+		if err != nil {
+			if test.Out == nil {
+				continue // expected
+			}
+			t.Errorf("Bind(%v, %v, %v) failed: %v", fn, test.Typedef, test.In, err)
+			continue
+		}
+
+		if !typex.IsEqualList(actual, test.Out) {
+			t.Errorf("Bind(%v, %v, %v) = %v, want %v", fn, test.Typedef, test.In, actual, test.Out)
 		}
 	}
 }

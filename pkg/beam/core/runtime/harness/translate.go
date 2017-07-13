@@ -334,5 +334,5 @@ func unpackCoder(data *protobuf.Any) (*coder.Coder, error) {
 	if err := json.Unmarshal(buf, &c); err != nil {
 		return nil, err
 	}
-	return graphx.DecodeCoder(&c)
+	return graphx.DecodeCoderRef(&c)
 }

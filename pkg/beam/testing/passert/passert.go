@@ -11,13 +11,15 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*diffFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*failFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*failKVFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*failGBKFn)(nil)))
 }
 
 // Equals verifies the the given collection has the same values as the given
@@ -48,31 +50,21 @@ func equals(p *beam.Pipeline, actual, expected beam.PCollection) beam.PCollectio
 // equality is used to determine equality. Should only be used for small collections,
 // because all values are held in memory at the same time.
 func Diff(p *beam.Pipeline, a, b beam.PCollection) (left, both, right beam.PCollection) {
-	c := coder.SkipW(beam.UnwrapCoder(a.Coder()))
-	cf, err := graphx.EncodeCoder(c)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to serialize coder %v: %v", c, err))
-	}
-
 	imp := beam.Impulse(p)
-	return beam.ParDo3(p, &diffFn{Coder: cf}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
+	return beam.ParDo3(p, &diffFn{Coder: beam.EncodedCoder{Coder: a.Coder()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
-// TODO(herohde) 7/11/2017: should there be a supported way to obtain the coder,
+// TODO(herohde) 7/11/2017: should there be a first-class way to obtain the coder,
 // such a a specially-typed parameter?
 
 // diffFn computes the symmetrical multi-set difference of 2 collections, under
 // coder equality. The Go values returned may be any of the coder-equal ones.
 type diffFn struct {
-	Coder *graphx.CoderRef `json:"coder"`
-	coder *coder.Coder
+	Coder beam.EncodedCoder `json:"coder"`
 }
 
 func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*typex.T) bool, left, both, right func(t typex.T)) error {
-	c, err := graphx.DecodeCoder(f.Coder)
-	if err != nil {
-		return err
-	}
+	c := coder.SkipW(beam.UnwrapCoder(f.Coder.Coder))
 
 	indexL, err := index(c, ls)
 	if err != nil {
@@ -176,10 +168,10 @@ func Empty(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 func fail(p *beam.Pipeline, col beam.PCollection, format string) {
 	switch {
 	case typex.IsWKV(col.Type()):
-		beam.ParDo0(p, nil, col)
+		beam.ParDo0(p, &failKVFn{Format: format}, col)
 
 	case typex.IsWGBK(col.Type()):
-		beam.ParDo0(p, nil, col)
+		beam.ParDo0(p, &failGBKFn{Format: format}, col)
 
 	default:
 		beam.ParDo0(p, &failFn{Format: format}, col)
