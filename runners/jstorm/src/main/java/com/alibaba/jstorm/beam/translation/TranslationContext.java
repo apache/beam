@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
@@ -176,6 +177,11 @@ public class TranslationContext {
         for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
             TupleTag tag = entry.getKey();
             PValue value = entry.getValue();
+
+            // use tag of PValueBase
+            if (value instanceof PValueBase) {
+                tag = ((PValueBase) value).expand().keySet().iterator().next();
+            }
             executionGraphContext.registerStreamProducer(
                     TaggedPValue.of(tag, value),
                     Stream.Producer.of(name, tag.getId(), value.getName()));

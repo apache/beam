@@ -19,6 +19,7 @@ package com.alibaba.jstorm.beam.translation.runtime.state;
 
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
+import com.alibaba.jstorm.cache.KvStoreIterable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -115,7 +116,7 @@ class JStormBagState<K, T> implements BagState<T> {
         return ComposedKey.of(key, namespace, elemIndex);
     }
 
-    private class BagStateIterable implements Iterable<T> {
+    private class BagStateIterable implements KvStoreIterable<T> {
 
         private class BagStateIterator implements Iterator<T> {
             private final int size;

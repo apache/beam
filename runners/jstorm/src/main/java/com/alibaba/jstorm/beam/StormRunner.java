@@ -29,6 +29,7 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 
+import com.alibaba.jstorm.beam.serialization.*;
 import com.alibaba.jstorm.beam.translation.StormPipelineTranslator;
 import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.runtime.AbstractComponent;
@@ -40,6 +41,8 @@ import com.alibaba.jstorm.beam.translation.runtime.TxUnboundedSourceSpout;
 import com.alibaba.jstorm.beam.translation.runtime.UnboundedSourceSpout;
 import com.alibaba.jstorm.beam.translation.translator.Stream;
 import com.alibaba.jstorm.beam.translation.util.CommonInstance;
+import com.alibaba.jstorm.cache.KvStoreIterable;
+import com.alibaba.jstorm.client.ConfigExtension;
 import com.alibaba.jstorm.cluster.StormConfig;
 import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
 import com.alibaba.jstorm.utils.JStormUtils;
@@ -48,6 +51,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import java.util.Map;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -98,6 +102,15 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
         config.put("worker.external", "beam");
         config.put("topology.acker.executors", 0);
 
+        UnmodifiableCollectionsSerializer.registerSerializers(config);
+        // register classes of guava utils, ImmutableList, ImmutableSet, ImmutableMap
+        ImmutableListSerializer.registerSerializers(config);
+        SdkRepackImmuListSerializer.registerSerializers(config);
+        ImmutableSetSerializer.registerSerializers(config);
+        SdkRepackImmuSetSerializer.registerSerializers(config);
+        ImmutableMapSerializer.registerSerializers(config);
+
+        config.registerDefaultSerailizer(KvStoreIterable.class, KvStoreIterableSerializer.class);
         return config;
     }
 

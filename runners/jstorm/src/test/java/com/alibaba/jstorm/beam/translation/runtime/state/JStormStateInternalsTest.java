@@ -65,7 +65,7 @@ public class JStormStateInternalsTest {
                 Maps.newHashMap(),
                 "test",
                 tmp.toString(),
-                new KryoSerializer());
+                new KryoSerializer(Maps.newHashMap()));
         jstormStateInternals = new JStormStateInternals("key-1", kvStoreManager, new TimerServiceImpl(), 0);
     }
 
