@@ -34,25 +34,19 @@ public abstract class MeterData implements MetricData<MeterData> {
   public abstract double m15();
   public abstract double mean();
 
+  public static final MeterData ZERO = create(0, 0, 0, 0, 0);
+
   public static MeterData create(long count, double m1, double m5, double m15, double mean) {
     return new AutoValue_MeterData(count, m1, m5, m15, mean);
   }
 
   @Override
-  public MeterData merge(MeterData other) {
+  public MeterData combine(MeterData other) {
     return create(count() + other.count(),
         m1() + other.m1(),
         m5() + other.m5(),
         m15() + other.m15(),
         mean() + other.mean());
-  }
-
-  public MeterData combine(MeterData other) {
-    return merge(other);
-  }
-
-  public static MeterData zero() {
-    return create(0, 0, 0, 0, 0);
   }
 
   public MeterResult extractResult(){

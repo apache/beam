@@ -53,6 +53,7 @@ public class MeterCell implements Meter, MetricCell<MeterData> {
     dirty.afterModification();
   }
 
+  @Override
   public void mark() {
     mark(1);
   }
@@ -75,5 +76,9 @@ public class MeterCell implements Meter, MetricCell<MeterData> {
   @Override
   public MetricName getName() {
     return name;
+  }
+
+  public void update(MeterData cumulative) {
+    mark(cumulative.count());
   }
 }

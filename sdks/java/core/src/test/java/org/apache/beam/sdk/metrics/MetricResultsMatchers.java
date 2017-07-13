@@ -95,6 +95,8 @@ public class MetricResultsMatchers {
   private static <T> boolean metricResultsEqual(T result1, T result2) {
     if (result1 instanceof GaugeResult) {
       return (((GaugeResult) result1).value()) == (((GaugeResult) result2).value());
+    } else if (result1 instanceof MeterResult) {
+      return ((MeterResult) result1).count() == ((MeterResult) result2).count();
     } else {
       return result1.equals(result2);
     }
@@ -140,7 +142,7 @@ public class MetricResultsMatchers {
 
       @Override
       protected void describeMismatchSafely(MetricResult<DistributionResult> item,
-          Description mismatchDescription) {
+                                            Description mismatchDescription) {
         mismatchDescription.appendText("MetricResult{");
 
         describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);

@@ -21,8 +21,9 @@ package org.apache.beam.sdk.metrics;
 import java.io.Serializable;
 
 /**
- * base class of metric data.
+ * Base class of metric data which defines an interface of metric data snapshots
+ * that can be combined.
  */
 public interface MetricData<T> extends Serializable {
-    T merge(T other);
+  T combine(T other);
 }

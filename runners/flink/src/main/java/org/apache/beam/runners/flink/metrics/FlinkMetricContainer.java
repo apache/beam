@@ -21,6 +21,7 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -163,11 +164,10 @@ public class FlinkMetricContainer {
       Meter meter = flinkMeterCache.get(flinkMetricName);
       if (meter == null) {
         meter = runtimeContext.getMetricGroup()
-            .meter(flinkMetricName, new FlinkMeter(update));
+            .meter(flinkMetricName, new FlinkMeter());
         flinkMeterCache.put(flinkMetricName, meter);
-      } else {
-        meter.markEvent(update.count());
       }
+      meter.markEvent(update.count());
     }
   }
 
@@ -222,24 +222,42 @@ public class FlinkMetricContainer {
 
   /**
    * Flink {@link Meter} wrapper for {@link MeterResult}.
+   * Because MeterCell is implemented via dropwizard Meter, it's certain that the count from a
+   * MeterCell is monotonically increasing, we need to compute delta to avoid duplicate updates.
+   * Thus we use an AtomicLong to record current accumulated count (before next update) and
+   * use the subtracted delta to update the internal Meter.
    */
   public static class FlinkMeter implements Meter {
 
     private final com.codahale.metrics.Meter meter;
+    private final AtomicLong count;
 
-    FlinkMeter(MeterResult data) {
+    FlinkMeter() {
       this.meter = new com.codahale.metrics.Meter();
-      this.meter.mark(data.count());
+      this.count = new AtomicLong(0L);
     }
 
+    /**
+     * Special case to update the meter with delta equals 1.
+     */
     @Override
     public void markEvent() {
       meter.mark();
+      count.incrementAndGet();
     }
 
+    /**
+     * update the meter with given amount.
+     *
+     * @param l the accumulated count from a MeterCell.
+     */
     @Override
     public void markEvent(long l) {
-      meter.mark(l);
+      long delta = l - count.get();
+      if (delta > 0) {
+        meter.mark(delta);
+        count.addAndGet(delta);
+      }
     }
 
     @Override
@@ -249,7 +267,7 @@ public class FlinkMetricContainer {
 
     @Override
     public long getCount() {
-      return meter.getCount();
+      return count.get();
     }
   }
 }

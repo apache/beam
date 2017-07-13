@@ -21,7 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Meter interface which corresponds to Meter in dropwizard metrics.
+ * A metric that reports one minute, five minute, fifteen minute and mean event rates.
  */
 @Experimental(Kind.METRICS)
 public interface Meter extends Metric {

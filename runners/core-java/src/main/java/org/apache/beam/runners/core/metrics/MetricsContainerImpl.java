@@ -209,7 +209,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       MetricsMap<MetricName, MeterCell> current,
       MetricsMap<MetricName, MeterCell> updates) {
     for (Map.Entry<MetricName, MeterCell> counter : updates.entries()) {
-      //current.get(counter.getKey()).update(counter.getValue().getCumulative());
+      current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }
   }
 }

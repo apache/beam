@@ -244,7 +244,7 @@ public class MetricsContainerStepMap implements Serializable {
           return new AttemptedAndCommitted<>(
               key,
               input,
-              MetricUpdate.create(key, MeterData.zero()));
+              MetricUpdate.create(key, MeterData.ZERO));
         }
       };
     }
@@ -257,7 +257,7 @@ public class MetricsContainerStepMap implements Serializable {
           MetricKey key = input.getKey();
           return new AttemptedAndCommitted<>(
               key,
-              MetricUpdate.create(key, MeterData.zero()),
+              MetricUpdate.create(key, MeterData.ZERO),
               input);
         }
       };

@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MeterResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -83,7 +84,7 @@ public class DirectMetricsTest {
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME3),
                 MeterData.create(1, 1, 1, 1, 1)))
-        ));
+    ));
     metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
@@ -117,6 +118,8 @@ public class DirectMetricsTest {
     assertThat(results.gauges(), contains(
         committedMetricsResult("ns2", "name2", "step1", GaugeResult.create(27L, Instant.now()))
     ));
+    assertThat(results.meters(), contains(
+        committedMetricsResult("ns2", "name1", "step1", MeterResult.create(2L, 2, 2, 2, 2))));
   }
 
   @SuppressWarnings("unchecked")

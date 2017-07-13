@@ -230,14 +230,14 @@ class DirectMetrics extends MetricResults {
       new MetricAggregation<MeterData, MeterResult>() {
         @Override
         public MeterData zero() {
-          return MeterData.zero();
+          return MeterData.ZERO;
         }
 
         @Override
         public MeterData combine(Iterable<MeterData> updates) {
-          MeterData result = MeterData.zero();
+          MeterData result = MeterData.ZERO;
           for (MeterData update : updates) {
-            result = result.merge(update);
+            result = result.combine(update);
           }
           return result;
         }
