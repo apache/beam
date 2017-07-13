@@ -18,7 +18,6 @@
 package org.apache.beam.runners.jstorm.translation.runtime;
 
 import java.io.Serializable;
-
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 

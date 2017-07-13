@@ -17,19 +17,17 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import org.apache.beam.runners.jstorm.translation.runtime.GroupByWindowExecutor;
 import com.google.common.collect.Lists;
-import org.apache.beam.sdk.transforms.GroupByKey;
-
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.runners.jstorm.translation.runtime.GroupByWindowExecutor;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.Collections;
-import java.util.List;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 public class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<K, V>> {
     // information of transform

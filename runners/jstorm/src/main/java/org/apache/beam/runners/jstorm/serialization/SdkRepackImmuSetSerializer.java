@@ -5,7 +5,8 @@ import com.alibaba.jstorm.esotericsoftware.kryo.Kryo;
 import com.alibaba.jstorm.esotericsoftware.kryo.Serializer;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
-import org.apache.beam.sdk.repackaged.com.google.common.collect.*;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableSet;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.Sets;
 
 public class SdkRepackImmuSetSerializer extends Serializer<ImmutableSet<Object>> {
 

@@ -17,24 +17,25 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import java.util.List;
-import java.util.Map;
-
 import avro.shaded.com.google.common.collect.Lists;
-import org.apache.beam.runners.jstorm.translation.runtime.StatefulDoFnExecutor;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.DoFnExecutor;
+import org.apache.beam.runners.jstorm.translation.runtime.StatefulDoFnExecutor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.*;
-
-import org.apache.beam.runners.jstorm.translation.TranslationContext;
-
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

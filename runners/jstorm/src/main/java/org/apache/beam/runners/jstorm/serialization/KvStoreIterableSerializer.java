@@ -6,7 +6,6 @@ import com.alibaba.jstorm.esotericsoftware.kryo.Serializer;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.Lists;
-
 import java.util.Iterator;
 import java.util.List;
 

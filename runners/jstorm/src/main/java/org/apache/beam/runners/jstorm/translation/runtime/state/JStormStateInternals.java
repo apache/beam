@@ -17,13 +17,16 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime.state;
 
-import org.apache.beam.runners.jstorm.translation.runtime.TimerService;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStoreManager;
-
+import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.jstorm.translation.runtime.TimerService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -40,11 +43,6 @@ import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
-import java.io.IOException;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * JStorm implementation of {@link StateInternals}.

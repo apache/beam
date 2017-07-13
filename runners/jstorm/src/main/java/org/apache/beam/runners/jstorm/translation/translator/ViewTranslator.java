@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.ViewExecutor;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,11 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link TransformTranslator} for executing {@link View Views} in JStorm runner.

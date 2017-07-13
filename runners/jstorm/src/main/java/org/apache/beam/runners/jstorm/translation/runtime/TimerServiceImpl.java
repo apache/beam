@@ -17,20 +17,23 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import avro.shaded.com.google.common.collect.Maps;
 import avro.shaded.com.google.common.collect.Sets;
 import com.alibaba.jstorm.utils.Pair;
-import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.joda.time.Instant;
-
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 /**
  * Default implementation of {@link TimerService}.

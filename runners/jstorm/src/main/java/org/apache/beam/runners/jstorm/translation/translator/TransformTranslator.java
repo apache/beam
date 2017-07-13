@@ -20,13 +20,11 @@ package org.apache.beam.runners.jstorm.translation.translator;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
+import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
-
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.Map;
 
 /**
  * Interface for classes capable of tranforming Beam PTransforms into Storm primitives.

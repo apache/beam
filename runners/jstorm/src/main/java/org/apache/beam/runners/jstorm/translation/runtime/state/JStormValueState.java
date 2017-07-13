@@ -19,12 +19,10 @@ package org.apache.beam.runners.jstorm.translation.runtime.state;
 
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
-
+import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.ValueState;
-
-import javax.annotation.Nullable;
-import java.io.IOException;
 
 /**
  * JStorm implementation of {@link ValueState}.

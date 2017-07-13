@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -26,10 +29,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, OutputT> {
     private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);

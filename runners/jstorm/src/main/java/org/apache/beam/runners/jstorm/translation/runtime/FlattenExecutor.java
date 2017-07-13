@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 public class FlattenExecutor<InputT> implements Executor {
 

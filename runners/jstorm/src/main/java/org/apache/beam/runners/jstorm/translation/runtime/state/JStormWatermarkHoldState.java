@@ -19,8 +19,8 @@ package org.apache.beam.runners.jstorm.translation.runtime.state;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.runners.jstorm.translation.runtime.TimerService;
 import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.jstorm.translation.runtime.TimerService;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.WatermarkHoldState;

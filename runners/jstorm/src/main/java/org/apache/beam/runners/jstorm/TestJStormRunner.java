@@ -1,22 +1,25 @@
 package org.apache.beam.runners.jstorm;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.common.metric.AsmMetric;
-import com.alibaba.jstorm.metric.*;
+import com.alibaba.jstorm.metric.AsmMetricRegistry;
+import com.alibaba.jstorm.metric.AsmWindow;
+import com.alibaba.jstorm.metric.JStormMetrics;
+import com.alibaba.jstorm.metric.MetaType;
+import com.alibaba.jstorm.metric.MetricType;
 import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Test JStorm runner.

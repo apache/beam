@@ -21,7 +21,6 @@ import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

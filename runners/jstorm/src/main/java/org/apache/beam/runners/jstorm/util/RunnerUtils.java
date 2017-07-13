@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.jstorm.util;
 
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.jstorm.translation.runtime.Executor;
-
 import org.apache.beam.runners.jstorm.translation.runtime.GroupByWindowExecutor;
 import org.apache.beam.runners.jstorm.translation.runtime.MultiStatefulDoFnExecutor;
 import org.apache.beam.runners.jstorm.translation.runtime.StatefulDoFnExecutor;
-import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 

@@ -19,7 +19,6 @@ package org.apache.beam.runners.jstorm.benchmark;
 
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.jstorm.translation.translator.ParDoTest;
 import com.alibaba.jstorm.common.metric.AsmMetric;
 import com.alibaba.jstorm.metric.AsmWindow;
 import com.alibaba.jstorm.metric.JStormMetrics;
@@ -28,6 +27,7 @@ import com.alibaba.jstorm.metric.MetricType;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.runners.jstorm.translation.translator.ParDoTest;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Counter;

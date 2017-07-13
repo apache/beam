@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.jstorm.translation.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.IOException;
 import org.apache.beam.runners.core.ExecutionContext;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.io.IOException;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Default StepContext for running DoFn This does not allow accessing state or timer internals.

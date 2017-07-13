@@ -1,12 +1,16 @@
 package org.apache.beam.runners.jstorm.serialization;
 
 import backtype.storm.Config;
-import org.apache.beam.runners.jstorm.util.RunnerUtils;
 import com.alibaba.jstorm.esotericsoftware.kryo.Kryo;
 import com.alibaba.jstorm.esotericsoftware.kryo.Serializer;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
-import com.google.common.collect.*;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Table;
+import org.apache.beam.runners.jstorm.util.RunnerUtils;
 
 public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
 

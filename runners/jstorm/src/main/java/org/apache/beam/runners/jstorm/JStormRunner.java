@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.jstorm;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
@@ -31,8 +29,6 @@ import backtype.storm.tuple.Fields;
 import com.alibaba.jstorm.cache.KvStoreIterable;
 import com.alibaba.jstorm.cluster.StormConfig;
 import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
-import com.alibaba.jstorm.utils.JStormUtils;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.jstorm.serialization.ImmutableListSerializer;
@@ -54,12 +50,9 @@ import org.apache.beam.runners.jstorm.translation.runtime.UnboundedSourceSpout;
 import org.apache.beam.runners.jstorm.translation.translator.Stream;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

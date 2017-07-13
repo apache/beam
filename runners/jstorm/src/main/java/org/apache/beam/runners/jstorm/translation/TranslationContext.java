@@ -17,19 +17,29 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import avro.shaded.com.google.common.collect.Lists;
-import org.apache.beam.runners.jstorm.JStormPipelineOptions;
-import org.apache.beam.runners.jstorm.translation.translator.Stream;
-import org.apache.beam.runners.jstorm.util.RunnerUtils;
-import com.google.common.base.Strings;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicSpout;
 import org.apache.beam.runners.jstorm.translation.runtime.Executor;
+import org.apache.beam.runners.jstorm.translation.runtime.ExecutorsBolt;
+import org.apache.beam.runners.jstorm.translation.translator.Stream;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
+import org.apache.beam.runners.jstorm.util.RunnerUtils;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.PValueBase;
@@ -37,13 +47,6 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.beam.runners.jstorm.translation.runtime.ExecutorsBolt;
-
-import java.util.*;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Maintains the state necessary during Pipeline translation to build a Storm topology.

@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.jstorm.translation.util;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.sdk.values.PCollectionView;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * No-op SideInputReader implementation.

@@ -7,7 +7,6 @@ import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;

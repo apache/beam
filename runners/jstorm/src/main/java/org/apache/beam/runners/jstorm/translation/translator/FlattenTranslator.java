@@ -18,15 +18,13 @@
 package org.apache.beam.runners.jstorm.translation.translator;
 
 import com.google.common.collect.Maps;
-import org.apache.beam.sdk.transforms.Flatten;
-
+import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.FlattenExecutor;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.Map;
 
 public class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollections<V>> {
 

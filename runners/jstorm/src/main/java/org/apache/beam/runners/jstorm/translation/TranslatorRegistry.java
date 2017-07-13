@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.translator.BoundedSourceTranslator;
 import org.apache.beam.runners.jstorm.translation.translator.FlattenTranslator;
 import org.apache.beam.runners.jstorm.translation.translator.GroupByKeyTranslator;
@@ -34,9 +36,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Lookup table mapping PTransform types to associated TransformTranslator implementations.

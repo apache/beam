@@ -17,21 +17,20 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime.state;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
 import com.alibaba.jstorm.cache.KvStoreIterable;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * JStorm implementation of {@link BagState}.

@@ -6,7 +6,11 @@ import com.alibaba.jstorm.esotericsoftware.kryo.Kryo;
 import com.alibaba.jstorm.esotericsoftware.kryo.Serializer;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
-import org.apache.beam.sdk.repackaged.com.google.common.collect.*;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.HashBasedTable;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableTable;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.Lists;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.Table;
 
 public class SdkRepackImmuListSerializer extends Serializer<ImmutableList<Object>> {
 

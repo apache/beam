@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
-
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
 
 /*
  * Enable user to add output stream definitions by API, rather than hard-code.

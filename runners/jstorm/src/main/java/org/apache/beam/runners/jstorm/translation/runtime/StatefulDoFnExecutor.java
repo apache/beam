@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.state.JStormStateInternals;
 import org.apache.beam.runners.jstorm.translation.runtime.timer.JStormTimerInternals;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -28,10 +31,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 public class StatefulDoFnExecutor<OutputT> extends DoFnExecutor<KV, OutputT> {
     public StatefulDoFnExecutor(

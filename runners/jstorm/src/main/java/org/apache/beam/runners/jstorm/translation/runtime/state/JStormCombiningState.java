@@ -20,7 +20,6 @@ package org.apache.beam.runners.jstorm.translation.runtime.state;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.ReadableState;

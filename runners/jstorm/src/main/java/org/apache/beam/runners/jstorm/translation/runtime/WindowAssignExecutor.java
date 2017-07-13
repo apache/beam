@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Iterables;
+import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -25,10 +28,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Collection;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public class WindowAssignExecutor<T, W extends BoundedWindow> implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(WindowAssignExecutor.class);

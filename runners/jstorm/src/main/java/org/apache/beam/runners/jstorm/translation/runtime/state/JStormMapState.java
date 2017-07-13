@@ -18,14 +18,13 @@
 package org.apache.beam.runners.jstorm.translation.runtime.state;
 
 import com.alibaba.jstorm.cache.IKvStore;
+import java.io.IOException;
+import java.util.Map;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Map;
 
 public class JStormMapState<K, V> implements MapState<K, V> {
     private static final Logger LOG = LoggerFactory.getLogger(JStormMapState.class);

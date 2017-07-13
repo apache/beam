@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
+import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.WindowAssignExecutor;
 import org.apache.beam.sdk.transforms.windowing.Window;
-
-import org.apache.beam.runners.jstorm.translation.TranslationContext;
 
 public class WindowAssignTranslator<T> extends TransformTranslator.Default<Window.Assign<T>> {
 

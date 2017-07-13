@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
-import org.apache.beam.runners.core.TimerInternals;
-import org.joda.time.Instant;
-
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.runners.core.TimerInternals;
+import org.joda.time.Instant;
 
 /**
  * Interface that tracks input watermarks and manages timers in each bolt.

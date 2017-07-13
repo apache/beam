@@ -18,14 +18,13 @@
 
 package org.apache.beam.runners.jstorm.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.options.PipelineOptions;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
-
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Encapsulates the PipelineOptions in serialized form to ship them to the cluster.
