@@ -78,6 +78,7 @@ public class GraphPlanner {
       workingPath.addFirst(groupByKey.getTransform());
       Graph.Edge edge = fusedGraph.addEdge(v, workingVertex);
       edge.addPath(workingPath);
+      processParent(groupByKey.getIncoming().iterator().next().getHead());
     }
 
     public Graph getFusedGraph() {

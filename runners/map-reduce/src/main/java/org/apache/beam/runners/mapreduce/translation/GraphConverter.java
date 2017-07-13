@@ -24,7 +24,7 @@ public class GraphConverter extends Pipeline.PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    Graph.Vertex v = new Graph.Vertex(node.getTransform());
+    Graph.Vertex v = graph.addVertex(node.getTransform());
 
     for (PValue input : node.getInputs().values()) {
       if (outputToProducer.containsKey(input)) {
@@ -36,5 +36,9 @@ public class GraphConverter extends Pipeline.PipelineVisitor.Defaults {
     for (PValue output : node.getOutputs().values()) {
       outputToProducer.put(output, v);
     }
+  }
+
+  public Graph getGraph() {
+    return graph;
   }
 }

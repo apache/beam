@@ -4,16 +4,21 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.lang.builder.ReflectionToStringBuilder;
+import org.apache.commons.lang.builder.ToStringStyle;
 
 /**
  * Created by peihe on 06/07/2017.
@@ -57,8 +62,16 @@ public class Graph {
     return edges.get(HeadTail.of(head, tail));
   }
 
-  public Set<Vertex> getLeafVertices() {
-    return leafVertices;
+  public Iterable<Vertex> getAllVertices() {
+    return vertices.values();
+  }
+
+  public Iterable<Edge> getAllEdges() {
+    return edges.values();
+  }
+
+  public Iterable<Vertex> getLeafVertices() {
+    return ImmutableList.copyOf(leafVertices);
   }
 
   public void accept(GraphVisitor visitor) {
@@ -122,6 +135,29 @@ public class Graph {
         throw new RuntimeException("Unexpected transform type: " + transform.getClass());
       }
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (obj instanceof Vertex) {
+        Vertex other = (Vertex) obj;
+        return transform.equals(other.transform);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.getClass(), transform);
+    }
+
+    @Override
+    public String toString() {
+      return new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+          .setExcludeFieldNames(new String[] { "outgoing", "incoming" }).toString();
+    }
   }
 
   public static class Edge {
@@ -156,6 +192,28 @@ public class Graph {
     public void addPath(NodePath path) {
       paths.add(checkNotNull(path, "path"));
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (obj instanceof Edge) {
+        Edge other = (Edge) obj;
+        return headTail.equals(other.headTail) && paths.equals(paths);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(headTail, paths);
+    }
+
+    @Override
+    public String toString() {
+      return ReflectionToStringBuilder.toString(this, ToStringStyle.SHORT_PREFIX_STYLE);
+    }
   }
 
   public static class NodePath {
@@ -175,6 +233,33 @@ public class Graph {
 
     public void addLast(PTransform<?, ?> transform) {
       path.addLast(transform);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (obj instanceof NodePath) {
+        NodePath other = (NodePath) obj;
+        return path.equals(other.path);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.getClass(), path.hashCode());
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      for (PTransform<?, ?> collect : path) {
+        sb.append(collect.getName() + "|");
+      }
+      // sb.deleteCharAt(sb.length() - 1);
+      return sb.toString();
     }
   }
 
