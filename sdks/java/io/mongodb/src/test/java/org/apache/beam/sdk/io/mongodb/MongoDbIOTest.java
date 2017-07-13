@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -169,6 +170,42 @@ public class MongoDbIOTest implements Serializable {
         .isEqualTo(1000L);
 
     PAssert.that(output
+        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
+          public KV<String, Void> apply(Document input) {
+            return KV.of(input.getString("scientist"), null);
+          }
+        }))
+        .apply("Count Scientist", Count.<String, Void>perKey())
+    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+      @Override
+      public Void apply(Iterable<KV<String, Long>> input) {
+        for (KV<String, Long> element : input) {
+          assertEquals(100L, element.getValue().longValue());
+        }
+        return null;
+      }
+    });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithCustomConnectionOptions() throws Exception {
+    MongoDbIO.Read read = MongoDbIO.read()
+        .withUri("mongodb://localhost:" + port)
+        .withKeepAlive(false)
+        .withMaxConnectionIdleTime(10)
+        .withDatabase(DATABASE)
+        .withCollection(COLLECTION);
+    assertFalse(read.keepAlive());
+    assertEquals(10, read.maxConnectionIdleTime());
+
+    PCollection<Document> documents = pipeline.apply(read);
+
+    PAssert.thatSingleton(documents.apply("Count All", Count.<Document>globally()))
+        .isEqualTo(1000L);
+
+    PAssert.that(documents
         .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
           public KV<String, Void> apply(Document input) {
             return KV.of(input.getString("scientist"), null);

@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
 
 
@@ -58,10 +57,10 @@ public class SparkTimerInternals implements TimerInternals {
   /** Build the {@link TimerInternals} according to the feeding streams. */
   public static SparkTimerInternals forStreamFromSources(
       List<Integer> sourceIds,
-      @Nullable Broadcast<Map<Integer, SparkWatermarks>> broadcast) {
-    // if broadcast is invalid for the specific ids, use defaults.
-    if (broadcast == null || broadcast.getValue().isEmpty()
-        || Collections.disjoint(sourceIds, broadcast.getValue().keySet())) {
+      Map<Integer, SparkWatermarks> watermarks) {
+    // if watermarks are invalid for the specific ids, use defaults.
+    if (watermarks == null || watermarks.isEmpty()
+        || Collections.disjoint(sourceIds, watermarks.keySet())) {
       return new SparkTimerInternals(
           BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(0));
     }
@@ -71,7 +70,7 @@ public class SparkTimerInternals implements TimerInternals {
     // synchronized processing time should clearly be synchronized.
     Instant synchronizedProcessingTime = null;
     for (Integer sourceId: sourceIds) {
-      SparkWatermarks sparkWatermarks = broadcast.getValue().get(sourceId);
+      SparkWatermarks sparkWatermarks = watermarks.get(sourceId);
       if (sparkWatermarks != null) {
         // keep slowest WMs.
         slowestLowWatermark = slowestLowWatermark.isBefore(sparkWatermarks.getLowWatermark())
@@ -94,10 +93,9 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   /** Build a global {@link TimerInternals} for all feeding streams.*/
-  public static SparkTimerInternals global(
-      @Nullable Broadcast<Map<Integer, SparkWatermarks>> broadcast) {
-    return broadcast == null ? forStreamFromSources(Collections.<Integer>emptyList(), null)
-        : forStreamFromSources(Lists.newArrayList(broadcast.getValue().keySet()), broadcast);
+  public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
+    return watermarks == null ? forStreamFromSources(Collections.<Integer>emptyList(), null)
+        : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
   Collection<TimerData> getTimers() {

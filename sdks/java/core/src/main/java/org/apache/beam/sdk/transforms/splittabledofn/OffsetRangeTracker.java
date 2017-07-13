@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.MoreObjects;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -98,5 +100,14 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
         range,
         lastAttemptedOffset + 1,
         range.getTo());
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("range", range)
+        .add("lastClaimedOffset", lastClaimedOffset)
+        .add("lastAttemptedOffset", lastAttemptedOffset)
+        .toString();
   }
 }

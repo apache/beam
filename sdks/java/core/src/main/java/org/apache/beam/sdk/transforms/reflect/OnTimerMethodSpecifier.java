@@ -15,28 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * A tuple of an element and a restriction applied to processing it with a
- * <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+ * Used by {@link ByteBuddyOnTimerInvokerFactory} to Dynamically generate
+ * {@link OnTimerInvoker} instances for invoking a particular
+ * {@link DoFn.TimerId} on a particular {@link DoFn}.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+
 @AutoValue
-public abstract class ElementAndRestriction<ElementT, RestrictionT> {
-  /** The element to process. */
-  public abstract ElementT element();
-
-  /** The restriction applied to processing the element. */
-  public abstract RestrictionT restriction();
-
-  /** Constructs the {@link ElementAndRestriction}. */
-  public static <InputT, RestrictionT> ElementAndRestriction<InputT, RestrictionT> of(
-      InputT element, RestrictionT restriction) {
-    return new AutoValue_ElementAndRestriction<>(element, restriction);
-  }
+abstract class OnTimerMethodSpecifier {
+    public abstract Class<? extends DoFn<?, ?>> fnClass();
+    public abstract String timerId();
+    public static OnTimerMethodSpecifier
+    forClassAndTimerId(Class<? extends DoFn<?, ?>> fnClass, String timerId){
+        return  new AutoValue_OnTimerMethodSpecifier(fnClass, timerId);
+    }
 }

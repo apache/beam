@@ -28,7 +28,7 @@ import Queue as queue
 import threading
 
 from apache_beam.coders import coder_impl
-from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
 import grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -167,12 +167,18 @@ class _GrpcDataChannel(DataChannel):
         yield data
 
   def output_stream(self, instruction_id, target):
+    # TODO: Return an output stream that sends data
+    # to the Runner once a fixed size buffer is full.
+    # Currently we buffer all the data before sending
+    # any messages.
     def add_to_send_queue(data):
-      self._to_send.put(
-          beam_fn_api_pb2.Elements.Data(
-              instruction_reference=instruction_id,
-              target=target,
-              data=data))
+      if data:
+        self._to_send.put(
+            beam_fn_api_pb2.Elements.Data(
+                instruction_reference=instruction_id,
+                target=target,
+                data=data))
+      # End of stream marker.
       self._to_send.put(
           beam_fn_api_pb2.Elements.Data(
               instruction_reference=instruction_id,
@@ -240,8 +246,8 @@ class DataChannelFactory(object):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def create_data_channel(self, function_spec):
-    """Returns a ``DataChannel`` from the given function_spec."""
+  def create_data_channel(self, remote_grpc_port):
+    """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
@@ -259,9 +265,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def __init__(self):
     self._data_channel_cache = {}
 
-  def create_data_channel(self, function_spec):
-    remote_grpc_port = beam_fn_api_pb2.RemoteGrpcPort()
-    function_spec.data.Unpack(remote_grpc_port)
+  def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
       logging.info('Creating channel for %s', url)
@@ -283,7 +287,7 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   def __init__(self, in_memory_data_channel):
     self._in_memory_data_channel = in_memory_data_channel
 
-  def create_data_channel(self, unused_function_spec):
+  def create_data_channel(self, unused_remote_grpc_port):
     return self._in_memory_data_channel
 
   def close(self):

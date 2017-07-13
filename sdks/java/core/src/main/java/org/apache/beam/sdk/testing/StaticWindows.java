@@ -126,4 +126,9 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
       }
     };
   }
+
+  @Override
+  public boolean assignsToOneWindow() {
+    return true;
+  }
 }

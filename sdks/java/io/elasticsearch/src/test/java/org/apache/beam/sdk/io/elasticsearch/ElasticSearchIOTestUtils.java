@@ -17,19 +17,17 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeRequest;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.IndicesAdminClient;
-import org.elasticsearch.client.Requests;
-import org.elasticsearch.index.IndexNotFoundException;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticSearchIOTestUtils {
@@ -41,57 +39,68 @@ class ElasticSearchIOTestUtils {
   }
 
   /** Deletes the given index synchronously. */
-  static void deleteIndex(String index, Client client) throws Exception {
-    IndicesAdminClient indices = client.admin().indices();
-    IndicesExistsResponse indicesExistsResponse =
-        indices.exists(new IndicesExistsRequest(index)).get();
-    if (indicesExistsResponse.isExists()) {
-      indices.prepareClose(index).get();
-      indices.delete(Requests.deleteIndexRequest(index)).get();
+  static void deleteIndex(String index, RestClient restClient) throws IOException {
+    try {
+      restClient.performRequest("DELETE", String.format("/%s", index), new BasicHeader("", ""));
+    } catch (IOException e) {
+      // it is fine to ignore this expression as deleteIndex occurs in @before,
+      // so when the first tests is run, the index does not exist yet
+      if (!e.getMessage().contains("index_not_found_exception")){
+        throw e;
+      }
     }
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
-  static void insertTestDocuments(String index, String type, long numDocs, Client client)
-      throws Exception {
-    final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk().setRefresh(true);
+  static void insertTestDocuments(String index, String type, long numDocs, RestClient restClient)
+      throws IOException {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    StringBuilder bulkRequest = new StringBuilder();
     for (String document : data) {
-      bulkRequestBuilder.add(client.prepareIndex(index, type, null).setSource(document));
+      bulkRequest.append(String.format("{ \"index\" : {} }%n%s%n", document));
     }
-    final BulkResponse bulkResponse = bulkRequestBuilder.execute().actionGet();
-    if (bulkResponse.hasFailures()) {
+    String endPoint = String.format("/%s/%s/_bulk", index, type);
+    HttpEntity requestBody =
+        new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
+    Response response = restClient.performRequest("POST", endPoint,
+        Collections.singletonMap("refresh", "true"), requestBody,
+        new BasicHeader("", ""));
+    JsonNode searchResult = ElasticsearchIO.parseResponse(response);
+    boolean errors = searchResult.path("errors").asBoolean();
+    if (errors){
       throw new IOException(
-          String.format(
-              "Cannot insert test documents in index %s : %s",
-              index, bulkResponse.buildFailureMessage()));
+          String.format("Failed to insert test documents in index %s", index));
     }
   }
 
   /**
-   * Forces an upgrade of the given index to make recently inserted documents available for search.
+   * Forces a refresh of the given index to make recently inserted documents available for search.
    *
    * @return The number of docs in the index
    */
-  static long upgradeIndexAndGetCurrentNumDocs(String index, String type, Client client) {
+  static long refreshIndexAndGetCurrentNumDocs(String index, String type, RestClient restClient)
+      throws IOException {
+    long result = 0;
     try {
-      client.admin().indices().upgrade(new UpgradeRequest(index)).actionGet();
-      SearchResponse response =
-          client.prepareSearch(index).setTypes(type).execute().actionGet(5000);
-      return response.getHits().getTotalHits();
+      String endPoint = String.format("/%s/_refresh", index);
+      restClient.performRequest("POST", endPoint, new BasicHeader("", ""));
+
+      endPoint = String.format("/%s/%s/_search", index, type);
+      Response response = restClient.performRequest("GET", endPoint, new BasicHeader("", ""));
+      JsonNode searchResult = ElasticsearchIO.parseResponse(response);
+      result = searchResult.path("hits").path("total").asLong();
+    } catch (IOException e) {
       // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
       // we call upgrade before any doc have been written
       // (when there are fewer docs processed than batchSize).
       // In that cases index/type has not been created (created upon first doc insertion)
-    } catch (IndexNotFoundException e) {
-    } catch (java.lang.IllegalArgumentException e) {
-      if (!e.getMessage().contains("No search type")) {
+      if (!e.getMessage().contains("index_not_found_exception")){
         throw e;
       }
     }
-    return 0;
+    return result;
   }
 
   /**

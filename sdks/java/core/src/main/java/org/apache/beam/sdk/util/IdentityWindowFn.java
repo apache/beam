@@ -116,4 +116,9 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   public Instant getOutputTime(Instant inputTimestamp, BoundedWindow window) {
     return inputTimestamp;
   }
+
+  @Override
+  public boolean assignsToOneWindow() {
+    return true;
+  }
 }

@@ -179,13 +179,12 @@ public class PTransformTranslation {
    * Returns the URN for the transform if it is known, otherwise throws.
    */
   public static String urnForTransform(PTransform<?, ?> transform) {
-    TransformPayloadTranslator translator = KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
-    if (translator == null) {
+    String urn = urnForTransformOrNull(transform);
+    if (urn == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
     }
-
-    return translator.getUrn(transform);
+    return urn;
   }
 
   /**

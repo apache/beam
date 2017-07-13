@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Iterables;
+
 import java.util.Iterator;
 import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,33 +36,34 @@ import org.mockito.runners.MockitoJUnitRunner;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisReaderCheckpointTest {
-    @Mock
-    private ShardCheckpoint a, b, c;
 
-    private KinesisReaderCheckpoint checkpoint;
+  @Mock
+  private ShardCheckpoint a, b, c;
 
-    @Before
-    public void setUp() {
-        checkpoint = new KinesisReaderCheckpoint(asList(a, b, c));
-    }
+  private KinesisReaderCheckpoint checkpoint;
 
-    @Test
-    public void splitsCheckpointAccordingly() {
-        verifySplitInto(1);
-        verifySplitInto(2);
-        verifySplitInto(3);
-        verifySplitInto(4);
-    }
+  @Before
+  public void setUp() {
+    checkpoint = new KinesisReaderCheckpoint(asList(a, b, c));
+  }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void isImmutable() {
-        Iterator<ShardCheckpoint> iterator = checkpoint.iterator();
-        iterator.remove();
-    }
+  @Test
+  public void splitsCheckpointAccordingly() {
+    verifySplitInto(1);
+    verifySplitInto(2);
+    verifySplitInto(3);
+    verifySplitInto(4);
+  }
 
-    private void verifySplitInto(int size) {
-        List<KinesisReaderCheckpoint> split = checkpoint.splitInto(size);
-        assertThat(Iterables.concat(split)).containsOnly(a, b, c);
-        assertThat(split).hasSize(Math.min(size, 3));
-    }
+  @Test(expected = UnsupportedOperationException.class)
+  public void isImmutable() {
+    Iterator<ShardCheckpoint> iterator = checkpoint.iterator();
+    iterator.remove();
+  }
+
+  private void verifySplitInto(int size) {
+    List<KinesisReaderCheckpoint> split = checkpoint.splitInto(size);
+    assertThat(Iterables.concat(split)).containsOnly(a, b, c);
+    assertThat(split).hasSize(Math.min(size, 3));
+  }
 }

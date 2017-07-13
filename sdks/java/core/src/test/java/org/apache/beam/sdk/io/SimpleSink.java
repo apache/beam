@@ -19,33 +19,55 @@ package org.apache.beam.sdk.io;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /**
- * A simple {@link FileBasedSink} that writes {@link String} values as lines with
- * header and footer.
+ * A simple {@link FileBasedSink} that writes {@link String} values as lines with header and footer.
  */
-class SimpleSink extends FileBasedSink<String> {
-  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix) {
-    this(baseOutputDirectory, prefix, template, suffix, CompressionType.UNCOMPRESSED);
+class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
+  public SimpleSink(
+      ResourceId tempDirectory,
+      DynamicDestinations<String, DestinationT> dynamicDestinations,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    super(StaticValueProvider.of(tempDirectory), dynamicDestinations, writableByteChannelFactory);
   }
 
-  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix,
-                    WritableByteChannelFactory writableByteChannelFactory) {
-    super(
-        StaticValueProvider.of(baseOutputDirectory),
-        new DefaultFilenamePolicy(StaticValueProvider.of(prefix), template, suffix),
-        writableByteChannelFactory);
+  public static SimpleSink<Void> makeSimpleSink(
+      ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
+    return new SimpleSink<>(
+        tempDirectory,
+        DynamicFileDestinations.<String>constant(filenamePolicy),
+        CompressionType.UNCOMPRESSED);
+  }
+
+  public static SimpleSink<Void> makeSimpleSink(
+      ResourceId baseDirectory,
+      String prefix,
+      String shardTemplate,
+      String suffix,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    DynamicDestinations<String, Void> dynamicDestinations =
+        DynamicFileDestinations.constant(
+            DefaultFilenamePolicy.fromParams(
+                new Params()
+                    .withBaseFilename(
+                        baseDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE))
+                    .withShardTemplate(shardTemplate)
+                    .withSuffix(suffix)));
+    return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
   }
 
   @Override
-  public SimpleWriteOperation createWriteOperation() {
-    return new SimpleWriteOperation(this);
+  public SimpleWriteOperation<DestinationT> createWriteOperation() {
+    return new SimpleWriteOperation<>(this);
   }
 
-  static final class SimpleWriteOperation extends WriteOperation<String> {
+  static final class SimpleWriteOperation<DestinationT>
+      extends WriteOperation<String, DestinationT> {
     public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
       super(sink, tempOutputDirectory);
     }
@@ -55,12 +77,12 @@ class SimpleSink extends FileBasedSink<String> {
     }
 
     @Override
-    public SimpleWriter createWriter() throws Exception {
-      return new SimpleWriter(this);
+    public SimpleWriter<DestinationT> createWriter() throws Exception {
+      return new SimpleWriter<>(this);
     }
   }
 
-  static final class SimpleWriter extends Writer<String> {
+  static final class SimpleWriter<DestinationT> extends Writer<String, DestinationT> {
     static final String HEADER = "header";
     static final String FOOTER = "footer";
 

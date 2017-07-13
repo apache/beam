@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -53,8 +54,10 @@ public interface DoFnInvoker<InputT, OutputT> {
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
+   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
+   *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
-  void invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
+  DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
   /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
   void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
@@ -100,7 +103,12 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     BoundedWindow window();
 
-    /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
+    /** Provide {@link PipelineOptions}. */
+    PipelineOptions pipelineOptions();
+
+    /**
+     * Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}.
+     */
     DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.FinishBundleContext} to use with the given {@link DoFn}. */
@@ -134,6 +142,11 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
       return null;
     }
 

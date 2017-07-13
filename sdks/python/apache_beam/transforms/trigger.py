@@ -33,9 +33,10 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.runners.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import TIME_GRANULARITY
 
 # AfterCount is experimental. No backwards compatibility guarantees.
 
@@ -1066,6 +1067,8 @@ class InMemoryUnmergedState(UnmergedState):
 
   def clear_timer(self, window, name, time_domain):
     self.timers[window].pop((name, time_domain), None)
+    if not self.timers[window]:
+      del self.timers[window]
 
   def get_window(self, window_id):
     return window_id
@@ -1102,16 +1105,33 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP):
     expired = []
     for window, timers in list(self.timers.items()):
       for (name, time_domain), timestamp in list(timers.items()):
         if timestamp <= watermark:
           expired.append((window, (name, time_domain, timestamp)))
-          del timers[(name, time_domain)]
-      if not timers:
+          if clear:
+            del timers[(name, time_domain)]
+      if not timers and clear:
         del self.timers[window]
     return expired
+
+  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
+    return self.get_timers(clear=True, watermark=watermark)
+
+  def get_earliest_hold(self):
+    earliest_hold = MAX_TIMESTAMP
+    for unused_window, tagged_states in self.state.iteritems():
+      # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
+      # named "watermark".  This is currently only true because the only place
+      # watermark holds are set is in the GeneralTriggerDriver, where we use
+      # this name.  We should fix this by allowing enumeration of the tag types
+      # used in adding state.
+      if 'watermark' in tagged_states and tagged_states['watermark']:
+        hold = min(tagged_states['watermark']) - TIME_GRANULARITY
+        earliest_hold = min(earliest_hold, hold)
+    return earliest_hold
 
   def __repr__(self):
     state_str = '\n'.join('%s: %s' % (key, dict(state))

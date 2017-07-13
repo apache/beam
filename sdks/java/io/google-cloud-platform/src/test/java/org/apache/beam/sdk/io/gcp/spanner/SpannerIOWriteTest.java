@@ -17,31 +17,24 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
-import com.google.api.core.ApiFuture;
-import com.google.cloud.ServiceFactory;
-import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import javax.annotation.concurrent.GuardedBy;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,14 +44,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
-
 
 /**
  * Unit tests for {@link SpannerIO}.
  */
 @RunWith(JUnit4.class)
-public class SpannerIOTest implements Serializable {
+public class SpannerIOWriteTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -114,9 +105,31 @@ public class SpannerIOTest implements Serializable {
   }
 
   @Test
-  public void batching() throws Exception {
+  @Category(NeedsRunner.class)
+  public void singleMutationGroupPipeline() throws Exception {
     Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
     Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
+    Mutation three = Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build();
+    PCollection<MutationGroup> mutations = pipeline
+        .apply(Create.<MutationGroup>of(g(one, two, three)));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .grouped());
+    pipeline.run();
+    verify(serviceFactory.mockSpanner())
+        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(argThat(new IterableOfSize(3)));
+  }
+
+  @Test
+  public void batching() throws Exception {
+    MutationGroup one = g(Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build());
+    MutationGroup two = g(Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build());
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
@@ -124,8 +137,8 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(1000000000)
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
-    DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
+    DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two));
 
     verify(serviceFactory.mockSpanner())
@@ -136,9 +149,9 @@ public class SpannerIOTest implements Serializable {
 
   @Test
   public void batchingGroups() throws Exception {
-    Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
-    Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
-    Mutation three = Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build();
+    MutationGroup one = g(Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build());
+    MutationGroup two = g(Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build());
+    MutationGroup three = g(Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build());
 
     // Have a room to accumulate one more item.
     long batchSize = MutationSizeEstimator.sizeOf(one) + 1;
@@ -150,8 +163,8 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(batchSize)
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
-    DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
+    DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two, three));
 
     verify(serviceFactory.mockSpanner())
@@ -164,8 +177,8 @@ public class SpannerIOTest implements Serializable {
 
   @Test
   public void noBatching() throws Exception {
-    Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
-    Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
+    MutationGroup one = g(Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build());
+    MutationGroup two = g(Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build());
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
@@ -173,8 +186,8 @@ public class SpannerIOTest implements Serializable {
             .withDatabaseId("test-database")
             .withBatchSizeBytes(0) // turn off batching.
             .withServiceFactory(serviceFactory);
-    SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
-    DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
+    DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.processBundle(Arrays.asList(one, two));
 
     verify(serviceFactory.mockSpanner())
@@ -183,50 +196,47 @@ public class SpannerIOTest implements Serializable {
         .writeAtLeastOnce(argThat(new IterableOfSize(1)));
   }
 
-  private static class FakeServiceFactory
-      implements ServiceFactory<Spanner, SpannerOptions>, Serializable {
-    // Marked as static so they could be returned by serviceFactory, which is serializable.
-    private static final Object lock = new Object();
+  @Test
+  public void groups() throws Exception {
+    Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
+    Mutation three = Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build();
 
-    @GuardedBy("lock")
-    private static final List<Spanner> mockSpanners = new ArrayList<>();
+    // Smallest batch size
+    long batchSize = 1;
 
-    @GuardedBy("lock")
-    private static final List<DatabaseClient> mockDatabaseClients = new ArrayList<>();
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(batchSize)
+            .withServiceFactory(serviceFactory);
+    SpannerWriteGroupFn writerFn = new SpannerWriteGroupFn(write);
+    DoFnTester<MutationGroup, Void> fnTester = DoFnTester.of(writerFn);
+    fnTester.processBundle(Arrays.asList(g(one, two, three)));
 
-    @GuardedBy("lock")
-    private static int count = 0;
+    verify(serviceFactory.mockSpanner())
+        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(argThat(new IterableOfSize(3)));
+  }
 
-    private final int index;
+  @Test
+  public void displayData() throws Exception {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123);
 
-    public FakeServiceFactory() {
-      synchronized (lock) {
-        index = count++;
-        mockSpanners.add(mock(Spanner.class, withSettings().serializable()));
-        mockDatabaseClients.add(mock(DatabaseClient.class, withSettings().serializable()));
-      }
-      ApiFuture voidFuture = mock(ApiFuture.class, withSettings().serializable());
-      when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
-          .thenReturn(mockDatabaseClient());
-      when(mockSpanner().closeAsync()).thenReturn(voidFuture);
-    }
-
-    DatabaseClient mockDatabaseClient() {
-      synchronized (lock) {
-        return mockDatabaseClients.get(index);
-      }
-    }
-
-    Spanner mockSpanner() {
-      synchronized (lock) {
-        return mockSpanners.get(index);
-      }
-    }
-
-    @Override
-    public Spanner create(SpannerOptions serviceOptions) {
-      return mockSpanner();
-    }
+    DisplayData data = DisplayData.from(write);
+    assertThat(data.items(), hasSize(4));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
   }
 
   private static class IterableOfSize extends ArgumentMatcher<Iterable<Mutation>> {
@@ -240,5 +250,9 @@ public class SpannerIOTest implements Serializable {
     public boolean matches(Object argument) {
       return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
     }
+  }
+
+  private static MutationGroup g(Mutation m, Mutation... other) {
+    return MutationGroup.create(m, other);
   }
 }

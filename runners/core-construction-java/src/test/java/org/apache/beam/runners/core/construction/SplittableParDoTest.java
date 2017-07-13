@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
@@ -24,8 +25,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -70,7 +69,6 @@ public class SplittableParDoTest {
     public void checkDone() {}
   }
 
-  @BoundedPerElement
   private static class BoundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
@@ -81,10 +79,12 @@ public class SplittableParDoTest {
     }
   }
 
-  @UnboundedPerElement
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
-    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
+    public ProcessContinuation processElement(
+        ProcessContext context, SomeRestrictionTracker tracker) {
+      return stop();
+    }
 
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
@@ -122,14 +122,14 @@ public class SplittableParDoTest {
         "Applying a bounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("bounded to bounded", new SplittableParDo<>(makeParDo(boundedFn)))
+            .apply("bounded to bounded", SplittableParDo.forJavaParDo(makeParDo(boundedFn)))
             .get(MAIN_OUTPUT_TAG)
             .isBounded());
     assertEquals(
         "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("bounded to unbounded", new SplittableParDo<>(makeParDo(boundedFn)))
+            .apply("bounded to unbounded", SplittableParDo.forJavaParDo(makeParDo(boundedFn)))
             .get(MAIN_OUTPUT_TAG)
             .isBounded());
   }
@@ -143,14 +143,14 @@ public class SplittableParDoTest {
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("unbounded to bounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .apply("unbounded to bounded", SplittableParDo.forJavaParDo(makeParDo(unboundedFn)))
             .get(MAIN_OUTPUT_TAG)
             .isBounded());
     assertEquals(
         "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("unbounded to unbounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .apply("unbounded to unbounded", SplittableParDo.forJavaParDo(makeParDo(unboundedFn)))
             .get(MAIN_OUTPUT_TAG)
             .isBounded());
   }

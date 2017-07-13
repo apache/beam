@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.2.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -43,37 +43,6 @@
       </plugin>
     </plugins>
   </build>
-
-  <properties>
-    <!--
-      This is the version of Hadoop used to compile the hadoop-common module.
-      This dependency is defined with a provided scope.
-      Users must supply their own Hadoop version at runtime.
-    -->
-    <hadoop.version>2.7.3</hadoop.version>
-  </properties>
-
-  <dependencyManagement>
-    <!--
-       We define dependencies here instead of sdks/java/io because
-       of a version mimatch between this Hadoop version and other
-       Hadoop versions declared in other io submodules.
-    -->
-    <dependencies>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-hdfs</artifactId>
-        <classifier>tests</classifier>
-        <version>${hadoop.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-minicluster</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <dependency>

@@ -71,6 +71,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -201,11 +203,31 @@ public class DatastoreV1 {
   DatastoreV1() {}
 
   /**
-   * Cloud Datastore has a limit of 500 mutations per batch operation, so we flush
-   * changes to Datastore every 500 entities.
+   * The number of entity updates written per RPC, initially. We buffer updates in the connector and
+   * write a batch to Datastore once we have collected a certain number. This is the initial batch
+   * size; it is adjusted at runtime based on the performance of previous writes (see {@link
+   * DatastoreV1.WriteBatcher}).
+   *
+   * <p>Testing has found that a batch of 200 entities will generally finish within the timeout even
+   * in adverse conditions.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_START = 200;
+
+  /**
+   * When choosing the number of updates in a single RPC, never exceed the maximum allowed by the
+   * API.
+   */
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT = 500;
+
+  /**
+   * When choosing the number of updates in a single RPC, do not go below this value.  The actual
+   * number of entities per request may be lower when we flush for the end of a bundle or if we hit
+   * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
+   */
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 10;
 
   /**
    * Cloud Datastore has a limit of 10MB per RPC, so we also flush if the total size of mutations
@@ -213,7 +235,7 @@ public class DatastoreV1 {
    * the mutations themselves and not the CommitRequest wrapper around them.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 5_000_000;
+  static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 9_000_000;
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
@@ -1107,18 +1129,74 @@ public class DatastoreV1 {
     }
   }
 
+  /** Determines batch sizes for commit RPCs. */
+  @VisibleForTesting
+  interface WriteBatcher {
+    /** Call before using this WriteBatcher. */
+    void start();
+
+    /**
+     * Reports the latency of a previous commit RPC, and the number of mutations that it contained.
+     */
+    void addRequestLatency(long timeSinceEpochMillis, long latencyMillis, int numMutations);
+
+    /** Returns the number of entities to include in the next CommitRequest. */
+    int nextBatchSize(long timeSinceEpochMillis);
+  }
+
+  /**
+   * Determines batch sizes for commit RPCs based on past performance.
+   *
+   * <p>It aims for a target response time per RPC: it uses the response times for previous RPCs
+   * and the number of entities contained in them, calculates a rolling average time-per-entity, and
+   * chooses the number of entities for future writes to hit the target time.
+   *
+   * <p>This enables us to send large batches without sending over-large requests in the case of
+   * expensive entity writes that may timeout before the server can apply them all.
+   */
+  @VisibleForTesting
+  static class WriteBatcherImpl implements WriteBatcher, Serializable {
+    /** Target time per RPC for writes. */
+    static final int DATASTORE_BATCH_TARGET_LATENCY_MS = 5000;
+
+    @Override
+    public void start() {
+      meanLatencyPerEntityMs = new MovingAverage(
+          120000 /* sample period 2 minutes */, 10000 /* sample interval 10s */,
+          1 /* numSignificantBuckets */, 1 /* numSignificantSamples */);
+    }
+
+    @Override
+    public void addRequestLatency(long timeSinceEpochMillis, long latencyMillis, int numMutations) {
+      meanLatencyPerEntityMs.add(timeSinceEpochMillis, latencyMillis / numMutations);
+    }
+
+    @Override
+    public int nextBatchSize(long timeSinceEpochMillis) {
+      if (!meanLatencyPerEntityMs.hasValue(timeSinceEpochMillis)) {
+        return DATASTORE_BATCH_UPDATE_ENTITIES_START;
+      }
+      long recentMeanLatency = Math.max(meanLatencyPerEntityMs.get(timeSinceEpochMillis), 1);
+      return (int) Math.max(DATASTORE_BATCH_UPDATE_ENTITIES_MIN,
+          Math.min(DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT,
+            DATASTORE_BATCH_TARGET_LATENCY_MS / recentMeanLatency));
+    }
+
+    private transient MovingAverage meanLatencyPerEntityMs;
+  }
+
   /**
    * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
-   * batches, where the maximum batch size is {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}.
+   * batches; see {@link DatastoreV1.WriteBatcherImpl}.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities">
    * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}
+   * group, the commit will be retried (up to {@link DatastoreV1.DatastoreWriterFn#MAX_RETRIES}
    * times). This means that the mutation operation should be idempotent. Thus, the writer should
-   * only be used for {code upsert} and {@code delete} mutation operations, as these are the only
+   * only be used for {@code upsert} and {@code delete} mutation operations, as these are the only
    * two Cloud Datastore mutations that are idempotent.
    */
   @VisibleForTesting
@@ -1132,6 +1210,14 @@ public class DatastoreV1 {
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
     private int mutationsSize = 0;  // Accumulated size of protos in mutations.
+    private WriteBatcher writeBatcher;
+    private transient AdaptiveThrottler throttler;
+    private final Counter throttledSeconds =
+      Metrics.counter(DatastoreWriterFn.class, "cumulativeThrottlingSeconds");
+    private final Counter rpcErrors =
+      Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
+    private final Counter rpcSuccesses =
+      Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -1139,24 +1225,31 @@ public class DatastoreV1 {
             .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
     DatastoreWriterFn(String projectId, @Nullable String localhost) {
-      this(StaticValueProvider.of(projectId), localhost, new V1DatastoreFactory());
+      this(StaticValueProvider.of(projectId), localhost, new V1DatastoreFactory(),
+          new WriteBatcherImpl());
     }
 
     DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost) {
-      this(projectId, localhost, new V1DatastoreFactory());
+      this(projectId, localhost, new V1DatastoreFactory(), new WriteBatcherImpl());
     }
 
     @VisibleForTesting
     DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost,
-        V1DatastoreFactory datastoreFactory) {
+        V1DatastoreFactory datastoreFactory, WriteBatcher writeBatcher) {
       this.projectId = checkNotNull(projectId, "projectId");
       this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
+      this.writeBatcher = writeBatcher;
     }
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
+      writeBatcher.start();
+      if (throttler == null) {
+        // Initialize throttler at first use, because it is not serializable.
+        throttler = new AdaptiveThrottler(120000, 10000, 1.25);
+      }
     }
 
     @ProcessElement
@@ -1169,7 +1262,7 @@ public class DatastoreV1 {
       }
       mutations.add(c.element());
       mutationsSize += size;
-      if (mutations.size() >= DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT) {
+      if (mutations.size() >= writeBatcher.nextBatchSize(System.currentTimeMillis())) {
         flushBatch();
       }
     }
@@ -1199,18 +1292,42 @@ public class DatastoreV1 {
 
       while (true) {
         // Batch upsert entities.
+        CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+        commitRequest.addAllMutations(mutations);
+        commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+        long startTime = System.currentTimeMillis(), endTime;
+
+        if (throttler.throttleRequest(startTime)) {
+          LOG.info("Delaying request due to previous failures");
+          throttledSeconds.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS / 1000);
+          sleeper.sleep(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
+          continue;
+        }
+
         try {
-          CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          commitRequest.addAllMutations(mutations);
-          commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
           datastore.commit(commitRequest.build());
+          endTime = System.currentTimeMillis();
+
+          writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+          throttler.successfulRequest(startTime);
+          rpcSuccesses.inc();
+
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
+          if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
+            /* Most errors are not related to request size, and should not change our expectation of
+             * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
+             * consideration, though. */
+            endTime = System.currentTimeMillis();
+            writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
+          }
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
-          LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
-              exception.getMessage());
+          LOG.error("Error writing batch of {} mutations to Datastore ({}): {}", mutations.size(),
+              exception.getCode(), exception.getMessage());
+          rpcErrors.inc();
+
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;

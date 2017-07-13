@@ -21,6 +21,7 @@ import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.io.IOException;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -139,6 +141,18 @@ public class PCollectionViews {
   }
 
   /**
+   * Expands a list of {@link PCollectionView} into the form needed for
+   * {@link PTransform#getAdditionalInputs()}.
+   */
+  public static Map<TupleTag<?>, PValue> toAdditionalInputs(Iterable<PCollectionView<?>> views) {
+    ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+    for (PCollectionView<?> view : views) {
+      additionalInputs.put(view.getTagInternal(), view.getPCollection());
+    }
+    return additionalInputs.build();
+  }
+
+  /**
    * Implementation of conversion of singleton {@code Iterable<WindowedValue<T>>} to {@code T}.
    *
    * <p>For internal use only.
@@ -167,6 +181,15 @@ public class PCollectionViews {
           throw new RuntimeException("Unexpected IOException: ", e);
         }
       }
+    }
+
+    /**
+     * Returns if a default value was specified.
+     */
+    @Deprecated
+    @Internal
+    public boolean hasDefault() {
+      return hasDefault;
     }
 
     /**
@@ -272,6 +295,16 @@ public class PCollectionViews {
               return input.getValue();
             }
           }));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof ListViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return ListViewFn.class.hashCode();
     }
   }
 
@@ -490,6 +523,11 @@ public class PCollectionViews {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("tag", tag).toString();
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return Collections.<TupleTag<?>, PValue>singletonMap(tag, pCollection);
     }
   }
 }

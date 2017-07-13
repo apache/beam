@@ -49,9 +49,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -235,7 +237,7 @@ import org.slf4j.LoggerFactory;
  * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
  * otherwise it is set to processing time.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
@@ -904,6 +906,22 @@ public class KafkaIO {
       return name;
     }
 
+    // Maintains approximate average over last 1000 elements
+    private static class MovingAvg {
+      private static final int MOVING_AVG_WINDOW = 1000;
+      private double avg = 0;
+      private long numUpdates = 0;
+
+      void update(double quantity) {
+        numUpdates++;
+        avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
+      }
+
+      double get() {
+        return avg;
+      }
+    }
+
     // maintains state of each assigned partition (buffered records, consumed offset, etc)
     private static class PartitionState {
       private final TopicPartition topicPartition;
@@ -911,9 +929,8 @@ public class KafkaIO {
       private long latestOffset;
       private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-      // simple moving average for size of each record in bytes
-      private double avgRecordSize = 0;
-      private static final int movingAvgWindow = 1000; // very roughly avg of last 1000 elements
+      private MovingAvg avgRecordSize = new MovingAvg();
+      private MovingAvg avgOffsetGap = new MovingAvg(); // > 0 only when log compaction is enabled.
 
       PartitionState(TopicPartition partition, long nextOffset) {
         this.topicPartition = partition;
@@ -921,17 +938,13 @@ public class KafkaIO {
         this.latestOffset = UNINITIALIZED_OFFSET;
       }
 
-      // update consumedOffset and avgRecordSize
-      void recordConsumed(long offset, int size) {
+      // Update consumedOffset, avgRecordSize, and avgOffsetGap
+      void recordConsumed(long offset, int size, long offsetGap) {
         nextOffset = offset + 1;
 
-        // this is always updated from single thread. probably not worth making it an AtomicDouble
-        if (avgRecordSize <= 0) {
-          avgRecordSize = size;
-        } else {
-          // initially, first record heavily contributes to average.
-          avgRecordSize += ((size - avgRecordSize) / movingAvgWindow);
-        }
+        // This is always updated from single thread. Probably not worth making atomic.
+        avgRecordSize.update(size);
+        avgOffsetGap.update(offsetGap);
       }
 
       synchronized void setLatestOffset(long latestOffset) {
@@ -944,14 +957,15 @@ public class KafkaIO {
         if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return (long) (backlogMessageCount * avgRecordSize);
+        return (long) (backlogMessageCount * avgRecordSize.get());
       }
 
       synchronized long backlogMessageCount() {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return Math.max(0, (latestOffset - nextOffset));
+        double remaining = (latestOffset - nextOffset) / (1 + avgOffsetGap.get());
+        return Math.max(0, (long) Math.ceil(remaining));
       }
     }
 
@@ -1049,8 +1063,32 @@ public class KafkaIO {
       curBatch = Iterators.cycle(nonEmpty);
     }
 
+    private void setupInitialOffset(PartitionState pState) {
+      Read<K, V> spec = source.spec;
+
+      if (pState.nextOffset != UNINITIALIZED_OFFSET) {
+        consumer.seek(pState.topicPartition, pState.nextOffset);
+      } else {
+        // nextOffset is unininitialized here, meaning start reading from latest record as of now
+        // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
+        // Remember the current position without waiting until the first record is read. This
+        // ensures checkpoint is accurate even if the reader is closed before reading any records.
+        Instant startReadTime = spec.getStartReadTime();
+        if (startReadTime != null) {
+          pState.nextOffset =
+              consumerSpEL.offsetForTime(consumer, pState.topicPartition, spec.getStartReadTime());
+          consumer.seek(pState.topicPartition, pState.nextOffset);
+        } else {
+          pState.nextOffset = consumer.position(pState.topicPartition);
+        }
+      }
+    }
+
     @Override
     public boolean start() throws IOException {
+      final int defaultPartitionInitTimeout = 60 * 1000;
+      final int kafkaRequestTimeoutMultiple = 2;
+
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
       consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
@@ -1065,25 +1103,38 @@ public class KafkaIO {
       keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
       valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
 
-      for (PartitionState p : partitionStates) {
-        if (p.nextOffset != UNINITIALIZED_OFFSET) {
-          consumer.seek(p.topicPartition, p.nextOffset);
-        } else {
-          // nextOffset is unininitialized here, meaning start reading from latest record as of now
-          // ('latest' is the default, and is configurable) or 'look up offset by startReadTime.
-          // Remember the current position without waiting until the first record is read. This
-          // ensures checkpoint is accurate even if the reader is closed before reading any records.
-          Instant startReadTime = spec.getStartReadTime();
-          if (startReadTime != null) {
-            p.nextOffset =
-                consumerSpEL.offsetForTime(consumer, p.topicPartition, spec.getStartReadTime());
-            consumer.seek(p.topicPartition, p.nextOffset);
-          } else {
-            p.nextOffset = consumer.position(p.topicPartition);
+      // Seek to start offset for each partition. This is the first interaction with the server.
+      // Unfortunately it can block forever in case of network issues like incorrect ACLs.
+      // Initialize partition in a separate thread and cancel it if takes longer than a minute.
+      for (final PartitionState pState : partitionStates) {
+        Future<?> future =  consumerPollThread.submit(new Runnable() {
+          public void run() {
+            setupInitialOffset(pState);
           }
-        }
+        });
 
-        LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
+        try {
+          // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
+          Integer reqTimeout = (Integer) source.spec.getConsumerConfig().get(
+              ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
+          future.get(reqTimeout != null ? kafkaRequestTimeoutMultiple * reqTimeout
+                         : defaultPartitionInitTimeout,
+                     TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+          consumer.wakeup(); // This unblocks consumer stuck on network I/O.
+          // Likely reason : Kafka servers are configured to advertise internal ips, but
+          // those ips are not accessible from workers outside.
+          String msg = String.format(
+              "%s: Timeout while initializing partition '%s'. "
+                  + "Kafka client may not be able to connect to servers.",
+              this, pState.topicPartition);
+          LOG.error("{}", msg);
+          throw new IOException(msg);
+        } catch (Exception e) {
+          throw new IOException(e);
+        }
+        LOG.info("{}: reading from {} starting at offset {}",
+                 name, pState.topicPartition, pState.nextOffset);
       }
 
       // Start consumer read loop.
@@ -1154,14 +1205,11 @@ public class KafkaIO {
             continue;
           }
 
-          // sanity check
-          if (offset != expected) {
-            LOG.warn("{}: gap in offsets for {} at {}. {} records missing.",
-                this, pState.topicPartition, expected, offset - expected);
-          }
+          long offsetGap = offset - expected; // could be > 0 when Kafka log compaction is enabled.
 
           if (curRecord == null) {
             LOG.info("{}: first record offset {}", name, offset);
+            offsetGap = 0;
           }
 
           curRecord = null; // user coders below might throw.
@@ -1182,7 +1230,7 @@ public class KafkaIO {
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-          pState.recordConsumed(offset, recordSize);
+          pState.recordConsumed(offset, recordSize, offsetGap);
           bytesRead.inc(recordSize);
           bytesReadBySplit.inc(recordSize);
           return true;
@@ -1320,8 +1368,12 @@ public class KafkaIO {
       // might block to enqueue right after availableRecordsQueue.poll() below.
       while (!isShutdown) {
 
-        consumer.wakeup();
-        offsetConsumer.wakeup();
+        if (consumer != null) {
+          consumer.wakeup();
+        }
+        if (offsetConsumer != null) {
+          offsetConsumer.wakeup();
+        }
         availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
         try {
           isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
