@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator.math;
 
 import java.util.List;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.runtime.SqlFunctions;
@@ -54,8 +55,8 @@ public class BeamSqlTruncateExpression extends BeamSqlMathBinaryExpression {
             SqlFunctions.struncate(SqlFunctions.toDouble(leftOp.getValue()), rightIntOperand));
         break;
       case DECIMAL:
-        result = BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
-            SqlFunctions.struncate(leftOp.getDecimal(), rightIntOperand));
+        result = BeamSqlPrimitive
+            .of(SqlTypeName.DECIMAL, SqlFunctions.struncate(leftOp.getDecimal(), rightIntOperand));
         break;
       default:
         break;
