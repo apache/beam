@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.NameUtils;
@@ -94,12 +95,17 @@ public class Read {
     }
 
     @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return source.getDefaultOutputCoder();
+    }
+
+    @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
           WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-          .setCoder(source.getDefaultOutputCoder());
+          .setCoder(getDefaultOutputCoder());
     }
 
     /**
@@ -157,12 +163,16 @@ public class Read {
     }
 
     @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return source.getDefaultOutputCoder();
+    }
+
+    @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-          .setCoder(source.getDefaultOutputCoder());
+          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED);
     }
 
     /**
