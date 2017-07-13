@@ -21,29 +21,29 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Test JStorm runner.
  */
-public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineResult> {
+public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestJStormRunner.class);
 
     public static TestJStormRunner fromOptions(PipelineOptions options) {
-        return new TestJStormRunner(options.as(StormPipelineOptions.class));
+        return new TestJStormRunner(options.as(JStormPipelineOptions.class));
     }
 
-    private final StormRunner stormRunner;
-    private final StormPipelineOptions options;
+    private final JStormRunner stormRunner;
+    private final JStormPipelineOptions options;
 
-    private TestJStormRunner(StormPipelineOptions options) {
+    private TestJStormRunner(JStormPipelineOptions options) {
         this.options = options;
         Map conf = Maps.newHashMap();
         //conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
         options.setTopologyConfig(conf);
         options.setLocalMode(true);
-        stormRunner = StormRunner.fromOptions(checkNotNull(options, "options"));
+        stormRunner = JStormRunner.fromOptions(checkNotNull(options, "options"));
     }
 
     @Override
-    public StormRunner.StormPipelineResult run(Pipeline pipeline) {
-        StormRunner.StormPipelineResult result = stormRunner.run(pipeline);
+    public JStormRunnerResult run(Pipeline pipeline) {
+        JStormRunnerResult result = stormRunner.run(pipeline);
 
         try {
             int numberOfAssertions = PAssert.countAsserts(pipeline);
@@ -110,7 +110,7 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
         }
     }
 
-    private void cancel(StormRunner.StormPipelineResult result) {
+    private void cancel(JStormRunnerResult result) {
         try {
             result.cancel();
         } catch (IOException e) {

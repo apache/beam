@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jstorm.translation;
 
 import avro.shaded.com.google.common.collect.Lists;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.translator.Stream;
 import org.apache.beam.runners.jstorm.util.RunnerUtils;
 import com.google.common.base.Strings;
@@ -26,7 +27,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicSpout;
 import org.apache.beam.runners.jstorm.translation.runtime.Executor;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
@@ -54,7 +54,7 @@ public class TranslationContext {
     private final UserGraphContext userGraphContext;
     private final ExecutionGraphContext executionGraphContext;
 
-    public TranslationContext(StormPipelineOptions options) {
+    public TranslationContext(JStormPipelineOptions options) {
         this.userGraphContext = new UserGraphContext(options);
         this.executionGraphContext = new ExecutionGraphContext();
     }
@@ -227,18 +227,18 @@ public class TranslationContext {
 
     // TODO: add getSideInputs() and getSideOutputs().
     public static class UserGraphContext {
-        private final StormPipelineOptions options;
+        private final JStormPipelineOptions options;
         private final Map<PValue, TupleTag> pValueToTupleTag;
         private AppliedPTransform<?, ?, ?> currentTransform = null;
 
         private boolean isWindowed = false;
 
-        public UserGraphContext(StormPipelineOptions options) {
+        public UserGraphContext(JStormPipelineOptions options) {
             this.options = checkNotNull(options, "options");
             this.pValueToTupleTag = Maps.newHashMap();
         }
 
-        public StormPipelineOptions getOptions() {
+        public JStormPipelineOptions getOptions() {
             return this.options;
         }
 

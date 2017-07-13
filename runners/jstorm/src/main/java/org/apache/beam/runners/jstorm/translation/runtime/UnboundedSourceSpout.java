@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
 import com.alibaba.jstorm.utils.KryoSerializer;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -26,7 +27,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
 import org.apache.beam.runners.jstorm.util.SerializedPipelineOptions;
 
 import backtype.storm.spout.SpoutOutputCollector;
@@ -56,7 +56,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
     private final SerializedPipelineOptions serializedOptions;
     private final TupleTag<?> outputTag;
 
-    private transient StormPipelineOptions pipelineOptions;
+    private transient JStormPipelineOptions pipelineOptions;
     private transient UnboundedSource.UnboundedReader reader;
     private transient SpoutOutputCollector collector;
 
@@ -70,7 +70,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
     public UnboundedSourceSpout(
             String description,
             UnboundedSource source,
-            StormPipelineOptions options,
+            JStormPipelineOptions options,
             TupleTag<?> outputTag) {
         this.description = checkNotNull(description, "description");
         this.source = checkNotNull(source, "source");
@@ -118,7 +118,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         try {
             this.collector = collector;
-            this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(StormPipelineOptions.class);
+            this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
 
             createSourceReader(null);
 

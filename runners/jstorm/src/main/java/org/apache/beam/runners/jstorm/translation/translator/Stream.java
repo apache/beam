@@ -35,7 +35,8 @@ public abstract class Stream {
     public abstract Consumer getConsumer();
 
     public static Stream of(Producer producer, Consumer consumer) {
-        return new com.alibaba.jstorm.beam.translation.translator.AutoValue_Stream(producer, consumer);
+        return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream(
+            producer, consumer);
     }
 
     @AutoValue
@@ -45,7 +46,7 @@ public abstract class Stream {
         public abstract String getStreamName();
 
         public static Producer of(String componentId, String streamId, String streamName) {
-            return new com.alibaba.jstorm.beam.translation.translator.AutoValue_Stream_Producer(
+            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Producer(
                     componentId, streamId, streamName);
         }
     }
@@ -56,7 +57,7 @@ public abstract class Stream {
         public abstract Grouping getGrouping();
 
         public static Consumer of(String componentId, Grouping grouping) {
-            return new com.alibaba.jstorm.beam.translation.translator.AutoValue_Stream_Consumer(
+            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Consumer(
                     componentId, grouping);
         }
     }
@@ -70,14 +71,14 @@ public abstract class Stream {
 
         public static Grouping of(Type type) {
             checkArgument(!Type.FIELDS.equals(type), "Fields grouping should provide key fields.");
-            return new com.alibaba.jstorm.beam.translation.translator.AutoValue_Stream_Grouping(
+            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
                     type, null /* fields */);
         }
 
         public static Grouping byFields(List<String> fields) {
             checkNotNull(fields, "fields");
             checkArgument(!fields.isEmpty(), "No key fields were provided for field grouping!");
-            return new com.alibaba.jstorm.beam.translation.translator.AutoValue_Stream_Grouping(
+            return new org.apache.beam.runners.jstorm.translation.translator.AutoValue_Stream_Grouping(
                     Type.FIELDS, fields);
         }
 

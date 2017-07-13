@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.*;
 
 import avro.shaded.com.google.common.collect.Iterables;
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.state.JStormStateInternals;
 import org.apache.beam.runners.jstorm.translation.runtime.timer.JStormTimerInternals;
 
@@ -55,7 +56,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.util.DefaultStepContext;
 import org.apache.beam.runners.jstorm.util.SerializedPipelineOptions;
 
@@ -89,7 +89,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected final List<TupleTag<?>> sideOutputTags;
 
     protected SerializedPipelineOptions serializedOptions;
-    protected transient StormPipelineOptions pipelineOptions;
+    protected transient JStormPipelineOptions pipelineOptions;
 
     protected DoFn<InputT, OutputT> doFn;
     protected final Coder<WindowedValue<InputT>> inputCoder;
@@ -115,7 +115,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     public DoFnExecutor(
             String stepName,
             String description,
-            StormPipelineOptions pipelineOptions,
+            JStormPipelineOptions pipelineOptions,
             DoFn<InputT, OutputT> doFn,
             Coder<WindowedValue<InputT>> inputCoder,
             WindowingStrategy<?, ?> windowingStrategy,
@@ -166,7 +166,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     public void init(ExecutorContext context) {
         this.executorContext = context;
         this.executorsBolt = context.getExecutorsBolt();
-        this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(StormPipelineOptions.class);
+        this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
 
         initService(context);
 

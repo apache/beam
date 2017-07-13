@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
-
-import org.apache.beam.runners.jstorm.StormRunner;
 import org.apache.beam.runners.jstorm.TestJStormRunner;
 import com.google.common.base.MoreObjects;
 import org.apache.beam.sdk.Pipeline;

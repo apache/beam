@@ -20,6 +20,7 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 import java.io.Serializable;
 import java.util.List;
 
+import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.runtime.state.JStormStateInternals;
 import org.apache.beam.runners.jstorm.translation.runtime.timer.JStormTimerInternals;
 import com.google.common.collect.ImmutableList;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
-import org.apache.beam.runners.jstorm.StormPipelineOptions;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.TranslationContext.UserGraphContext;
 import org.apache.beam.runners.jstorm.util.RunnerUtils;
@@ -74,7 +74,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
             String stepName,
             String description,
             TranslationContext context,
-            StormPipelineOptions pipelineOptions,
+            JStormPipelineOptions pipelineOptions,
             WindowingStrategy<?, ?> windowingStrategy,
             TupleTag<KV<K, Iterable<V>>> mainTupleTag, List<TupleTag<?>> sideOutputTags) {
         // The doFn will be created when runtime. Just pass "null" here

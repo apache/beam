@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.jstorm;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import backtype.storm.Config;
+import backtype.storm.LocalCluster;
+import com.alibaba.jstorm.utils.JStormUtils;
 import java.io.IOException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -26,29 +31,78 @@ import org.joda.time.Duration;
  * A {@link PipelineResult} of executing {@link org.apache.beam.sdk.Pipeline Pipelines} using
  * {@link JStormRunner}.
  */
-public class JStormRunnerResult implements PipelineResult {
-    @Override
+public abstract class JStormRunnerResult implements PipelineResult {
+
+    public static JStormRunnerResult local(
+        String topologyName,
+        Config config,
+        LocalCluster localCluster,
+        long localModeExecuteTimeSecs) {
+        return new LocalStormPipelineResult(
+            topologyName, config, localCluster, localModeExecuteTimeSecs);
+    }
+
+    private final String topologyName;
+    private final Config config;
+
+    JStormRunnerResult(String topologyName, Config config) {
+        this.config = checkNotNull(config, "config");
+        this.topologyName = checkNotNull(topologyName, "topologyName");
+    }
+
     public State getState() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+        return null;
     }
 
-    @Override
-    public State cancel() throws IOException {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+    public Config getConfig() {
+        return config;
     }
 
-    @Override
-    public State waitUntilFinish(Duration duration) {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+    public String getTopologyName() {
+        return topologyName;
     }
 
-    @Override
-    public State waitUntilFinish() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
-    }
+    private static class LocalStormPipelineResult extends JStormRunnerResult {
 
-    @Override
-    public MetricResults metrics() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+        private LocalCluster localCluster;
+        private long localModeExecuteTimeSecs;
+
+        LocalStormPipelineResult(
+            String topologyName,
+            Config config,
+            LocalCluster localCluster,
+            long localModeExecuteTimeSecs) {
+            super(topologyName, config);
+            this.localCluster = checkNotNull(localCluster, "localCluster");
+        }
+
+        @Override
+        public State cancel() throws IOException {
+          //localCluster.deactivate(getTopologyName());
+          localCluster.killTopology(getTopologyName());
+          localCluster.shutdown();
+          JStormUtils.sleepMs(1000);
+          return State.CANCELLED;
+        }
+
+        @Override
+        public State waitUntilFinish(Duration duration) {
+            return waitUntilFinish();
+        }
+
+        @Override
+        public State waitUntilFinish() {
+            JStormUtils.sleepMs(localModeExecuteTimeSecs * 1000);
+            try {
+                return cancel();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public MetricResults metrics() {
+            return null;
+        }
     }
 }
