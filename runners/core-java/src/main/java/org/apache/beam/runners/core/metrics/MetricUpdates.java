@@ -35,7 +35,8 @@ public abstract class MetricUpdates {
   public static final MetricUpdates EMPTY = MetricUpdates.create(
       Collections.<MetricUpdate<Long>>emptyList(),
       Collections.<MetricUpdate<DistributionData>>emptyList(),
-      Collections.<MetricUpdate<GaugeData>>emptyList());
+      Collections.<MetricUpdate<GaugeData>>emptyList(),
+      Collections.<MetricUpdate<MeterData>>emptyList());
 
   /**
    * Representation of a single metric update.
@@ -57,7 +58,8 @@ public abstract class MetricUpdates {
   /** Returns true if there are no updates in this MetricUpdates object. */
   public boolean isEmpty() {
     return Iterables.isEmpty(counterUpdates())
-        && Iterables.isEmpty(distributionUpdates());
+        && Iterables.isEmpty(distributionUpdates())
+        && Iterables.isEmpty(meterUpdates());
   }
 
   /** All of the counter updates. */
@@ -69,11 +71,16 @@ public abstract class MetricUpdates {
   /** All of the gauges updates. */
   public abstract Iterable<MetricUpdate<GaugeData>> gaugeUpdates();
 
+  /** All of the meters updates. */
+  public abstract Iterable<MetricUpdate<MeterData>> meterUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
-      Iterable<MetricUpdate<GaugeData>> gaugeUpdates) {
-    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates, gaugeUpdates);
+      Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
+      Iterable<MetricUpdate<MeterData>> meterUpdates) {
+    return new AutoValue_MetricUpdates(
+        counterUpdates, distributionUpdates, gaugeUpdates, meterUpdates);
   }
 }

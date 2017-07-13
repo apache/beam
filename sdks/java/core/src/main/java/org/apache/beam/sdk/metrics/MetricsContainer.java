@@ -46,4 +46,10 @@ public interface MetricsContainer extends Serializable {
    * {@code metricName} in this container.
    */
   Gauge getGauge(MetricName metricName);
+
+  /**
+   * Return the {@link Meter} that should be used for implementing the given
+   * {@code metricName} in this container.
+   */
+  Meter getMeter(MetricName name);
 }

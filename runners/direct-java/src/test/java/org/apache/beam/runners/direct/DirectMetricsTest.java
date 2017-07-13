@@ -28,6 +28,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.core.metrics.MeterData;
 import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -78,7 +79,10 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("step1", NAME1),
                 DistributionData.create(8, 2, 3, 5))),
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L)))
+            MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L))),
+        ImmutableList.of(
+            MetricUpdate.create(MetricKey.create("step1", NAME3),
+                MeterData.create(1, 1, 1, 1, 1)))
         ));
     metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
@@ -88,7 +92,10 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("step1", NAME1),
                 DistributionData.create(4, 1, 4, 4))),
         ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L)))
+            MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L))),
+        ImmutableList.of(
+            MetricUpdate.create(MetricKey.create("step1", NAME3),
+                MeterData.create(1, 1, 1, 1, 1)))
     ));
 
     MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
@@ -120,14 +127,16 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()
     ));
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
             MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()
     ));
 
     MetricQueryResults results = metrics.queryMetrics(
@@ -152,13 +161,15 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()));
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
             MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Outer1").build());
@@ -183,14 +194,16 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
             MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()
     ));
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
             MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
         ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
+        ImmutableList.<MetricUpdate<GaugeData>>of(),
+        ImmutableList.<MetricUpdate<MeterData>>of()
     ));
 
     MetricQueryResults results = metrics.queryMetrics(

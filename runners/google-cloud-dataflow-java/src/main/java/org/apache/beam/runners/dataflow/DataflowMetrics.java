@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.metrics.MetricFiltering;
 import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MeterResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -135,6 +136,7 @@ class DataflowMetrics extends MetricResults {
     ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
         ImmutableList.builder();
     ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults = ImmutableList.builder();
+    ImmutableList.Builder<MetricResult<MeterResult>> meterResults = ImmutableList.builder();
     for (MetricKey metricKey : metricHashKeys) {
       if (!MetricFiltering.matches(filter, metricKey)) {
         // Skip unmatched metrics early.
@@ -167,7 +169,8 @@ class DataflowMetrics extends MetricResults {
     return DataflowMetricQueryResults.create(
         counterResults.build(),
         distributionResults.build(),
-        gaugeResults.build());
+        gaugeResults.build(),
+        meterResults.build());
   }
 
   private MetricQueryResults queryServiceForMetrics(MetricsFilter filter) {
@@ -175,12 +178,13 @@ class DataflowMetrics extends MetricResults {
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
     ImmutableList<MetricResult<GaugeResult>> gauges = ImmutableList.of();
+    ImmutableList<MetricResult<MeterResult>> meters = ImmutableList.of();
     JobMetrics jobMetrics;
     try {
       jobMetrics = dataflowClient.getJobMetrics(dataflowPipelineJob.jobId);
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return DataflowMetricQueryResults.create(counters, distributions, gauges);
+      return DataflowMetricQueryResults.create(counters, distributions, gauges, meters);
     }
     metricUpdates = firstNonNull(
         jobMetrics.getMetrics(),
@@ -211,9 +215,11 @@ class DataflowMetrics extends MetricResults {
     public static MetricQueryResults create(
         Iterable<MetricResult<Long>> counters,
         Iterable<MetricResult<DistributionResult>> distributions,
-        Iterable<MetricResult<GaugeResult>> gauges) {
+        Iterable<MetricResult<GaugeResult>> gauges,
+        Iterable<MetricResult<MeterResult>> meters) {
       return
-          new AutoValue_DataflowMetrics_DataflowMetricQueryResults(counters, distributions, gauges);
+          new AutoValue_DataflowMetrics_DataflowMetricQueryResults(
+              counters, distributions, gauges, meters);
     }
   }
 

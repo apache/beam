@@ -15,25 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.io.Serializable;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * base class of metric data.
  */
-@Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
-
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
-
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
-
-  /** Return the metric results for the meters that matched the filter. */
-  Iterable<MetricResult<MeterResult>> meters();
+public interface MetricData<T> extends Serializable {
+    T merge(T other);
 }

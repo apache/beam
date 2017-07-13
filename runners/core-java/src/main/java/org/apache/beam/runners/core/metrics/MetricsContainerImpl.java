@@ -72,6 +72,14 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         }
       });
 
+  private MetricsMap<MetricName, MeterCell> meters =
+      new MetricsMap<>(new MetricsMap.Factory<MetricName, MeterCell>() {
+        @Override
+        public MeterCell createInstance(MetricName name) {
+          return new MeterCell(name);
+        }
+      });
+
   /**
    * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.
    */
@@ -94,6 +102,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return gauges.get(metricName);
   }
 
+  @Override
+  public MeterCell getMeter(MetricName metricName){
+    return meters.get(metricName);
+  }
+
   private <UpdateT, CellT extends MetricCell<UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -114,7 +127,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return MetricUpdates.create(
         extractUpdates(counters),
         extractUpdates(distributions),
-        extractUpdates(gauges));
+        extractUpdates(gauges),
+        extractUpdates(meters));
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
@@ -131,6 +145,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     commitUpdates(counters);
     commitUpdates(distributions);
     commitUpdates(gauges);
+    commitUpdates(meters);
   }
 
   private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
@@ -152,7 +167,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return MetricUpdates.create(
         extractCumulatives(counters),
         extractCumulatives(distributions),
-        extractCumulatives(gauges));
+        extractCumulatives(gauges),
+        extractCumulatives(meters));
   }
 
   /**
@@ -162,6 +178,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     updateCounters(counters, other.counters);
     updateDistributions(distributions, other.distributions);
     updateGauges(gauges, other.gauges);
+    updateMeters(meters, other.meters);
   }
 
   private void updateCounters(
@@ -185,6 +202,14 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       MetricsMap<MetricName, GaugeCell> updates) {
     for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
       current.get(counter.getKey()).update(counter.getValue().getCumulative());
+    }
+  }
+
+  private void updateMeters(
+      MetricsMap<MetricName, MeterCell> current,
+      MetricsMap<MetricName, MeterCell> updates) {
+    for (Map.Entry<MetricName, MeterCell> counter : updates.entries()) {
+      //current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }
   }
 }

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.core.metrics.MeterData;
 import org.apache.beam.runners.core.metrics.MetricFiltering;
 import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
@@ -41,6 +42,7 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MeterResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -224,6 +226,28 @@ class DirectMetrics extends MetricResults {
         }
       };
 
+  private static final MetricAggregation<MeterData, MeterResult> METER =
+      new MetricAggregation<MeterData, MeterResult>() {
+        @Override
+        public MeterData zero() {
+          return MeterData.zero();
+        }
+
+        @Override
+        public MeterData combine(Iterable<MeterData> updates) {
+          MeterData result = MeterData.zero();
+          for (MeterData update : updates) {
+            result = result.merge(update);
+          }
+          return result;
+        }
+
+        @Override
+        public MeterResult extract(MeterData data) {
+          return data.extractResult();
+        }
+      };
+
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
       new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
@@ -250,14 +274,25 @@ class DirectMetrics extends MetricResults {
               return new DirectMetric<>(GAUGE);
             }
           });
+  private MetricsMap<MetricKey, DirectMetric<MeterData, MeterResult>> meters =
+      new MetricsMap<>(
+          new MetricsMap.Factory<MetricKey, DirectMetric<MeterData, MeterResult>>() {
+            @Override
+            public DirectMetric<MeterData, MeterResult> createInstance(
+                MetricKey unusedKey) {
+              return new DirectMetric<>(METER);
+            }
+          });
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {
     public static MetricQueryResults create(
         Iterable<MetricResult<Long>> counters,
         Iterable<MetricResult<DistributionResult>> distributions,
-        Iterable<MetricResult<GaugeResult>> gauges) {
-      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters, distributions, gauges);
+        Iterable<MetricResult<GaugeResult>> gauges,
+        Iterable<MetricResult<MeterResult>> meters) {
+      return new AutoValue_DirectMetrics_DirectMetricQueryResults(
+          counters, distributions, gauges, meters);
     }
   }
 
@@ -295,9 +330,15 @@ class DirectMetrics extends MetricResults {
         : gauges.entries()) {
       maybeExtractResult(filter, gaugeResults, gauge);
     }
+    ImmutableList.Builder<MetricResult<MeterResult>> meterResults =
+        ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<MeterData, MeterResult>> meter
+        : meters.entries()) {
+      maybeExtractResult(filter, meterResults, meter);
+    }
 
     return DirectMetricQueryResults.create(counterResults.build(), distributionResults.build(),
-        gaugeResults.build());
+        gaugeResults.build(), meterResults.build());
   }
 
   private <ResultT> void maybeExtractResult(
@@ -326,6 +367,10 @@ class DirectMetrics extends MetricResults {
       gauges.get(gauge.getKey())
           .updatePhysical(bundle, gauge.getUpdate());
     }
+    for (MetricUpdate<MeterData> meter : updates.meterUpdates()) {
+      meters.get(meter.getKey())
+          .updatePhysical(bundle, meter.getUpdate());
+    }
   }
 
   public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
@@ -339,6 +384,10 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey())
           .commitPhysical(bundle, gauge.getUpdate());
+    }
+    for (MetricUpdate<MeterData> meter : updates.meterUpdates()) {
+      meters.get(meter.getKey())
+          .commitPhysical(bundle, meter.getUpdate());
     }
   }
 
@@ -354,6 +403,10 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
       gauges.get(gauge.getKey())
           .commitLogical(bundle, gauge.getUpdate());
+    }
+    for (MetricUpdate<MeterData> meter : updates.meterUpdates()) {
+      meters.get(meter.getKey())
+          .commitLogical(bundle, meter.getUpdate());
     }
   }
 }

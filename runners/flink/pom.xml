@@ -285,6 +285,11 @@
       <artifactId>joda-time</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+    </dependency>
+
     <!--
     Force an upgrade on the version of Apache Commons from Flink to support DEFLATE compression.
     -->
