@@ -19,6 +19,13 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Arrays;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlCompareExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLargerThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLargerThanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;

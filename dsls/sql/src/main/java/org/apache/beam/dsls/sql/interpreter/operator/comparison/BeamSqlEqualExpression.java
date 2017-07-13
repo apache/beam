@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+package org.apache.beam.dsls.sql.interpreter.operator.comparison;
 
 import java.util.List;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 
 /**
  * {@code BeamSqlExpression} for {@code =} operation.

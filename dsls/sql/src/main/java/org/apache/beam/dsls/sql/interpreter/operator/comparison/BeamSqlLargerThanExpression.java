@@ -15,34 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+package org.apache.beam.dsls.sql.interpreter.operator.comparison;
 
 import java.util.List;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 
 /**
- * {@code BeamSqlExpression} for {@code <>} operation.
+ * {@code BeamSqlExpression} for {@code >} operation.
  */
-public class BeamSqlNotEqualExpression extends BeamSqlCompareExpression {
+public class BeamSqlLargerThanExpression extends BeamSqlCompareExpression {
 
-  public BeamSqlNotEqualExpression(List<BeamSqlExpression> operands) {
+  public BeamSqlLargerThanExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override
   public Boolean compare(CharSequence leftValue, CharSequence rightValue) {
-    return String.valueOf(leftValue).compareTo(String.valueOf(rightValue)) != 0;
+    return String.valueOf(leftValue).compareTo(String.valueOf(rightValue)) > 0;
   }
 
   @Override
   public Boolean compare(Boolean leftValue, Boolean rightValue) {
-    return leftValue ^ rightValue;
+    throw new IllegalArgumentException("> is not supported for Boolean.");
   }
 
   @Override
   public Boolean compare(Number leftValue, Number rightValue) {
     return (leftValue == null && rightValue == null)
         || (leftValue != null && rightValue != null
-              && leftValue.floatValue() != (rightValue).floatValue());
+              && leftValue.floatValue() > (rightValue).floatValue());
   }
 
 }
