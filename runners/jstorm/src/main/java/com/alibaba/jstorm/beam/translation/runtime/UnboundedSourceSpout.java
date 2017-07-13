@@ -22,6 +22,7 @@ import com.alibaba.jstorm.cache.IKvStore;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.cluster.Common;
+import com.alibaba.jstorm.utils.KryoSerializer;
 import com.alibaba.jstorm.window.Watermark;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -64,8 +65,12 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
     private transient UnboundedSource.UnboundedReader reader;
     private transient SpoutOutputCollector collector;
 
-    private transient boolean hasNextRecord;
+    private volatile boolean hasNextRecord;
     private AtomicBoolean activated = new AtomicBoolean();
+
+    private KryoSerializer<WindowedValue> serializer;
+
+    private long lastWaterMark = 0l;
 
     public UnboundedSourceSpout(
             String description,
@@ -121,6 +126,8 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
             this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(StormPipelineOptions.class);
 
             createSourceReader(null);
+
+            this.serializer = new KryoSerializer<>(conf);
         } catch (IOException e) {
             throw new RuntimeException("Unable to create unbounded reader.", e);
         }
@@ -149,12 +156,15 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
                 Instant timestamp = reader.getCurrentTimestamp();
 
                 WindowedValue wv = WindowedValue.of(value, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+                LOG.debug("Source output: " + wv.getValue());
                 if (keyedEmit(outputTag.getId())) {
                     KV kv = (KV) wv.getValue();
                     // Convert WindowedValue<KV> to <K, WindowedValue<V>>
-                    collector.emit(outputTag.getId(), new Values(kv.getKey(), wv.withValue(kv.getValue())));
+                    byte[] immutableValue = serializer.serialize(wv.withValue(kv.getValue()));
+                    collector.emit(outputTag.getId(), new Values(kv.getKey(), immutableValue));
                 } else {
-                    collector.emit(outputTag.getId(), new Values(wv));
+                    byte[] immutableValue = serializer.serialize(wv);
+                    collector.emit(outputTag.getId(), new Values(immutableValue));
                 }
 
                 // move to next record
@@ -162,9 +172,11 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
             }
 
             Instant waterMark = reader.getWatermark();
-            if (waterMark != null) {
+            if (waterMark != null && lastWaterMark <  waterMark.getMillis()) {
+                lastWaterMark = waterMark.getMillis();
                 collector.flush();
                 collector.emit(CommonInstance.BEAM_WATERMARK_STREAM_ID, new Values(waterMark.getMillis()));
+                LOG.debug("Source output: WM-{}", waterMark.toDateTime());
             }
         } catch (IOException e) {
             throw new RuntimeException("Exception reading values from source.", e);

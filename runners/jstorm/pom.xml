@@ -54,6 +54,9 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
+                  <!--<includes>
+                    <include>org.apache.beam.sdk.transforms.CombineTest.java</include>
+                  </includes>-->
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>

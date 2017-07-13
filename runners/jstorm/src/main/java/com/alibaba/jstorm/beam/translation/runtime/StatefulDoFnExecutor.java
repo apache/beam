@@ -19,6 +19,8 @@ package com.alibaba.jstorm.beam.translation.runtime;
 
 import com.alibaba.jstorm.beam.StormPipelineOptions;
 import com.alibaba.jstorm.beam.translation.runtime.state.JStormStateInternals;
+import com.alibaba.jstorm.beam.translation.runtime.timer.JStormTimerInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,11 +48,20 @@ public class StatefulDoFnExecutor<OutputT> extends DoFnExecutor<KV, OutputT> {
     public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
         if (mainInputTag.equals(tag)) {
             WindowedValue<KV> kvElem = (WindowedValue<KV>) elem;
+            stepContext.setTimerInternals(new JStormTimerInternals(kvElem.getValue().getKey(), this,
+                    executorContext.getExecutorsBolt().timerService()));
             stepContext.setStateInternals(new JStormStateInternals<>(kvElem.getValue().getKey(),
                     kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
             processMainInput(elem);
         } else {
             processSideInput(tag, elem);
         }
+    }
+
+    @Override
+    public void onTimer(Object key, TimerInternals.TimerData timerData) {
+        stepContext.setStateInternals(new JStormStateInternals<>(key,
+                kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
+        super.onTimer(key, timerData);
     }
 }

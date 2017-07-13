@@ -66,11 +66,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
 
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            KV kv = (KV) output.getValue();
-            KV immutableKv = kv.getValue() instanceof Iterable ?
-                    KV.of(kv.getKey(), Lists.newArrayList((Iterable) kv.getValue())) :
-                    kv;
-            executorsBolt.processExecutorElem(tag, (WindowedValue<T>) output.withValue(immutableKv));
+            executorsBolt.processExecutorElem(tag, output);
         }
     }
 

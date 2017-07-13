@@ -26,16 +26,21 @@ import backtype.storm.tuple.ITupleExt;
 import backtype.storm.tuple.TupleImplExt;
 import com.alibaba.jstorm.beam.translation.util.CommonInstance;
 import com.alibaba.jstorm.cache.IKvStoreManager;
+import com.alibaba.jstorm.cache.KvStoreIterable;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.cluster.Common;
+import com.alibaba.jstorm.utils.KryoSerializer;
 import com.alibaba.jstorm.window.Watermark;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +72,8 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
     protected OutputCollector collector;
 
     protected boolean isStatefulBolt = false;
+
+    protected KryoSerializer<WindowedValue> serializer;
 
     public ExecutorsBolt() {
 
@@ -139,6 +146,8 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
                 }
             }
 
+            this.serializer = new KryoSerializer<WindowedValue>(stormConf);
+
             LOG.info("ExecutorsBolt finished init. LocalExecutors={}", inputTagToExecutor.values());
             LOG.info("inputTagToExecutor={}", inputTagToExecutor);
             LOG.info("outputTags={}", outputTags);
@@ -190,18 +199,31 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
 
     private void processWatermark(long watermarkTs, int sourceTask) {
         long newWaterMark = timerService.updateInputWatermark(sourceTask, watermarkTs);
+        LOG.debug("Recv waterMark-{} from task-{}, newWaterMark={}",
+                (new Instant(watermarkTs)).toDateTime(), sourceTask, (new Instant(newWaterMark)).toDateTime());
         if (newWaterMark != 0) {
             // Some buffer windows are going to be triggered.
             doFnStartBundle();
             timerService.fireTimers(newWaterMark);
+
+            // SideInput: If receiving water mark with max timestamp, It means no more data is supposed
+            // to be received from now on. So we are going to process all push back data.
+            if (newWaterMark == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+                for (DoFnExecutor doFnExecutor : doFnExecutors) {
+                    doFnExecutor.processAllPushBackElements();
+                }
+            }
+
             doFnFinishBundle();
         }
 
+        long currentWaterMark = timerService.currentOutputWatermark();
         if (!externalOutputTags.isEmpty()) {
             collector.flush();
             collector.emit(
                     CommonInstance.BEAM_WATERMARK_STREAM_ID,
-                    new Values(timerService.currentOutputWatermark()));
+                    new Values(currentWaterMark));
+            LOG.debug("Send waterMark-{}", (new Instant(currentWaterMark)).toDateTime());
         }
     }
 
@@ -251,26 +273,30 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
         WindowedValue wv = null;
         if (values.size() > 1) {
             Object key = values.get(0);
-            WindowedValue value = (WindowedValue) values.get(1);
+            WindowedValue value = serializer.deserialize((byte[]) values.get(1));
             wv = value.withValue(KV.of(key, value.getValue()));
         } else {
-            wv = (WindowedValue) values.get(0);
+            wv = serializer.deserialize((byte[])values.get(0));
         }
         return wv;
     }
 
     protected void emitOutsideBolt(TupleTag outputTag, WindowedValue outputValue) {
+        LOG.debug("Output outside: tag={}, value={}", outputTag, outputValue.getValue());
         if (keyedEmit(outputTag.getId())) {
             KV kv = (KV) outputValue.getValue();
+            byte[] immutableOutputValue = serializer.serialize(outputValue.withValue(kv.getValue()));
             // Convert WindowedValue<KV> to <K, WindowedValue<V>>
             if (kv.getKey() == null) {
                 // If key is null, emit "null" string here. Because, null value will be ignored in JStorm.
-                collector.emit(outputTag.getId(), new Values("null", outputValue.withValue(kv.getValue())));
+                collector.emit(outputTag.getId(), new Values("null", immutableOutputValue));
             } else {
-                collector.emit(outputTag.getId(), new Values(kv.getKey(), outputValue.withValue(kv.getValue())));
+                collector.emit(outputTag.getId(), new Values(kv.getKey(), immutableOutputValue));
             }
-        } else
-            collector.emit(outputTag.getId(), new Values(outputValue));
+        } else {
+            byte[] immutableOutputValue = serializer.serialize(outputValue);
+            collector.emit(outputTag.getId(), new Values(immutableOutputValue));
+        }
     }
 
     private void doFnStartBundle() {

@@ -5,6 +5,7 @@ import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.client.ConfigExtension;
 import com.alibaba.jstorm.common.metric.AsmMetric;
 import com.alibaba.jstorm.metric.*;
+import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -50,23 +51,24 @@ public class TestJStormRunner extends PipelineRunner<StormRunner.StormPipelineRe
             int numberOfAssertions = PAssert.countAsserts(pipeline);
 
             LOG.info("Running JStorm job {} with {} expected assertions.", result.getTopologyName(), numberOfAssertions);
-            for (int i = 0; i < 40; ++i) {
-                Optional<Boolean> success = checkForPAssertSuccess(numberOfAssertions);
-                if (success.isPresent() && success.get()) {
-                    return result;
-                } else if (success.isPresent() && !success.get()) {
-                    throw new AssertionError("Failed assertion checks.");
-                } else {
-                   try {
-                       Thread.sleep(500L);
-                    } catch (InterruptedException e) {
-                       Thread.currentThread().interrupt();
-                       throw new RuntimeException(e);
+            if(numberOfAssertions == 0) {
+                // If assert number is zero, wait 5 sec
+                JStormUtils.sleepMs(5000);
+                return result;
+            } else {
+                for (int i = 0; i < 40; ++i) {
+                    Optional<Boolean> success = checkForPAssertSuccess(numberOfAssertions);
+                    if (success.isPresent() && success.get()) {
+                        return result;
+                    } else if (success.isPresent() && !success.get()) {
+                        throw new AssertionError("Failed assertion checks.");
+                    } else {
+                        JStormUtils.sleepMs(500);
                     }
                 }
+                LOG.info("Assertion checks timed out.");
+                throw new AssertionError("Assertion checks timed out.");
             }
-            LOG.info("Assertion checks timed out.");
-            throw new AssertionError("Assertion checks timed out.");
         } finally {
             clearPAssertCount();
             cancel(result);

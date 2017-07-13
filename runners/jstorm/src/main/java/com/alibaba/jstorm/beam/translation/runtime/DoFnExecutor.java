@@ -27,6 +27,7 @@ import com.alibaba.jstorm.beam.translation.runtime.timer.JStormTimerInternals;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.metric.MetricClient;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -73,10 +74,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            WindowedValue immutableValue = output.getValue() instanceof Iterable ?
-                    output.withValue(ImmutableList.copyOf((Iterable) output.getValue())) :
-                    output;
-            executorsBolt.processExecutorElem(tag, immutableValue);
+            executorsBolt.processExecutorElem(tag, output);
         }
     }
 
@@ -175,15 +173,16 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         initService(context);
 
         // Side inputs setup
-        if (sideInputs == null || sideInputs.isEmpty()) {
-            runner = getDoFnRunner();
-        } else {
+        if (sideInputs != null && sideInputs.isEmpty() == false) {
             pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
             watermarkHoldTag =
                     StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
             pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId);
             sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
-            pushbackRunner = SimplePushbackSideInputDoFnRunner.create(getDoFnRunner(), sideInputs, sideInputHandler);
+            runner = getDoFnRunner();
+            pushbackRunner = SimplePushbackSideInputDoFnRunner.create(runner, sideInputs, sideInputHandler);
+        } else {
+            runner = getDoFnRunner();
         }
 
         // Process user's setup
@@ -193,6 +192,8 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     @Override
     public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
+        LOG.debug(String.format("process: elemTag=%s, mainInputTag=%s, sideInputs=%s, elem={}",
+                tag, mainInputTag, sideInputs, elem.getValue()));
         if (mainInputTag.equals(tag)) {
             processMainInput(elem);
         } else {
@@ -256,11 +257,37 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         watermarkHold.add(min);
     }
 
+    /**
+     * Process all pushed back elements when receiving watermark with max timestamp
+     */
+    public void processAllPushBackElements() {
+        if (sideInputs != null && sideInputs.isEmpty() == false) {
+            BagState<WindowedValue<InputT>> pushedBackElements =
+                    pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+            if (pushedBackElements != null) {
+                for (WindowedValue<InputT> elem : pushedBackElements.read()) {
+                    LOG.info("Process pushback elem={}", elem);
+                    runner.processElement(elem);
+                }
+                pushedBackElements.clear();
+            }
+
+            WatermarkHoldState watermarkHold =
+                    pushbackStateInternals.state(StateNamespaces.global(), watermarkHoldTag);
+            watermarkHold.clear();
+            watermarkHold.add(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        }
+    }
+
     public void onTimer(Object key, TimerInternals.TimerData timerData) {
         StateNamespace namespace = timerData.getNamespace();
         checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
         BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-        runner.onTimer(timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+        if (pushbackRunner != null) {
+            pushbackRunner.onTimer(timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+        } else {
+            runner.onTimer(timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+        }
     }
 
     @Override
@@ -278,17 +305,19 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     }
 
     public void startBundle() {
-        if (runner != null)
-            runner.startBundle();
-        if (pushbackRunner != null)
+        if (pushbackRunner != null) {
             pushbackRunner.startBundle();
+        } else {
+            runner.startBundle();
+        }
     }
 
     public void finishBundle() {
-        if (runner != null)
-            runner.finishBundle();
-        if (pushbackRunner != null)
+        if (pushbackRunner != null) {
             pushbackRunner.finishBundle();
+        } else {
+            runner.finishBundle();
+        }
     }
 
     public void setInternalDoFnExecutorId(int id) {
