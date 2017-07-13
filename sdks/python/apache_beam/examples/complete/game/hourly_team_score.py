@@ -42,92 +42,54 @@ the `--start_min` arg. If you're using the default input
 
 For a description of the usage and options, use -h or --help.
 
-Required options:
-  --output=OUTPUT_PATH
-
-Options with default values:
-  --input='gs://apache-beam-samples/game/gaming_data*.csv'
-  --window_duration=60
-  --start_min='1970-01-01-00-00'
-  --stop_min='2100-01-01-00-00'
-
 To specify a different runner:
-  --runner=YOUR_RUNNER
+  --runner YOUR_RUNNER
 
 NOTE: When specifying a different runner, additional runner-specific options
       may have to be passed in as well
+NOTE: With DataflowRunner, the --setup_file flag must be specified to handle the
+      'util' module
+
+EXAMPLES
+--------
+
+# DirectRunner
+python hourly_team_score.py \
+    --project $PROJECT_ID \
+    --dataset $BIGQUERY_DATASET
+
+# DataflowRunner
+python hourly_team_score.py \
+    --project $PROJECT_ID \
+    --dataset $BIGQUERY_DATASET \
+    --runner DataflowRunner \
+    --setup_file ./setup.py \
+    --staging_location gs://$BUCKET/user_score/staging \
+    --temp_location gs://$BUCKET/user_score/temp
 """
 
 from __future__ import absolute_import
-from __future__ import division
 
 import argparse
-import csv
 import logging
-from datetime import datetime
 
 import apache_beam as beam
 
-
-def str2timestamp(s, fmt='%Y-%m-%d-%H-%M'):
-  """Converts a string into a unix timestamp."""
-  dt = datetime.strptime(s, fmt)
-  epoch = datetime.utcfromtimestamp(0)
-  return (dt - epoch).total_seconds()
-
-
-def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
-  """Converts a unix timestamp into a formatted string."""
-  return datetime.fromtimestamp(t).strftime(fmt)
-
-
-def parse_game_event(elem):
-  """Parses the raw game event info into a Python dictionary.
-
-  Each event line has the following format:
-    username,teamname,score,timestamp_in_ms,readable_time
-
-  e.g.:
-    user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
-
-  The human-readable time string is not used here.
-  """
-  try:
-    row = list(csv.reader([elem]))[0]
-    yield {
-        'user': row[0],
-        'team': row[1],
-        'score': int(row[2]),
-        'timestamp': int(row[3]) / 1000.0,
-    }
-  except:  # pylint: disable=bare-except
-    logging.error('Parse error on "%s"', elem)
-
-
-class FormatTeamScores(beam.DoFn):
-  """Formats the data into the output format
-
-  Receives a (team, score) pair, extracts the window start timestamp, and
-  formats everything together into a string. Each string will be a line in the
-  output file.
-  """
-  def process(self, elem, window=beam.DoFn.WindowParam):
-    team, score = elem
-    window = timestamp2str(int(window.start))
-    yield 'window_start: %s, total_score: %s, team: %s' % (window, score, team)
+from apache_beam.examples.complete.game.util import util
 
 
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
     super(HourlyTeamScore, self).__init__()
-    self.start_timestamp = str2timestamp(start_min)
-    self.stop_timestamp = str2timestamp(stop_min)
-    self.window_duration = window_duration * 60
+    self.start_timestamp = util.str2timestamp(start_min)
+    self.stop_timestamp = util.str2timestamp(stop_min)
+    self.window_duration_in_seconds = window_duration * 60
 
   def expand(self, pcoll):
     return (
         pcoll
-        | 'ParseGameEvent' >> beam.FlatMap(parse_game_event)
+        | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
+
         # Filter out data before and after the given times so that it is not
         # included in the calculations. As we collect data in batches (say, by
         # day), the batch for the day that we want to analyze could potentially
@@ -140,21 +102,22 @@ class HourlyTeamScore(beam.PTransform):
             lambda elem: elem['timestamp'] > self.start_timestamp)
         | 'FilterEndTime' >> beam.Filter(
             lambda elem: elem['timestamp'] < self.stop_timestamp)
+
         # Add an element timestamp based on the event log, and apply fixed
         # windowing.
-        # Convert element['timestamp'] into seconds as expected by
-        # TimestampedValue.
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
         | 'FixedWindowsTeam' >> beam.WindowInto(
-            beam.window.FixedWindows(self.window_duration))
+            beam.window.FixedWindows(self.window_duration_in_seconds))
+
+        # Extract and sum teamname/score pairs from the event data.
         | 'ExtractTeamScores' >> beam.Map(
             lambda elem: (elem['team'], elem['score']))
         | 'SumTeamScores' >> beam.CombinePerKey(sum)
     )
 
 
-def main():
+def run(argv=None):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
@@ -164,10 +127,18 @@ def main():
                       type=str,
                       default='gs://apache-beam-samples/game/gaming_data*.csv',
                       help='Path to the data file(s) containing game data.')
-  parser.add_argument('--output',
+  parser.add_argument('--project',
                       type=str,
                       required=True,
-                      help='Path to the output file(s).')
+                      help='GCP Project ID for the output BigQuery Dataset.')
+  parser.add_argument('--dataset',
+                      type=str,
+                      required=True,
+                      help='BigQuery Dataset to write tables to. '
+                      'Must already exist.')
+  parser.add_argument('--table_name',
+                      default='leader_board',
+                      help='The BigQuery table name. Should not already exist.')
   parser.add_argument('--window_duration',
                       type=int,
                       default=60,
@@ -189,18 +160,31 @@ def main():
                            'after to that minute won\'t be included in the '
                            'sums.')
 
-  args, pipeline_args = parser.parse_known_args()
+  args, pipeline_args = parser.parse_known_args(argv)
 
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_args += ['--save_main_session']
+
+  # The pipeline_args validator also requires --project
+  pipeline_args += ['--project', args.project]
+
+  schema = {
+      'team': 'STRING',
+      'total_score': 'INTEGER',
+      'window_start': 'STRING',
+  }
   with beam.Pipeline(argv=pipeline_args) as p:
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'HourlyTeamScore' >> HourlyTeamScore(
-         args.start_min, args.end_min, args.window_duration)
-     | 'FormatTeamScores' >> beam.ParDo(FormatTeamScores())
-     | 'WriteTeamScoreSums' >> beam.io.WriteToText(args.output)
+         args.start_min, args.stop_min, args.window_duration)
+     | 'TeamScoresDict' >> beam.ParDo(util.TeamScoresDict())
+     | 'WriteTeamScoreSums' >> util.WriteToBigQuery(
+         args.table_name, args.dataset, schema)
     )
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  main()
+  run()

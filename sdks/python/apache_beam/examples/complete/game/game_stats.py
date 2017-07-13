@@ -33,79 +33,56 @@ recorded in the context of subsequent fixed windowing. (This could be used to
 tell us what games are giving us greater user retention).
 
 Run injector.Injector to generate pubsub data for this pipeline. The Injector
-documentation provides more detail on how to do this.
+documentation provides more detail on how to do this. The injector is currently
+implemented in Java only, it can be used from the Java SDK.
 
 The PubSub topic you specify should be the same topic to which the Injector is
 publishing.
 
+To run the Java injector:
+<beam_root>/examples/java8$ mvn compile exec:java \
+    -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+    -Dexec.args="$PROJECT_ID $PUBSUB_TOPIC none"
+
 For a description of the usage and options, use -h or --help.
 
-Required options:
-  --output=OUTPUT_PATH
-
-Options with default values:
-  --input='gs://apache-beam-samples/game/gaming_data*.csv'
-  --team_window_duration=60
-  --allowed_lateness=120
-
 To specify a different runner:
-  --runner=YOUR_RUNNER
+  --runner YOUR_RUNNER
 
 NOTE: When specifying a different runner, additional runner-specific options
       may have to be passed in as well
+NOTE: With DataflowRunner, the --setup_file flag must be specified to handle the
+      'util' module
+
+EXAMPLES
+--------
+
+# DirectRunner
+python game_stats.py \
+    --project $PROJECT_ID \
+    --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
+    --dataset $BIGQUERY_DATASET
+
+# DataflowRunner
+python game_stats.py \
+    --project $PROJECT_ID \
+    --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
+    --dataset $BIGQUERY_DATASET \
+    --runner DataflowRunner \
+    --setup_file ./setup.py \
+    --staging_location gs://$BUCKET/user_score/staging \
+    --temp_location gs://$BUCKET/user_score/temp
 """
 
 from __future__ import absolute_import
-from __future__ import division
 
 import argparse
-import csv
 import logging
-from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.transforms import combiners
 
-
-def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
-  """Converts a unix timestamp into a formatted string."""
-  return datetime.fromtimestamp(t).strftime(fmt)
-
-
-def parse_game_event(elem):
-  """Parses the raw game event info into a Python dictionary.
-
-  Each event line has the following format:
-    username,teamname,score,timestamp_in_ms,readable_time
-
-  e.g.:
-    user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
-
-  The human-readable time string is not used here.
-  """
-  try:
-    row = list(csv.reader([elem]))[0]
-    yield {
-        'user': row[0],
-        'team': row[1],
-        'score': int(row[2]),
-        'timestamp': int(row[3]) / 1000.0,
-    }
-  except:  # pylint: disable=bare-except
-    logging.error('Parse error on "%s"', elem)
-
-
-class FormatTeamScores(beam.DoFn):
-  """Formats the data into the output format
-
-  Receives a (team, score) pair, extracts the window start timestamp, and
-  formats everything together into a string. Each string will be a line in the
-  output file.
-  """
-  def process(self, elem, window=beam.DoFn.WindowParam):
-    team, score = elem
-    window = timestamp2str(int(window.start))
-    yield 'window_start: %s, total_score: %s, team: %s' % (window, score, team)
+from apache_beam.examples.complete.game.util import util
 
 
 class CalculateSpammyUsers(beam.PTransform):
@@ -119,19 +96,24 @@ class CalculateSpammyUsers(beam.PTransform):
   SCORE_WEIGHT = 2.5
 
   def expand(self, user_scores):
+    # Get the sum of scores for each user.
     sum_scores = (
         user_scores
         | 'SumUsersScores' >> beam.CombinePerKey(sum)
     )
 
+    # Extract the score from each element, and use it to find the global mean.
     global_mean_score = (
         sum_scores
         | beam.Values()
+        # NOTE: DataflowRunner currently does not support combiners
         | beam.CombineGlobally(combiners.MeanCombineFn()).as_singleton_view()
     )
 
+    # Filter the user sums using the global mean.
     filtered = (
         sum_scores
+        # Use the derived mean total score (global_mean_score) as a side input.
         | 'ProcessAndFilter' >> beam.Filter(
             lambda (_, score), global_mean:\
                 score > global_mean * self.SCORE_WEIGHT,
@@ -146,18 +128,27 @@ class UserSessionActivity(beam.DoFn):
     yield (window.end.micros - window.start.micros) / 1000000
 
 
-def main():
+def run(argv=None):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
+  parser.add_argument('--project',
+                      type=str,
+                      required=True,
+                      help='GCP Project ID for the output BigQuery Dataset.')
   parser.add_argument('--topic',
                       type=str,
                       required=True,
                       help='Pub/Sub topic to read from')
-  parser.add_argument('--output',
+  parser.add_argument('--dataset',
                       type=str,
                       required=True,
-                      help='Path to the output file(s).')
+                      help='BigQuery Dataset to write tables to. '
+                      'Must already exist.')
+  parser.add_argument('--table_name',
+                      type=str,
+                      default='game_stats',
+                      help='The BigQuery table name. Should not already exist.')
   parser.add_argument('--fixed_window_duration',
                       type=int,
                       default=60,
@@ -173,7 +164,15 @@ def main():
                       default=30,
                       help='Numeric value of fixed window for finding mean of '
                            'user session duration, in minutes')
-  args, pipeline_args = parser.parse_known_args()
+
+  args, pipeline_args = parser.parse_known_args(argv)
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_args += ['--save_main_session']
+
+  # The pipeline_args validator also requires --project
+  pipeline_args += ['--project', args.project]
 
   # Enforce that this pipeline is always run in streaming mode
   pipeline_args += ['--streaming']
@@ -183,14 +182,16 @@ def main():
   user_activity_window_duration = args.user_activity_window_duration * 60
 
   with beam.Pipeline(argv=pipeline_args) as p:
+    # Read events from Pub/Sub using custom timestamps
     raw_events = (
         p
         | 'ReadPubSub' >> beam.io.gcp.pubsub.ReadStringsFromPubSub(args.topic)
-        | 'ParseGameEvent' >> beam.FlatMap(parse_game_event)
+        | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
     )
 
+    # Extract username/score pairs from the event stream
     user_events = (
         raw_events
         | 'ExtractUserScores' >> beam.Map(
@@ -203,10 +204,14 @@ def main():
         user_events
         | 'UserFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(fixed_window_duration))
+
+        # Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
+        # These might be robots/spammers.
         | 'CalculateSpammyUsers' >> CalculateSpammyUsers()
 
         # Derive a view from the collection of spammer users. It will be used as
         # a side input in calculating the team score sums, below
+        # NOTE: DataflowRunner currently does not support combiners
         | 'CreateSpammersView' >> beam.CombineGlobally(
             combiners.ToDictCombineFn()).as_singleton_view()
     )
@@ -214,6 +219,13 @@ def main():
     # Calculate the total score per team over fixed windows, and emit cumulative
     # updates for late data. Uses the side input derived above-- the set of
     # suspected robots-- to filter out scores from those users from the sum.
+    # Write the results to BigQuery.
+    teams_schema = {
+        'team': 'STRING',
+        'total_score': 'INTEGER',
+        'window_start': 'STRING',
+        'processing_time': 'STRING',
+    }
     (raw_events  # pylint: disable=expression-not-assigned
      | 'WindowIntoFixedWindows' >> beam.WindowInto(
          beam.window.FixedWindows(fixed_window_duration))
@@ -222,17 +234,24 @@ def main():
      | 'FilterOutSpammers' >> beam.Filter(
          lambda elem, spammers: elem['user'] not in spammers,
          spammers_view)
+     # Extract and sum teamname/score pairs from the event data.
      | 'ExtractTeamScores' >> beam.Map(
          lambda elem: (elem['team'], elem['score']))
      | 'SumTeamScores' >> beam.CombinePerKey(sum)
-     | 'FormatTeamScores' >> beam.ParDo(FormatTeamScores())
-     | 'WriteTeamScoreSums' >> beam.io.WriteToText(args.output)
+     | 'TeamScoresDict' >> beam.ParDo(util.TeamScoresDict())
+     # Write the result to BigQuery
+     | 'WriteTeamScoreSums' >> util.WriteToBigQuery(
+         args.table_name + '_teams', args.dataset, teams_schema)
     )
 
     # Detect user sessions-- that is, a burst of activity separated by a gap
     # from further activity. Find and record the mean session lengths.
     # This information could help the game designers track the changing user
     # engagement as their set of game changes.
+    sessions_schema = {
+        #'window_start': 'STRING',
+        'mean_duration': 'FLOAT',
+    }
     (user_events  # pylint: disable=expression-not-assigned
      | 'WindowIntoSessions' >> beam.WindowInto(
          beam.window.Sessions(session_gap),
@@ -240,8 +259,8 @@ def main():
 
      # For this use, we care only about the existence of the session, not any
      # particular information aggregated over it, so we can just group by key
-     # and assign a "dummy score" of 0.
-     | beam.CombinePerKey(lambda _: 0)
+     # and assign a "dummy value" of None.
+     | beam.CombinePerKey(lambda _: None)
 
      # Get the duration of the session
      | 'UserSessionActivity' >> beam.ParDo(UserSessionActivity())
@@ -252,11 +271,15 @@ def main():
          beam.window.FixedWindows(user_activity_window_duration))
 
      # Find the mean session duration in each window
+     # NOTE: DataflowRunner currently does not support combiners
      | beam.CombineGlobally(combiners.MeanCombineFn()).without_defaults()
-     | 'WriteAvgSessionLength' >> beam.io.WriteToText(args.output+'-sessions')
+     | 'FormatAvgSessionLength' >> beam.Map(
+         lambda elem: {'mean_duration': float(elem)})
+     | 'WriteAvgSessionLength' >> util.WriteToBigQuery(
+         args.table_name + '_sessions', args.dataset, sessions_schema)
     )
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  main()
+  run()

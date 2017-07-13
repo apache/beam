@@ -32,57 +32,46 @@ data that arrives after the day's cutoff point.
 
 For a description of the usage and options, use -h or --help.
 
-Required options:
-  --output=OUTPUT_PATH
-
-Options with default values:
-  --input='gs://apache-beam-samples/game/gaming_data*.csv'
-
 To specify a different runner:
-  --runner=YOUR_RUNNER
+  --runner YOUR_RUNNER
 
 NOTE: When specifying a different runner, additional runner-specific options
       may have to be passed in as well
+NOTE: With DataflowRunner, the --setup_file flag must be specified to handle the
+      'util' module
+
+EXAMPLES
+--------
+
+# DirectRunner
+python user_score.py \
+    --output /local/path/user_score/output
+
+# DataflowRunner
+python user_score.py \
+    --output gs://$BUCKET/user_score/output \
+    --runner DataflowRunner \
+    --setup_file ./setup.py \
+    --project $PROJECT_ID \
+    --staging_location gs://$BUCKET/user_score/staging \
+    --temp_location gs://$BUCKET/user_score/temp
 """
 
 from __future__ import absolute_import
-from __future__ import division
 
 import argparse
-import csv
 import logging
 
 import apache_beam as beam
 
-
-def parse_game_event(elem):
-  """Parses the raw game event info into a Python dictionary.
-
-  Each event line has the following format:
-    username,teamname,score,timestamp_in_ms,readable_time
-
-  e.g.:
-    user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
-
-  The human-readable time string is not used here.
-  """
-  try:
-    row = list(csv.reader([elem]))[0]
-    yield {
-        'user': row[0],
-        'team': row[1],
-        'score': int(row[2]),
-        'timestamp': int(row[3]) / 1000.0,
-    }
-  except:  # pylint: disable=bare-except
-    logging.error('Parse error on "%s"', elem)
+from apache_beam.examples.complete.game.util import util
 
 
 class UserScore(beam.PTransform):
   def expand(self, pcoll):
     return (
         pcoll
-        | 'ParseGameEvent' >> beam.FlatMap(parse_game_event)
+        | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
         # Extract and sum username/score pairs from the event data.
         | 'ExtractUserScores' >> beam.Map(
             lambda elem: (elem['user'], elem['score']))
@@ -90,7 +79,7 @@ class UserScore(beam.PTransform):
     )
 
 
-def main():
+def run(argv=None):
   """Main entry point; defines and runs the user_score pipeline."""
   parser = argparse.ArgumentParser()
 
@@ -105,18 +94,18 @@ def main():
                       required=True,
                       help='Path to the output file(s).')
 
-  args, pipeline_args = parser.parse_known_args()
+  args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'UserScore' >> UserScore()
      | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): 'total_score: %s, user: %s' % (score, user))
+         lambda (user, score): 'user: %s, total_score: %s' % (user, score))
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output)
     )
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  main()
+  run()

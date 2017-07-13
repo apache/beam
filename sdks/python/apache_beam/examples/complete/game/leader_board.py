@@ -41,145 +41,135 @@ e.g. for 'team prizes'. We're now outputting window results as they're
 calculated, giving us much lower latency than with the previous batch examples.
 
 Run injector.Injector to generate pubsub data for this pipeline. The Injector
-documentation provides more detail on how to do this.
+documentation provides more detail on how to do this. The injector is currently
+implemented in Java only, it can be used from the Java SDK.
 
 The PubSub topic you specify should be the same topic to which the Injector is
 publishing.
 
+To run the Java injector:
+<beam_root>/examples/java8$ mvn compile exec:java \
+    -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+    -Dexec.args="$PROJECT_ID $PUBSUB_TOPIC none"
+
 For a description of the usage and options, use -h or --help.
 
-Required options:
-  --output=OUTPUT_PATH
-
-Options with default values:
-  --input='gs://apache-beam-samples/game/gaming_data*.csv'
-  --team_window_duration=60
-  --allowed_lateness=120
-
 To specify a different runner:
-  --runner=YOUR_RUNNER
+  --runner YOUR_RUNNER
 
 NOTE: When specifying a different runner, additional runner-specific options
       may have to be passed in as well
+NOTE: With DataflowRunner, the --setup_file flag must be specified to handle the
+      'util' module
+
+EXAMPLES
+--------
+
+# DirectRunner
+python leader_board.py \
+    --project $PROJECT_ID \
+    --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
+    --dataset $BIGQUERY_DATASET
+
+# DataflowRunner
+python leader_board.py \
+    --project $PROJECT_ID \
+    --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
+    --dataset $BIGQUERY_DATASET \
+    --runner DataflowRunner \
+    --setup_file ./setup.py \
+    --staging_location gs://$BUCKET/user_score/staging \
+    --temp_location gs://$BUCKET/user_score/temp
 """
 
 from __future__ import absolute_import
-from __future__ import division
 
 import argparse
-import csv
 import logging
-from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.transforms import trigger
 
-
-def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
-  """Converts a unix timestamp into a formatted string."""
-  return datetime.fromtimestamp(t).strftime(fmt)
+from apache_beam.examples.complete.game.util import util
 
 
-def parse_game_event(elem):
-  """Parses the raw game event info into a Python dictionary.
-
-  Each event line has the following format:
-    username,teamname,score,timestamp_in_ms,readable_time
-
-  e.g.:
-    user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
-
-  The human-readable time string is not used here.
-  """
-  try:
-    row = list(csv.reader([elem]))[0]
-    yield {
-        'user': row[0],
-        'team': row[1],
-        'score': int(row[2]),
-        'timestamp': int(row[3]) / 1000.0,
-    }
-  except:  # pylint: disable=bare-except
-    logging.error('Parse error on "%s"', elem)
-
-
-class FormatTeamScores(beam.DoFn):
-  """Formats the data into the output format
-
-  Receives a (team, score) pair, extracts the window start timestamp, and
-  formats everything together into a string. Each string will be a line in the
-  output file.
-  """
-  def process(self, team_score, window=beam.DoFn.WindowParam):
-    team, score = team_score
-    start = timestamp2str(int(window.start))
-    yield 'window_start: %s, total_score: %s, team: %s' % (start, score, team)
-
-
-class CalculateTeamScoreSums(beam.PTransform):
+class CalculateTeamScores(beam.PTransform):
   """Calculates scores for each team within the configured window duration.
 
   Extract team/score pairs from the event stream, using hour-long windows by
   default.
   """
   def __init__(self, team_window_duration, allowed_lateness):
-    super(CalculateTeamScoreSums, self).__init__()
+    super(CalculateTeamScores, self).__init__()
     self.team_window_duration = team_window_duration * 60
-    self.allowed_lateness = allowed_lateness * 60
+    self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
+    # NOTE: the behavior does not exactly match the Java example
+    # TODO: allowed_lateness not implemented yet in FixedWindows
+    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
-        # TODO: allowed_lateness not implemented yet in FixedWindows
-        # TODO: AfterProcessingTime not implemented yet, replace AfterCount
         pcoll
+        # We will get early (speculative) results as well as cumulative
+        # processing of late data.
         | 'LeaderboardTeamFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(self.team_window_duration),
             trigger=trigger.AfterWatermark(trigger.AfterCount(10),
                                            trigger.AfterCount(20)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+        # Extract and sum teamname/score pairs from the event data.
         | 'ExtractTeamScores' >> beam.Map(
             lambda elem: (elem['team'], elem['score']))
         | 'SumTeamScores' >> beam.CombinePerKey(sum)
     )
 
 
-class CalculateUserScoreSums(beam.PTransform):
+class CalculateUserScores(beam.PTransform):
   """Extract user/score pairs from the event stream using processing time, via
-  global windowing.
-
-  Get periodic updates on all users' running scores.
+  global windowing. Get periodic updates on all users' running scores.
   """
   def __init__(self, allowed_lateness):
-    super(CalculateUserScoreSums, self).__init__()
-    self.allowed_lateness = allowed_lateness * 60
+    super(CalculateUserScores, self).__init__()
+    self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
+    # NOTE: the behavior does not exactly match the Java example
+    # TODO: allowed_lateness not implemented yet in FixedWindows
+    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
-        # TODO: allowed_lateness not implemented yet in FixedWindows
-        # TODO: AfterProcessingTime not implemented yet, replace AfterCount
         pcoll
+        # Get periodic results every ten events.
         | 'LeaderboardUserGlobalWindows' >> beam.WindowInto(
             beam.window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterCount(10)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+        # Extract and sum username/score pairs from the event data.
         | 'ExtractUserScores' >> beam.Map(
             lambda elem: (elem['user'], elem['score']))
         | 'SumUserScores' >> beam.CombinePerKey(sum)
     )
 
 
-def main():
+def run(argv=None):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
+  parser.add_argument('--project',
+                      type=str,
+                      required=True,
+                      help='GCP Project ID for the output BigQuery Dataset.')
   parser.add_argument('--topic',
                       type=str,
                       required=True,
                       help='Pub/Sub topic to read from')
-  parser.add_argument('--output',
+  parser.add_argument('--dataset',
                       type=str,
                       required=True,
-                      help='Path to the output file(s).')
+                      help='BigQuery Dataset to write tables to. '
+                      'Must already exist.')
+  parser.add_argument('--table_name',
+                      default='leader_board',
+                      help='The BigQuery table name. Should not already exist.')
   parser.add_argument('--team_window_duration',
                       type=int,
                       default=60,
@@ -190,35 +180,60 @@ def main():
                       default=120,
                       help='Numeric value of allowed data lateness, in minutes')
 
-  args, pipeline_args = parser.parse_known_args()
+  args, pipeline_args = parser.parse_known_args(argv)
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_args += ['--save_main_session']
+
+  # The pipeline_args validator also requires --project
+  pipeline_args += ['--project', args.project]
 
   # Enforce that this pipeline is always run in streaming mode
   pipeline_args += ['--streaming']
 
   with beam.Pipeline(argv=pipeline_args) as p:
+    # Read game events from Pub/Sub using custom timestamps, which are extracted
+    # from the pubsub data elements, and parse the data.
     events = (
         p
         | 'ReadPubSub' >> beam.io.gcp.pubsub.ReadStringsFromPubSub(args.topic)
-        | 'ParseGameEvent' >> beam.FlatMap(parse_game_event)
+        | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
     )
 
+    # Get team scores and write the results to BigQuery
+    teams_schema = {
+        'team': 'STRING',
+        'total_score': 'INTEGER',
+        'window_start': 'STRING',
+        'processing_time': 'STRING',
+    }
     (events  # pylint: disable=expression-not-assigned
-     | 'CalculateTeamScoreSums' >> CalculateTeamScoreSums(
+     | 'CalculateTeamScores' >> CalculateTeamScores(
          args.team_window_duration, args.allowed_lateness)
-     | 'FormatTeamScores' >> beam.ParDo(FormatTeamScores())
-     | 'WriteTeamScoreSums' >> beam.io.WriteToText(args.output+'-team_scores')
+     | 'TeamScoresDict' >> beam.ParDo(util.TeamScoresDict())
+     # Write the results to BigQuery.
+     | 'WriteTeamScoreSums' >> util.WriteToBigQuery(
+         args.table_name + '_teams', args.dataset, teams_schema)
     )
 
+    # Get user scores and write the results to BigQuery
+    users_schema = {
+        'user': 'STRING',
+        'total_score': 'INTEGER',
+    }
     (events  # pylint: disable=expression-not-assigned
-     | 'CalculateUserScoreSums' >> CalculateUserScoreSums(allowed_lateness)
+     | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
      | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): 'total_score: %s, user: %s' % (score, user))
-     | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output+'-user_scores')
+         lambda (user, score): {'user': user, 'total_score': score})
+     # Write the results to BigQuery.
+     | 'WriteUserScoreSums' >> util.WriteToBigQuery(
+         args.table_name + '_users', args.dataset, users_schema)
     )
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  main()
+  run()
