@@ -25,16 +25,16 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -99,8 +99,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     BeamSqlExpression l1Left = (BeamSqlExpression) l1Exp.getOperands().get(0);
     BeamSqlExpression l1Right = (BeamSqlExpression) l1Exp.getOperands().get(1);
 
-    assertTrue(l1Left instanceof BeamSqlLessThanEqualExpression);
-    assertTrue(l1Right instanceof BeamSqlEqualExpression);
+    assertTrue(l1Left instanceof BeamSqlLessThanOrEqualsExpression);
+    assertTrue(l1Right instanceof BeamSqlEqualsExpression);
 
     Assert.assertEquals(2, l1Left.getOperands().size());
     BeamSqlExpression l1LeftLeft = (BeamSqlExpression) l1Left.getOperands().get(0);

@@ -15,18 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.interpreter.operator;
+package org.apache.beam.dsls.sql.interpreter.operator.comparison;
 
 import java.util.List;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * {@link BeamSqlCompareExpression} is used for compare operations.
  *
- * <p>See {@link BeamSqlEqualExpression}, {@link BeamSqlLessThanExpression},
- * {@link BeamSqlLessThanEqualExpression}, {@link BeamSqlLargerThanExpression},
- * {@link BeamSqlLargerThanEqualExpression} and {@link BeamSqlNotEqualExpression} for more details.
+ * <p>See {@link BeamSqlEqualsExpression}, {@link BeamSqlLessThanExpression},
+ * {@link BeamSqlLessThanOrEqualsExpression}, {@link BeamSqlGreaterThanExpression},
+ * {@link BeamSqlGreaterThanOrEqualsExpression} and {@link BeamSqlNotEqualsExpression}
+ * for more details.
  *
  */
 public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
@@ -51,7 +54,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
   public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRow) {
     Object leftValue = operands.get(0).evaluate(inputRow).getValue();
     Object rightValue = operands.get(1).evaluate(inputRow).getValue();
-    switch (operands.get(0).outputType) {
+    switch (operands.get(0).getOutputType()) {
     case BIGINT:
     case DECIMAL:
     case DOUBLE:
