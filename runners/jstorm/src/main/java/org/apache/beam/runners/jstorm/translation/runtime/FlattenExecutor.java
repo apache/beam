@@ -17,39 +17,40 @@
  */
 package org.apache.beam.runners.jstorm.translation.runtime;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 public class FlattenExecutor<InputT> implements Executor {
 
-    private final String description;
-    private TupleTag mainOutputTag;
-    private ExecutorContext context;
-    private ExecutorsBolt executorsBolt;
+  private final String description;
+  private TupleTag mainOutputTag;
+  private ExecutorContext context;
+  private ExecutorsBolt executorsBolt;
 
-    public FlattenExecutor(String description, TupleTag mainTupleTag) {
-        this.description = checkNotNull(description, "description");
-        this.mainOutputTag = mainTupleTag;
-    }
+  public FlattenExecutor(String description, TupleTag mainTupleTag) {
+    this.description = checkNotNull(description, "description");
+    this.mainOutputTag = mainTupleTag;
+  }
 
-    @Override
-    public void init(ExecutorContext context) {
-        this.context = context;
-        this.executorsBolt = context.getExecutorsBolt();
-    }
+  @Override
+  public void init(ExecutorContext context) {
+    this.context = context;
+    this.executorsBolt = context.getExecutorsBolt();
+  }
 
-    @Override
-    public void process(TupleTag tag, WindowedValue elem) {
-        executorsBolt.processExecutorElem(mainOutputTag, elem);
-    }
+  @Override
+  public void process(TupleTag tag, WindowedValue elem) {
+    executorsBolt.processExecutorElem(mainOutputTag, elem);
+  }
 
-    @Override
-    public void cleanup() {}
+  @Override
+  public void cleanup() {
+  }
 
-    @Override
-    public String toString() {
-        return description;
-    }
+  @Override
+  public String toString() {
+    return description;
+  }
 }

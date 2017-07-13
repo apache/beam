@@ -20,5 +20,5 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 import backtype.storm.topology.IRichBatchBolt;
 
 public abstract class AdaptorBasicBolt extends AbstractComponent implements IRichBatchBolt {
-    
+
 }

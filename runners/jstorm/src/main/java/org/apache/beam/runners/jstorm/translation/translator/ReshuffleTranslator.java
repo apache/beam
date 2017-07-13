@@ -19,6 +19,6 @@ package org.apache.beam.runners.jstorm.translation.translator;
 
 import org.apache.beam.sdk.transforms.Reshuffle;
 
-public class ReshuffleTranslator<K, V> extends TransformTranslator.Default<Reshuffle<K,V>> {
-    
+public class ReshuffleTranslator<K, V> extends TransformTranslator.Default<Reshuffle<K, V>> {
+
 }

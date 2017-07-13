@@ -17,53 +17,52 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import org.apache.beam.runners.jstorm.translation.runtime.GroupByWindowExecutor;
 import com.google.common.collect.Lists;
-import org.apache.beam.sdk.transforms.GroupByKey;
-
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.runners.jstorm.translation.runtime.GroupByWindowExecutor;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.Collections;
-import java.util.List;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 public class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<K, V>> {
-    // information of transform
-    protected PCollection<KV<K, V>> input;
-    protected PCollection<KV<K, Iterable<V>>> output;
-    protected List<TupleTag<?>> inputTags;
-    protected TupleTag<KV<K, Iterable<V>>> mainOutputTag;
-    protected List<TupleTag<?>> sideOutputTags;
-    protected List<PCollectionView<?>> sideInputs;
-    protected WindowingStrategy<?, ?> windowingStrategy;
+  // information of transform
+  protected PCollection<KV<K, V>> input;
+  protected PCollection<KV<K, Iterable<V>>> output;
+  protected List<TupleTag<?>> inputTags;
+  protected TupleTag<KV<K, Iterable<V>>> mainOutputTag;
+  protected List<TupleTag<?>> sideOutputTags;
+  protected List<PCollectionView<?>> sideInputs;
+  protected WindowingStrategy<?, ?> windowingStrategy;
 
-    @Override
-    public void translateNode(GroupByKey<K, V> transform, TranslationContext context) {
-        TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+  @Override
+  public void translateNode(GroupByKey<K, V> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
-        input = (PCollection<KV<K, V>>) userGraphContext.getInput();
-        output = (PCollection<KV<K, Iterable<V>>>) userGraphContext.getOutput();
+    input = (PCollection<KV<K, V>>) userGraphContext.getInput();
+    output = (PCollection<KV<K, Iterable<V>>>) userGraphContext.getOutput();
 
-        inputTags = userGraphContext.getInputTags();
-        mainOutputTag = (TupleTag<KV<K, Iterable<V>>>) userGraphContext.getOutputTag();
-        sideOutputTags = Lists.newArrayList();
+    inputTags = userGraphContext.getInputTags();
+    mainOutputTag = (TupleTag<KV<K, Iterable<V>>>) userGraphContext.getOutputTag();
+    sideOutputTags = Lists.newArrayList();
 
-        sideInputs = Collections.<PCollectionView<?>>emptyList();
-        windowingStrategy = input.getWindowingStrategy();
+    sideInputs = Collections.<PCollectionView<?>>emptyList();
+    windowingStrategy = input.getWindowingStrategy();
 
-        GroupByWindowExecutor<K, V> groupByWindowExecutor = new GroupByWindowExecutor<>(
-                userGraphContext.getStepName(),
-                description,
-                context,
-                context.getUserGraphContext().getOptions(),
-                windowingStrategy,
-                mainOutputTag,
-                sideOutputTags);
-        context.addTransformExecutor(groupByWindowExecutor);
-    }
+    GroupByWindowExecutor<K, V> groupByWindowExecutor = new GroupByWindowExecutor<>(
+        userGraphContext.getStepName(),
+        description,
+        context,
+        context.getUserGraphContext().getOptions(),
+        windowingStrategy,
+        mainOutputTag,
+        sideOutputTags);
+    context.addTransformExecutor(groupByWindowExecutor);
+  }
 }

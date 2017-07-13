@@ -34,7 +34,7 @@ public class JStormRunnerRegistrarTest {
   @Test
   public void testFullName() {
     String[] args =
-        new String[] {String.format("--runner=%s", JStormRunner.class.getName())};
+        new String[]{String.format("--runner=%s", JStormRunner.class.getName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), JStormRunner.class);
   }
@@ -42,7 +42,7 @@ public class JStormRunnerRegistrarTest {
   @Test
   public void testClassName() {
     String[] args =
-        new String[] {String.format("--runner=%s", JStormRunner.class.getSimpleName())};
+        new String[]{String.format("--runner=%s", JStormRunner.class.getSimpleName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), JStormRunner.class);
   }

@@ -33,76 +33,76 @@ import org.joda.time.Duration;
  */
 public abstract class JStormRunnerResult implements PipelineResult {
 
-    public static JStormRunnerResult local(
+  public static JStormRunnerResult local(
+      String topologyName,
+      Config config,
+      LocalCluster localCluster,
+      long localModeExecuteTimeSecs) {
+    return new LocalStormPipelineResult(
+        topologyName, config, localCluster, localModeExecuteTimeSecs);
+  }
+
+  private final String topologyName;
+  private final Config config;
+
+  JStormRunnerResult(String topologyName, Config config) {
+    this.config = checkNotNull(config, "config");
+    this.topologyName = checkNotNull(topologyName, "topologyName");
+  }
+
+  public State getState() {
+    return null;
+  }
+
+  public Config getConfig() {
+    return config;
+  }
+
+  public String getTopologyName() {
+    return topologyName;
+  }
+
+  private static class LocalStormPipelineResult extends JStormRunnerResult {
+
+    private LocalCluster localCluster;
+    private long localModeExecuteTimeSecs;
+
+    LocalStormPipelineResult(
         String topologyName,
         Config config,
         LocalCluster localCluster,
         long localModeExecuteTimeSecs) {
-        return new LocalStormPipelineResult(
-            topologyName, config, localCluster, localModeExecuteTimeSecs);
+      super(topologyName, config);
+      this.localCluster = checkNotNull(localCluster, "localCluster");
     }
 
-    private final String topologyName;
-    private final Config config;
-
-    JStormRunnerResult(String topologyName, Config config) {
-        this.config = checkNotNull(config, "config");
-        this.topologyName = checkNotNull(topologyName, "topologyName");
+    @Override
+    public State cancel() throws IOException {
+      //localCluster.deactivate(getTopologyName());
+      localCluster.killTopology(getTopologyName());
+      localCluster.shutdown();
+      JStormUtils.sleepMs(1000);
+      return State.CANCELLED;
     }
 
-    public State getState() {
-        return null;
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      return waitUntilFinish();
     }
 
-    public Config getConfig() {
-        return config;
+    @Override
+    public State waitUntilFinish() {
+      JStormUtils.sleepMs(localModeExecuteTimeSecs * 1000);
+      try {
+        return cancel();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
-    public String getTopologyName() {
-        return topologyName;
+    @Override
+    public MetricResults metrics() {
+      return null;
     }
-
-    private static class LocalStormPipelineResult extends JStormRunnerResult {
-
-        private LocalCluster localCluster;
-        private long localModeExecuteTimeSecs;
-
-        LocalStormPipelineResult(
-            String topologyName,
-            Config config,
-            LocalCluster localCluster,
-            long localModeExecuteTimeSecs) {
-            super(topologyName, config);
-            this.localCluster = checkNotNull(localCluster, "localCluster");
-        }
-
-        @Override
-        public State cancel() throws IOException {
-          //localCluster.deactivate(getTopologyName());
-          localCluster.killTopology(getTopologyName());
-          localCluster.shutdown();
-          JStormUtils.sleepMs(1000);
-          return State.CANCELLED;
-        }
-
-        @Override
-        public State waitUntilFinish(Duration duration) {
-            return waitUntilFinish();
-        }
-
-        @Override
-        public State waitUntilFinish() {
-            JStormUtils.sleepMs(localModeExecuteTimeSecs * 1000);
-            try {
-                return cancel();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public MetricResults metrics() {
-            return null;
-        }
-    }
+  }
 }

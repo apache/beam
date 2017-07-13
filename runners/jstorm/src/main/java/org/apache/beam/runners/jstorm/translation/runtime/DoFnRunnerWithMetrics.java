@@ -68,7 +68,8 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
         metricsReporter.getMetricsContainer(stepName))) {
       delegate.onTimer(timerId, window, timestamp, timeDomain);

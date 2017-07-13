@@ -17,22 +17,22 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
+import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.WindowAssignExecutor;
 import org.apache.beam.sdk.transforms.windowing.Window;
 
-import org.apache.beam.runners.jstorm.translation.TranslationContext;
-
 public class WindowAssignTranslator<T> extends TransformTranslator.Default<Window.Assign<T>> {
 
-    @Override
-    public void translateNode(Window.Assign<T> transform, TranslationContext context) {
-        TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-        String description = describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
-        context.getUserGraphContext().setWindowed();
-        WindowAssignExecutor executor = new WindowAssignExecutor(
-                description,
-                transform.getWindowFn(),
-                userGraphContext.getOutputTag());
-        context.addTransformExecutor(executor);
-    }
+  @Override
+  public void translateNode(Window.Assign<T> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    String description =
+        describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
+    context.getUserGraphContext().setWindowed();
+    WindowAssignExecutor executor = new WindowAssignExecutor(
+        description,
+        transform.getWindowFn(),
+        userGraphContext.getOutputTag());
+    context.addTransformExecutor(executor);
+  }
 }

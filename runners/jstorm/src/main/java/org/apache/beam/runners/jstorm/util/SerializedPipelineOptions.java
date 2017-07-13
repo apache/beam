@@ -18,47 +18,48 @@
 
 package org.apache.beam.runners.jstorm.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.options.PipelineOptions;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
-
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Encapsulates the PipelineOptions in serialized form to ship them to the cluster.
  */
 public class SerializedPipelineOptions implements Serializable {
 
-    private final byte[] serializedOptions;
+  private final byte[] serializedOptions;
 
-    /** Lazily initialized copy of deserialized options */
-    private transient PipelineOptions pipelineOptions;
+  /**
+   * Lazily initialized copy of deserialized options
+   */
+  private transient PipelineOptions pipelineOptions;
 
-    public SerializedPipelineOptions(PipelineOptions options) {
-        checkNotNull(options, "PipelineOptions must not be null.");
+  public SerializedPipelineOptions(PipelineOptions options) {
+    checkNotNull(options, "PipelineOptions must not be null.");
 
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            new ObjectMapper().writeValue(baos, options);
-            this.serializedOptions = baos.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
-        }
-
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      new ObjectMapper().writeValue(baos, options);
+      this.serializedOptions = baos.toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
     }
 
-    public PipelineOptions getPipelineOptions() {
-        if (pipelineOptions == null) {
-            try {
-                pipelineOptions = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
-            }
-        }
+  }
 
-        return pipelineOptions;
+  public PipelineOptions getPipelineOptions() {
+    if (pipelineOptions == null) {
+      try {
+        pipelineOptions = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
+      } catch (IOException e) {
+        throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
+      }
     }
+
+    return pipelineOptions;
+  }
 
 }
