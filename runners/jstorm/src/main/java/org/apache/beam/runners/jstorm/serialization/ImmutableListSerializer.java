@@ -10,8 +10,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
-import org.apache.beam.runners.jstorm.util.RunnerUtils;
 
+/**
+ * Specific serializer of {@link Kryo} for ImmutableList.
+ */
 public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
 
   private static final boolean DOES_NOT_ACCEPT_NULL = false;

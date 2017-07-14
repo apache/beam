@@ -20,11 +20,11 @@ package org.apache.beam.runners.jstorm.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import avro.shaded.com.google.common.collect.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
@@ -239,7 +239,9 @@ public class TranslationContext {
     }
   }
 
-  // TODO: add getSideInputs() and getSideOutputs().
+  /**
+   * Context of user graph.
+   */
   public static class UserGraphContext {
     private final JStormPipelineOptions options;
     private final Map<PValue, TupleTag> pValueToTupleTag;
@@ -326,6 +328,9 @@ public class TranslationContext {
     }
   }
 
+  /**
+   * Context of execution graph.
+   */
   public static class ExecutionGraphContext {
 
     private final Map<String, AdaptorBasicSpout> spoutMap = new HashMap<>();

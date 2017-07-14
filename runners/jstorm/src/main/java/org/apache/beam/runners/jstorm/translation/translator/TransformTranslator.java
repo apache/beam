@@ -38,6 +38,10 @@ public interface TransformTranslator<T extends PTransform<?, ?>> {
    */
   boolean canTranslate(T transform, TranslationContext context);
 
+    /**
+     * Default translator.
+     * @param <T1>
+     */
   class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
     @Override
     public void translateNode(T1 transform, TranslationContext context) {

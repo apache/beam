@@ -78,17 +78,17 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
   }
 
   /**
-   * convert pipeline options to storm configuration format
-   *
+   * convert pipeline options to storm configuration format.
    * @param options
    * @return
    */
   private Config convertPipelineOptionsToConfig(JStormPipelineOptions options) {
     Config config = new Config();
-    if (options.getLocalMode())
+    if (options.getLocalMode()) {
       config.put(Config.STORM_CLUSTER_MODE, "local");
-    else
+    } else {
       config.put(Config.STORM_CLUSTER_MODE, "distributed");
+    }
 
     Config.setNumWorkers(config, options.getWorkerNumber());
 
@@ -161,8 +161,9 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
       component = spout;
     } else {
       AdaptorBasicBolt bolt = context.getBolt(id);
-      if (bolt != null)
+      if (bolt != null) {
         component = bolt;
+      }
     }
 
     return component;
@@ -202,10 +203,11 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
 
       // add stream output declare for "from" component
       AbstractComponent component = getComponent(srcBoltId, context);
-      if (grouping.getType().equals(Stream.Grouping.Type.FIELDS))
+      if (grouping.getType().equals(Stream.Grouping.Type.FIELDS)) {
         component.addKVOutputField(streamId);
-      else
+      } else {
         component.addOutputField(streamId);
+      }
 
       // "to" component declares grouping to "from" component
       switch (grouping.getType()) {

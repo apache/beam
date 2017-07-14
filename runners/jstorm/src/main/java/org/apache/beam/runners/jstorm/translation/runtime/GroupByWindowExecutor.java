@@ -52,6 +52,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.GroupByKey}.
+ * @param <K>
+ * @param <V>
+ */
 public class GroupByWindowExecutor<K, V>
     extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
   private static final long serialVersionUID = -7563050475488610553L;

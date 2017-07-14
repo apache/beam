@@ -32,6 +32,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+/**
+ * JStorm {@link Executor} for stateful {@link DoFn}.
+ * @param <OutputT>
+ */
 public class StatefulDoFnExecutor<OutputT> extends DoFnExecutor<KV, OutputT> {
   public StatefulDoFnExecutor(
       String stepName, String description, JStormPipelineOptions pipelineOptions,

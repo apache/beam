@@ -39,6 +39,9 @@ public abstract class Stream {
         producer, consumer);
   }
 
+  /**
+   * JStorm producer.
+   */
   @AutoValue
   public abstract static class Producer {
     public abstract String getComponentId();
@@ -53,6 +56,9 @@ public abstract class Stream {
     }
   }
 
+  /**
+   * JStorm consumer.
+   */
   @AutoValue
   public abstract static class Consumer {
     public abstract String getComponentId();
@@ -65,6 +71,9 @@ public abstract class Stream {
     }
   }
 
+  /**
+   * JStorm grouping, which define how to transfer message between two nodes.
+   */
   @AutoValue
   public abstract static class Grouping {
     public abstract Type getType();
@@ -86,7 +95,7 @@ public abstract class Stream {
     }
 
     /**
-     * Types of stream groupings Storm allows
+     * Types of stream groupings Storm allows.
      */
     public enum Type {
       ALL, CUSTOM, DIRECT, SHUFFLE, LOCAL_OR_SHUFFLE, FIELDS, GLOBAL, NONE

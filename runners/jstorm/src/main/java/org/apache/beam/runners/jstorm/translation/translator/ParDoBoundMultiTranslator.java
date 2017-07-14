@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import avro.shaded.com.google.common.collect.Maps;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;

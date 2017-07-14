@@ -26,6 +26,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
+/**
+ * Translates a {@link Flatten} to a JStorm {@link FlattenExecutor}.
+ * @param <V>
+ */
 public class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollections<V>> {
 
   @Override

@@ -29,6 +29,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Transactional executors bolt handles the checkpoint and restore of state and timer.
+ */
 public class TxExecutorsBolt implements ITransactionStatefulBoltExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(TxExecutorsBolt.class);
 

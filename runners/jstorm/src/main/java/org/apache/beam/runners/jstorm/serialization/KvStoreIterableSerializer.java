@@ -9,6 +9,9 @@ import com.google.common.collect.Lists;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Specific serializer of {@link Kryo} for KvStoreIterable.
+ */
 public class KvStoreIterableSerializer extends Serializer<KvStoreIterable<Object>> {
 
   public KvStoreIterableSerializer() {

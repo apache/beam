@@ -21,10 +21,10 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.cache.rocksdb.RocksDbKvStoreManagerFactory;
 import com.alibaba.jstorm.utils.KryoSerializer;
+import com.google.common.collect.Maps;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -175,11 +175,11 @@ public class JStormStateInternalsTest {
     Iterable<Map.Entry<Integer, Integer>> entries = mapStateA.entries().read();
     Iterator<Map.Entry<Integer, Integer>> itr = entries.iterator();
     Map.Entry<Integer, Integer> entry = itr.next();
-    assertEquals((long) entry.getKey(), 1l);
-    assertEquals((long) entry.getValue(), 12l);
+    assertEquals((long) entry.getKey(), 1L);
+    assertEquals((long) entry.getValue(), 12L);
     entry = itr.next();
-    assertEquals((long) entry.getKey(), 2l);
-    assertEquals((long) entry.getValue(), 22l);
+    assertEquals((long) entry.getKey(), 2L);
+    assertEquals((long) entry.getValue(), 22L);
     assertEquals(false, itr.hasNext());
 
     mapStateA.remove(1);
@@ -191,8 +191,8 @@ public class JStormStateInternalsTest {
     entries = mapStateA.entries().read();
     itr = entries.iterator();
     entry = itr.next();
-    assertEquals((long) entry.getKey(), 2l);
-    assertEquals((long) entry.getValue(), 22l);
+    assertEquals((long) entry.getKey(), 2L);
+    assertEquals((long) entry.getValue(), 22L);
     assertEquals(false, itr.hasNext());
   }
 

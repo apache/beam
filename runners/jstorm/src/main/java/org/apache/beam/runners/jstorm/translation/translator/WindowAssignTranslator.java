@@ -21,6 +21,11 @@ import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.WindowAssignExecutor;
 import org.apache.beam.sdk.transforms.windowing.Window;
 
+/**
+ * Translates a {@link org.apache.beam.sdk.transforms.windowing.Window.Assign} to a
+ * JStorm {@link WindowAssignExecutor}.
+ * @param <T>
+ */
 public class WindowAssignTranslator<T> extends TransformTranslator.Default<Window.Assign<T>> {
 
   @Override

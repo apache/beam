@@ -37,14 +37,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Pipleline translator of Storm
+ * Pipleline translator of JStorm.
  */
-public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
-  private static final Logger LOG = LoggerFactory.getLogger(StormPipelineTranslator.class);
+public class JStormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
+  private static final Logger LOG = LoggerFactory.getLogger(JStormPipelineTranslator.class);
   private TranslationContext context;
   private int depth = 0;
 
-  public StormPipelineTranslator(TranslationContext context) {
+  public JStormPipelineTranslator(TranslationContext context) {
     this.context = context;
   }
 

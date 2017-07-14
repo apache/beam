@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
 
-/*
+/**
  * Enable user to add output stream definitions by API, rather than hard-code.
  */
 public abstract class AbstractComponent implements IComponent {
