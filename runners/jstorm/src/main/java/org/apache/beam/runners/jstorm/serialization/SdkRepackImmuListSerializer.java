@@ -12,6 +12,9 @@ import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableTable;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Lists;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Table;
 
+/**
+ * Specific serializer of {@link Kryo} for Beam SDK repackaged ImmutableList.
+ */
 public class SdkRepackImmuListSerializer extends Serializer<ImmutableList<Object>> {
 
   private static final boolean DOES_NOT_ACCEPT_NULL = false;

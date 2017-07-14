@@ -30,6 +30,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * JStorm {@link Executor} for {@link DoFn} with multi-output.
+ * @param <InputT>
+ * @param <OutputT>
+ */
 public class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
 

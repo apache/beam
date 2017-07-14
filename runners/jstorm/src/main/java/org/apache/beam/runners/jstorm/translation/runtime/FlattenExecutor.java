@@ -22,6 +22,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
+/**
+ * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.Flatten}.
+ * @param <InputT>
+ */
 public class FlattenExecutor<InputT> implements Executor {
 
   private final String description;

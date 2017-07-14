@@ -29,6 +29,9 @@ import java.util.Map;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Transactional unbounded source spout handles the checkpoint and restore of state and timer.
+ */
 public class TxUnboundedSourceSpout implements ITransactionSpoutExecutor {
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(TxUnboundedSourceSpout.class);
 

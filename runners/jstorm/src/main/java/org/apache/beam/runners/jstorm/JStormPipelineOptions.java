@@ -64,6 +64,9 @@ public interface JStormPipelineOptions extends PipelineOptions {
   Map getParallelismNumMap();
   void setParallelismNumMap(Map parallelismNumMap);
 
+  /**
+   * Default value factory for topology configuration of JStorm.
+   */
   class DefaultMapValueFactory implements DefaultValueFactory<Map> {
     @Override
     public Map create(PipelineOptions pipelineOptions) {

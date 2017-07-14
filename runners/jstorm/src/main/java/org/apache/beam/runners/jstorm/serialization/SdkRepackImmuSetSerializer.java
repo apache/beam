@@ -8,6 +8,9 @@ import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableSet;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Sets;
 
+/**
+ * Specific serializer of {@link Kryo} for Beam SDK repackaged ImmutableSet.
+ */
 public class SdkRepackImmuSetSerializer extends Serializer<ImmutableSet<Object>> {
 
   private static final boolean DOES_NOT_ACCEPT_NULL = false;

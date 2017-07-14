@@ -54,8 +54,7 @@ public class ViewTranslator
 
   /**
    * Specialized implementation for
-   * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap}
-   * for the Flink runner in streaming mode.
+   * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap}.
    */
   public static class ViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
@@ -93,8 +92,7 @@ public class ViewTranslator
 
   /**
    * Specialized expansion for {@link
-   * View.AsMultimap View.AsMultimap} for the
-   * Flink runner in streaming mode.
+   * View.AsMultimap View.AsMultimap}.
    */
   public static class ViewAsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
@@ -135,8 +133,7 @@ public class ViewTranslator
 
   /**
    * Specialized implementation for
-   * {@link View.AsList View.AsList} for the
-   * JStorm runner in streaming mode.
+   * {@link View.AsList View.AsList}.
    */
   public static class ViewAsList<T>
       extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
@@ -258,6 +255,12 @@ public class ViewTranslator
     }
   }
 
+  /**
+   * Specialized expansion for
+   * {@link org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView}.
+   * @param <InputT>
+   * @param <OutputT>
+     */
   public static class CombineGloballyAsSingletonView<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
     Combine.GloballyAsSingletonView<InputT, OutputT> transform;
@@ -351,8 +354,7 @@ public class ViewTranslator
 
   /**
    * Creates a primitive {@link PCollectionView}.
-   * <p>
-   * <p>For internal use only by runner implementors.
+   * For internal use only by runner implementors.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input

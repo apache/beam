@@ -24,7 +24,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Singleton keyed word item.
- *
  * @param <K>
  * @param <ElemT>
  */

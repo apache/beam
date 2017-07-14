@@ -19,6 +19,9 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 
 import backtype.storm.topology.IRichBatchBolt;
 
+/**
+ * Adaptor bolt of JStorm extends {@link AbstractComponent}.
+ */
 public abstract class AdaptorBasicBolt extends AbstractComponent implements IRichBatchBolt {
 
 }

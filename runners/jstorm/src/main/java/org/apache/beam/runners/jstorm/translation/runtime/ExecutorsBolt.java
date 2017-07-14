@@ -19,8 +19,6 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import avro.shaded.com.google.common.base.Joiner;
-import avro.shaded.com.google.common.collect.Sets;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.ITupleExt;
@@ -31,8 +29,10 @@ import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.cluster.Common;
 import com.alibaba.jstorm.utils.KryoSerializer;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,6 +49,9 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * ExecutorsBolt is a JStorm Bolt composited with several executors chained in a sub-DAG.
+ */
 public class ExecutorsBolt extends AdaptorBasicBolt {
   private static final long serialVersionUID = -7751043327801735211L;
 
@@ -129,10 +132,10 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
       // init kv store manager
       String storeName = String.format("task-%d", context.getThisTaskId());
       String stateStorePath = String.format("%s/beam/%s", context.getWorkerIdDir(), storeName);
-      IKvStoreManager kvStoreManager = isStatefulBolt ?
-          KvStoreManagerFactory.getKvStoreManagerWithMonitor(
-              context, storeName, stateStorePath, isStatefulBolt) :
-          KvStoreManagerFactory.getKvStoreManager(
+      IKvStoreManager kvStoreManager = isStatefulBolt
+              ? KvStoreManagerFactory.getKvStoreManagerWithMonitor(
+              context, storeName, stateStorePath, isStatefulBolt)
+              : KvStoreManagerFactory.getKvStoreManager(
               stormConf, storeName, stateStorePath, isStatefulBolt);
       this.executorContext = ExecutorContext.of(context, this, kvStoreManager);
 

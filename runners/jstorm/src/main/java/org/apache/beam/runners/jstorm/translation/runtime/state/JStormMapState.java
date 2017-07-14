@@ -26,6 +26,11 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Implementation of {@link MapState} in JStorm runner.
+ * @param <K>
+ * @param <V>
+ */
 public class JStormMapState<K, V> implements MapState<K, V> {
   private static final Logger LOG = LoggerFactory.getLogger(JStormMapState.class);
 

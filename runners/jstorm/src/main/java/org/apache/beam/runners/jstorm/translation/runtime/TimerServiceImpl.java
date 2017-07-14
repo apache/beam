@@ -20,9 +20,9 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import avro.shaded.com.google.common.collect.Maps;
-import avro.shaded.com.google.common.collect.Sets;
 import com.alibaba.jstorm.utils.Pair;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +47,7 @@ public class TimerServiceImpl implements TimerService {
   private final PriorityQueue<Long> inputWatermarks = new PriorityQueue<>();
   private final PriorityQueue<Instant> watermarkHolds = new PriorityQueue<>();
   private final Map<String, Instant> namespaceToWatermarkHold = new HashMap<>();
-  private transient final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
+  private final transient PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
       new PriorityQueue<>();
   private final Map<TimerInternals.TimerData, Set<Pair<Integer, Object>>>
       timerDataToKeyedExecutors = Maps.newHashMap();

@@ -11,6 +11,9 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Specific serializer of {@link Kryo} for ImmutableMap.
+ */
 public class ImmutableMapSerializer extends Serializer<ImmutableMap<Object, ? extends Object>> {
 
   private static final boolean DOES_NOT_ACCEPT_NULL = true;

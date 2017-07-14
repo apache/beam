@@ -25,10 +25,12 @@ import org.apache.beam.runners.jstorm.translation.runtime.StatefulDoFnExecutor;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
+/**
+ * Utils for JStorm runner.
+ */
 public class RunnerUtils {
   /**
-   * Convert WindowedValue<KV<>> into KeyedWorkItem<K, WindowedValue<V>>
-   *
+   * Convert {@link WindowedValue} into {@link KeyedWorkItem}.
    * @param elem
    * @return
    */
@@ -43,8 +45,8 @@ public class RunnerUtils {
   public static boolean isGroupByKeyExecutor(Executor executor) {
     if (executor instanceof GroupByWindowExecutor) {
       return true;
-    } else if (executor instanceof StatefulDoFnExecutor ||
-        executor instanceof MultiStatefulDoFnExecutor) {
+    } else if (executor instanceof StatefulDoFnExecutor
+            || executor instanceof MultiStatefulDoFnExecutor) {
       return true;
     } else {
       return false;

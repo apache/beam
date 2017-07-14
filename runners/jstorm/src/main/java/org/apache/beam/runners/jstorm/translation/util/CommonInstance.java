@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.jstorm.translation.util;
 
+/**
+ * Common definition of JStorm runner.
+ */
 public class CommonInstance {
   public static final String KEY = "Key";
   public static final String VALUE = "Value";

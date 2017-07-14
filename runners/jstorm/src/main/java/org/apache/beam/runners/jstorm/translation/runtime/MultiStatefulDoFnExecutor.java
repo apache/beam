@@ -32,6 +32,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+/**
+ * JStorm {@link Executor} for stateful {@link DoFn} with multi-output.
+ * @param <OutputT>
+ */
 public class MultiStatefulDoFnExecutor<OutputT> extends MultiOutputDoFnExecutor<KV, OutputT> {
 
   public MultiStatefulDoFnExecutor(

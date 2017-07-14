@@ -8,6 +8,9 @@ import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
+/**
+ * Specific serializer of {@link Kryo} for ImmutableSet.
+ */
 public class ImmutableSetSerializer extends Serializer<ImmutableSet<Object>> {
 
   private static final boolean DOES_NOT_ACCEPT_NULL = false;

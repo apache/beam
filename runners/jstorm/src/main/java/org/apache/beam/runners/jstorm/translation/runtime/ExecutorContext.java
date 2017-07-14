@@ -21,6 +21,9 @@ import backtype.storm.task.TopologyContext;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.google.auto.value.AutoValue;
 
+/**
+ * Context of a executors bolt when runtime.
+ */
 @AutoValue
 public abstract class ExecutorContext {
   public static ExecutorContext of(

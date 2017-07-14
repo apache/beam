@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.jstorm.translation.translator;
 
-import avro.shaded.com.google.common.collect.Lists;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
@@ -40,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Translates a ParDo.Bound to a Storm {@link DoFnExecutor}.
+ * Translates a ParDo.Bound to a JStorm {@link DoFnExecutor}.
  */
 public class ParDoBoundTranslator<InputT, OutputT>
     extends TransformTranslator.Default<ParDo.SingleOutput<InputT, OutputT>> {

@@ -40,8 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Spout implementation that wraps a Beam UnboundedSource
- * <p>
+ * Spout implementation that wraps a Beam UnboundedSource.
  * TODO: add wrapper to support metrics in UnboundedSource.
  */
 public class UnboundedSourceSpout extends AdaptorBasicSpout {
@@ -61,7 +60,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
 
   private KryoSerializer<WindowedValue> serializer;
 
-  private long lastWaterMark = 0l;
+  private long lastWaterMark = 0L;
 
   public UnboundedSourceSpout(
       String description,

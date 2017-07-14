@@ -29,6 +29,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+/**
+ * Translates a {@link GroupByKey} to a JStorm {@link GroupByWindowExecutor}.
+ * @param <K>
+ * @param <V>
+ */
 public class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<K, V>> {
   // information of transform
   protected PCollection<KV<K, V>> input;

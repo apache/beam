@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * JStorm implementation of {@link BagState}.
+ * Implementation of {@link BagState} in JStorm runner.
  */
 class JStormBagState<K, T> implements BagState<T> {
   private static final Logger LOG = LoggerFactory.getLogger(JStormBagState.class);
@@ -115,6 +115,9 @@ class JStormBagState<K, T> implements BagState<T> {
     return ComposedKey.of(key, namespace, elemIndex);
   }
 
+  /**
+   * Implementation of Bag state Iterable.
+   */
   private class BagStateIterable implements KvStoreIterable<T> {
 
     private class BagStateIterator implements Iterator<T> {

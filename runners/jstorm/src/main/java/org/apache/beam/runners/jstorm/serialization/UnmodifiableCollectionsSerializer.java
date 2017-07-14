@@ -21,6 +21,9 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+/**
+ * Specific serializer of {@link Kryo} for Unmodifiable Collection.
+ */
 public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
 
   private static final Field SOURCE_COLLECTION_FIELD;
@@ -83,7 +86,7 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
     }
   }
 
-  private static enum UnmodifiableCollection {
+  private enum UnmodifiableCollection {
     COLLECTION(
         Collections.unmodifiableCollection(Arrays.asList("")).getClass(),
         SOURCE_COLLECTION_FIELD) {

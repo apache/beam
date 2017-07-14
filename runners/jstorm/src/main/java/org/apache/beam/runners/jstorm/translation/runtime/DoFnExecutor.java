@@ -20,9 +20,9 @@ package org.apache.beam.runners.jstorm.translation.runtime;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import avro.shaded.com.google.common.collect.Iterables;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.metric.MetricClient;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,11 +62,19 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * JStorm {@link Executor} for {@link DoFn}.
+ * @param <InputT> input type
+ * @param <OutputT> output type
+ */
 public class DoFnExecutor<InputT, OutputT> implements Executor {
   private static final long serialVersionUID = 5297603063991078668L;
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnExecutor.class);
 
+  /**
+   * Implements {@link OutputManager} in a DoFn executor.
+   */
   public class DoFnExecutorOutputManager implements OutputManager, Serializable {
     private static final long serialVersionUID = -661113364735206170L;
 
@@ -174,7 +182,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     initService(context);
 
     // Side inputs setup
-    if (sideInputs != null && sideInputs.isEmpty() == false) {
+    if (sideInputs != null && !sideInputs.isEmpty()) {
       pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
       watermarkHoldTag =
           StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
@@ -261,10 +269,10 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
   }
 
   /**
-   * Process all pushed back elements when receiving watermark with max timestamp
+   * Process all pushed back elements when receiving watermark with max timestamp.
    */
   public void processAllPushBackElements() {
-    if (sideInputs != null && sideInputs.isEmpty() == false) {
+    if (sideInputs != null && !sideInputs.isEmpty()) {
       BagState<WindowedValue<InputT>> pushedBackElements =
           pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
       if (pushedBackElements != null) {
