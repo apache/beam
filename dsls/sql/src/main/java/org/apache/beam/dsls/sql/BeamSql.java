@@ -23,6 +23,7 @@ import org.apache.beam.dsls.sql.schema.BeamPCollectionTable;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
+import org.apache.beam.dsls.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -128,8 +129,8 @@ public class BeamSql {
     /**
      * register a UDF function used in this query.
      */
-     public QueryTransform withUdf(String functionName, Class<?> clazz, String methodName){
-       getSqlEnv().registerUdf(functionName, clazz, methodName);
+     public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
+       getSqlEnv().registerUdf(functionName, clazz);
        return this;
      }
 
@@ -196,8 +197,8 @@ public class BeamSql {
     /**
      * register a UDF function used in this query.
      */
-     public SimpleQueryTransform withUdf(String functionName, Class<?> clazz, String methodName){
-       getSqlEnv().registerUdf(functionName, clazz, methodName);
+     public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
+       getSqlEnv().registerUdf(functionName, clazz);
        return this;
      }
 
