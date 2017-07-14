@@ -405,11 +405,11 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testReadFromTableNewSource() throws IOException, InterruptedException {
+  public void testReadFromTableTemplateCompatibility() throws IOException, InterruptedException {
     testReadFromTable(true);
   }
 
-  private void testReadFromTable(boolean useNewSource)
+  private void testReadFromTable(boolean useTemplateCompatibility)
       throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
@@ -455,8 +455,8 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Read read = BigQueryIO.read().from("non-executing-project:somedataset.sometable")
         .withTestServices(fakeBqServices)
         .withoutValidation();
-    if (useNewSource) {
-      read = read.withNewSource();
+    if (useTemplateCompatibility) {
+      read = read.withTemplateCompatibility();
     }
     PCollection<KV<String, Long>> output = p
         .apply(read)

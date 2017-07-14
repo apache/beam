@@ -298,7 +298,7 @@ public class BigQueryIO {
   public static Read read() {
     return new AutoValue_BigQueryIO_Read.Builder()
         .setValidate(true)
-        .setUseNewSource(false)
+        .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .build();
   }
@@ -311,7 +311,7 @@ public class BigQueryIO {
     abstract boolean getValidate();
     @Nullable abstract Boolean getFlattenResults();
     @Nullable abstract Boolean getUseLegacySql();
-    abstract Boolean getUseNewSource();
+    abstract Boolean getWithTemplateCompatibility();
     abstract BigQueryServices getBigQueryServices();
     abstract Builder toBuilder();
 
@@ -322,7 +322,7 @@ public class BigQueryIO {
       abstract Builder setValidate(boolean validate);
       abstract Builder setFlattenResults(Boolean flattenResults);
       abstract Builder setUseLegacySql(Boolean useLegacySql);
-      abstract Builder setUseNewSource(Boolean useNewSource);
+      abstract Builder setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Read build();
     }
@@ -422,8 +422,8 @@ public class BigQueryIO {
      * rebalancing.
      */
     @Experimental(Experimental.Kind.SOURCE_SINK)
-    public Read withNewSource() {
-      return toBuilder().setUseNewSource(true).build();
+    public Read withTemplateCompatibility() {
+      return toBuilder().setWithTemplateCompatibility(true).build();
     }
 
     @VisibleForTesting
@@ -537,7 +537,7 @@ public class BigQueryIO {
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection = null;
       PCollection<TableRow> rows;
-      if (!getUseNewSource()) {
+      if (!getWithTemplateCompatibility()) {
         // Create a singleton job ID token at construction time.
         final String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView = p
