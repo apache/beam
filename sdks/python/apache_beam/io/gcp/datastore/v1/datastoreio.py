@@ -18,6 +18,7 @@
 """A connector for reading from and writing to Google Cloud Datastore"""
 
 import logging
+import time
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -30,6 +31,7 @@ except ImportError:
 
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.io.gcp.datastore.v1 import query_splitter
+from apache_beam.io.gcp.datastore.v1 import util
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap
@@ -38,6 +40,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.util import Values
+from apache_beam.metrics.metric import Metrics
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -313,12 +316,15 @@ class _Mutate(PTransform):
   supported, as the commits are retried when failures occur.
   """
 
+  _WRITE_BATCH_INITIAL_SIZE = 200
   # Max allowed Datastore writes per batch, and max bytes per batch.
   # Note that the max bytes per batch set here is lower than the 10MB limit
   # actually enforced by the API, to leave space for the CommitRequest wrapper
   # around the mutations.
-  _WRITE_BATCH_SIZE = 500
-  _WRITE_BATCH_BYTES_SIZE = 9000000
+  _WRITE_BATCH_MAX_SIZE = 500
+  _WRITE_BATCH_MAX_BYTES_SIZE = 9000000
+  _WRITE_BATCH_MIN_SIZE = 10
+  _WRITE_BATCH_TARGET_LATENCY_MS = 5000
 
   def __init__(self, project, mutation_fn):
     """Initializes a Mutate transform.
@@ -342,48 +348,102 @@ class _Mutate(PTransform):
     return {'project': self._project,
             'mutation_fn': self._mutation_fn.__class__.__name__}
 
+  class _DynamicBatchSizer(object):
+    """Determines request sizes for future Datastore RPCS."""
+    def __init__(self):
+      self._commit_time_per_entity_ms = util.MovingSum(window_ms=120000,
+                                                       bucket_ms=10000)
+
+    def get_batch_size(self, now):
+      """Returns the recommended size for datastore RPCs at this time."""
+      if not self._commit_time_per_entity_ms.has_data(now):
+        return _Mutate._WRITE_BATCH_INITIAL_SIZE
+
+      recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
+                                / self._commit_time_per_entity_ms.count(now))
+      return max(_Mutate._WRITE_BATCH_MIN_SIZE,
+                 min(_Mutate._WRITE_BATCH_MAX_SIZE,
+                     _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
+                     / max(recent_mean_latency_ms, 1)
+                    ))
+
+    def report_latency(self, now, latency_ms, num_mutations):
+      """Reports the latency of an RPC to Datastore.
+
+      Args:
+        now: double, completion time of the RPC as seconds since the epoch.
+        latency_ms: double, the observed latency in milliseconds for this RPC.
+        num_mutations: int, number of mutations contained in the RPC.
+      """
+      self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
+
   class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
 
     Mutations are written in batches, where the maximum batch size is
-    `Mutate._WRITE_BATCH_SIZE`.
+    `_Mutate._WRITE_BATCH_SIZE`.
 
     Commits are non-transactional. If a commit fails because of a conflict over
     an entity group, the commit will be retried. This means that the mutation
     should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
     data or errors.
     """
-    def __init__(self, project):
+    def __init__(self, project, fixed_batch_size=None):
+      """
+      Args:
+        project: str, the cloud project id.
+        fixed_batch_size: int, for testing only, this forces all batches of
+           writes to be a fixed size, for easier unittesting.
+      """
       self._project = project
       self._datastore = None
-      self._mutations = []
-      self._mutations_size = 0  # Total size of entries in _mutations.
+      self._fixed_batch_size = fixed_batch_size
+      self._rpc_successes = Metrics.counter(
+          _Mutate.DatastoreWriteFn, "datastoreRpcSuccesses")
+      self._rpc_errors = Metrics.counter(
+          _Mutate.DatastoreWriteFn, "datastoreRpcErrors")
+
+    def _update_rpc_stats(self, successes=0, errors=0):
+      self._rpc_successes.inc(successes)
+      self._rpc_errors.inc(errors)
 
     def start_bundle(self):
       self._mutations = []
       self._mutations_size = 0
       self._datastore = helper.get_datastore(self._project)
+      if self._fixed_batch_size:
+        self._target_batch_size = self._fixed_batch_size
+      else:
+        self._batch_sizer = _Mutate._DynamicBatchSizer()
+        self._target_batch_size = self._batch_sizer.get_batch_size(time.time())
 
     def process(self, element):
       size = element.ByteSize()
       if (self._mutations and
-          size + self._mutations_size > _Mutate._WRITE_BATCH_BYTES_SIZE):
+          size + self._mutations_size > _Mutate._WRITE_BATCH_MAX_BYTES_SIZE):
         self._flush_batch()
       self._mutations.append(element)
       self._mutations_size += size
-      if len(self._mutations) >= _Mutate._WRITE_BATCH_SIZE:
+      if len(self._mutations) >= self._target_batch_size:
         self._flush_batch()
 
     def finish_bundle(self):
       if self._mutations:
         self._flush_batch()
-      self._mutations = []
-      self._mutations_size = 0
 
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
-      helper.write_mutations(self._datastore, self._project, self._mutations)
-      logging.debug("Successfully wrote %d mutations.", len(self._mutations))
+      _, latency_ms = helper.write_mutations(
+          self._datastore, self._project, self._mutations,
+          self._update_rpc_stats)
+      logging.debug("Successfully wrote %d mutations in %dms.",
+                    len(self._mutations), latency_ms)
+
+      if not self._fixed_batch_size:
+        now = time.time()
+        self._batch_sizer.report_latency(now, latency_ms, len(self._mutations))
+        self._target_batch_size = self._batch_sizer.get_batch_size(now)
+
       self._mutations = []
       self._mutations_size = 0
 
