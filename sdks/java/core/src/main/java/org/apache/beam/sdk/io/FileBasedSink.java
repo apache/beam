@@ -124,7 +124,8 @@ import org.slf4j.LoggerFactory;
  * @param <OutputT> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
-public abstract class FileBasedSink<OutputT, DestinationT> implements Serializable, HasDisplayData {
+public abstract class FileBasedSink<UserT, DestinationT, OutputT>
+    implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /** Directly supported file output compression types. */
@@ -202,7 +203,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
   }
 
-  private DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations;
   private List<PCollectionView<?>> sideInputs;
 
   /**
@@ -219,7 +220,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    * destination type into an instance of {@link FilenamePolicy}.
    */
   @Experimental(Kind.FILESYSTEM)
-  public abstract static class DynamicDestinations<UserT, DestinationT>
+  public abstract static class DynamicDestinations<UserT, DestinationT, OutputT>
       implements HasDisplayData, Serializable {
     interface SideInputAccessor {
       <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
@@ -268,6 +269,11 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
       this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
     }
+
+    /**
+     * Convert an input record type into the output type.
+     */
+    public abstract OutputT formatRecord(UserT record);
 
     /**
      * Returns an object that represents at a high level the destination being written to. May not
@@ -375,7 +381,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations) {
     this(tempDirectoryProvider, dynamicDestinations, CompressionType.UNCOMPRESSED);
   }
 
@@ -383,7 +389,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
   @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
-      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     this.tempDirectoryProvider =
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
@@ -393,8 +399,8 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
   /** Return the {@link DynamicDestinations} used. */
   @SuppressWarnings("unchecked")
-  public <UserT> DynamicDestinations<UserT, DestinationT> getDynamicDestinations() {
-    return (DynamicDestinations<UserT, DestinationT>) dynamicDestinations;
+  public DynamicDestinations<UserT, DestinationT, OutputT> getDynamicDestinations() {
+    return (DynamicDestinations<UserT, DestinationT, OutputT>) dynamicDestinations;
   }
 
   /** Returns the list of side inputs used by this sink. */
@@ -467,7 +473,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
    */
   public abstract static class WriteOperation<OutputT, DestinationT> implements Serializable {
     /** The Sink that this WriteOperation will write to. */
-    protected final FileBasedSink<OutputT, DestinationT> sink;
+    protected final FileBasedSink<?, DestinationT, OutputT> sink;
 
     /** Directory for temporary output files. */
     protected final ValueProvider<ResourceId> tempDirectory;
@@ -493,7 +499,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
-    public WriteOperation(FileBasedSink<OutputT, DestinationT> sink) {
+    public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink) {
       this(
           sink,
           NestedValueProvider.of(sink.getTempDirectoryProvider(), new TemporaryDirectoryBuilder()));
@@ -528,12 +534,13 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      * @param tempDirectory the base directory to be used for temporary output files.
      */
     @Experimental(Kind.FILESYSTEM)
-    public WriteOperation(FileBasedSink<OutputT, DestinationT> sink, ResourceId tempDirectory) {
+    public WriteOperation(
+        FileBasedSink<?, DestinationT, OutputT> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory));
     }
 
     private WriteOperation(
-        FileBasedSink<OutputT, DestinationT> sink, ValueProvider<ResourceId> tempDirectory) {
+        FileBasedSink<?, DestinationT, OutputT> sink, ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
       this.windowedWrites = false;
@@ -654,10 +661,6 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
                 getSink().getDynamicDestinations(),
                 numShards,
                 getSink().getWritableByteChannelFactory()));
-        System.out.println("BOOM " + result.getDestinationFile(
-            getSink().getDynamicDestinations(),
-            numShards,
-            getSink().getWritableByteChannelFactory()));
       }
 
       int numDistinctShards = new HashSet<>(outputFilenames.values()).size();
@@ -759,7 +762,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
 
     /** Returns the FileBasedSink for this write operation. */
-    public FileBasedSink<OutputT, DestinationT> getSink() {
+    public FileBasedSink<?, DestinationT, OutputT> getSink() {
       return sink;
     }
 
@@ -1062,7 +1065,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
 
     @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(
-        DynamicDestinations<?, DestinationT> dynamicDestinations,
+        DynamicDestinations<?, DestinationT, ?> dynamicDestinations,
         int numShards,
         OutputFileHints outputFileHints) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);

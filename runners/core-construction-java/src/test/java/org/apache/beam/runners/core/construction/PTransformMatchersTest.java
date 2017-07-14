@@ -549,15 +549,14 @@ public class PTransformMatchersTest implements Serializable {
             false);
     WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
-            new FileBasedSink<Integer, Void>(
+            new FileBasedSink<Integer, Void, Integer>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
+                DynamicFileDestinations.constant(null, SerializableFunctions.<Integer>identity())) {
               @Override
               public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;
               }
-            },
-            SerializableFunctions.<Integer>identity());
+            });
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));

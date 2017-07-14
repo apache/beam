@@ -31,7 +31,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -72,7 +71,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -555,7 +553,8 @@ public class AvroIOTest {
     return SCHEMA_TEMPLATE_STRING.replace("$$", prefix);
   }
 
-  private static class TestDynamicDestinations extends DynamicAvroDestinations<String, String> {
+  private static class TestDynamicDestinations
+      extends DynamicAvroDestinations<String, String, GenericRecord> {
     ResourceId baseDir;
     PCollectionView<Map<String, String>> schemaView;
 
@@ -587,6 +586,15 @@ public class AvroIOTest {
     }
 
     @Override
+    public GenericRecord formatRecord(String record) {
+      String prefix = record.substring(0, 1);
+      GenericRecord genericRecord = new GenericData.Record(getSchema(prefix));
+      genericRecord.put(prefix + "full", record);
+      genericRecord.put(prefix + "suffix", record.substring(1));
+      return genericRecord;
+    }
+
+    @Override
     public String getDestination(String element) {
       // Destination is based on first character of string.
       return element.substring(0, 1);
@@ -603,18 +611,6 @@ public class AvroIOTest {
           StaticValueProvider.of(baseDir.resolve("file_" + destination + ".txt",
               StandardResolveOptions.RESOLVE_FILE)),
           null, null, false);    }
-  }
-
-  private static class TestDynamicFormat implements SerializableFunction<String, GenericRecord> {
-    @Override
-    public GenericRecord apply(String input) {
-      String prefix = input.substring(0, 1);
-      GenericRecord record = new GenericData.Record(
-          new Schema.Parser().parse(schemaFromPrefix(prefix)));
-      record.put(prefix + "full", input);
-      record.put(prefix + "suffix", input.substring(1));
-      return record;
-    }
   }
 
   @Test
@@ -634,7 +630,7 @@ public class AvroIOTest {
 
     PCollection<String> input =
         p.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(AvroIO.writeCustomType(new TestDynamicFormat(), true)
+    input.apply(AvroIO.<String>writeCustomTypeToGenericRecords()
         .to(new TestDynamicDestinations(baseDir, schemaView))
         .withoutSharding()
         .withTempDirectory(baseDir));

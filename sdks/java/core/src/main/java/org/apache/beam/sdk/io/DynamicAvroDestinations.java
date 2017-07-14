@@ -29,8 +29,8 @@ import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
  * file destinations, this allows specifying other AVRO properties (schema, metadata, codec) per
  * destination.
  */
-public abstract class DynamicAvroDestinations<UserT, DestinationT>
-    extends DynamicDestinations<UserT, DestinationT> {
+public abstract class DynamicAvroDestinations<UserT, DestinationT, OutputT>
+    extends DynamicDestinations<UserT, DestinationT, OutputT> {
   /**
    * Return an AVRO schema for a given destination.
    */

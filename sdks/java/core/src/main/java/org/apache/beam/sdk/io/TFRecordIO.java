@@ -357,10 +357,12 @@ public class TFRecordIO {
       checkState(getOutputPrefix() != null,
           "need to set the output prefix of a TFRecordIO.Write transform");
       WriteFiles<byte[], Void, byte[]> write =
-          WriteFiles.<byte[], Void, byte[]>to(
+          WriteFiles.to(
               new TFRecordSink(
-                  getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompressionType()),
-              SerializableFunctions.<byte[]>identity());
+                  getOutputPrefix(),
+                  getShardTemplate(),
+                  getFilenameSuffix(),
+                  getCompressionType()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -548,7 +550,7 @@ public class TFRecordIO {
 
   /** A {@link FileBasedSink} for TFRecord files. Produces TFRecord files. */
   @VisibleForTesting
-  static class TFRecordSink extends FileBasedSink<byte[], Void> {
+  static class TFRecordSink extends FileBasedSink<byte[], Void, byte[]> {
     @VisibleForTesting
     TFRecordSink(
         ValueProvider<ResourceId> outputPrefix,
@@ -559,7 +561,8 @@ public class TFRecordIO {
           outputPrefix,
           DynamicFileDestinations.constant(
               DefaultFilenamePolicy.fromStandardParameters(
-                  outputPrefix, shardTemplate, suffix, false)),
+                  outputPrefix, shardTemplate, suffix, false),
+                  SerializableFunctions.<byte[]>identity()),
           writableByteChannelFactory(compressionType));
     }
 

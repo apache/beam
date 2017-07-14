@@ -23,15 +23,16 @@ import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /**
  * A simple {@link FileBasedSink} that writes {@link String} values as lines with header and footer.
  */
-class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
+class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, String> {
   public SimpleSink(
       ResourceId tempDirectory,
-      DynamicDestinations<String, DestinationT> dynamicDestinations,
+      DynamicDestinations<String, DestinationT, String> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
     super(StaticValueProvider.of(tempDirectory), dynamicDestinations, writableByteChannelFactory);
   }
@@ -40,7 +41,8 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
     return new SimpleSink<>(
         tempDirectory,
-        DynamicFileDestinations.<String>constant(filenamePolicy),
+        DynamicFileDestinations.constant(
+            filenamePolicy, SerializableFunctions.<String>identity()),
         CompressionType.UNCOMPRESSED);
   }
 
@@ -50,14 +52,15 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT> {
       String shardTemplate,
       String suffix,
       WritableByteChannelFactory writableByteChannelFactory) {
-    DynamicDestinations<String, Void> dynamicDestinations =
+    DynamicDestinations<String, Void, String> dynamicDestinations =
         DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
                 new Params()
                     .withBaseFilename(
                         baseDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE))
                     .withShardTemplate(shardTemplate)
-                    .withSuffix(suffix)));
+                    .withSuffix(suffix)),
+                    SerializableFunctions.<String>identity());
     return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
   }
 

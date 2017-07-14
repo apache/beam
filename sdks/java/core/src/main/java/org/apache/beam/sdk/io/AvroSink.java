@@ -31,13 +31,13 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** A {@link FileBasedSink} for Avro files. */
-class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<OutputT, DestinationT> {
-  private final DynamicAvroDestinations<UserT, DestinationT> dynamicDestinations;
+class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, DestinationT, OutputT> {
+  private final DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations;
   private final boolean genericRecords;
 
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
-      DynamicAvroDestinations<UserT, DestinationT> dynamicDestinations,
+      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations,
       boolean genericRecords) {
     // Avro handle compression internally using the codec.
     super(outputPrefix, dynamicDestinations, CompressionType.UNCOMPRESSED);
@@ -53,7 +53,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<OutputT, Dest
   /** A {@link WriteOperation WriteOperation} for Avro files. */
   private static class AvroWriteOperation<OutputT, DestinationT>
       extends WriteOperation<OutputT, DestinationT> {
-    private final DynamicAvroDestinations<?, DestinationT> dynamicDestinations;
+    private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
 
     private AvroWriteOperation(
@@ -61,7 +61,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<OutputT, Dest
         boolean genericRecords) {
       super(sink);
       this.dynamicDestinations =
-        (DynamicAvroDestinations<?, DestinationT>) sink.getDynamicDestinations();
+        (DynamicAvroDestinations<?, DestinationT, ?>) sink.getDynamicDestinations();
       this.genericRecords = genericRecords;
     }
 
@@ -74,12 +74,12 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<OutputT, Dest
   /** A {@link Writer Writer} for Avro files. */
   private static class AvroWriter<OutputT, DestinationT> extends Writer<OutputT, DestinationT> {
     private DataFileWriter<OutputT> dataFileWriter;
-    private final DynamicAvroDestinations<?, DestinationT> dynamicDestinations;
+    private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
 
     public AvroWriter(
         WriteOperation<OutputT, DestinationT> writeOperation,
-        DynamicAvroDestinations<?, DestinationT> dynamicDestinations,
+        DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations,
         boolean genericRecords) {
       super(writeOperation, MimeTypes.BINARY);
       this.dynamicDestinations = dynamicDestinations;

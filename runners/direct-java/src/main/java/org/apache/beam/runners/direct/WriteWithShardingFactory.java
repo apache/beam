@@ -73,10 +73,7 @@ class WriteWithShardingFactory<InputT>
           WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
       FileBasedSink sink = WriteFilesTranslation.getSink(transform);
       sink.setSideInputs(sideInputs);
-      WriteFiles<InputT, ?, ?> replacement =
-          WriteFiles.to(
-              sink,
-              WriteFilesTranslation.getFormatFunction(transform));
+      WriteFiles<InputT, ?, ?> replacement = WriteFiles.to(sink);
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }

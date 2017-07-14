@@ -38,7 +38,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -63,12 +62,11 @@ public class WriteFilesTranslationTest {
   public static class TestWriteFilesPayloadTranslation {
     @Parameters(name = "{index}: {0}")
     public static Iterable<WriteFiles<Object, Void, Object>> data() {
-      SerializableFunction<Object, Object> format = SerializableFunctions.constant(null);
       return ImmutableList.of(
-          WriteFiles.to(new DummySink(), format),
-          WriteFiles.to(new DummySink(), format).withWindowedWrites(),
-          WriteFiles.to(new DummySink(), format).withNumShards(17),
-          WriteFiles.to(new DummySink(), format).withWindowedWrites().withNumShards(42));
+          WriteFiles.to(new DummySink()),
+          WriteFiles.to(new DummySink()).withWindowedWrites(),
+          WriteFiles.to(new DummySink()).withNumShards(17),
+          WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
     }
 
     @Parameter(0)
@@ -87,7 +85,8 @@ public class WriteFilesTranslationTest {
       assertThat(payload.getWindowedWrites(), equalTo(writeFiles.isWindowedWrites()));
 
       assertThat(
-          (FileBasedSink<String, Void>) WriteFilesTranslation.sinkFromProto(payload.getSink()),
+          (FileBasedSink<String, Void, String>) WriteFilesTranslation.sinkFromProto(
+              payload.getSink()),
           equalTo(writeFiles.getSink()));
     }
 
@@ -118,12 +117,13 @@ public class WriteFilesTranslationTest {
    * A simple {@link FileBasedSink} for testing serialization/deserialization. Not mocked to avoid
    * any issues serializing mocks.
    */
-  private static class DummySink extends FileBasedSink<Object, Void> {
+  private static class DummySink extends FileBasedSink<Object, Void, Object> {
 
     DummySink() {
       super(
           StaticValueProvider.of(FileSystems.matchNewResource("nowhere", false)),
-          DynamicFileDestinations.constant(new DummyFilenamePolicy()));
+          DynamicFileDestinations.constant(
+              new DummyFilenamePolicy(), SerializableFunctions.constant(null)));
     }
 
     @Override
@@ -153,7 +153,7 @@ public class WriteFilesTranslationTest {
   }
 
   private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Object, Void> {
-    public DummyWriteOperation(FileBasedSink<Object, Void> sink) {
+    public DummyWriteOperation(FileBasedSink<Object, Void, Object> sink) {
       super(sink);
     }
 

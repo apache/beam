@@ -41,15 +41,24 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 /** Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}. */
 public class DynamicFileDestinations {
   /** Always returns a constant {@link FilenamePolicy}. */
-  private static class ConstantFilenamePolicy<T> extends DynamicDestinations<T, Void> {
+  private static class ConstantFilenamePolicy<UserT, OutputT>
+      extends DynamicDestinations<UserT, Void, OutputT> {
     private final FilenamePolicy filenamePolicy;
+    private final SerializableFunction<UserT, OutputT> formatFunction;
 
-    public ConstantFilenamePolicy(FilenamePolicy filenamePolicy) {
-      this.filenamePolicy = checkNotNull(filenamePolicy);
+    public ConstantFilenamePolicy(
+        FilenamePolicy filenamePolicy, SerializableFunction<UserT, OutputT> formatFunction) {
+      this.filenamePolicy = filenamePolicy;
+      this.formatFunction = formatFunction;
     }
 
     @Override
-    public Void getDestination(T element) {
+    public OutputT formatRecord(UserT record) {
+      return formatFunction.apply(record);
+    }
+
+    @Override
+    public Void getDestination(UserT element) {
       return (Void) null;
     }
 
@@ -106,13 +115,15 @@ public class DynamicFileDestinations {
   /**
    * Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec.
    */
-  private static class ConstantAvroDestination<T> extends DynamicAvroDestinations<T, Void> {
+  private static class ConstantAvroDestination<UserT, OutputT>
+      extends DynamicAvroDestinations<UserT, Void, OutputT> {
     // This should be a multiple of 4 to not get a partial encoded byte.
     private static final int METADATA_BYTES_MAX_LENGTH = 40;
     private final FilenamePolicy filenamePolicy;
     private final SerializableSchemaSupplier schema;
     private final Map<String, Object> metadata;
     private final SerializableAvroCodecFactory codec;
+    private final SerializableFunction<UserT, OutputT> formatFunction;
 
     private class Metadata implements HasDisplayData {
       @Override
@@ -132,15 +143,22 @@ public class DynamicFileDestinations {
     }
 
     public ConstantAvroDestination(FilenamePolicy filenamePolicy, Schema schema,
-                                   Map<String, Object> metadata, CodecFactory codec) {
+                                   Map<String, Object> metadata, CodecFactory codec,
+                                   SerializableFunction<UserT, OutputT> formatFunction) {
       this.filenamePolicy = filenamePolicy;
       this.schema = new SerializableSchemaSupplier(schema);
       this.metadata = metadata;
       this.codec = new SerializableAvroCodecFactory(codec);
+      this.formatFunction = formatFunction;
     }
 
     @Override
-    public Void getDestination(T element) {
+    public OutputT formatRecord(UserT record) {
+      return formatFunction.apply(record);
+    }
+
+    @Override
+    public Void getDestination(UserT element) {
       return (Void) null;
     }
 
@@ -185,14 +203,23 @@ public class DynamicFileDestinations {
    * A base class for a {@link DynamicDestinations} object that returns differently-configured
    * instances of {@link DefaultFilenamePolicy}.
    */
-  private static class DefaultPolicyDestinations<UserT> extends DynamicDestinations<UserT, Params> {
-    SerializableFunction<UserT, Params> destinationFunction;
-    Params emptyDestination;
+  private static class DefaultPolicyDestinations<UserT, OutputT>
+      extends DynamicDestinations<UserT, Params, OutputT> {
+    private final SerializableFunction<UserT, Params> destinationFunction;
+    private final Params emptyDestination;
+    private final SerializableFunction<UserT, OutputT> formatFunction;
 
     public DefaultPolicyDestinations(
-        SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
+        SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination,
+        SerializableFunction<UserT, OutputT> formatFunction) {
       this.destinationFunction = destinationFunction;
       this.emptyDestination = emptyDestination;
+      this.formatFunction = formatFunction;
+    }
+
+    @Override
+    public OutputT formatRecord(UserT record) {
+      return formatFunction.apply(record);
     }
 
     @Override
@@ -220,8 +247,9 @@ public class DynamicFileDestinations {
   /**
    * Returns a {@link DynamicDestinations} that always returns the same {@link FilenamePolicy}.
    */
-  public static <T> DynamicDestinations<T, Void> constant(FilenamePolicy filenamePolicy) {
-    return new ConstantFilenamePolicy<>(filenamePolicy);
+  public static <UserT, OutputT> DynamicDestinations<UserT, Void, OutputT> constant(
+      FilenamePolicy filenamePolicy, SerializableFunction<UserT, OutputT> formatFunction) {
+    return new ConstantFilenamePolicy<>(filenamePolicy, formatFunction);
   }
 
 
@@ -229,18 +257,21 @@ public class DynamicFileDestinations {
    * Returns a {@link DynamicAvroDestinations} that always returns the same
    * {@link FilenamePolicy}, schema, metadata, and codec.
    */
-  public static <T> DynamicAvroDestinations<T, Void> constantAvros(
+  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantAvros(
       FilenamePolicy filenamePolicy, Schema schema, Map<String, Object> metadata,
-      CodecFactory codec) {
-    return new ConstantAvroDestination<>(filenamePolicy, schema, metadata, codec);
+      CodecFactory codec, SerializableFunction<UserT, OutputT> formatFunction) {
+    return new ConstantAvroDestination<>(
+        filenamePolicy, schema, metadata, codec, formatFunction);
   }
 
   /**
    * Returns a {@link DynamicDestinations} that returns instances of {@link DefaultFilenamePolicy}
    * configured with the given {@link Params}.
    */
-  public static <UserT> DynamicDestinations<UserT, Params> toDefaultPolicies(
-      SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
-    return new DefaultPolicyDestinations<>(destinationFunction, emptyDestination);
+  public static <UserT, OutputT> DynamicDestinations<UserT, Params, OutputT> toDefaultPolicies(
+      SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination,
+      SerializableFunction<UserT, OutputT> formatFunction) {
+    return new DefaultPolicyDestinations<>(
+        destinationFunction, emptyDestination, formatFunction);
   }
 }
