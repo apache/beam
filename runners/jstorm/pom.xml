@@ -73,7 +73,7 @@
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
-                        "--runner=com.alibaba.jstorm.beam.TestJStormRunner"
+                        "--runner=org.apache.beam.runners.jstorm.TestJStormRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
