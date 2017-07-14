@@ -41,8 +41,6 @@ import org.apache.beam.runners.jstorm.serialization.UnmodifiableCollectionsSeria
 import org.apache.beam.runners.jstorm.translation.JStormPipelineTranslator;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.AbstractComponent;
-import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicBolt;
-import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicSpout;
 import org.apache.beam.runners.jstorm.translation.runtime.ExecutorsBolt;
 import org.apache.beam.runners.jstorm.translation.runtime.TxExecutorsBolt;
 import org.apache.beam.runners.jstorm.translation.runtime.TxUnboundedSourceSpout;
@@ -155,18 +153,12 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
 
   private AbstractComponent getComponent(
       String id, TranslationContext.ExecutionGraphContext context) {
-    AbstractComponent component = null;
-    AdaptorBasicSpout spout = context.getSpout(id);
+    AbstractComponent spout = context.getSpout(id);
     if (spout != null) {
-      component = spout;
+      return spout;
     } else {
-      AdaptorBasicBolt bolt = context.getBolt(id);
-      if (bolt != null) {
-        component = bolt;
-      }
+      return context.getBolt(id);
     }
-
-    return component;
   }
 
   private StormTopology getTopology(
@@ -176,7 +168,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
         isExactlyOnce ? new TransactionTopologyBuilder() : new TopologyBuilder();
 
     int parallelismNumber = options.getParallelismNumber();
-    Map<String, AdaptorBasicSpout> spouts = context.getSpouts();
+    Map<String, UnboundedSourceSpout> spouts = context.getSpouts();
     for (String id : spouts.keySet()) {
       IRichSpout spout = getSpout(isExactlyOnce, spouts.get(id));
       builder.setSpout(id, spout, getParallelismNum(spouts.get(id), parallelismNumber));

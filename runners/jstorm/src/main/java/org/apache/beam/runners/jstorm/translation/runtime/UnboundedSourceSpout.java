@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Values;
 import com.alibaba.jstorm.utils.KryoSerializer;
 import java.io.IOException;
@@ -43,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * Spout implementation that wraps a Beam UnboundedSource.
  * TODO: add wrapper to support metrics in UnboundedSource.
  */
-public class UnboundedSourceSpout extends AdaptorBasicSpout {
+public class UnboundedSourceSpout extends AbstractComponent implements IRichSpout {
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceSpout.class);
 
   private final String description;
