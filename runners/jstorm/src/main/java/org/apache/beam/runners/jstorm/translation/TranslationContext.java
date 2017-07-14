@@ -34,9 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
-import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicSpout;
 import org.apache.beam.runners.jstorm.translation.runtime.Executor;
 import org.apache.beam.runners.jstorm.translation.runtime.ExecutorsBolt;
+import org.apache.beam.runners.jstorm.translation.runtime.UnboundedSourceSpout;
 import org.apache.beam.runners.jstorm.translation.translator.Stream;
 import org.apache.beam.runners.jstorm.translation.util.CommonInstance;
 import org.apache.beam.runners.jstorm.util.RunnerUtils;
@@ -333,7 +333,7 @@ public class TranslationContext {
    */
   public static class ExecutionGraphContext {
 
-    private final Map<String, AdaptorBasicSpout> spoutMap = new HashMap<>();
+    private final Map<String, UnboundedSourceSpout> spoutMap = new HashMap<>();
     private final Map<String, ExecutorsBolt> boltMap = new HashMap<>();
 
     // One-to-one mapping between Stream.Producer and TaggedPValue (or PValue).
@@ -344,7 +344,7 @@ public class TranslationContext {
 
     private int id = 1;
 
-    public void registerSpout(AdaptorBasicSpout spout, TaggedPValue output) {
+    public void registerSpout(UnboundedSourceSpout spout, TaggedPValue output) {
       checkNotNull(spout, "spout");
       checkNotNull(output, "output");
       String name = "spout" + genId();
@@ -354,14 +354,14 @@ public class TranslationContext {
           Stream.Producer.of(name, output.getTag().getId(), output.getValue().getName()));
     }
 
-    public AdaptorBasicSpout getSpout(String id) {
+    public UnboundedSourceSpout getSpout(String id) {
       if (Strings.isNullOrEmpty(id)) {
         return null;
       }
       return this.spoutMap.get(id);
     }
 
-    public Map<String, AdaptorBasicSpout> getSpouts() {
+    public Map<String, UnboundedSourceSpout> getSpouts() {
       return this.spoutMap;
     }
 
@@ -418,7 +418,7 @@ public class TranslationContext {
     public String toString() {
       List<String> ret = new ArrayList<>();
       ret.add("SPOUT");
-      for (Map.Entry<String, AdaptorBasicSpout> entry : spoutMap.entrySet()) {
+      for (Map.Entry<String, UnboundedSourceSpout> entry : spoutMap.entrySet()) {
         ret.add(entry.getKey() + ": " + entry.getValue().toString());
       }
       ret.add("BOLT");

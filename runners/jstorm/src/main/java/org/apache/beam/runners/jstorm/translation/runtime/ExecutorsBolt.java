@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.IRichBatchBolt;
 import backtype.storm.tuple.ITupleExt;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
 /**
  * ExecutorsBolt is a JStorm Bolt composited with several executors chained in a sub-DAG.
  */
-public class ExecutorsBolt extends AdaptorBasicBolt {
+public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
   private static final long serialVersionUID = -7751043327801735211L;
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorsBolt.class);
