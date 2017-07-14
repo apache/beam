@@ -762,47 +762,33 @@ message DisplayData {
   // (Required) The list of display data.
   repeated Item items = 1;
 
-  // A complete identifier for a DisplayData.Item
-  message Identifier {
-
-    // (Required) The transform originating this display data.
-    string transform_id = 1;
-
-    // (Optional) The URN indicating the type of the originating transform,
-    // if there is one.
-    string transform_urn = 2;
-
-    string key = 3;
+  // A path into the transform hierarchy where display data should be
+  // associated
+  message Path {
+    repeated string components = 1;
   }
 
   // A single item of display data.
   message Item {
-    // (Required)
-    Identifier id = 1;
+    // (Required) The path through the display data hierarchy
+    Path path = 1;
 
-    // (Required)
-    Type type = 2;
+    // (Required) A disambiguating namespace for multiple sorts of display data
+    string namespace = 2;
 
-    // (Required)
-    google.protobuf.Any value = 3;
+    // (Required) A short key to identify an item within a namespace
+    string key = 3;
+
+    // (Required) The full value to be displayed
+    string value = 5;
+
+    // (Optional) A more concise version
+    string short_value = 6;
 
     // (Optional)
-    google.protobuf.Any short_value = 4;
+    string label = 7;
 
     // (Optional)
-    string label = 5;
-
-    // (Optional)
-    string link_url = 6;
-  }
-
-  enum Type {
-    STRING = 0;
-    INTEGER = 1;
-    FLOAT = 2;
-    BOOLEAN = 3;
-    TIMESTAMP = 4;
-    DURATION = 5;
-    JAVA_CLASS = 6;
+    string link_url = 8;
   }
 }
