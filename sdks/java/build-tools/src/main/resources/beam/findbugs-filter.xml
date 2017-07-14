@@ -74,6 +74,16 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.io.DynamicFileDestinations$SerializableSchemaSupplier"/>
+    <Field name="schema"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+    writeReplace makes this object serializable. This is a limitation of FindBugs as discussed here:
+    http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
     <Field name="typeDescriptor"/>
     <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
