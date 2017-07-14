@@ -62,7 +62,6 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
                 @Override
                 public String apply(Map.Entry<TupleTag<?>, PValue> taggedPValue) {
                   return taggedPValue.getKey().getId();
-                  // return taggedPValue.getValue().getName();
                 }
               })),
           transform.getName(),
@@ -71,7 +70,6 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
                 @Override
                 public String apply(Map.Entry<TupleTag<?>, PValue> taggedPvalue) {
                   return taggedPvalue.getKey().getId();
-                  //return taggedPValue.getValue().getName();
                 }
               })));
     }

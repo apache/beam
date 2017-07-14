@@ -319,12 +319,11 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   @Override
   public String toString() {
-    // LOG.info("bolt: " + executorContext.getTopologyContext().toJSONString());
     List<String> ret = new ArrayList<>();
-        /*ret.add("inputTags");
-        for (TupleTag inputTag : inputTagToExecutor.keySet()) {
-            ret.add(inputTag.getId());
-        }*/
+    ret.add("inputTags");
+    for (TupleTag inputTag : inputTagToExecutor.keySet()) {
+      ret.add(inputTag.getId());
+    }
     ret.add("internalExecutors");
     for (Executor executor : inputTagToExecutor.values()) {
       ret.add(executor.toString());
