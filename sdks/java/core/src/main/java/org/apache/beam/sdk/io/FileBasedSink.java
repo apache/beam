@@ -486,8 +486,7 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
     }
 
     /**
-     * Finalizes writing by copying temporary output files to their final location and optionally
-     * removing temporary files.
+     * Finalizes writing by copying temporary output files to their final location.
      *
      * <p>Finalization may be overridden by subclass implementations to perform customized
      * finalization (e.g., initiating some operation on output bundles, merging them, etc.). {@code
@@ -504,18 +503,20 @@ public abstract class FileBasedSink<OutputT, DestinationT> implements Serializab
      */
      public Set<ResourceId> finalize(
          Iterable<FileResult<DestinationT>> writerResults) throws Exception {
-      // Collect names of temporary files and rename them.
+      // Collect names of temporary files and copies them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
        return outputFilenames.keySet();
     }
 
-    /* Remove temporary files after finalization.
+    /*
+     * Remove temporary files after finalization.
      *
      * <p>We remove the entire temporary directory, rather than specifically removing the files from
      * writerResults, because writerResults includes only successfully completed bundles, and we'd
      * like to clean up the failed ones too. Note that due to GCS eventual consistency, matching
-     * files in the temp directory is also currently non-perfect and may fail to delete some files.
+     * files in the temp directory is also currently non-perfect (for GCS filesystems) and may fail
+     * to delete some files.
      *
      * <p>When windows or triggers are specified, files are generated incrementally so deleting the
      * entire directory in finalize is incorrect.

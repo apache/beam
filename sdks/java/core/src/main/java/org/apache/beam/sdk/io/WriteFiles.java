@@ -19,14 +19,18 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -597,16 +601,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  Map<DestinationT, List<FileResult<DestinationT>>> perDestinationResults(
+  Multimap<DestinationT, FileResult<DestinationT>> perDestinationResults(
       Iterable<FileResult<DestinationT>> results) {
-    Map<DestinationT, List<FileResult<DestinationT>>> perDestination = Maps.newHashMap();
+    Multimap<DestinationT, FileResult<DestinationT>> perDestination = ArrayListMultimap.create();
     for (FileResult<DestinationT> result : results) {
-      List<FileResult<DestinationT>> destinationList = perDestination.get(result.getDestination());
-      if (destinationList == null) {
-        destinationList = Lists.newArrayList();
-        perDestination.put(result.getDestination(), destinationList);
-      }
-      destinationList.add(result);
+      perDestination.put(result.getDestination(), result);
     }
     return perDestination;
   }
@@ -755,16 +754,17 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       Set<ResourceId> tempFiles = Sets.newHashSet();
-                      Map<DestinationT, List<FileResult<DestinationT>>> results =
+                      Multimap<DestinationT, FileResult<DestinationT>> results =
                           perDestinationResults(c.element().getValue());
-                      for (Map.Entry<DestinationT, List<FileResult<DestinationT>>> entry :
-                          results.entrySet()) {
+                      for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
+                          results.asMap().entrySet()) {
                         LOG.info("Finalizing write operation {} for destination {} num shards: {}.",
                             writeOperation, entry.getKey(), entry.getValue().size());
                         tempFiles.addAll(writeOperation.finalize(entry.getValue()));
                         LOG.debug("Done finalizing write operation for {}.", entry.getKey());
                       }
                       writeOperation.removeTemporaryFiles(tempFiles);
+                      LOG.debug("Removed temporary files for {}.", writeOperation);
                     }
                   }));
     } else {
@@ -804,10 +804,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                         minShardsNeeded = 1;
                       }
                       Set<ResourceId> tempFiles = Sets.newHashSet();
-                      Map<DestinationT, List<FileResult<DestinationT>>> perDestination =
+                      Multimap<DestinationT, FileResult<DestinationT>> perDestination =
                           perDestinationResults(c.sideInput(resultsView));
-                      for (Map.Entry<DestinationT, List<FileResult<DestinationT>>> entry :
-                          perDestination.entrySet()) {
+                      for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
+                          perDestination.asMap().entrySet()) {
                         tempFiles.addAll(finalizeForDestinationFillEmptyShards(
                             entry.getKey(), entry.getValue(), minShardsNeeded));
                       }
@@ -833,8 +833,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * generated.
    */
   private Set<ResourceId> finalizeForDestinationFillEmptyShards(
-      DestinationT destination, List<FileResult<DestinationT>> results, int minShardsNeeded)
+      DestinationT destination, Collection<FileResult<DestinationT>> results, int minShardsNeeded)
       throws Exception {
+    checkState(!windowedWrites);
+
     LOG.info(
         "Finalizing write operation {} for destination {} num shards {}.",
         writeOperation,

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
@@ -159,8 +160,11 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
     @Override
     public String toString() {
-      return String.format(
-          "baseFilename: %s shardTemplate: %s suffix: %s", baseFilename, shardTemplate, suffix);
+      return MoreObjects.toStringHelper(this)
+          .add("baseFilename", baseFilename)
+          .add("shardTemplate", shardTemplate)
+          .add("suffix", suffix)
+          .toString();
     }
   }
 
