@@ -60,39 +60,22 @@ public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
     //      Used by return value of #values() when there are multiple cells
 
     config.registerSerialization(ImmutableList.class, ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.class), ImmutableListSerializer.class);
 
     // Note:
     //  Only registering above is good enough for serializing/deserializing.
     //  but if using Kryo#copy, following is required.
 
     config.registerSerialization(ImmutableList.of().getClass(), ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().getClass()),
-        ImmutableListSerializer.class);
     config.registerSerialization(ImmutableList.of(1).getClass(), ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1).getClass()),
-        ImmutableListSerializer.class);
     config.registerSerialization(
         ImmutableList.of(1, 2, 3).subList(1, 2).getClass(),
         ImmutableListSerializer.class);
     config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of(1, 2, 3).subList(1, 2).getClass()),
-        ImmutableListSerializer.class);
-    config.registerSerialization(
         ImmutableList.of().reverse().getClass(),
-        ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(ImmutableList.of().reverse().getClass()),
         ImmutableListSerializer.class);
 
     config.registerSerialization(
         Lists.charactersOf("KryoRocks").getClass(),
-        ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(Lists.charactersOf("KryoRocks").getClass()),
         ImmutableListSerializer.class);
 
     Table<Integer, Integer, Integer> baseTable = HashBasedTable.create();
@@ -100,9 +83,5 @@ public class ImmutableListSerializer extends Serializer<ImmutableList<Object>> {
     baseTable.put(4, 5, 6);
     Table<Integer, Integer, Integer> table = ImmutableTable.copyOf(baseTable);
     config.registerSerialization(table.values().getClass(), ImmutableListSerializer.class);
-    config.registerSerialization(
-        RunnerUtils.getBeamSdkRepackClass(table.values().getClass()),
-        ImmutableListSerializer.class);
-
   }
 }
