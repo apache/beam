@@ -23,8 +23,8 @@ This document explains the set of tests that the Beam community recommends based
 While it is standard to write unit tests and integration tests, there are many possible definitions. Our definitions are:
 
 *   **Unit Tests:**
-    *   Goal: verifying correctness of the transform itself - core behavior, corner cases, etc.
-    *   Data store used: an in-memory version of the data store (if available), otherwise you'll need to write a [fake](#setting-up-mocks-fakes)
+    *   Goal: verifying correctness of the transform only - core behavior, corner cases, etc.
+    *   Data store used: an in-memory version of the data store (if available), otherwise you'll need to write a [fake](#use-fakes)
     *   Data set size: tiny (10s to 100s of rows)
 *   **Integration Tests:**
     *   Goal: catch problems that occur when interacting with real versions of the runners/data store
@@ -34,16 +34,14 @@ While it is standard to write unit tests and integration tests, there are many p
 
 ## A note on performance benchmarking
 
-Doing performance benchmarking is definitely useful and would provide value to the beam community. However, we do not advocate writing a separate performance test specifically for this purpose. Instead, we advocate setting up integration tests so that they be used with different runners and data set sizes. 
+We do not advocate writing a separate test specifically for performance benchmarking. Instead, we advocate setting up integration tests so that they can be parameterized in a way that allows for covering many different testing scenarios.
 
 For example, if integration tests are written according to the guidelines below, the integration tests can be run on different runners (either local or in a cluster configuration) and against a data store that is a small instance with a small data set, or a large production-ready cluster with larger data set. This can provide coverage for a variety of scenarios - one of them is performance benchmarking.
-
-See the Integration Testing section for more information.
 
 
 ## Test Balance - Unit vs Integration {#test-balance-unit-vs-integration}
 
-It's easy to cover a large amount of code with an integration test, but it is then hard to find a cause for failures and the test is flakier. 
+It's easy to cover a large amount of code with an integration test, but it is then hard to find a cause for test failures and the test is flakier.
 
 However, there is a valuable set of bugs found by tests that exercise multiple workers reading/writing to data store instances that have multiple nodes (eg, read replicas, etc.).  Those scenarios are hard to find with unit tests and we find they commonly cause bugs in I/O transforms.
 
@@ -83,12 +81,12 @@ Our test strategy is a balance of those 2 contradictory needs. We recommend doin
 
 A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
 
-If you are implementing a `Source`/`Reader` class, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using SourceTestUtils - it is a key piece of test `Source` implementations.
+If you are implementing a `Source`/`Reader` class, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using `SourceTestUtils` - it is a key piece of test `Source` implementations.
 
 If you are not using the `Source` API, you can use DoFnTester to help with your testing. Datastore's I/O transforms have some good examples of how to use it in testing I/O transforms.
 
 
-### Use mocks/fakes
+### Use fakes {#use-fakes}
 
 Instead of using mocks in your unit tests (pre-programming exact responses to each call for each test), use fakes (a lightweight implementation of the service that behaves the same way at a very small scale) or an in-memory version of the service you're testing. This has proven to be the right mix of "you can get the conditions for testing you need" and "you don't have to write a million exacting mock function calls".
 
@@ -104,10 +102,11 @@ The suggested design pattern is that your I/O transform throws exceptions once i
 
 If your I/O transform allows batching of reads/writes, you must force the batching to occur in your test. Having configurable batch size options on your I/O transform allows that to happen easily (potentially marked as test-only)
 
-
+<!--
 # Next steps
 
 If you have a well tested I/O transform, why not contribute it to Apache Beam? Read all about it:
 
 [Contributing I/O Transforms]({{site.baseurl }}/documentation/io/contributing/)
+-->
 
