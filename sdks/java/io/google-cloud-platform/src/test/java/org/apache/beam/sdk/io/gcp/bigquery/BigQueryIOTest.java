@@ -402,7 +402,17 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testReadFromTable() throws IOException, InterruptedException {
+  public void testReadFromTableOldSource() throws IOException, InterruptedException {
+    testReadFromTable(false);
+  }
+
+  @Test
+  public void testReadFromTableTemplateCompatibility() throws IOException, InterruptedException {
+    testReadFromTable(true);
+  }
+
+  private void testReadFromTable(boolean useTemplateCompatibility)
+      throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
@@ -444,10 +454,14 @@ public class BigQueryIOTest implements Serializable {
         .withDatasetService(fakeDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
+    BigQueryIO.Read read = BigQueryIO.read().from("non-executing-project:somedataset.sometable")
+        .withTestServices(fakeBqServices)
+        .withoutValidation();
+    if (useTemplateCompatibility) {
+      read = read.withTemplateCompatibility();
+    }
     PCollection<KV<String, Long>> output = p
-        .apply(BigQueryIO.read().from("non-executing-project:somedataset.sometable")
-            .withTestServices(fakeBqServices)
-            .withoutValidation())
+        .apply(read)
         .apply(ParDo.of(new DoFn<TableRow, KV<String, Long>>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
@@ -1725,9 +1739,9 @@ public class BigQueryIOTest implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
             // no-op
-          }}));
+          }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
 
@@ -1740,9 +1754,9 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
             throw new RuntimeException("cleanup executed");
-          }}));
+          }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("cleanup executed");

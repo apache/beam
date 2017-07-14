@@ -41,9 +41,12 @@ import org.apache.beam.sdk.values.TupleTagList;
 class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private CleanupOperation cleanupOperation;
+  private PCollectionView<String> jobIdSideInput;
 
-  PassThroughThenCleanup(CleanupOperation cleanupOperation) {
+  PassThroughThenCleanup(CleanupOperation cleanupOperation,
+      PCollectionView<String> jobIdSideInput) {
     this.cleanupOperation = cleanupOperation;
+    this.jobIdSideInput = jobIdSideInput;
   }
 
   @Override
@@ -64,9 +67,9 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
               @ProcessElement
               public void processElement(ProcessContext c)
                   throws Exception {
-                c.element().cleanup(c.getPipelineOptions());
+                c.element().cleanup(new ContextContainer(c, jobIdSideInput));
               }
-            }).withSideInputs(cleanupSignalView));
+            }).withSideInputs(jobIdSideInput, cleanupSignalView));
 
     return outputs.get(mainOutput);
   }
@@ -79,6 +82,25 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   abstract static class CleanupOperation implements Serializable {
-    abstract void cleanup(PipelineOptions options) throws Exception;
+    abstract void cleanup(ContextContainer container) throws Exception;
+  }
+
+  static class ContextContainer {
+    private PCollectionView<String> view;
+    private DoFn.ProcessContext context;
+
+    public ContextContainer(
+        DoFn.ProcessContext context, PCollectionView<String> view) {
+      this.view = view;
+      this.context = context;
+    }
+
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
+    }
+
+    public String getJobId() {
+      return (String) context.<String>sideInput(view);
+    }
   }
 }
