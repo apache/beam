@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.runners.core.construction.metrics;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

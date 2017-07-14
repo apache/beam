@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.runners.core.construction.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
