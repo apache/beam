@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -35,11 +36,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
@@ -80,6 +85,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.commons.compress.utils.Sets;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -609,19 +615,20 @@ public class WriteFilesTest {
     }
 
     @Override
-    public ResourceId windowedFilename(
-        int shardNumber,
-        int numShards,
-        BoundedWindow window,
-        PaneInfo paneInfo,
-        OutputFileHints outputFileHints) {
+      public ResourceId windowedFilename(
+      int shardNumber,
+      int numShards,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      OutputFileHints outputFileHints) {
+      DecimalFormat df = new DecimalFormat("0000");
       IntervalWindow intervalWindow = (IntervalWindow) window;
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
               filenamePrefixForWindow(intervalWindow),
-              shardNumber,
-              numShards,
+              df.format(shardNumber),
+              df.format(numShards),
               outputFileHints.getSuggestedFilenameSuffix(),
               suffix);
       return baseFilename
@@ -630,14 +637,19 @@ public class WriteFilesTest {
     }
 
     @Override
-    public ResourceId unwindowedFilename(
-        int shardNumber, int numShards, OutputFileHints outputFileHints) {
+      public ResourceId unwindowedFilename(
+      int shardNumber, int numShards, OutputFileHints outputFileHints) {
+      DecimalFormat df = new DecimalFormat("0000");
       String prefix =
           baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
       String filename =
           String.format(
               "%s-%s-of-%s%s%s",
-              prefix, shardNumber, numShards, outputFileHints.getSuggestedFilenameSuffix(), suffix);
+              prefix,
+              df.format(shardNumber),
+              df.format(numShards),
+              outputFileHints.getSuggestedFilenameSuffix(),
+              suffix);
       return baseFilename
           .getCurrentDirectory()
           .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
@@ -690,7 +702,22 @@ public class WriteFilesTest {
     }
     if (numExpectedShards.isPresent()) {
       assertEquals(numExpectedShards.get().intValue(), outputFiles.size());
-      //check filenames
+      Pattern shardPattern = Pattern.compile("\\d{4}-of-\\d{4}");
+
+      Set<String> expectedShards = Sets.newHashSet();
+      DecimalFormat df = new DecimalFormat("0000");
+      for (int i = 0; i < numExpectedShards.get(); i++) {
+        expectedShards.add(
+            String.format("%s-of-%s", df.format(i), df.format(numExpectedShards.get())));
+      }
+
+      Set<String> outputShards = Sets.newHashSet();
+      for (File file : outputFiles) {
+        Matcher matcher = shardPattern.matcher(file.getName());
+        assertTrue(matcher.find());
+        assertTrue(outputShards.add(matcher.group()));
+      }
+      assertEquals(expectedShards, outputShards);
     }
 
     List<String> actual = Lists.newArrayList();
