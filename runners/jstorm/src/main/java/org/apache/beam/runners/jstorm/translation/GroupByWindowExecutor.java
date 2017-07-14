@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -152,7 +153,7 @@ class GroupByWindowExecutor<K, V>
      *  For GroupByKey, KV type elem is received. We need to convert the KV elem
      *  into KeyedWorkItem first, which is the expected type in LateDataDroppingDoFnRunner.
      */
-    KeyedWorkItem<K, V> keyedWorkItem = RunnerUtils.toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
+    KeyedWorkItem<K, V> keyedWorkItem = toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
     runner.processElement(elem.withValue(keyedWorkItem));
   }
 
@@ -169,5 +170,47 @@ class GroupByWindowExecutor<K, V>
   @Override
   public String toString() {
     return super.toString();
+  }
+
+  private <K, V> KeyedWorkItem<K, V> toKeyedWorkItem(WindowedValue<KV<K, V>> kvElem) {
+    SingletonKeyedWorkItem<K, V> workItem = SingletonKeyedWorkItem.of(
+        kvElem.getValue().getKey(),
+        kvElem.withValue(kvElem.getValue().getValue()));
+    return workItem;
+  }
+
+  private static class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
+
+    final K key;
+    final WindowedValue<ElemT> value;
+
+    private SingletonKeyedWorkItem(K key, WindowedValue<ElemT> value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    public static <K, ElemT> SingletonKeyedWorkItem<K, ElemT> of(
+        K key, WindowedValue<ElemT> value) {
+      return new SingletonKeyedWorkItem<>(key, value);
+    }
+
+    @Override
+    public K key() {
+      return key;
+    }
+
+    public WindowedValue<ElemT> value() {
+      return value;
+    }
+
+    @Override
+    public Iterable<TimerInternals.TimerData> timersIterable() {
+      return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public Iterable<WindowedValue<ElemT>> elementsIterable() {
+      return Collections.singletonList(value);
+    }
   }
 }
