@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Duration;
@@ -306,9 +308,27 @@ public class DisplayData implements Serializable {
           spec.getValue(), spec.getShortValue(), spec.getLabel(), spec.getLinkUrl());
     }
 
+    /** <b>For internal use only. No backwards compatibility guarantees.</b> */
+    @Internal
+    public static Item raw(
+        Path path, String key, String value, String shortValue, String label, String linkUrl) {
+      checkNotNull(path, "path cannot be null");
+      checkNotNull(key, "key cannot be null");
+      return new AutoValue_DisplayData_Item(
+          path, Object.class, key, Type.STRING, value, shortValue, label, linkUrl);
+    }
+
     @Override
     public String toString() {
-      return String.format("%s%s:%s=%s", getPath(), getNamespace().getName(), getKey(), getValue());
+      return MoreObjects.toStringHelper(this)
+          .add("path", getPath())
+          .add("namespace", getNamespace().getName())
+          .add("key", getKey())
+          .add("value", getValue())
+          .add("shortValue", getShortValue())
+          .add("label", getLabel())
+          .add("linkUrl", getLinkUrl())
+          .toString();
     }
   }
 
@@ -846,8 +866,10 @@ public class DisplayData implements Serializable {
       if (spec.getNamespace() == null) {
         spec = spec.withNamespace(latestNs);
       }
-      Item item = Item.create(spec, latestPath);
+      return addItem(Item.create(spec, latestPath));
+    }
 
+    private Builder addItem(Item item) {
       Identifier id = Identifier.of(item.getPath(), item.getNamespace(), item.getKey());
       checkArgument(!entries.containsKey(id),
           "Display data key (%s) is not unique within the specified path and namespace: %s%s.",
@@ -961,5 +983,17 @@ public class DisplayData implements Serializable {
     checkNotNull(type, "type argument cannot be null");
 
     return ItemSpec.create(key, type, value);
+  }
+
+  /**
+   * <b>For internal use only; no backwards compatibility guarantees.</b>
+   */
+  @Internal
+  public static DisplayData fromItems(Iterable<Item> items) {
+    DisplayData.InternalBuilder builder = new DisplayData.InternalBuilder();
+    for (Item item : items) {
+      builder.addItem(item);
+    }
+    return builder.build();
   }
 }
