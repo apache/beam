@@ -249,11 +249,11 @@ public class FlinkMetricContainer {
     /**
      * update the meter with given amount.
      *
-     * @param l the accumulated count from a MeterCell.
+     * @param n the accumulated count from a MeterCell.
      */
     @Override
-    public void markEvent(long l) {
-      long delta = l - count.get();
+    public void markEvent(long n) {
+      long delta = n - count.get();
       if (delta > 0) {
         meter.mark(delta);
         count.addAndGet(delta);

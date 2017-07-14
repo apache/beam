@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
@@ -155,8 +156,8 @@ public class MetricsContainerImplTest {
   @Test
   public void testMeterDeltas() {
     MetricsContainerImpl container = new MetricsContainerImpl("step1");
-    MeterCell c1 = container.getMeter(MetricName.named("ns", "name1"));
-    MeterCell c2 = container.getMeter(MetricName.named("ns", "name2"));
+    MeterCell m1 = container.getMeter(MetricName.named("ns", "name1"));
+    MeterCell m2 = container.getMeter(MetricName.named("ns", "name2"));
 
     assertThat("Initial update includes initial zero-values",
         container.getUpdates().meterUpdates(), containsInAnyOrder(
@@ -167,8 +168,8 @@ public class MetricsContainerImplTest {
     assertThat("No updates after commit",
         container.getUpdates().meterUpdates(), emptyIterable());
 
-    c1.mark(5L);
-    c2.mark(4L);
+    m1.mark(5L);
+    m2.mark(4L);
 
     assertThat(container.getUpdates().meterUpdates(), containsInAnyOrder(
         meterUpdate("name1", 5L),
@@ -182,11 +183,30 @@ public class MetricsContainerImplTest {
     assertThat("No updatess after commit",
         container.getUpdates().meterUpdates(), emptyIterable());
 
-    c1.mark(8L);
-    c1.mark(4L);
+    m1.mark(8L);
+    m1.mark(4L);
     assertThat(container.getUpdates().meterUpdates(), contains(
         meterUpdate("name1", 17L)));
     container.commitUpdates();
+  }
+
+  @Test
+  public void testUpdateMetricsContainerImpl() {
+    MetricsContainerImpl container1 = new MetricsContainerImpl("step1");
+    MeterCell m1 = container1.getMeter(MetricName.named("ns", "name1"));
+    m1.mark(4L);
+
+    MetricsContainerImpl container2 = new MetricsContainerImpl("step1");
+    MeterCell m2 = container2.getMeter(MetricName.named("ns", "name1"));
+    MeterCell m3 = container2.getMeter(MetricName.named("ns", "name2"));
+    m2.mark(5L);
+    m3.mark(8L);
+
+    container1.update(container2);
+    assertThat(m1.getCumulative().count(), equalTo(9L));
+
+    MeterCell m3InC1 = container1.getMeter(MetricName.named("ns", "name2"));
+    assertThat(m3InC1.getCumulative().count(), equalTo(8L));
   }
 
 
