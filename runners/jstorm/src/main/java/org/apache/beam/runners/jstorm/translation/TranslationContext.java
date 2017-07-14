@@ -158,7 +158,7 @@ public class TranslationContext {
      * d) For the purpose of performance to reduce the side effects between multiple streams which
      *    is output to same executor, a new bolt will be created.
      */
-    if (RunnerUtils.isGroupByKeyExecutor(executor)) {
+    if (isGroupByKeyExecutor(executor)) {
       bolt = new ExecutorsBolt();
       name = executionGraphContext.registerBolt(bolt);
       isGBK = true;
@@ -433,6 +433,17 @@ public class TranslationContext {
 
     private synchronized int genId() {
       return id++;
+    }
+  }
+
+  private boolean isGroupByKeyExecutor(Executor executor) {
+    if (executor instanceof GroupByWindowExecutor) {
+      return true;
+    } else if (executor instanceof StatefulDoFnExecutor
+        || executor instanceof MultiStatefulDoFnExecutor) {
+      return true;
+    } else {
+      return false;
     }
   }
 }
