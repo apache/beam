@@ -73,7 +73,6 @@ class JStormStateInternals<K> implements StateInternals {
   @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
-    // throw new UnsupportedOperationException("StateContext is not supported.");
     /**
      * TODO：
      * Same implementation as state() which is without StateContext. This might be updated after
