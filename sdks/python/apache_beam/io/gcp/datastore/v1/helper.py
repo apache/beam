@@ -23,6 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 import errno
 from socket import error as SocketError
 import sys
+import time
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -166,13 +167,25 @@ def is_key_valid(key):
   return key.path[-1].HasField('id') or key.path[-1].HasField('name')
 
 
-def write_mutations(datastore, project, mutations):
+def write_mutations(datastore, project, mutations, rpc_stats_callback=None):
   """A helper function to write a batch of mutations to Cloud Datastore.
 
   If a commit fails, it will be retried upto 5 times. All mutations in the
   batch will be committed again, even if the commit was partially successful.
   If the retry limit is exceeded, the last exception from Cloud Datastore will
   be raised.
+
+  Args:
+    datastore: googledatastore.connection.Datastore
+    project: str, project id
+    mutations: list of google.cloud.proto.datastore.v1.datastore_pb2.Mutation
+    rpc_stats_callback: a function to call with arguments `successes` and
+        `failures`; this is called to record successful and failed RPCs to
+        Datastore.
+
+  Returns a tuple of:
+    CommitResponse, the response from Datastore;
+    int, the latency of the successful RPC in milliseconds.
   """
   commit_request = datastore_pb2.CommitRequest()
   commit_request.mode = datastore_pb2.CommitRequest.NON_TRANSACTIONAL
@@ -182,10 +195,22 @@ def write_mutations(datastore, project, mutations):
 
   @retry.with_exponential_backoff(num_retries=5,
                                   retry_filter=retry_on_rpc_error)
-  def commit(req):
-    datastore.commit(req)
+  def commit(request):
+    try:
+      start_time = time.time()
+      response = datastore.commit(request)
+      end_time = time.time()
+      rpc_stats_callback(successes=1)
 
-  commit(commit_request)
+      commit_time_ms = int((end_time-start_time)*1000)
+      return response, commit_time_ms
+    except (RPCError, SocketError):
+      if rpc_stats_callback:
+        rpc_stats_callback(errors=1)
+      raise
+
+  response, commit_time_ms = commit(commit_request)
+  return response, commit_time_ms
 
 
 def make_latest_timestamp_query(namespace):

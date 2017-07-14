@@ -155,15 +155,15 @@ class DatastoreioTest(unittest.TestCase):
     self.check_DatastoreWriteFn(0)
 
   def test_DatastoreWriteFn_with_one_batch(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 1 - 50
+    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 1 - 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_multiple_batches(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 3 + 50
+    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 3 + 50
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteFn_with_batch_size_exact_multiple(self):
-    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 2
+    num_entities_to_write = _Mutate._WRITE_BATCH_INITIAL_SIZE * 2
     self.check_DatastoreWriteFn(num_entities_to_write)
 
   def check_DatastoreWriteFn(self, num_entities):
@@ -180,7 +180,8 @@ class DatastoreioTest(unittest.TestCase):
       self._mock_datastore.commit.side_effect = (
           fake_datastore.create_commit(actual_mutations))
 
-      datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
+      datastore_write_fn = _Mutate.DatastoreWriteFn(
+          self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
 
       datastore_write_fn.start_bundle()
       for mutation in expected_mutations:
@@ -188,8 +189,9 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn.finish_bundle()
 
       self.assertEqual(actual_mutations, expected_mutations)
-      self.assertEqual((num_entities - 1) / _Mutate._WRITE_BATCH_SIZE + 1,
-                       self._mock_datastore.commit.call_count)
+      self.assertEqual(
+          (num_entities - 1) / _Mutate._WRITE_BATCH_INITIAL_SIZE + 1,
+          self._mock_datastore.commit.call_count)
 
   def test_DatastoreWriteLargeEntities(self):
     """100*100kB entities gets split over two Commit RPCs."""
@@ -197,7 +199,8 @@ class DatastoreioTest(unittest.TestCase):
                       return_value=self._mock_datastore):
       entities = [e.entity for e in fake_datastore.create_entities(100)]
 
-      datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
+      datastore_write_fn = _Mutate.DatastoreWriteFn(
+          self._PROJECT, fixed_batch_size=_Mutate._WRITE_BATCH_INITIAL_SIZE)
       datastore_write_fn.start_bundle()
       for entity in entities:
         datastore_helper.add_properties(
@@ -256,6 +259,42 @@ class DatastoreioTest(unittest.TestCase):
       q.CopyFrom(query)
       split_queries.append(q)
     return split_queries
+
+
+@unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
+class DynamicWriteBatcherTest(unittest.TestCase):
+
+  def setUp(self):
+    self._batcher = _Mutate._DynamicBatchSizer()
+
+  # If possible, keep these test cases aligned with the Java test cases in
+  # DatastoreV1Test.java
+  def test_no_data(self):
+    self.assertEquals(_Mutate._WRITE_BATCH_INITIAL_SIZE,
+                      self._batcher.get_batch_size(0))
+
+  def test_fast_queries(self):
+    self._batcher.report_latency(0, 1000, 200)
+    self._batcher.report_latency(0, 1000, 200)
+    self.assertEquals(_Mutate._WRITE_BATCH_MAX_SIZE,
+                      self._batcher.get_batch_size(0))
+
+  def test_slow_queries(self):
+    self._batcher.report_latency(0, 10000, 200)
+    self._batcher.report_latency(0, 10000, 200)
+    self.assertEquals(100, self._batcher.get_batch_size(0))
+
+  def test_size_not_below_minimum(self):
+    self._batcher.report_latency(0, 30000, 50)
+    self._batcher.report_latency(0, 30000, 50)
+    self.assertEquals(_Mutate._WRITE_BATCH_MIN_SIZE,
+                      self._batcher.get_batch_size(0))
+
+  def test_sliding_window(self):
+    self._batcher.report_latency(0, 30000, 50)
+    self._batcher.report_latency(50000, 5000, 200)
+    self._batcher.report_latency(100000, 5000, 200)
+    self.assertEquals(200, self._batcher.get_batch_size(150000))
 
 
 if __name__ == '__main__':
