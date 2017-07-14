@@ -38,7 +38,7 @@ import org.apache.beam.runners.jstorm.serialization.KvStoreIterableSerializer;
 import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuListSerializer;
 import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuSetSerializer;
 import org.apache.beam.runners.jstorm.serialization.UnmodifiableCollectionsSerializer;
-import org.apache.beam.runners.jstorm.translation.StormPipelineTranslator;
+import org.apache.beam.runners.jstorm.translation.JStormPipelineTranslator;
 import org.apache.beam.runners.jstorm.translation.TranslationContext;
 import org.apache.beam.runners.jstorm.translation.runtime.AbstractComponent;
 import org.apache.beam.runners.jstorm.translation.runtime.AdaptorBasicBolt;
@@ -114,7 +114,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
   public JStormRunnerResult run(Pipeline pipeline) {
     LOG.info("Running pipeline...");
     TranslationContext context = new TranslationContext(this.options);
-    StormPipelineTranslator transformer = new StormPipelineTranslator(context);
+    JStormPipelineTranslator transformer = new JStormPipelineTranslator(context);
     transformer.translate(pipeline);
     LOG.info("UserGraphContext=\n{}", context.getUserGraphContext());
     LOG.info("ExecutionGraphContext=\n{}", context.getExecutionGraphContext());
