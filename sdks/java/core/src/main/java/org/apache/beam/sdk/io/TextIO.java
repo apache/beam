@@ -23,6 +23,10 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -720,7 +724,7 @@ public class TextIO {
                     getWindowedWrites());
           }
           dynamicDestinations = DynamicFileDestinations.constant(
-              usedFilenamePolicy, getFormatFunction());
+                usedFilenamePolicy, getFormatFunction());
         }
       }
       return dynamicDestinations;
@@ -732,9 +736,21 @@ public class TextIO {
           getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
               + "transform.");
-      checkState(
-          getFilenamePolicy() == null || getDynamicDestinations() == null,
-          "Cannot specify both a filename policy and dynamic destinations");
+
+      List<?> allToArgs =
+          Lists.newArrayList(getFilenamePolicy(), getDynamicDestinations(), getFilenamePrefix(),
+              getDestinationFunction());
+      checkArgument(
+          1 == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
+          "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "
+              + "function must be set");
+
+      if (getDynamicDestinations() != null) {
+        checkArgument(
+            getFormatFunction() == null,
+            "A format function should not be specified "
+                + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
+      }
       if (getFilenamePolicy() != null || getDynamicDestinations() != null) {
         checkState(
             getShardTemplate() == null && getFilenameSuffix() == null,
@@ -810,8 +826,7 @@ public class TextIO {
     @VisibleForTesting TypedWrite<String> inner;
 
     Write() {
-      this(TextIO.<String>writeCustomType()
-      .withFormatFunction(SerializableFunctions.<String>identity()));
+      this(TextIO.<String>writeCustomType());
     }
 
     Write(TypedWrite<String> inner) {
@@ -820,43 +835,51 @@ public class TextIO {
 
     /** See {@link TypedWrite#to(String)}. */
     public Write to(String filenamePrefix) {
-      return new Write(inner.to(filenamePrefix));
+      return new Write(
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
-      return new Write(inner.to(filenamePrefix));
+      return new Write(
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write to(ValueProvider<String> outputPrefix) {
-      return new Write(inner.to(outputPrefix));
+      return new Write(
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
-      return new Write(inner.toResource(filenamePrefix));
+      return new Write(
+          inner.toResource(filenamePrefix)
+               .withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
-      return new Write(inner.to(filenamePolicy));
+      return new Write(
+          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#to(DynamicDestinations)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(DynamicDestinations<String, ?, String> dynamicDestinations) {
-      return new Write(inner.to(dynamicDestinations));
+      return new Write(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
     /** See {@link TypedWrite#to(SerializableFunction, Params)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(
         SerializableFunction<String, Params> destinationFunction, Params emptyDestination) {
-      return new Write(inner.to(destinationFunction, emptyDestination));
+      return new Write(
+          inner.to(destinationFunction, emptyDestination)
+              .withFormatFunction(SerializableFunctions.<String>identity()));
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */

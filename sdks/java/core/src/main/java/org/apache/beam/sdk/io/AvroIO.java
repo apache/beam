@@ -257,7 +257,6 @@ public class AvroIO {
     return new Write<>(AvroIO.<T, T>defaultWriteBuilder()
         .setGenericRecords(false)
         .setSchema(ReflectData.get().getSchema(recordClass))
-        .setFormatFunction(SerializableFunctions.<T>identity())
         .build());
   }
 
@@ -266,7 +265,6 @@ public class AvroIO {
     return new Write<>(AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder()
         .setGenericRecords(true)
         .setSchema(schema)
-        .setFormatFunction(SerializableFunctions.<GenericRecord>identity())
         .build());
   }
 
@@ -895,6 +893,12 @@ public class AvroIO {
             "shardTemplate and filenameSuffix should only be used with the default "
                 + "filename policy");
       }
+      if (getDynamicDestinations() != null) {
+        checkArgument(
+            getFormatFunction() == null,
+            "A format function should not be specified "
+                + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
+      }
 
       return expandTyped(input, resolveDynamicDestinations());
     }
@@ -962,7 +966,9 @@ public class AvroIO {
      * See {@link TypedWrite#to(String)}.
      */
     public Write<T> to(String outputPrefix) {
-      return new Write<>(inner.to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix)));
+      return new Write<>(
+          inner.to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix))
+              .withFormatFunction(SerializableFunctions.<T>identity()));
     }
 
     /**
@@ -970,14 +976,16 @@ public class AvroIO {
      */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
-      return new Write<T>(inner.to(outputPrefix));
+      return new Write<T>(inner.to(outputPrefix)
+          .withFormatFunction(SerializableFunctions.<T>identity()));
     }
 
     /**
      * See {@link TypedWrite#to(ValueProvider)}.
      */
     public Write<T> to(ValueProvider<String> outputPrefix) {
-      return new Write<>(inner.to(outputPrefix));
+      return new Write<>(inner.to(outputPrefix)
+          .withFormatFunction(SerializableFunctions.<T>identity()));
     }
 
     /**
@@ -985,21 +993,23 @@ public class AvroIO {
      */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
-      return new Write<>(inner.toResource(outputPrefix));
+      return new Write<>(inner.toResource(outputPrefix)
+          .withFormatFunction(SerializableFunctions.<T>identity()));
     }
 
     /**
      * See {@link TypedWrite#to(FilenamePolicy)}.
      */
     public Write<T> to(FilenamePolicy filenamePolicy) {
-      return new Write<>(inner.to(filenamePolicy));
+      return new Write<>(inner.to(filenamePolicy)
+          .withFormatFunction(SerializableFunctions.<T>identity()));
     }
 
     /**
      * See {@link TypedWrite#to(DynamicAvroDestinations)}.
      */
     public Write to(DynamicAvroDestinations<T, ?, T> dynamicDestinations) {
-      return new Write<>(inner.to(dynamicDestinations));
+      return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
     /**
