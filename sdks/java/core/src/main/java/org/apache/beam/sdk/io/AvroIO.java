@@ -1013,6 +1013,12 @@ public class AvroIO {
     }
 
     /**
+     * See {@link TypedWrite#withSchema}.
+     */
+    public Write withSchema(Schema schema) {
+      return new Write<>(inner.withSchema(schema));
+    }
+    /**
      * See {@link TypedWrite#withTempDirectory(ValueProvider)}.
      */
     @Experimental(Kind.FILESYSTEM)
