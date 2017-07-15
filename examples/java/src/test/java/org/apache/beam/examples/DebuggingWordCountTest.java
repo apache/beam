@@ -37,8 +37,7 @@ public class DebuggingWordCountTest {
 
   private String getFilePath(String filePath) {
       if (filePath.contains(":")) {
-          String restPath = filePath.replace("\\", "/").split(":")[1];
-          return restPath;
+          return filePath.replace("\\", "/").split(":")[1];
       }
       return filePath;
   }
