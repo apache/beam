@@ -462,12 +462,13 @@ public class TextIO {
             TextIO.Read.wrapWithCompression(
                 new TextSource(StaticValueProvider.of(metadata.toString())),
                 spec.getCompressionType());
-        BoundedSource.BoundedReader<String> reader =
+        try (BoundedSource.BoundedReader<String> reader =
             source
                 .createForSubrangeOfFile(metadata, range.getFrom(), range.getTo())
-                .createReader(c.getPipelineOptions());
-        for (boolean more = reader.start(); more; more = reader.advance()) {
-          c.output(reader.getCurrent());
+                .createReader(c.getPipelineOptions())) {
+          for (boolean more = reader.start(); more; more = reader.advance()) {
+            c.output(reader.getCurrent());
+          }
         }
       }
     }
