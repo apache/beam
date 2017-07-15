@@ -122,8 +122,7 @@ public class TfIdf {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      Optional<String[]> optional = Optional.fromNullable(directory.list());
-      for (String entry : optional.or(new String[] {})) {
+      for (String entry : Optional.fromNullable(directory.list()).or(new String[] {})) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }

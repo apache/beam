@@ -477,9 +477,9 @@ public class TriggerExample {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Instant timestamp = Instant.now();
-      if (Math.random() < THRESHOLD){
+      Random random = new Random();
+      if (random.nextDouble() < THRESHOLD){
         int range = MAX_DELAY - MIN_DELAY;
-        final Random random = new Random();
         int delayInMinutes = random.nextInt(range) + MIN_DELAY;
         long delayInMillis = TimeUnit.MINUTES.toMillis(delayInMinutes);
         timestamp = new Instant(timestamp.getMillis() - delayInMillis);

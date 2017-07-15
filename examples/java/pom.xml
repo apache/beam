@@ -365,18 +365,6 @@
   </profiles>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <!-- BEAM-933 -->
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>findbugs-maven-plugin</artifactId>
-          <configuration>
-            <!-- skip>true</skip-->
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
 
     <plugins>
       <plugin>
