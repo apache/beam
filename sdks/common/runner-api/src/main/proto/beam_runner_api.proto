@@ -288,8 +288,8 @@ message TimerSpec {
 }
 
 enum IsBounded {
-  BOUNDED = 0;
-  UNBOUNDED = 1;
+  UNBOUNDED = 0;
+  BOUNDED = 1;
 }
 
 // The payload for the primitive Read transform.
