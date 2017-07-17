@@ -703,6 +703,8 @@ class FlinkStreamingTransformTranslators {
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
+      Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
+          context.getCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -715,7 +717,7 @@ class FlinkStreamingTransformTranslators {
               (Coder) windowedWorkItemCoder,
               mainTag,
               Collections.<TupleTag<?>>emptyList(),
-              new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
+              new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
               windowingStrategy,
               new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
               Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -802,6 +804,8 @@ class FlinkStreamingTransformTranslators {
           AppliedCombineFn.withInputCoder(
               transform.getFn(), input.getPipeline().getCoderRegistry(), inputKvCoder));
 
+      Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
+          context.getCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -817,7 +821,7 @@ class FlinkStreamingTransformTranslators {
                 (Coder) windowedWorkItemCoder,
                 mainTag,
                 Collections.<TupleTag<?>>emptyList(),
-                new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
+                new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
                 windowingStrategy,
                 new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
                 Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -844,7 +848,7 @@ class FlinkStreamingTransformTranslators {
                 (Coder) windowedWorkItemCoder,
                 mainTag,
                 Collections.<TupleTag<?>>emptyList(),
-                new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
+                new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
                 windowingStrategy,
                 transformSideInputs.f0,
                 sideInputs,

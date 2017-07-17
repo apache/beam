@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import java.util.Collections;
 import java.util.HashMap;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -61,13 +62,14 @@ public class PipelineOptionsTest {
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
+    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
-        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
+        coder,
         mainTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
@@ -84,13 +86,14 @@ public class PipelineOptionsTest {
 
     TupleTag<String> mainTag = new TupleTag<>("main-output");
 
+    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
-        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
+        coder,
         mainTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),

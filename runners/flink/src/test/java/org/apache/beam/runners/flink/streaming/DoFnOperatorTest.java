@@ -109,18 +109,17 @@ public class DoFnOperatorTest {
   @SuppressWarnings("unchecked")
   public void testSingleOutput() throws Exception {
 
-    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
-        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
-        windowedValueCoder,
+        coder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -145,7 +144,7 @@ public class DoFnOperatorTest {
   @SuppressWarnings("unchecked")
   public void testMultiOutputOutput() throws Exception {
 
-    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
+    WindowedValue.ValueOnlyWindowedValueCoder<String> coder =
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> mainOutput = new TupleTag<>("main-output");
@@ -153,18 +152,23 @@ public class DoFnOperatorTest {
     TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, OutputTag<?>> outputMapping =
         ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-            .put(mainOutput, new OutputTag<String>(mainOutput.getId()){})
             .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()){})
             .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()){})
+            .build();
+    ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping =
+        ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
+            .put(mainOutput, (Coder) coder)
+            .put(additionalOutput1, coder)
+            .put(additionalOutput2, coder)
             .build();
 
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(additionalOutput1, additionalOutput2),
         "stepName",
-        windowedValueCoder,
+        coder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping, null),
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping, coderMapping),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -331,20 +335,20 @@ public class DoFnOperatorTest {
       }
     };
 
-    WindowedValue.FullWindowedValueCoder<Integer> windowedValueCoder =
-        WindowedValue.getFullCoder(
-            VarIntCoder.of(),
-            windowingStrategy.getWindowFn().windowCoder());
+    Coder<WindowedValue<Integer>> inputCoder = WindowedValue.getFullCoder(
+        VarIntCoder.of(), windowingStrategy.getWindowFn().windowCoder());
+    Coder<WindowedValue<String>> outputCoder = WindowedValue.getFullCoder(
+        StringUtf8Coder.of(), windowingStrategy.getWindowFn().windowCoder());
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     DoFnOperator<Integer, String> doFnOperator = new DoFnOperator<>(
         fn,
         "stepName",
-        windowedValueCoder,
+        inputCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -443,7 +447,7 @@ public class DoFnOperatorTest {
           }
         };
 
-    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> windowedValueCoder =
+    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> coder =
         WindowedValue.getFullCoder(
             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             windowingStrategy.getWindowFn().windowCoder());
@@ -454,10 +458,10 @@ public class DoFnOperatorTest {
         new DoFnOperator<>(
             fn,
             "stepName",
-            windowedValueCoder,
+            coder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
             windowingStrategy,
             new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
             Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -533,8 +537,7 @@ public class DoFnOperatorTest {
 
   public void testSideInputs(boolean keyed) throws Exception {
 
-    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
-        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
@@ -552,10 +555,10 @@ public class DoFnOperatorTest {
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
         "stepName",
-        windowedValueCoder,
+        coder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
         WindowingStrategy.globalDefault(),
         sideInputMapping, /* side-input mapping */
         ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */

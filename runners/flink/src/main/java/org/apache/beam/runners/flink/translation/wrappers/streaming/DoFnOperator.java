@@ -783,7 +783,7 @@ public class DoFnOperator<InputT, OutputT>
   public static class BufferedOutputManager<OutputT> implements
       DoFnRunners.OutputManager {
 
-    private final BiMap<TupleTag<?>, Integer> tagToLabel;
+    private BiMap<TupleTag<?>, Integer> tagToLabel;
     private TupleTag<OutputT> mainTag;
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
     protected Output<StreamRecord<WindowedValue<OutputT>>> output;
@@ -810,7 +810,8 @@ public class DoFnOperator<InputT, OutputT>
       }
 
       StateTag<BagState<KV<Integer, WindowedValue<?>>>> bufferTag =
-          StateTags.bag("bundle-buffer-tag", new TaggedKvCoder(labelsToCodersBuilder.build()));
+          StateTags.bag("bundle-buffer-tag",
+              new TaggedKvCoder(labelsToCodersBuilder.build()));
       bufferState = stateInternals.state(StateNamespaces.global(), bufferTag);
     }
 
@@ -927,11 +928,16 @@ public class DoFnOperator<InputT, OutputT>
     private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
     private Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping;
 
+    public MultiOutputOutputManagerFactory(TupleTag<OutputT> mainTag){}
+
+    // There is no side output.
+    @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
-        TupleTag<OutputT> mainTag) {
+        TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
       this(mainTag,
           new HashMap<TupleTag<?>, OutputTag<WindowedValue<?>>>(),
-          new HashMap<TupleTag<?>, Coder<WindowedValue<?>>>());
+          ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
+              .put(mainTag, (Coder) mainCoder).build());
     }
 
     public MultiOutputOutputManagerFactory(
