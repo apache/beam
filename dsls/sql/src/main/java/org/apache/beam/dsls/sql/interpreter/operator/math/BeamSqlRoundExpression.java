@@ -33,7 +33,7 @@ public class BeamSqlRoundExpression extends BeamSqlMathBinaryExpression {
   private final BeamSqlPrimitive zero = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 0);
 
   public BeamSqlRoundExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, operands.get(0).getOutputType());
     checkForSecondOperand(operands);
   }
 

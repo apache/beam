@@ -289,7 +289,6 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "SIGN":
           ret = new BeamSqlSignExpression(subExps);
           break;
-        case "SQRT": //SQRT is converted as POWER(i, 0.5)
         case "POWER":
           ret = new BeamSqlPowerExpression(subExps);
           break;
