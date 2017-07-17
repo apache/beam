@@ -16,6 +16,9 @@ type Fn struct {
 	// Recv hold the struct receiver, if present. If Recv is nil, Fn
 	// must be non-nil.
 	Recv interface{}
+	// DynFn holds the function-generator, if dynamic. If not nil, Fn
+	// holds the generated function.
+	DynFn *DynFn
 
 	// methods holds the public methods (or the function) by their beam
 	// names.
@@ -31,8 +34,40 @@ func (f *Fn) Name() string {
 	return fmt.Sprintf("%v.%v", t.PkgPath(), t.Name())
 }
 
-// NewFn pre-processes a function or struct for graph construction.
+// DynFn is a generator for dynamically-created functions:
+//
+//      gen:   []byte -> T
+//
+// where the generated function, fn : T, is created by reflect.MakeFunc and
+// uses reflect.Values. The type, T, must be a valid funcx.Fn type. The
+// generator takes some arbitrary data as a []byte input. This concept allows
+// serialization of dynamically-generated functions, which do not have a valid
+// (unique) symbol. All such functions use the "reflect.makeFuncStub" symbol.
+type DynFn struct {
+	// Name is the (fake) name of the function. The actual symbol name is
+	// always "reflect.makeFuncStub".
+	Name string
+	// T is the type of the function
+	T reflect.Type
+	// Data holds the data for the generator.
+	Data []byte
+	// Gen is the function generator.
+	Gen func([]byte) func([]reflect.Value) []reflect.Value
+}
+
+// NewFn pre-processes a function, dynamic function or struct for graph
+// construction.
 func NewFn(fn interface{}) (*Fn, error) {
+	if gen, ok := fn.(*DynFn); ok {
+		f, err := funcx.New(reflect.MakeFunc(gen.T, gen.Gen(gen.Data)).Interface())
+		if err != nil {
+			return nil, err
+		}
+		f.Name = gen.Name
+
+		return &Fn{Fn: f, DynFn: gen}, nil
+	}
+
 	val := reflect.ValueOf(fn)
 	switch val.Type().Kind() {
 	case reflect.Func:

@@ -126,6 +126,19 @@ message UserFn {
     Type type = 2;
 }
 
+// DynFn represents a serialized function generator.
+message DynFn {
+    // (Required) Name of the generated function.
+    string name = 1;
+    // (Required) Type of the generated function.
+    Type type = 2;
+    // (Required) Input to generator.
+    bytes data = 3;
+    // (Required) Symbol name of generator (of type []byte ->
+    // []reflect.Value -> []reflect.Value).
+    string gen = 4;
+}
+
 // Fn represents a serialized function reference or struct.
 message Fn {
     // (Optional) Function reference.
@@ -134,6 +147,8 @@ message Fn {
     Type type = 2;
     // (Optional) JSON-serialized value, if struct.
     string opt = 3;
+    // (Optional) Function generator, if dynamic function.
+    DynFn dynfn = 4;
 }
 
 // CustomCoder

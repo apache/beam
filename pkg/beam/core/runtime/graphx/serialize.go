@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	rt "runtime"
-	"unsafe"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -17,6 +15,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
+
+var genFnType = reflect.TypeOf((*func([]byte) func([]reflect.Value) []reflect.Value)(nil)).Elem()
 
 // EncodeMultiEdge converts the preprocessed representation into the wire
 // representation of the multiedge, capturing input and ouput type information.
@@ -138,6 +138,19 @@ func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 
 func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 	switch {
+	case u.DynFn != nil:
+		gen := reflectx.FunctionName(u.DynFn.Gen)
+		t, err := encodeType(u.DynFn.T)
+		if err != nil {
+			return nil, fmt.Errorf("bad function type: %v", err)
+		}
+		return &v1.Fn{Dynfn: &v1.DynFn{
+			Name: u.DynFn.Name,
+			Type: t,
+			Data: u.DynFn.Data,
+			Gen:  gen,
+		}}, nil
+
 	case u.Fn != nil:
 		fn, err := EncodeUserFn(u.Fn)
 		if err != nil {
@@ -171,6 +184,24 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 }
 
 func decodeFn(u *v1.Fn) (*graph.Fn, error) {
+	if u.Dynfn != nil {
+		ptr, err := runtime.SymbolResolver.Sym2Addr(u.Dynfn.Gen)
+		if err != nil {
+			return nil, fmt.Errorf("bad symbol %v: %v", u.Dynfn.Gen, err)
+		}
+		gen := reflectx.LoadFunction(ptr, genFnType)
+
+		t, err := decodeType(u.Dynfn.Type)
+		if err != nil {
+			return nil, fmt.Errorf("bad type: %v", err)
+		}
+		return graph.NewFn(&graph.DynFn{
+			Name: u.Dynfn.Name,
+			T:    t,
+			Data: u.Dynfn.Data,
+			Gen:  gen.(func([]byte) func([]reflect.Value) []reflect.Value),
+		})
+	}
 	if u.Fn != nil {
 		fn, err := DecodeUserFn(u.Fn)
 		if err != nil {
@@ -193,7 +224,9 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 // EncodeUserFn translates the preprocessed representation of a Beam user function
 // into the wire representation, capturing all the inputs and outputs needed.
 func EncodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
-	symbol := rt.FuncForPC(uintptr(u.Fn.Pointer())).Name()
+	// TODO(herohde) 5/23/2017: reject closures. They can't be serialized.
+
+	symbol := reflectx.FunctionName(u.Fn.Interface())
 	t, err := encodeType(u.Fn.Type())
 	if err != nil {
 		return nil, fmt.Errorf("encode: bad function type: %v", err)
@@ -214,10 +247,7 @@ func DecodeUserFn(ref *v1.UserFn) (*funcx.Fn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
-	v := reflect.New(t).Elem()
-	*(*uintptr)(unsafe.Pointer(v.Addr().Pointer())) = (uintptr)(unsafe.Pointer(&ptr))
-
-	ret, err := funcx.New(v.Interface())
+	ret, err := funcx.New(reflectx.LoadFunction(ptr, t))
 	if err != nil {
 		return nil, err
 	}

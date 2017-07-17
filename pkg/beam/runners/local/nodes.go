@@ -129,19 +129,22 @@ func (n *Buffer) ProcessElement(ctx context.Context, elm exec.FullValue, values 
 }
 
 func (n *Buffer) Down(ctx context.Context) error {
+	if n.done {
+		return nil // already triggered
+	}
 	n.done = true
 	return n.notify(ctx)
 }
 
 func (n *Buffer) Open() exec.Stream {
 	if !n.done {
-		panic("Buffer incompete")
+		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.UID, len(n.buf)))
 	}
 	return &exec.FixedStream{Buf: n.buf}
 }
 
 func (n *Buffer) String() string {
-	return fmt.Sprintf("Buffer. Wait:%v Out:%v", n.next, n.read)
+	return fmt.Sprintf("Buffer[%v]. Wait:%v Out:%v", n.UID, n.next, n.read)
 }
 
 // Wait buffers all input until the guard condition is triggered. It then
@@ -173,7 +176,7 @@ func (w *Wait) notify(ctx context.Context) error {
 	// All ready: continue the processing. We may or may not have buffered
 	// all the data. If not, Wait is a pass-through going forward.
 
-	log.Printf("Wait[%v] unblocked w/ %v[%v]", w.UID, len(w.buf), w.down)
+	log.Printf("Wait[%v] unblocked w/ %v [%v]", w.UID, len(w.buf), w.down)
 
 	if err := w.next.Up(ctx); err != nil {
 		return err
