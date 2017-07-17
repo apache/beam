@@ -23,6 +23,7 @@ import java.util.Iterator;
 import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
+import org.apache.beam.dsls.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -78,14 +79,14 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<BeamSqlRow> result1 =
         boundedInput1.apply("testUdf1",
-            BeamSql.simpleQuery(sql1).withUdf("cubic1", CubicInteger.class, "cubic"));
+            BeamSql.simpleQuery(sql1).withUdf("cubic1", CubicInteger.class));
     PAssert.that(result1).containsInAnyOrder(record);
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<BeamSqlRow> result2 =
         PCollectionTuple.of(new TupleTag<BeamSqlRow>("PCOLLECTION"), boundedInput1)
         .apply("testUdf2",
-            BeamSql.query(sql2).withUdf("cubic2", CubicInteger.class, "cubic"));
+            BeamSql.query(sql2).withUdf("cubic2", CubicInteger.class));
     PAssert.that(result2).containsInAnyOrder(record);
 
     pipeline.run().waitUntilFinish();
@@ -129,8 +130,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /**
    * A example UDF for test.
    */
-  public static class CubicInteger{
-    public static Integer cubic(Integer input){
+  public static class CubicInteger implements BeamSqlUdf{
+    public static Integer eval(Integer input){
       return input * input * input;
     }
   }
