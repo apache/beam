@@ -345,7 +345,8 @@ public class TFRecordIO {
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
-      return input.apply("Write", write);
+      input.apply("Write", write);
+      return PDone.in(input.getPipeline());
     }
 
     @Override

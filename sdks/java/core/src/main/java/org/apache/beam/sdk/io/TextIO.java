@@ -537,7 +537,8 @@ public class TextIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class TypedWrite<UserT> extends PTransform<PCollection<UserT>, PDone> {
+  public abstract static class TypedWrite<UserT>
+      extends PTransform<PCollection<UserT>, WriteFilesResult> {
     /** The prefix of each file written, combined with suffix and shardTemplate. */
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
 
@@ -851,7 +852,7 @@ public class TextIO {
     }
 
     @Override
-    public PDone expand(PCollection<UserT> input) {
+    public WriteFilesResult expand(PCollection<UserT> input) {
       checkState(
           getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
@@ -883,7 +884,7 @@ public class TextIO {
       return expandTyped(input, resolveDynamicDestinations());
     }
 
-    public <DestinationT> PDone expandTyped(
+    public <DestinationT> WriteFilesResult expandTyped(
         PCollection<UserT> input,
         DynamicDestinations<UserT, DestinationT, String> dynamicDestinations) {
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
@@ -1048,6 +1049,17 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /** Specify that output filenames are wanted.
+     *
+     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however
+     * due to backwards-compatibility concerns, {@link Write} cannot return them. This method
+     * simply returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as
+     * its output type, allowing access to output files.
+     */
+    public TypedWrite<String> withOutputFilenames() {
+      return inner;
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       inner.populateDisplayData(builder);
@@ -1055,7 +1067,8 @@ public class TextIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      return inner.expand(input);
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
   }
 

@@ -1,20 +1,5 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+
+
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -106,7 +91,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class WriteFiles<UserT, DestinationT, OutputT>
-    extends PTransform<PCollection<UserT>, PDone> {
+    extends PTransform<PCollection<UserT>, WriteFilesResult> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
@@ -174,7 +159,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   @Override
-  public PDone expand(PCollection<UserT> input) {
+  public WriteFilesResult expand(PCollection<UserT> input) {
     if (input.isBounded() == IsBounded.UNBOUNDED) {
       checkArgument(windowedWrites,
           "Must use windowed writes when applying %s to an unbounded PCollection",
@@ -648,7 +633,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * implementations should guarantee that {@link WriteOperation#createWriter} does not mutate
    * WriteOperation).
    */
-  private PDone createWrite(PCollection<UserT> input) {
+  private WriteFilesResult createWrite(PCollection<UserT> input) {
     Pipeline p = input.getPipeline();
 
     if (!windowedWrites) {
@@ -747,6 +732,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
 
+    PCollection<String> outputFilenames;
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
       // means we can't share the below implementation that turns the results into a side input,
@@ -760,12 +746,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           KvCoder.of(VoidCoder.of(), FileResultCoder.of(shardedWindowCoder, destinationCoder)));
 
       // Is the continuation trigger sufficient?
-      keyedResults
+      outputFilenames = keyedResults
           .apply("FinalizeGroupByKey", GroupByKey.<Void, FileResult<DestinationT>>create())
           .apply(
               "Finalize",
               ParDo.of(
-                  new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>, Integer>() {
+                  new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>, String>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       Set<ResourceId> tempFiles = Sets.newHashSet();
@@ -778,7 +764,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                             writeOperation,
                             entry.getKey(),
                             entry.getValue().size());
-                        tempFiles.addAll(writeOperation.finalize(entry.getValue()));
+                        Map<ResourceId, ResourceId> finalizeMap = writeOperation.finalize(
+                            entry.getValue());
+                        tempFiles.addAll(finalizeMap.keySet());
+                        for (ResourceId outputFile : finalizeMap.values()) {
+                          c.output(outputFile.toString());
+                        }
                         LOG.debug("Done finalizing write operation for {}.", entry.getKey());
                       }
                       writeOperation.removeTemporaryFiles(tempFiles);
@@ -804,10 +795,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // set numShards, then all shards will be written out as empty files. For this reason we
       // use a side input here.
       PCollection<Void> singletonCollection = p.apply(Create.of((Void) null));
-      singletonCollection.apply(
+      outputFilenames = singletonCollection.apply(
           "Finalize",
           ParDo.of(
-                  new DoFn<Void, Integer>() {
+                  new DoFn<Void, String>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -822,30 +813,35 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                       } else {
                         minShardsNeeded = 1;
                       }
-                      Set<ResourceId> tempFiles = Sets.newHashSet();
+                      Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
                       Multimap<DestinationT, FileResult<DestinationT>> perDestination =
                           perDestinationResults(c.sideInput(resultsView));
                       for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
                           perDestination.asMap().entrySet()) {
-                        tempFiles.addAll(
+                        finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
                                 entry.getKey(), entry.getValue(), minShardsNeeded));
                       }
                       if (perDestination.isEmpty()) {
                         // If there is no input at all, write empty files to the default
                         // destination.
-                        tempFiles.addAll(
+                        finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
                                 getSink().getDynamicDestinations().getDefaultDestination(),
                                 Lists.<FileResult<DestinationT>>newArrayList(),
                                 minShardsNeeded));
                       }
-                      writeOperation.removeTemporaryFiles(tempFiles);
+                      writeOperation.removeTemporaryFiles(finalizeMap.keySet());
+                      for (ResourceId outputFile :finalizeMap.values()) {
+                        c.output(outputFile.toString());
+                      }
                     }
                   })
               .withSideInputs(finalizeSideInputs.build()));
     }
-    return PDone.in(input.getPipeline());
+
+    TupleTag<String> outputFilenamesTag = new TupleTag<>("outputFilenames");
+    return WriteFilesResult.in(input.getPipeline(), outputFilenamesTag, outputFilenames);
   }
 
   /**
@@ -853,7 +849,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * this function will generate empty files for this destination to ensure that all shards are
    * generated.
    */
-  private Set<ResourceId> finalizeForDestinationFillEmptyShards(
+  private Map<ResourceId, ResourceId> finalizeForDestinationFillEmptyShards(
       DestinationT destination, Collection<FileResult<DestinationT>> results, int minShardsNeeded)
       throws Exception {
     checkState(!windowedWrites);
@@ -881,8 +877,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       }
       LOG.debug("Done creating extra shards for {}.", destination);
     }
-    Set<ResourceId> tempFiles = writeOperation.finalize(results);
+    Map<ResourceId, ResourceId> finalizeMap = writeOperation.finalize(results);
     LOG.debug("Done finalizing write operation {} for destination {}", writeOperation, destination);
-    return tempFiles;
+    return finalizeMap;
   }
 }
