@@ -8,6 +8,7 @@ import com.alibaba.jstorm.metric.AsmWindow;
 import com.alibaba.jstorm.metric.JStormMetrics;
 import com.alibaba.jstorm.metric.MetaType;
 import com.alibaba.jstorm.metric.MetricType;
+import com.alibaba.jstorm.task.error.TaskReportErrorAndDie;
 import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
@@ -56,14 +57,21 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
       if (numberOfAssertions == 0) {
         // If assert number is zero, wait 5 sec
         JStormUtils.sleepMs(5000);
+        Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
+        if (taskExceptionRec != null) {
+          throw new RuntimeException(taskExceptionRec.getCause());
+        }
         return result;
       } else {
         for (int i = 0; i < 40; ++i) {
           Optional<Boolean> success = checkForPAssertSuccess(numberOfAssertions);
+          Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
           if (success.isPresent() && success.get()) {
             return result;
           } else if (success.isPresent() && !success.get()) {
             throw new AssertionError("Failed assertion checks.");
+          } else if (taskExceptionRec != null) {
+            throw new RuntimeException(taskExceptionRec.getCause());
           } else {
             JStormUtils.sleepMs(500);
           }
@@ -74,6 +82,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     } finally {
       clearPAssertCount();
       cancel(result);
+      TaskReportErrorAndDie.setExceptionRecord(null);
     }
   }
 

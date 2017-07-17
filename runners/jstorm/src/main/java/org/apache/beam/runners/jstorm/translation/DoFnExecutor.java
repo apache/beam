@@ -203,8 +203,12 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
         tag, mainInputTag, sideInputs, elem.getValue()));
     if (mainInputTag.equals(tag)) {
       processMainInput(elem);
-    } else {
+    } else if (sideInputTagToView.containsKey(tag)) {
       processSideInput(tag, elem);
+    } else {
+      LOG.warn("Discard unexpected elem={} from tag={}", elem.getValue(), tag);
+      LOG.warn("Current mainInputTag={}, sideInputTags={}",
+              mainInputTag, sideInputTagToView.keySet());
     }
   }
 

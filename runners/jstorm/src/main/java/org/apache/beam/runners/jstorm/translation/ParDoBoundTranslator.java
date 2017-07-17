@@ -20,8 +20,10 @@ package org.apache.beam.runners.jstorm.translation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -54,8 +56,7 @@ class ParDoBoundTranslator<InputT, OutputT>
     TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
     List<TupleTag<?>> sideOutputTags = Lists.newArrayList();
 
-    Map<TupleTag<?>, PValue> allInputs =
-        avro.shaded.com.google.common.collect.Maps.newHashMap(userGraphContext.getInputs());
+    Map<TupleTag<?>, PValue> allInputs = Maps.newHashMap(userGraphContext.getInputs());
     for (PCollectionView pCollectionView : transform.getSideInputs()) {
       allInputs.put(userGraphContext.findTupleTag(pCollectionView), pCollectionView);
     }

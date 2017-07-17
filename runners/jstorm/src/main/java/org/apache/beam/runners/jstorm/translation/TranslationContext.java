@@ -36,7 +36,6 @@ import java.util.Map;
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
@@ -184,10 +183,6 @@ public class TranslationContext {
       TupleTag tag = entry.getKey();
       PValue value = entry.getValue();
 
-      // use tag of PValueBase
-      if (value instanceof PValueBase) {
-        tag = ((PValueBase) value).expand().keySet().iterator().next();
-      }
       executionGraphContext.registerStreamProducer(
           TaggedPValue.of(tag, value),
           Stream.Producer.of(name, tag.getId(), value.getName()));
@@ -198,6 +193,9 @@ public class TranslationContext {
     for (Map.Entry<TupleTag<?>, PValue> entry : inputs.entrySet()) {
       TupleTag tag = entry.getKey();
       PValue value = entry.getValue();
+      if (userGraphContext.findTupleTag(value) != null) {
+        tag = userGraphContext.findTupleTag(value);
+      }
       bolt.addExecutor(tag, executor);
 
       // filter all connections inside bolt
@@ -269,11 +267,15 @@ public class TranslationContext {
     }
 
     public TupleTag<?> getInputTag() {
-      return currentTransform.getInputs().keySet().iterator().next();
+      return pValueToTupleTag.get(this.getInput());
     }
 
     public List<TupleTag<?>> getInputTags() {
-      return Lists.newArrayList(currentTransform.getInputs().keySet());
+      List inputTags = Lists.newArrayList();
+      for (PValue value : currentTransform.getInputs().values()) {
+        inputTags.add(pValueToTupleTag.get(value));
+      }
+      return inputTags;
     }
 
     public <T extends PValue> T getOutput() {
