@@ -23,9 +23,9 @@ import static org.apache.beam.dsls.sql.rel.BeamJoinRelBoundedVsBoundedTest.ORDER
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -41,8 +41,8 @@ public class BeamSqlDslJoinTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final BeamSqlRecordType SOURCE_RECORD_TYPE =
-      BeamSqlRecordType.create(
+  private static final BeamSqlRowType SOURCE_RECORD_TYPE =
+      BeamSqlRowType.create(
           Arrays.asList(
               "order_id", "site_id", "price"
           ),
@@ -54,8 +54,8 @@ public class BeamSqlDslJoinTest {
   private static final BeamSqlRowCoder SOURCE_CODER =
       new BeamSqlRowCoder(SOURCE_RECORD_TYPE);
 
-  private static final BeamSqlRecordType RESULT_RECORD_TYPE =
-      BeamSqlRecordType.create(
+  private static final BeamSqlRowType RESULT_RECORD_TYPE =
+      BeamSqlRowType.create(
           Arrays.asList(
           "order_id", "site_id", "price", "order_id0", "site_id0", "price0"
           ),

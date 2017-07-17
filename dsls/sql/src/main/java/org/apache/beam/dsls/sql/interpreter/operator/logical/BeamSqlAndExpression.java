@@ -33,10 +33,10 @@ public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSqlRow inputRow) {
     boolean result = true;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRecord);
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow);
       result = result && expOut.getValue();
       if (!result) {
         break;

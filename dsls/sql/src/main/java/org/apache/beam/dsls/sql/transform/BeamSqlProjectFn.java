@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.transform;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -34,14 +34,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamSqlRecordType outputRecordType;
+  private BeamSqlRowType outputRowType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamSqlRecordType outputRecordType) {
+      BeamSqlRowType outputRowType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
-    this.outputRecordType = outputRecordType;
+    this.outputRowType = outputRowType;
   }
 
   @Setup
@@ -51,11 +51,11 @@ public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamSqlRow inputRecord = c.element();
-    List<Object> results = executor.execute(inputRecord);
+    BeamSqlRow inputRow = c.element();
+    List<Object> results = executor.execute(inputRow);
 
-    BeamSqlRow outRow = new BeamSqlRow(outputRecordType);
-    outRow.updateWindowRange(inputRecord, window);
+    BeamSqlRow outRow = new BeamSqlRow(outputRowType);
+    outRow.updateWindowRange(inputRow, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {
       BeamTableUtils.addFieldWithAutoTypeCasting(outRow, idx, results.get(idx));

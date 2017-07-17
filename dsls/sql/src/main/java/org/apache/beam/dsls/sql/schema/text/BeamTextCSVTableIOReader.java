@@ -21,9 +21,8 @@ package org.apache.beam.dsls.sql.schema.text;
 import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSqlRow;
 
 import java.io.Serializable;
-
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -37,13 +36,13 @@ public class BeamTextCSVTableIOReader
     extends PTransform<PCollection<String>, PCollection<BeamSqlRow>>
     implements Serializable {
   private String filePattern;
-  protected BeamSqlRecordType beamSqlRecordType;
+  protected BeamSqlRowType beamSqlRowType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamSqlRecordType beamSqlRecordType, String filePattern,
+  public BeamTextCSVTableIOReader(BeamSqlRowType beamSqlRowType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamSqlRecordType = beamSqlRecordType;
+    this.beamSqlRowType = beamSqlRowType;
     this.csvFormat = csvFormat;
   }
 
@@ -53,7 +52,7 @@ public class BeamTextCSVTableIOReader
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
-            ctx.output(csvLine2BeamSqlRow(csvFormat, str, beamSqlRecordType));
+            ctx.output(csvLine2BeamSqlRow(csvFormat, str, beamSqlRowType));
           }
         }));
   }

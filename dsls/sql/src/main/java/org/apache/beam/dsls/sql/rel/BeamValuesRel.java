@@ -19,13 +19,12 @@
 package org.apache.beam.dsls.sql.rel;
 
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Create;
@@ -65,9 +64,9 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       throw new IllegalStateException("Values with empty tuples!");
     }
 
-    BeamSqlRecordType beamSQLRecordType = CalciteUtils.toBeamRecordType(this.getRowType());
+    BeamSqlRowType beamSQLRowType = CalciteUtils.toBeamRowType(this.getRowType());
     for (ImmutableList<RexLiteral> tuple : tuples) {
-      BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
+      BeamSqlRow row = new BeamSqlRow(beamSQLRowType);
       for (int i = 0; i < tuple.size(); i++) {
         BeamTableUtils.addFieldWithAutoTypeCasting(row, i, tuple.get(i).getValue());
       }
@@ -75,6 +74,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     }
 
     return inputPCollections.getPipeline().apply(stageName, Create.of(rows))
-        .setCoder(new BeamSqlRowCoder(beamSQLRecordType));
+        .setCoder(new BeamSqlRowCoder(beamSQLRowType));
   }
 }

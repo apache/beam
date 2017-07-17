@@ -35,9 +35,9 @@ public class BeamSqlWindowStartExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRow) {
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        new Date(inputRecord.getWindowStart().getMillis()));
+        new Date(inputRow.getWindowStart().getMillis()));
   }
 
 }

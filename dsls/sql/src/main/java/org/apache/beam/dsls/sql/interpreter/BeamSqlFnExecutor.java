@@ -427,10 +427,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   @Override
-  public List<Object> execute(BeamSqlRow inputRecord) {
+  public List<Object> execute(BeamSqlRow inputRow) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
-      results.add(exp.evaluate(inputRecord).getValue());
+      results.add(exp.evaluate(inputRow).getValue());
     }
     return results;
   }

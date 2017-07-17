@@ -56,7 +56,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
       //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
       BaseBeamTable sourceTable = sqlEnv.findTable(sourceName);
       return sourceTable.buildIOReader(inputPCollections.getPipeline())
-          .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
+          .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRowType(getRowType())));
     }
   }
 

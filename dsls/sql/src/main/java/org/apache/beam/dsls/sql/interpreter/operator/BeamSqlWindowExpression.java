@@ -42,9 +42,9 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRow) {
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        (Date) operands.get(0).evaluate(inputRecord).getValue());
+        (Date) operands.get(0).evaluate(inputRow).getValue());
   }
 
 }

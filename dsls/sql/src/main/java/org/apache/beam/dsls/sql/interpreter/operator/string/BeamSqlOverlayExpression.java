@@ -55,15 +55,15 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    String str = opValueEvaluated(0, inputRecord);
-    String replaceStr = opValueEvaluated(1, inputRecord);
-    int idx = opValueEvaluated(2, inputRecord);
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+    String str = opValueEvaluated(0, inputRow);
+    String replaceStr = opValueEvaluated(1, inputRow);
+    int idx = opValueEvaluated(2, inputRow);
     // the index is 1 based.
     idx -= 1;
     int length = replaceStr.length();
     if (operands.size() == 4) {
-      length = opValueEvaluated(3, inputRecord);
+      length = opValueEvaluated(3, inputRow);
     }
 
     StringBuilder result = new StringBuilder(

@@ -43,7 +43,7 @@ public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
     return opCount <= 1;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     return BeamSqlPrimitive.of(outputType, new Date());
   }
 }
