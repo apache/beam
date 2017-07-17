@@ -48,6 +48,8 @@ public class BeamSqlRow implements Serializable {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.DOUBLE, Double.class);
     SQL_TYPE_TO_JAVA_CLASS.put(Types.DECIMAL, BigDecimal.class);
 
+    SQL_TYPE_TO_JAVA_CLASS.put(Types.BOOLEAN, Boolean.class);
+
     SQL_TYPE_TO_JAVA_CLASS.put(Types.CHAR, String.class);
     SQL_TYPE_TO_JAVA_CLASS.put(Types.VARCHAR, String.class);
 
@@ -167,6 +169,10 @@ public class BeamSqlRow implements Serializable {
     return (BigDecimal) getFieldValue(fieldName);
   }
 
+  public boolean getBoolean(String fieldName) {
+    return (boolean) getFieldValue(fieldName);
+  }
+
   public Object getFieldValue(int fieldIdx) {
     if (nullFields.contains(fieldIdx)) {
       return null;
@@ -213,6 +219,10 @@ public class BeamSqlRow implements Serializable {
 
   public BigDecimal getBigDecimal(int idx) {
     return (BigDecimal) getFieldValue(idx);
+  }
+
+  public boolean getBoolean(int idx) {
+    return (boolean) getFieldValue(idx);
   }
 
   public int size() {
