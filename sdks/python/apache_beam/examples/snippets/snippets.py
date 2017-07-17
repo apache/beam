@@ -1136,7 +1136,7 @@ def model_group_by_key(contents, output_path):
     grouped_words = words_and_counts | beam.GroupByKey()
     # [END model_group_by_key_transform]
     (grouped_words
-     | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
+     | 'count words' >> beam.Map(lambda (word, counts): (word, sum(counts)))
      | beam.io.WriteToText(output_path))
 
 
