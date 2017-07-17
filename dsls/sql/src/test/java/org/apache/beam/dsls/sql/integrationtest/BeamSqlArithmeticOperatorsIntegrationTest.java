@@ -60,8 +60,8 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
   @Test
   public void testPlus_overflow() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
-        .addExpr("c_tinyint_max + c_tinyint_max", -2)
-        .addExpr("c_smallint_max + c_smallint_max", -2)
+        .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
+        .addExpr("c_smallint_max + c_smallint_max", (short) -2)
         .addExpr("c_integer_max + c_integer_max", -2)
         // yeah, I know 384L is strange, but since it is already overflowed
         // what the actualy result is not so important, it is wrong any way.

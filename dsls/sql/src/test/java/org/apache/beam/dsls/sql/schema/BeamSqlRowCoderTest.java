@@ -53,6 +53,7 @@ public class BeamSqlRowCoderTest {
             .add("col_string_varchar", SqlTypeName.VARCHAR)
             .add("col_time", SqlTypeName.TIME)
             .add("col_timestamp", SqlTypeName.TIMESTAMP)
+            .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();
       }
     };
@@ -73,6 +74,7 @@ public class BeamSqlRowCoderTest {
     calendar.setTime(new Date());
     row.addField("col_time", calendar);
     row.addField("col_timestamp", new Date());
+    row.addField("col_boolean", true);
 
 
     BeamSqlRowCoder coder = new BeamSqlRowCoder(beamSQLRecordType);
