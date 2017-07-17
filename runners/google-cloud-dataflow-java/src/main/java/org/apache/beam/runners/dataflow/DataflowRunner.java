@@ -240,11 +240,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
           DataflowRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
-          + "Defaulting to files from the classpath: will stage {} files. "
-          + "Enable logging at DEBUG level to see which files will be staged.",
-          dataflowOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
+      if (dataflowOptions.getFilesToStage().isEmpty()) {
+        throw new IllegalArgumentException("No files to stage has been found.");
+      } else {
+        LOG.info("PipelineOptions.filesToStage was not specified. "
+                        + "Defaulting to files from the classpath: will stage {} files. "
+                        + "Enable logging at DEBUG level to see which files will be staged.",
+                dataflowOptions.getFilesToStage().size());
+        LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
+      }
     }
 
     // Verify jobName according to service requirements, truncating converting to lowercase if
