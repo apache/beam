@@ -26,12 +26,12 @@ import java.util.List;
  *
  */
 @AutoValue
-public abstract class BeamSqlRecordType implements Serializable {
+public abstract class BeamSqlRowType implements Serializable {
   public abstract List<String> getFieldsName();
   public abstract List<Integer> getFieldsType();
 
-  public static BeamSqlRecordType create(List<String> fieldNames, List<Integer> fieldTypes) {
-    return new org.apache.beam.dsls.sql.schema.AutoValue_BeamSqlRecordType(fieldNames, fieldTypes);
+  public static BeamSqlRowType create(List<String> fieldNames, List<Integer> fieldTypes) {
+    return new AutoValue_BeamSqlRowType(fieldNames, fieldTypes);
   }
 
   public int size() {

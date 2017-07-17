@@ -19,10 +19,9 @@
 package org.apache.beam.dsls.sql.schema.kafka;
 
 import java.io.Serializable;
-
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -91,8 +90,8 @@ public class BeamKafkaCSVTableTest {
     pipeline.run();
   }
 
-  private static BeamSqlRecordType genRowType() {
-    return CalciteUtils.toBeamRecordType(new RelProtoDataType() {
+  private static BeamSqlRowType genRowType() {
+    return CalciteUtils.toBeamRowType(new RelProtoDataType() {
 
       @Override public RelDataType apply(RelDataTypeFactory a0) {
         return a0.builder().add("order_id", SqlTypeName.BIGINT)

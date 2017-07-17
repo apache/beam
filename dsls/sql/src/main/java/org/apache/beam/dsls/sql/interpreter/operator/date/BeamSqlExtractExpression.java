@@ -61,8 +61,8 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
         && opType(1) == SqlTypeName.BIGINT;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    Long time = opValueEvaluated(1, inputRecord);
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+    Long time = opValueEvaluated(1, inputRow);
 
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
 

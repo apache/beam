@@ -31,13 +31,13 @@ public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
   private transient PCollection<BeamSqlRow> upstream;
 
-  protected BeamPCollectionTable(BeamSqlRecordType beamSqlRecordType) {
-    super(beamSqlRecordType);
+  protected BeamPCollectionTable(BeamSqlRowType beamSqlRowType) {
+    super(beamSqlRowType);
   }
 
   public BeamPCollectionTable(PCollection<BeamSqlRow> upstream,
-      BeamSqlRecordType beamSqlRecordType){
-    this(beamSqlRecordType);
+      BeamSqlRowType beamSqlRowType){
+    this(beamSqlRowType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;

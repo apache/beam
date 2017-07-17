@@ -58,10 +58,10 @@ public class BeamSqlRowCoderTest {
       }
     };
 
-    BeamSqlRecordType beamSQLRecordType = CalciteUtils.toBeamRecordType(
+    BeamSqlRowType beamSQLRowType = CalciteUtils.toBeamRowType(
         protoRowType.apply(new JavaTypeFactoryImpl(
             RelDataTypeSystem.DEFAULT)));
-    BeamSqlRow row = new BeamSqlRow(beamSQLRecordType);
+    BeamSqlRow row = new BeamSqlRow(beamSQLRowType);
     row.addField("col_tinyint", Byte.valueOf("1"));
     row.addField("col_smallint", Short.valueOf("1"));
     row.addField("col_integer", 1);
@@ -77,7 +77,7 @@ public class BeamSqlRowCoderTest {
     row.addField("col_boolean", true);
 
 
-    BeamSqlRowCoder coder = new BeamSqlRowCoder(beamSQLRecordType);
+    BeamSqlRowCoder coder = new BeamSqlRowCoder(beamSQLRowType);
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

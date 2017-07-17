@@ -42,13 +42,13 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
         && SqlTypeName.DATETIME_TYPES.contains(opType(0));
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     if (opType(0) == SqlTypeName.TIME) {
-      GregorianCalendar date = opValueEvaluated(0, inputRecord);
+      GregorianCalendar date = opValueEvaluated(0, inputRow);
       return BeamSqlPrimitive.of(outputType, date.getTimeInMillis());
 
     } else {
-      Date date = opValueEvaluated(0, inputRecord);
+      Date date = opValueEvaluated(0, inputRow);
       return BeamSqlPrimitive.of(outputType, date.getTime());
     }
   }

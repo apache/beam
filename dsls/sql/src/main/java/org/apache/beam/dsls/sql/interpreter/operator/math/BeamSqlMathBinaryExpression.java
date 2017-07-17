@@ -39,10 +39,10 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
     return numberOfOperands() == 2 && isOperandNumeric(opType(0)) && isOperandNumeric(opType(1));
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
     BeamSqlExpression leftOp = op(0);
     BeamSqlExpression rightOp = op(1);
-    return calculate(leftOp.evaluate(inputRecord), rightOp.evaluate(inputRecord));
+    return calculate(leftOp.evaluate(inputRow), rightOp.evaluate(inputRow));
   }
 
   /**

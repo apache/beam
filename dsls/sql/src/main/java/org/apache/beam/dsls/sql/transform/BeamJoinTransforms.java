@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -60,7 +60,7 @@ public class BeamJoinTransforms {
             ? input.getDataType().getFieldsType().get(joinColumns.get(i).getKey()) :
             input.getDataType().getFieldsType().get(joinColumns.get(i).getValue()));
       }
-      BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
+      BeamSqlRowType type = BeamSqlRowType.create(names, types);
 
       // build the row
       BeamSqlRow row = new BeamSqlRow(type);
@@ -149,7 +149,7 @@ public class BeamJoinTransforms {
     List<Integer> types = new ArrayList<>(leftRow.size() + rightRow.size());
     types.addAll(leftRow.getDataType().getFieldsType());
     types.addAll(rightRow.getDataType().getFieldsType());
-    BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
+    BeamSqlRowType type = BeamSqlRowType.create(names, types);
 
     BeamSqlRow row = new BeamSqlRow(type);
     // build the row

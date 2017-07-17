@@ -45,7 +45,7 @@ public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
     return opCount <= 1;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     GregorianCalendar ret = new GregorianCalendar(TimeZone.getDefault());
     ret.setTime(new Date());
     return BeamSqlPrimitive.of(outputType, ret);

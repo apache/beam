@@ -23,8 +23,8 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
@@ -38,7 +38,7 @@ import org.junit.BeforeClass;
 public class BeamTransformBaseTest {
   public static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-  public static  BeamSqlRecordType inputRowType;
+  public static BeamSqlRowType inputRowType;
   public static List<BeamSqlRow> inputRows;
 
   @BeforeClass
@@ -66,14 +66,14 @@ public class BeamTransformBaseTest {
   }
 
   /**
-   * create a {@code BeamSqlRecordType} for given column metadata.
+   * create a {@code BeamSqlRowType} for given column metadata.
    */
-  public static BeamSqlRecordType initTypeOfSqlRow(List<KV<String, SqlTypeName>> columnMetadata){
+  public static BeamSqlRowType initTypeOfSqlRow(List<KV<String, SqlTypeName>> columnMetadata){
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     for (KV<String, SqlTypeName> cm : columnMetadata) {
       builder.add(cm.getKey(), cm.getValue());
     }
-    return CalciteUtils.toBeamRecordType(builder.build());
+    return CalciteUtils.toBeamRowType(builder.build());
   }
 
   /**
@@ -89,7 +89,7 @@ public class BeamTransformBaseTest {
    */
   public static BeamSqlRow initBeamSqlRow(List<KV<String, SqlTypeName>> columnMetadata,
       List<Object> rowValues){
-    BeamSqlRecordType rowType = initTypeOfSqlRow(columnMetadata);
+    BeamSqlRowType rowType = initTypeOfSqlRow(columnMetadata);
 
     return new BeamSqlRow(rowType, rowValues);
   }

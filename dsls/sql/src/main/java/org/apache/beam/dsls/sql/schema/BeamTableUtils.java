@@ -37,19 +37,19 @@ public final class BeamTableUtils {
   public static BeamSqlRow csvLine2BeamSqlRow(
       CSVFormat csvFormat,
       String line,
-      BeamSqlRecordType beamSqlRecordType) {
-    BeamSqlRow row = new BeamSqlRow(beamSqlRecordType);
+      BeamSqlRowType beamSqlRowType) {
+    BeamSqlRow row = new BeamSqlRow(beamSqlRowType);
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != beamSqlRecordType.size()) {
+      if (rawRecord.size() != beamSqlRowType.size()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamSqlRecordType.size(), rawRecord.size()
+            beamSqlRowType.size(), rawRecord.size()
         ));
       } else {
-        for (int idx = 0; idx < beamSqlRecordType.size(); idx++) {
+        for (int idx = 0; idx < beamSqlRowType.size(); idx++) {
           String raw = rawRecord.get(idx);
           addFieldWithAutoTypeCasting(row, idx, raw);
         }

@@ -37,7 +37,7 @@ public interface BeamSqlExpressionExecutor extends Serializable {
    * apply transformation to input record {@link BeamSqlRow}.
    *
    */
-  List<Object> execute(BeamSqlRow inputRecord);
+  List<Object> execute(BeamSqlRow inputRow);
 
   void close();
 }
