@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.transform.BeamJoinTransforms;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.Coder;
@@ -97,7 +97,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamSqlEnv sqlEnv)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamSqlRecordType leftRowType = CalciteUtils.toBeamRecordType(left.getRowType());
+    BeamSqlRowType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
     PCollection<BeamSqlRow> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
@@ -119,7 +119,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       names.add("c" + i);
       types.add(leftRowType.getFieldsType().get(pairs.get(i).getKey()));
     }
-    BeamSqlRecordType extractKeyRowType = BeamSqlRecordType.create(names, types);
+    BeamSqlRowType extractKeyRowType = BeamSqlRowType.create(names, types);
 
     Coder extractKeyRowCoder = new BeamSqlRowCoder(extractKeyRowType);
 
@@ -213,7 +213,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSqlRow> ret = joinedRows
         .apply(stageName + "_JoinParts2WholeRow",
             MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
+        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRowType(getRowType())));
     return ret;
   }
 
@@ -249,13 +249,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamSqlRow> ret = leftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             joinType, rightNullRow, rowsView, swapped)).withSideInputs(rowsView))
-        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
+        .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRowType(getRowType())));
 
     return ret;
   }
 
   private BeamSqlRow buildNullRow(BeamRelNode relNode) {
-    BeamSqlRecordType leftType = CalciteUtils.toBeamRecordType(relNode.getRowType());
+    BeamSqlRowType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
     BeamSqlRow nullRow = new BeamSqlRow(leftType);
     for (int i = 0; i < leftType.size(); i++) {
       nullRow.addField(i, null);

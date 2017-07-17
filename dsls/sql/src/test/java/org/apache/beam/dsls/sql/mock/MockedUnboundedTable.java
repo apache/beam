@@ -18,16 +18,16 @@
 
 package org.apache.beam.dsls.sql.mock;
 
-import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRecordType;
+import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRowType;
 import static org.apache.beam.dsls.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
@@ -44,8 +44,8 @@ public class MockedUnboundedTable extends MockedTable {
   private final List<Pair<Duration, List<BeamSqlRow>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
-  private MockedUnboundedTable(BeamSqlRecordType beamSqlRecordType) {
-    super(beamSqlRecordType);
+  private MockedUnboundedTable(BeamSqlRowType beamSqlRowType) {
+    super(beamSqlRowType);
   }
 
   /**
@@ -62,7 +62,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args){
-    return new MockedUnboundedTable(buildBeamSqlRecordType(args));
+    return new MockedUnboundedTable(buildBeamSqlRowType(args));
   }
 
   public MockedUnboundedTable timestampColumnIndex(int idx) {
@@ -97,7 +97,7 @@ public class MockedUnboundedTable extends MockedTable {
 
   @Override public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
     TestStream.Builder<BeamSqlRow> values = TestStream.create(
-        new BeamSqlRowCoder(beamSqlRecordType));
+        new BeamSqlRowCoder(beamSqlRowType));
 
     for (Pair<Duration, List<BeamSqlRow>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

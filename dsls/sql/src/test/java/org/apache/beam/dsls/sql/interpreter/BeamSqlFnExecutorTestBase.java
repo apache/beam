@@ -23,8 +23,8 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.planner.BeamRelDataTypeSystem;
 import org.apache.beam.dsls.sql.planner.BeamRuleSets;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
@@ -57,7 +57,7 @@ public class BeamSqlFnExecutorTestBase {
       RelDataTypeSystem.DEFAULT);
   public static RelDataType relDataType;
 
-  public static BeamSqlRecordType beamRecordType;
+  public static BeamSqlRowType beamRecordType;
   public static BeamSqlRow record;
 
   public static RelBuilder relBuilder;
@@ -70,7 +70,7 @@ public class BeamSqlFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    beamRecordType = CalciteUtils.toBeamRecordType(relDataType);
+    beamRecordType = CalciteUtils.toBeamRowType(relDataType);
     record = new BeamSqlRow(beamRecordType);
 
     record.addField(0, 1234567L);

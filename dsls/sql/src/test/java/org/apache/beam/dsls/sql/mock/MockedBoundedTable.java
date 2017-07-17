@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.mock;
 
-import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRecordType;
+import static org.apache.beam.dsls.sql.TestUtils.buildBeamSqlRowType;
 import static org.apache.beam.dsls.sql.TestUtils.buildRows;
 
 import java.util.ArrayList;
@@ -25,8 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -45,8 +45,8 @@ public class MockedBoundedTable extends MockedTable {
   /** rows flow out from this table. */
   private final List<BeamSqlRow> rows = new ArrayList<>();
 
-  public MockedBoundedTable(BeamSqlRecordType beamSqlRecordType) {
-    super(beamSqlRecordType);
+  public MockedBoundedTable(BeamSqlRowType beamSqlRowType) {
+    super(beamSqlRowType);
   }
 
   /**
@@ -63,13 +63,13 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedBoundedTable of(final Object... args){
-    return new MockedBoundedTable(buildBeamSqlRecordType(args));
+    return new MockedBoundedTable(buildBeamSqlRowType(args));
   }
 
   /**
    * Build a mocked bounded table with the specified type.
    */
-  public static MockedBoundedTable of(final BeamSqlRecordType type) {
+  public static MockedBoundedTable of(final BeamSqlRowType type) {
     return new MockedBoundedTable(type);
   }
 

@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.transform;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -34,10 +34,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamSqlRecordType outputRecordType;
+  private BeamSqlRowType outputRecordType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamSqlRecordType outputRecordType) {
+      BeamSqlRowType outputRecordType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
