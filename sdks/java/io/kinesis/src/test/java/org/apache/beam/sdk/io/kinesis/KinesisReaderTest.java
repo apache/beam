@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,87 +35,88 @@ import org.mockito.runners.MockitoJUnitRunner;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisReaderTest {
-    @Mock
-    private SimplifiedKinesisClient kinesis;
-    @Mock
-    private CheckpointGenerator generator;
-    @Mock
-    private ShardCheckpoint firstCheckpoint, secondCheckpoint;
-    @Mock
-    private ShardRecordsIterator firstIterator, secondIterator;
-    @Mock
-    private KinesisRecord a, b, c, d;
 
-    private KinesisReader reader;
+  @Mock
+  private SimplifiedKinesisClient kinesis;
+  @Mock
+  private CheckpointGenerator generator;
+  @Mock
+  private ShardCheckpoint firstCheckpoint, secondCheckpoint;
+  @Mock
+  private ShardRecordsIterator firstIterator, secondIterator;
+  @Mock
+  private KinesisRecord a, b, c, d;
 
-    @Before
-    public void setUp() throws IOException, TransientKinesisException {
-        when(generator.generate(kinesis)).thenReturn(new KinesisReaderCheckpoint(
-                asList(firstCheckpoint, secondCheckpoint)
-        ));
-        when(firstCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(firstIterator);
-        when(secondCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(secondIterator);
-        when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
-        when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+  private KinesisReader reader;
 
-        reader = new KinesisReader(kinesis, generator, null);
-    }
+  @Before
+  public void setUp() throws IOException, TransientKinesisException {
+    when(generator.generate(kinesis)).thenReturn(new KinesisReaderCheckpoint(
+        asList(firstCheckpoint, secondCheckpoint)
+    ));
+    when(firstCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(firstIterator);
+    when(secondCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(secondIterator);
+    when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    @Test
-    public void startReturnsFalseIfNoDataAtTheBeginning() throws IOException {
-        assertThat(reader.start()).isFalse();
-    }
+    reader = new KinesisReader(kinesis, generator, null);
+  }
 
-    @Test(expected = NoSuchElementException.class)
-    public void throwsNoSuchElementExceptionIfNoData() throws IOException {
-        reader.start();
-        reader.getCurrent();
-    }
+  @Test
+  public void startReturnsFalseIfNoDataAtTheBeginning() throws IOException {
+    assertThat(reader.start()).isFalse();
+  }
 
-    @Test
-    public void startReturnsTrueIfSomeDataAvailable() throws IOException,
-            TransientKinesisException {
-        when(firstIterator.next()).
-                thenReturn(CustomOptional.of(a)).
-                thenReturn(CustomOptional.<KinesisRecord>absent());
+  @Test(expected = NoSuchElementException.class)
+  public void throwsNoSuchElementExceptionIfNoData() throws IOException {
+    reader.start();
+    reader.getCurrent();
+  }
 
-        assertThat(reader.start()).isTrue();
-    }
+  @Test
+  public void startReturnsTrueIfSomeDataAvailable() throws IOException,
+      TransientKinesisException {
+    when(firstIterator.next()).
+        thenReturn(CustomOptional.of(a)).
+        thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    @Test
-    public void advanceReturnsFalseIfThereIsTransientExceptionInKinesis()
-            throws IOException, TransientKinesisException {
-        reader.start();
+    assertThat(reader.start()).isTrue();
+  }
 
-        when(firstIterator.next()).thenThrow(TransientKinesisException.class);
+  @Test
+  public void advanceReturnsFalseIfThereIsTransientExceptionInKinesis()
+      throws IOException, TransientKinesisException {
+    reader.start();
 
-        assertThat(reader.advance()).isFalse();
-    }
+    when(firstIterator.next()).thenThrow(TransientKinesisException.class);
 
-    @Test
-    public void readsThroughAllDataAvailable() throws IOException, TransientKinesisException {
-        when(firstIterator.next()).
-                thenReturn(CustomOptional.<KinesisRecord>absent()).
-                thenReturn(CustomOptional.of(a)).
-                thenReturn(CustomOptional.<KinesisRecord>absent()).
-                thenReturn(CustomOptional.of(b)).
-                thenReturn(CustomOptional.<KinesisRecord>absent());
+    assertThat(reader.advance()).isFalse();
+  }
 
-        when(secondIterator.next()).
-                thenReturn(CustomOptional.of(c)).
-                thenReturn(CustomOptional.<KinesisRecord>absent()).
-                thenReturn(CustomOptional.of(d)).
-                thenReturn(CustomOptional.<KinesisRecord>absent());
+  @Test
+  public void readsThroughAllDataAvailable() throws IOException, TransientKinesisException {
+    when(firstIterator.next()).
+        thenReturn(CustomOptional.<KinesisRecord>absent()).
+        thenReturn(CustomOptional.of(a)).
+        thenReturn(CustomOptional.<KinesisRecord>absent()).
+        thenReturn(CustomOptional.of(b)).
+        thenReturn(CustomOptional.<KinesisRecord>absent());
 
-        assertThat(reader.start()).isTrue();
-        assertThat(reader.getCurrent()).isEqualTo(c);
-        assertThat(reader.advance()).isTrue();
-        assertThat(reader.getCurrent()).isEqualTo(a);
-        assertThat(reader.advance()).isTrue();
-        assertThat(reader.getCurrent()).isEqualTo(d);
-        assertThat(reader.advance()).isTrue();
-        assertThat(reader.getCurrent()).isEqualTo(b);
-        assertThat(reader.advance()).isFalse();
-    }
+    when(secondIterator.next()).
+        thenReturn(CustomOptional.of(c)).
+        thenReturn(CustomOptional.<KinesisRecord>absent()).
+        thenReturn(CustomOptional.of(d)).
+        thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    assertThat(reader.start()).isTrue();
+    assertThat(reader.getCurrent()).isEqualTo(c);
+    assertThat(reader.advance()).isTrue();
+    assertThat(reader.getCurrent()).isEqualTo(a);
+    assertThat(reader.advance()).isTrue();
+    assertThat(reader.getCurrent()).isEqualTo(d);
+    assertThat(reader.advance()).isTrue();
+    assertThat(reader.getCurrent()).isEqualTo(b);
+    assertThat(reader.advance()).isFalse();
+  }
 
 }

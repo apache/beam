@@ -28,6 +28,7 @@ from concurrent import futures
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
 
 
@@ -61,13 +62,12 @@ class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
 class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
-    fns = [beam_fn_api_pb2.FunctionSpec(id=str(ix)) for ix in range(4)]
-
-    process_bundle_descriptors = [beam_fn_api_pb2.ProcessBundleDescriptor(
-        id=str(100+ix),
-        primitive_transform=[
-            beam_fn_api_pb2.PrimitiveTransform(function_spec=fn)])
-                                  for ix, fn in enumerate(fns)]
+    process_bundle_descriptors = [
+        beam_fn_api_pb2.ProcessBundleDescriptor(
+            id=str(100+ix),
+            transforms={
+                str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))})
+        for ix in range(4)]
 
     test_controller = BeamFnControlServicer([beam_fn_api_pb2.InstructionRequest(
         register=beam_fn_api_pb2.RegisterRequest(
@@ -83,7 +83,7 @@ class SdkWorkerTest(unittest.TestCase):
     harness.run()
     self.assertEqual(
         harness.worker.fns,
-        {item.id: item for item in fns + process_bundle_descriptors})
+        {item.id: item for item in process_bundle_descriptors})
 
 
 if __name__ == "__main__":

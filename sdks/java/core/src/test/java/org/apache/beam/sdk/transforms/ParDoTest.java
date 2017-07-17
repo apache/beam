@@ -1593,6 +1593,108 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  public void testStateNotKeyed() {
+    final String stateId = "foo";
+
+    DoFn<String, Integer> fn =
+        new DoFn<String, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("KvCoder");
+
+    pipeline.apply(Create.of("hello", "goodbye", "hello again")).apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testStateNotDeterministic() {
+    final String stateId = "foo";
+
+    // DoubleCoder is not deterministic, so this should crash
+    DoFn<KV<Double, String>, Integer> fn =
+        new DoFn<KV<Double, String>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("state");
+    thrown.expectMessage("deterministic");
+
+    pipeline
+        .apply(Create.of(KV.of(1.0, "hello"), KV.of(5.4, "goodbye"), KV.of(7.2, "hello again")))
+        .apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testTimerNotKeyed() {
+    final String timerId = "foo";
+
+    DoFn<String, Integer> fn =
+        new DoFn<String, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @TimerId(timerId) Timer timer) {}
+
+          @OnTimer(timerId)
+          public void onTimer() {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("timer");
+    thrown.expectMessage("KvCoder");
+
+    pipeline.apply(Create.of("hello", "goodbye", "hello again")).apply(ParDo.of(fn));
+  }
+
+  @Test
+  public void testTimerNotDeterministic() {
+    final String timerId = "foo";
+
+    // DoubleCoder is not deterministic, so this should crash
+    DoFn<KV<Double, String>, Integer> fn =
+        new DoFn<KV<Double, String>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @TimerId(timerId) Timer timer) {}
+
+          @OnTimer(timerId)
+          public void onTimer() {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("timer");
+    thrown.expectMessage("deterministic");
+
+    pipeline
+        .apply(Create.of(KV.of(1.0, "hello"), KV.of(5.4, "goodbye"), KV.of(7.2, "hello again")))
+        .apply(ParDo.of(fn));
+  }
+
+  @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateCoderInference() {
     final String stateId = "foo";
@@ -2490,6 +2592,43 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  /**
+   * Tests a GBK followed immediately by a {@link ParDo} that users timers. This checks a common
+   * case where both GBK and the user code share a timer delivery bundle.
+   */
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testGbkFollowedByUserTimers() throws Exception {
+
+    DoFn<KV<String, Iterable<Integer>>, Integer> fn =
+        new DoFn<KV<String, Iterable<Integer>>, Integer>() {
+
+          public static final String TIMER_ID = "foo";
+
+          @TimerId(TIMER_ID)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
+            timer.offset(Duration.standardSeconds(1)).setRelative();
+            context.output(3);
+          }
+
+          @OnTimer(TIMER_ID)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(KV.of("hello", 37)))
+            .apply(GroupByKey.<String, Integer>create())
+            .apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
     pipeline.run();
   }

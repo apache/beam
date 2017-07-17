@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -433,16 +434,21 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
+    /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
+    public abstract boolean hasReturnValue();
+
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
         TypeDescriptor<?> trackerT,
-        @Nullable TypeDescriptor<? extends BoundedWindow> windowT) {
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
+        boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           trackerT,
-          windowT);
+          windowT,
+          hasReturnValue);
     }
 
     /**

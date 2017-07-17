@@ -23,6 +23,7 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.amazonaws.regions.Regions;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -50,72 +52,75 @@ import org.junit.Test;
  * You need to provide all {@link KinesisTestOptions} in order to run this.
  */
 public class KinesisReaderIT {
-    private static final long PIPELINE_STARTUP_TIME = TimeUnit.SECONDS.toMillis(10);
-    private ExecutorService singleThreadExecutor = newSingleThreadExecutor();
 
-    @Rule
-    public final transient TestPipeline p = TestPipeline.create();
+  private static final long PIPELINE_STARTUP_TIME = TimeUnit.SECONDS.toMillis(10);
+  private ExecutorService singleThreadExecutor = newSingleThreadExecutor();
 
-    @Ignore
-    @Test
-    public void readsDataFromRealKinesisStream()
-            throws IOException, InterruptedException, ExecutionException {
-        KinesisTestOptions options = readKinesisOptions();
-        List<String> testData = prepareTestData(1000);
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
-        Future<?> future = startTestPipeline(testData, options);
-        KinesisUploader.uploadAll(testData, options);
-        future.get();
+  @Ignore
+  @Test
+  public void readsDataFromRealKinesisStream()
+      throws IOException, InterruptedException, ExecutionException {
+    KinesisTestOptions options = readKinesisOptions();
+    List<String> testData = prepareTestData(1000);
+
+    Future<?> future = startTestPipeline(testData, options);
+    KinesisUploader.uploadAll(testData, options);
+    future.get();
+  }
+
+  private List<String> prepareTestData(int count) {
+    List<String> data = newArrayList();
+    for (int i = 0; i < count; ++i) {
+      data.add(RandomStringUtils.randomAlphabetic(32));
     }
+    return data;
+  }
 
-    private List<String> prepareTestData(int count) {
-        List<String> data = newArrayList();
-        for (int i = 0; i < count; ++i) {
-            data.add(RandomStringUtils.randomAlphabetic(32));
+  private Future<?> startTestPipeline(List<String> testData, KinesisTestOptions options)
+      throws InterruptedException {
+
+    PCollection<String> result = p.
+        apply(KinesisIO.read()
+            .from(options.getAwsKinesisStream(), Instant.now())
+            .withClientProvider(options.getAwsAccessKey(), options.getAwsSecretKey(),
+                Regions.fromName(options.getAwsKinesisRegion()))
+            .withMaxReadTime(Duration.standardMinutes(3))
+        ).
+        apply(ParDo.of(new RecordDataToString()));
+    PAssert.that(result).containsInAnyOrder(testData);
+
+    Future<?> future = singleThreadExecutor.submit(new Callable<Void>() {
+
+      @Override
+      public Void call() throws Exception {
+        PipelineResult result = p.run();
+        PipelineResult.State state = result.getState();
+        while (state != PipelineResult.State.DONE && state != PipelineResult.State.FAILED) {
+          Thread.sleep(1000);
+          state = result.getState();
         }
-        return data;
+        assertThat(state).isEqualTo(PipelineResult.State.DONE);
+        return null;
+      }
+    });
+    Thread.sleep(PIPELINE_STARTUP_TIME);
+    return future;
+  }
+
+  private KinesisTestOptions readKinesisOptions() {
+    PipelineOptionsFactory.register(KinesisTestOptions.class);
+    return TestPipeline.testingPipelineOptions().as(KinesisTestOptions.class);
+  }
+
+  private static class RecordDataToString extends DoFn<KinesisRecord, String> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      checkNotNull(c.element(), "Null record given");
+      c.output(new String(c.element().getData().array(), StandardCharsets.UTF_8));
     }
-
-    private Future<?> startTestPipeline(List<String> testData, KinesisTestOptions options)
-            throws InterruptedException {
-
-        PCollection<String> result = p.
-                apply(KinesisIO.read()
-                        .from(options.getAwsKinesisStream(), Instant.now())
-                        .withClientProvider(options.getAwsAccessKey(), options.getAwsSecretKey(),
-                                Regions.fromName(options.getAwsKinesisRegion()))
-                        .withMaxReadTime(Duration.standardMinutes(3))
-                ).
-                apply(ParDo.of(new RecordDataToString()));
-        PAssert.that(result).containsInAnyOrder(testData);
-
-        Future<?> future = singleThreadExecutor.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                PipelineResult result = p.run();
-                PipelineResult.State state = result.getState();
-                while (state != PipelineResult.State.DONE && state != PipelineResult.State.FAILED) {
-                    Thread.sleep(1000);
-                    state = result.getState();
-                }
-                assertThat(state).isEqualTo(PipelineResult.State.DONE);
-                return null;
-            }
-        });
-        Thread.sleep(PIPELINE_STARTUP_TIME);
-        return future;
-    }
-
-    private KinesisTestOptions readKinesisOptions() {
-        PipelineOptionsFactory.register(KinesisTestOptions.class);
-        return TestPipeline.testingPipelineOptions().as(KinesisTestOptions.class);
-    }
-
-    private static class RecordDataToString extends DoFn<KinesisRecord, String> {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            checkNotNull(c.element(), "Null record given");
-            c.output(new String(c.element().getData().array(), StandardCharsets.UTF_8));
-        }
-    }
+  }
 }

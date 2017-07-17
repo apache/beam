@@ -200,8 +200,8 @@ public class SplittableParDoViaKeyedWorkItems {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
-     * and is released when the {@link DoFn.ProcessElement} call returns and there is no residual
-     * restriction captured by the {@link SplittableProcessElementInvoker}.
+     * and is released when the {@link DoFn.ProcessElement} call returns {@link
+     * ProcessContinuation#stop()}.
      *
      * <p>A hold is needed to avoid letting the output watermark immediately progress together with
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
@@ -365,11 +365,12 @@ public class SplittableParDoViaKeyedWorkItems {
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
       }
+      Instant wakeupTime =
+          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(
-              stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
     }
 
     private DoFn<InputT, OutputT>.StartBundleContext wrapContextAsStartBundle(

@@ -145,14 +145,6 @@ public class TransformHierarchy {
       Node producerNode = getProducer(inputValue);
       PInput input = producerInput.remove(inputValue);
       inputValue.finishSpecifying(input, producerNode.getTransform());
-      checkState(
-          producers.get(inputValue) != null,
-          "Producer unknown for input %s",
-          inputValue);
-      checkState(
-          producers.get(inputValue) != null,
-          "Producer unknown for input %s",
-          inputValue);
     }
   }
 
@@ -201,7 +193,7 @@ public class TransformHierarchy {
   }
 
   Node getProducer(PValue produced) {
-    return producers.get(produced);
+    return checkNotNull(producers.get(produced), "No producer found for %s", produced);
   }
 
   public Set<PValue> visit(PipelineVisitor visitor) {
@@ -406,7 +398,7 @@ public class TransformHierarchy {
       return fullName;
     }
 
-    /** Returns the transform input, in unexpanded form. */
+    /** Returns the transform input, in fully expanded form. */
     public Map<TupleTag<?>, PValue> getInputs() {
       return inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
     }

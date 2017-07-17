@@ -21,7 +21,9 @@ import static com.google.common.collect.Lists.newArrayList;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.common.collect.Iterables;
+
 import java.util.List;
+
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -36,59 +38,60 @@ import org.junit.Test;
  */
 public class KinesisMockReadTest {
 
-    @Rule
-    public final transient TestPipeline p = TestPipeline.create();
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
-    @Test
-    public void readsDataFromMockKinesis() {
-        int noOfShards = 3;
-        int noOfEventsPerShard = 100;
-        List<List<AmazonKinesisMock.TestData>> testData =
-                provideTestData(noOfShards, noOfEventsPerShard);
+  @Test
+  public void readsDataFromMockKinesis() {
+    int noOfShards = 3;
+    int noOfEventsPerShard = 100;
+    List<List<AmazonKinesisMock.TestData>> testData =
+        provideTestData(noOfShards, noOfEventsPerShard);
 
-        PCollection<AmazonKinesisMock.TestData> result = p
-                .apply(
-                        KinesisIO.read()
-                                .from("stream", InitialPositionInStream.TRIM_HORIZON)
-                                .withClientProvider(new AmazonKinesisMock.Provider(testData, 10))
-                                .withMaxNumRecords(noOfShards * noOfEventsPerShard))
-                .apply(ParDo.of(new KinesisRecordToTestData()));
-        PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));
-        p.run();
+    PCollection<AmazonKinesisMock.TestData> result = p
+        .apply(
+            KinesisIO.read()
+                .from("stream", InitialPositionInStream.TRIM_HORIZON)
+                .withClientProvider(new AmazonKinesisMock.Provider(testData, 10))
+                .withMaxNumRecords(noOfShards * noOfEventsPerShard))
+        .apply(ParDo.of(new KinesisRecordToTestData()));
+    PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));
+    p.run();
+  }
+
+  private static class KinesisRecordToTestData extends
+      DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      c.output(new AmazonKinesisMock.TestData(c.element()));
+    }
+  }
+
+  private List<List<AmazonKinesisMock.TestData>> provideTestData(
+      int noOfShards,
+      int noOfEventsPerShard) {
+
+    int seqNumber = 0;
+
+    List<List<AmazonKinesisMock.TestData>> shardedData = newArrayList();
+    for (int i = 0; i < noOfShards; ++i) {
+      List<AmazonKinesisMock.TestData> shardData = newArrayList();
+      shardedData.add(shardData);
+
+      DateTime arrival = DateTime.now();
+      for (int j = 0; j < noOfEventsPerShard; ++j) {
+        arrival = arrival.plusSeconds(1);
+
+        seqNumber++;
+        shardData.add(new AmazonKinesisMock.TestData(
+            Integer.toString(seqNumber),
+            arrival.toInstant(),
+            Integer.toString(seqNumber))
+        );
+      }
     }
 
-    private static class KinesisRecordToTestData extends
-            DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            c.output(new AmazonKinesisMock.TestData(c.element()));
-        }
-    }
-
-    private List<List<AmazonKinesisMock.TestData>> provideTestData(
-            int noOfShards,
-            int noOfEventsPerShard) {
-
-        int seqNumber = 0;
-
-        List<List<AmazonKinesisMock.TestData>> shardedData = newArrayList();
-        for (int i = 0; i < noOfShards; ++i) {
-            List<AmazonKinesisMock.TestData> shardData = newArrayList();
-            shardedData.add(shardData);
-
-            DateTime arrival = DateTime.now();
-            for (int j = 0; j < noOfEventsPerShard; ++j) {
-                arrival = arrival.plusSeconds(1);
-
-                seqNumber++;
-                shardData.add(new AmazonKinesisMock.TestData(
-                        Integer.toString(seqNumber),
-                        arrival.toInstant(),
-                        Integer.toString(seqNumber))
-                );
-            }
-        }
-
-        return shardedData;
-    }
+    return shardedData;
+  }
 }

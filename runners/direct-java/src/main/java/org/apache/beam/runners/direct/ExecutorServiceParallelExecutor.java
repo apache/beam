@@ -49,11 +49,11 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -77,9 +77,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final DirectGraph graph;
   private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
-  @SuppressWarnings("rawtypes")
-  private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-      transformEnforcements;
+  private final Map<String, Collection<ModelEnforcementFactory>> transformEnforcements;
 
   private final EvaluationContext evaluationContext;
 
@@ -112,9 +110,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       DirectGraph graph,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
-      @SuppressWarnings("rawtypes")
-          Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-              transformEnforcements,
+      Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
       EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
         targetParallelism,
@@ -130,8 +126,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       DirectGraph graph,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
-      @SuppressWarnings("rawtypes")
-      Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
+      Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
@@ -237,7 +232,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
     Collection<ModelEnforcementFactory> enforcements =
         MoreObjects.firstNonNull(
-            transformEnforcements.get(transform.getTransform().getClass()),
+            transformEnforcements.get(
+                PTransformTranslation.urnForTransform(transform.getTransform())),
             Collections.<ModelEnforcementFactory>emptyList());
 
     TransformExecutor<T> callable =

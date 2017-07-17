@@ -21,7 +21,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Queues.newArrayDeque;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+
 import java.util.Deque;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,68 +33,68 @@ import org.slf4j.LoggerFactory;
  * Then the caller of {@link ShardRecordsIterator#next()} can read from queue one by one.
  */
 class ShardRecordsIterator {
-    private static final Logger LOG = LoggerFactory.getLogger(ShardRecordsIterator.class);
 
-    private final SimplifiedKinesisClient kinesis;
-    private final RecordFilter filter;
-    private ShardCheckpoint checkpoint;
-    private String shardIterator;
-    private Deque<KinesisRecord> data = newArrayDeque();
+  private static final Logger LOG = LoggerFactory.getLogger(ShardRecordsIterator.class);
 
-    public ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
-                                SimplifiedKinesisClient simplifiedKinesisClient) throws
-            TransientKinesisException {
-        this(initialCheckpoint, simplifiedKinesisClient, new RecordFilter());
+  private final SimplifiedKinesisClient kinesis;
+  private final RecordFilter filter;
+  private ShardCheckpoint checkpoint;
+  private String shardIterator;
+  private Deque<KinesisRecord> data = newArrayDeque();
+
+  public ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
+      SimplifiedKinesisClient simplifiedKinesisClient) throws
+      TransientKinesisException {
+    this(initialCheckpoint, simplifiedKinesisClient, new RecordFilter());
+  }
+
+  public ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
+      SimplifiedKinesisClient simplifiedKinesisClient,
+      RecordFilter filter) throws
+      TransientKinesisException {
+
+    this.checkpoint = checkNotNull(initialCheckpoint, "initialCheckpoint");
+    this.filter = checkNotNull(filter, "filter");
+    this.kinesis = checkNotNull(simplifiedKinesisClient, "simplifiedKinesisClient");
+    shardIterator = checkpoint.getShardIterator(kinesis);
+  }
+
+  /**
+   * Returns record if there's any present.
+   * Returns absent() if there are no new records at this time in the shard.
+   */
+  public CustomOptional<KinesisRecord> next() throws TransientKinesisException {
+    readMoreIfNecessary();
+
+    if (data.isEmpty()) {
+      return CustomOptional.absent();
+    } else {
+      KinesisRecord record = data.removeFirst();
+      checkpoint = checkpoint.moveAfter(record);
+      return CustomOptional.of(record);
     }
+  }
 
-    public ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
-                                SimplifiedKinesisClient simplifiedKinesisClient,
-                                RecordFilter filter) throws
-            TransientKinesisException {
-
-        this.checkpoint = checkNotNull(initialCheckpoint, "initialCheckpoint");
-        this.filter = checkNotNull(filter, "filter");
-        this.kinesis = checkNotNull(simplifiedKinesisClient, "simplifiedKinesisClient");
+  private void readMoreIfNecessary() throws TransientKinesisException {
+    if (data.isEmpty()) {
+      GetKinesisRecordsResult response;
+      try {
+        response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
+            checkpoint.getShardId());
+      } catch (ExpiredIteratorException e) {
+        LOG.info("Refreshing expired iterator", e);
         shardIterator = checkpoint.getShardIterator(kinesis);
+        response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
+            checkpoint.getShardId());
+      }
+      LOG.debug("Fetched {} new records", response.getRecords().size());
+      shardIterator = response.getNextShardIterator();
+      data.addAll(filter.apply(response.getRecords(), checkpoint));
     }
+  }
 
-    /**
-     * Returns record if there's any present.
-     * Returns absent() if there are no new records at this time in the shard.
-     */
-    public CustomOptional<KinesisRecord> next() throws TransientKinesisException {
-        readMoreIfNecessary();
-
-        if (data.isEmpty()) {
-            return CustomOptional.absent();
-        } else {
-            KinesisRecord record = data.removeFirst();
-            checkpoint = checkpoint.moveAfter(record);
-            return CustomOptional.of(record);
-        }
-    }
-
-    private void readMoreIfNecessary() throws TransientKinesisException {
-        if (data.isEmpty()) {
-            GetKinesisRecordsResult response;
-            try {
-                response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
-                        checkpoint.getShardId());
-            } catch (ExpiredIteratorException e) {
-                LOG.info("Refreshing expired iterator", e);
-                shardIterator = checkpoint.getShardIterator(kinesis);
-                response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
-                        checkpoint.getShardId());
-            }
-            LOG.debug("Fetched {} new records", response.getRecords().size());
-            shardIterator = response.getNextShardIterator();
-            data.addAll(filter.apply(response.getRecords(), checkpoint));
-        }
-    }
-
-    public ShardCheckpoint getCheckpoint() {
-        return checkpoint;
-    }
-
+  public ShardCheckpoint getCheckpoint() {
+    return checkpoint;
+  }
 
 }
