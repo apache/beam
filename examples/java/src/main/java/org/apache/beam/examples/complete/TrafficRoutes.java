@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
@@ -111,6 +113,23 @@ public class TrafficRoutes {
     @Override
     public int compareTo(StationSpeed other) {
       return Long.compare(this.timestamp, other.timestamp);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      if (object == null) {
+        return false;
+      }
+      if (object.getClass() != getClass()) {
+        return false;
+      }
+      StationSpeed otherStationSpeed = (StationSpeed) object;
+      return Objects.equals(this.timestamp, otherStationSpeed.timestamp);
+    }
+
+    @Override
+    public int hashCode() {
+      return this.timestamp.hashCode();
     }
   }
 
