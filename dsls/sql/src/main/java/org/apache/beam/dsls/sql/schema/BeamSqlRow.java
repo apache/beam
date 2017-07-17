@@ -61,12 +61,12 @@ public class BeamSqlRow implements Serializable {
 
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
-  private BeamSqlRecordType dataType;
+  private BeamSqlRowType dataType;
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
   private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
-  public BeamSqlRow(BeamSqlRecordType dataType) {
+  public BeamSqlRow(BeamSqlRowType dataType) {
     this.dataType = dataType;
     this.dataValues = new ArrayList<>();
     for (int idx = 0; idx < dataType.size(); ++idx) {
@@ -75,7 +75,7 @@ public class BeamSqlRow implements Serializable {
     }
   }
 
-  public BeamSqlRow(BeamSqlRecordType dataType, List<Object> dataValues) {
+  public BeamSqlRow(BeamSqlRowType dataType, List<Object> dataValues) {
     this(dataType);
     for (int idx = 0; idx < dataValues.size(); ++idx) {
       addField(idx, dataValues.get(idx));
@@ -237,11 +237,11 @@ public class BeamSqlRow implements Serializable {
     this.dataValues = dataValues;
   }
 
-  public BeamSqlRecordType getDataType() {
+  public BeamSqlRowType getDataType() {
     return dataType;
   }
 
-  public void setDataType(BeamSqlRecordType dataType) {
+  public void setDataType(BeamSqlRowType dataType) {
     this.dataType = dataType;
   }
 

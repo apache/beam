@@ -58,14 +58,14 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     if (operands.size() == 1) {
       return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-          opValueEvaluated(0, inputRecord).toString().trim());
+          opValueEvaluated(0, inputRow).toString().trim());
     } else {
-      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRecord);
-      String targetStr = opValueEvaluated(1, inputRecord);
-      String containingStr = opValueEvaluated(2, inputRecord);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow);
+      String targetStr = opValueEvaluated(1, inputRow);
+      String containingStr = opValueEvaluated(2, inputRow);
 
       switch (type) {
         case LEADING:

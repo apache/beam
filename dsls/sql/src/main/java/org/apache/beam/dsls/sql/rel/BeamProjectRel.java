@@ -72,8 +72,8 @@ public class BeamProjectRel extends Project implements BeamRelNode {
 
     PCollection<BeamSqlRow> projectStream = upstream.apply(stageName, ParDo
         .of(new BeamSqlProjectFn(getRelTypeName(), executor,
-            CalciteUtils.toBeamRecordType(rowType))));
-    projectStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRecordType(getRowType())));
+            CalciteUtils.toBeamRowType(rowType))));
+    projectStream.setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRowType(getRowType())));
 
     return projectStream;
   }

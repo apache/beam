@@ -31,10 +31,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -81,20 +80,20 @@ public class BeamTextCSVTableTest {
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRecordType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
   }
 
   @Test public void testBuildIOWriter() {
-    new BeamTextCSVTable(buildBeamSqlRecordType(),
+    new BeamTextCSVTable(buildBeamSqlRowType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline)
-        .apply(new BeamTextCSVTable(buildBeamSqlRecordType(), writerTargetFile.getAbsolutePath())
+        .apply(new BeamTextCSVTable(buildBeamSqlRowType(), writerTargetFile.getAbsolutePath())
             .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRecordType(),
+    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
         writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
 
     // confirm the two reads match
@@ -167,11 +166,11 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamSqlRecordType buildBeamSqlRecordType() {
-    return CalciteUtils.toBeamRecordType(buildRelDataType());
+  private static BeamSqlRowType buildBeamSqlRowType() {
+    return CalciteUtils.toBeamRowType(buildRelDataType());
   }
 
   private static BeamSqlRow buildRow(Object[] data) {
-    return new BeamSqlRow(buildBeamSqlRecordType(), Arrays.asList(data));
+    return new BeamSqlRow(buildBeamSqlRowType(), Arrays.asList(data));
   }
 }

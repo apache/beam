@@ -49,16 +49,16 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      if (opValueEvaluated(i, inputRecord)) {
+      if (opValueEvaluated(i, inputRow)) {
         return BeamSqlPrimitive.of(
             outputType,
-            opValueEvaluated(i + 1, inputRecord)
+            opValueEvaluated(i + 1, inputRow)
         );
       }
     }
     return BeamSqlPrimitive.of(outputType,
-        opValueEvaluated(operands.size() - 1, inputRecord));
+        opValueEvaluated(operands.size() - 1, inputRow));
   }
 }

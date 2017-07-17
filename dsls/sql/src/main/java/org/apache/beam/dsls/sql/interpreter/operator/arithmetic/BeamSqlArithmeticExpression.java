@@ -50,11 +50,11 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
     BigDecimal left = BigDecimal.valueOf(
-        Double.valueOf(opValueEvaluated(0, inputRecord).toString()));
+        Double.valueOf(opValueEvaluated(0, inputRow).toString()));
     BigDecimal right = BigDecimal.valueOf(
-        Double.valueOf(opValueEvaluated(1, inputRecord).toString()));
+        Double.valueOf(opValueEvaluated(1, inputRow).toString()));
 
     BigDecimal result = calc(left, right);
     return getCorrectlyTypedResult(result);

@@ -45,9 +45,9 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
     return acceptance;
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
     BeamSqlExpression operand = op(0);
-    return calculate(operand.evaluate(inputRecord));
+    return calculate(operand.evaluate(inputRow));
   }
 
   /**

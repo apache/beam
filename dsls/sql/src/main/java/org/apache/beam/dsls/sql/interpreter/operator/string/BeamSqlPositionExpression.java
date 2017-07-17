@@ -57,12 +57,12 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    String targetStr = opValueEvaluated(0, inputRecord);
-    String containingStr = opValueEvaluated(1, inputRecord);
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+    String targetStr = opValueEvaluated(0, inputRow);
+    String containingStr = opValueEvaluated(1, inputRow);
     int from = -1;
     if (operands.size() == 3) {
-      Number tmp = opValueEvaluated(2, inputRecord);
+      Number tmp = opValueEvaluated(2, inputRow);
       from = tmp.intValue();
     }
 
