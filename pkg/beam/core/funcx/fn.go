@@ -196,14 +196,13 @@ func (u *Fn) String() string {
 	return fmt.Sprintf("%+v", *u)
 }
 
-// New returns a Fn from a function, if valid.
+// New returns a Fn from a function, if valid. Closures are considered valid
+// here, but will be rejected if they are attempted to be serialized.
 func New(dofn interface{}) (*Fn, error) {
 	fn := reflect.ValueOf(dofn)
 	if fn.Kind() != reflect.Func {
 		return nil, fmt.Errorf("not a function or method: %v", fn.Kind())
 	}
-
-	// TODO(herohde) 5/23/2017: reject closures. They can't be serialized.
 
 	name := runtime.FuncForPC(fn.Pointer()).Name()
 	fntype := fn.Type()

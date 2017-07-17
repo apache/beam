@@ -1,0 +1,149 @@
+package beam_test
+
+import (
+	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+)
+
+func init() {
+	ptest.RegisterFn(identity)
+	ptest.RegisterFn(identityMinus2)
+	ptest.RegisterFn(mod2)
+	ptest.RegisterFn(less3)
+}
+
+func identity(n int) int { return n }
+
+func identityMinus2(n int) int { return n - 2 }
+
+func mod2(n int) int { return n % 2 }
+
+func less3(n int) int {
+	if n < 3 {
+		return 0
+	}
+	return 1
+}
+
+func TestPartition(t *testing.T) {
+	tests := []struct {
+		in   []int
+		n    int
+		fn   interface{}
+		out0 []int
+	}{
+		{
+			[]int{1, 2, 3, 4, 5, 6},
+			2,
+			mod2,
+			[]int{2, 4, 6},
+		},
+		{
+			[]int{1, 2, 3, 4, 5, 6, 7},
+			11,
+			mod2,
+			[]int{2, 4, 6},
+		},
+		{
+			[]int{1, 2, 3, 4, 5, 6, 7, 8},
+			2,
+			less3,
+			[]int{1, 2},
+		},
+		{
+			[]int{2, 3, 4, 5},
+			4,
+			identityMinus2,
+			[]int{2},
+		},
+	}
+
+	for _, test := range tests {
+		p, in, exp := ptest.CreateList2(test.in, test.out0)
+		out := beam.Partition(p, test.n, test.fn, in)
+		passert.Equals(p, out[0], exp)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("Partition(%v)[0] != %v: %v", test.in, test.out0, err)
+		}
+	}
+}
+
+func TestPartitionFailures(t *testing.T) {
+	tests := []struct {
+		in []int
+		n  int
+		fn interface{}
+	}{
+		{
+			[]int{1, 2},
+			1, // too small: 1 -> index 1
+			mod2,
+		},
+		{
+			[]int{1, 2, 3, 4, 5, 6},
+			6, // too small: 6 -> index 6
+			identity,
+		},
+		{
+			[]int{1, 2, 3, 4},
+			5,
+			identityMinus2, // bad fn: 1 => index -1
+		},
+	}
+
+	for _, test := range tests {
+		p, in := ptest.CreateList(test.in)
+		beam.Partition(p, test.n, test.fn, in)
+
+		wrap(t, p, test.in)
+	}
+}
+
+func wrap(t *testing.T, p *beam.Pipeline, in []int) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Recover: %v", r)
+		}
+	}()
+
+	ptest.Run(p)
+	t.Errorf("Partition(%v) succeeded, want panic", in)
+}
+
+func TestPartitionFlattenIdentity(t *testing.T) {
+	tests := []struct {
+		in []int
+		n  int
+		fn interface{}
+	}{
+		{
+			[]int{1, 2, 3, 4},
+			2,
+			mod2,
+		},
+		{
+			[]int{1, 2, 3, 4, 5},
+			2,
+			less3,
+		},
+		{
+			[]int{1, 2, 3, 4, 5, 6},
+			7,
+			identity,
+		},
+	}
+
+	for _, test := range tests {
+		p, in := ptest.CreateList(test.in)
+		out := beam.Partition(p, test.n, test.fn, in)
+		passert.Equals(p, beam.Flatten(p, out...), in)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("Flatten(Partition(%v)) != %v: %v", test.in, test.in, err)
+		}
+	}
+}
