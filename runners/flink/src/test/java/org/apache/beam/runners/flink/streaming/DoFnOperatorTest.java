@@ -133,11 +133,12 @@ public class DoFnOperatorTest {
 
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("Hello")));
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow("Hello")));
 
-    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -180,6 +181,8 @@ public class DoFnOperatorTest {
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("two")));
     testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("hello")));
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+
     assertThat(
         this.stripStreamRecord(testHarness.getOutput()),
         contains(
@@ -197,7 +200,6 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("extra: two"),
             WindowedValue.valueInGlobalWindow("got: hello")));
 
-    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -304,13 +306,16 @@ public class DoFnOperatorTest {
     // this must fire the timer
     testHarness.processWatermark(timerTimestamp.getMillis() + 1);
 
+
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             WindowedValue.of(
                 outputMessage, new Instant(timerTimestamp), window1, PaneInfo.NO_FIRING)));
 
+    // only go to +Inf after we verify that the tighter watermark fires
     testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+
     testHarness.close();
   }
 
@@ -398,11 +403,12 @@ public class DoFnOperatorTest {
     testHarness.processElement(
         new StreamRecord<>(WindowedValue.of(17, new Instant(0), window1, PaneInfo.NO_FIRING)));
 
+    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         emptyIterable());
 
-    testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
     testHarness.close();
   }
 
@@ -531,7 +537,9 @@ public class DoFnOperatorTest {
     // ensure the state was garbage collected
     assertEquals(0, testHarness.numKeyedStateEntries());
 
+    // only go to +Inf after we verify that the tighter watermark fires
     testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+
     testHarness.close();
   }
 
@@ -614,11 +622,12 @@ public class DoFnOperatorTest {
                 2,
                 valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(1000), secondWindow))));
 
+    testHarness.processWatermark1(new Watermark(Long.MAX_VALUE));
+
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(helloElement, worldElement));
 
-    testHarness.processWatermark1(new Watermark(Long.MAX_VALUE));
     testHarness.close();
 
   }
