@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator.arithmetic;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 
@@ -27,10 +28,10 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
  */
 public class BeamSqlDivideExpression extends BeamSqlArithmeticExpression {
   public BeamSqlDivideExpression(List<BeamSqlExpression> operands) {
-    super(operands, operands.get(0).getOutputType());
+    super(operands);
   }
 
   @Override protected BigDecimal calc(BigDecimal left, BigDecimal right) {
-    return left.divide(right);
+    return left.divide(right, 10, RoundingMode.HALF_EVEN);
   }
 }
