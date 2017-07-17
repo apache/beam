@@ -18,6 +18,9 @@
 
 package org.apache.beam.dsls.sql.integrationtest;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Date;
 import java.util.Iterator;
 import org.apache.beam.dsls.sql.BeamSql;
@@ -25,7 +28,6 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -34,20 +36,26 @@ import org.junit.Test;
 public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Test public void testDateTimeFunctions() throws Exception {
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("EXTRACT(YEAR FROM ts)", 1986L)
+        .addExpr("YEAR(ts)", 1986L)
+        .addExpr("QUARTER(ts)", 1L)
+        .addExpr("MONTH(ts)", 2L)
+        .addExpr("WEEK(ts)", 7L)
+        .addExpr("DAYOFMONTH(ts)", 15L)
+        .addExpr("DAYOFYEAR(ts)", 46L)
+        .addExpr("DAYOFWEEK(ts)", 7L)
+        .addExpr("HOUR(ts)", 11L)
+        .addExpr("MINUTE(ts)", 35L)
+        .addExpr("SECOND(ts)", 26L)
+        .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
+        .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"))
+        ;
+    checker.buildRunAndCheck();
+  }
+
+  @Test public void testDateTimeFunctions_currentTime() throws Exception {
     String sql = "SELECT "
-        + "EXTRACT(YEAR FROM ts) as ex,"
-        + "YEAR(ts) as y,"
-        + "QUARTER(ts) as q,"
-        + "MONTH(ts) as m,"
-        + "WEEK(ts) as w,"
-        + "DAYOFMONTH(ts) as d,"
-        + "DAYOFYEAR(ts) as d1,"
-        + "DAYOFWEEK(ts) as d2,"
-        + "HOUR(ts) as h,"
-        + "MINUTE(ts) as m1,"
-        + "SECOND(ts) as s, "
-        + "FLOOR(ts TO YEAR) as f,"
-        + "CEIL(ts TO YEAR) as c, "
         + "LOCALTIME as l,"
         + "LOCALTIMESTAMP as l1,"
         + "CURRENT_DATE as c1,"
@@ -64,30 +72,16 @@ public class BeamSqlDateFunctionsIntegrationTest
   private static class Checker implements SerializableFunction<Iterable<BeamSqlRow>, Void> {
     @Override public Void apply(Iterable<BeamSqlRow> input) {
       Iterator<BeamSqlRow> iter = input.iterator();
-      while (iter.hasNext()) {
-        BeamSqlRow row = iter.next();
-        Assert.assertEquals(1986L, row.getLong(0));
-        Assert.assertEquals(1986L, row.getLong(1));
-        Assert.assertEquals(1L, row.getLong(2));
-        Assert.assertEquals(2L, row.getLong(3));
-        Assert.assertEquals(7L, row.getLong(4));
-        Assert.assertEquals(15L, row.getLong(5));
-        Assert.assertEquals(46L, row.getLong(6));
-        Assert.assertEquals(7L, row.getLong(7));
-        Assert.assertEquals(11L, row.getLong(8));
-        Assert.assertEquals(35L, row.getLong(9));
-        Assert.assertEquals(26L, row.getLong(10));
-        Assert.assertEquals(parseDate("1986-01-01 00:00:00"), row.getDate(11));
-        Assert.assertEquals(parseDate("1987-01-01 00:00:00"), row.getDate(12));
-
+      assertTrue(iter.hasNext());
+      BeamSqlRow row = iter.next();
         // LOCALTIME
-        Date date = new Date();
-        Assert.assertTrue(date.getTime() - row.getGregorianCalendar(13).getTime().getTime() < 1000);
-        Assert.assertTrue(date.getTime() - row.getDate(14).getTime() < 1000);
-        Assert.assertTrue(date.getTime() - row.getDate(15).getTime() < 1000);
-        Assert.assertTrue(date.getTime() - row.getGregorianCalendar(16).getTime().getTime() < 1000);
-        Assert.assertTrue(date.getTime() - row.getDate(17).getTime() < 1000);
-      }
+      Date date = new Date();
+      assertTrue(date.getTime() - row.getGregorianCalendar(0).getTime().getTime() < 1000);
+      assertTrue(date.getTime() - row.getDate(1).getTime() < 1000);
+      assertTrue(date.getTime() - row.getDate(2).getTime() < 1000);
+      assertTrue(date.getTime() - row.getGregorianCalendar(3).getTime().getTime() < 1000);
+      assertTrue(date.getTime() - row.getDate(4).getTime() < 1000);
+      assertFalse(iter.hasNext());
       return null;
     }
   }
