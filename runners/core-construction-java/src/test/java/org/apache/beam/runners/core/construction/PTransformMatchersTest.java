@@ -38,6 +38,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -73,7 +74,6 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -576,12 +576,13 @@ public class PTransformMatchersTest implements Serializable {
   }
 
   private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer, Void, Integer>>of(
-        "WriteFiles",
-        Collections.<TupleTag<?>, PValue>emptyMap(),
-        Collections.<TupleTag<?>, PValue>emptyMap(),
-        write,
-        p);
+    return AppliedPTransform
+        .<PCollection<Integer>, WriteFilesResult<Void>, WriteFiles<Integer, Void, Integer>>of(
+            "WriteFiles",
+            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.<TupleTag<?>, PValue>emptyMap(),
+            write,
+            p);
   }
 
   private static class FakeFilenamePolicy extends FilenamePolicy {

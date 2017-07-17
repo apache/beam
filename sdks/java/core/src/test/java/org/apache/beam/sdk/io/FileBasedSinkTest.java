@@ -202,7 +202,7 @@ public class FileBasedSinkTest {
               null));
     }
 
-    writeOp.removeTemporaryFiles(writeOp.finalize(fileResults));
+    writeOp.removeTemporaryFiles(writeOp.finalize(fileResults).keySet());
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =

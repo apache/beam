@@ -747,7 +747,7 @@ public class AvroIOTest {
 
     PCollection<String> input =
         writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
-    AvroIO.TypedWrite<String, GenericRecord> write =
+    AvroIO.TypedWrite<String, String, GenericRecord> write =
         AvroIO.<String>writeCustomTypeToGenericRecords()
             .to(new TestDynamicDestinations(baseDir, schemaView))
             .withTempDirectory(baseDir);
