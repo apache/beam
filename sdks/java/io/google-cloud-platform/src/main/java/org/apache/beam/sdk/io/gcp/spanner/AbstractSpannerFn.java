@@ -36,7 +36,14 @@ abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> 
   @Setup
   public void setup() throws Exception {
     SpannerConfig spannerConfig = getSpannerConfig();
-    SpannerOptions options = spannerConfig.buildSpannerOptions();
+    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+    if (spannerConfig.getProjectId() != null) {
+      builder.setProjectId(spannerConfig.getProjectId().get());
+    }
+    if (spannerConfig.getServiceFactory() != null) {
+      builder.setServiceFactory(spannerConfig.getServiceFactory());
+    }
+    SpannerOptions options = builder.build();
     spanner = options.getService();
     databaseClient = spanner.getDatabaseClient(DatabaseId
         .of(options.getProjectId(), spannerConfig.getInstanceId().get(),
