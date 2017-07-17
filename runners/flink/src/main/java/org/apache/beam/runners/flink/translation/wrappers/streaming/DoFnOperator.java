@@ -329,21 +329,6 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
 
-    if (currentOutputWatermark != Long.MAX_VALUE) {
-      if (stateInternals != null) {
-        throw new IllegalStateException(getRuntimeContext().getTaskNameWithSubtasks()
-            + " Watermark should be at " + Long.MAX_VALUE + " when shutting down, is "
-            + currentInputWatermark + "/" + getPushbackWatermarkHold() + "/"
-            + currentOutputWatermark + ". Watermark hold: "
-            + stateInternals.watermarkHold().getMillis());
-      } else {
-        throw new IllegalStateException(getRuntimeContext().getTaskNameWithSubtasks()
-            + " Watermark should be at " + Long.MAX_VALUE + " when shutting down, is "
-            + currentInputWatermark + "/" + getPushbackWatermarkHold() + "/"
-            + currentOutputWatermark + ". No watermark hold.");
-      }
-    }
-
     doFnInvoker.invokeTeardown();
   }
 
