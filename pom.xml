@@ -1663,6 +1663,9 @@
               <id>source-release-assembly</id>
               <configuration>
                 <finalName>apache-beam-${project.version}</finalName>
+                <descriptors>
+                  <descriptor>assembly.xml</descriptor>
+                </descriptors>
               </configuration>
             </execution>
           </executions>
