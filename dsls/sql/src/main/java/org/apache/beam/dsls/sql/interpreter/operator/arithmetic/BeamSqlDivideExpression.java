@@ -18,8 +18,8 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.arithmetic;
 
+import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 
 /**
@@ -30,14 +30,7 @@ public class BeamSqlDivideExpression extends BeamSqlArithmeticExpression {
     super(operands);
   }
 
-  @Override public Long calc(Long left, Long right) {
-    return left / right;
-  }
-
-  @Override public Double calc(Number left, Number right) {
-    if (right.doubleValue() == 0) {
-      throw new IllegalArgumentException("divisor cannot be 0");
-    }
-    return left.doubleValue() / right.doubleValue();
+  @Override protected BigDecimal calc(BigDecimal left, BigDecimal right) {
+    return left.divide(right);
   }
 }

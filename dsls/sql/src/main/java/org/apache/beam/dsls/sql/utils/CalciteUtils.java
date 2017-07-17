@@ -50,6 +50,7 @@ public class CalciteUtils {
     JAVA_TO_CALCITE_MAPPING.put(Types.CHAR, SqlTypeName.CHAR);
     JAVA_TO_CALCITE_MAPPING.put(Types.VARCHAR, SqlTypeName.VARCHAR);
 
+    JAVA_TO_CALCITE_MAPPING.put(Types.DATE, SqlTypeName.DATE);
     JAVA_TO_CALCITE_MAPPING.put(Types.TIME, SqlTypeName.TIME);
     JAVA_TO_CALCITE_MAPPING.put(Types.TIMESTAMP, SqlTypeName.TIMESTAMP);
 

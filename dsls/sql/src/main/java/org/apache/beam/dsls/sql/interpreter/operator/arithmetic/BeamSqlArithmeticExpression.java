@@ -18,8 +18,9 @@
 
 package org.apache.beam.dsls.sql.interpreter.operator.arithmetic;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
@@ -29,14 +30,53 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Base class for all arithmetic operators.
  */
 public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
-  private BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+  private static final List<SqlTypeName> ORDERED_APPROX_TYPES = new ArrayList<>();
+  static {
+    ORDERED_APPROX_TYPES.add(SqlTypeName.TINYINT);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.SMALLINT);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.INTEGER);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.BIGINT);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.FLOAT);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.DOUBLE);
+    ORDERED_APPROX_TYPES.add(SqlTypeName.DECIMAL);
+  }
+
+  protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands) {
+    super(operands, deduceOutputType(operands.get(0).getOutputType(),
+        operands.get(1).getOutputType()));
+  }
+
+  protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
-  public BeamSqlArithmeticExpression(List<BeamSqlExpression> operands) {
-    // the outputType can not be determined in constructor
-    // will be determined in evaluate() method. ANY here is just a placeholder.
-    super(operands, SqlTypeName.ANY);
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
+    BigDecimal left = BigDecimal.valueOf(
+        Double.valueOf(opValueEvaluated(0, inputRecord).toString()));
+    BigDecimal right = BigDecimal.valueOf(
+        Double.valueOf(opValueEvaluated(1, inputRecord).toString()));
+
+    BigDecimal result = calc(left, right);
+    return getCorrectlyTypedResult(result);
+  }
+
+  protected abstract BigDecimal calc(BigDecimal left, BigDecimal right);
+
+  protected static SqlTypeName deduceOutputType(SqlTypeName left, SqlTypeName right) {
+    int leftIndex = ORDERED_APPROX_TYPES.indexOf(left);
+    int rightIndex = ORDERED_APPROX_TYPES.indexOf(right);
+    if ((left == SqlTypeName.FLOAT || right == SqlTypeName.FLOAT)
+        && (left == SqlTypeName.DECIMAL || right == SqlTypeName.DECIMAL)) {
+      return SqlTypeName.DOUBLE;
+    }
+
+    if (leftIndex < rightIndex) {
+      return right;
+    } else if (leftIndex > rightIndex) {
+      return left;
+    } else {
+      return left;
+    }
   }
 
   @Override public boolean accept() {
@@ -52,49 +92,31 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     return true;
   }
 
-  /**
-   * https://dev.mysql.com/doc/refman/5.7/en/arithmetic-functions.html.
-   */
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRecord) {
-    BeamSqlExpression leftOp = operands.get(0);
-    BeamSqlExpression rightOp = operands.get(1);
-
-    // In the case of -, +, and *, the result is calculated as Long if both
-    // operands are INT_TYPES(byte, short, integer, long).
-    if (SqlTypeName.INT_TYPES.contains(leftOp.getOutputType())
-        && SqlTypeName.INT_TYPES.contains(rightOp.getOutputType())) {
-      Long leftValue = Long.valueOf(leftOp.evaluate(inputRecord).getValue().toString());
-      Long rightValue = Long.valueOf(rightOp.evaluate(inputRecord).getValue().toString());
-      Long ret = calc(leftValue, rightValue);
-      return BeamSqlPrimitive.of(SqlTypeName.BIGINT, ret);
-    } else {
-      // If any of the operands of a +, -, /, *, % is a real
-      //  OR
-      // It is a division calculation
-      // we treat them as Double
-      double leftValue = getDouble(inputRecord, leftOp);
-      double rightValue = getDouble(inputRecord, rightOp);
-      return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, calc(leftValue, rightValue));
+  protected BeamSqlPrimitive<? extends Number> getCorrectlyTypedResult(BigDecimal rawResult) {
+    Number actualValue;
+    switch (outputType) {
+      case TINYINT:
+        actualValue = rawResult.byteValue();
+        break;
+      case SMALLINT:
+        actualValue = rawResult.shortValue();
+        break;
+      case INTEGER:
+        actualValue = rawResult.intValue();
+        break;
+      case BIGINT:
+        actualValue = rawResult.longValue();
+        break;
+      case FLOAT:
+        actualValue = rawResult.floatValue();
+        break;
+      case DOUBLE:
+        actualValue = rawResult.doubleValue();
+        break;
+      case DECIMAL:
+      default:
+        actualValue = rawResult;
     }
+    return BeamSqlPrimitive.of(outputType, actualValue);
   }
-
-  private double getDouble(BeamSqlRow inputRecord, BeamSqlExpression op) {
-    Object raw = op.evaluate(inputRecord).getValue();
-    if (SqlTypeName.NUMERIC_TYPES.contains(op.getOutputType())) {
-      return ((Number) raw).doubleValue();
-    }
-    throw new IllegalStateException(
-        String.format("Can't build a valid arithmetic expression with argument %s", raw));
-  }
-
-  /**
-   * For {@link SqlTypeName#INT_TYPES} calculation of '+', '-', '*'.
-   */
-  public abstract Long calc(Long left, Long right);
-
-
-  /**
-   * For other {@link SqlTypeName#NUMERIC_TYPES} of '+', '-', '*', '/'.
-   */
-  public abstract Double calc(Number left, Number right);
 }

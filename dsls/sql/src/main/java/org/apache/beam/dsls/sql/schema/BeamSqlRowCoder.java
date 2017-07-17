@@ -91,6 +91,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
         case TIME:
           longCoder.encode(value.getGregorianCalendar(idx).getTime().getTime(), outStream);
           break;
+        case DATE:
         case TIMESTAMP:
           longCoder.encode(value.getDate(idx).getTime(), outStream);
           break;
@@ -147,6 +148,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
           calendar.setTime(new Date(longCoder.decode(inStream)));
           record.addField(idx, calendar);
           break;
+        case DATE:
         case TIMESTAMP:
           record.addField(idx, new Date(longCoder.decode(inStream)));
           break;
