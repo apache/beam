@@ -54,6 +54,8 @@ public class CalciteUtils {
     JAVA_TO_CALCITE_MAPPING.put(Types.TIME, SqlTypeName.TIME);
     JAVA_TO_CALCITE_MAPPING.put(Types.TIMESTAMP, SqlTypeName.TIMESTAMP);
 
+    JAVA_TO_CALCITE_MAPPING.put(Types.BOOLEAN, SqlTypeName.BOOLEAN);
+
     for (Map.Entry<Integer, SqlTypeName> pair : JAVA_TO_CALCITE_MAPPING.entrySet()) {
       CALCITE_TO_JAVA_MAPPING.put(pair.getValue(), pair.getKey());
     }
