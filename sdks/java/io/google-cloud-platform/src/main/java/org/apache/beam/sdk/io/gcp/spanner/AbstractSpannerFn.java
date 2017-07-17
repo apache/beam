@@ -22,12 +22,15 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.ReleaseInfo;
 
 /**
  * Abstract {@link DoFn} that manages {@link Spanner} lifecycle. Use {@link
  * AbstractSpannerFn#databaseClient} to access the Cloud Spanner database client.
  */
 abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+  private static final String USER_AGENT_PREFIX = "apache.beam.java";
+
   private transient Spanner spanner;
   private transient DatabaseClient databaseClient;
 
@@ -43,6 +46,8 @@ abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> 
     if (spannerConfig.getServiceFactory() != null) {
       builder.setServiceFactory(spannerConfig.getServiceFactory());
     }
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "." + releaseInfo.getVersion());
     SpannerOptions options = builder.build();
     spanner = options.getService();
     databaseClient = spanner.getDatabaseClient(DatabaseId
