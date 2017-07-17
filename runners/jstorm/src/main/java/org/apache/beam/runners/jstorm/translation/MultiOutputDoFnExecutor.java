@@ -46,11 +46,7 @@ class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, Outp
   public class MultiOutputDoFnExecutorOutputManager extends DoFnExecutorOutputManager {
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      if (localTupleTagMap.containsKey(tag)) {
-        executorsBolt.processExecutorElem((TupleTag<T>) localTupleTagMap.get(tag), output);
-      } else {
-        executorsBolt.processExecutorElem(tag, output);
-      }
+      executorsBolt.processExecutorElem(tag, output);
     }
   }
 
