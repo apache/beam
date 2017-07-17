@@ -31,9 +31,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -307,6 +305,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       @Override
       public void evaluate() throws Throwable {
+        options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
 
         setDeducedEnforcementLevel();
 
@@ -402,7 +401,6 @@ public class TestPipeline extends Pipeline implements TestRule {
               MAPPER.readValue(beamTestPipelineOptions, String[].class))
               .as(TestPipelineOptions.class);
 
-      options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, set some reasonable defaults
       if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
         // If there are no provided options, check to see if a dummy runner should be used.
@@ -450,56 +448,17 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  /** Returns the class + method name of the test, or a default name. */
-  private static String getAppName() {
-    Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
-    if (stackTraceElement.isPresent()) {
-      String methodName = stackTraceElement.get().getMethodName();
-      String className = stackTraceElement.get().getClassName();
-      if (className.contains(".")) {
-        className = className.substring(className.lastIndexOf(".") + 1);
-      }
-      return className + "-" + methodName;
+  /** Returns the class + method name of the test. */
+  private String getAppName(Description description) {
+    String methodName = description.getMethodName();
+    Class<?> testClass = description.getTestClass();
+    if (testClass.isMemberClass()) {
+      return String.format(
+          "%s$%s-%s",
+          testClass.getEnclosingClass().getSimpleName(), testClass.getSimpleName(), methodName);
+    } else {
+      return String.format("%s-%s", testClass.getSimpleName(), methodName);
     }
-    return "UnitTest";
-  }
-
-  /** Returns the {@link StackTraceElement} of the calling class. */
-  private static Optional<StackTraceElement> findCallersStackTrace() {
-    Iterator<StackTraceElement> elements =
-        Iterators.forArray(Thread.currentThread().getStackTrace());
-    // First find the TestPipeline class in the stack trace.
-    while (elements.hasNext()) {
-      StackTraceElement next = elements.next();
-      if (TestPipeline.class.getName().equals(next.getClassName())) {
-        break;
-      }
-    }
-    // Then find the first instance after that is not the TestPipeline
-    Optional<StackTraceElement> firstInstanceAfterTestPipeline = Optional.absent();
-    while (elements.hasNext()) {
-      StackTraceElement next = elements.next();
-      if (!TestPipeline.class.getName().equals(next.getClassName())) {
-        if (!firstInstanceAfterTestPipeline.isPresent()) {
-          firstInstanceAfterTestPipeline = Optional.of(next);
-        }
-        try {
-          Class<?> nextClass = Class.forName(next.getClassName());
-          for (Method method : nextClass.getMethods()) {
-            if (method.getName().equals(next.getMethodName())) {
-              if (method.isAnnotationPresent(org.junit.Test.class)) {
-                return Optional.of(next);
-              } else if (method.isAnnotationPresent(org.junit.Before.class)) {
-                break;
-              }
-            }
-          }
-        } catch (Throwable t) {
-          break;
-        }
-      }
-    }
-    return firstInstanceAfterTestPipeline;
   }
 
   /**
