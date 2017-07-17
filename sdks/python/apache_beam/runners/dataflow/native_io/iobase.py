@@ -25,6 +25,7 @@ import logging
 from apache_beam import pvalue
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import urns
 
 
 def _dict_printable_fields(dict_object, skip_fields):
@@ -42,7 +43,7 @@ _minor_fields = ['coder', 'key_coder', 'value_coder',
                  'compression_type']
 
 
-class NativeSource(HasDisplayData):
+class NativeSource(HasDisplayData, urns.RunnerApiFn):
   """A source implemented by Dataflow service.
 
   This class is to be only inherited by sources natively implemented by Cloud
@@ -55,11 +56,16 @@ class NativeSource(HasDisplayData):
     """Returns a NativeSourceReader instance associated with this source."""
     raise NotImplementedError
 
+  def is_bounded(self):
+    return True
+
   def __repr__(self):
     return '<{name} {vals}>'.format(
         name=self.__class__.__name__,
         vals=', '.join(_dict_printable_fields(self.__dict__,
                                               _minor_fields)))
+
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
 
 
 class NativeSourceReader(object):
