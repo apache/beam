@@ -136,20 +136,23 @@ class PubsubJsonClient extends PubsubClient {
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
 
-      Map<String, String> attributes = outgoingMessage.attributes;
-      if ((timestampAttribute != null || idAttribute != null) && attributes == null) {
-        attributes = new TreeMap<>();
+      Map<String, String> attributes = null;
+      if ((timestampAttribute != null || idAttribute != null)) {
+        if (outgoingMessage.attributes == null) {
+          attributes = new TreeMap<>();
+        } else {
+          attributes = new TreeMap<>(outgoingMessage.attributes);
+        }
       }
+
       if (attributes != null) {
         pubsubMessage.setAttributes(attributes);
-      }
-
-      if (timestampAttribute != null) {
-        attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
-      }
-
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        attributes.put(idAttribute, outgoingMessage.recordId);
+        if (timestampAttribute != null) {
+          attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+        }
+        if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+          attributes.put(idAttribute, outgoingMessage.recordId);
+        }
       }
 
       pubsubMessages.add(pubsubMessage);
