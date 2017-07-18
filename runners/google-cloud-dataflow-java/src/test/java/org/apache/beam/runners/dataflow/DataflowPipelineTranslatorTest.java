@@ -200,6 +200,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setJobName("some-job-name");
     options.setProject("some-project");
+    options.setRegion("some-region");
     options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
