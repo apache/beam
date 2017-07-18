@@ -29,7 +29,8 @@ import org.apache.beam.sdk.util.ReleaseInfo;
  * AbstractSpannerFn#databaseClient} to access the Cloud Spanner database client.
  */
 abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-  private static final String USER_AGENT_PREFIX = "apache.beam.java";
+  // A common user agent token that indicates that this request was originated from Apache Beam.
+  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
   private transient Spanner spanner;
   private transient DatabaseClient databaseClient;
@@ -47,7 +48,7 @@ abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> 
       builder.setServiceFactory(spannerConfig.getServiceFactory());
     }
     ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
-    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "." + releaseInfo.getVersion());
+    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
     SpannerOptions options = builder.build();
     spanner = options.getService();
     databaseClient = spanner.getDatabaseClient(DatabaseId
