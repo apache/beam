@@ -47,6 +47,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
 
   @Override
   public JStormRunnerResult run(Pipeline pipeline) {
+    TaskReportErrorAndDie.setExceptionRecord(null);
     JStormRunnerResult result = stormRunner.run(pipeline);
 
     try {
@@ -54,30 +55,30 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
 
       LOG.info("Running JStorm job {} with {} expected assertions.",
                result.getTopologyName(), numberOfAssertions);
-      if (numberOfAssertions == 0) {
-        // If assert number is zero, wait 5 sec
-        JStormUtils.sleepMs(5000);
+
+      int maxTimeoutSec = numberOfAssertions > 0 ? 20 : 5;
+      for (int waitTime = 0; waitTime <= maxTimeoutSec * 1000; ) {
+        Optional<Boolean> success = numberOfAssertions > 0
+                ? checkForPAssertSuccess(numberOfAssertions) : Optional.<Boolean>absent();
         Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
-        if (taskExceptionRec != null) {
-          throw new RuntimeException(taskExceptionRec.getCause());
+        if (success.isPresent() && success.get()) {
+          return result;
+        } else if (success.isPresent() && !success.get()) {
+          throw new AssertionError("Failed assertion checks.");
+        } else if (taskExceptionRec != null) {
+          LOG.info("Exception was found.", taskExceptionRec);
+          throw new AssertionError(taskExceptionRec.getCause());
+        } else {
+          JStormUtils.sleepMs(500);
+          waitTime += 500;
         }
-        return result;
-      } else {
-        for (int i = 0; i < 40; ++i) {
-          Optional<Boolean> success = checkForPAssertSuccess(numberOfAssertions);
-          Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
-          if (success.isPresent() && success.get()) {
-            return result;
-          } else if (success.isPresent() && !success.get()) {
-            throw new AssertionError("Failed assertion checks.");
-          } else if (taskExceptionRec != null) {
-            throw new RuntimeException(taskExceptionRec.getCause());
-          } else {
-            JStormUtils.sleepMs(500);
-          }
-        }
+      }
+
+      if (numberOfAssertions > 0) {
         LOG.info("Assertion checks timed out.");
         throw new AssertionError("Assertion checks timed out.");
+      } else {
+        return result;
       }
     } finally {
       clearPAssertCount();
