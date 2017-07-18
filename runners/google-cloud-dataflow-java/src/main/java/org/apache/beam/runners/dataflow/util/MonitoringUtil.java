@@ -180,6 +180,11 @@ public class MonitoringUtil {
     return allMessages;
   }
 
+  /**
+   * @deprecated this method defaults the region to "us-central1". Prefer using the overload with an explicit regionId
+   *     parameter.
+   */
+  @Deprecated
   public static String getJobMonitoringPageURL(String projectName, String jobId) {
     return getJobMonitoringPageURL(projectName, "us-central1", jobId);
   }
