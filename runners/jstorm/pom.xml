@@ -61,8 +61,10 @@
                   </groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesSetState,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesAttemptedMetrics,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
-                    org.apache.beam.sdk.testing.UsesSplittableParDo
+                    org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
