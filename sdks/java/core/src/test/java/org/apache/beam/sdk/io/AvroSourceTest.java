@@ -445,33 +445,11 @@ public class AvroSourceTest {
 
     AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
     AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema(schemaB);
-    assertSame(sourceA.getSchema(), sourceB.getSchema());
+    assertSame(sourceA.getReaderSchemaString(), sourceB.getReaderSchemaString());
 
     // Ensure that deserialization still goes through interning
     AvroSource<GenericRecord> sourceC = SerializableUtils.clone(sourceB);
-    assertSame(sourceA.getSchema(), sourceC.getSchema());
-  }
-
-  @Test
-  public void testSchemaIsInterned() throws Exception {
-    List<Bird> birds = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    assertNotSame(schemaA, schemaB);
-
-    AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaA).createForSubrangeOfFile(fileMetadata, 0L, 0L);
-    AvroSource<GenericRecord> sourceB = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaB).createForSubrangeOfFile(fileMetadata, 0L, 0L);
-    assertSame(sourceA.getReadSchema(), sourceA.getFileSchema());
-    assertSame(sourceA.getReadSchema(), sourceB.getReadSchema());
-    assertSame(sourceA.getReadSchema(), sourceB.getFileSchema());
-
-    // Schemas are transient and not serialized thus we don't need to worry about interning
-    // after deserialization.
+    assertSame(sourceA.getReaderSchemaString(), sourceC.getReaderSchemaString());
   }
 
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {
