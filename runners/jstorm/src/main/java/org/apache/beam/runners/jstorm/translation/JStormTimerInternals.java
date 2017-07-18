@@ -69,8 +69,7 @@ class JStormTimerInternals<K> implements TimerInternals {
   @Override
   @Deprecated
   public void deleteTimer(TimerData timerData) {
-    throw new UnsupportedOperationException(
-        "Canceling of a timer is not yet supported.");
+    timerService.deleteTimer(timerData);
   }
 
   @Override

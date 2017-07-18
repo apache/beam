@@ -48,4 +48,6 @@ interface TimerService extends Serializable {
   void setTimer(Object key, TimerInternals.TimerData timerData, DoFnExecutor doFnExecutor);
 
   void fireTimers(long newWatermark);
+
+  void deleteTimer(TimerInternals.TimerData timerData);
 }

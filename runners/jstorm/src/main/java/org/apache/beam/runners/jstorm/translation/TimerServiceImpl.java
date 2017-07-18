@@ -152,4 +152,13 @@ class TimerServiceImpl implements TimerService {
     keyedExecutors.add(new Pair<>(doFnExecutor.getInternalDoFnExecutorId(), key));
     timerDataToKeyedExecutors.put(timerData, keyedExecutors);
   }
+
+  @Override
+  public void deleteTimer(TimerInternals.TimerData timerData) {
+    checkArgument(
+        TimeDomain.EVENT_TIME.equals(timerData.getDomain()),
+        String.format("Does not support domain: %s.", timerData.getDomain()));
+    eventTimeTimersQueue.remove(timerData);
+    timerDataToKeyedExecutors.remove(timerData);
+  }
 }
