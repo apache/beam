@@ -181,8 +181,8 @@ public class MonitoringUtil {
   }
 
   /**
-   * @deprecated this method defaults the region to "us-central1". Prefer using the overload with an explicit regionId
-   *     parameter.
+   * @deprecated this method defaults the region to "us-central1". Prefer using the overload with
+   * an explicit regionId parameter.
    */
   @Deprecated
   public static String getJobMonitoringPageURL(String projectName, String jobId) {
