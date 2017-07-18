@@ -96,7 +96,7 @@ public class MetricResultsMatchers {
     if (result1 instanceof GaugeResult) {
       return (((GaugeResult) result1).value()) == (((GaugeResult) result2).value());
     } else {
-      return result1.equals(result2);
+      return Objects.equals(result1, result2);
     }
   }
 
