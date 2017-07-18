@@ -180,6 +180,10 @@ public class MonitoringUtil {
     return allMessages;
   }
 
+  public static String getJobMonitoringPageURL(String projectName, String jobId) {
+    return getJobMonitoringPageURL(projectName, "us-central1", jobId);
+  }
+
   public static String getJobMonitoringPageURL(String projectName, String regionId, String jobId) {
     try {
       // Project name is allowed in place of the project id: the user will be redirected to a URL
