@@ -120,13 +120,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
    * Type of sub-rowrecord used as Group-By keys.
    */
   private BeamSqlRowType exKeyFieldsSchema(RelDataType relDataType) {
-    BeamSqlRowType inputRecordType = CalciteUtils.toBeamRowType(relDataType);
+    BeamSqlRowType inputRowType = CalciteUtils.toBeamRowType(relDataType);
     List<String> fieldNames = new ArrayList<>();
     List<Integer> fieldTypes = new ArrayList<>();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
-        fieldNames.add(inputRecordType.getFieldsName().get(i));
-        fieldTypes.add(inputRecordType.getFieldsType().get(i));
+        fieldNames.add(inputRowType.getFieldsName().get(i));
+        fieldTypes.add(inputRowType.getFieldsType().get(i));
       }
     }
     return BeamSqlRowType.create(fieldNames, fieldTypes);

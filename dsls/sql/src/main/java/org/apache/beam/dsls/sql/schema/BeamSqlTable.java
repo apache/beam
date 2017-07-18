@@ -48,5 +48,5 @@ public interface BeamSqlTable {
   /**
    * Get the schema info of the table.
    */
-   BeamSqlRowType getRecordType();
+   BeamSqlRowType getRowType();
 }

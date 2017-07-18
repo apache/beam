@@ -34,14 +34,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamSqlRowType outputRecordType;
+  private BeamSqlRowType outputRowType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamSqlRowType outputRecordType) {
+      BeamSqlRowType outputRowType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
-    this.outputRecordType = outputRecordType;
+    this.outputRowType = outputRowType;
   }
 
   @Setup
@@ -54,7 +54,7 @@ public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
     BeamSqlRow inputRecord = c.element();
     List<Object> results = executor.execute(inputRecord);
 
-    BeamSqlRow outRow = new BeamSqlRow(outputRecordType);
+    BeamSqlRow outRow = new BeamSqlRow(outputRowType);
     outRow.updateWindowRange(inputRecord, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {

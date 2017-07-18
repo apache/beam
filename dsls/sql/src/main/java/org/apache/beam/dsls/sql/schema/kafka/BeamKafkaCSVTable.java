@@ -65,10 +65,10 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
    */
   public static class CsvRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSqlRow>> {
-    private BeamSqlRowType recordType;
+    private BeamSqlRowType rowType;
     private CSVFormat format;
-    public CsvRecorderDecoder(BeamSqlRowType recordType, CSVFormat format) {
-      this.recordType = recordType;
+    public CsvRecorderDecoder(BeamSqlRowType rowType, CSVFormat format) {
+      this.rowType = rowType;
       this.format = format;
     }
 
@@ -78,7 +78,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
         @ProcessElement
         public void processElement(ProcessContext c) {
           String rowInString = new String(c.element().getValue());
-          c.output(csvLine2BeamSqlRow(format, rowInString, recordType));
+          c.output(csvLine2BeamSqlRow(format, rowInString, rowType));
         }
       }));
     }
@@ -90,10 +90,10 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
    */
   public static class CsvRecorderEncoder
       extends PTransform<PCollection<BeamSqlRow>, PCollection<KV<byte[], byte[]>>> {
-    private BeamSqlRowType recordType;
+    private BeamSqlRowType rowType;
     private CSVFormat format;
-    public CsvRecorderEncoder(BeamSqlRowType recordType, CSVFormat format) {
-      this.recordType = recordType;
+    public CsvRecorderEncoder(BeamSqlRowType rowType, CSVFormat format) {
+      this.rowType = rowType;
       this.format = format;
     }
 

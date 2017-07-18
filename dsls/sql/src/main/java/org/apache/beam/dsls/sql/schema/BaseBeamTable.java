@@ -28,7 +28,7 @@ public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
     this.beamSqlRowType = beamSqlRowType;
   }
 
-  @Override public BeamSqlRowType getRecordType() {
+  @Override public BeamSqlRowType getRowType() {
     return beamSqlRowType;
   }
 }

@@ -172,7 +172,7 @@ public class TestUtils {
    *
    * <pre>{@code
    *   buildRows(
-   *       recordType,
+   *       rowType,
    *       1, 1, 1, // the first row
    *       2, 2, 2, // the second row
    *       ...

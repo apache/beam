@@ -73,7 +73,7 @@ public class BeamSqlEnv implements Serializable{
    *
    */
   public void registerTable(String tableName, BaseBeamTable table) {
-    schema.add(tableName, new BeamCalciteTable(table.getRecordType()));
+    schema.add(tableName, new BeamCalciteTable(table.getRowType()));
     planner.getSourceTables().put(tableName, table);
   }
 
@@ -91,7 +91,7 @@ public class BeamSqlEnv implements Serializable{
     }
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRecordType(this.beamSqlRowType)
+      return CalciteUtils.toCalciteRowType(this.beamSqlRowType)
           .apply(BeamQueryPlanner.TYPE_FACTORY);
     }
 

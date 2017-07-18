@@ -57,13 +57,13 @@ public class BeamAggregationTransforms implements Serializable{
    * Merge KV to single record.
    */
   public static class MergeAggregationRecord extends DoFn<KV<BeamSqlRow, BeamSqlRow>, BeamSqlRow> {
-    private BeamSqlRowType outRecordType;
+    private BeamSqlRowType outRowType;
     private List<String> aggFieldNames;
     private int windowStartFieldIdx;
 
-    public MergeAggregationRecord(BeamSqlRowType outRecordType, List<AggregateCall> aggList
+    public MergeAggregationRecord(BeamSqlRowType outRowType, List<AggregateCall> aggList
         , int windowStartFieldIdx) {
-      this.outRecordType = outRecordType;
+      this.outRowType = outRowType;
       this.aggFieldNames = new ArrayList<>();
       for (AggregateCall ac : aggList) {
         aggFieldNames.add(ac.getName());
@@ -73,7 +73,7 @@ public class BeamAggregationTransforms implements Serializable{
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      BeamSqlRow outRecord = new BeamSqlRow(outRecordType);
+      BeamSqlRow outRecord = new BeamSqlRow(outRowType);
       outRecord.updateWindowRange(c.element().getKey(), window);
 
       KV<BeamSqlRow, BeamSqlRow> kvRecord = c.element();
@@ -154,10 +154,10 @@ public class BeamAggregationTransforms implements Serializable{
     extends CombineFn<BeamSqlRow, AggregationAccumulator, BeamSqlRow> {
     private List<BeamSqlUdaf> aggregators;
     private List<BeamSqlExpression> sourceFieldExps;
-    private BeamSqlRowType finalRecordType;
+    private BeamSqlRowType finalRowType;
 
     public AggregationAdaptor(List<AggregateCall> aggregationCalls,
-        BeamSqlRowType sourceRowRecordType) {
+        BeamSqlRowType sourceRowType) {
       aggregators = new ArrayList<>();
       sourceFieldExps = new ArrayList<>();
       List<String> outFieldsName = new ArrayList<>();
@@ -165,7 +165,7 @@ public class BeamAggregationTransforms implements Serializable{
       for (AggregateCall call : aggregationCalls) {
         int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
         BeamSqlExpression sourceExp = new BeamSqlInputRefExpression(
-            CalciteUtils.getFieldType(sourceRowRecordType, refIndex), refIndex);
+            CalciteUtils.getFieldType(sourceRowType, refIndex), refIndex);
         sourceFieldExps.add(sourceExp);
 
         outFieldsName.add(call.name);
@@ -206,7 +206,7 @@ public class BeamAggregationTransforms implements Serializable{
           break;
         }
       }
-      finalRecordType = BeamSqlRowType.create(outFieldsName, outFieldsType);
+      finalRowType = BeamSqlRowType.create(outFieldsName, outFieldsType);
     }
     @Override
     public AggregationAccumulator createAccumulator() {
@@ -241,7 +241,7 @@ public class BeamAggregationTransforms implements Serializable{
     }
     @Override
     public BeamSqlRow extractOutput(AggregationAccumulator accumulator) {
-      BeamSqlRow result = new BeamSqlRow(finalRecordType);
+      BeamSqlRow result = new BeamSqlRow(finalRowType);
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         result.addField(idx, aggregators.get(idx).result(accumulator.accumulatorElements.get(idx)));
       }

@@ -88,7 +88,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public MockedBoundedTable addRows(Object... args) {
-    List<BeamSqlRow> rows = buildRows(getRecordType(), Arrays.asList(args));
+    List<BeamSqlRow> rows = buildRows(getRowType(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }

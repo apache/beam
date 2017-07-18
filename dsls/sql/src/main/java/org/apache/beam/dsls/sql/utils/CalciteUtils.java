@@ -98,7 +98,7 @@ public class CalciteUtils {
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRecordType(final BeamSqlRowType that) {
+  public static RelProtoDataType toCalciteRowType(final BeamSqlRowType that) {
     return new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a) {
