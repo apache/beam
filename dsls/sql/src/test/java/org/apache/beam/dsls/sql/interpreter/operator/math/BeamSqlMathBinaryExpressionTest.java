@@ -180,4 +180,24 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlPowerExpression(operands).evaluate(record).getValue());
   }
 
+  @Test public void testForTruncate() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.0));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
+    assertEquals(2.0, new BeamSqlTruncateExpression(operands).evaluate(record).getValue());
+    // truncate(double, integer) => double
+    operands.clear();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.80685));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
+    assertEquals(2.8068, new BeamSqlTruncateExpression(operands).evaluate(record).getValue());
+  }
+
+  @Test public void testForAtan2() {
+    List<BeamSqlExpression> operands = new ArrayList<>();
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.875));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.56));
+    assertEquals(Math.atan2(0.875, 0.56),
+        new BeamSqlAtan2Expression(operands).evaluate(record).getValue());
+  }
+
 }
