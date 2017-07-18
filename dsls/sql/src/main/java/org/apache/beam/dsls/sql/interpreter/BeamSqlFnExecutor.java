@@ -69,6 +69,8 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlLogExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPiExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRadiansExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRandExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRandIntegerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
@@ -299,6 +301,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
         case "TRUNCATE":
           ret = new BeamSqlTruncateExpression(subExps);
+          break;
+        case "RAND":
+          ret = new BeamSqlRandExpression(subExps);
+          break;
+        case "RAND_INTEGER":
+          ret = new BeamSqlRandIntegerExpression(subExps);
           break;
 
         // string operators
