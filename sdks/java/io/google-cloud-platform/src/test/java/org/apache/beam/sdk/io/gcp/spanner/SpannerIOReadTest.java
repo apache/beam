@@ -153,19 +153,18 @@ public class SpannerIOReadTest implements Serializable {
             .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
-            .withTimestamp(Timestamp.now())
             .withQuery("SELECT * FROM users")
             .withServiceFactory(serviceFactory);
 
-    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read);
-    DoFnTester<Object, Struct> fnTester = DoFnTester.of(readFn);
+    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read.getSpannerConfig());
+    DoFnTester<ReadOperation, Struct> fnTester = DoFnTester.of(readFn);
 
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction(any(TimestampBound.class)))
         .thenReturn(mockTx);
     when(mockTx.executeQuery(any(Statement.class)))
         .thenReturn(ResultSets.forRows(fakeType, fakeRows));
 
-    List<Struct> result = fnTester.processBundle(1);
+    List<Struct> result = fnTester.processBundle(read.getReadOperation());
     assertThat(result, Matchers.<Struct>iterableWithSize(2));
 
     verify(serviceFactory.mockDatabaseClient()).readOnlyTransaction(TimestampBound
@@ -180,20 +179,19 @@ public class SpannerIOReadTest implements Serializable {
             .withProjectId("test")
             .withInstanceId("123")
             .withDatabaseId("aaa")
-            .withTimestamp(Timestamp.now())
             .withTable("users")
             .withColumns("id", "name")
             .withServiceFactory(serviceFactory);
 
-    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read);
-    DoFnTester<Object, Struct> fnTester = DoFnTester.of(readFn);
+    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read.getSpannerConfig());
+    DoFnTester<ReadOperation, Struct> fnTester = DoFnTester.of(readFn);
 
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction(any(TimestampBound.class)))
         .thenReturn(mockTx);
     when(mockTx.read("users", KeySet.all(), Arrays.asList("id", "name")))
         .thenReturn(ResultSets.forRows(fakeType, fakeRows));
 
-    List<Struct> result = fnTester.processBundle(1);
+    List<Struct> result = fnTester.processBundle(read.getReadOperation());
     assertThat(result, Matchers.<Struct>iterableWithSize(2));
 
     verify(serviceFactory.mockDatabaseClient()).readOnlyTransaction(TimestampBound.strong());
@@ -213,15 +211,15 @@ public class SpannerIOReadTest implements Serializable {
             .withIndex("theindex")
             .withServiceFactory(serviceFactory);
 
-    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read);
-    DoFnTester<Object, Struct> fnTester = DoFnTester.of(readFn);
+    NaiveSpannerReadFn readFn = new NaiveSpannerReadFn(read.getSpannerConfig());
+    DoFnTester<ReadOperation, Struct> fnTester = DoFnTester.of(readFn);
 
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction(any(TimestampBound.class)))
         .thenReturn(mockTx);
     when(mockTx.readUsingIndex("users", "theindex", KeySet.all(), Arrays.asList("id", "name")))
         .thenReturn(ResultSets.forRows(fakeType, fakeRows));
 
-    List<Struct> result = fnTester.processBundle(1);
+    List<Struct> result = fnTester.processBundle(read.getReadOperation());
     assertThat(result, Matchers.<Struct>iterableWithSize(2));
 
     verify(serviceFactory.mockDatabaseClient()).readOnlyTransaction(TimestampBound.strong());
@@ -244,7 +242,6 @@ public class SpannerIOReadTest implements Serializable {
         .withProjectId("test")
         .withInstanceId("123")
         .withDatabaseId("aaa")
-        .withTimestamp(Timestamp.now())
         .withQuery("SELECT * FROM users")
         .withServiceFactory(serviceFactory)
         .withTransaction(tx));

@@ -172,7 +172,7 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_Read.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
-        .setKeySet(KeySet.all())
+        .setReadOperation(ReadOperation.create())
         .build();
   }
 
@@ -213,23 +213,10 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
+    abstract ReadOperation getReadOperation();
+
     @Nullable
     abstract TimestampBound getTimestampBound();
-
-    @Nullable
-    abstract Statement getQuery();
-
-    @Nullable
-    abstract String getTable();
-
-    @Nullable
-    abstract String getIndex();
-
-    @Nullable
-    abstract List<String> getColumns();
-
-    @Nullable
-    abstract KeySet getKeySet();
 
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
@@ -241,17 +228,9 @@ public class SpannerIO {
 
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
+      abstract Builder setReadOperation(ReadOperation readOperation);
+
       abstract Builder setTimestampBound(TimestampBound timestampBound);
-
-      abstract Builder setQuery(Statement statement);
-
-      abstract Builder setTable(String table);
-
-      abstract Builder setIndex(String index);
-
-      abstract Builder setColumns(List<String> columns);
-
-      abstract Builder setKeySet(KeySet keySet);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
 
@@ -315,7 +294,11 @@ public class SpannerIO {
     }
 
     public Read withTable(String table) {
-      return toBuilder().setTable(table).build();
+      return withReadOperation(getReadOperation().withTable(table));
+    }
+
+    public Read withReadOperation(ReadOperation operation) {
+      return toBuilder().setReadOperation(operation).build();
     }
 
     public Read withColumns(String... columns) {
@@ -323,11 +306,11 @@ public class SpannerIO {
     }
 
     public Read withColumns(List<String> columns) {
-      return toBuilder().setColumns(columns).build();
+      return withReadOperation(getReadOperation().withColumns(columns));
     }
 
     public Read withQuery(Statement statement) {
-      return toBuilder().setQuery(statement).build();
+      return withReadOperation(getReadOperation().withQuery(statement));
     }
 
     public Read withQuery(String sql) {
@@ -335,13 +318,12 @@ public class SpannerIO {
     }
 
     public Read withKeySet(KeySet keySet) {
-      return toBuilder().setKeySet(keySet).build();
+      return withReadOperation(getReadOperation().withKeySet(keySet));
     }
 
     public Read withIndex(String index) {
-      return toBuilder().setIndex(index).build();
+      return withReadOperation(getReadOperation().withIndex(index));
     }
-
 
     @Override
     public void validate(PipelineOptions options) {
@@ -351,16 +333,16 @@ public class SpannerIO {
           "SpannerIO.read() runs in a read only transaction and requires timestamp to be set "
               + "with withTimestampBound or withTimestamp method");
 
-      if (getQuery() != null) {
+      if (getReadOperation().getQuery() != null) {
         // TODO: validate query?
-      } else if (getTable() != null) {
+      } else if (getReadOperation().getTable() != null) {
         // Assume read
         checkNotNull(
-            getColumns(),
+            getReadOperation().getColumns(),
             "For a read operation SpannerIO.read() requires a list of "
                 + "columns to set with withColumns method");
         checkArgument(
-            !getColumns().isEmpty(),
+            !getReadOperation().getColumns().isEmpty(),
             "For a read operation SpannerIO.read() requires a"
                 + " list of columns to set with withColumns method");
       } else {
@@ -371,18 +353,21 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PBegin input) {
-      Read config = this;
       List<PCollectionView<Transaction>> sideInputs = Collections.emptyList();
-      if (getTimestampBound() != null) {
-        PCollectionView<Transaction> transaction =
-            input.apply(createTransaction().withSpannerConfig(getSpannerConfig()));
-        config = config.withTransaction(transaction);
+      PCollectionView<Transaction> transaction = getTransaction();
+      if (transaction == null && getTimestampBound() != null) {
+        transaction = input.apply(createTransaction()
+            .withTimestampBound(getTimestampBound())
+            .withSpannerConfig(getSpannerConfig()));
+      }
+      if (transaction != null) {
         sideInputs = Collections.singletonList(transaction);
       }
       return input
-          .apply(Create.of(1))
+          .apply(Create.of(getReadOperation()))
           .apply(
-              "Execute query", ParDo.of(new NaiveSpannerReadFn(config)).withSideInputs(sideInputs));
+              "Execute query", ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), transaction))
+                  .withSideInputs(sideInputs));
     }
   }
 
