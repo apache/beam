@@ -22,44 +22,53 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /** A simplest read function implementation. Parallelism support is coming. */
 @VisibleForTesting
-class NaiveSpannerReadFn extends AbstractSpannerFn<Object, Struct> {
-  private final SpannerIO.Read config;
+class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
+  private final SpannerConfig config;
+  @Nullable private final PCollectionView<Transaction> transaction;
 
-  NaiveSpannerReadFn(SpannerIO.Read config) {
+  NaiveSpannerReadFn(SpannerConfig config, @Nullable PCollectionView<Transaction> transaction) {
     this.config = config;
+    this.transaction = transaction;
+  }
+
+  NaiveSpannerReadFn(SpannerConfig config) {
+    this(config, null);
   }
 
   SpannerConfig getSpannerConfig() {
-    return config.getSpannerConfig();
+    return config;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     TimestampBound timestampBound = TimestampBound.strong();
-    if (config.getTransaction() != null) {
-      Transaction transaction = c.sideInput(config.getTransaction());
+    if (transaction != null) {
+      Transaction transaction = c.sideInput(this.transaction);
       timestampBound = TimestampBound.ofReadTimestamp(transaction.timestamp());
     }
+    ReadOperation op = c.element();
     try (ReadOnlyTransaction readOnlyTransaction =
         databaseClient().readOnlyTransaction(timestampBound)) {
-      ResultSet resultSet = execute(readOnlyTransaction);
+      ResultSet resultSet = execute(op, readOnlyTransaction);
       while (resultSet.next()) {
         c.output(resultSet.getCurrentRowAsStruct());
       }
     }
   }
 
-  private ResultSet execute(ReadOnlyTransaction readOnlyTransaction) {
-    if (config.getQuery() != null) {
-      return readOnlyTransaction.executeQuery(config.getQuery());
+  private ResultSet execute(ReadOperation op, ReadOnlyTransaction readOnlyTransaction) {
+    if (op.getQuery() != null) {
+      return readOnlyTransaction.executeQuery(op.getQuery());
     }
-    if (config.getIndex() != null) {
+    if (op.getIndex() != null) {
       return readOnlyTransaction.readUsingIndex(
-          config.getTable(), config.getIndex(), config.getKeySet(), config.getColumns());
+          op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
     }
-    return readOnlyTransaction.read(config.getTable(), config.getKeySet(), config.getColumns());
+    return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns());
   }
 }

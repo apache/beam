@@ -31,12 +31,11 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -44,7 +43,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -172,7 +175,18 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_Read.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
-        .setKeySet(KeySet.all())
+        .setReadOperation(ReadOperation.create())
+        .build();
+  }
+
+  /**
+   * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
+   * {@link PCollection}.
+   */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  public static ReadAll readAll() {
+    return new AutoValue_SpannerIO_ReadAll.Builder()
+        .setSpannerConfig(SpannerConfig.create())
         .build();
   }
 
@@ -202,34 +216,113 @@ public class SpannerIO {
         .build();
   }
 
-  /**
-   * A {@link PTransform} that reads data from Google Cloud Spanner.
-   *
-   * @see SpannerIO
-   */
+  /** Implementation of {@link #readAll}. */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @AutoValue
+  public abstract static class ReadAll
+      extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
+
+    abstract SpannerConfig getSpannerConfig();
+
+    @Nullable
+    abstract PCollectionView<Transaction> getTransaction();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
+
+      abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract ReadAll build();
+    }
+
+    /** Specifies the Cloud Spanner configuration. */
+    public ReadAll withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadAll withProjectId(String projectId) {
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadAll withProjectId(ValueProvider<String> projectId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadAll withInstanceId(String instanceId) {
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadAll withInstanceId(ValueProvider<String> instanceId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadAll withDatabaseId(String databaseId) {
+      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    @VisibleForTesting
+    ReadAll withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
+    }
+
+    public ReadAll withTransaction(PCollectionView<Transaction> transaction) {
+      return toBuilder().setTransaction(transaction).build();
+    }
+
+    @Override
+    public PCollection<Struct> expand(PCollection<ReadOperation> input) {
+      PCollection<ReadOperation> reshuffled =
+          input
+              .apply(
+                  "Pair with random key",
+                  WithKeys.of(
+                      new SerializableFunction<ReadOperation, String>() {
+                        @Override
+                        public String apply(ReadOperation ignored) {
+                          return UUID.randomUUID().toString();
+                        }
+                      }))
+              .apply("Reshuffle", Reshuffle.<String, ReadOperation>of())
+              .apply("Strip keys", Values.<ReadOperation>create());
+      List<PCollectionView<Transaction>> sideInputs =
+          getTransaction() == null
+              ? Collections.<PCollectionView<Transaction>>emptyList()
+              : Collections.singletonList(getTransaction());
+      return reshuffled.apply(
+          "Execute queries",
+          ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
+              .withSideInputs(sideInputs));
+    }
+  }
+
+  /** Implementation of {@link #read}. */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
 
     abstract SpannerConfig getSpannerConfig();
 
+    abstract ReadOperation getReadOperation();
+
     @Nullable
     abstract TimestampBound getTimestampBound();
-
-    @Nullable
-    abstract Statement getQuery();
-
-    @Nullable
-    abstract String getTable();
-
-    @Nullable
-    abstract String getIndex();
-
-    @Nullable
-    abstract List<String> getColumns();
-
-    @Nullable
-    abstract KeySet getKeySet();
 
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
@@ -241,17 +334,9 @@ public class SpannerIO {
 
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
+      abstract Builder setReadOperation(ReadOperation readOperation);
+
       abstract Builder setTimestampBound(TimestampBound timestampBound);
-
-      abstract Builder setQuery(Statement statement);
-
-      abstract Builder setTable(String table);
-
-      abstract Builder setIndex(String index);
-
-      abstract Builder setColumns(List<String> columns);
-
-      abstract Builder setKeySet(KeySet keySet);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
 
@@ -315,7 +400,11 @@ public class SpannerIO {
     }
 
     public Read withTable(String table) {
-      return toBuilder().setTable(table).build();
+      return withReadOperation(getReadOperation().withTable(table));
+    }
+
+    public Read withReadOperation(ReadOperation operation) {
+      return toBuilder().setReadOperation(operation).build();
     }
 
     public Read withColumns(String... columns) {
@@ -323,11 +412,11 @@ public class SpannerIO {
     }
 
     public Read withColumns(List<String> columns) {
-      return toBuilder().setColumns(columns).build();
+      return withReadOperation(getReadOperation().withColumns(columns));
     }
 
     public Read withQuery(Statement statement) {
-      return toBuilder().setQuery(statement).build();
+      return withReadOperation(getReadOperation().withQuery(statement));
     }
 
     public Read withQuery(String sql) {
@@ -335,13 +424,12 @@ public class SpannerIO {
     }
 
     public Read withKeySet(KeySet keySet) {
-      return toBuilder().setKeySet(keySet).build();
+      return withReadOperation(getReadOperation().withKeySet(keySet));
     }
 
     public Read withIndex(String index) {
-      return toBuilder().setIndex(index).build();
+      return withReadOperation(getReadOperation().withIndex(index));
     }
-
 
     @Override
     public void validate(PipelineOptions options) {
@@ -351,16 +439,16 @@ public class SpannerIO {
           "SpannerIO.read() runs in a read only transaction and requires timestamp to be set "
               + "with withTimestampBound or withTimestamp method");
 
-      if (getQuery() != null) {
+      if (getReadOperation().getQuery() != null) {
         // TODO: validate query?
-      } else if (getTable() != null) {
+      } else if (getReadOperation().getTable() != null) {
         // Assume read
         checkNotNull(
-            getColumns(),
+            getReadOperation().getColumns(),
             "For a read operation SpannerIO.read() requires a list of "
                 + "columns to set with withColumns method");
         checkArgument(
-            !getColumns().isEmpty(),
+            !getReadOperation().getColumns().isEmpty(),
             "For a read operation SpannerIO.read() requires a"
                 + " list of columns to set with withColumns method");
       } else {
@@ -371,18 +459,17 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PBegin input) {
-      Read config = this;
-      List<PCollectionView<Transaction>> sideInputs = Collections.emptyList();
-      if (getTimestampBound() != null) {
-        PCollectionView<Transaction> transaction =
-            input.apply(createTransaction().withSpannerConfig(getSpannerConfig()));
-        config = config.withTransaction(transaction);
-        sideInputs = Collections.singletonList(transaction);
+      PCollectionView<Transaction> transaction = getTransaction();
+      if (transaction == null && getTimestampBound() != null) {
+        transaction =
+            input.apply(
+                createTransaction()
+                    .withTimestampBound(getTimestampBound())
+                    .withSpannerConfig(getSpannerConfig()));
       }
-      return input
-          .apply(Create.of(1))
-          .apply(
-              "Execute query", ParDo.of(new NaiveSpannerReadFn(config)).withSideInputs(sideInputs));
+      ReadAll readAll =
+          readAll().withSpannerConfig(getSpannerConfig()).withTransaction(transaction);
+      return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
     }
   }
 
