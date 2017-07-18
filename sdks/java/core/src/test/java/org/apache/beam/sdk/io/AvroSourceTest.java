@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -439,12 +438,10 @@ public class AvroSourceTest {
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
     Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    assertNotSame(schemaA, schemaB);
-
-    AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
-    AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema(schemaB);
+    String schema = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    // Add "" to the schema to make sure it is not interned.
+    AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema("" + schema);
+    AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema("" + schema);
     assertSame(sourceA.getReaderSchemaString(), sourceB.getReaderSchemaString());
 
     // Ensure that deserialization still goes through interning
