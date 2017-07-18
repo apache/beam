@@ -679,7 +679,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     LOG.info("To access the Dataflow monitoring console, please navigate to {}",
-        MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
+        MonitoringUtil.getJobMonitoringPageURL(
+          options.getProject(), options.getRegion(), jobResult.getId()));
     System.out.println("Submitted job: " + jobResult.getId());
 
     LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
