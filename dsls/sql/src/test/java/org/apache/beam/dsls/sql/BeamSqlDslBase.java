@@ -71,7 +71,7 @@ public class BeamSqlDslBase {
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
             Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER));
 
-    recordsInTableA = prepareInputRecordsInTableA();
+    recordsInTableA = prepareInputRowsInTableA();
   }
 
   @Before
@@ -109,7 +109,7 @@ public class BeamSqlDslBase {
     return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
   }
 
-  private static List<BeamSqlRow> prepareInputRecordsInTableA() throws ParseException{
+  private static List<BeamSqlRow> prepareInputRowsInTableA() throws ParseException{
     List<BeamSqlRow> rows = new ArrayList<>();
 
     BeamSqlRow row1 = new BeamSqlRow(rowTypeInTableA);

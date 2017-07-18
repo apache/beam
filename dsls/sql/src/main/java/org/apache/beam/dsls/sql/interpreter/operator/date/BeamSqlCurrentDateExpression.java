@@ -39,7 +39,7 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
     return getOperands().size() == 0;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     return BeamSqlPrimitive.of(outputType, new Date());
   }
 }

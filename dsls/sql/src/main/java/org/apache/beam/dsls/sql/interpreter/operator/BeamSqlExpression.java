@@ -62,7 +62,7 @@ public abstract class BeamSqlExpression implements Serializable {
    * Apply input record {@link BeamSqlRow} to this expression,
    * the output value is wrapped with {@link BeamSqlPrimitive}.
    */
-  public abstract BeamSqlPrimitive evaluate(BeamSqlRow inputRecord);
+  public abstract BeamSqlPrimitive evaluate(BeamSqlRow inputRow);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;
