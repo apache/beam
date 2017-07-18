@@ -163,7 +163,8 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
 
         default:
           throw new UnsupportedOperationException("Data type: "
-              + tableSchema.getFieldsType().get(idx) + " not supported yet!");
+              + CalciteUtils.toCalciteType(tableSchema.getFieldsType().get(idx))
+              + " not supported yet!");
       }
     }
 
