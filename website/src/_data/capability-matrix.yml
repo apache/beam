@@ -185,7 +185,7 @@ categories:
           - class: dataflow
             l1: 'Yes'
             l2: fully supported
-            l3: 
+            l3: Support includes autotuning features (https://cloud.google.com/dataflow/service/dataflow-service-desc#autotuning-features).
           - class: flink
             l1: 'Yes'
             l2: fully supported
@@ -202,6 +202,32 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+      - name: Splittable DoFn
+        values:
+          - class: model
+            l1: 'Partially'
+            l2: DoFn where processing of each element can be split for parallelism, or suspended and resumed
+            l3: Allows users to develop DoFn's that process a single element in portions ("restrictions"), executed in parallel or sequentially. This supersedes the unbounded and bounded `Source` APIs by supporting all of their features on a per-element basis. See http://s.apache.org/splittable-do-fn. Design is in progress on achieving parity with Source API regarding progress signals.
+          - class: dataflow
+            l1: 'Partially'
+            l2: supported in streaming mode
+            l3: Supports checkpointing (sequentially processing an element over several, potentially infinitely many calls). Does not yet support autotuning features of the Source API.
+          - class: flink
+            l1: 'No'
+            l2: implementation in streaming mode coming soon
+            l3:
+          - class: spark
+            l1: 'No'
+            l2: not implemented
+            l3:
+          - class: apex
+            l1: 'No'
+            l2: implementation in streaming mode coming soon
+            l3:
+          - class: gearpump
+            l1: 'No'
+            l2: not implemented
+            l3:
       - name: Metrics
         values:
           - class: model
