@@ -37,10 +37,10 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpres
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNotNullExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNullExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLargerThanEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLargerThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualExpression;
@@ -214,10 +214,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlNotEqualExpression(subExps);
           break;
         case ">":
-          ret = new BeamSqlLargerThanExpression(subExps);
+          ret = new BeamSqlGreaterThanExpression(subExps);
           break;
         case ">=":
-          ret = new BeamSqlLargerThanEqualExpression(subExps);
+          ret = new BeamSqlGreaterThanEqualExpression(subExps);
           break;
         case "<":
           ret = new BeamSqlLessThanExpression(subExps);
