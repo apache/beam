@@ -56,6 +56,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     JAVA_CLASS_TO_SQL_TYPE.put(BigDecimal.class, Types.DECIMAL);
     JAVA_CLASS_TO_SQL_TYPE.put(String.class, Types.VARCHAR);
     JAVA_CLASS_TO_SQL_TYPE.put(Date.class, Types.DATE);
+    JAVA_CLASS_TO_SQL_TYPE.put(Boolean.class, Types.BOOLEAN);
   }
 
   @Rule
