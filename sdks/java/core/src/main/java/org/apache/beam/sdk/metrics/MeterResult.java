@@ -17,23 +17,26 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * The result of a {@link Meter} metric.
  */
 @Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
+@AutoValue
+public abstract class MeterResult {
 
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
+  public abstract long count();
+  public abstract double m1();
+  public abstract double m5();
+  public abstract double m15();
+  public abstract double mean();
 
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+  public static final MeterResult ZERO = create(0, 0, 0, 0, 0);
 
-  /** Return the metric results for the meters that matched the filter. */
-  Iterable<MetricResult<MeterResult>> meters();
+  public static MeterResult create(long count, double m1, double m5, double m15, double mean) {
+    return new AutoValue_MeterResult(count, m1, m5, m15, mean);
+  }
 }

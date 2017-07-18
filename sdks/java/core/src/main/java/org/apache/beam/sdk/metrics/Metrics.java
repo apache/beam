@@ -101,6 +101,22 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static Meter meter(String namespace, String name){
+    return new DelegatingMeter(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static Meter meter(Class<?> namespace, String name) {
+    return new DelegatingMeter(MetricName.named(namespace, name));
+  }
+
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
   private static class DelegatingCounter implements Metric, Counter, Serializable {
     private final MetricName name;
@@ -179,6 +195,35 @@ public class Metrics {
     }
 
     @Override public MetricName getName() {
+      return name;
+    }
+  }
+
+  /**
+   * Implementation of {@link Meter} that delegates to the instance for the current context.
+   */
+  private static class DelegatingMeter implements Metric, Meter, Serializable {
+    private final MetricName name;
+
+    private DelegatingMeter(MetricName name){
+      this.name = name;
+    }
+
+    @Override
+    public void mark() {
+      mark(1);
+    }
+
+    @Override
+    public void mark(long n) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getMeter(name).mark(n);
+      }
+    }
+
+    @Override
+    public MetricName getName() {
       return name;
     }
   }

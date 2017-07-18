@@ -168,6 +168,7 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
+    <dropwizard.version>3.1.2</dropwizard.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -1133,6 +1134,12 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-network-common_2.10</artifactId>
         <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${dropwizard.version}</version>
       </dependency>
 
       <!-- Testing -->
