@@ -29,9 +29,11 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.avro.generic.GenericRecord;
@@ -168,10 +170,12 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
     SerializableFunction<GenericRecord, TableRow> function =
         new SerializableFunction<GenericRecord, TableRow>() {
+          private Supplier<TableSchema> schema = new SerializableTableSchemaSupplier(
+              BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class));
+
           @Override
           public TableRow apply(GenericRecord input) {
-            return BigQueryAvroUtils.convertGenericRecordToTableRow(
-                input, BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class));
+            return BigQueryAvroUtils.convertGenericRecordToTableRow(input, schema.get());
           }};
 
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
@@ -181,6 +185,46 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     }
     return ImmutableList.copyOf(avroSources);
   }
+
+  /**
+   * A {@link Serializable} object that holds the {@link String} version of a {@link TableSchema}.
+   * This is paired with the {@link SerializableTableSchemaSupplier} via {@link Serializable}'s
+   * usage of the {@link #readResolve} method.
+   */
+  private static class SerializableTableSchemaString implements Serializable {
+    private final String jsonSchema;
+    private SerializableTableSchemaString(String jsonSchema) {
+      this.jsonSchema = jsonSchema;
+    }
+
+    private Object readResolve() throws IOException, ClassCastException {
+      return new SerializableTableSchemaSupplier(
+          BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class));
+    }
+  }
+
+  /**
+   * A {@link Serializable} object that delegates to the {@link SerializableTableSchemaString} via
+   * {@link Serializable}'s usage of the {@link #writeReplace} method. Kryo doesn't utilize
+   * Java's serialization and hence is able to encode the {@link TableSchema} object directly.
+   */
+  private static class SerializableTableSchemaSupplier
+      implements Serializable, Supplier<TableSchema> {
+    private final TableSchema tableSchema;
+    private SerializableTableSchemaSupplier(TableSchema tableSchema) {
+      this.tableSchema = tableSchema;
+    }
+
+    private Object writeReplace() {
+      return new SerializableTableSchemaString(BigQueryHelpers.toJsonString(tableSchema));
+    }
+
+    @Override
+    public TableSchema get() {
+      return tableSchema;
+    }
+  }
+
 
   protected static class BigQueryReader extends BoundedReader<TableRow> {
     private final BigQuerySourceBase source;
