@@ -30,12 +30,13 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
-class XmlSink<T> extends FileBasedSink<T, Void> {
+class XmlSink<T> extends FileBasedSink<T, Void, T> {
   private static final String XML_EXTENSION = ".xml";
 
   private final XmlIO.Write<T> spec;
@@ -46,7 +47,10 @@ class XmlSink<T> extends FileBasedSink<T, Void> {
   }
 
   XmlSink(XmlIO.Write<T> spec) {
-    super(spec.getFilenamePrefix(), DynamicFileDestinations.constant(makeFilenamePolicy(spec)));
+    super(
+        spec.getFilenamePrefix(),
+        DynamicFileDestinations.constant(
+            makeFilenamePolicy(spec), SerializableFunctions.<T>identity()));
     this.spec = spec;
   }
 
