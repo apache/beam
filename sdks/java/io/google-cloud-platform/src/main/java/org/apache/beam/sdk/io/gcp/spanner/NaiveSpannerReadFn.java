@@ -28,17 +28,17 @@ import javax.annotation.Nullable;
 
 /** A simplest read function implementation. Parallelism support is coming. */
 @VisibleForTesting
-public class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
+class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
   private final SpannerConfig config;
   @Nullable
   private final PCollectionView<Transaction> transaction;
 
-  public NaiveSpannerReadFn(SpannerConfig config, @Nullable PCollectionView<Transaction> transaction) {
+  NaiveSpannerReadFn(SpannerConfig config, @Nullable PCollectionView<Transaction> transaction) {
     this.config = config;
     this.transaction = transaction;
   }
 
-  public NaiveSpannerReadFn(SpannerConfig config) {
+  NaiveSpannerReadFn(SpannerConfig config) {
     this(config, null);
   }
 

@@ -189,6 +189,12 @@ public class SpannerIO {
         .build();
   }
 
+  @Experimental
+  public DoFn<ReadOperation, Struct> readFn(SpannerConfig config,
+      @Nullable PCollectionView<Transaction> transaction) {
+    return new NaiveSpannerReadFn(config, transaction);
+  }
+
   /**
    * Creates an uninitialized instance of {@link Write}. Before use, the {@link Write} must be
    * configured with a {@link Write#withInstanceId} and {@link Write#withDatabaseId} that identify
