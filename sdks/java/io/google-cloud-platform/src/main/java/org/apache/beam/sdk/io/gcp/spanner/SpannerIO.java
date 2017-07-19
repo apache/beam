@@ -189,8 +189,15 @@ public class SpannerIO {
         .build();
   }
 
+  /**
+   * Returns a {@link DoFn} that can be applied to a {@link PCollection<ReadOperation>}.
+   * @param config a spanner configuration.
+   * @param transaction a PCollectionView with a transaction, usually created with
+   * {@link Read#createTransaction()}. If null, the doesn't provide a transactional guarantees.
+   * @return a {@link DoFn} that concurrently reads from multiple Cloud Spanner sources.
+   */
   @Experimental
-  public DoFn<ReadOperation, Struct> readFn(SpannerConfig config,
+  public static DoFn<ReadOperation, Struct> readFn(SpannerConfig config,
       @Nullable PCollectionView<Transaction> transaction) {
     return new NaiveSpannerReadFn(config, transaction);
   }
@@ -372,7 +379,7 @@ public class SpannerIO {
       return input
           .apply(Create.of(getReadOperation()))
           .apply(
-              "Execute query", ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), transaction))
+              "Execute query", ParDo.of(readFn(getSpannerConfig(), transaction))
                   .withSideInputs(sideInputs));
     }
   }
