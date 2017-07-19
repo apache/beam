@@ -112,7 +112,7 @@ If your I/O transform allows batching of reads/writes, you must force the batchi
 ## I/O Transform Integration Tests {#i-o-transform-integration-tests}
 
 
-### Goals  {#goals}
+### Goals  {#it-goals}
 
 *   Allow end to end testing of interactions between data stores, I/O transforms, and runners, simulating real world conditions.
 *   Allow both small scale and large scale testing.
@@ -297,8 +297,8 @@ Guidelines for creating a Beam data store Kubernetes script:
 #### Integrate with PerfKit Benchmarker {#integrate-with-perfkit-benchmarker}
 
 To allow developers to easily invoke your I/O integration test, perform the following steps:
-1.  Create a PerfKit benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry. See [Defining I/O test configuration](#defining-the-benchmark-configuration-file) for information about what to include.
-1.  Modify the pom of the I/O to set the [correct PerfKit parameters](#per-i-o-mvn-pom-configuration).
+1.  Create a PerfKit benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry. See [Defining the benchmark configuration file](#defining-the-benchmark-configuration-file) for information about what to include.
+1.  Modify the [Per-I/O mvn pom configuration](#per-i-o-mvn-pom-configuration).
 
 The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.
 
