@@ -261,7 +261,6 @@ class JStormStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final IKvStore<ComposedKey, T> kvState;
     private final IKvStore<ComposedKey, Object> stateInfoKvState;
-    private int elemIndex;
 
     JStormBagState(
         @Nullable K key,
@@ -272,17 +271,19 @@ class JStormStateInternals<K> implements StateInternals {
       this.namespace = checkNotNull(namespace, "namespace");
       this.kvState = checkNotNull(kvState, "kvState");
       this.stateInfoKvState = checkNotNull(stateInfoKvState, "stateInfoKvState");
+    }
 
-      Integer index = (Integer) stateInfoKvState.get(getComposedKey());
-      this.elemIndex = index != null ? ++index : 0;
+    private int getElementIndex() throws IOException {
+      Integer elementIndex = (Integer) stateInfoKvState.get(getComposedKey());
+      return elementIndex != null ? elementIndex : 0;
     }
 
     @Override
     public void add(T input) {
       try {
+        int elemIndex = getElementIndex();
         kvState.put(getComposedKey(elemIndex), input);
-        stateInfoKvState.put(getComposedKey(), elemIndex);
-        elemIndex++;
+        stateInfoKvState.put(getComposedKey(), ++elemIndex);
       } catch (IOException e) {
         throw new RuntimeException(e.getCause());
       }
@@ -293,7 +294,12 @@ class JStormStateInternals<K> implements StateInternals {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
-          return elemIndex <= 0;
+          try {
+            return getElementIndex() <= 0;
+          } catch (IOException e) {
+            LOG.error("Failed to read", e);
+            return false;
+          }
         }
 
         @Override
@@ -306,7 +312,7 @@ class JStormStateInternals<K> implements StateInternals {
 
     @Override
     public Iterable<T> read() {
-      return new BagStateIterable(elemIndex);
+      return new BagStateIterable();
     }
 
     @Override
@@ -318,11 +324,11 @@ class JStormStateInternals<K> implements StateInternals {
     @Override
     public void clear() {
       try {
+        int elemIndex = getElementIndex();
         for (int i = 0; i < elemIndex; i++) {
           kvState.remove(getComposedKey(i));
         }
         stateInfoKvState.remove(getComposedKey());
-        elemIndex = 0;
       } catch (IOException e) {
         throw new RuntimeException(e.getCause());
       }
@@ -336,6 +342,18 @@ class JStormStateInternals<K> implements StateInternals {
       return ComposedKey.of(key, namespace, elemIndex);
     }
 
+    @Override
+    public String toString() {
+      int elemIndex = -1;
+      try {
+        elemIndex = getElementIndex();
+      } catch (IOException e) {
+
+      }
+      return String.format("JStormBagState: key=%s, namespace=%s, elementIndex=%d",
+              key, namespace, elemIndex);
+    }
+
     /**
      * Implementation of Bag state Iterable.
      */
@@ -346,13 +364,11 @@ class JStormStateInternals<K> implements StateInternals {
         private int cursor = 0;
 
         BagStateIterator() {
-          Integer s = null;
           try {
-            s = (Integer) stateInfoKvState.get(getComposedKey());
+            this.size = getElementIndex();
           } catch (IOException e) {
-            LOG.error("Failed to get elemIndex for key={}", getComposedKey());
+            throw new RuntimeException(e.getCause());
           }
-          this.size = s != null ? ++s : 0;
         }
 
         @Override
@@ -382,10 +398,8 @@ class JStormStateInternals<K> implements StateInternals {
         }
       }
 
-      private final int size;
+      BagStateIterable() {
 
-      BagStateIterable(int size) {
-        this.size = size;
       }
 
       @Override
