@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.integrationtest;
 
 import java.math.BigDecimal;
+import java.util.Random;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.junit.Test;
 
@@ -285,6 +286,64 @@ public class BeamSqlMathFunctionsIntegrationTest
         .addExpr("POWER(c_double, 2)", Math.pow(DOUBLE_VALUE, 2))
         .addExpr("POWER(c_float, 2)", Math.pow(FLOAT_VALUE, 2))
         .addExpr("POWER(c_decimal, 2)", Math.pow(DECIMAL_VALUE.doubleValue(), 2))
+        ;
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testPi() throws Exception{
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("PI", Math.PI)
+        ;
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testAtan2() throws Exception{
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("ATAN2(c_integer, 2)", Math.atan2(INTEGER_VALUE, 2))
+        .addExpr("ATAN2(c_bigint, 2)", Math.atan2(LONG_VALUE, 2))
+        .addExpr("ATAN2(c_smallint, 2)", Math.atan2(SHORT_VALUE, 2))
+        .addExpr("ATAN2(c_tinyint, 2)", Math.atan2(BYTE_VALUE, 2))
+        .addExpr("ATAN2(c_double, 2)", Math.atan2(DOUBLE_VALUE, 2))
+        .addExpr("ATAN2(c_float, 2)", Math.atan2(FLOAT_VALUE, 2))
+        .addExpr("ATAN2(c_decimal, 2)", Math.atan2(DECIMAL_VALUE.doubleValue(), 2))
+        ;
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testTruncate() throws Exception{
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("TRUNCATE(c_integer, 2)", SqlFunctions.struncate(INTEGER_VALUE, 2))
+        .addExpr("TRUNCATE(c_bigint, 2)", SqlFunctions.struncate(LONG_VALUE, 2))
+        .addExpr("TRUNCATE(c_smallint, 2)", (short) SqlFunctions.struncate(SHORT_VALUE, 2))
+        .addExpr("TRUNCATE(c_tinyint, 2)", (byte) SqlFunctions.struncate(BYTE_VALUE, 2))
+        .addExpr("TRUNCATE(c_double, 2)", SqlFunctions.struncate(DOUBLE_VALUE, 2))
+        .addExpr("TRUNCATE(c_float, 2)", (float) SqlFunctions.struncate(FLOAT_VALUE, 2))
+        .addExpr("TRUNCATE(c_decimal, 2)", SqlFunctions.struncate(DECIMAL_VALUE, 2))
+        ;
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testRand() throws Exception{
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("RAND(c_integer)", new Random(INTEGER_VALUE).nextDouble())
+        ;
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testRandInteger() throws Exception{
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("RAND_INTEGER(c_integer, c_integer)",
+            new Random(INTEGER_VALUE).nextInt(INTEGER_VALUE))
         ;
 
     checker.buildRunAndCheck();
