@@ -1017,7 +1017,7 @@ class CombineValuesDoFn(DoFn):
            self.combinefn.apply(element[1], *args, **kwargs))]
 
     # Add the elements into three accumulators (for testing of merge).
-    elements = element[1]
+    elements = list(element[1])
     accumulators = []
     for k in range(3):
       if len(elements) <= k:

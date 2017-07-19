@@ -307,6 +307,7 @@ public class WindowingStrategyTranslation implements Serializable {
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
+            .setAssignsToOneWindow(windowingStrategy.getWindowFn().assignsToOneWindow())
             .setWindowCoderId(
                 components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
 

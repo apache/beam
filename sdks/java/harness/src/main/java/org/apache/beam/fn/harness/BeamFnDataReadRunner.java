@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core;
+package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 

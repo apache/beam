@@ -34,12 +34,12 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.core.PTransformRunnerFactory;
-import org.apache.beam.runners.core.PTransformRunnerFactory.Registrar;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing
- * the set of required runners for each {@link org.apache.beam.fn.v1.BeamFnApi.FunctionSpec},
+ * the set of required runners for each {@link RunnerApi.FunctionSpec},
  * wiring them together based upon the {@code input} and {@code output} map definitions.
  *
  * <p>Finally executes the DAG based graph by starting all runners in reverse topological order,
@@ -166,7 +166,7 @@ public class ProcessBundleHandler {
             pTransform,
             processBundleInstructionId,
             processBundleDescriptor.getPcollectionsMap(),
-            processBundleDescriptor.getCodersyyyMap(),
+            processBundleDescriptor.getCodersMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
             addFinishFunction);

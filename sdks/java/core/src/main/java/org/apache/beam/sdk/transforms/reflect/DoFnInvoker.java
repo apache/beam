@@ -54,8 +54,8 @@ public interface DoFnInvoker<InputT, OutputT> {
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
-   * @return {@code null} - see <a href="https://issues.apache.org/jira/browse/BEAM-1904">JIRA</a>
-   *     tracking the complete removal of {@link DoFn.ProcessContinuation}.
+   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
+   *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
   DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 

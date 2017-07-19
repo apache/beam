@@ -39,9 +39,8 @@ import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.TextIO;
@@ -55,6 +54,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -137,21 +137,17 @@ public class WriteWithShardingFactoryTest implements Serializable {
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
     ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
-    FilenamePolicy policy =
-        DefaultFilenamePolicy.constructUsingStandardParameters(
-            StaticValueProvider.of(outputDirectory),
-            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
-            "",
-            false);
 
     PTransform<PCollection<Object>, PDone> original =
         WriteFiles.to(
-            new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
+            new FileBasedSink<Object, Void>(
+                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(null)) {
               @Override
-              public WriteOperation<Object> createWriteOperation() {
+              public WriteOperation<Object, Void> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");
               }
-            });
+            },
+            SerializableFunctions.identity());
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 

@@ -84,7 +84,7 @@ class PipelineContext(object):
   def __init__(self, proto=None):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
-          coders=dict(proto.codersyyy.items()),
+          coders=dict(proto.coders.items()),
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
     for name, cls in self._COMPONENT_TYPES.items():

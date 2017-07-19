@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RangeTracker} for non-negative positions of type {@code long}.
+ *
+ * <p>Not to be confused with {@link
+ * org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker}.
  */
 public class OffsetRangeTracker implements RangeTracker<Long> {
   private static final Logger LOG = LoggerFactory.getLogger(OffsetRangeTracker.class);
