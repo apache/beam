@@ -36,7 +36,7 @@ public class BeamSqlPiExpression extends BeamSqlExpression {
     return numberOfOperands() == 0;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     return BeamSqlPrimitive.of(SqlTypeName.DOUBLE, Math.PI);
   }
 }

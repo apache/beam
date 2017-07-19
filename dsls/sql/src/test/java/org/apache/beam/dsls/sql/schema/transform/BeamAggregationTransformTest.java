@@ -21,11 +21,10 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.dsls.sql.transform.BeamAggregationTransforms;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -64,9 +63,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
 
   private List<AggregateCall> aggCalls;
 
-  private BeamSqlRecordType keyType;
-  private BeamSqlRecordType aggPartType;
-  private BeamSqlRecordType outputType;
+  private BeamSqlRowType keyType;
+  private BeamSqlRowType aggPartType;
+  private BeamSqlRowType outputType;
 
   private BeamSqlRowCoder inRecordCoder;
   private BeamSqlRowCoder keyCoder;
@@ -405,7 +404,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Row type of final output row.
    */
-  private BeamSqlRecordType prepareFinalRowType() {
+  private BeamSqlRowType prepareFinalRowType() {
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     List<KV<String, SqlTypeName>> columnMetadata =
         Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER), KV.of("count", SqlTypeName.BIGINT),
@@ -433,7 +432,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
     for (KV<String, SqlTypeName> cm : columnMetadata) {
       builder.add(cm.getKey(), cm.getValue());
     }
-    return CalciteUtils.toBeamRecordType(builder.build());
+    return CalciteUtils.toBeamRowType(builder.build());
   }
 
   /**

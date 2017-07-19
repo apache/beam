@@ -40,7 +40,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
  *  A {@link Coder} encodes {@link BeamSqlRow}.
  */
 public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
-  private BeamSqlRecordType tableSchema;
+  private BeamSqlRowType tableSchema;
 
   private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
 
@@ -52,7 +52,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
   private static final ByteCoder byteCoder = ByteCoder.of();
 
-  public BeamSqlRowCoder(BeamSqlRecordType tableSchema) {
+  public BeamSqlRowCoder(BeamSqlRowType tableSchema) {
     this.tableSchema = tableSchema;
   }
 
@@ -174,7 +174,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
     return record;
   }
 
-  public BeamSqlRecordType getTableSchema() {
+  public BeamSqlRowType getTableSchema() {
     return tableSchema;
   }
 

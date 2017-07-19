@@ -22,11 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -49,13 +48,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(BeamSqlRecordType beamSqlRecordType) {
-    super(beamSqlRecordType);
+  protected BeamKafkaTable(BeamSqlRowType beamSqlRowType) {
+    super(beamSqlRowType);
   }
 
-  public BeamKafkaTable(BeamSqlRecordType beamSqlRecordType, String bootstrapServers,
+  public BeamKafkaTable(BeamSqlRowType beamSqlRowType, String bootstrapServers,
       List<String> topics) {
-    super(beamSqlRecordType);
+    super(beamSqlRowType);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }

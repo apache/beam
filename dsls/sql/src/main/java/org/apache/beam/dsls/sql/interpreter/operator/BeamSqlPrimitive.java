@@ -145,7 +145,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive<T> evaluate(BeamSqlRow inputRow) {
     return this;
   }
 

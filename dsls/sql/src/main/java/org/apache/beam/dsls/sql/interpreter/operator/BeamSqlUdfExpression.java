@@ -51,14 +51,14 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
     if (method == null) {
       reConstructMethod();
     }
     try {
       List<Object> paras = new ArrayList<>();
       for (BeamSqlExpression e : getOperands()) {
-        paras.add(e.evaluate(inputRecord).getValue());
+        paras.add(e.evaluate(inputRow).getValue());
       }
 
       return BeamSqlPrimitive.of(getOutputType(),

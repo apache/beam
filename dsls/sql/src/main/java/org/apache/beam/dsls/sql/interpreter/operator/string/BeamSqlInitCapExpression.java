@@ -33,8 +33,8 @@ public class BeamSqlInitCapExpression extends BeamSqlStringUnaryExpression {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    String str = opValueEvaluated(0, inputRecord);
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+    String str = opValueEvaluated(0, inputRow);
 
     StringBuilder ret = new StringBuilder(str);
     boolean isInit = true;

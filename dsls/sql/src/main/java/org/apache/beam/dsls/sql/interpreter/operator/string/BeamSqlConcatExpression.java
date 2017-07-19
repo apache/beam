@@ -52,9 +52,9 @@ public class BeamSqlConcatExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
-    String left = opValueEvaluated(0, inputRecord);
-    String right = opValueEvaluated(1, inputRecord);
+  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+    String left = opValueEvaluated(0, inputRow);
+    String right = opValueEvaluated(1, inputRow);
 
     return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
         new StringBuilder(left.length() + right.length())

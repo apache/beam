@@ -22,7 +22,7 @@ import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 
 /**
  * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
@@ -30,8 +30,8 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
   protected String filePattern;
 
-  protected BeamTextTable(BeamSqlRecordType beamSqlRecordType, String filePattern) {
-    super(beamSqlRecordType);
+  protected BeamTextTable(BeamSqlRowType beamSqlRowType, String filePattern) {
+    super(beamSqlRowType);
     this.filePattern = filePattern;
   }
 
