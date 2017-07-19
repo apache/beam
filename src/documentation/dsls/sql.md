@@ -32,7 +32,7 @@ Given a `PCollection` and the query as input, first of all the input `PCollectio
 3. Relational rules are applied to convert it to a physical plan, expressed with Beam components. An optimizer is optional to update the plan;
 4. Finally, the Beam physical plan is compiled as a composite `PTransform`;
 
-Here is an example to show a query that filters and projects from a input `PCollection`:
+Here is an example to show a query that filters and projects from an input `PCollection`:
 
 ```
 SELECT USER_ID, USER_NAME FROM PCOLLECTION WHERE USER_ID = 1
