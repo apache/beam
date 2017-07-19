@@ -1455,7 +1455,8 @@ class Create(PTransform):
     coder = typecoders.registry.get_coder(self.get_output_type())
     source = self._create_source_from_iterable(self.value, coder)
     return (pbegin.pipeline
-            | iobase.Read(source).with_output_types(self.get_output_type()))
+            | 'Create' >> (iobase.Read(source)
+                           .with_output_types(self.get_output_type())))
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
