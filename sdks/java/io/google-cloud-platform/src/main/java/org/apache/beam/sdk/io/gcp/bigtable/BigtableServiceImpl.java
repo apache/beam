@@ -168,13 +168,14 @@ class BigtableServiceImpl implements BigtableService {
     private BigtableSession session;
     private AsyncExecutor executor;
     private BulkMutation bulkMutation;
-    private final String tableName;
+    private final MutateRowRequest.Builder partialBuilder;
 
     public BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
       executor = session.createAsyncExecutor();
       bulkMutation = session.createBulkMutation(tableName, executor);
-      this.tableName = tableName.toString();
+
+      partialBuilder = MutateRowRequest.newBuilder().setTableName(tableName.toString());
     }
 
     @Override
@@ -207,8 +208,8 @@ class BigtableServiceImpl implements BigtableService {
         KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
       MutateRowRequest r =
-          MutateRowRequest.newBuilder()
-              .setTableName(tableName)
+          partialBuilder
+              .clone()
               .setRowKey(record.getKey())
               .addAllMutations(record.getValue())
               .build();

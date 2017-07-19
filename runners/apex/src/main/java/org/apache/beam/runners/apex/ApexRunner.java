@@ -62,6 +62,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.View.AsIterable;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -212,7 +214,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
    */
   public static class CreateApexPCollectionView<ElemT, ViewT>
-      extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
+      extends PTransform<PCollection<List<ElemT>>, PCollectionView<ViewT>> {
     private static final long serialVersionUID = 1L;
     private PCollectionView<ViewT> view;
 
@@ -226,13 +228,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollection<ElemT> expand(PCollection<ElemT> input) {
-      return PCollection.<ElemT>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
-    }
-
-    public PCollectionView<ViewT> getView() {
+    public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
       return view;
     }
   }
@@ -245,7 +241,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   private static class StreamingWrapSingletonInList<T>
-      extends PTransform<PCollection<T>, PCollection<T>> {
+      extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 1L;
     CreatePCollectionView<T, T> transform;
 
@@ -258,11 +254,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
-      input
+    public PCollectionView<T> expand(PCollection<T> input) {
+      return input
           .apply(ParDo.of(new WrapAsList<T>()))
-          .apply(CreateApexPCollectionView.<List<T>, T>of(transform.getView()));
-      return input;
+          .apply(CreateApexPCollectionView.<T, T>of(transform.getView()));
     }
 
     @Override
@@ -272,12 +267,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     static class Factory<T>
         extends SingleInputOutputOverrideFactory<
-            PCollection<T>, PCollection<T>,
+            PCollection<T>, PCollectionView<T>,
             CreatePCollectionView<T, T>> {
       @Override
-      public PTransformReplacement<PCollection<T>, PCollection<T>> getReplacementTransform(
-          AppliedPTransform<PCollection<T>, PCollection<T>, CreatePCollectionView<T, T>>
-              transform) {
+      public PTransformReplacement<PCollection<T>, PCollectionView<T>>
+          getReplacementTransform(
+              AppliedPTransform<
+                      PCollection<T>, PCollectionView<T>,
+                      CreatePCollectionView<T, T>>
+                  transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             new StreamingWrapSingletonInList<>(transform.getTransform()));
@@ -286,19 +284,18 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   private static class StreamingViewAsIterable<T>
-      extends PTransform<PCollection<T>, PCollection<T>> {
+      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
     private static final long serialVersionUID = 1L;
-    private final PCollectionView<Iterable<T>> view;
 
-    private StreamingViewAsIterable(PCollectionView<Iterable<T>> view) {
-      this.view = view;
-    }
+    private StreamingViewAsIterable() {}
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
-      return ((PCollection<T>)
-              input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults()))
-          .apply(CreateApexPCollectionView.<T, Iterable<T>>of(view));
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
+
+      return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
+          .apply(CreateApexPCollectionView.<T, Iterable<T>> of(view));
     }
 
     @Override
@@ -308,17 +305,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     static class Factory<T>
         extends SingleInputOutputOverrideFactory<
-            PCollection<T>, PCollection<T>, CreatePCollectionView<T, Iterable<T>>> {
+            PCollection<T>, PCollectionView<Iterable<T>>, View.AsIterable<T>> {
       @Override
-      public PTransformReplacement<PCollection<T>, PCollection<T>>
+      public PTransformReplacement<PCollection<T>, PCollectionView<Iterable<T>>>
           getReplacementTransform(
-              AppliedPTransform<
-                      PCollection<T>, PCollection<T>,
-                      CreatePCollectionView<T, Iterable<T>>>
+              AppliedPTransform<PCollection<T>, PCollectionView<Iterable<T>>, AsIterable<T>>
                   transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            new StreamingViewAsIterable<T>(transform.getTransform().getView()));
+            new StreamingViewAsIterable<T>());
       }
     }
   }
@@ -381,7 +376,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
           transform) {
       return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform),
-          SplittableParDo.forJavaParDo(transform.getTransform()));
+          new SplittableParDo<>(transform.getTransform()));
     }
 
     @Override

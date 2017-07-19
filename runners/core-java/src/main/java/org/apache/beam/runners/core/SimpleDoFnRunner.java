@@ -233,11 +233,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public PipelineOptions pipelineOptions() {
-      return getPipelineOptions();
-    }
-
-    @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       return this;
     }
@@ -300,11 +295,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public BoundedWindow window() {
       throw new UnsupportedOperationException(
           "Cannot access window outside of @ProcessElement and @OnTimer methods.");
-    }
-
-    @Override
-    public PipelineOptions pipelineOptions() {
-      return getPipelineOptions();
     }
 
     @Override
@@ -477,11 +467,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public PipelineOptions pipelineOptions() {
-      return getPipelineOptions();
-    }
-
-    @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
     }
@@ -580,11 +565,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public BoundedWindow window() {
       return window;
-    }
-
-    @Override
-    public PipelineOptions pipelineOptions() {
-      return getPipelineOptions();
     }
 
     @Override

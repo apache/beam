@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnMergeContext;
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -45,8 +46,8 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class AfterWatermarkStateMachineTest {
 
-  @Mock private TriggerStateMachine mockEarly;
-  @Mock private TriggerStateMachine mockLate;
+  @Mock private OnceTriggerStateMachine mockEarly;
+  @Mock private OnceTriggerStateMachine mockLate;
 
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
@@ -69,7 +70,7 @@ public class AfterWatermarkStateMachineTest {
     MockitoAnnotations.initMocks(this);
   }
 
-  public void testRunningAsTrigger(TriggerStateMachine mockTrigger, IntervalWindow window)
+  public void testRunningAsTrigger(OnceTriggerStateMachine mockTrigger, IntervalWindow window)
       throws Exception {
 
     // Don't fire due to mock saying no

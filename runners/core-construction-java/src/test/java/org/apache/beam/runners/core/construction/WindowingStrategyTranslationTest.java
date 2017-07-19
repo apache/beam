@@ -116,8 +116,5 @@ public class WindowingStrategyTranslationTest {
 
     protoComponents.getCodersOrThrow(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
-    assertThat(
-        proto.getAssignsToOneWindow(),
-        equalTo(windowingStrategy.getWindowFn().assignsToOneWindow()));
   }
 }

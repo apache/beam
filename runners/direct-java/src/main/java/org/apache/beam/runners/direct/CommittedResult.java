@@ -19,8 +19,8 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Optional;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 
@@ -36,10 +36,12 @@ abstract class CommittedResult {
 
   /**
    * Returns the {@link CommittedBundle} that contains the input elements that could not be
-   * processed by the evaluation. The returned optional is present if there were any unprocessed
-   * input elements, and absent otherwise.
+   * processed by the evaluation.
+   *
+   * <p>{@code null} if the input bundle was null.
    */
-  public abstract Optional<? extends CommittedBundle<?>> getUnprocessedInputs();
+  @Nullable
+  public abstract CommittedBundle<?> getUnprocessedInputs();
 
   /**
    * Returns the outputs produced by the transform.
@@ -57,7 +59,7 @@ abstract class CommittedResult {
 
   public static CommittedResult create(
       TransformResult<?> original,
-      Optional<? extends CommittedBundle<?>> unprocessedElements,
+      CommittedBundle<?> unprocessedElements,
       Iterable<? extends CommittedBundle<?>> outputs,
       Set<OutputType> producedOutputs) {
     return new AutoValue_CommittedResult(original.getTransform(),

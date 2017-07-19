@@ -326,12 +326,11 @@ def get_coder_from_spec(coder_spec):
     assert len(coder_spec['component_encodings']) == 2
     value_coder, window_coder = [
         get_coder_from_spec(c) for c in coder_spec['component_encodings']]
-    return coders.coders.WindowedValueCoder(
-        value_coder, window_coder=window_coder)
+    return coders.WindowedValueCoder(value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:interval_window':
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
-    return coders.coders.IntervalWindowCoder()
+    return coders.IntervalWindowCoder()
   elif coder_spec['@type'] == 'kind:global_window':
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
@@ -340,10 +339,6 @@ def get_coder_from_spec(coder_spec):
     assert len(coder_spec['component_encodings']) == 1
     return coders.coders.LengthPrefixCoder(
         get_coder_from_spec(coder_spec['component_encodings'][0]))
-  elif coder_spec['@type'] == 'kind:bytes':
-    assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
-    return coders.BytesCoder()
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.

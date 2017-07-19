@@ -50,7 +50,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadReturnType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must return void or ProcessContinuation");
+    thrown.expectMessage("Must return void");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {

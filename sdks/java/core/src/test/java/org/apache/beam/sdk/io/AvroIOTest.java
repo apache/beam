@@ -54,11 +54,10 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -277,42 +276,37 @@ public class AvroIOTest {
   }
 
   private static class WindowedFilenamePolicy extends FilenamePolicy {
-    final ResourceId outputFilePrefix;
+    final String outputFilePrefix;
 
-    WindowedFilenamePolicy(ResourceId outputFilePrefix) {
+    WindowedFilenamePolicy(String outputFilePrefix) {
       this.outputFilePrefix = outputFilePrefix;
     }
 
     @Override
-    public ResourceId windowedFilename(WindowedContext input, OutputFileHints outputFileHints) {
-      String filenamePrefix =
-          outputFilePrefix.isDirectory() ? "" : firstNonNull(outputFilePrefix.getFilename(), "");
-
-      String filename =
-          String.format(
-              "%s-%s-%s-of-%s-pane-%s%s%s",
-              filenamePrefix,
-              input.getWindow(),
-              input.getShardNumber(),
-              input.getNumShards() - 1,
-              input.getPaneInfo().getIndex(),
-              input.getPaneInfo().isLast() ? "-final" : "",
-              outputFileHints.getSuggestedFilenameSuffix());
-      return outputFilePrefix
-          .getCurrentDirectory()
-          .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+    public ResourceId windowedFilename(
+        ResourceId outputDirectory, WindowedContext input, String extension) {
+      String filename = String.format(
+          "%s-%s-%s-of-%s-pane-%s%s%s",
+          outputFilePrefix,
+          input.getWindow(),
+          input.getShardNumber(),
+          input.getNumShards() - 1,
+          input.getPaneInfo().getIndex(),
+          input.getPaneInfo().isLast() ? "-final" : "",
+          extension);
+      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public ResourceId unwindowedFilename(Context input, OutputFileHints outputFileHints) {
+    public ResourceId unwindowedFilename(
+        ResourceId outputDirectory, Context input, String extension) {
       throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(
-          DisplayData.item("fileNamePrefix", outputFilePrefix.toString())
-              .withLabel("File Name Prefix"));
+      builder.add(DisplayData.item("fileNamePrefix", outputFilePrefix)
+          .withLabel("File Name Prefix"));
     }
   }
 
@@ -365,18 +359,15 @@ public class AvroIOTest {
         Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
         .advanceWatermarkToInfinity();
 
-    FilenamePolicy policy =
-        new WindowedFilenamePolicy(FileBasedSink.convertToFileResourceIfPossible(baseFilename));
+    FilenamePolicy policy = new WindowedFilenamePolicy(baseFilename);
     windowedAvroWritePipeline
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
-        .apply(
-            AvroIO.write(GenericClass.class)
-                .to(policy)
-                .withTempDirectory(
-                    StaticValueProvider.of(FileSystems.matchNewResource(baseDir.toString(), true)))
-                .withWindowedWrites()
-                .withNumShards(2));
+        .apply(AvroIO.write(GenericClass.class)
+            .to(baseFilename)
+            .withFilenamePolicy(policy)
+            .withWindowedWrites()
+            .withNumShards(2));
     windowedAvroWritePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order
@@ -503,14 +494,13 @@ public class AvroIOTest {
       expectedFiles.add(
           new File(
               DefaultFilenamePolicy.constructName(
-                      FileBasedSink.convertToFileResourceIfPossible(outputFilePrefix),
-                      shardNameTemplate,
-                      "" /* no suffix */,
-                      i,
-                      numShards,
-                      null,
-                      null)
-                  .toString()));
+                  outputFilePrefix,
+                  shardNameTemplate,
+                  "" /* no suffix */,
+                  i,
+                  numShards,
+                  null,
+                  null)));
     }
 
     List<String> actualElements = new ArrayList<>();
@@ -581,5 +571,16 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
+  }
+
+  @Test
+  public void testWindowedWriteRequiresFilenamePolicy() {
+    PCollection<String> emptyInput = p.apply(Create.empty(StringUtf8Coder.of()));
+    AvroIO.Write write = AvroIO.write(String.class).to("/tmp/some/file").withWindowedWrites();
+
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage(
+        "When using windowed writes, a filename policy must be set via withFilenamePolicy()");
+    emptyInput.apply(write);
   }
 }

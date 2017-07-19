@@ -17,115 +17,85 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsTest;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaceForTest;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.junit.Ignore;
+import org.hamcrest.Matchers;
+import org.junit.Before;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link FlinkSplitStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
- *
- * <p>Just test testBag and testBagIsEmpty.
+ * {@code InMemoryStateInternals}.
  */
 @RunWith(JUnit4.class)
-public class FlinkSplitStateInternalsTest extends StateInternalsTest {
+public class FlinkSplitStateInternalsTest {
+  private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
+  private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
 
-  @Override
-  protected StateInternals createStateInternals() {
+  private static final StateTag<BagState<String>> STRING_BAG_ADDR =
+      StateTags.bag("stringBag", StringUtf8Coder.of());
+
+  FlinkSplitStateInternals<String> underTest;
+
+  @Before
+  public void initStateInternals() {
     MemoryStateBackend backend = new MemoryStateBackend();
     try {
       OperatorStateBackend operatorStateBackend =
           backend.createOperatorStateBackend(new DummyEnvironment("test", 1, 0), "");
-      return new FlinkSplitStateInternals<>(operatorStateBackend);
+      underTest = new FlinkSplitStateInternals<>(operatorStateBackend);
+
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  @Override
-  @Ignore
-  public void testMergeBagIntoSource() {}
+  @Test
+  public void testBag() throws Exception {
+    BagState<String> value = underTest.state(NAMESPACE_1, STRING_BAG_ADDR);
 
-  @Override
-  @Ignore
-  public void testMergeBagIntoNewNamespace() {}
+    assertEquals(value, underTest.state(NAMESPACE_1, STRING_BAG_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, STRING_BAG_ADDR)));
 
-  @Override
-  @Ignore
-  public void testValue() {}
+    assertThat(value.read(), Matchers.emptyIterable());
+    value.add("hello");
+    assertThat(value.read(), Matchers.containsInAnyOrder("hello"));
 
-  @Override
-  @Ignore
-  public void testSet() {}
+    value.add("world");
+    assertThat(value.read(), Matchers.containsInAnyOrder("hello", "world"));
 
-  @Override
-  @Ignore
-  public void testSetIsEmpty() {}
+    value.clear();
+    assertThat(value.read(), Matchers.emptyIterable());
+    assertEquals(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), value);
 
-  @Override
-  @Ignore
-  public void testMergeSetIntoSource() {}
+  }
 
-  @Override
-  @Ignore
-  public void testMergeSetIntoNewNamespace() {}
+  @Test
+  public void testBagIsEmpty() throws Exception {
+    BagState<String> value = underTest.state(NAMESPACE_1, STRING_BAG_ADDR);
 
-  @Override
-  @Ignore
-  public void testMap() {}
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    ReadableState<Boolean> readFuture = value.isEmpty();
+    value.add("hello");
+    assertThat(readFuture.read(), Matchers.is(false));
 
-  @Override
-  @Ignore
-  public void testCombiningValue() {}
-
-  @Override
-  @Ignore
-  public void testCombiningIsEmpty() {}
-
-  @Override
-  @Ignore
-  public void testMergeCombiningValueIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testMergeCombiningValueIntoNewNamespace() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkEarliestState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkLatestState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkEndOfWindowState() {}
-
-  @Override
-  @Ignore
-  public void testWatermarkStateIsEmpty() {}
-
-  @Override
-  @Ignore
-  public void testMergeEarliestWatermarkIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testMergeLatestWatermarkIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testSetReadable() {}
-
-  @Override
-  @Ignore
-  public void testMapReadable() {}
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
+  }
 
 }

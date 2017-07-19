@@ -92,9 +92,9 @@ class BigqueryMatcher(BaseMatcher):
     page_token = None
     results = []
     while True:
-      for row in query.fetch_data(page_token=page_token):
-        results.append(row)
-      if results:
+      rows, _, page_token = query.fetch_data(page_token=page_token)
+      results.extend(rows)
+      if not page_token:
         break
 
     return results

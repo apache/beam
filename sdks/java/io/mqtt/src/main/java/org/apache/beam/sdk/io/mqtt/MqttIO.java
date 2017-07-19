@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental
 public class MqttIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIO.class);

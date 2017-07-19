@@ -23,8 +23,6 @@ import unittest
 
 import dill
 
-from apache_beam.transforms.window import GlobalWindow
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
 import observable
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
@@ -289,12 +287,6 @@ class CodersTest(unittest.TestCase):
     # Test binary representation
     self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
                      coder.encode(window.GlobalWindows.windowed_value(1)))
-
-    # Test decoding large timestamp
-    self.assertEqual(
-        coder.decode('\x7f\xdf;dZ\x1c\xac\x08\x00\x00\x00\x01\x0f\x00'),
-        windowed_value.create(0, MIN_TIMESTAMP.micros, (GlobalWindow(),)))
-
     # Test unnested
     self.check_coder(
         coders.WindowedValueCoder(coders.VarIntCoder()),

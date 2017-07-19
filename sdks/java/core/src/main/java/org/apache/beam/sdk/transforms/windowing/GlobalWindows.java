@@ -79,11 +79,6 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   }
 
   @Override
-  public boolean assignsToOneWindow() {
-    return true;
-  }
-
-  @Override
   public boolean equals(Object other) {
     return other instanceof GlobalWindows;
   }

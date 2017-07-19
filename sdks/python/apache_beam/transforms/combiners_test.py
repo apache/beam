@@ -156,11 +156,14 @@ class CombineTest(unittest.TestCase):
 
   def test_combine_sample_display_data(self):
     def individual_test_per_key_dd(sampleFn, args, kwargs):
-      trs = [sampleFn(*args, **kwargs)]
+      trs = [beam.CombinePerKey(sampleFn(*args, **kwargs)),
+             beam.CombineGlobally(sampleFn(*args, **kwargs))]
       for transform in trs:
         dd = DisplayData.create_from(transform)
         expected_items = [
-            DisplayDataItemMatcher('fn', transform._fn.__name__)]
+            DisplayDataItemMatcher('fn', sampleFn.fn.__name__),
+            DisplayDataItemMatcher('combine_fn',
+                                   transform.fn.__class__)]
         if args:
           expected_items.append(
               DisplayDataItemMatcher('args', str(args)))

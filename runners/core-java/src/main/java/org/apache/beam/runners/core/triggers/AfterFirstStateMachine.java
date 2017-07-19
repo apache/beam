@@ -23,6 +23,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental;
  * sub-triggers have fired.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterFirstStateMachine extends TriggerStateMachine {
+public class AfterFirstStateMachine extends OnceTriggerStateMachine {
 
   AfterFirstStateMachine(List<TriggerStateMachine> subTriggers) {
     super(subTriggers);
@@ -41,12 +42,12 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
    * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static TriggerStateMachine of(
+  public static OnceTriggerStateMachine of(
       TriggerStateMachine... triggers) {
     return new AfterFirstStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
   }
 
-  public static TriggerStateMachine of(
+  public static OnceTriggerStateMachine of(
       Iterable<? extends TriggerStateMachine> triggers) {
     return new AfterFirstStateMachine(ImmutableList.copyOf(triggers));
   }
@@ -78,19 +79,18 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void onFire(TriggerContext context) throws Exception {
-    for (ExecutableTriggerStateMachine subTrigger : context.trigger().subTriggers()) {
-      TriggerContext subContext = context.forTrigger(subTrigger);
-      if (subTrigger.invokeShouldFire(subContext)) {
+  protected void onOnlyFiring(TriggerContext context) throws Exception {
+    for (ExecutableTriggerStateMachine subtrigger : context.trigger().subTriggers()) {
+      TriggerContext subContext = context.forTrigger(subtrigger);
+      if (subtrigger.invokeShouldFire(subContext)) {
         // If the trigger is ready to fire, then do whatever it needs to do.
-        subTrigger.invokeOnFire(subContext);
+        subtrigger.invokeOnFire(subContext);
       } else {
         // If the trigger is not ready to fire, it is nonetheless true that whatever
         // pending pane it was tracking is now gone.
-        subTrigger.invokeClear(subContext);
+        subtrigger.invokeClear(subContext);
       }
     }
-    context.trigger().setFinished(true);
   }
 
   @Override

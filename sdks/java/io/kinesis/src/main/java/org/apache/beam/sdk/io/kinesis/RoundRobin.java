@@ -27,28 +27,27 @@ import java.util.Iterator;
  * Very simple implementation of round robin algorithm.
  */
 class RoundRobin<T> implements Iterable<T> {
+    private final Deque<T> deque;
 
-  private final Deque<T> deque;
+    public RoundRobin(Iterable<T> collection) {
+        this.deque = newArrayDeque(collection);
+        checkArgument(!deque.isEmpty(), "Tried to initialize RoundRobin with empty collection");
+    }
 
-  public RoundRobin(Iterable<T> collection) {
-    this.deque = newArrayDeque(collection);
-    checkArgument(!deque.isEmpty(), "Tried to initialize RoundRobin with empty collection");
-  }
+    public T getCurrent() {
+        return deque.getFirst();
+    }
 
-  public T getCurrent() {
-    return deque.getFirst();
-  }
+    public void moveForward() {
+        deque.addLast(deque.removeFirst());
+    }
 
-  public void moveForward() {
-    deque.addLast(deque.removeFirst());
-  }
+    public int size() {
+        return deque.size();
+    }
 
-  public int size() {
-    return deque.size();
-  }
-
-  @Override
-  public Iterator<T> iterator() {
-    return deque.iterator();
-  }
+    @Override
+    public Iterator<T> iterator() {
+        return deque.iterator();
+    }
 }

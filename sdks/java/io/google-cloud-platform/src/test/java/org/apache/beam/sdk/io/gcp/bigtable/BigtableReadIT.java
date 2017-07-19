@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,10 +41,8 @@ public class BigtableReadIT {
     BigtableTestOptions options = TestPipeline.testingPipelineOptions()
         .as(BigtableTestOptions.class);
 
-    String project = options.as(GcpOptions.class).getProject();
-
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
-        .setProjectId(project)
+        .setProjectId(options.getProjectId())
         .setInstanceId(options.getInstanceId());
 
     final String tableId = "BigtableReadTest";

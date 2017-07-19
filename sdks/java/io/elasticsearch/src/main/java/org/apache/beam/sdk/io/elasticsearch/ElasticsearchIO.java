@@ -113,7 +113,7 @@ import org.elasticsearch.client.RestClientBuilder;
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
  * to specify the size of the write batch in number of documents or in bytes.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental
 public class ElasticsearchIO {
 
   public static Read read() {
@@ -139,7 +139,7 @@ public class ElasticsearchIO {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
-  static JsonNode parseResponse(Response response) throws IOException {
+  private static JsonNode parseResponse(Response response) throws IOException {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
@@ -264,7 +264,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    RestClient createClient() throws MalformedURLException {
+    private RestClient createClient() throws MalformedURLException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
       int i = 0;
       for (String address : getAddresses()) {
@@ -455,7 +455,16 @@ public class ElasticsearchIO {
       while (shards.hasNext()) {
         Map.Entry<String, JsonNode> shardJson = shards.next();
         String shardId = shardJson.getKey();
-        sources.add(new BoundedElasticsearchSource(spec, shardId));
+        JsonNode value = (JsonNode) shardJson.getValue();
+        boolean isPrimaryShard =
+            value
+                .path(0)
+                .path("routing")
+                .path("primary")
+                .asBoolean();
+        if (isPrimaryShard) {
+          sources.add(new BoundedElasticsearchSource(spec, shardId));
+        }
       }
       checkArgument(!sources.isEmpty(), "No primary shard found");
       return sources;

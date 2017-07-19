@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
@@ -24,11 +24,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 
-/** A {@link Coder} for {@link ShardedKey}, using a wrapped key {@link Coder}. */
+
+/**
+ * A {@link Coder} for {@link ShardedKey}, using a wrapped key {@link Coder}.
+ */
 @VisibleForTesting
-public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
+class ShardedKeyCoder<KeyT>
+    extends StructuredCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }
@@ -56,7 +62,9 @@ public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
   @Override
   public ShardedKey<KeyT> decode(InputStream inStream)
       throws IOException {
-    return ShardedKey.of(keyCoder.decode(inStream), shardNumberCoder.decode(inStream));
+    return new ShardedKey<>(
+        keyCoder.decode(inStream),
+        shardNumberCoder.decode(inStream));
   }
 
   @Override

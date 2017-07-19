@@ -24,10 +24,8 @@ from abc import ABCMeta
 from abc import abstractmethod
 
 from apache_beam import coders
-from apache_beam import core
 from apache_beam import pvalue
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -100,9 +98,6 @@ class TestStream(PTransform):
     self.coder = coder
     self.current_watermark = timestamp.MIN_TIMESTAMP
     self.events = []
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)

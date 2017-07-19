@@ -17,22 +17,18 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
 import java.util.concurrent.Executors;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -46,27 +42,19 @@ import org.junit.Test;
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   private static class SomeFn extends DoFn<Integer, String> {
-    private final int numOutputsPerProcessCall;
     private final Duration sleepBeforeEachOutput;
 
-    private SomeFn(int numOutputsPerProcessCall, Duration sleepBeforeEachOutput) {
-      this.numOutputsPerProcessCall = numOutputsPerProcessCall;
+    private SomeFn(Duration sleepBeforeEachOutput) {
       this.sleepBeforeEachOutput = sleepBeforeEachOutput;
     }
 
     @ProcessElement
-    public ProcessContinuation process(ProcessContext context, OffsetRangeTracker tracker)
+    public void process(ProcessContext context, OffsetRangeTracker tracker)
         throws Exception {
-      for (long i = tracker.currentRestriction().getFrom(), numIterations = 1;
-          tracker.tryClaim(i);
-          ++i, ++numIterations) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         Thread.sleep(sleepBeforeEachOutput.getMillis());
         context.output("" + i);
-        if (numIterations == numOutputsPerProcessCall) {
-          return resume();
-        }
       }
-      return stop();
     }
 
     @GetInitialRestriction
@@ -76,8 +64,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   }
 
   private SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result
-      runTest(int totalNumOutputs, int numOutputsPerProcessCall, Duration sleepPerElement) {
-    SomeFn fn = new SomeFn(numOutputsPerProcessCall, sleepPerElement);
+      runTest(int count, Duration sleepPerElement) {
+    SomeFn fn = new SomeFn(sleepPerElement);
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
@@ -105,15 +93,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
 
     return invoker.invokeProcessElement(
         DoFnInvokers.invokerFor(fn),
-        WindowedValue.of(totalNumOutputs, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-        new OffsetRangeTracker(new OffsetRange(0, totalNumOutputs)));
+        WindowedValue.of(count, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+        new OffsetRangeTracker(new OffsetRange(0, count)));
   }
 
   @Test
   public void testInvokeProcessElementOutputBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10000, Integer.MAX_VALUE, Duration.ZERO);
-    assertFalse(res.getContinuation().shouldResume());
+        runTest(10000, Duration.ZERO);
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process the first 100 elements.
     assertEquals(1000, residualRange.getFrom());
@@ -123,8 +110,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Test
   public void testInvokeProcessElementTimeBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10000, Integer.MAX_VALUE, Duration.millis(100));
-    assertFalse(res.getContinuation().shouldResume());
+        runTest(10000, Duration.millis(100));
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process ideally around 30 elements - but due to timing flakiness, we can't enforce
     // that precisely. Just test that it's not egregiously off.
@@ -134,18 +120,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   }
 
   @Test
-  public void testInvokeProcessElementVoluntaryReturnStop() throws Exception {
+  public void testInvokeProcessElementVoluntaryReturn() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(5, Integer.MAX_VALUE, Duration.millis(100));
-    assertFalse(res.getContinuation().shouldResume());
+        runTest(5, Duration.millis(100));
     assertNull(res.getResidualRestriction());
-  }
-
-  @Test
-  public void testInvokeProcessElementVoluntaryReturnResume() throws Exception {
-    SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
-        runTest(10, 5, Duration.millis(100));
-    assertTrue(res.getContinuation().shouldResume());
-    assertEquals(new OffsetRange(5, 10), res.getResidualRestriction());
   }
 }

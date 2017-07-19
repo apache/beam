@@ -19,6 +19,8 @@ package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -85,6 +87,11 @@ public abstract class PValueBase implements PValue {
   private String name;
 
   /**
+   * A local {@link TupleTag} used in the expansion of this {@link PValueBase}.
+   */
+  private TupleTag<?> tag = new TupleTag<>();
+
+  /**
    * Whether this {@link PValueBase} has been finalized, and its core
    * properties, e.g., name, can no longer be changed.
    */
@@ -98,6 +105,11 @@ public abstract class PValueBase implements PValue {
    */
   boolean isFinishedSpecifying() {
     return finishedSpecifying;
+  }
+
+  @Override
+  public final Map<TupleTag<?>, PValue> expand() {
+    return Collections.<TupleTag<?>, PValue>singletonMap(tag, this);
   }
 
   @Override
