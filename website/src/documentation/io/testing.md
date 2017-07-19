@@ -111,6 +111,7 @@ If your I/O transform allows batching of reads/writes, you must force the batchi
 
 ## I/O Transform Integration Tests {#i-o-transform-integration-tests}
 
+> We do not currently have examples of Python I/O integration tests or integration tests for unbounded or eventually consistent data stores. We would welcome contributions in these areas - please contact the Beam dev@ mailing list for more information.
 
 ### Goals  {#it-goals}
 
@@ -126,7 +127,7 @@ In order to test I/O transforms in real world conditions, you must connect to a 
 
 The Beam community hosts the data stores used for integration tests in Kubernetes. In order for an integration test to be run in Beam's continuous integration environment, it must have Kubernetes scripts that set up an instance of the data store.
 
-However, when working locally, there is no requirement to use Kubernetes. All of the test infrastructure allows passing in connection info, so developers can use their preferred hosting infrastructure for local development.
+However, when working locally, there is no requirement to use Kubernetes. All of the test infrastructure allows you to pass in connection info, so developers can use their preferred hosting infrastructure for local development.
 
 
 ### Running integration tests {#running-integration-tests}
@@ -136,18 +137,18 @@ The high level steps for running an integration test are:
 1.  Run the test, passing it connection info from the just created data store
 1.  Clean up the data store
 
-Since setting up data stores and running the tests involves a number of steps, and we wish to time these tests when running performance benchmarks, we use PerfKit Benchmarker (PKB) to manage the process end to end. With a single command, you can go from an empty Kubernetes cluster to a running integration test.
+Since setting up data stores and running the tests involves a number of steps, and we wish to time these tests when running performance benchmarks, we use PerfKit Benchmarker to manage the process end to end. With a single command, you can go from an empty Kubernetes cluster to a running integration test.
 
-However, **PerfKit Benchmarker is not required for running integration tests**. Therefore, we have listed the steps for both using PerfKit, and manually running the tests below.
+However, **PerfKit Benchmarker is not required for running integration tests**. Therefore, we have listed the steps for both using PerfKit Benchmarker, and manually running the tests below.
 
 
 #### Using PerfKit Benchmarker {#using-perfkit-benchmarker}
 
 Prerequisites:
-1.  [Install PerfKit](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker)
+1.  [Install PerfKit Benchmarker](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker)
 1.  Have a running Kubernetes cluster you can connect to locally using kubectl
 
-You won't need to invoke PerfKit directly. Run mvn verify in the directory of the I/O module you'd like to test, with the parameter io-it-suite.
+You won't need to invoke PerfKit Benchmarker directly. Run mvn verify in the directory of the I/O module you'd like to test, with the parameter io-it-suite.
 
 Example run with the direct runner:
 ```
@@ -179,13 +180,13 @@ Parameter descriptions:
     <tr>
      <td>-Dio-it-suite
      </td>
-     <td>Invokes the call to PerfKit.
+     <td>Invokes the call to PerfKit Benchmarker.
      </td>
     </tr>
     <tr>
      <td>-Dio-it-suite-local
      </td>
-     <td>Modifies the call to PerfKit so that it exposes the postgres service via LoadBalancer, making it available to users not on the immediate network of the kubernetes cluster. This is useful if you are running on a remote kubernetes cluster.
+     <td>Modifies the call to PerfKit Benchmarker so that it exposes the postgres service via LoadBalancer, making it available to users not on the immediate network of the kubernetes cluster. This is useful if you are running on a remote kubernetes cluster.
      </td>
     </tr>
     <tr>
@@ -243,7 +244,7 @@ If you're using Kubernetes, make sure you can connect to your cluster locally us
 There are three components necessary to implement an integration test:
 *   **Test code**: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.
 *   **Kubernetes scripts**: a Kubernetes script that sets up the data store that will be used by the test code.
-*   **Integrate with PerfKit Benchmarker using io-it-suite**: this allows users to easily invoke perfkit, creating the Kubernetes resources and running the test code.
+*   **Integrate with PerfKit Benchmarker using io-it-suite**: this allows users to easily invoke PerfKit Benchmarker, creating the Kubernetes resources and running the test code.
 
 These three pieces are discussed in detail below.
 
@@ -265,8 +266,6 @@ These are the conventions used by integration testing code:
     *   Use unique table names per run (timestamps are an easy way to do this) and per-method where appropriate.
 
 An end to end example of these principles can be found in [JdbcIOIT](https://github.com/ssisk/beam/blob/jdbc-it-perf/sdks/java/io/jdbc/src/test/java/org/apache/beam/sdk/io/jdbc/JdbcIOIT.java).
-
-If you'd like to implement Python I/O integration tests or integration tests for unbounded or eventually consistent data stores, please contact the Beam dev@ mailing list for more information.
 
 
 #### Kubernetes scripts {#kubernetes-scripts}
@@ -296,9 +295,9 @@ Guidelines for creating a Beam data store Kubernetes script:
 
 #### Integrate with PerfKit Benchmarker {#integrate-with-perfkit-benchmarker}
 
-To allow developers to easily invoke your I/O integration test, perform the following steps:
-1.  Create a PerfKit benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry. See [Defining the benchmark configuration file](#defining-the-benchmark-configuration-file) for information about what to include.
-1.  Modify the [Per-I/O mvn pom configuration](#per-i-o-mvn-pom-configuration).
+To allow developers to easily invoke your I/O integration test, you must perform these two steps. The follow sections describe each step in more detail.
+1.  Create a PerfKit Benchmarker benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry.
+1.  Modify the per-I/O Maven pom configuration so that PerfKit Benchmarker can be invoked from Maven.
 
 The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.
 
@@ -397,7 +396,7 @@ and may contain the following elements:
     <tr>
      <td>dynamic_pipeline_options
      </td>
-     <td>The set of mvn pipeline options that PerfKit will determine at runtime.
+     <td>The set of mvn pipeline options that PerfKit Benchmarker will determine at runtime.
      </td>
     </tr>
     <tr>
@@ -425,15 +424,15 @@ and may contain the following elements:
 
 #### Per-I/O mvn pom configuration {#per-i-o-mvn-pom-configuration}
 
-Each I/O is responsible for adding a section to its pom with a profile that invokes PerfKit with the proper parameters during the verify phase. Below are the set of PerfKit parameters and how to configure them.
+Each I/O is responsible for adding a section to its pom with a profile that invokes PerfKit Benchmarker with the proper parameters during the verify phase. Below are the set of PerfKit Benchmarker parameters and how to configure them.
 
-The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/pom.xml) has an example of how to put these options together into a profile and invoke Python+PerfKit with them.
+The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/pom.xml) has an example of how to put these options together into a profile and invoke Python+PerfKit Benchmarker with them.
 
 
 <table class="table">
   <thead>
     <tr>
-     <td><strong>PerfKit Parameter</strong>
+     <td><strong>PerfKit Benchmarker Parameter</strong>
      </td>
      <td><strong>Description</strong>
      </td>
@@ -445,7 +444,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>benchmarks
      </td>
-     <td>Defines the PerfKit benchmark to run. This is same for all I/O integration tests.
+     <td>Defines the PerfKit Benchmarker benchmark to run. This is same for all I/O integration tests.
      </td>
      <td>beam_integration_benchmark
      </td>
@@ -453,7 +452,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>beam_location
      </td>
-     <td>The location where PerfKit can find the Beam repository.
+     <td>The location where PerfKit Benchmarker can find the Beam repository.
      </td>
      <td>${beamRootProjectDir} - this is a variable you'll need to define for each maven pom. See example pom for an example.
      </td>
@@ -469,7 +468,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>beam_sdk
      </td>
-     <td>Whether PerfKit will run the Beam SDK for Java or Python.
+     <td>Whether PerfKit Benchmarker will run the Beam SDK for Java or Python.
      </td>
      <td>java
      </td>
@@ -493,7 +492,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>beam_it_module
      </td>
-     <td>The path to the pom that contains the test (needed for invoking the test with PerfKit).
+     <td>The path to the pom that contains the test (needed for invoking the test with PerfKit Benchmarker).
      </td>
      <td>sdks/java/io/jdbc
      </td>
@@ -517,7 +516,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>kubeconfig
      </td>
-     <td>The standard PerfKit parameter `kubeconfig`, which specifies where the Kubernetes config file lives.
+     <td>The standard PerfKit Benchmarker parameter `kubeconfig`, which specifies where the Kubernetes config file lives.
      </td>
      <td>Always use ${kubeconfig}
      </td>
@@ -525,7 +524,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
     <tr>
      <td>kubectl
      </td>
-     <td>The standard PerfKit parameter `kubectl`, which specifies where the kubectl binary lives.
+     <td>The standard PerfKit Benchmarker parameter `kubectl`, which specifies where the kubectl binary lives.
      </td>
      <td>Always use ${kubectl}
      </td>
@@ -542,7 +541,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
 </table>
 
 
-There is also a set of Maven properties which are useful when invoking PerfKit. These properties are configured in the I/O parent pom, and some are only available when the io-it-suite profile is active in Maven.
+There is also a set of Maven properties which are useful when invoking PerfKit Benchmarker. These properties are configured in the I/O parent pom, and some are only available when the io-it-suite profile is active in Maven.
 
 
 #### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
@@ -561,7 +560,7 @@ You can do this by:
 1.  Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.
 1.  Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)
 
-An example of this is `HadoopInputFormatIO`'s tests.
+An example of this is [HadoopInputFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop/input-format)'s tests.
 
 <!--
 # Next steps
