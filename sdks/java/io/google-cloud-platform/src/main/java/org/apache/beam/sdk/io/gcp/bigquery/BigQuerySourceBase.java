@@ -29,9 +29,13 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.avro.generic.GenericRecord;
@@ -45,6 +49,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 /**
  * An abstract {@link BoundedSource} to read a table from BigQuery.
@@ -168,10 +174,12 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
     SerializableFunction<GenericRecord, TableRow> function =
         new SerializableFunction<GenericRecord, TableRow>() {
+          private Supplier<TableSchema> schema = Suppliers.memoize(
+              Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(jsonSchema)));
+
           @Override
           public TableRow apply(GenericRecord input) {
-            return BigQueryAvroUtils.convertGenericRecordToTableRow(
-                input, BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class));
+            return BigQueryAvroUtils.convertGenericRecordToTableRow(input, schema.get());
           }};
 
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
@@ -180,6 +188,14 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           AvroSource.from(file.toString()), function, getDefaultOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
+  }
+
+  private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
+    @Nullable
+    @Override
+    public TableSchema apply(@Nullable String input) {
+      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
+    }
   }
 
   protected static class BigQueryReader extends BoundedReader<TableRow> {
