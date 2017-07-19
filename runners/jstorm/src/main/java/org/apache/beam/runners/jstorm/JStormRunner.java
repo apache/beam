@@ -31,6 +31,7 @@ import com.alibaba.jstorm.cluster.StormConfig;
 import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.jstorm.serialization.CollectionsSerializer;
 import org.apache.beam.runners.jstorm.serialization.ImmutableListSerializer;
 import org.apache.beam.runners.jstorm.serialization.ImmutableMapSerializer;
 import org.apache.beam.runners.jstorm.serialization.ImmutableSetSerializer;
@@ -105,6 +106,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     SdkRepackImmuSetSerializer.registerSerializers(config);
     ImmutableMapSerializer.registerSerializers(config);
     SdkRepackImmutableMapSerializer.registerSerializers(config);
+    CollectionsSerializer.registerSerializers(config);
 
     config.registerDefaultSerailizer(KvStoreIterable.class, KvStoreIterableSerializer.class);
     return config;
