@@ -32,7 +32,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlAbsExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlAbsExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, operands.get(0).getOutputType());
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
