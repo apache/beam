@@ -177,6 +177,17 @@ public class SpannerIO {
   }
 
   /**
+   * A {@link PTransform} that works like {@link #read}, but executes read operations coming from
+   * a {@link PCollection<ReadOperation>}.
+   */
+   @Experimental(Experimental.Kind.SOURCE_SINK)
+  public static ReadAll readAll() {
+    return new AutoValue_SpannerIO_ReadAll.Builder()
+        .setSpannerConfig(SpannerConfig.create())
+        .build();
+  }
+
+  /**
    * Returns a transform that creates a batch transaction. By default,
    * {@link TimestampBound#strong()} transaction is created, to override this use
    * {@link CreateTransaction#withTimestampBound(TimestampBound)}.
@@ -187,19 +198,6 @@ public class SpannerIO {
         .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
         .build();
-  }
-
-  /**
-   * Returns a {@link DoFn} that can be applied to a {@link PCollection<ReadOperation>}.
-   * @param config a spanner configuration.
-   * @param transaction a PCollectionView with a transaction, usually created with
-   * {@link Read#createTransaction()}. If null, the doesn't provide a transactional guarantees.
-   * @return a {@link DoFn} that concurrently reads from multiple Cloud Spanner sources.
-   */
-  @Experimental
-  public static DoFn<ReadOperation, Struct> readFn(SpannerConfig config,
-      @Nullable PCollectionView<Transaction> transaction) {
-    return new NaiveSpannerReadFn(config, transaction);
   }
 
   /**
@@ -215,7 +213,86 @@ public class SpannerIO {
         .build();
   }
 
-  /**
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @AutoValue
+  public abstract static class ReadAll extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
+
+    abstract SpannerConfig getSpannerConfig();
+
+    @Nullable
+    abstract PCollectionView<Transaction> getTransaction();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
+
+      abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract ReadAll build();
+    }
+
+    /** Specifies the Cloud Spanner configuration. */
+    public ReadAll withSpannerConfig(SpannerConfig spannerConfig) {
+      return toBuilder().setSpannerConfig(spannerConfig).build();
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadAll withProjectId(String projectId) {
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
+    }
+
+    /** Specifies the Cloud Spanner project. */
+    public ReadAll withProjectId(ValueProvider<String> projectId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withProjectId(projectId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadAll withInstanceId(String instanceId) {
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner instance. */
+    public ReadAll withInstanceId(ValueProvider<String> instanceId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withInstanceId(instanceId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadAll withDatabaseId(String databaseId) {
+      return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner database. */
+    public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    @VisibleForTesting
+    ReadAll withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withServiceFactory(serviceFactory));
+    }
+
+    public ReadAll withTransaction(PCollectionView<Transaction> transaction) {
+      return toBuilder().setTransaction(transaction).build();
+    }
+
+    @Override
+    public PCollection<Struct> expand(PCollection<ReadOperation> input) {
+      List<PCollectionView<Transaction>> sideInputs = Collections.emptyList();
+      if (getTransaction() != null) {
+        sideInputs = Collections.singletonList(getTransaction());
+      }
+      NaiveSpannerReadFn fn = new NaiveSpannerReadFn(getSpannerConfig(), getTransaction());
+      return input.apply("Execute query", ParDo.of(fn).withSideInputs(sideInputs));
+    }
+  }
+
+    /**
    * A {@link PTransform} that reads data from Google Cloud Spanner.
    *
    * @see SpannerIO
@@ -366,21 +443,17 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PBegin input) {
-      List<PCollectionView<Transaction>> sideInputs = Collections.emptyList();
       PCollectionView<Transaction> transaction = getTransaction();
       if (transaction == null && getTimestampBound() != null) {
         transaction = input.apply(createTransaction()
             .withTimestampBound(getTimestampBound())
             .withSpannerConfig(getSpannerConfig()));
       }
-      if (transaction != null) {
-        sideInputs = Collections.singletonList(transaction);
-      }
+      ReadAll readAll = readAll().withSpannerConfig(getSpannerConfig())
+          .withTransaction(transaction);
       return input
           .apply(Create.of(getReadOperation()))
-          .apply(
-              "Execute query", ParDo.of(readFn(getSpannerConfig(), transaction))
-                  .withSideInputs(sideInputs));
+          .apply("Execute query", readAll);
     }
   }
 
