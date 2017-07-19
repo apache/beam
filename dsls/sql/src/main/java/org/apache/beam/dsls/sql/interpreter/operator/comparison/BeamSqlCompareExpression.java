@@ -26,9 +26,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@link BeamSqlCompareExpression} is used for compare operations.
  *
- * <p>See {@link BeamSqlEqualExpression}, {@link BeamSqlLessThanExpression},
- * {@link BeamSqlLessThanEqualExpression}, {@link BeamSqlGreaterThanExpression},
- * {@link BeamSqlGreaterThanEqualExpression} and {@link BeamSqlNotEqualExpression} for more details.
+ * <p>See {@link BeamSqlEqualsExpression}, {@link BeamSqlLessThanExpression},
+ * {@link BeamSqlLessThanOrEqualsExpression}, {@link BeamSqlGreaterThanExpression},
+ * {@link BeamSqlGreaterThanOrEqualsExpression} and {@link BeamSqlNotEqualsExpression}
+ * for more details.
  *
  */
 public abstract class BeamSqlCompareExpression extends BeamSqlExpression {

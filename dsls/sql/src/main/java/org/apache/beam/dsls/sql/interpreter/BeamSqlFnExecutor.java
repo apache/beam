@@ -36,14 +36,14 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanOrEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNotNullExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlIsNullExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -208,22 +208,22 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlNotExpression(subExps);
           break;
         case "=":
-          ret = new BeamSqlEqualExpression(subExps);
+          ret = new BeamSqlEqualsExpression(subExps);
           break;
         case "<>":
-          ret = new BeamSqlNotEqualExpression(subExps);
+          ret = new BeamSqlNotEqualsExpression(subExps);
           break;
         case ">":
           ret = new BeamSqlGreaterThanExpression(subExps);
           break;
         case ">=":
-          ret = new BeamSqlGreaterThanEqualExpression(subExps);
+          ret = new BeamSqlGreaterThanOrEqualsExpression(subExps);
           break;
         case "<":
           ret = new BeamSqlLessThanExpression(subExps);
           break;
         case "<=":
-          ret = new BeamSqlLessThanEqualExpression(subExps);
+          ret = new BeamSqlLessThanOrEqualsExpression(subExps);
           break;
 
         // arithmetic operators

@@ -20,12 +20,12 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 import java.util.Arrays;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlCompareExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlGreaterThanOrEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,12 +37,12 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testEqual() {
-    BeamSqlEqualExpression exp1 = new BeamSqlEqualExpression(
+    BeamSqlEqualsExpression exp1 = new BeamSqlEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 100L)));
     Assert.assertEquals(false, exp1.evaluate(record).getValue());
 
-    BeamSqlEqualExpression exp2 = new BeamSqlEqualExpression(
+    BeamSqlEqualsExpression exp2 = new BeamSqlEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
     Assert.assertEquals(true, exp2.evaluate(record).getValue());
@@ -63,12 +63,12 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testLargerThanEqual(){
-    BeamSqlGreaterThanEqualExpression exp1 = new BeamSqlGreaterThanEqualExpression(
+    BeamSqlGreaterThanOrEqualsExpression exp1 = new BeamSqlGreaterThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
     Assert.assertEquals(true, exp1.evaluate(record).getValue());
 
-    BeamSqlGreaterThanEqualExpression exp2 = new BeamSqlGreaterThanEqualExpression(
+    BeamSqlGreaterThanOrEqualsExpression exp2 = new BeamSqlGreaterThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234568L)));
     Assert.assertEquals(false, exp2.evaluate(record).getValue());
@@ -89,12 +89,12 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testLessThanEqual(){
-    BeamSqlLessThanEqualExpression exp1 = new BeamSqlLessThanEqualExpression(
+    BeamSqlLessThanOrEqualsExpression exp1 = new BeamSqlLessThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
             BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.9)));
     Assert.assertEquals(true, exp1.evaluate(record).getValue());
 
-    BeamSqlLessThanEqualExpression exp2 = new BeamSqlLessThanEqualExpression(
+    BeamSqlLessThanOrEqualsExpression exp2 = new BeamSqlLessThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
             BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.0)));
     Assert.assertEquals(false, exp2.evaluate(record).getValue());
@@ -102,12 +102,12 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
 
   @Test
   public void testNotEqual(){
-    BeamSqlNotEqualExpression exp1 = new BeamSqlNotEqualExpression(
+    BeamSqlNotEqualsExpression exp1 = new BeamSqlNotEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
     Assert.assertEquals(false, exp1.evaluate(record).getValue());
 
-    BeamSqlNotEqualExpression exp2 = new BeamSqlNotEqualExpression(
+    BeamSqlNotEqualsExpression exp2 = new BeamSqlNotEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 0L)));
     Assert.assertEquals(true, exp2.evaluate(record).getValue());

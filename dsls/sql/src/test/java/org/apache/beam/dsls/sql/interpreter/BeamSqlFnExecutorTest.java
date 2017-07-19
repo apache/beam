@@ -33,8 +33,8 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanEqualExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlEqualsExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
@@ -99,8 +99,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     BeamSqlExpression l1Left = (BeamSqlExpression) l1Exp.getOperands().get(0);
     BeamSqlExpression l1Right = (BeamSqlExpression) l1Exp.getOperands().get(1);
 
-    assertTrue(l1Left instanceof BeamSqlLessThanEqualExpression);
-    assertTrue(l1Right instanceof BeamSqlEqualExpression);
+    assertTrue(l1Left instanceof BeamSqlLessThanOrEqualsExpression);
+    assertTrue(l1Right instanceof BeamSqlEqualsExpression);
 
     Assert.assertEquals(2, l1Left.getOperands().size());
     BeamSqlExpression l1LeftLeft = (BeamSqlExpression) l1Left.getOperands().get(0);
