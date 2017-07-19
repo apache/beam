@@ -29,6 +29,10 @@ package org.apache.beam.sdk.testing;
  *       StreamingPipeline.main(...);
  *     }
  * </code></pre>
+ *
+ * @deprecated tests which use unbounded PCollections should be in the category
+ * {@link UsesUnboundedPCollections}. Beyond that, it is up to the runner and test configuration
+ * to decide whether to run in streaming mode.
  */
 @Deprecated
 public interface StreamingIT {

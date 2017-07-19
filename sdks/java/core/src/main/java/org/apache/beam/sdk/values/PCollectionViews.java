@@ -186,7 +186,6 @@ public class PCollectionViews {
     /**
      * Returns if a default value was specified.
      */
-    @Deprecated
     @Internal
     public boolean hasDefault() {
       return hasDefault;
