@@ -100,7 +100,7 @@ public class TestPipelineTest implements Serializable {
 
     @Test
     public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
-      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      PipelineOptions options = pipeline.getOptions();
       assertThat(
           options.as(ApplicationNameOptions.class).getAppName(),
           startsWith(
@@ -112,23 +112,7 @@ public class TestPipelineTest implements Serializable {
     public void testToString() {
       assertEquals(
           "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
-          TestPipeline.create().toString());
-    }
-
-    @Test
-    public void testToStringNestedMethod() {
-      TestPipeline p = nestedMethod();
-
-      assertEquals(
-          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
-          p.toString());
-      assertEquals(
-          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
-          p.getOptions().as(ApplicationNameOptions.class).getAppName());
-    }
-
-    private TestPipeline nestedMethod() {
-      return TestPipeline.create();
+          pipeline.toString());
     }
 
     @Test
@@ -141,24 +125,6 @@ public class TestPipelineTest implements Serializable {
       assertThat(
           lst,
           containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineCreationTest"));
-    }
-
-    @Test
-    public void testToStringNestedClassMethod() {
-      TestPipeline p = new NestedTester().p();
-
-      assertEquals(
-          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
-          p.toString());
-      assertEquals(
-          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
-          p.getOptions().as(ApplicationNameOptions.class).getAppName());
-    }
-
-    private static class NestedTester {
-      public TestPipeline p() {
-        return TestPipeline.create();
-      }
     }
 
     @Test
