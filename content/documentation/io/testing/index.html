@@ -139,17 +139,122 @@
     <div class="body__contained">
       <p><a href="/documentation/io/io-toc/">Pipeline I/O Table of Contents</a></p>
 
-<h1 id="testing-io-transforms">Testing I/O Transforms</h1>
+<h2 id="testing-io-transforms-in-apache-beam">Testing I/O Transforms in Apache Beam</h2>
+
+<p><em>Examples and design patterns for testing Apache Beam I/O transforms</em></p>
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
 
 <blockquote>
   <p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
 </blockquote>
 
-<h1 id="next-steps">Next steps</h1>
+<h2 id="introduction">Introduction</h2>
 
-<p>If you have a well tested I/O transform, why not contribute it to Apache Beam? Read all about it:</p>
+<p>This document explains the set of tests that the Beam community recommends based on our past experience writing I/O transforms. If you wish to contribute your I/O transform to the Beam community, we’ll ask you to implement these tests.</p>
 
-<p><a href="/documentation/io/contributing/">Contributing I/O Transforms</a></p>
+<p>While it is standard to write unit tests and integration tests, there are many possible definitions. Our definitions are:</p>
+
+<ul>
+  <li><strong>Unit Tests:</strong>
+    <ul>
+      <li>Goal: verifying correctness of the transform only - core behavior, corner cases, etc.</li>
+      <li>Data store used: an in-memory version of the data store (if available), otherwise you’ll need to write a <a href="#use-fakes">fake</a></li>
+      <li>Data set size: tiny (10s to 100s of rows)</li>
+    </ul>
+  </li>
+  <li><strong>Integration Tests:</strong>
+    <ul>
+      <li>Goal: catch problems that occur when interacting with real versions of the runners/data store</li>
+      <li>Data store used: an actual instance, pre-configured before the test</li>
+      <li>Data set size: small to medium (1000 rows to 10s of GBs)</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="a-note-on-performance-benchmarking">A note on performance benchmarking</h2>
+
+<p>We do not advocate writing a separate test specifically for performance benchmarking. Instead, we recommend setting up integration tests that can accept the necessary parameters to cover many different testing scenarios.</p>
+
+<p>For example, if integration tests are written according to the guidelines below, the integration tests can be run on different runners (either local or in a cluster configuration) and against a data store that is a small instance with a small data set, or a large production-ready cluster with larger data set. This can provide coverage for a variety of scenarios - one of them is performance benchmarking.</p>
+
+<h2 id="test-balance-unit-vs-integration">Test Balance - Unit vs Integration</h2>
+
+<p>It’s easy to cover a large amount of code with an integration test, but it is then hard to find a cause for test failures and the test is flakier.</p>
+
+<p>However, there is a valuable set of bugs found by tests that exercise multiple workers reading/writing to data store instances that have multiple nodes (eg, read replicas, etc.).  Those scenarios are hard to find with unit tests and we find they commonly cause bugs in I/O transforms.</p>
+
+<p>Our test strategy is a balance of those 2 contradictory needs. We recommend doing as much testing as possible in unit tests, and writing a single, small integration test that can be run in various configurations.</p>
+
+<h2 id="examples">Examples</h2>
+
+<p>Java:</p>
+<ul>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java">BigtableIO</a>’s testing implementation is considered the best example of current best practices for unit testing <code class="highlighter-rouge">Source</code>s</li>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc">JdbcIO</a> has the current best practice examples for writing integration tests.</li>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/elasticsearch">ElasticsearchIO</a> demonstrates testing for bounded read/write</li>
+  <li><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MqttIO</a> and <a href="https://github.com/apache/beam/tree/master/sdks/java/io/amqp">AmpqpIO</a> demonstrate unbounded read/write</li>
+</ul>
+
+<p>Python:</p>
+<ul>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio_test.py">avroio_test</a> for examples of testing liquid sharding, <code class="highlighter-rouge">source_test_utils</code>, <code class="highlighter-rouge">assert_that</code> and <code class="highlighter-rouge">equal_to</code></li>
+</ul>
+
+<h2 id="unit-tests">Unit Tests</h2>
+
+<h3 id="goals">Goals</h3>
+
+<ul>
+  <li>Validate the correctness of the code in your I/O transform.</li>
+  <li>Validate that the I/O transform works correctly when used in concert with reference implementations of the data store it connects with (where “reference implementation” means a fake or in-memory version).</li>
+  <li>Be able to run quickly and need only one machine, with a reasonably small memory/disk footprint and no non-local network access (preferably none at all). Aim for tests than run within several seconds - anything above 20 seconds should be discussed with the beam dev mailing list.</li>
+  <li>Validate that the I/O transform can handle network failures.</li>
+</ul>
+
+<h3 id="non-goals">Non-goals</h3>
+
+<ul>
+  <li>Test problems in the external data store - this can lead to extremely complicated tests.</li>
+</ul>
+
+<h3 id="implementing-unit-tests">Implementing unit tests</h3>
+
+<p>A general guide to writing Unit Tests for all transforms can be found in the <a href="https://beam.apache.org/contribute/ptransform-style-guide/#testing">PTransform Style Guide</a>. We have expanded on a few important points below.</p>
+
+<p>If you are using the <code class="highlighter-rouge">Source</code> API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java"><code class="highlighter-rouge">SourceTestUtils</code></span><span class="language-py"><code class="highlighter-rouge">source_test_utils</code></span> - it is a key piece of testing <code class="highlighter-rouge">Source</code> implementations.</p>
+
+<p>If you are not using the <code class="highlighter-rouge">Source</code> API, you can use <code class="highlighter-rouge">TestPipeline</code> with <span class="language-java"><code class="highlighter-rouge">PAssert</code></span><span class="language-py"><code class="highlighter-rouge">assert_that</code></span> to help with your testing.</p>
+
+<p>If you are implementing write, you can use <code class="highlighter-rouge">TestPipeline</code> to write test data and then read and verify it using a non-Beam client.</p>
+
+<h3 id="use-fakes">Use fakes</h3>
+
+<p>Instead of using mocks in your unit tests (pre-programming exact responses to each call for each test), use fakes. The preferred way to use fakes for I/O transform testing is to use a pre-existing in-memory/embeddable version of the service you’re testing, but if one does not exist consider implementing your own. Fakes have proven to be the right mix of “you can get the conditions for testing you need” and “you don’t have to write a million exacting mock function calls”.</p>
+
+<h3 id="network-failure">Network failure</h3>
+
+<p>To help with testing and separation of concerns, <strong>code that interacts across a network should be handled in a separate class from your I/O transform</strong>. The suggested design pattern is that your I/O transform throws exceptions once it determines that a read or write is no longer possible.</p>
+
+<p>This allows the I/O transform’s unit tests to act as if they have a perfect network connection, and they do not need to retry/otherwise handle network connection problems.</p>
+
+<h2 id="batching">Batching</h2>
+
+<p>If your I/O transform allows batching of reads/writes, you must force the batching to occur in your test. Having configurable batch size options on your I/O transform allows that to happen easily. These must be marked as test only.</p>
+
+<!--
+# Next steps
+
+If you have a well tested I/O transform, why not contribute it to Apache Beam? Read all about it:
+
+[Contributing I/O Transforms](/documentation/io/contributing/)
+-->
 
 
     </div>
