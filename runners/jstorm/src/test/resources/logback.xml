@@ -14,7 +14,7 @@
     <logger name="com.alibaba.jstorm.metric" level="ERROR" />
     <logger name="shade.storm.org.apache.zookeeper" level="ERROR"/>
     <logger name="shade.storm.org.apache.curator" level="ERROR"/>
-    <logger name="com.alibaba.jstorm.beam" level="INFO"/>
+    <logger name="org.apache.beam.runners.jstorm" level="INFO"/>
 
     <!-- sync client logback with jstorm.logback.xml  -->
     <logger name="com.alibaba.jstorm.daemon.worker.hearbeat" level="WARN"/>
