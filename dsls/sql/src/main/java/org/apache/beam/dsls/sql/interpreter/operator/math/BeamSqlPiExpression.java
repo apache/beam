@@ -33,7 +33,7 @@ public class BeamSqlPiExpression extends BeamSqlExpression {
   }
 
   @Override public boolean accept() {
-    return numberOfOperands() == 0;
+    return true;
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {

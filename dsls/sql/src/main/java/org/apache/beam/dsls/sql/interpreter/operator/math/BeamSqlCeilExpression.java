@@ -31,8 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlCeilExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlCeilExpression(List<BeamSqlExpression> operands) {
-    super(operands);
-    this.outputType = SqlTypeName.DOUBLE;
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {

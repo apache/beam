@@ -31,8 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlAtan2Expression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlAtan2Expression(List<BeamSqlExpression> operands) {
-    super(operands);
-    this.outputType = SqlTypeName.DOUBLE;
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override public BeamSqlPrimitive<? extends Number> calculate(BeamSqlPrimitive leftOp,

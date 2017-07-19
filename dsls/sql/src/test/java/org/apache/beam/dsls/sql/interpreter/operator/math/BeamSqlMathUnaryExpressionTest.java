@@ -41,7 +41,6 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
     Assert.assertFalse(new BeamSqlAbsExpression(operands).accept());
-    Assert.assertFalse(new BeamSqlSqrtExpression(operands).accept());
   }
 
   @Test public void testForOperandsType() {
@@ -50,7 +49,6 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // varchar operand not allowed
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2"));
     Assert.assertFalse(new BeamSqlAbsExpression(operands).accept());
-    Assert.assertFalse(new BeamSqlSqrtExpression(operands).accept());
   }
 
   @Test public void testForUnaryExpressions() {
@@ -58,8 +56,6 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
 
     // test for sqrt function
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
-    Assert.assertEquals(1.4142135623730951,
-        new BeamSqlSqrtExpression(operands).evaluate(record).getValue());
 
     // test for abs function
     operands.clear();
@@ -281,7 +277,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
 
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
-    Assert.assertEquals(1, new BeamSqlSignExpression(operands).evaluate(record).getValue());
+    Assert.assertEquals((short) 1, new BeamSqlSignExpression(operands).evaluate(record).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));

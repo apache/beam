@@ -31,7 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlRadiansExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlRadiansExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {
