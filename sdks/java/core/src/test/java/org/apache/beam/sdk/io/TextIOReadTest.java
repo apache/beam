@@ -290,9 +290,16 @@ public class TextIOReadTest {
   }
 
   /**
-   * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType) and
-   * TextIO.readAll().withCompressionType(compressionType) applied to the single filename,
-   * and asserts that the results match the given expected output.
+   * Helper method that runs a variety of ways to read a single file using TextIO
+   * and checks that they all match the given expected output.
+   *
+   * <p>The transforms being verified are:
+   * <ul>
+   *   <li>TextIO.read().from(filename).withCompressionType(compressionType)
+   *   <li>TextIO.read().from(filename).withCompressionType(compressionType)
+   *     .withHintMatchesManyFiles()
+   *   <li>TextIO.readAll().withCompressionType(compressionType)
+   * </ul> and
    */
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, List<String> expected) {
@@ -300,8 +307,15 @@ public class TextIOReadTest {
     int thisUniquifier = ++uniquifier;
 
     TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
+
     PAssert.that(
             p.apply("Read_" + file + "_" + compressionType.toString() + "_" + thisUniquifier, read))
+        .containsInAnyOrder(expected);
+
+    PAssert.that(
+            p.apply(
+                "Read_" + file + "_" + compressionType.toString() + "_many" + "_" + thisUniquifier,
+                read.withHintMatchesManyFiles()))
         .containsInAnyOrder(expected);
 
     TextIO.ReadAll readAll =
