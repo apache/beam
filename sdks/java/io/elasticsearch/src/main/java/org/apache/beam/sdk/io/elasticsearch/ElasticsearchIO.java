@@ -116,18 +116,6 @@ import org.elasticsearch.client.RestClientBuilder;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {
 
-  private static void checkVersion(ConnectionConfiguration connectionConfiguration)
-      throws IOException {
-    RestClient restClient = connectionConfiguration.createClient();
-    Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
-    JsonNode jsonNode = parseResponse(response);
-    String version = jsonNode.path("version").path("number").asText();
-    boolean version2x = version.startsWith("2.");
-    restClient.close();
-    checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
-        + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
-  }
-
   public static Read read() {
     // default scrollKeepalive = 5m as a majorant for un-predictable time between 2 start/read calls
     // default batchSize to 100 as recommended by ES dev team as a safe value when dealing
@@ -835,5 +823,16 @@ public class ElasticsearchIO {
         }
       }
     }
+  }
+  private static void checkVersion(ConnectionConfiguration connectionConfiguration)
+      throws IOException {
+    RestClient restClient = connectionConfiguration.createClient();
+    Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+    JsonNode jsonNode = parseResponse(response);
+    String version = jsonNode.path("version").path("number").asText();
+    boolean version2x = version.startsWith("2.");
+    restClient.close();
+    checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
+        + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
   }
 }
