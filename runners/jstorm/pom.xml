@@ -67,6 +67,7 @@
                     org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
                   <parallel>none</parallel>
+                  <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
