@@ -363,6 +363,7 @@ public class CreateTest {
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
+  /** Testing options for {@link #testCreateOfProvider()}. */
   public interface CreateOfProviderOptions extends PipelineOptions {
     ValueProvider<String> getFoo();
     void setFoo(ValueProvider<String> value);
