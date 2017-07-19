@@ -67,7 +67,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
           throw new AssertionError("Failed assertion checks.");
         } else if (taskExceptionRec != null) {
           LOG.info("Exception was found.", taskExceptionRec);
-          throw new AssertionError(taskExceptionRec.getCause());
+          throw new RuntimeException(taskExceptionRec.getCause());
         } else {
           JStormUtils.sleepMs(500);
           waitTime += 500;
