@@ -37,6 +37,7 @@ import org.apache.beam.runners.jstorm.serialization.ImmutableSetSerializer;
 import org.apache.beam.runners.jstorm.serialization.KvStoreIterableSerializer;
 import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuListSerializer;
 import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuSetSerializer;
+import org.apache.beam.runners.jstorm.serialization.SdkRepackImmutableMapSerializer;
 import org.apache.beam.runners.jstorm.serialization.UnmodifiableCollectionsSerializer;
 import org.apache.beam.runners.jstorm.translation.AbstractComponent;
 import org.apache.beam.runners.jstorm.translation.CommonInstance;
@@ -103,6 +104,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     ImmutableSetSerializer.registerSerializers(config);
     SdkRepackImmuSetSerializer.registerSerializers(config);
     ImmutableMapSerializer.registerSerializers(config);
+    SdkRepackImmutableMapSerializer.registerSerializers(config);
 
     config.registerDefaultSerailizer(KvStoreIterable.class, KvStoreIterableSerializer.class);
     return config;
