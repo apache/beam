@@ -31,7 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlDegreesExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlDegreesExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {

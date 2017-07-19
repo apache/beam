@@ -31,7 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlLnExpression extends BeamSqlMathUnaryExpression {
 
   public BeamSqlLnExpression(List<BeamSqlExpression> operands) {
-    super(operands);
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override public BeamSqlPrimitive calculate(BeamSqlPrimitive op) {

@@ -32,8 +32,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
 
-  public BeamSqlMathUnaryExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.ANY);
+  public BeamSqlMathUnaryExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+    super(operands, outputType);
   }
 
   @Override public boolean accept() {

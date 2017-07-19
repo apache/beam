@@ -31,8 +31,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlPowerExpression extends BeamSqlMathBinaryExpression {
 
   public BeamSqlPowerExpression(List<BeamSqlExpression> operands) {
-    super(operands);
-    this.outputType = SqlTypeName.DOUBLE;
+    super(operands, SqlTypeName.DOUBLE);
   }
 
   @Override
