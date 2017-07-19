@@ -1448,19 +1448,6 @@ class Create(PTransform):
     return (self.get_type_hints().simple_output_type(self.label) or
             self.infer_output_type(None))
 
-  def expand(self, pbegin):
-    from apache_beam.io import iobase
-    assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    source = self._create_source_from_iterable(self.value, coder)
-    return (pbegin.pipeline
-            | 'Create' >> (iobase.Read(source)
-                           .with_output_types(self.get_output_type())))
-
-  def get_windowing(self, unused_inputs):
-    return Windowing(GlobalWindows())
-
   @staticmethod
   def _create_source_from_iterable(values, coder):
     return Create._create_source(map(coder.encode, values), coder)
