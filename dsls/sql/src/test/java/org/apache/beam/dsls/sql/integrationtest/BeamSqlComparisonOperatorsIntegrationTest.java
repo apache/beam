@@ -22,9 +22,9 @@ import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 
@@ -283,7 +283,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
   }
 
   @Override protected PCollection<BeamSqlRow> getTestPCollection() {
-    BeamSqlRecordType type = BeamSqlRecordType.create(
+    BeamSqlRowType type = BeamSqlRowType.create(
         Arrays.asList(
             "c_tinyint_0", "c_tinyint_1", "c_tinyint_2",
             "c_smallint_0", "c_smallint_1", "c_smallint_2",
