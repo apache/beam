@@ -37,7 +37,13 @@ public class BeamSqlSignExpression extends BeamSqlMathUnaryExpression {
     BeamSqlPrimitive result = null;
     switch (op.getOutputType()) {
       case TINYINT:
+        result = BeamSqlPrimitive
+          .of(SqlTypeName.TINYINT, (byte) SqlFunctions.sign(SqlFunctions.toByte(op.getValue())));
+        break;
       case SMALLINT:
+        result = BeamSqlPrimitive
+          .of(SqlTypeName.SMALLINT, (short) SqlFunctions.sign(SqlFunctions.toShort(op.getValue())));
+        break;
       case INTEGER:
         result = BeamSqlPrimitive
             .of(SqlTypeName.INTEGER, SqlFunctions.sign(SqlFunctions.toInt(op.getValue())));
@@ -47,6 +53,9 @@ public class BeamSqlSignExpression extends BeamSqlMathUnaryExpression {
             .of(SqlTypeName.BIGINT, SqlFunctions.sign(SqlFunctions.toLong(op.getValue())));
         break;
       case FLOAT:
+        result = BeamSqlPrimitive
+            .of(SqlTypeName.FLOAT, (float) SqlFunctions.sign(SqlFunctions.toFloat(op.getValue())));
+        break;
       case DOUBLE:
         result = BeamSqlPrimitive
             .of(SqlTypeName.DOUBLE, SqlFunctions.sign(SqlFunctions.toDouble(op.getValue())));
