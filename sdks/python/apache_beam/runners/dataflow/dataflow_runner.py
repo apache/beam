@@ -418,6 +418,9 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def apply_WriteToBigQuery(self, transform, pcoll):
+    # Make sure this is the WriteToBigQuery class that we expected
+    if not isinstance(transform, beam.io.WriteToBigQuery):
+      return self.apply_PTransform(transform, pcoll)
     standard_options = pcoll.pipeline._options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
