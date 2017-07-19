@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql;
 
+import java.math.BigDecimal;
 import java.sql.Types;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -67,9 +68,9 @@ public class BeamSqlDslBase {
   public static void prepareClass() throws ParseException {
     rowTypeInTableA = BeamSqlRowType.create(
         Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
-            "f_timestamp", "f_int2"),
+            "f_timestamp", "f_int2", "f_decimal"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
-            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER));
+            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
 
     recordsInTableA = prepareInputRowsInTableA();
   }
@@ -122,6 +123,7 @@ public class BeamSqlDslBase {
     row1.addField(6, "string_row1");
     row1.addField(7, FORMAT.parse("2017-01-01 01:01:03"));
     row1.addField(8, 0);
+    row1.addField(9, new BigDecimal(1));
     rows.add(row1);
 
     BeamSqlRow row2 = new BeamSqlRow(rowTypeInTableA);
@@ -134,6 +136,7 @@ public class BeamSqlDslBase {
     row2.addField(6, "string_row2");
     row2.addField(7, FORMAT.parse("2017-01-01 01:02:03"));
     row2.addField(8, 0);
+    row2.addField(9, new BigDecimal(2));
     rows.add(row2);
 
     BeamSqlRow row3 = new BeamSqlRow(rowTypeInTableA);
@@ -146,6 +149,7 @@ public class BeamSqlDslBase {
     row3.addField(6, "string_row3");
     row3.addField(7, FORMAT.parse("2017-01-01 01:06:03"));
     row3.addField(8, 0);
+    row3.addField(9, new BigDecimal(3));
     rows.add(row3);
 
     BeamSqlRow row4 = new BeamSqlRow(rowTypeInTableA);
@@ -158,6 +162,7 @@ public class BeamSqlDslBase {
     row4.addField(6, "string_row4");
     row4.addField(7, FORMAT.parse("2017-01-01 02:04:03"));
     row4.addField(8, 0);
+    row4.addField(9, new BigDecimal(4));
     rows.add(row4);
 
     return rows;

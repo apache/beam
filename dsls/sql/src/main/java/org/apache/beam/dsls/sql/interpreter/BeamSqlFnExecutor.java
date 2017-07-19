@@ -59,6 +59,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAsinExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtan2Expression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAtanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCeilExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCosExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlCotExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlDegreesExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlExpExpression;
@@ -73,7 +74,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRandIntegerExpr
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSinExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlTanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
@@ -247,9 +247,6 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "ABS":
           ret = new BeamSqlAbsExpression(subExps);
           break;
-        case "SQRT":
-          ret = new BeamSqlSqrtExpression(subExps);
-          break;
         case "ROUND":
           ret = new BeamSqlRoundExpression(subExps);
           break;
@@ -279,6 +276,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           break;
         case "RADIANS":
           ret = new BeamSqlRadiansExpression(subExps);
+          break;
+        case "COS":
+          ret = new BeamSqlCosExpression(subExps);
           break;
         case "SIN":
           ret = new BeamSqlSinExpression(subExps);
