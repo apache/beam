@@ -257,18 +257,24 @@ class common_job_properties {
     return argList.join(' ')
   }
 
+  private static def buildPerfKit(def context) {
+    context.steps {
+      // Clean up environment.
+      shell('rm -rf PerfKitBenchmarker')
+      // Clone appropriate perfkit branch
+      shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
+      // Install Perfkit benchmark requirements.
+      shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+      // Install job requirements for Python SDK.
+      shell('pip install --user -e sdks/python/[gcp,test]')
+    }
+  }
+
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
+    buildPerfKit(context)
     context.steps {
-        // Clean up environment.
-        shell('rm -rf PerfKitBenchmarker')
-        // Clone appropriate perfkit branch
-        shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install Perfkit benchmark requirements.
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
-        // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
