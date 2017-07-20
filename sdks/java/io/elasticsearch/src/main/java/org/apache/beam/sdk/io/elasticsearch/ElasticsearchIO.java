@@ -387,11 +387,7 @@ public class ElasticsearchIO {
           connectionConfiguration != null,
           "ElasticsearchIO.read() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
-      try {
-        checkVersion(connectionConfiguration);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(e);
-      }
+      checkVersion(connectionConfiguration);
     }
 
     @Override
@@ -710,11 +706,7 @@ public class ElasticsearchIO {
           connectionConfiguration != null,
           "ElasticsearchIO.write() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
-      try {
-        checkVersion(connectionConfiguration);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(e);
-      }
+      checkVersion(connectionConfiguration);
     }
 
     @Override
@@ -824,15 +816,16 @@ public class ElasticsearchIO {
       }
     }
   }
-  private static void checkVersion(ConnectionConfiguration connectionConfiguration)
-      throws IOException {
-    RestClient restClient = connectionConfiguration.createClient();
-    Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
-    JsonNode jsonNode = parseResponse(response);
-    String version = jsonNode.path("version").path("number").asText();
-    boolean version2x = version.startsWith("2.");
-    restClient.close();
-    checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
-        + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
+  private static void checkVersion(ConnectionConfiguration connectionConfiguration){
+    try (RestClient restClient = connectionConfiguration.createClient()) {
+      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      JsonNode jsonNode = parseResponse(response);
+      String version = jsonNode.path("version").path("number").asText();
+      boolean version2x = version.startsWith("2.");
+      checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
+          + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Cannot check Elasticsearch version");
+    }
   }
 }
