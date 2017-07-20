@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -158,7 +160,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // TODO: verify that if there was a failed tryClaim() call, then cont.shouldResume() is false.
     // Currently we can't verify this because there are no hooks into tryClaim().
     // See https://issues.apache.org/jira/browse/BEAM-2607
-    RestrictionT residual = processContext.extractCheckpoint();
+    processContext.cancelScheduledCheckpoint();
+    KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
       if (residual == null) {
         // No checkpoint had been taken by the runner while the ProcessElement call ran, however
@@ -166,7 +169,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // a checkpoint now: checkpoint() guarantees that the primary restriction describes exactly
         // the work that was done in the current ProcessElement call, and returns a residual
         // restriction that describes exactly the work that wasn't done in the current call.
-        residual = tracker.checkpoint();
+        residual = checkNotNull(processContext.takeCheckpointNow());
       } else {
         // A checkpoint was taken by the runner, and then the ProcessElement call returned resume()
         // without making more tryClaim() calls (since no tryClaim() calls can succeed after
@@ -185,7 +188,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       // special needs to be done.
     }
     tracker.checkDone();
-    return new Result(residual, cont, processContext.getLastReportedWatermark());
+    if (residual == null) {
+      // Can only be true if cont.shouldResume() is false and no checkpoint was taken.
+      // This means the restriction has been fully processed.
+      checkState(!cont.shouldResume());
+      return new Result(null, cont, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    }
+    return new Result(residual.getKey(), cont, residual.getValue());
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
@@ -199,6 +208,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // This is either the result of the sole tracker.checkpoint() call, or null if
     // the call completed before reaching the given number of outputs or duration.
     private RestrictionT checkpoint;
+    // Watermark captured at the moment before checkpoint was taken, describing a lower bound
+    // on the output from "checkpoint".
+    private Instant residualWatermark;
     // A handle on the scheduled action to take a checkpoint.
     private Future<?> scheduledCheckpoint;
     private Instant lastReportedWatermark;
@@ -213,34 +225,36 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               new Runnable() {
                 @Override
                 public void run() {
-                  initiateCheckpoint();
+                  takeCheckpointNow();
                 }
               },
               maxDuration.getMillis(),
               TimeUnit.MILLISECONDS);
     }
 
-    @Nullable
-    RestrictionT extractCheckpoint() {
+    void cancelScheduledCheckpoint() {
       scheduledCheckpoint.cancel(true);
       try {
         Futures.getUnchecked(scheduledCheckpoint);
       } catch (CancellationException e) {
         // This is expected if the call took less than the maximum duration.
       }
-      // By now, a checkpoint may or may not have been taken;
-      // via .output() or via scheduledCheckpoint.
-      synchronized (this) {
-        return checkpoint;
-      }
     }
 
-    private synchronized void initiateCheckpoint() {
+    synchronized KV<RestrictionT, Instant> takeCheckpointNow() {
       // This method may be entered either via .output(), or via scheduledCheckpoint.
       // Only one of them "wins" - tracker.checkpoint() must be called only once.
       if (checkpoint == null) {
+        residualWatermark = lastReportedWatermark;
         checkpoint = checkNotNull(tracker.checkpoint());
       }
+      return getTakenCheckpoint();
+    }
+
+    @Nullable
+    synchronized KV<RestrictionT, Instant> getTakenCheckpoint() {
+      // The checkpoint may or may not have been taken.
+      return (checkpoint == null) ? null : KV.of(checkpoint, residualWatermark);
     }
 
     @Override
@@ -269,10 +283,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public synchronized void updateWatermark(Instant watermark) {
       lastReportedWatermark = watermark;
-    }
-
-    public synchronized Instant getLastReportedWatermark() {
-      return lastReportedWatermark;
     }
 
     @Override
@@ -306,7 +316,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     private void noteOutput() {
       ++numOutputs;
       if (numOutputs >= maxNumOutputs) {
-        initiateCheckpoint();
+        takeCheckpointNow();
       }
     }
   }
