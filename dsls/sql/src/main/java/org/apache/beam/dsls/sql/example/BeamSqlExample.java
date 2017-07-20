@@ -34,16 +34,19 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is a quick example, which uses Beam SQL DSL to create a data pipeline.
  *
+ * <p>Run the example with
+ * <pre>
+ * mvn -pl dsls/sql compile exec:java \
+ *  -Dexec.mainClass=org.apache.beam.dsls.sql.example.BeamSqlExample \
+ *   -Dexec.args="--runner=DirectRunner" -Pdirect-runner
+ * </pre>
+ *
  */
 class BeamSqlExample {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlExample.class);
-
   public static void main(String[] args) throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     Pipeline p = Pipeline.create(options);
@@ -63,9 +66,9 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<BeamSqlRow> outputStream = inputTable.apply(
-        BeamSql.simpleQuery("select c2, c3 from PCOLLECTION where c1=1"));
+        BeamSql.simpleQuery("select c1, c2, c3 from PCOLLECTION where c1=1"));
 
-    //log out the output record;
+    //print the output record of case 1;
     outputStream.apply("log_result",
         MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
       public Void apply(BeamSqlRow input) {
@@ -74,12 +77,12 @@ class BeamSqlExample {
       }
     }));
 
-    //Case 2. run the query with BeamSql.query
+    //Case 2. run the query with BeamSql.query over result PCollection of case 1.
     PCollection<BeamSqlRow> outputStream2 =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_B"), inputTable)
-        .apply(BeamSql.query("select c2, c3 from TABLE_B where c1=1"));
+        PCollectionTuple.of(new TupleTag<BeamSqlRow>("CASE1_RESULT"), outputStream)
+        .apply(BeamSql.query("select c2, c3 from CASE1_RESULT where c1=1"));
 
-    //log out the output record;
+    //print the output record of case 2;
     outputStream2.apply("log_result",
         MapElements.<BeamSqlRow, Void>via(new SimpleFunction<BeamSqlRow, Void>() {
       @Override
