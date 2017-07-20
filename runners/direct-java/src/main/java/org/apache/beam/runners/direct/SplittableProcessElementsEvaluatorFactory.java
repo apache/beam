@@ -178,8 +178,10 @@ class SplittableProcessElementsEvaluatorFactory<
                     .setDaemon(true)
                     .setNameFormat("direct-splittable-process-element-checkpoint-executor")
                     .build()),
-            10000,
-            Duration.standardSeconds(10)));
+            // Setting small values here to stimulate frequent checkpointing and better exercise
+            // splittable DoFn's in that respect.
+            100,
+            Duration.standardSeconds(1)));
 
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnManager);
   }
