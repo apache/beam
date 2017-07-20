@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -95,17 +96,20 @@ public class Read {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
-
-      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
-          WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-          .setCoder(getDefaultOutputCoder());
+      try {
+        return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
+            WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+            .setCoder(getDefaultOutputCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     /**
@@ -163,7 +167,7 @@ public class Read {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 

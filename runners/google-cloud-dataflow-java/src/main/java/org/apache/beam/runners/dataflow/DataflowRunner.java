@@ -83,6 +83,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1160,7 +1161,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 
@@ -1196,7 +1197,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
 
       @Override
-      protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
+      protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder()
+          throws CannotProvideCoderException {
         return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
       }
 
@@ -1275,7 +1277,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 

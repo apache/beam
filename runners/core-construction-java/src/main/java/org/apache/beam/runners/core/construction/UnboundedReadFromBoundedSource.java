@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -91,7 +92,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   }
 
   @Override
-  protected Coder<T> getDefaultOutputCoder() {
+  protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
     return source.getDefaultOutputCoder();
   }
 
@@ -166,14 +167,18 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return boundedSource.getDefaultOutputCoder();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
-      return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
+      try {
+        return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @VisibleForTesting

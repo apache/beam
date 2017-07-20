@@ -33,6 +33,7 @@ import org.apache.beam.runners.spark.io.EmptyCheckpointMark;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -216,7 +217,7 @@ public class StateSpecFunctions {
                 readDurationMillis,
                 metricsContainers));
 
-        } catch (IOException e) {
+        } catch (IOException | CannotProvideCoderException e) {
           throw new RuntimeException(e);
         }
       }

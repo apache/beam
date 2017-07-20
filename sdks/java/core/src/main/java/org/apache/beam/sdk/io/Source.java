@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -64,8 +65,9 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Returns the default {@code Coder} to use for the data read from this source.
    */
-  public abstract Coder<T> getDefaultOutputCoder();
-
+  public Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
+    throw new CannotProvideCoderException("Source.getDefaultOutputCoder called.");
+  }
   /**
    * {@inheritDoc}
    *

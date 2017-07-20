@@ -31,6 +31,7 @@ import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -114,10 +115,16 @@ public class SparkUnboundedSource {
         .register();
 
     // output the actual (deserialized) stream.
-    WindowedValue.FullWindowedValueCoder<T> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            GlobalWindow.Coder.INSTANCE);
+    WindowedValue.FullWindowedValueCoder<T> coder;
+
+    try {
+      coder = WindowedValue.FullWindowedValueCoder.of(
+          source.getDefaultOutputCoder(),
+          GlobalWindow.Coder.INSTANCE);
+    } catch (CannotProvideCoderException e) {
+      throw new RuntimeException(e);
+    }
+
     JavaDStream<WindowedValue<T>> readUnboundedStream =
         mapWithStateDStream
             .flatMap(new Tuple2byteFlatMapFunction())
