@@ -33,10 +33,6 @@
   (sources and sinks) to consume and produce data from systems.</description>
 
   <properties>
-    <!-- standard binary for kubectl -->
-    <kubectl>kubectl</kubectl>
-    <!-- the standard location for kubernete's config file -->
-    <kubeconfig>${user.home}/.kube/config</kubeconfig>
     <!-- Necessary to make sure that integration with perfkit in io-it-suite works -->
     <integrationTestPipelineOptions></integrationTestPipelineOptions>
     <pkbBeamRunnerProfile></pkbBeamRunnerProfile>

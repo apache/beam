@@ -105,6 +105,7 @@
               </execution>
             </executions>
           </plugin>
+
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
@@ -162,8 +163,31 @@
     <profile>
       <id>io-it-suite-local</id>
       <activation><property><name>io-it-suite-local</name></property></activation>
+      <properties>
+        <!-- This is based on the location of the current pom relative to the root
+             See discussion in BEAM-2460 -->
+        <beamRootProjectDir>${project.parent.parent.parent.parent.basedir}</beamRootProjectDir>
+      </properties>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.codehaus.gmaven</groupId>
+            <artifactId>groovy-maven-plugin</artifactId>
+            <version>${groovy-maven-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>find-supported-python-for-compile</id>
+                <phase>initialize</phase>
+                <goals>
+                  <goal>execute</goal>
+                </goals>
+                <configuration>
+                  <source>${beamRootProjectDir}/sdks/python/findSupportedPython.groovy</source>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
@@ -198,6 +222,15 @@
                 <!-- arguments typically defined by user -->
                 <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
               </arguments>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>${surefire-plugin.version}</version>
+            <configuration>
+              <skipTests>true</skipTests>
             </configuration>
           </plugin>
         </plugins>
