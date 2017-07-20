@@ -48,9 +48,19 @@ class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollecti
 
     // Since a new tag is created in PCollectionList, retrieve the real tag here.
     Map<TupleTag<?>, PValue> inputs = Maps.newHashMap();
+    Map<TupleTag<?>, Integer> tagToCopyNum = Maps.newHashMap();
     for (Map.Entry<TupleTag<?>, PValue> entry : userGraphContext.getInputs().entrySet()) {
       PCollection<V> pc = (PCollection<V>) entry.getValue();
-      inputs.putAll(pc.expand());
+      //inputs.putAll(pc.expand());
+      for (Map.Entry<TupleTag<?>, PValue> entry1 : pc.expand().entrySet()) {
+        if (inputs.containsKey(entry1.getKey())) {
+          int copyNum = tagToCopyNum.get(entry1.getKey());
+          tagToCopyNum.put(entry1.getKey(), ++copyNum);
+        } else {
+          inputs.put(entry1.getKey(), entry1.getValue());
+          tagToCopyNum.put(entry1.getKey(), 1);
+        }
+      }
     }
     String description = describeTransform(transform, inputs, userGraphContext.getOutputs());
 
@@ -67,7 +77,8 @@ class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollecti
       context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(tag, output));
 
     } else {
-      FlattenExecutor executor = new FlattenExecutor(description, userGraphContext.getOutputTag());
+      FlattenExecutor executor = new FlattenExecutor(description, userGraphContext.getOutputTag(),
+          tagToCopyNum);
       context.addTransformExecutor(executor, inputs, userGraphContext.getOutputs());
     }
   }

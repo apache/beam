@@ -19,6 +19,8 @@ package org.apache.beam.runners.jstorm.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Map;
+
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -32,8 +34,11 @@ class FlattenExecutor<InputT> implements Executor {
   private TupleTag mainOutputTag;
   private ExecutorContext context;
   private ExecutorsBolt executorsBolt;
+  private final Map<TupleTag, Integer> tagToCopyNum;
 
-  public FlattenExecutor(String description, TupleTag mainTupleTag) {
+  public FlattenExecutor(String description, TupleTag mainTupleTag,
+                         Map<TupleTag, Integer> tagToCopyNum) {
+    this.tagToCopyNum = checkNotNull(tagToCopyNum, "tagToCopyNum");
     this.description = checkNotNull(description, "description");
     this.mainOutputTag = mainTupleTag;
   }
@@ -46,7 +51,10 @@ class FlattenExecutor<InputT> implements Executor {
 
   @Override
   public void process(TupleTag tag, WindowedValue elem) {
-    executorsBolt.processExecutorElem(mainOutputTag, elem);
+    int copyNum = tagToCopyNum.get(tag);
+    for (int i = 0; i < copyNum; i++) {
+      executorsBolt.processExecutorElem(mainOutputTag, elem);
+    }
   }
 
   @Override
