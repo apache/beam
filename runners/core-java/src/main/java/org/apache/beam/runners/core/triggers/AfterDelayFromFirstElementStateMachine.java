@@ -27,7 +27,6 @@ import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.state.CombiningState;
@@ -50,7 +49,7 @@ import org.joda.time.format.PeriodFormatter;
 // This class should be inlined to subclasses and deleted, simplifying them too
 // https://issues.apache.org/jira/browse/BEAM-1486
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class AfterDelayFromFirstElementStateMachine extends OnceTriggerStateMachine {
+public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStateMachine {
 
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
@@ -237,8 +236,9 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
   }
 
   @Override
-  protected void onOnlyFiring(TriggerStateMachine.TriggerContext context) throws Exception {
+  public final void onFire(TriggerContext context) throws Exception {
     clear(context);
+    context.trigger().setFinished(true);
   }
 
   protected Instant computeTargetTimestamp(Instant time) {

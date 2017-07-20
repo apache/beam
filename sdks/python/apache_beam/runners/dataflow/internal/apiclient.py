@@ -38,7 +38,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.dependency import get_required_container_version
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
@@ -48,6 +47,13 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+
+
+# Environment version information. It is passed to the service during a
+# a job submission and is used by the service to establish what features
+# are expected by the workers.
+_LEGACY_ENVIRONMENT_MAJOR_VERSION = '6'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
 
 
 class Step(object):
@@ -147,7 +153,10 @@ class Environment(object):
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
-      job_type = 'PYTHON_BATCH'
+      if _use_fnapi(options):
+        job_type = 'FNAPI_BATCH'
+      else:
+        job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type',
@@ -205,11 +214,8 @@ class Environment(object):
       pool.workerHarnessContainerImage = (
           self.worker_options.worker_harness_container_image)
     else:
-      # Default to using the worker harness container image for the current SDK
-      # version.
       pool.workerHarnessContainerImage = (
-          'dataflow.gcr.io/v1beta3/python:%s' %
-          get_required_container_version())
+          dependency.get_default_container_image_for_current_sdk(job_type))
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
@@ -364,11 +370,16 @@ class Job(object):
 class DataflowApplicationClient(object):
   """A Dataflow API client used by application code to create and query jobs."""
 
-  def __init__(self, options, environment_version):
+  def __init__(self, options):
     """Initializes a Dataflow API client object."""
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
-    self.environment_version = environment_version
+
+    if _use_fnapi(options):
+      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
+    else:
+      self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
+
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
@@ -489,8 +500,11 @@ class DataflowApplicationClient(object):
     logging.info('Created job with id: [%s]', response.id)
     logging.info(
         'To access the Dataflow monitoring console, please navigate to '
-        'https://console.developers.google.com/project/%s/dataflow/job/%s',
-        self.google_cloud_options.project, response.id)
+        'https://console.cloud.google.com/dataflow/jobsDetail'
+        '/locations/%s/jobs/%s?project=%s',
+        self.google_cloud_options.region,
+        response.id,
+        self.google_cloud_options.project)
 
     return response
 
@@ -708,6 +722,14 @@ def translate_mean(accumulator, metric_update):
     # A denominator of 0 will raise an error in the service.
     # What it means is we have nothing to report yet, so don't.
     metric_update.kind = None
+
+
+def _use_fnapi(pipeline_options):
+  standard_options = pipeline_options.view_as(StandardOptions)
+  debug_options = pipeline_options.view_as(DebugOptions)
+
+  return standard_options.streaming or (
+      debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
 
 
 # To enable a counter on the service, add it to this dictionary.

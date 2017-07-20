@@ -17,27 +17,18 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.ImmutableList;
-import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
@@ -73,54 +64,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public void translate(Pipeline pipeline) {
-    List<PTransformOverride> transformOverrides =
-        ImmutableList.<PTransformOverride>builder()
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.splittableParDoMulti(),
-                    new SplittableParDoOverrideFactory()))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
-                    new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(View.AsIterable.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingViewAsIterable.class, flinkRunner)))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(View.AsList.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingViewAsList.class, flinkRunner)))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(View.AsMap.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingViewAsMap.class, flinkRunner)))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(View.AsMultimap.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingViewAsMultimap.class, flinkRunner)))
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(View.AsSingleton.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingViewAsSingleton.class, flinkRunner)))
-            // this has to be last since the ViewAsSingleton override
-            // can expand to a Combine.GloballyAsSingletonView
-            .add(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
-                    new ReflectiveOneToOneOverrideFactory(
-                        FlinkStreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class,
-                        flinkRunner)))
-            .build();
-
     // Ensure all outputs of all reads are consumed.
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
-    pipeline.replaceAll(transformOverrides);
     super.translate(pipeline);
   }
 
@@ -228,35 +173,6 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
   }
 
-  private static class ReflectiveOneToOneOverrideFactory<
-          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
-      extends SingleInputOutputOverrideFactory<
-          PCollection<InputT>, PCollection<OutputT>, TransformT> {
-    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
-    private final FlinkRunner runner;
-
-    private ReflectiveOneToOneOverrideFactory(
-        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement,
-        FlinkRunner runner) {
-      this.replacement = replacement;
-      this.runner = runner;
-    }
-
-    @Override
-    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
-        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          InstanceBuilder.ofType(replacement)
-              .withArg(FlinkRunner.class, runner)
-              .withArg(
-                  (Class<PTransform<PCollection<InputT>, PCollection<OutputT>>>)
-                      transform.getTransform().getClass(),
-                  transform.getTransform())
-              .build());
-    }
-  }
-
   /**
    * A {@link PTransformOverrideFactory} that overrides a <a
    * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with {@link SplittableParDo}.
@@ -272,7 +188,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new SplittableParDo<>(transform.getTransform()));
+          (SplittableParDo<InputT, OutputT, ?>) SplittableParDo.forAppliedParDo(transform));
     }
 
     @Override

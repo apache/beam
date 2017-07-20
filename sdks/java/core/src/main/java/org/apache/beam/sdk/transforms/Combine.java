@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
@@ -1122,11 +1121,7 @@ public class Combine {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
 
     /**
@@ -1277,14 +1272,15 @@ public class Combine {
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
-      return combined.apply(
-          CreatePCollectionView.<OutputT, OutputT>of(
-              PCollectionViews.singletonView(
-                  combined,
-                  input.getWindowingStrategy(),
-                  insertDefault,
-                  insertDefault ? fn.defaultValue() : null,
-                  combined.getCoder())));
+      PCollectionView<OutputT> view =
+          PCollectionViews.singletonView(
+              combined,
+              input.getWindowingStrategy(),
+              insertDefault,
+              insertDefault ? fn.defaultValue() : null,
+              combined.getCoder());
+      combined.apply(CreatePCollectionView.<OutputT, OutputT>of(view));
+      return view;
     }
 
     public int getFanout() {
@@ -1420,7 +1416,6 @@ public class Combine {
      * Returns a {@code CombineFn} that uses the given
      * {@code SerializableFunction} to combine values.
      */
-    @Deprecated
     public static <V> SimpleCombineFn<V> of(
         SerializableFunction<Iterable<V>, V> combiner) {
       return new SimpleCombineFn<>(combiner);
@@ -1577,11 +1572,7 @@ public class Combine {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
 
     @Override

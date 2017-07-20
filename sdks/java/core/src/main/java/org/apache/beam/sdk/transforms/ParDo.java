@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -50,6 +50,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -455,6 +456,27 @@ public class ParDo {
     }
   }
 
+  private static void validateStateApplicableForInput(
+      DoFn<?, ?> fn,
+      PCollection<?> input) {
+    Coder<?> inputCoder = input.getCoder();
+    checkArgument(
+        inputCoder instanceof KvCoder,
+        "%s requires its input to use %s in order to use state and timers.",
+        ParDo.class.getSimpleName(),
+        KvCoder.class.getSimpleName());
+
+    KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) inputCoder;
+    try {
+        kvCoder.getKeyCoder().verifyDeterministic();
+    } catch (Coder.NonDeterministicException exc) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s requires a deterministic key coder in order to use state and timers",
+              ParDo.class.getSimpleName()));
+    }
+  }
+
   /**
    * Try to provide coders for as many of the type arguments of given
    * {@link DoFnSignature.StateDeclaration} as possible.
@@ -662,11 +684,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 
@@ -741,6 +759,11 @@ public class ParDo {
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
       finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
 
+      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      if (signature.usesState() || signature.usesTimers()) {
+        validateStateApplicableForInput(fn, input);
+      }
+
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
@@ -807,11 +830,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 

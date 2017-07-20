@@ -50,7 +50,7 @@ public class DirectRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.<Class<? extends PipelineOptions>>of(
-          DirectOptions.class);
+          DirectOptions.class, DirectTestOptions.class);
     }
   }
 }

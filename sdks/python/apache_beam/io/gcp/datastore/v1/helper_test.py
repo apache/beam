@@ -16,6 +16,9 @@
 #
 
 """Tests for datastore helper."""
+import errno
+import random
+from socket import error as SocketError
 import sys
 import unittest
 
@@ -49,6 +52,16 @@ class HelperTest(unittest.TestCase):
     self._query = query_pb2.Query()
     self._query.kind.add().name = 'dummy_kind'
     patch_retry(self, helper)
+    self._retriable_errors = [
+        RPCError("dummy", code_pb2.INTERNAL, "failed"),
+        SocketError(errno.ECONNRESET, "Connection Reset"),
+        SocketError(errno.ETIMEDOUT, "Timed out")
+    ]
+
+    self._non_retriable_errors = [
+        RPCError("dummy", code_pb2.UNAUTHENTICATED, "failed"),
+        SocketError(errno.EADDRNOTAVAIL, "Address not available")
+    ]
 
   def permanent_retriable_datastore_failure(self, req):
     raise RPCError("dummy", code_pb2.UNAVAILABLE, "failed")
@@ -56,12 +69,12 @@ class HelperTest(unittest.TestCase):
   def transient_retriable_datastore_failure(self, req):
     if self._transient_fail_count:
       self._transient_fail_count -= 1
-      raise RPCError("dummy", code_pb2.INTERNAL, "failed")
+      raise random.choice(self._retriable_errors)
     else:
       return datastore_pb2.RunQueryResponse()
 
   def non_retriable_datastore_failure(self, req):
-    raise RPCError("dummy", code_pb2.UNAUTHENTICATED, "failed")
+    raise random.choice(self._non_retriable_errors)
 
   def test_query_iterator(self):
     self._mock_datastore.run_query.side_effect = (
@@ -76,7 +89,7 @@ class HelperTest(unittest.TestCase):
         self.transient_retriable_datastore_failure)
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
-    fail_count = 2
+    fail_count = 5
     self._transient_fail_count = fail_count
     for _ in query_iterator:
       pass
@@ -89,7 +102,8 @@ class HelperTest(unittest.TestCase):
         self.non_retriable_datastore_failure)
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
-    self.assertRaises(RPCError, iter(query_iterator).next)
+    self.assertRaises(tuple(map(type, self._non_retriable_errors)),
+                      iter(query_iterator).next)
     self.assertEqual(1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_single_batch(self):

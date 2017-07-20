@@ -117,7 +117,7 @@ import org.joda.time.Instant;
  * to the file separated with line feeds.
  * </p>
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class MongoDbGridFSIO {
 
   /**

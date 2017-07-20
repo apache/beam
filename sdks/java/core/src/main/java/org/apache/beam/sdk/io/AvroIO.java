@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -52,18 +53,19 @@ import org.apache.beam.sdk.values.PDone;
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
- * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()},
- * using {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
- * See {@link FileSystems} for information on supported file systems and filepatterns.
+ * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()}, using
+ * {@link AvroIO.Read#from} to specify the filename or filepattern to read from. See {@link
+ * FileSystems} for information on supported file systems and filepatterns.
  *
- * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
- * To read {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes
- * a {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
+ * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}. To read
+ * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
+ * {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema.
  *
  * <p>For example:
- * <pre> {@code
+ *
+ * <pre>{@code
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
@@ -75,34 +77,33 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.readGenericRecords(schema)
  *                .from("gs://my_bucket/path/to/records-*.avro"));
- * } </pre>
+ * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
- * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default
- * {@link DefaultFilenamePolicy} will use this prefix, in conjunction with a
- * {@link ShardNameTemplate} (set via {@link Write#withShardNameTemplate(String)}) and optional
- * filename suffix (set via {@link Write#withSuffix(String)}, to generate output filenames in a
- * sharded way. You can override this default write filename policy using
- * {@link Write#withFilenamePolicy(FileBasedSink.FilenamePolicy)} to specify a custom file naming
- * policy.
+ * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default {@link
+ * DefaultFilenamePolicy} will use this prefix, in conjunction with a {@link ShardNameTemplate} (set
+ * via {@link Write#withShardNameTemplate(String)}) and optional filename suffix (set via {@link
+ * Write#withSuffix(String)}, to generate output filenames in a sharded way. You can override this
+ * default write filename policy using {@link Write#to(FileBasedSink.FilenamePolicy)} to specify a
+ * custom file naming policy.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner -
- * {@link AvroIO.Write#withWindowedWrites()} will cause windowing and triggering to be
- * preserved. When producing windowed writes, the number of output shards must be set explicitly
- * using {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a
- * runner-chosen value, so you may need not set it yourself. A
- * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
- * unique filenames.
+ * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
+ * and unique windows and triggers must produce unique filenames.
  *
- * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}.
- * To write {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)}
- * which takes a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema
- * in a JSON-encoded string form. An exception will be thrown if a record doesn't match the
- * specified schema.
+ * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}. To write
+ * {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)} which takes
+ * a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema in a
+ * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
+ * schema.
  *
  * <p>For example:
- * <pre> {@code
+ *
+ * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
  * records.apply(AvroIO.write(AvroAutoGenClass.class).to("/path/to/file.avro"));
@@ -113,11 +114,11 @@ import org.apache.beam.sdk.values.PDone;
  * records.apply("WriteToAvro", AvroIO.writeGenericRecords(schema)
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSuffix(".avro"));
- * } </pre>
+ * }</pre>
  *
- * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the
- * {@link org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can
- * be changed or overridden using {@link AvroIO.Write#withCodec}.
+ * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
+ * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
+ * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
   /**
@@ -258,11 +259,16 @@ public class AvroIO {
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
     @Nullable abstract String getShardTemplate();
     @Nullable abstract String getFilenameSuffix();
+
+    @Nullable
+    abstract ValueProvider<ResourceId> getTempDirectory();
+
     abstract int getNumShards();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
     abstract boolean getWindowedWrites();
     @Nullable abstract FilenamePolicy getFilenamePolicy();
+
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -277,6 +283,9 @@ public class AvroIO {
     abstract static class Builder<T> {
       abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
       abstract Builder<T> setFilenameSuffix(String filenameSuffix);
+
+      abstract Builder<T> setTempDirectory(ValueProvider<ResourceId> tempDirectory);
+
       abstract Builder<T> setNumShards(int numShards);
       abstract Builder<T> setShardTemplate(String shardTemplate);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
@@ -296,9 +305,9 @@ public class AvroIO {
      * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
      *
      * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
-     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
-     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
-     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and a
+     * common suffix (if supplied using {@link #withSuffix(String)}). This default can be overridden
+     * using {@link #to(FilenamePolicy)}.
      */
     public Write<T> to(String outputPrefix) {
       return to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
@@ -306,14 +315,21 @@ public class AvroIO {
 
     /**
      * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
-     * supported file systems.
-     *
-     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     * supported file systems. This prefix is used by the {@link DefaultFilenamePolicy} to generate
+     * filenames.
      *
      * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
-     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
-     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
-     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and a
+     * common suffix (if supplied using {@link #withSuffix(String)}). This default can be overridden
+     * using {@link #to(FilenamePolicy)}.
+     *
+     * <p>This default policy can be overridden using {@link #to(FilenamePolicy)}, in which case
+     * {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should not be set.
+     * Custom filename policies do not automatically see this prefix - you should explicitly pass
+     * the prefix into your {@link FilenamePolicy} object if you need this.
+     *
+     * <p>If {@link #withTempDirectory} has not been called, this filename prefix will be used to
+     * infer a directory for temporary files.
      */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
@@ -342,15 +358,22 @@ public class AvroIO {
     }
 
     /**
-     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     * Writes to files named according to the given {@link FileBasedSink.FilenamePolicy}. A
+     * directory for temporary files must be specified using {@link #withTempDirectory}.
      */
-    public Write<T> withFilenamePolicy(FilenamePolicy filenamePolicy) {
+    public Write<T> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
+    }
+
+    /** Set the base directory used to generate temporary files. */
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+      return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /**
      * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
-     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     * used when using one of the default filename-prefix to() overrides.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
@@ -360,8 +383,8 @@ public class AvroIO {
     }
 
     /**
-     * Configures the filename suffix for written files. This option may only be used when
-     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     * Configures the filename suffix for written files. This option may only be used when using one
+     * of the default filename-prefix to() overrides.
      *
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
@@ -402,9 +425,8 @@ public class AvroIO {
     /**
      * Preserves windowing of input elements and writes them to files based on the element's window.
      *
-     * <p>Requires use of {@link #withFilenamePolicy(FileBasedSink.FilenamePolicy)}. Filenames will
-     * be generated using {@link FilenamePolicy#windowedFilename}. See also
-     * {@link WriteFiles#withWindowedWrites()}.
+     * <p>If using {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated using
+     * {@link FilenamePolicy#windowedFilename}. See also {@link WriteFiles#withWindowedWrites()}.
      */
     public Write<T> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
@@ -435,32 +457,46 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-    @Override
-    public PDone expand(PCollection<T> input) {
-      checkState(getFilenamePrefix() != null,
-          "Need to set the filename prefix of an AvroIO.Write transform.");
-      checkState(
-          (getFilenamePolicy() == null)
-              || (getShardTemplate() == null && getFilenameSuffix() == null),
-          "Cannot set a filename policy and also a filename template or suffix.");
-      checkState(getSchema() != null,
-          "Need to set the schema of an AvroIO.Write transform.");
-      checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
-          "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
-
+    DynamicDestinations<T, Void> resolveDynamicDestinations() {
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
-        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
-            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
+        usedFilenamePolicy =
+            DefaultFilenamePolicy.fromStandardParameters(
+                getFilenamePrefix(), getShardTemplate(), getFilenameSuffix(), getWindowedWrites());
       }
+      return DynamicFileDestinations.constant(usedFilenamePolicy);
+    }
 
-      WriteFiles<T> write = WriteFiles.to(
-            new AvroSink<>(
-                getFilenamePrefix(),
-                usedFilenamePolicy,
-                AvroCoder.of(getRecordClass(), getSchema()),
-                getCodec(),
-                getMetadata()));
+    @Override
+    public PDone expand(PCollection<T> input) {
+      checkArgument(
+          getFilenamePrefix() != null || getTempDirectory() != null,
+          "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
+              + "transform.");
+      if (getFilenamePolicy() != null) {
+        checkArgument(
+            getShardTemplate() == null && getFilenameSuffix() == null,
+            "shardTemplate and filenameSuffix should only be used with the default "
+                + "filename policy");
+      }
+      return expandTyped(input, resolveDynamicDestinations());
+    }
+
+    public <DestinationT> PDone expandTyped(
+        PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      ValueProvider<ResourceId> tempDirectory = getTempDirectory();
+      if (tempDirectory == null) {
+        tempDirectory = getFilenamePrefix();
+      }
+      WriteFiles<T, DestinationT, T> write =
+          WriteFiles.to(
+              new AvroSink<>(
+                  tempDirectory,
+                  dynamicDestinations,
+                  AvroCoder.of(getRecordClass(), getSchema()),
+                  getCodec(),
+                  getMetadata()),
+              SerializableFunctions.<T>identity());
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -473,31 +509,25 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      checkState(
-          getFilenamePrefix() != null,
-          "Unable to populate DisplayData for invalid AvroIO.Write (unset output prefix).");
-      String outputPrefixString = null;
-      if (getFilenamePrefix().isAccessible()) {
-        ResourceId dir = getFilenamePrefix().get();
-        outputPrefixString = dir.toString();
-      } else {
-        outputPrefixString = getFilenamePrefix().toString();
+      resolveDynamicDestinations().populateDisplayData(builder);
+
+      String tempDirectory = null;
+      if (getTempDirectory() != null) {
+        tempDirectory =
+            getTempDirectory().isAccessible()
+                ? getTempDirectory().get().toString()
+                : getTempDirectory().toString();
       }
       builder
-          .add(DisplayData.item("schema", getRecordClass())
-            .withLabel("Record Schema"))
-          .addIfNotNull(DisplayData.item("filePrefix", outputPrefixString)
-            .withLabel("Output File Prefix"))
-          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
-              .withLabel("Output Shard Name Template"))
-          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
-              .withLabel("Output File Suffix"))
-          .addIfNotDefault(DisplayData.item("numShards", getNumShards())
-              .withLabel("Maximum Output Shards"),
-              0)
-          .addIfNotDefault(DisplayData.item("codec", getCodec().toString())
-              .withLabel("Avro Compression Codec"),
-              DEFAULT_CODEC.toString());
+          .add(DisplayData.item("schema", getRecordClass()).withLabel("Record Schema"))
+          .addIfNotDefault(
+              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
+          .addIfNotDefault(
+              DisplayData.item("codec", getCodec().toString()).withLabel("Avro Compression Codec"),
+              DEFAULT_CODEC.toString())
+          .addIfNotNull(
+              DisplayData.item("tempDirectory", tempDirectory)
+                  .withLabel("Directory for temporary files"));
       builder.include("Metadata", new Metadata());
     }
 

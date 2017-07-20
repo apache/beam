@@ -44,6 +44,15 @@ class MutationSizeEstimator {
     return result;
   }
 
+  /** Estimates a size of the mutation group in bytes. */
+  public static long sizeOf(MutationGroup group) {
+    long result = 0;
+    for (Mutation m : group) {
+      result += sizeOf(m);
+    }
+    return result;
+  }
+
   private static long estimatePrimitiveValue(Value v) {
     switch (v.getType().getCode()) {
       case BOOL:

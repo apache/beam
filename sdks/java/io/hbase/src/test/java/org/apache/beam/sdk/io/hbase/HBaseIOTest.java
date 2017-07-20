@@ -38,7 +38,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -47,6 +46,7 @@ import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.Connection;
@@ -96,7 +96,12 @@ public class HBaseIOTest {
         conf.setStrings("hbase.master.hostname", "localhost");
         conf.setStrings("hbase.regionserver.hostname", "localhost");
         htu = new HBaseTestingUtility(conf);
-        htu.startMiniCluster(1, 4);
+
+        // We don't use the full htu.startMiniCluster() to avoid starting unneeded HDFS/MR daemons
+        htu.startMiniZKCluster();
+        MiniHBaseCluster hbm = htu.startMiniHBaseCluster(1, 4);
+        hbm.waitForActiveAndReadyMaster();
+
         admin = htu.getHBaseAdmin();
     }
 
@@ -107,7 +112,8 @@ public class HBaseIOTest {
             admin = null;
         }
         if (htu != null) {
-            htu.shutdownMiniCluster();
+            htu.shutdownMiniHBaseCluster();
+            htu.shutdownMiniZKCluster();
             htu = null;
         }
     }
@@ -285,15 +291,16 @@ public class HBaseIOTest {
         final String table = "table";
         final String key = "key";
         final String value = "value";
+        final int numMutations = 100;
 
         createTable(table);
 
-        p.apply("single row", Create.of(makeWrite(key, value)).withCoder(HBaseIO.WRITE_CODER))
-                .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
+        p.apply("multiple rows", Create.of(makeMutations(key, value, numMutations)))
+         .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
         p.run().waitUntilFinish();
 
         List<Result> results = readTable(table, new Scan());
-        assertEquals(1, results.size());
+        assertEquals(numMutations, results.size());
     }
 
     /** Tests that when writing to a non-existent table, the write fails. */
@@ -301,10 +308,8 @@ public class HBaseIOTest {
     public void testWritingFailsTableDoesNotExist() throws Exception {
         final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
-        PCollection<KV<byte[], Iterable<Mutation>>> emptyInput =
-                p.apply(Create.empty(HBaseIO.WRITE_CODER));
-
-        emptyInput.apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
+        p.apply(Create.empty(HBaseMutationCoder.of()))
+         .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
 
         // Exception will be thrown by write.validate() when write is applied.
         thrown.expect(IllegalArgumentException.class);
@@ -319,8 +324,8 @@ public class HBaseIOTest {
         final String key = "KEY";
         createTable(table);
 
-        p.apply(Create.of(makeBadWrite(key)).withCoder(HBaseIO.WRITE_CODER))
-                .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
+        p.apply(Create.of(makeBadMutation(key)))
+         .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
 
         thrown.expect(Pipeline.PipelineExecutionException.class);
         thrown.expectCause(Matchers.<Throwable>instanceOf(IllegalArgumentException.class));
@@ -398,26 +403,22 @@ public class HBaseIOTest {
 
     // Beam helper methods
     /** Helper function to make a single row mutation to be written. */
-    private static KV<byte[], Iterable<Mutation>> makeWrite(String key, String value) {
-        byte[] rowKey = key.getBytes(StandardCharsets.UTF_8);
+    private static Iterable<Mutation> makeMutations(String key, String value, int numMutations) {
         List<Mutation> mutations = new ArrayList<>();
-        mutations.add(makeMutation(key, value));
-        return KV.of(rowKey, (Iterable<Mutation>) mutations);
+        for (int i = 0; i < numMutations; i++) {
+            mutations.add(makeMutation(key + i, value));
+        }
+        return mutations;
     }
 
-
     private static Mutation makeMutation(String key, String value) {
-        byte[] rowKey = key.getBytes(StandardCharsets.UTF_8);
-        return new Put(rowKey)
+        return new Put(key.getBytes(StandardCharsets.UTF_8))
                     .addColumn(COLUMN_FAMILY, COLUMN_NAME, Bytes.toBytes(value))
                     .addColumn(COLUMN_FAMILY, COLUMN_EMAIL, Bytes.toBytes(value + "@email.com"));
     }
 
-    private static KV<byte[], Iterable<Mutation>> makeBadWrite(String key) {
-        Put put = new Put(key.getBytes());
-        List<Mutation> mutations = new ArrayList<>();
-        mutations.add(put);
-        return KV.of(key.getBytes(StandardCharsets.UTF_8), (Iterable<Mutation>) mutations);
+    private static Mutation makeBadMutation(String key) {
+        return new Put(key.getBytes());
     }
 
     private void runReadTest(HBaseIO.Read read, List<Result> expected) {

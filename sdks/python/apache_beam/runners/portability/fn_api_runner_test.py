@@ -20,17 +20,40 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
-from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.portability import maptask_executor_runner_test
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
-class FnApiRunnerTest(maptask_executor_runner.MapTaskExecutorRunner):
+class FnApiRunnerTest(
+    maptask_executor_runner_test.MapTaskExecutorRunnerTest):
 
   def create_pipeline(self):
-    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner())
 
   def test_combine_per_key(self):
-    # TODO(robertwb): Implement PGBKCV operation.
+    # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
     pass
+
+  def test_combine_per_key(self):
+    # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
+    pass
+
+  def test_pardo_side_inputs(self):
+    # TODO(BEAM-1348): Enable once side inputs are supported in fn API.
+    pass
+
+  def test_pardo_unfusable_side_inputs(self):
+    # TODO(BEAM-1348): Enable once side inputs are supported in fn API.
+    pass
+
+  def test_assert_that(self):
+    # TODO: figure out a way for fn_api_runner to parse and raise the
+    # underlying exception.
+    with self.assertRaisesRegexp(RuntimeError, 'BeamAssertException'):
+      with self.create_pipeline() as p:
+        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
   # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner
 

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -25,6 +26,12 @@ import org.apache.beam.sdk.values.PValue;
 
 /** Test utilities for the {@link DirectRunner}. */
 final class DirectGraphs {
+  public static void performDirectOverrides(Pipeline p) {
+    p.replaceAll(
+        DirectRunner.fromOptions(PipelineOptionsFactory.create().as(DirectOptions.class))
+            .defaultTransformOverrides());
+  }
+
   public static DirectGraph getGraph(Pipeline p) {
     DirectGraphVisitor visitor = new DirectGraphVisitor();
     p.traverseTopologically(visitor);

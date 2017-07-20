@@ -163,6 +163,24 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   /**
+   * Specifies the conditions under which an on-time pane will be created when a window is closed.
+   */
+  public enum OnTimeBehavior {
+    /**
+     * Always fire the on-time pane. Even if there is no new data since the previous firing,
+     * an element will be produced.
+     *
+     * <p>This is the default behavior.
+     */
+    FIRE_ALWAYS,
+    /**
+     * Only fire the on-time pane if there is new data since the previous firing.
+     */
+    FIRE_IF_NON_EMPTY
+
+  }
+
+  /**
    * Creates a {@code Window} {@code PTransform} that uses the given
    * {@link WindowFn} to window the data.
    *
@@ -195,6 +213,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   @Nullable abstract AccumulationMode getAccumulationMode();
   @Nullable abstract Duration getAllowedLateness();
   @Nullable abstract ClosingBehavior getClosingBehavior();
+  @Nullable abstract OnTimeBehavior getOnTimeBehavior();
   @Nullable abstract TimestampCombiner getTimestampCombiner();
 
   abstract Builder<T> toBuilder();
@@ -206,6 +225,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     abstract Builder<T> setAccumulationMode(AccumulationMode mode);
     abstract Builder<T> setAllowedLateness(Duration allowedLateness);
     abstract Builder<T> setClosingBehavior(ClosingBehavior closingBehavior);
+    abstract Builder<T> setOnTimeBehavior(OnTimeBehavior onTimeBehavior);
     abstract Builder<T> setTimestampCombiner(TimestampCombiner timestampCombiner);
 
     abstract Window<T> build();
@@ -299,6 +319,15 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   /**
+   * <b><i>(Experimental)</i></b> Override the default {@link OnTimeBehavior}, to control
+   * whether to output an empty on-time pane.
+   */
+  @Experimental(Kind.TRIGGER)
+  public Window<T> withOnTimeBehavior(OnTimeBehavior behavior) {
+    return toBuilder().setOnTimeBehavior(behavior).build();
+  }
+
+  /**
    * Get the output strategy of this {@link Window Window PTransform}. For internal use
    * only.
    */
@@ -320,6 +349,9 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     }
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
+    }
+    if (getOnTimeBehavior() != null) {
+      result = result.withOnTimeBehavior(getOnTimeBehavior());
     }
     if (getTimestampCombiner() != null) {
       result = result.withTimestampCombiner(getTimestampCombiner());

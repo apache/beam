@@ -35,8 +35,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.commons.lang3.text.WordUtils;
-
+import org.apache.commons.text.WordUtils;
 
 /**
  * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations.

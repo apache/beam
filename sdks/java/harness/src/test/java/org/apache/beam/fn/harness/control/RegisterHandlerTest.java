@@ -44,14 +44,14 @@ public class RegisterHandlerTest {
       .setRegister(BeamFnApi.RegisterRequest.newBuilder()
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder()
               .setId("1L")
-              .putCodersyyy("10L", RunnerApi.Coder.newBuilder()
+              .putCoders("10L", RunnerApi.Coder.newBuilder()
                   .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
                       .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("urn:10L").build())
                       .build())
                   .build())
               .build())
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId("2L")
-              .putCodersyyy("20L", RunnerApi.Coder.newBuilder()
+              .putCoders("20L", RunnerApi.Coder.newBuilder()
                   .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
                       .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("urn:20L").build())
                       .build())
@@ -82,10 +82,10 @@ public class RegisterHandlerTest {
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),
         handler.getById("2L"));
     assertEquals(
-        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCodersyyyOrThrow("10L"),
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCodersOrThrow("10L"),
         handler.getById("10L"));
     assertEquals(
-        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCodersyyyOrThrow("20L"),
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCodersOrThrow("20L"),
         handler.getById("20L"));
     assertEquals(REGISTER_RESPONSE, responseFuture.get());
   }

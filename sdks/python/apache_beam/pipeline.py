@@ -45,6 +45,7 @@ Typical usage:
 
 from __future__ import absolute_import
 
+import abc
 import collections
 import logging
 import os
@@ -53,6 +54,7 @@ import tempfile
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pvalue import PCollection
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
@@ -156,6 +158,157 @@ class Pipeline(object):
   def _root_transform(self):
     """Returns the root transform of the transform stack."""
     return self.transforms_stack[0]
+
+  def _remove_labels_recursively(self, applied_transform):
+    for part in applied_transform.parts:
+      if part.full_label in self.applied_labels:
+        self.applied_labels.remove(part.full_label)
+      if part.parts:
+        for part2 in part.parts:
+          self._remove_labels_recursively(part2)
+
+  def _replace(self, override):
+
+    assert isinstance(override, PTransformOverride)
+    matcher = override.get_matcher()
+
+    output_map = {}
+    output_replacements = {}
+    input_replacements = {}
+
+    class TransformUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+      """"A visitor that replaces the matching PTransforms."""
+
+      def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+      def _replace_if_needed(self, transform_node):
+        if matcher(transform_node):
+          replacement_transform = override.get_replacement_transform(
+              transform_node.transform)
+          inputs = transform_node.inputs
+          # TODO:  Support replacing PTransforms with multiple inputs.
+          if len(inputs) > 1:
+            raise NotImplementedError(
+                'PTransform overriding is only supported for PTransforms that '
+                'have a single input. Tried to replace input of '
+                'AppliedPTransform %r that has %d inputs',
+                transform_node, len(inputs))
+          transform_node.transform = replacement_transform
+          self.pipeline.transforms_stack.append(transform_node)
+
+          # Keeping the same label for the replaced node but recursively
+          # removing labels of child transforms since they will be replaced
+          # during the expand below.
+          self.pipeline._remove_labels_recursively(transform_node)
+
+          new_output = replacement_transform.expand(inputs[0])
+          if new_output.producer is None:
+            # When current transform is a primitive, we set the producer here.
+            new_output.producer = transform_node
+
+          # We only support replacing transforms with a single output with
+          # another transform that produces a single output.
+          # TODO: Support replacing PTransforms with multiple outputs.
+          if (len(transform_node.outputs) > 1 or
+              not isinstance(transform_node.outputs[None], PCollection) or
+              not isinstance(new_output, PCollection)):
+            raise NotImplementedError(
+                'PTransform overriding is only supported for PTransforms that '
+                'have a single output. Tried to replace output of '
+                'AppliedPTransform %r with %r.'
+                , transform_node, new_output)
+
+          # Recording updated outputs. This cannot be done in the same visitor
+          # since if we dynamically update output type here, we'll run into
+          # errors when visiting child nodes.
+          output_map[transform_node.outputs[None]] = new_output
+
+          self.pipeline.transforms_stack.pop()
+
+      def enter_composite_transform(self, transform_node):
+        self._replace_if_needed(transform_node)
+
+      def visit_transform(self, transform_node):
+        self._replace_if_needed(transform_node)
+
+    self.visit(TransformUpdater(self))
+
+    # Adjusting inputs and outputs
+    class InputOutputUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
+      """"A visitor that records input and output values to be replaced.
+
+      Input and output values that should be updated are recorded in maps
+      input_replacements and output_replacements respectively.
+
+      We cannot update input and output values while visiting since that results
+      in validation errors.
+      """
+
+      def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if (None in transform_node.outputs and
+            transform_node.outputs[None] in output_map):
+          output_replacements[transform_node] = (
+              output_map[transform_node.outputs[None]])
+
+        replace_input = False
+        for input in transform_node.inputs:
+          if input in output_map:
+            replace_input = True
+            break
+
+        if replace_input:
+          new_input = [
+              input if not input in output_map else output_map[input]
+              for input in transform_node.inputs]
+          input_replacements[transform_node] = new_input
+
+    self.visit(InputOutputUpdater(self))
+
+    for transform in output_replacements:
+      transform.replace_output(output_replacements[transform])
+
+    for transform in input_replacements:
+      transform.inputs = input_replacements[transform]
+
+  def _check_replacement(self, override):
+    matcher = override.get_matcher()
+
+    class ReplacementValidator(PipelineVisitor):
+      def visit_transform(self, transform_node):
+        if matcher(transform_node):
+          raise RuntimeError('Transform node %r was not replaced as expected.',
+                             transform_node)
+
+    self.visit(ReplacementValidator())
+
+  def replace_all(self, replacements):
+    """ Dynamically replaces PTransforms in the currently populated hierarchy.
+
+     Currently this only works for replacements where input and output types
+     are exactly the same.
+     TODO: Update this to also work for transform overrides where input and
+     output types are different.
+
+    Args:
+      replacements a list of PTransformOverride objects.
+    """
+    for override in replacements:
+      assert isinstance(override, PTransformOverride)
+      self._replace(override)
+
+    # Checking if the PTransforms have been successfully replaced. This will
+    # result in a failure if a PTransform that was replaced in a given override
+    # gets re-added in a subsequent override. This is not allowed and ordering
+    # of PTransformOverride objects in 'replacements' is important.
+    for override in replacements:
+      self._check_replacement(override)
 
   def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
@@ -313,9 +466,19 @@ class Pipeline(object):
     self.transforms_stack.pop()
     return pvalueish_result
 
+  def __reduce__(self):
+    # Some transforms contain a reference to their enclosing pipeline,
+    # which in turn reference all other transforms (resulting in quadratic
+    # time/space to pickle each transform individually).  As we don't
+    # require pickled pipelines to be executable, break the chain here.
+    return str, ('Pickled pipeline stub.',)
+
   def _verify_runner_api_compatible(self):
     class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       ok = True  # Really a nonlocal.
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
         if transform_node.side_inputs:
@@ -339,7 +502,7 @@ class Pipeline(object):
   def to_runner_api(self):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
-    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
@@ -362,7 +525,18 @@ class Pipeline(object):
     p.applied_labels = set([
         t.unique_name for t in proto.components.transforms.values()])
     for id in proto.components.pcollections:
-      context.pcollections.get_by_id(id).pipeline = p
+      pcollection = context.pcollections.get_by_id(id)
+      pcollection.pipeline = p
+
+    # Inject PBegin input where necessary.
+    from apache_beam.io.iobase import Read
+    from apache_beam.transforms.core import Create
+    has_pbegin = [Read, Create]
+    for id in proto.components.transforms:
+      transform = context.transforms.get_by_id(id)
+      if not transform.inputs and transform.transform.__class__ in has_pbegin:
+        transform.inputs = (pvalue.PBegin(p),)
+
     return p
 
 
@@ -384,7 +558,7 @@ class PipelineVisitor(object):
     pass
 
   def visit_transform(self, transform_node):
-    """Callback for visiting a transform node in the pipeline DAG."""
+    """Callback for visiting a transform leaf node in the pipeline DAG."""
     pass
 
   def enter_composite_transform(self, transform_node):
@@ -440,6 +614,20 @@ class AppliedPTransform(object):
           real_producer(main_input).refcounts[main_input.tag] += 1
       for side_input in self.side_inputs:
         real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
+
+  def replace_output(self, output, tag=None):
+    """Replaces the output defined by the given tag with the given output.
+
+    Args:
+      output: replacement output
+      tag: tag of the output to be replaced.
+    """
+    if isinstance(output, pvalue.DoOutputsTuple):
+      self.replace_output(output[output._main_tag])
+    elif isinstance(output, pvalue.PValue):
+      self.outputs[tag] = output
+    else:
+      raise TypeError("Unexpected output type: %s" % output)
 
   def add_output(self, output, tag=None):
     if isinstance(output, pvalue.DoOutputsTuple):
@@ -525,7 +713,7 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
-    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     def transform_to_runner_api(transform, context):
       if transform is None:
@@ -564,3 +752,37 @@ class AppliedPTransform(object):
           pc.tag = tag
     result.update_input_refcounts()
     return result
+
+
+class PTransformOverride(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Gives a matcher and replacements for matching PTransforms.
+
+  TODO: Update this to support cases where input and/our output types are
+  different.
+  """
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def get_matcher(self):
+    """Gives a matcher that will be used to to perform this override.
+
+    Returns:
+      a callable that takes an AppliedPTransform as a parameter and returns a
+      boolean as a result.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_replacement_transform(self, ptransform):
+    """Provides a runner specific override for a given PTransform.
+
+    Args:
+      ptransform: PTransform to be replaced.
+    Returns:
+      A PTransform that will be the replacement for the PTransform given as an
+      argument.
+    """
+    # Returns a PTransformReplacement
+    raise NotImplementedError

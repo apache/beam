@@ -17,27 +17,32 @@
 
 """A PipelineRunner using the SDK harness.
 """
+import base64
 import collections
-import json
 import logging
 import Queue as queue
 import threading
 
 from concurrent import futures
+from google.protobuf import wrappers_pb2
 import grpc
 
-import apache_beam as beam
+import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.utils import proto_utils
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -123,191 +128,145 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   def _map_task_registration(self, map_task, state_handler,
                              data_operation_spec):
-    input_data = {}
-    runner_sinks = {}
-    transforms = []
-    transform_index_to_id = {}
-
-    # Maps coders to new coder objects and references.
-    coders = {}
-
-    def coder_id(coder):
-      if coder not in coders:
-        coders[coder] = beam_fn_api_pb2.Coder(
-            function_spec=sdk_worker.pack_function_spec_data(
-                json.dumps(coder.as_cloud_object()),
-                sdk_worker.PYTHON_CODER_URN, id=self._next_uid()))
-
-      return coders[coder].function_spec.id
-
-    def output_tags(op):
-      return getattr(op, 'output_tags', ['out'])
-
-    def as_target(op_input):
-      input_op_index, input_output_index = op_input
-      input_op = map_task[input_op_index][1]
-      return {
-          'ignored_input_tag':
-              beam_fn_api_pb2.Target.List(target=[
-                  beam_fn_api_pb2.Target(
-                      primitive_transform_reference=transform_index_to_id[
-                          input_op_index],
-                      name=output_tags(input_op)[input_output_index])
-              ])
-      }
-
-    def outputs(op):
-      return {
-          tag: beam_fn_api_pb2.PCollection(coder_reference=coder_id(coder))
-          for tag, coder in zip(output_tags(op), op.output_coders)
-      }
-
-    for op_ix, (stage_name, operation) in enumerate(map_task):
-      transform_id = transform_index_to_id[op_ix] = self._next_uid()
-      if isinstance(operation, operation_specs.WorkerInMemoryWrite):
-        # Write this data back to the runner.
-        fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_worker.DATA_OUTPUT_URN,
-                                          id=self._next_uid())
-        if data_operation_spec:
-          fn.data.Pack(data_operation_spec)
-        inputs = as_target(operation.input)
-        side_inputs = {}
-        runner_sinks[(transform_id, 'out')] = operation
-
-      elif isinstance(operation, operation_specs.WorkerRead):
-        # A Read is either translated to a direct injection of windowed values
-        # into the sdk worker, or an injection of the source object into the
-        # sdk worker as data followed by an SDF that reads that source.
-        if (isinstance(operation.source.source,
-                       worker_runner_base.InMemorySource)
-            and isinstance(operation.source.source.default_output_coder(),
-                           WindowedValueCoder)):
-          output_stream = create_OutputStream()
-          element_coder = (
-              operation.source.source.default_output_coder().get_impl())
-          # Re-encode the elements in the nested context and
-          # concatenate them together
-          for element in operation.source.source.read(None):
-            element_coder.encode_to_stream(element, output_stream, True)
-          target_name = self._next_uid()
-          input_data[(transform_id, target_name)] = output_stream.get()
-          fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_worker.DATA_INPUT_URN,
-                                            id=self._next_uid())
-          if data_operation_spec:
-            fn.data.Pack(data_operation_spec)
-          inputs = {target_name: beam_fn_api_pb2.Target.List()}
-          side_inputs = {}
-        else:
-          # Read the source object from the runner.
-          source_coder = beam.coders.DillCoder()
-          input_transform_id = self._next_uid()
-          output_stream = create_OutputStream()
-          source_coder.get_impl().encode_to_stream(
-              GlobalWindows.windowed_value(operation.source),
-              output_stream,
-              True)
-          target_name = self._next_uid()
-          input_data[(input_transform_id, target_name)] = output_stream.get()
-          input_ptransform = beam_fn_api_pb2.PrimitiveTransform(
-              id=input_transform_id,
-              function_spec=beam_fn_api_pb2.FunctionSpec(
-                  urn=sdk_worker.DATA_INPUT_URN,
-                  id=self._next_uid()),
-              # TODO(robertwb): Possible name collision.
-              step_name=stage_name + '/inject_source',
-              inputs={target_name: beam_fn_api_pb2.Target.List()},
-              outputs={
-                  'out':
-                      beam_fn_api_pb2.PCollection(
-                          coder_reference=coder_id(source_coder))
-              })
-          if data_operation_spec:
-            input_ptransform.function_spec.data.Pack(data_operation_spec)
-          transforms.append(input_ptransform)
-
-          # Read the elements out of the source.
-          fn = sdk_worker.pack_function_spec_data(
-              OLDE_SOURCE_SPLITTABLE_DOFN_DATA,
-              sdk_worker.PYTHON_DOFN_URN,
-              id=self._next_uid())
-          inputs = {
-              'ignored_input_tag':
-                  beam_fn_api_pb2.Target.List(target=[
-                      beam_fn_api_pb2.Target(
-                          primitive_transform_reference=input_transform_id,
-                          name='out')
-                  ])
-          }
-          side_inputs = {}
-
-      elif isinstance(operation, operation_specs.WorkerDoFn):
-        fn = sdk_worker.pack_function_spec_data(
-            operation.serialized_fn,
-            sdk_worker.PYTHON_DOFN_URN,
-            id=self._next_uid())
-        inputs = as_target(operation.input)
-        # Store the contents of each side input for state access.
-        for si in operation.side_inputs:
-          assert isinstance(si.source, iobase.BoundedSource)
-          element_coder = si.source.default_output_coder()
-          view_id = self._next_uid()
-          # TODO(robertwb): Actually flesh out the ViewFn API.
-          side_inputs[si.tag] = beam_fn_api_pb2.SideInput(
-              view_fn=sdk_worker.serialize_and_pack_py_fn(
-                  element_coder, urn=sdk_worker.PYTHON_ITERABLE_VIEWFN_URN,
-                  id=view_id))
-          # Re-encode the elements in the nested context and
-          # concatenate them together
-          output_stream = create_OutputStream()
-          for element in si.source.read(
-              si.source.get_range_tracker(None, None)):
-            element_coder.get_impl().encode_to_stream(
-                element, output_stream, True)
-          elements_data = output_stream.get()
-          state_key = beam_fn_api_pb2.StateKey(function_spec_reference=view_id)
-          state_handler.Clear(state_key)
-          state_handler.Append(
-              beam_fn_api_pb2.SimpleStateAppendRequest(
-                  state_key=state_key, data=[elements_data]))
-
-      elif isinstance(operation, operation_specs.WorkerFlatten):
-        fn = sdk_worker.pack_function_spec_data(
-            operation.serialized_fn,
-            sdk_worker.IDENTITY_DOFN_URN,
-            id=self._next_uid())
-        inputs = {
-            'ignored_input_tag':
-                beam_fn_api_pb2.Target.List(target=[
-                    beam_fn_api_pb2.Target(
-                        primitive_transform_reference=transform_index_to_id[
-                            input_op_index],
-                        name=output_tags(map_task[input_op_index][1])[
-                            input_output_index])
-                    for input_op_index, input_output_index in operation.inputs
-                ])
-        }
-        side_inputs = {}
-
-      else:
-        raise TypeError(operation)
-
-      ptransform = beam_fn_api_pb2.PrimitiveTransform(
-          id=transform_id,
-          function_spec=fn,
-          step_name=stage_name,
-          inputs=inputs,
-          side_inputs=side_inputs,
-          outputs=outputs(operation))
-      transforms.append(ptransform)
-
-    process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
-        id=self._next_uid(), coders=coders.values(),
-        primitive_transform=transforms)
+    input_data, side_input_data, runner_sinks, process_bundle_descriptor = (
+        self._map_task_to_protos(map_task, data_operation_spec))
+    # Side inputs will be accessed over the state API.
+    for key, elements_data in side_input_data.items():
+      state_key = beam_fn_api_pb2.StateKey.MultimapSideInput(key=key)
+      state_handler.Clear(state_key)
+      state_handler.Append(state_key, [elements_data])
     return beam_fn_api_pb2.InstructionRequest(
         instruction_id=self._next_uid(),
         register=beam_fn_api_pb2.RegisterRequest(
-            process_bundle_descriptor=[process_bundle_descriptor
-                                      ])), runner_sinks, input_data
+            process_bundle_descriptor=[process_bundle_descriptor])
+        ), runner_sinks, input_data
+
+  def _map_task_to_protos(self, map_task, data_operation_spec):
+    input_data = {}
+    side_input_data = {}
+    runner_sinks = {}
+
+    context = pipeline_context.PipelineContext()
+    transform_protos = {}
+    used_pcollections = {}
+
+    def uniquify(*names):
+      # An injective mapping from string* to string.
+      return ':'.join("%s:%d" % (name, len(name)) for name in names)
+
+    def pcollection_id(op_ix, out_ix):
+      if (op_ix, out_ix) not in used_pcollections:
+        used_pcollections[op_ix, out_ix] = uniquify(
+            map_task[op_ix][0], 'out', str(out_ix))
+      return used_pcollections[op_ix, out_ix]
+
+    def get_inputs(op):
+      if hasattr(op, 'inputs'):
+        inputs = op.inputs
+      elif hasattr(op, 'input'):
+        inputs = [op.input]
+      else:
+        inputs = []
+      return {'in%s' % ix: pcollection_id(*input)
+              for ix, input in enumerate(inputs)}
+
+    def get_outputs(op_ix):
+      op = map_task[op_ix][1]
+      return {tag: pcollection_id(op_ix, out_ix)
+              for out_ix, tag in enumerate(getattr(op, 'output_tags', ['out']))}
+
+    def only_element(iterable):
+      element, = iterable
+      return element
+
+    for op_ix, (stage_name, operation) in enumerate(map_task):
+      transform_id = uniquify(stage_name)
+
+      if isinstance(operation, operation_specs.WorkerInMemoryWrite):
+        # Write this data back to the runner.
+        target_name = only_element(get_inputs(operation).keys())
+        runner_sinks[(transform_id, target_name)] = operation
+        transform_spec = beam_runner_api_pb2.FunctionSpec(
+            urn=bundle_processor.DATA_OUTPUT_URN,
+            parameter=proto_utils.pack_Any(data_operation_spec))
+
+      elif isinstance(operation, operation_specs.WorkerRead):
+        # A Read from an in-memory source is done over the data plane.
+        if (isinstance(operation.source.source,
+                       maptask_executor_runner.InMemorySource)
+            and isinstance(operation.source.source.default_output_coder(),
+                           WindowedValueCoder)):
+          target_name = only_element(get_outputs(op_ix).keys())
+          input_data[(transform_id, target_name)] = self._reencode_elements(
+              operation.source.source.read(None),
+              operation.source.source.default_output_coder())
+          transform_spec = beam_runner_api_pb2.FunctionSpec(
+              urn=bundle_processor.DATA_INPUT_URN,
+              parameter=proto_utils.pack_Any(data_operation_spec))
+
+        else:
+          # Otherwise serialize the source and execute it there.
+          # TODO: Use SDFs with an initial impulse.
+          # The Dataflow runner harness strips the base64 encoding. do the same
+          # here until we get the same thing back that we sent in.
+          transform_spec = beam_runner_api_pb2.FunctionSpec(
+              urn=bundle_processor.PYTHON_SOURCE_URN,
+              parameter=proto_utils.pack_Any(
+                  wrappers_pb2.BytesValue(
+                      value=base64.b64decode(
+                          pickler.dumps(operation.source.source)))))
+
+      elif isinstance(operation, operation_specs.WorkerDoFn):
+        # Record the contents of each side input for access via the state api.
+        side_input_extras = []
+        for si in operation.side_inputs:
+          assert isinstance(si.source, iobase.BoundedSource)
+          element_coder = si.source.default_output_coder()
+          # TODO(robertwb): Actually flesh out the ViewFn API.
+          side_input_extras.append((si.tag, element_coder))
+          side_input_data[
+              bundle_processor.side_input_tag(transform_id, si.tag)] = (
+                  self._reencode_elements(
+                      si.source.read(si.source.get_range_tracker(None, None)),
+                      element_coder))
+        augmented_serialized_fn = pickler.dumps(
+            (operation.serialized_fn, side_input_extras))
+        transform_spec = beam_runner_api_pb2.FunctionSpec(
+            urn=bundle_processor.PYTHON_DOFN_URN,
+            parameter=proto_utils.pack_Any(
+                wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
+
+      elif isinstance(operation, operation_specs.WorkerFlatten):
+        # Flatten is nice and simple.
+        transform_spec = beam_runner_api_pb2.FunctionSpec(
+            urn=bundle_processor.IDENTITY_DOFN_URN)
+
+      else:
+        raise NotImplementedError(operation)
+
+      transform_protos[transform_id] = beam_runner_api_pb2.PTransform(
+          unique_name=stage_name,
+          spec=transform_spec,
+          inputs=get_inputs(operation),
+          outputs=get_outputs(op_ix))
+
+    pcollection_protos = {
+        name: beam_runner_api_pb2.PCollection(
+            unique_name=name,
+            coder_id=context.coders.get_id(
+                map_task[op_id][1].output_coders[out_id]))
+        for (op_id, out_id), name in used_pcollections.items()
+    }
+    # Must follow creation of pcollection_protos to capture used coders.
+    context_proto = context.to_runner_api()
+    process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
+        id=self._next_uid(),
+        transforms=transform_protos,
+        pcollections=pcollection_protos,
+        coders=dict(context_proto.coders.items()),
+        windowing_strategies=dict(context_proto.windowing_strategies.items()),
+        environments=dict(context_proto.environments.items()))
+    return input_data, side_input_data, runner_sinks, process_bundle_descriptor
 
   def _run_map_task(
       self, map_task, control_handler, state_handler, data_plane_handler,
@@ -358,7 +317,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             sink_op.output_buffer.append(e)
         return
 
-  def execute_map_tasks(self, ordered_map_tasks, direct=True):
+  def execute_map_tasks(self, ordered_map_tasks, direct=False):
     if direct:
       controller = FnApiRunner.DirectController()
     else:
@@ -382,9 +341,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       return beam_fn_api_pb2.Elements.Data(
           data=''.join(self._all[self._to_key(state_key)]))
 
-    def Append(self, append_request):
-      self._all[self._to_key(append_request.state_key)].extend(
-          append_request.data)
+    def Append(self, state_key, data):
+      self._all[self._to_key(state_key)].extend(data)
 
     def Clear(self, state_key):
       try:
@@ -394,8 +352,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     @staticmethod
     def _to_key(state_key):
-      return (state_key.function_spec_reference, state_key.window,
-              state_key.key)
+      return state_key.window, state_key.key
 
   class DirectController(object):
     """An in-memory controller for fn API control, state and data planes."""
@@ -471,3 +428,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_plane_handler.close()
       self.control_server.stop(5).wait()
       self.data_server.stop(5).wait()
+
+  @staticmethod
+  def _reencode_elements(elements, element_coder):
+    output_stream = create_OutputStream()
+    for element in elements:
+      element_coder.get_impl().encode_to_stream(element, output_stream, True)
+    return output_stream.get()

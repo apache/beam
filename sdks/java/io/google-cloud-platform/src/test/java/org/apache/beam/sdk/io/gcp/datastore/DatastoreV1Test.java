@@ -27,7 +27,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT;
-import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.getEstimatedSizeBytes;
@@ -51,6 +51,7 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.CommitResponse;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
 import com.google.datastore.v1.GqlQuery;
@@ -606,7 +607,7 @@ public class DatastoreV1Test {
   /** Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple. */
   @Test
   public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
-    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 3 + 100);
+    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_ENTITIES_START * 3 + 100);
   }
 
   /**
@@ -615,7 +616,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
-    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 2);
+    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_ENTITIES_START * 2);
   }
 
   // A helper method to test DatastoreWriterFn for various batch sizes.
@@ -628,14 +629,14 @@ public class DatastoreV1Test {
     }
 
     DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
-        null, mockDatastoreFactory);
+        null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
 
     int start = 0;
     while (start < numMutations) {
-      int end = Math.min(numMutations, start + DATASTORE_BATCH_UPDATE_LIMIT);
+      int end = Math.min(numMutations, start + DATASTORE_BATCH_UPDATE_ENTITIES_START);
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
       commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
       commitRequest.addAllMutations(mutations.subList(start, end));
@@ -651,26 +652,28 @@ public class DatastoreV1Test {
   @Test
   public void testDatatoreWriterFnWithLargeEntities() throws Exception {
     List<Mutation> mutations = new ArrayList<>();
-    int propertySize = 900_000;
+    int entitySize = 0;
     for (int i = 0; i < 12; ++i) {
-      Entity.Builder entity = Entity.newBuilder().setKey(makeKey("key" + i, i + 1));
-      entity.putProperties("long", makeValue(new String(new char[propertySize])
-            ).setExcludeFromIndexes(true).build());
-      mutations.add(makeUpsert(entity.build()).build());
+      Entity entity = Entity.newBuilder().setKey(makeKey("key" + i, i + 1))
+        .putProperties("long", makeValue(new String(new char[900_000])
+              ).setExcludeFromIndexes(true).build())
+        .build();
+      entitySize = entity.getSerializedSize(); // Take the size of any one entity.
+      mutations.add(makeUpsert(entity).build());
     }
 
     DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
-        null, mockDatastoreFactory);
+        null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
 
     // This test is over-specific currently; it requires that we split the 12 entity writes into 3
     // requests, but we only need each CommitRequest to be less than 10MB in size.
-    int propertiesPerRpc = DATASTORE_BATCH_UPDATE_BYTES_LIMIT / propertySize;
+    int entitiesPerRpc = DATASTORE_BATCH_UPDATE_BYTES_LIMIT / entitySize;
     int start = 0;
     while (start < mutations.size()) {
-      int end = Math.min(mutations.size(), start + propertiesPerRpc);
+      int end = Math.min(mutations.size(), start + entitiesPerRpc);
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
       commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
       commitRequest.addAllMutations(mutations.subList(start, end));
@@ -678,6 +681,29 @@ public class DatastoreV1Test {
       verify(mockDatastore).commit(commitRequest.build());
       start = end;
     }
+  }
+
+  /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
+  @Test
+  public void testDatatoreWriterFnRetriesErrors() throws Exception {
+    List<Mutation> mutations = new ArrayList<>();
+    int numRpcs = 2;
+    for (int i = 0; i < DATASTORE_BATCH_UPDATE_ENTITIES_START * numRpcs; ++i) {
+      mutations.add(
+          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
+    }
+
+    CommitResponse successfulCommit = CommitResponse.getDefaultInstance();
+    when(mockDatastore.commit(any(CommitRequest.class))).thenReturn(successfulCommit)
+      .thenThrow(
+          new DatastoreException("commit", Code.DEADLINE_EXCEEDED, "", null))
+      .thenReturn(successfulCommit);
+
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
+        null, mockDatastoreFactory, new FakeWriteBatcher());
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBundle(mutations);
   }
 
   /**
@@ -781,7 +807,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testSplitQueryFnWithQueryLimit() throws Exception {
-    Query queryWithLimit = QUERY.toBuilder().clone()
+    Query queryWithLimit = QUERY.toBuilder()
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
@@ -812,6 +838,31 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnWithBatchesExactMultiple() throws Exception {
     readFnTest(5 * QUERY_BATCH_LIMIT);
+  }
+
+  /** Tests that {@link ReadFn} retries after an error. */
+  @Test
+  public void testReadFnRetriesErrors() throws Exception {
+    // An empty query to read entities.
+    Query query = Query.newBuilder().setLimit(
+        Int32Value.newBuilder().setValue(1)).build();
+
+    // Use mockResponseForQuery to generate results.
+    when(mockDatastore.runQuery(any(RunQueryRequest.class)))
+        .thenThrow(
+            new DatastoreException("RunQuery", Code.DEADLINE_EXCEEDED, "", null))
+        .thenAnswer(new Answer<RunQueryResponse>() {
+          @Override
+          public RunQueryResponse answer(InvocationOnMock invocationOnMock) throws Throwable {
+            Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+            return mockResponseForQuery(q);
+          }
+        });
+
+    ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<Entity> entities = doFnTester.processBundle(query);
   }
 
   @Test
@@ -892,6 +943,50 @@ public class DatastoreV1Test {
             .withProjectId(options.getDatastoreProject())
             .withLiteralGqlQuery(options.getGqlQuery()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
+  }
+
+  @Test
+  public void testWriteBatcherWithoutData() {
+    DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
+    writeBatcher.start();
+    assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START, writeBatcher.nextBatchSize(0));
+  }
+
+  @Test
+  public void testWriteBatcherFastQueries() {
+    DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
+    writeBatcher.start();
+    writeBatcher.addRequestLatency(0, 1000, 200);
+    writeBatcher.addRequestLatency(0, 1000, 200);
+    assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_LIMIT, writeBatcher.nextBatchSize(0));
+  }
+
+  @Test
+  public void testWriteBatcherSlowQueries() {
+    DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
+    writeBatcher.start();
+    writeBatcher.addRequestLatency(0, 10000, 200);
+    writeBatcher.addRequestLatency(0, 10000, 200);
+    assertEquals(100, writeBatcher.nextBatchSize(0));
+  }
+
+  @Test
+  public void testWriteBatcherSizeNotBelowMinimum() {
+    DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
+    writeBatcher.start();
+    writeBatcher.addRequestLatency(0, 30000, 50);
+    writeBatcher.addRequestLatency(0, 30000, 50);
+    assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_MIN, writeBatcher.nextBatchSize(0));
+  }
+
+  @Test
+  public void testWriteBatcherSlidingWindow() {
+    DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
+    writeBatcher.start();
+    writeBatcher.addRequestLatency(0, 30000, 50);
+    writeBatcher.addRequestLatency(50000, 5000, 200);
+    writeBatcher.addRequestLatency(100000, 5000, 200);
+    assertEquals(200, writeBatcher.nextBatchSize(150000));
   }
 
   /** Helper Methods */
@@ -1033,8 +1128,24 @@ public class DatastoreV1Test {
   private List<Query> splitQuery(Query query, int numSplits) {
     List<Query> queries = new LinkedList<>();
     for (int i = 0; i < numSplits; i++) {
-      queries.add(query.toBuilder().clone().build());
+      queries.add(query.toBuilder().build());
     }
     return queries;
+  }
+
+  /**
+   * A WriteBatcher for unit tests, which does no timing-based adjustments (so unit tests have
+   * consistent results).
+   */
+  static class FakeWriteBatcher implements DatastoreV1.WriteBatcher {
+    @Override
+    public void start() {}
+    @Override
+    public void addRequestLatency(long timeSinceEpochMillis, long latencyMillis, int numMutations) {
+    }
+    @Override
+    public int nextBatchSize(long timeSinceEpochMillis) {
+      return DATASTORE_BATCH_UPDATE_ENTITIES_START;
+    }
   }
 }
