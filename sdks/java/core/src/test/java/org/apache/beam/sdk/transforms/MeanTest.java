@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Lists;
@@ -64,7 +64,7 @@ public class MeanTest {
 
   @Test
   public void testMeanFn() throws Exception {
-    checkCombineFn(
+    testCombineFn(
         Mean.<Integer>of(),
         Lists.newArrayList(1, 2, 3, 4),
         2.5);

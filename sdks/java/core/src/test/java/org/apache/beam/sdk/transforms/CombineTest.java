@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
@@ -695,11 +695,11 @@ public class CombineTest implements Serializable {
 
   @Test
   public void testBinaryCombineFnWithNulls() {
-    checkCombineFn(new NullCombiner(), Arrays.asList(3, 3, 5), 45);
-    checkCombineFn(new NullCombiner(), Arrays.asList(null, 3, 5), 30);
-    checkCombineFn(new NullCombiner(), Arrays.asList(3, 3, null), 18);
-    checkCombineFn(new NullCombiner(), Arrays.asList(null, 3, null), 12);
-    checkCombineFn(new NullCombiner(), Arrays.<Integer>asList(null, null, null), 8);
+    testCombineFn(new NullCombiner(), Arrays.asList(3, 3, 5), 45);
+    testCombineFn(new NullCombiner(), Arrays.asList(null, 3, 5), 30);
+    testCombineFn(new NullCombiner(), Arrays.asList(3, 3, null), 18);
+    testCombineFn(new NullCombiner(), Arrays.asList(null, 3, null), 12);
+    testCombineFn(new NullCombiner(), Arrays.<Integer>asList(null, null, null), 8);
   }
 
   private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
