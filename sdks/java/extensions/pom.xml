@@ -36,6 +36,7 @@
     <module>jackson</module>
     <module>join-library</module>
     <module>protobuf</module>
+    <module>sketching</module>
     <module>sorter</module>
   </modules>
 
