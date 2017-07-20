@@ -168,6 +168,11 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
+
+    <!-- standard binary for kubectl -->
+    <kubectl>kubectl</kubectl>
+    <!-- the standard location for kubernete's config file -->
+    <kubeconfig>${user.home}/.kube/config</kubeconfig>
   </properties>
 
   <packaging>pom</packaging>
