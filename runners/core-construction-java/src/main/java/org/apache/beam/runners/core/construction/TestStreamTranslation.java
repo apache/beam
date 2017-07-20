@@ -63,13 +63,10 @@ public class TestStreamTranslation {
   }
 
   private static TestStream<?> fromProto(
-      RunnerApi.TestStreamPayload testStreamPayload, RunnerApi.Components components)
+      RunnerApi.TestStreamPayload testStreamPayload, RehydratedComponents components)
       throws IOException {
 
-    Coder<Object> coder =
-        (Coder<Object>)
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(testStreamPayload.getCoderId()), components);
+    Coder<Object> coder = (Coder<Object>) components.getCoder(testStreamPayload.getCoderId());
 
     List<TestStream.Event<Object>> events = new ArrayList<>();
 
@@ -101,7 +98,9 @@ public class TestStreamTranslation {
     RunnerApi.TestStreamPayload testStreamPayload =
         transformProto.getSpec().getParameter().unpack(RunnerApi.TestStreamPayload.class);
 
-    return (TestStream<T>) fromProto(testStreamPayload, sdkComponents.toComponents());
+    return (TestStream<T>)
+        fromProto(
+            testStreamPayload, RehydratedComponents.forComponents(sdkComponents.toComponents()));
   }
 
   static <T> RunnerApi.TestStreamPayload.Event toProto(TestStream.Event<T> event, Coder<T> coder)

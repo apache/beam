@@ -82,7 +82,8 @@ public class TestStreamTranslationTest {
       RunnerApi.TestStreamPayload payload =
           TestStreamTranslation.testStreamToPayload(testStream, components);
 
-      verifyTestStreamEncoding(testStream, payload, components.toComponents());
+      verifyTestStreamEncoding(
+          testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
     }
 
     @Test
@@ -102,19 +103,19 @@ public class TestStreamTranslationTest {
       RunnerApi.TestStreamPayload payload =
           spec.getParameter().unpack(RunnerApi.TestStreamPayload.class);
 
-      verifyTestStreamEncoding(testStream, payload, components.toComponents());
+      verifyTestStreamEncoding(
+          testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
     }
 
     private static <T> void verifyTestStreamEncoding(
         TestStream<T> testStream,
         RunnerApi.TestStreamPayload payload,
-        RunnerApi.Components protoComponents)
+        RehydratedComponents protoComponents)
         throws Exception {
 
       // This reverse direction is only valid for Java-based coders
       assertThat(
-          CoderTranslation.fromProto(
-              protoComponents.getCodersOrThrow(payload.getCoderId()), protoComponents),
+          protoComponents.getCoder(payload.getCoderId()),
           Matchers.<Coder<?>>equalTo(testStream.getValueCoder()));
 
       assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));

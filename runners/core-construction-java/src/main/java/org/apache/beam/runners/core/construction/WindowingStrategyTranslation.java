@@ -322,7 +322,9 @@ public class WindowingStrategyTranslation implements Serializable {
       throws InvalidProtocolBufferException {
     switch (proto.getRootCase()) {
       case WINDOWING_STRATEGY:
-        return fromProto(proto.getWindowingStrategy(), proto.getComponents());
+        return fromProto(
+            proto.getWindowingStrategy(),
+            RehydratedComponents.forComponents(proto.getComponents()));
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -336,7 +338,7 @@ public class WindowingStrategyTranslation implements Serializable {
    * the provided components to dereferences identifiers found in the proto.
    */
   public static WindowingStrategy<?, ?> fromProto(
-      RunnerApi.WindowingStrategy proto, Components components)
+      RunnerApi.WindowingStrategy proto, RehydratedComponents components)
       throws InvalidProtocolBufferException {
 
     SdkFunctionSpec windowFnSpec = proto.getWindowFn();

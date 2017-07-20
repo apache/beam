@@ -149,9 +149,9 @@ public class CombineTranslation {
   }
 
   public static Coder<?> getAccumulatorCoder(
-      CombinePayload payload, RunnerApi.Components components) throws IOException {
+      CombinePayload payload, RehydratedComponents components) throws IOException {
     String id = payload.getAccumulatorCoderId();
-    return CoderTranslation.fromProto(components.getCodersOrThrow(id), components);
+    return components.getCoder(id);
   }
 
   public static Coder<?> getAccumulatorCoder(
@@ -159,7 +159,8 @@ public class CombineTranslation {
     SdkComponents sdkComponents = SdkComponents.create();
     String id = getCombinePayload(transform, sdkComponents).getAccumulatorCoderId();
     Components components = sdkComponents.toComponents();
-    return CoderTranslation.fromProto(components.getCodersOrThrow(id), components);
+    return CoderTranslation.fromProto(
+        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload)
