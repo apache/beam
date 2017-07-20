@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -102,11 +101,6 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   public SystemReduceFn(
       StateTag<? extends GroupingState<InputT, OutputT>> bufferTag) {
     this.bufferTag = bufferTag;
-  }
-
-  @VisibleForTesting
-  StateTag<? extends GroupingState<InputT, OutputT>> getBufferTag() {
-    return bufferTag;
   }
 
   @Override

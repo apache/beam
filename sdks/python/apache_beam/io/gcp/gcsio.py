@@ -31,7 +31,6 @@ import re
 import threading
 import time
 import traceback
-import httplib2
 
 from apache_beam.utils import retry
 
@@ -69,10 +68,6 @@ except ImportError:
 # +---------------+------------+-------------+-------------+-------------+
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
-# This is the number of seconds the library will wait for GCS operations to
-# complete.
-DEFAULT_HTTP_TIMEOUT_SECONDS = 60
-
 # This is the number of seconds the library will wait for a partial-file read
 # operation from GCS to complete before retrying.
 DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS = 60
@@ -104,7 +99,6 @@ class GcsIO(object):
 
   def __new__(cls, storage_client=None):
     if storage_client:
-      # This path is only used for testing.
       return super(GcsIO, cls).__new__(cls, storage_client)
     else:
       # Create a single storage client for each thread.  We would like to avoid
@@ -114,9 +108,7 @@ class GcsIO(object):
       local_state = threading.local()
       if getattr(local_state, 'gcsio_instance', None) is None:
         credentials = auth.get_service_credentials()
-        storage_client = storage.StorageV1(
-            credentials=credentials,
-            http=httplib2.Http(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS))
+        storage_client = storage.StorageV1(credentials=credentials)
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client

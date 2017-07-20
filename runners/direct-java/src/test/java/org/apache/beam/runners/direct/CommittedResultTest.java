@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collections;
@@ -72,7 +72,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
+            bundleFactory.createBundle(created).commit(Instant.now()),
             Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
@@ -88,11 +88,11 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.of(bundle),
+            bundle,
             Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs().get(),
+    assertThat(result.getUnprocessedInputs(),
         Matchers.<CommittedBundle<?>>equalTo(bundle));
   }
 
@@ -101,14 +101,11 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
+            null,
             Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(
-        result.getUnprocessedInputs(),
-        Matchers.<Optional<? extends CommittedBundle<?>>>equalTo(
-            Optional.<CommittedBundle<?>>absent()));
+    assertThat(result.getUnprocessedInputs(), nullValue());
   }
 
   @Test
@@ -123,7 +120,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
+            bundleFactory.createBundle(created).commit(Instant.now()),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 

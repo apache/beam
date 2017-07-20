@@ -27,12 +27,9 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Collections;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
-import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.LocalResources;
@@ -56,7 +53,6 @@ import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -99,14 +95,9 @@ public class PTransformMatchersTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         PCollection.createPrimitiveOutputInternal(
             p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
-    input.setName("dummy input");
-    input.setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
-
     PCollection<Integer> output =
         PCollection.createPrimitiveOutputInternal(
             p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
-    output.setName("dummy output");
-    output.setCoder(VarIntCoder.of());
 
     return AppliedPTransform.of("pardo", input.expand(), output.expand(), pardo, p);
   }
@@ -281,18 +272,6 @@ public class PTransformMatchersTest implements Serializable {
   }
 
   @Test
-  public void parDoSplittable() {
-    AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
-
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
   public void parDoMultiWithState() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
@@ -302,19 +281,6 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
-  public void parDoWithState() {
-    AppliedPTransform<?, ?, ?> statefulApplication =
-        getAppliedTransform(
-            ParDo.of(doFnWithState).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDo().matches(statefulApplication), is(true));
-
-    AppliedPTransform<?, ?, ?> splittableApplication =
-        getAppliedTransform(
-            ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDo().matches(splittableApplication), is(false));
   }
 
   @Test
@@ -539,32 +505,30 @@ public class PTransformMatchersTest implements Serializable {
   public void writeWithRunnerDeterminedSharding() {
     ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
     FilenamePolicy policy =
-        DefaultFilenamePolicy.fromStandardParameters(
+        DefaultFilenamePolicy.constructUsingStandardParameters(
             StaticValueProvider.of(outputDirectory),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
             "",
             false);
-    WriteFiles<Integer, Void, Integer> write =
+    WriteFiles<Integer> write =
         WriteFiles.to(
-            new FileBasedSink<Integer, Void>(
-                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(null)) {
+            new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
               @Override
-              public WriteOperation<Integer, Void> createWriteOperation() {
+              public WriteOperation<Integer> createWriteOperation() {
                 return null;
               }
-            },
-            SerializableFunctions.<Integer>identity());
+            });
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    WriteFiles<Integer, Void, Integer> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    WriteFiles<Integer, Void, Integer> withCustomSharding =
+    WriteFiles<Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -572,8 +536,8 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer, Void, Integer>>of(
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer>>of(
         "WriteFiles",
         Collections.<TupleTag<?>, PValue>emptyMap(),
         Collections.<TupleTag<?>, PValue>emptyMap(),

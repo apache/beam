@@ -208,8 +208,3 @@ class Duration(object):
   def __mod__(self, other):
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
-
-
-# The minimum granularity / interval expressible in a Timestamp / Duration
-# object.
-TIME_GRANULARITY = Duration(micros=1)

@@ -37,11 +37,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.transforms.ViewFn;
-import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
@@ -66,19 +63,24 @@ public class ViewOverrideFactoryTest implements Serializable {
     PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
+    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>>
         replacementTransform =
             factory.getReplacementTransform(
                 AppliedPTransform
-                    .<PCollection<Integer>, PCollection<Integer>,
-                        PTransform<PCollection<Integer>, PCollection<Integer>>>
+                    .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                        CreatePCollectionView<Integer, List<Integer>>>
                         of(
                             "foo",
                             ints.expand(),
                             view.expand(),
                             CreatePCollectionView.<Integer, List<Integer>>of(view),
                             p));
-    ints.apply(replacementTransform.getTransform());
+    PCollectionView<List<Integer>> afterReplacement =
+        ints.apply(replacementTransform.getTransform());
+    assertThat(
+        "The CreatePCollectionView replacement should return the same View",
+        afterReplacement,
+        equalTo(view));
 
     PCollection<Set<Integer>> outputViewContents =
         p.apply("CreateSingleton", Create.of(0))
@@ -102,11 +104,11 @@ public class ViewOverrideFactoryTest implements Serializable {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransformReplacement<PCollection<Integer>, PCollection<Integer>> replacement =
+    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>> replacement =
         factory.getReplacementTransform(
             AppliedPTransform
-                .<PCollection<Integer>, PCollection<Integer>,
-                    PTransform<PCollection<Integer>, PCollection<Integer>>>
+                .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                    CreatePCollectionView<Integer, List<Integer>>>
                     of(
                         "foo",
                         ints.expand(),
@@ -124,19 +126,8 @@ public class ViewOverrideFactoryTest implements Serializable {
                   "There should only be one WriteView primitive in the graph",
                   writeViewVisited.getAndSet(true),
                   is(false));
-              PCollectionView<?> replacementView = ((WriteView) node.getTransform()).getView();
-
-              // replacementView.getPCollection() is null, but that is not a requirement
-              // so not asserted one way or the other
-              assertThat(
-                  replacementView.getTagInternal(),
-                  equalTo(view.getTagInternal()));
-              assertThat(
-                  replacementView.getViewFn(),
-                  Matchers.<ViewFn<?, ?>>equalTo(view.getViewFn()));
-              assertThat(
-                  replacementView.getWindowMappingFn(),
-                  Matchers.<WindowMappingFn<?>>equalTo(view.getWindowMappingFn()));
+              PCollectionView replacementView = ((WriteView) node.getTransform()).getView();
+              assertThat(replacementView, Matchers.<PCollectionView>theInstance(view));
               assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }

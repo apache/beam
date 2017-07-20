@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * <p>Using this trigger will only produce output when the watermark passes the end of the
  * {@link BoundedWindow window} plus the allowed lateness.
  */
-public final class NeverStateMachine extends TriggerStateMachine {
+public final class NeverStateMachine extends OnceTriggerStateMachine {
   /**
    * Returns a trigger which never fires. Output will be produced from the using {@link GroupByKey}
    * when the {@link BoundedWindow} closes.
@@ -52,7 +53,7 @@ public final class NeverStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void onFire(TriggerStateMachine.TriggerContext context) {
+  protected void onOnlyFiring(TriggerStateMachine.TriggerContext context) {
     throw new UnsupportedOperationException(
         String.format("%s should never fire", getClass().getSimpleName()));
   }

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import java.io.Serializable;
 import java.util.Objects;
-
 import org.joda.time.Instant;
 
 /**
@@ -33,55 +32,54 @@ import org.joda.time.Instant;
  * in which case the reader will start reading at the specified point in time.
  */
 class StartingPoint implements Serializable {
+    private final InitialPositionInStream position;
+    private final Instant timestamp;
 
-  private final InitialPositionInStream position;
-  private final Instant timestamp;
-
-  public StartingPoint(InitialPositionInStream position) {
-    this.position = checkNotNull(position, "position");
-    this.timestamp = null;
-  }
-
-  public StartingPoint(Instant timestamp) {
-    this.timestamp = checkNotNull(timestamp, "timestamp");
-    this.position = null;
-  }
-
-  public InitialPositionInStream getPosition() {
-    return position;
-  }
-
-  public String getPositionName() {
-    return position != null ? position.name() : ShardIteratorType.AT_TIMESTAMP.name();
-  }
-
-  public Instant getTimestamp() {
-    return timestamp != null ? timestamp : null;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
+    public StartingPoint(InitialPositionInStream position) {
+        this.position = checkNotNull(position, "position");
+        this.timestamp = null;
     }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    StartingPoint that = (StartingPoint) o;
-    return position == that.position && Objects.equals(timestamp, that.timestamp);
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(position, timestamp);
-  }
-
-  @Override
-  public String toString() {
-    if (timestamp == null) {
-      return position.toString();
-    } else {
-      return "Starting at timestamp " + timestamp;
+    public StartingPoint(Instant timestamp) {
+        this.timestamp = checkNotNull(timestamp, "timestamp");
+        this.position = null;
     }
-  }
+
+    public InitialPositionInStream getPosition() {
+        return position;
+    }
+
+    public String getPositionName() {
+        return position != null ? position.name() : ShardIteratorType.AT_TIMESTAMP.name();
+    }
+
+    public Instant getTimestamp() {
+        return timestamp != null ? timestamp : null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        StartingPoint that = (StartingPoint) o;
+        return position == that.position && Objects.equals(timestamp, that.timestamp);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(position, timestamp);
+    }
+
+    @Override
+    public String toString() {
+        if (timestamp == null) {
+            return position.toString();
+        } else {
+            return "Starting at timestamp " + timestamp;
+        }
+    }
 }

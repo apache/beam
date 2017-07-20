@@ -71,7 +71,11 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   Integer getElasticsearchHttpPort();
   void setElasticsearchHttpPort(Integer value);
 
-  /* Cassandra */
+  @Description("Tcp port for elasticsearch server")
+  @Default.Integer(9300)
+  Integer getElasticsearchTcpPort();
+  void setElasticsearchTcpPort(Integer value);
+
   @Description("Host for Cassandra server (host name/ip address)")
   @Default.String("cassandra-host")
   String getCassandraHost();

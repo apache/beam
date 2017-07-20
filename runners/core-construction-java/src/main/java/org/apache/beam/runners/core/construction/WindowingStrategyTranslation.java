@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -116,27 +115,6 @@ public class WindowingStrategyTranslation implements Serializable {
                 "Cannot convert unknown %s to %s: %s",
                 RunnerApi.ClosingBehavior.class.getCanonicalName(),
                 ClosingBehavior.class.getCanonicalName(),
-                proto));
-    }
-  }
-
-
-  public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior proto) {
-    switch (proto) {
-      case FIRE_ALWAYS:
-        return OnTimeBehavior.FIRE_ALWAYS;
-      case FIRE_IF_NONEMPTY:
-        return OnTimeBehavior.FIRE_IF_NON_EMPTY;
-      case UNRECOGNIZED:
-      default:
-        // Whether or not it is proto that cannot recognize it (due to the version of the
-        // generated code we link to) or the switch hasn't been updated to handle it,
-        // the situation is the same: we don't know what this OutputTime means
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot convert unknown %s to %s: %s",
-                RunnerApi.OnTimeBehavior.class.getCanonicalName(),
-                OnTimeBehavior.class.getCanonicalName(),
                 proto));
     }
   }
@@ -307,7 +285,6 @@ public class WindowingStrategyTranslation implements Serializable {
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
-            .setAssignsToOneWindow(windowingStrategy.getWindowFn().assignsToOneWindow())
             .setWindowCoderId(
                 components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
 
@@ -346,15 +323,13 @@ public class WindowingStrategyTranslation implements Serializable {
     Trigger trigger = TriggerTranslation.fromProto(proto.getTrigger());
     ClosingBehavior closingBehavior = fromProto(proto.getClosingBehavior());
     Duration allowedLateness = Duration.millis(proto.getAllowedLateness());
-    OnTimeBehavior onTimeBehavior = fromProto(proto.getOnTimeBehavior());
 
     return WindowingStrategy.of(windowFn)
         .withAllowedLateness(allowedLateness)
         .withMode(accumulationMode)
         .withTrigger(trigger)
         .withTimestampCombiner(timestampCombiner)
-        .withClosingBehavior(closingBehavior)
-        .withOnTimeBehavior(onTimeBehavior);
+        .withClosingBehavior(closingBehavior);
   }
 
   public static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec)

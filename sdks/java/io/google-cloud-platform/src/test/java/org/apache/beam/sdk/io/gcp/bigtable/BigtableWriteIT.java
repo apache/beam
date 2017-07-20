@@ -73,17 +73,15 @@ public class BigtableWriteIT implements Serializable {
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
-  private String project;
 
   @Before
   public void setup() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    project = options.as(GcpOptions.class).getProject();
 
     bigtableOptions =
         new Builder()
-            .setProjectId(project)
+            .setProjectId(options.getProjectId())
             .setInstanceId(options.getInstanceId())
             .setUserAgent("apache-beam-test")
             .build();

@@ -18,12 +18,11 @@
 
 package org.apache.beam.runners.direct;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
+import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -44,56 +43,46 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
-    PCollection<ElemT>, PCollection<ElemT>,
-        PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
+        PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
 
   @Override
-  public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
+  public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
       AppliedPTransform<
-              PCollection<ElemT>, PCollection<ElemT>,
-              PTransform<PCollection<ElemT>, PCollection<ElemT>>>
+              PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
           transform) {
-
-    PCollectionView<ViewT> view;
-    try {
-      view = CreatePCollectionViewTranslation.getView(transform);
-    } catch (IOException exc) {
-      throw new RuntimeException(
-          String.format(
-              "Could not extract %s from transform %s",
-              PCollectionView.class.getSimpleName(), transform),
-          exc);
-    }
-
-      return PTransformReplacement.of(
+    return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new GroupAndWriteView<ElemT, ViewT>(view));
+        new GroupAndWriteView<>(transform.getTransform()));
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PCollection<ElemT> newOutput) {
-    return ReplacementOutputs.singleton(outputs, newOutput);
+      Map<TupleTag<?>, PValue> outputs, PCollectionView<ViewT> newOutput) {
+    return Collections.emptyMap();
   }
 
   /** The {@link DirectRunner} composite override for {@link CreatePCollectionView}. */
   static class GroupAndWriteView<ElemT, ViewT>
-      extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
-    private final PCollectionView<ViewT> view;
+      extends ForwardingPTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+    private final CreatePCollectionView<ElemT, ViewT> og;
 
-    private GroupAndWriteView(PCollectionView<ViewT> view) {
-      this.view = view;
+    private GroupAndWriteView(CreatePCollectionView<ElemT, ViewT> og) {
+      this.og = og;
     }
 
     @Override
-    public PCollection<ElemT> expand(final PCollection<ElemT> input) {
-      input
+    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+      return input
           .apply(WithKeys.<Void, ElemT>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
           .apply(GroupByKey.<Void, ElemT>create())
           .apply(Values.<Iterable<ElemT>>create())
-          .apply(new WriteView<ElemT, ViewT>(view));
-      return input;
+          .apply(new WriteView<ElemT, ViewT>(og));
+    }
+
+    @Override
+    protected PTransform<PCollection<ElemT>, PCollectionView<ViewT>> delegate() {
+      return og;
     }
   }
 
@@ -105,24 +94,22 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
-    private final PCollectionView<ViewT> view;
+      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {
+    private final CreatePCollectionView<ElemT, ViewT> og;
 
-    WriteView(PCollectionView<ViewT> view) {
-      this.view = view;
+    WriteView(CreatePCollectionView<ElemT, ViewT> og) {
+      this.og = og;
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public PCollection<Iterable<ElemT>> expand(PCollection<Iterable<ElemT>> input) {
-      return PCollection.<Iterable<ElemT>>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
+    public PCollectionView<ViewT> expand(PCollection<Iterable<ElemT>> input) {
+      return og.getView();
     }
 
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
-      return view;
+      return og.getView();
     }
 
     @Override

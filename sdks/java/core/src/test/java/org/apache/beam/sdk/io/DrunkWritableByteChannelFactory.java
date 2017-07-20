@@ -39,7 +39,7 @@ public class DrunkWritableByteChannelFactory implements WritableByteChannelFacto
   }
 
   @Override
-  public String getSuggestedFilenameSuffix() {
+  public String getFilenameSuffix() {
     return ".drunk";
   }
 

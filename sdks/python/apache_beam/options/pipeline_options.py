@@ -18,6 +18,7 @@
 """Pipeline options obtained from command line parsing."""
 
 import argparse
+import warnings
 
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.options.value_provider import StaticValueProvider
@@ -278,6 +279,14 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
+  # TODO(BEAM-1265): Remove this warning, once at least one runner supports
+  # streaming pipelines.
+  def validate(self, validator):
+    errors = []
+    if self.view_as(StandardOptions).streaming:
+      warnings.warn('Streaming pipelines are not supported.')
+    return errors
+
 
 class TypeOptions(PipelineOptions):
 
@@ -465,14 +474,7 @@ class WorkerOptions(PipelineOptions):
     parser.add_argument(
         '--use_public_ips',
         default=None,
-        action='store_true',
-        help='Whether to assign public IP addresses to the worker VMs.')
-    parser.add_argument(
-        '--no_use_public_ips',
-        dest='use_public_ips',
-        default=None,
-        action='store_false',
-        help='Whether to assign only private IP addresses to the worker VMs.')
+        help='Whether to assign public IP addresses to the worker machines.')
 
   def validate(self, validator):
     errors = []
@@ -552,18 +554,6 @@ class SetupOptions(PipelineOptions):
          'worker will install the resulting package before running any custom '
          'code.'))
     parser.add_argument(
-        '--beam_plugin', '--beam_plugin',
-        dest='beam_plugins',
-        action='append',
-        default=None,
-        help=
-        ('Bootstrap the python process before executing any code by importing '
-         'all the plugins used in the pipeline. Please pass a comma separated'
-         'list of import paths to be included. This is currently an '
-         'experimental flag and provides no stability. Multiple '
-         '--beam_plugin options can be specified if more than one plugin '
-         'is needed.'))
-    parser.add_argument(
         '--save_main_session',
         default=False,
         action='store_true',
@@ -609,11 +599,6 @@ class TestOptions(PipelineOptions):
         help=('Verify state/output of e2e test pipeline. This is pickled '
               'version of the matcher which should extends '
               'hamcrest.core.base_matcher.BaseMatcher.'))
-    parser.add_argument(
-        '--dry_run',
-        default=False,
-        help=('Used in unit testing runners without submitting the '
-              'actual job.'))
 
   def validate(self, validator):
     errors = []

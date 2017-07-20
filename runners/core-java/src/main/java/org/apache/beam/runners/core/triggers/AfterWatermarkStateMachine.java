@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.TimeDomain;
 
@@ -241,7 +242,7 @@ public class AfterWatermarkStateMachine {
   /**
    * A watermark trigger targeted relative to the end of the window.
    */
-  public static class FromEndOfWindow extends TriggerStateMachine {
+  public static class FromEndOfWindow extends OnceTriggerStateMachine {
 
     private FromEndOfWindow() {
       super(null);
@@ -318,8 +319,6 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
-    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {
-      context.trigger().setFinished(true);
-    }
+    protected void onOnlyFiring(TriggerStateMachine.TriggerContext context) throws Exception { }
   }
 }

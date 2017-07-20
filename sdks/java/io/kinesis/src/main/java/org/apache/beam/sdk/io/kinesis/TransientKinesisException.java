@@ -23,8 +23,7 @@ import com.amazonaws.AmazonServiceException;
  * A transient exception thrown by Kinesis.
  */
 class TransientKinesisException extends Exception {
-
-  public TransientKinesisException(String s, AmazonServiceException e) {
-    super(s, e);
-  }
+    public TransientKinesisException(String s, AmazonServiceException e) {
+        super(s, e);
+    }
 }

@@ -166,7 +166,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental
 public class HadoopInputFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 

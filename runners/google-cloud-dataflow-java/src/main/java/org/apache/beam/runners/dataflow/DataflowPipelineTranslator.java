@@ -56,8 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
@@ -397,9 +395,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform) {
-      return (InputT)
-          Iterables.getOnlyElement(
-              TransformInputs.nonAdditionalInputs(getCurrentTransform(transform)));
+      return (InputT) Iterables.getOnlyElement(getInputs(transform).values());
     }
 
     @Override
@@ -444,14 +440,6 @@ public class DataflowPipelineTranslator {
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
-      if (producer.getTransform() instanceof CreateDataflowView) {
-        // CreateDataflowView produces a dummy output (as it must be a primitive transform) but
-        // in the Dataflow Job graph produces only the view and not the output PCollection.
-        asOutputReference(
-            ((CreateDataflowView) producer.getTransform()).getView(),
-            producer.toAppliedPTransform(getPipeline()));
-        return;
-      }
       asOutputReference(value, producer.toAppliedPTransform(getPipeline()));
     }
 
@@ -477,7 +465,6 @@ public class DataflowPipelineTranslator {
       StepTranslator stepContext = new StepTranslator(this, step);
       stepContext.addInput(PropertyNames.USER_NAME, getFullName(transform));
       stepContext.addDisplayData(step, stepName, transform);
-      LOG.info("Adding {} as step {}", getCurrentTransform(transform).getFullName(), stepName);
       return stepContext;
     }
 
@@ -690,7 +677,7 @@ public class DataflowPipelineTranslator {
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
-            stepContext.addCollectionToSingletonOutput(input, transform.getView());
+            stepContext.addCollectionToSingletonOutput(input, context.getOutput(transform));
           }
         });
 
@@ -793,7 +780,6 @@ public class DataflowPipelineTranslator {
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
             boolean disallowCombinerLifting =
                 !windowingStrategy.getWindowFn().isNonMerging()
-                    || !windowingStrategy.getWindowFn().assignsToOneWindow()
                     || (isStreaming && !transform.fewKeys())
                     // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
                     || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
@@ -888,45 +874,6 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Splittable DoFn translation.
-
-    registerTransformTranslator(
-        SplittableParDo.ProcessKeyedElements.class,
-        new TransformTranslator<SplittableParDo.ProcessKeyedElements>() {
-          @Override
-          public void translate(
-              SplittableParDo.ProcessKeyedElements transform, TranslationContext context) {
-            translateTyped(transform, context);
-          }
-
-          private <InputT, OutputT, RestrictionT> void translateTyped(
-              SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
-              TranslationContext context) {
-            StepTranslationContext stepContext =
-                context.addStep(transform, "SplittableProcessKeyed");
-
-            translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
-            BiMap<Long, TupleTag<?>> outputMap =
-                translateOutputs(context.getOutputs(transform), stepContext);
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeToByteArray(
-                        DoFnInfo.forFn(
-                            transform.getFn(),
-                            transform.getInputWindowingStrategy(),
-                            transform.getSideInputs(),
-                            transform.getElementCoder(),
-                            outputMap.inverse().get(transform.getMainOutputTag()),
-                            outputMap))));
-            stepContext.addInput(
-                PropertyNames.RESTRICTION_CODER,
-                CloudObjects.asCloudObject(transform.getRestrictionCoder()));
-          }
-        });
   }
 
   private static void translateInputs(
@@ -971,11 +918,6 @@ public class DataflowPipelineTranslator {
               "%s does not currently support splittable DoFn: %s",
               DataflowRunner.class.getSimpleName(),
               fn));
-    }
-
-    if (signature.usesState() || signature.usesTimers()) {
-      DataflowRunner.verifyStateSupported(fn);
-      DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());

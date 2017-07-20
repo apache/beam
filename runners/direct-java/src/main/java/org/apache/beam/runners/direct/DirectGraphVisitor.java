@@ -21,26 +21,19 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Sets;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.construction.TransformInputs;
-import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -48,15 +41,11 @@ import org.slf4j.LoggerFactory;
  * input after the upstream transform has produced and committed output.
  */
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
-  private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
 
   private Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
   private Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters = new HashMap<>();
-  private Set<PCollectionView<?>> consumedViews = new HashSet<>();
 
-  private ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers =
-      ArrayListMultimap.create();
-  private ListMultimap<PValue, AppliedPTransform<?, ?, ?>> allConsumers =
+  private ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers =
       ArrayListMultimap.create();
 
   private Set<AppliedPTransform<?, ?, ?>> rootTransforms = new HashSet<>();
@@ -84,13 +73,6 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         getClass().getSimpleName());
     if (node.isRootNode()) {
       finalized = true;
-      checkState(
-          viewWriters.keySet().containsAll(consumedViews),
-          "All %ss that are consumed must be written by some %s %s: Missing %s",
-          PCollectionView.class.getSimpleName(),
-          WriteView.class.getSimpleName(),
-          PTransform.class.getSimpleName(),
-          Sets.difference(consumedViews, viewWriters.keySet()));
     }
   }
 
@@ -101,30 +83,18 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      Collection<PValue> mainInputs =
-          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform(getPipeline()));
-      if (!mainInputs.containsAll(node.getInputs().values())) {
-        LOG.debug(
-            "Inputs reduced to {} from {} by removing additional inputs",
-            mainInputs,
-            node.getInputs().values());
-      }
-      for (PValue value : mainInputs) {
-        perElementConsumers.put(value, appliedTransform);
-      }
       for (PValue value : node.getInputs().values()) {
-        allConsumers.put(value, appliedTransform);
+        primitiveConsumers.put(value, appliedTransform);
       }
-    }
-    if (node.getTransform() instanceof ParDo.MultiOutput) {
-      consumedViews.addAll(((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs());
-    } else if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
-      viewWriters.put(
-          ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));
+      if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
+        viewWriters.put(
+            ((ViewOverrideFactory.WriteView<?, ?>) node.getTransform()).getView(),
+            node.toAppliedPTransform(getPipeline()));
+      }
     }
   }
 
-  @Override
+ @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(producer);
     if (value instanceof PCollection && !producers.containsKey(value)) {
@@ -149,6 +119,6 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   public DirectGraph getGraph() {
     checkState(finalized, "Can't get a graph before the Pipeline has been completely traversed");
     return DirectGraph.create(
-        producers, viewWriters, perElementConsumers, allConsumers, rootTransforms, stepNames);
+        producers, viewWriters, primitiveConsumers, rootTransforms, stepNames);
   }
 }

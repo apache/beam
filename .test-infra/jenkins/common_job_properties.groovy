@@ -23,12 +23,11 @@
 class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(context,
-                                              String branch = 'asf-site') {
+  static void setTopLevelWebsiteJobProperties(context) {
     setTopLevelJobProperties(
             context,
             'beam-site',
-            branch,
+            'asf-site',
             'beam',
             30)
   }
@@ -265,10 +264,8 @@ class common_job_properties {
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install Perfkit benchmark requirements.
+        // Install job requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
-        // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }

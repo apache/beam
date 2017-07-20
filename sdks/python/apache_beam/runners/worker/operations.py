@@ -129,7 +129,6 @@ class Operation(object):
         self.operation_name + '-finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.scoped_metrics_container = None
 
   def start(self):
     """Start operation."""

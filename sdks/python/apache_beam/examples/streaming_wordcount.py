@@ -25,44 +25,35 @@ from __future__ import absolute_import
 
 import argparse
 import logging
+import re
 
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
 import apache_beam.transforms.window as window
-
-
-def split_fn(lines):
-  import re
-  return re.findall(r'[A-Za-z\']+', lines)
 
 
 def run(argv=None):
   """Build and run the pipeline."""
+
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input_topic', required=True,
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
+      help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   parser.add_argument(
       '--output_topic', required=True,
-      help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topic/<TOPIC>".'))
+      help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   known_args, pipeline_args = parser.parse_known_args(argv)
-  options = PipelineOptions(pipeline_args)
-  options.view_as(StandardOptions).streaming = True
 
-  with beam.Pipeline(options=options) as p:
+  with beam.Pipeline(argv=pipeline_args) as p:
 
-    # Read from PubSub into a PCollection.
+    # Read the text file[pattern] into a PCollection.
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
     transformed = (lines
-                   # Use a pre-defined function that imports the re package.
                    | 'Split' >> (
-                       beam.FlatMap(split_fn).with_output_types(unicode))
+                       beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                       .with_output_types(unicode))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(15, 0))
                    | 'Group' >> beam.GroupByKey()

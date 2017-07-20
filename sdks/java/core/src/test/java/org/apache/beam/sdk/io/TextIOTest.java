@@ -42,9 +42,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -71,31 +69,22 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
-import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -120,10 +109,10 @@ import org.junit.runners.JUnit4;
 public class TextIOTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
-  private static final List<String> EMPTY = Collections.emptyList();
-  private static final List<String> TINY =
-      Arrays.asList("Irritable eagle", "Optimistic jay", "Fanciful hawk");
-  private static final List<String> LARGE = makeLines(1000);
+  private static final String[] EMPTY = new String[] {};
+  private static final String[] TINY =
+      new String[] {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+  private static final String[] LARGE = makeLines(1000);
 
   private static Path tempFolder;
   private static File emptyTxt;
@@ -148,7 +137,7 @@ public class TextIOTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private static File writeToFile(List<String> lines, String filename, CompressionType compression)
+  private static File writeToFile(String[] lines, String filename, CompressionType compression)
       throws IOException {
     File file = tempFolder.resolve(filename).toFile();
     OutputStream output = new FileOutputStream(file);
@@ -216,7 +205,7 @@ public class TextIOTest {
     });
   }
 
-  private void runTestRead(String[] expected) throws Exception {
+  private <T> void runTestRead(String[] expected) throws Exception {
     File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
     String filename = tmpFile.getPath();
 
@@ -285,213 +274,6 @@ public class TextIOTest {
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 
-  static class TestDynamicDestinations extends DynamicDestinations<String, String> {
-    ResourceId baseDir;
-
-    TestDynamicDestinations(ResourceId baseDir) {
-      this.baseDir = baseDir;
-    }
-
-    @Override
-    public String getDestination(String element) {
-      // Destination is based on first character of string.
-      return element.substring(0, 1);
-    }
-
-    @Override
-    public String getDefaultDestination() {
-      return "";
-    }
-
-    @Nullable
-    @Override
-    public Coder<String> getDestinationCoder() {
-      return StringUtf8Coder.of();
-    }
-
-    @Override
-    public FilenamePolicy getFilenamePolicy(String destination) {
-      return DefaultFilenamePolicy.fromStandardParameters(
-          StaticValueProvider.of(
-              baseDir.resolve("file_" + destination + ".txt", StandardResolveOptions.RESOLVE_FILE)),
-          null,
-          null,
-          false);
-    }
-  }
-
-  class StartsWith implements Predicate<String> {
-    String prefix;
-
-    StartsWith(String prefix) {
-      this.prefix = prefix;
-    }
-
-    @Override
-    public boolean apply(@Nullable String input) {
-      return input.startsWith(prefix);
-    }
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testDynamicDestinations() throws Exception {
-    ResourceId baseDir =
-        FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testDynamicDestinations").toString(), true);
-
-    List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
-    PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(
-        TextIO.write()
-            .to(new TestDynamicDestinations(baseDir))
-            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
-    p.run();
-
-    assertOutputFiles(
-        Iterables.toArray(Iterables.filter(elements, new StartsWith("a")), String.class),
-        null,
-        null,
-        0,
-        baseDir.resolve("file_a.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-    assertOutputFiles(
-        Iterables.toArray(Iterables.filter(elements, new StartsWith("b")), String.class),
-        null,
-        null,
-        0,
-        baseDir.resolve("file_b.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-    assertOutputFiles(
-        Iterables.toArray(Iterables.filter(elements, new StartsWith("c")), String.class),
-        null,
-        null,
-        0,
-        baseDir.resolve("file_c.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-  }
-
-  @DefaultCoder(AvroCoder.class)
-  private static class UserWriteType {
-    String destination;
-    String metadata;
-
-    UserWriteType() {
-      this.destination = "";
-      this.metadata = "";
-    }
-
-    UserWriteType(String destination, String metadata) {
-      this.destination = destination;
-      this.metadata = metadata;
-    }
-
-    @Override
-    public String toString() {
-      return String.format("destination: %s metadata : %s", destination, metadata);
-    }
-  }
-
-  private static class SerializeUserWrite implements SerializableFunction<UserWriteType, String> {
-    @Override
-    public String apply(UserWriteType input) {
-      return input.toString();
-    }
-  }
-
-  private static class UserWriteDestination implements SerializableFunction<UserWriteType, Params> {
-    private ResourceId baseDir;
-
-    UserWriteDestination(ResourceId baseDir) {
-      this.baseDir = baseDir;
-    }
-
-    @Override
-    public Params apply(UserWriteType input) {
-      return new Params()
-          .withBaseFilename(
-              baseDir.resolve(
-                  "file_" + input.destination.substring(0, 1) + ".txt",
-                  StandardResolveOptions.RESOLVE_FILE));
-    }
-  }
-
-  private static class ExtractWriteDestination implements Function<UserWriteType, String> {
-    @Override
-    public String apply(@Nullable UserWriteType input) {
-      return input.destination;
-    }
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testDynamicDefaultFilenamePolicy() throws Exception {
-    ResourceId baseDir =
-        FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testDynamicDestinations").toString(), true);
-
-    List<UserWriteType> elements =
-        Lists.newArrayList(
-            new UserWriteType("aaaa", "first"),
-            new UserWriteType("aaab", "second"),
-            new UserWriteType("baaa", "third"),
-            new UserWriteType("baab", "fourth"),
-            new UserWriteType("caaa", "fifth"),
-            new UserWriteType("caab", "sixth"));
-    PCollection<UserWriteType> input = p.apply(Create.of(elements));
-    input.apply(
-        TextIO.writeCustomType(new SerializeUserWrite())
-            .to(new UserWriteDestination(baseDir), new Params())
-            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
-    p.run();
-
-    String[] aElements =
-        Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
-            String.class);
-    String[] bElements =
-        Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
-            String.class);
-    String[] cElements =
-        Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
-            String.class);
-    assertOutputFiles(
-        aElements,
-        null,
-        null,
-        0,
-        baseDir.resolve("file_a.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-    assertOutputFiles(
-        bElements,
-        null,
-        null,
-        0,
-        baseDir.resolve("file_b.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-    assertOutputFiles(
-        cElements,
-        null,
-        null,
-        0,
-        baseDir.resolve("file_c.txt", StandardResolveOptions.RESOLVE_FILE),
-        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
-  }
-
   private void runTestWrite(String[] elems) throws Exception {
     runTestWrite(elems, null, null, 1);
   }
@@ -509,8 +291,7 @@ public class TextIOTest {
       String[] elems, String header, String footer, int numShards) throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
-    ResourceId baseFilename =
-        FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
+    String baseFilename = baseDir.resolve(outputName).toString();
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
@@ -530,14 +311,8 @@ public class TextIOTest {
 
     p.run();
 
-    assertOutputFiles(
-        elems,
-        header,
-        footer,
-        numShards,
-        baseFilename,
-        firstNonNull(
-            write.inner.getShardTemplate(),
+    assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
+        firstNonNull(write.getShardTemplate(),
             DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
@@ -546,12 +321,13 @@ public class TextIOTest {
       final String header,
       final String footer,
       int numShards,
-      ResourceId outputPrefix,
+      Path rootLocation,
+      String outputName,
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
-      String pattern = outputPrefix.toString() + "*";
+      String pattern = rootLocation.toAbsolutePath().resolve(outputName + "*").toString();
       List<MatchResult> matches = FileSystems.match(Collections.singletonList(pattern));
       for (Metadata expectedFile : Iterables.getOnlyElement(matches).metadata()) {
         expectedFiles.add(new File(expectedFile.resourceId().toString()));
@@ -560,9 +336,9 @@ public class TextIOTest {
       for (int i = 0; i < numShards; i++) {
         expectedFiles.add(
             new File(
+                rootLocation.toString(),
                 DefaultFilenamePolicy.constructName(
-                        outputPrefix, shardNameTemplate, "", i, numShards, null, null)
-                    .toString()));
+                    outputName, shardNameTemplate, "", i, numShards, null, null)));
       }
     }
 
@@ -680,19 +456,14 @@ public class TextIOTest {
   public void testWriteWithWritableByteChannelFactory() throws Exception {
     Coder<String> coder = StringUtf8Coder.of();
     String outputName = "file.txt";
-    ResourceId baseDir =
-        FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testwrite").toString(), true);
+    Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
 
     PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write write =
-        TextIO.write()
-            .to(baseDir.resolve(outputName, StandardResolveOptions.RESOLVE_FILE).toString())
-            .withoutSharding()
-            .withWritableByteChannelFactory(writableByteChannelFactory);
+    TextIO.Write write = TextIO.write().to(baseDir.resolve(outputName).toString())
+        .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
 
@@ -705,15 +476,8 @@ public class TextIOTest {
       drunkElems.add(elem);
       drunkElems.add(elem);
     }
-    assertOutputFiles(
-        drunkElems.toArray(new String[0]),
-        null,
-        null,
-        1,
-        baseDir.resolve(
-            outputName + writableByteChannelFactory.getSuggestedFilenameSuffix(),
-            StandardResolveOptions.RESOLVE_FILE),
-        write.inner.getShardTemplate());
+    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
+        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardTemplate());
   }
 
   @Test
@@ -791,7 +555,7 @@ public class TextIOTest {
    * Helper that writes the given lines (adding a newline in between) to a stream, then closes the
    * stream.
    */
-  private static void writeToStreamAndClose(List<String> lines, OutputStream outputStream) {
+  private static void writeToStreamAndClose(String[] lines, OutputStream outputStream) {
     try (PrintStream writer = new PrintStream(outputStream)) {
       for (String line : lines) {
         writer.println(line);
@@ -800,33 +564,27 @@ public class TextIOTest {
   }
 
   /**
-   * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType) and
-   * TextIO.readAll().withCompressionType(compressionType) applied to the single filename,
+   * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType)
    * and asserts that the results match the given expected output.
    */
   private void assertReadingCompressedFileMatchesExpected(
-      File file, CompressionType compressionType, List<String> expected) {
+      File file, CompressionType compressionType, String[] expected) {
 
-    TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
-    PAssert.that(p.apply("Read_" + file + "_" + compressionType.toString(), read))
-        .containsInAnyOrder(expected);
+    TextIO.Read read =
+        TextIO.read().from(file.getPath()).withCompressionType(compressionType);
+    PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
 
-    TextIO.ReadAll readAll =
-        TextIO.readAll().withCompressionType(compressionType).withDesiredBundleSizeBytes(10);
-    PAssert.that(
-            p.apply("Create_" + file, Create.of(file.getPath()))
-                .apply("Read_" + compressionType.toString(), readAll))
-        .containsInAnyOrder(expected);
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
   /**
    * Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n).
    */
-  private static List<String> makeLines(int n) {
-    List<String> ret = new ArrayList<>();
+  private static String[] makeLines(int n) {
+    String[] ret = new String[n];
     for (int i = 0; i < n; ++i) {
-      ret.add("word" + i);
+      ret[i] = "word" + i;
     }
     return ret;
   }
@@ -1010,7 +768,7 @@ public class TextIOTest {
 
     String filename = createZipFile(expected, "multiple entries", entry0, entry1, entry2);
     assertReadingCompressedFileMatchesExpected(
-        new File(filename), CompressionType.ZIP, expected);
+        new File(filename), CompressionType.ZIP, expected.toArray(new String[]{}));
   }
 
   /**
@@ -1029,7 +787,7 @@ public class TextIOTest {
         new String[]{"dog"});
 
     assertReadingCompressedFileMatchesExpected(
-        new File(filename), CompressionType.ZIP, Arrays.asList("cat", "dog"));
+        new File(filename), CompressionType.ZIP, new String[] {"cat", "dog"});
   }
 
   @Test
@@ -1346,21 +1104,5 @@ public class TextIOTest {
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testReadAll() throws IOException {
-    writeToFile(TINY, "readAllTiny1.zip", ZIP);
-    writeToFile(TINY, "readAllTiny2.zip", ZIP);
-    writeToFile(LARGE, "readAllLarge1.zip", ZIP);
-    writeToFile(LARGE, "readAllLarge2.zip", ZIP);
-    PCollection<String> lines =
-        p.apply(
-                Create.of(
-                    tempFolder.resolve("readAllTiny*").toString(),
-                    tempFolder.resolve("readAllLarge*").toString()))
-            .apply(TextIO.readAll().withCompressionType(AUTO));
-    PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
-    p.run();
-  }
 }
+

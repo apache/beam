@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
@@ -45,14 +46,17 @@ public class ExecutableTriggerStateMachine implements Serializable {
 
   private static <W extends BoundedWindow> ExecutableTriggerStateMachine create(
       TriggerStateMachine trigger, int nextUnusedIndex) {
-
+    if (trigger instanceof OnceTriggerStateMachine) {
+      return new ExecutableOnceTriggerStateMachine(
+          (OnceTriggerStateMachine) trigger, nextUnusedIndex);
+    } else {
       return new ExecutableTriggerStateMachine(trigger, nextUnusedIndex);
-
+    }
   }
 
   public static <W extends BoundedWindow> ExecutableTriggerStateMachine createForOnceTrigger(
-      TriggerStateMachine trigger, int nextUnusedIndex) {
-    return new ExecutableTriggerStateMachine(trigger, nextUnusedIndex);
+      OnceTriggerStateMachine trigger, int nextUnusedIndex) {
+    return new ExecutableOnceTriggerStateMachine(trigger, nextUnusedIndex);
   }
 
   private ExecutableTriggerStateMachine(TriggerStateMachine trigger, int nextUnusedIndex) {
@@ -141,5 +145,16 @@ public class ExecutableTriggerStateMachine implements Serializable {
    */
   public void invokeClear(TriggerStateMachine.TriggerContext c) throws Exception {
     trigger.clear(c.forTrigger(this));
+  }
+
+  /**
+   * {@link ExecutableTriggerStateMachine} that enforces the fact that the trigger should always
+   * FIRE_AND_FINISH and never just FIRE.
+   */
+  private static class ExecutableOnceTriggerStateMachine extends ExecutableTriggerStateMachine {
+
+    public ExecutableOnceTriggerStateMachine(OnceTriggerStateMachine trigger, int nextUnusedIndex) {
+      super(trigger, nextUnusedIndex);
+    }
   }
 }

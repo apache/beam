@@ -23,9 +23,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -143,30 +143,22 @@ public class ParDoTranslationTest {
       inputs.putAll(parDo.getAdditionalInputs());
       PCollectionTuple output = mainInput.apply(parDo);
 
-      SdkComponents sdkComponents = SdkComponents.create();
-
-      // Encode
-      RunnerApi.PTransform protoTransform =
-          PTransformTranslation.toProto(
+      SdkComponents components = SdkComponents.create();
+      String transformId =
+          components.registerPTransform(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
                   "foo", inputs, output.expand(), parDo, p),
-              sdkComponents);
-      Components protoComponents = sdkComponents.toComponents();
+              Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
-      // Decode
-      Pipeline rehydratedPipeline = Pipeline.create();
-
+      Components protoComponents = components.toComponents();
+      RunnerApi.PTransform protoTransform = protoComponents.getTransformsOrThrow(transformId);
       ParDoPayload parDoPayload =
           protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.viewFromProto(
-                sideInput,
-                view.getTagInternal().getId(),
-                view.getPCollection(),
-                protoTransform,
-                protoComponents);
+            ParDoTranslation.fromProto(
+                sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
         assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
@@ -177,7 +169,7 @@ public class ParDoTranslationTest {
                 view.getWindowingStrategyInternal().fixDefaults()));
         assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
       }
-      String mainInputId = sdkComponents.registerPCollection(mainInput);
+      String mainInputId = components.registerPCollection(mainInput);
       assertThat(
           ParDoTranslation.getMainInput(protoTransform, protoComponents),
           equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));

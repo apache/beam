@@ -45,8 +45,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.MutableClassToInstanceMap;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
-import java.io.NotSerializableException;
-import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -89,7 +87,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
  * {@link PipelineOptions#as(Class)}.
  */
 @ThreadSafe
-class ProxyInvocationHandler implements InvocationHandler, Serializable {
+class ProxyInvocationHandler implements InvocationHandler {
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code.
    */
@@ -164,21 +162,6 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
     throw new RuntimeException("Unknown method [" + method + "] invoked with args ["
         + Arrays.toString(args) + "].");
-  }
-
-  public String getOptionName(Method method) {
-    return gettersToPropertyNames.get(method.getName());
-  }
-
-  private void writeObject(java.io.ObjectOutputStream stream)
-      throws IOException {
-    throw new NotSerializableException(
-        "PipelineOptions objects are not serializable and should not be embedded into transforms "
-            + "(did you capture a PipelineOptions object in a field or in an anonymous class?). "
-            + "Instead, if you're using a DoFn, access PipelineOptions at runtime "
-            + "via ProcessContext/StartBundleContext/FinishBundleContext.getPipelineOptions(), "
-            + "or pre-extract necessary fields from PipelineOptions "
-            + "at pipeline construction time.");
   }
 
   /**

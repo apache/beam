@@ -20,8 +20,6 @@ package org.apache.beam.sdk.values;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.Collections;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
@@ -228,11 +226,6 @@ public class PCollection<T> extends PValueBase implements PValue {
     return super.getName();
   }
 
-  @Override
-  public final Map<TupleTag<?>, PValue> expand() {
-    return Collections.<TupleTag<?>, PValue>singletonMap(tag, this);
-  }
-
   /**
    * Sets the name of this {@link PCollection}.  Returns {@code this}.
    *
@@ -320,11 +313,6 @@ public class PCollection<T> extends PValueBase implements PValue {
   private WindowingStrategy<?, ?> windowingStrategy;
 
   private IsBounded isBounded;
-
-  /**
-   * A local {@link TupleTag} used in the expansion of this {@link PValueBase}.
-   */
-  private final TupleTag<?> tag = new TupleTag<>();
 
   private PCollection(Pipeline p) {
     super(p);

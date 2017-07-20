@@ -32,7 +32,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.common.WriteOneFilePerWindow.PerWindowFiles;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -150,8 +149,7 @@ public class WindowedWordCountIT {
 
     String outputPrefix = options.getOutput();
 
-    PerWindowFiles filenamePolicy =
-        new PerWindowFiles(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
+    PerWindowFiles filenamePolicy = new PerWindowFiles(outputPrefix);
 
     List<ShardedFile> expectedOutputFiles = Lists.newArrayListWithCapacity(6);
 
