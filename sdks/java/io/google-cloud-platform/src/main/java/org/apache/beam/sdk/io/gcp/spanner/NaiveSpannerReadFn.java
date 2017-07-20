@@ -22,9 +22,8 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.sdk.values.PCollectionView;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /** A simplest read function implementation. Parallelism support is coming. */
 @VisibleForTesting

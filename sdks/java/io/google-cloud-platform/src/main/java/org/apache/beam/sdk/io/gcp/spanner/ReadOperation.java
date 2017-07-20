@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Statement;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Encapsulates a spanner read operation.

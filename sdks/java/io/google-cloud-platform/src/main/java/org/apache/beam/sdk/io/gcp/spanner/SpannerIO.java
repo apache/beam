@@ -183,7 +183,7 @@ public class SpannerIO {
 
   /**
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from
-   * a {@link PCollection<ReadOperation>}.
+   * a {@link PCollection}.
    */
    @Experimental(Experimental.Kind.SOURCE_SINK)
   public static ReadAll readAll() {
@@ -218,9 +218,12 @@ public class SpannerIO {
         .build();
   }
 
+  /**
+   * A {@link PTransform} that reads data from Google Cloud Spanner.
+   */
   @Experimental(Experimental.Kind.SOURCE_SINK)
-  @AutoValue
-  public abstract static class ReadAll extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
+  @AutoValue public abstract static class ReadAll
+      extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
 
     abstract SpannerConfig getSpannerConfig();
 
