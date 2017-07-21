@@ -15,17 +15,18 @@
 # limitations under the License.
 #
 
-"""Pipeline, the top-level Dataflow object.
+"""Pipeline, the top-level Beam object.
 
 A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
-are transforms (PTransform objects) and the edges are values (mostly PCollection
+are transforms (:class:`~apache_beam.transforms.ptransform.PTransform` objects)
+and the edges are values (mostly :class:`~apache_beam.pvalue.PCollection`
 objects). The transforms take as inputs one or more PValues and output one or
-more PValues.
+more :class:`~apache_beam.pvalue.PValue` s.
 
 The pipeline offers functionality to traverse the graph.  The actual operation
 to be executed for each node visited is specified through a runner object.
 
-Typical usage:
+Typical usage::
 
   # Create a pipeline object using a local runner for execution.
   with beam.Pipeline('DirectRunner') as p:
@@ -69,36 +70,44 @@ from apache_beam.utils.annotations import deprecated
 from apache_beam.utils import urns
 
 
-__all__ = ['Pipeline']
+__all__ = ['Pipeline', 'PipelineVisitor', 'PTransformOverride']
 
 
 class Pipeline(object):
-  """A pipeline object that manages a DAG of PValues and their PTransforms.
+  """A pipeline object that manages a DAG of
+  :class:`~apache_beam.pvalue.PValue` s and their
+  :class:`~apache_beam.transforms.ptransform.PTransform` s.
 
-  Conceptually the PValues are the DAG's nodes and the PTransforms computing
-  the PValues are the edges.
+  Conceptually the :class:`~apache_beam.pvalue.PValue` s are the DAG's nodes and
+  the :class:`~apache_beam.transforms.ptransform.PTransform` s computing
+  the :class:`~apache_beam.pvalue.PValue` s are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
   If same transform instance needs to be applied then the right shift operator
-  should be used to designate new names (e.g. `input | "label" >> my_tranform`).
+  should be used to designate new names
+  (e.g. ``input | "label" >> my_tranform``).
   """
 
   def __init__(self, runner=None, options=None, argv=None):
     """Initialize a pipeline object.
 
     Args:
-      runner: An object of type 'PipelineRunner' that will be used to execute
-        the pipeline. For registered runners, the runner name can be specified,
-        otherwise a runner object must be supplied.
-      options: A configured 'PipelineOptions' object containing arguments
-        that should be used for running the Dataflow job.
-      argv: a list of arguments (such as sys.argv) to be used for building a
-        'PipelineOptions' object. This will only be used if argument 'options'
-        is None.
+      runner (:class:`~apache_beam.runners.runner.PipelineRunner`): An object of
+        type :class:`~apache_beam.runners.runner.PipelineRunner` that will be
+        used to execute the pipeline. For registered runners, the runner name
+        can be specified, otherwise a runner object must be supplied.
+      options (:class:`~apache_beam.options.pipeline_options.PipelineOptions`):
+        A configured
+        :class:`~apache_beam.options.pipeline_options.PipelineOptions` object
+        containing arguments that should be used for running the Beam job.
+      argv (List[:class:`str`]): a list of arguments (such as :data:`sys.argv`)
+        to be used for building a
+        :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
+        This will only be used if argument **options** is :data:`None`.
 
     Raises:
-      ValueError: if either the runner or options argument is not of the
-      expected type.
+      :class:`~exceptions.ValueError`: if either the runner or options argument
+        is not of the expected type.
     """
     if options is not None:
       if isinstance(options, PipelineOptions):
@@ -292,13 +301,15 @@ class Pipeline(object):
   def replace_all(self, replacements):
     """ Dynamically replaces PTransforms in the currently populated hierarchy.
 
-     Currently this only works for replacements where input and output types
-     are exactly the same.
-     TODO: Update this to also work for transform overrides where input and
-     output types are different.
+    Currently this only works for replacements where input and output types
+    are exactly the same.
+
+    TODO: Update this to also work for transform overrides where input and
+    output types are different.
 
     Args:
-      replacements a list of PTransformOverride objects.
+      replacements (List[:class:`PTransformOverride`]): a list of
+        :class:`PTransformOverride` objects.
     """
     for override in replacements:
       assert isinstance(override, PTransformOverride)
@@ -341,13 +352,15 @@ class Pipeline(object):
     Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
-      visitor: PipelineVisitor object whose callbacks will be called for each
-        node visited. See PipelineVisitor comments.
+      visitor (:class:`PipelineVisitor`): :class:`PipelineVisitor` object whose
+        callbacks will be called for each node visited. See
+        :class:`PipelineVisitor` comments.
 
     Raises:
-      TypeError: if node is specified and is not a PValue.
-      pipeline.PipelineError: if node is specified and does not belong to this
-        pipeline instance.
+      :class:`~exceptions.TypeError`: if node is specified and is not a
+        :class:`~apache_beam.pvalue.PValue`.
+      :class:`~apache_beam.error.PipelineError`: if node is specified and does
+        not belong to this pipeline instance.
     """
 
     visited = set()
@@ -357,15 +370,21 @@ class Pipeline(object):
     """Applies a custom transform using the pvalueish specified.
 
     Args:
-      transform: the PTranform to apply.
-      pvalueish: the input for the PTransform (typically a PCollection).
-      label: label of the PTransform.
+      transform (:class:`~apache_beam.transforms.ptransform.PTransform`): the
+        :class:`~apache_beam.transforms.ptransform.PTransform` to apply.
+      pvalueish: the input for the
+        :class:`~apache_beam.transforms.ptransform.PTransform` (typically a
+        :class:`~apache_beam.pvalue.PCollection`).
+      label (:class:`str`): label of the
+        :class:`~apache_beam.transforms.ptransform.PTransform`.
 
     Raises:
-      TypeError: if the transform object extracted from the argument list is
-        not a PTransform.
-      RuntimeError: if the transform object was already applied to this pipeline
-        and needs to be cloned in order to apply again.
+      :class:`~exceptions.TypeError`: if the transform object extracted from the
+        argument list is not a
+        :class:`~apache_beam.transforms.ptransform.PTransform`.
+      :class:`~exceptions.RuntimeError`: if the transform object was
+        already applied to this pipeline and needs to be cloned in order to
+        apply again.
     """
     if isinstance(transform, ptransform._NamedPTransform):
       return self.apply(transform.transform, pvalueish,

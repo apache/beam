@@ -44,12 +44,13 @@ class FileBasedSink(iobase.Sink):
   """A sink to a GCS or local files.
 
   To implement a file-based sink, extend this class and override
-  either ``write_record()`` or ``write_encoded_record()``.
+  either :meth:`.write_record()` or :meth:`.write_encoded_record()`.
 
-  If needed, also overwrite ``open()`` and/or ``close()`` to customize the
-  file handling or write headers and footers.
+  If needed, also overwrite :meth:`.open()` and/or :meth:`.close()` to customize
+  the file handling or write headers and footers.
 
-  The output of this write is a PCollection of all written shards.
+  The output of this write is a :class:`~apache_beam.pvalue.PCollection` of
+  all written shards.
   """
 
   # Max number of threads to be used for renaming.
@@ -65,9 +66,13 @@ class FileBasedSink(iobase.Sink):
                compression_type=CompressionTypes.AUTO):
     """
      Raises:
-      TypeError: if file path parameters are not a string or ValueProvider,
-                 or if compression_type is not member of CompressionTypes.
-      ValueError: if shard_name_template is not of expected format.
+      :class:`~exceptions.TypeError`: if file path parameters are not a
+        :class:`str` or
+        :class:`~apache_beam.options.value_provider.ValueProvider`, or if
+        **compression_type** is not member of
+        :class:`~apache_beam.io.filesystem.CompressionTypes`.
+      :class:`~exceptions.ValueError`: if **shard_name_template** is not of
+        expected format.
     """
     if not isinstance(file_path_prefix, (basestring, ValueProvider)):
       raise TypeError('file_path_prefix must be a string or ValueProvider;'

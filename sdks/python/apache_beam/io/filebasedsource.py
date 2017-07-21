@@ -17,12 +17,13 @@
 
 """A framework for developing sources for new file types.
 
-To create a source for a new file type a sub-class of ``FileBasedSource`` should
-be created. Sub-classes of ``FileBasedSource`` must implement the method
-``FileBasedSource.read_records()``. Please read the documentation of that method
-for more details.
+To create a source for a new file type a sub-class of :class:`FileBasedSource`
+should be created. Sub-classes of :class:`FileBasedSource` must implement the
+method :meth:`FileBasedSource.read_records()`. Please read the documentation of
+that method for more details.
 
-For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
+For an example implementation of :class:`FileBasedSource` see
+``avroio._AvroSource``.
 """
 import uuid
 
@@ -51,7 +52,8 @@ __all__ = ['FileBasedSource']
 
 
 class FileBasedSource(iobase.BoundedSource):
-  """A ``BoundedSource`` for reading a file glob of a given type."""
+  """A :class:`~apache_beam.io.iobase.BoundedSource` for reading a file glob of
+  a given type."""
 
   MIN_NUMBER_OF_FILES_TO_STAT = 100
   MIN_FRACTION_OF_FILES_TO_STAT = 0.01
@@ -62,31 +64,40 @@ class FileBasedSource(iobase.BoundedSource):
                compression_type=CompressionTypes.AUTO,
                splittable=True,
                validate=True):
-    """Initializes ``FileBasedSource``.
+    """Initializes :class:`FileBasedSource`.
 
     Args:
-      file_pattern: the file glob to read a string or a ValueProvider
-                    (placeholder to inject a runtime value).
-      min_bundle_size: minimum size of bundles that should be generated when
-                       performing initial splitting on this source.
-      compression_type: compression type to use
-      splittable: whether FileBasedSource should try to logically split a single
-                  file into data ranges so that different parts of the same file
-                  can be read in parallel. If set to False, FileBasedSource will
-                  prevent both initial and dynamic splitting of sources for
-                  single files. File patterns that represent multiple files may
-                  still get split into sources for individual files. Even if set
-                  to True by the user, FileBasedSource may choose to not split
-                  the file, for example, for compressed files where currently
-                  it is not possible to efficiently read a data range without
-                  decompressing the whole file.
-      validate: Boolean flag to verify that the files exist during the pipeline
-                creation time.
+      file_pattern (:class:`str`): the file glob to read a string or a
+        :class:`~apache_beam.options.value_provider.ValueProvider`
+        (placeholder to inject a runtime value).
+      min_bundle_size (:class:`str`): minimum size of bundles that should be
+        generated when performing initial splitting on this source.
+      compression_type (:class:`~apache_beam.io.filesystem.CompressionTypes`):
+        Used to handle compressed output files. Typical value is
+        :attr:`CompressionTypes.AUTO
+        <apache_beam.io.filesystem.CompressionTypes.AUTO>`,
+        in which case the final file path's extension will be used to detect
+        the compression.
+      splittable (:class:`bool`): whether :class:`FileBasedSource` should try to
+        logically split a single file into data ranges so that different parts
+        of the same file can be read in parallel. If set to :data:`False`,
+        :class:`FileBasedSource` will prevent both initial and dynamic splitting
+        of sources for single files. File patterns that represent multiple files
+        may still get split into sources for individual files. Even if set to
+        :data:`True` by the user, :class:`FileBasedSource` may choose to not
+        split the file, for example, for compressed files where currently it is
+        not possible to efficiently read a data range without decompressing the
+        whole file.
+      validate (:class:`bool`): Boolean flag to verify that the files exist
+        during the pipeline creation time.
     Raises:
-      TypeError: when compression_type is not valid or if file_pattern is not a
-                 string or a ValueProvider.
-      ValueError: when compression and splittable files are specified.
-      IOError: when the file pattern specified yields an empty result.
+      :class:`~exceptions.TypeError`: when **compression_type** is not valid or
+        if **file_pattern** is not a :class:`str` or a
+        :class:`~apache_beam.options.value_provider.ValueProvider`.
+      :class:`~exceptions.ValueError`: when compression and splittable files are
+        specified.
+      :class:`~exceptions.IOError`: when the file pattern specified yields an
+        empty result.
     """
 
     if not isinstance(file_pattern, (basestring, ValueProvider)):

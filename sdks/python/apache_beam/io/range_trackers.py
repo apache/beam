@@ -317,17 +317,19 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
 class UnsplittableRangeTracker(iobase.RangeTracker):
   """A RangeTracker that always ignores split requests.
 
-  This can be used to make a given ``RangeTracker`` object unsplittable by
-  ignoring all calls to ``try_split()``. All other calls will be delegated to
-  the given ``RangeTracker``.
+  This can be used to make a given
+  :class:`~apache_beam.io.iobase.RangeTracker` object unsplittable by
+  ignoring all calls to :meth:`.try_split()`. All other calls will be delegated
+  to the given :class:`~apache_beam.io.iobase.RangeTracker`.
   """
 
   def __init__(self, range_tracker):
     """Initializes UnsplittableRangeTracker.
 
     Args:
-      range_tracker: a ``RangeTracker`` to which all method calls expect calls
-      to ``try_split()`` will be delegated.
+      range_tracker (:class:`~apache_beam.io.iobase.RangeTracker`): a
+        :class:`~apache_beam.io.iobase.RangeTracker` to which all method
+        calls expect calls to :meth:`.try_split()` will be delegated.
     """
     assert isinstance(range_tracker, iobase.RangeTracker)
     self._range_tracker = range_tracker

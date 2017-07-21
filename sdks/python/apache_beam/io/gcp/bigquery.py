@@ -133,6 +133,7 @@ except ImportError:
 
 
 __all__ = [
+    'RowAsDictJsonCoder',
     'TableRowJsonCoder',
     'BigQueryDisposition',
     'BigQuerySource',
@@ -330,45 +331,49 @@ class BigQuerySource(dataflow_io.NativeSource):
   def __init__(self, table=None, dataset=None, project=None, query=None,
                validate=False, coder=None, use_standard_sql=False,
                flatten_results=True):
-    """Initialize a BigQuerySource.
+    """Initialize a :class:`BigQuerySource`.
 
     Args:
-      table: The ID of a BigQuery table. If specified all data of the table
-        will be used as input of the current source. The ID must contain only
-        letters (a-z, A-Z), numbers (0-9), or underscores (_). If dataset
-        and query arguments are None then the table argument must contain the
-        entire table reference specified as: 'DATASET.TABLE' or
-        'PROJECT:DATASET.TABLE'.
-      dataset: The ID of the dataset containing this table or null if the table
-        reference is specified entirely by the table argument or a query is
-        specified.
-      project: The ID of the project containing this table or null if the table
-        reference is specified entirely by the table argument or a query is
-        specified.
-      query: A query to be used instead of arguments table, dataset, and
-        project.
-      validate: If true, various checks will be done when source gets
-        initialized (e.g., is table present?). This should be True for most
-        scenarios in order to catch errors as early as possible (pipeline
-        construction instead of pipeline execution). It should be False if the
-        table is created during pipeline execution by a previous step.
-      coder: The coder for the table rows if serialized to disk. If None, then
-        the default coder is RowAsDictJsonCoder, which will interpret every line
-        in a file as a JSON serialized dictionary. This argument needs a value
-        only in special cases when returning table rows as dictionaries is not
+      table (:class:`str`): The ID of a BigQuery table. If specified all data of
+        the table will be used as input of the current source. The ID must
+        contain only letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores
+        ``_``. If dataset and query arguments are :data:`None` then the table
+        argument must contain the entire table reference specified as:
+        ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
+      dataset (:class:`str`): The ID of the dataset containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument or a query is specified.
+      project (:class:`str`): The ID of the project containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument or a query is specified.
+      query (:class:`str`): A query to be used instead of arguments table,
+        dataset, and project.
+      validate (:class:`bool`): If :data:`True`, various checks will be done
+        when source gets initialized (e.g., is table present?). This should be
+        :data:`True` for most scenarios in order to catch errors as early as
+        possible (pipeline construction instead of pipeline execution). It
+        should be :data:`False` if the table is created during pipeline
+        execution by a previous step.
+      coder (:class:`~apache_beam.coders.coders.Coder`): The coder for the table
+        rows if serialized to disk. If :data:`None`, then the default coder is
+        :class:`RowAsDictJsonCoder`, which will interpret every line in a file
+        as a JSON serialized dictionary. This argument needs a value only in
+        special cases when returning table rows as dictionaries is not
         desirable.
-      use_standard_sql: Specifies whether to use BigQuery's standard
-        SQL dialect for this query. The default value is False. If set to True,
-        the query will use BigQuery's updated SQL dialect with improved
-        standards compliance. This parameter is ignored for table inputs.
-      flatten_results: Flattens all nested and repeated fields in the
-        query results. The default value is true.
+      use_standard_sql (:class:`bool`): Specifies whether to use BigQuery's
+        standard SQL dialect for this query. The default value is :data:`False`.
+        If set to :data:`True`, the query will use BigQuery's updated SQL
+        dialect with improved standards compliance.
+        This parameter is ignored for table inputs.
+      flatten_results (:class:`bool`): Flattens all nested and repeated fields
+        in the query results. The default value is :data:`True`.
 
     Raises:
-      ValueError: if any of the following is true
-      (1) the table reference as a string does not match the expected format
-      (2) neither a table nor a query is specified
-      (3) both a table and a query is specified.
+      :class:`~exceptions.ValueError`: if any of the following is true:
+
+        1) the table reference as a string does not match the expected format
+        2) neither a table nor a query is specified
+        3) both a table and a query is specified.
     """
 
     # Import here to avoid adding the dependency for local running scenarios.
@@ -439,46 +444,59 @@ class BigQuerySink(dataflow_io.NativeSink):
     """Initialize a BigQuerySink.
 
     Args:
-      table: The ID of the table. The ID must contain only letters
-        (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is
-        None then the table argument must contain the entire table reference
-        specified as: 'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'.
-      dataset: The ID of the dataset containing this table or null if the table
-        reference is specified entirely by the table argument.
-      project: The ID of the project containing this table or null if the table
-        reference is specified entirely by the table argument.
-      schema: The schema to be used if the BigQuery table to write has to be
-        created. This can be either specified as a 'bigquery.TableSchema' object
-        or a single string  of the form 'field1:type1,field2:type2,field3:type3'
-        that defines a comma separated list of fields. Here 'type' should
-        specify the BigQuery type of the field. Single string based schemas do
-        not support nested fields, repeated fields, or specifying a BigQuery
-        mode for fields (mode will always be set to 'NULLABLE').
-      create_disposition: A string describing what happens if the table does not
-        exist. Possible values are:
-        - BigQueryDisposition.CREATE_IF_NEEDED: create if does not exist.
-        - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
-      write_disposition: A string describing what happens if the table has
-        already some data. Possible values are:
-        -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
-        -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
-        -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
-      validate: If true, various checks will be done when sink gets
-        initialized (e.g., is table present given the disposition arguments?).
-        This should be True for most scenarios in order to catch errors as early
-        as possible (pipeline construction instead of pipeline execution). It
-        should be False if the table is created during pipeline execution by a
-        previous step.
-      coder: The coder for the table rows if serialized to disk. If None, then
-        the default coder is RowAsDictJsonCoder, which will interpret every
-        element written to the sink as a dictionary that will be JSON serialized
+      table (:class:`str`): The ID of the table. The ID must contain only
+        letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If
+        **dataset** argument is :data:`None` then the table argument must
+        contain the entire table reference specified as: ``'DATASET.TABLE'`` or
+        ``'PROJECT:DATASET.TABLE'``.
+      dataset (:class:`str`): The ID of the dataset containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      project (:class:`str`): The ID of the project containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      schema (:class:`str`): The schema to be used if the BigQuery table to
+        write has to be created. This can be either specified as a
+        ``bigquery.TableSchema`` object or a single string  of the form
+        ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
+        separated list of fields. Here ``'type'`` should specify the BigQuery
+        type of the field. Single string based schemas do not support nested
+        fields, repeated fields, or specifying a BigQuery mode for fields (mode
+        will always be set to ``'NULLABLE'``).
+      create_disposition (:class:`BigQueryDisposition`): A string describing
+        what happens if the table does not exist. Possible values are:
+
+          * :attr:`BigQueryDisposition.CREATE_IF_NEEDED`: create if does not
+            exist.
+          * :attr:`BigQueryDisposition.CREATE_NEVER`: fail the write if does not
+            exist.
+
+      write_disposition (:class:`BigQueryDisposition`): A string describing
+        what happens if the table has already some data. Possible values are:
+
+          * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
+          * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
+          * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
+            empty.
+
+      validate (:class:`bool`): If :data:`True`, various checks will be done
+        when sink gets initialized (e.g., is table present given the disposition
+        arguments?). This should be :data:`True` for most scenarios in order to
+        catch errors as early as possible (pipeline construction instead of
+        pipeline execution). It should be :data:`False` if the table is created
+        during pipeline execution by a previous step.
+      coder (:class:`~apache_beam.coders.coders.Coder`): The coder for the
+        table rows if serialized to disk. If :data:`None`, then the default
+        coder is :class:`RowAsDictJsonCoder`, which will interpret every element
+        written to the sink as a dictionary that will be JSON serialized
         as a line in a file. This argument needs a value only in special cases
         when writing table rows as dictionaries is not desirable.
 
     Raises:
-      TypeError: if the schema argument is not a string or a TableSchema object.
-      ValueError: if the table reference as a string does not match the expected
-      format.
+      :class:`~exceptions.TypeError`: if the schema argument is not a
+        :class:`str` or a ``bigquery.TableSchema`` object.
+      :class:`~exceptions.ValueError`: if the table reference as a string
+        does not match the expected format.
     """
 
     # Import here to avoid adding the dependency for local running scenarios.

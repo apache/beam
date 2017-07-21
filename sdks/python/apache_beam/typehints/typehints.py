@@ -73,7 +73,6 @@ __all__ = [
     'Union',
     'Optional',
     'Tuple',
-    'Tuple',
     'List',
     'KV',
     'Dict',
@@ -83,6 +82,11 @@ __all__ = [
     'Generator',
     'WindowedValue',
     'TypeVariable',
+    'TypeConstraint',
+    'AnyTypeConstraint',
+    'WindowedTypeConstraint',
+    'CompositeTypeHint',
+    'validate_composite_type_param',
 ]
 
 
@@ -109,9 +113,10 @@ class TypeConstraint(object):
 
   """The base-class for all created type-constraints defined below.
 
-  A TypeConstraint is the result of parameterizing a CompositeTypeHint with
-  with one of the allowed Python types or another CompositeTypeHint. It
-  binds and enforces a specific version of a generalized TypeHint.
+  A :class:`TypeConstraint` is the result of parameterizing a
+  :class:`CompositeTypeHint` with with one of the allowed Python types or
+  another :class:`CompositeTypeHint`. It binds and enforces a specific
+  version of a generalized TypeHint.
   """
 
   def _consistent_with_check_(self, sub):
@@ -135,12 +140,14 @@ class TypeConstraint(object):
       instance: An instance of a Python object.
 
     Raises:
-      TypeError: The passed 'instance' doesn't satisfy this TypeConstraint.
-        Subclasses of TypeConstraint are free to raise any of the subclasses of
-        TypeError defined above, depending on the manner of the type hint error.
+      :class:`~exceptions.TypeError`: The passed **instance** doesn't satisfy
+        this :class:`TypeConstraint`. Subclasses of
+        :class:`TypeConstraint` are free to raise any of the subclasses of
+        :class:`~exceptions.TypeError` defined above, depending on
+        the manner of the type hint error.
 
-    All TypeConstraint sub-classes must define this method in other for the
-    class object to be created.
+    All :class:`TypeConstraint` sub-classes must define this method in other
+    for the class object to be created.
     """
     raise NotImplementedError
 
@@ -296,19 +303,21 @@ class CompositeTypeHint(object):
 
 
 def validate_composite_type_param(type_param, error_msg_prefix):
-  """Determines if an object is a valid type parameter to a CompositeTypeHint.
+  """Determines if an object is a valid type parameter to a
+  :class:`CompositeTypeHint`.
 
-  Implements sanity checking to disallow things like:
-    * List[1, 2, 3] or Dict[5].
+  Implements sanity checking to disallow things like::
+
+    List[1, 2, 3] or Dict[5].
 
   Args:
     type_param: An object instance.
-    error_msg_prefix: A string prefix used to format an error message in the
-      case of an exception.
+    error_msg_prefix (:class:`str`): A string prefix used to format an error
+      message in the case of an exception.
 
   Raises:
-    TypeError: If the passed 'type_param' is not a valid type parameter for a
-      CompositeTypeHint.
+    :class:`~exceptions.TypeError`: If the passed **type_param** is not a valid
+      type parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
   is_not_type_constraint = (

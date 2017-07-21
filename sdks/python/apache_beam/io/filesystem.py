@@ -299,23 +299,29 @@ class CompressedFile(object):
     """Set the file's current offset.
 
     Seeking behavior:
-      * seeking from the end (SEEK_END) the whole file is decompressed once to
-        determine it's size. Therefore it is preferred to use
-        SEEK_SET or SEEK_CUR to avoid the processing overhead
-      * seeking backwards from the current position rewinds the file to 0
+
+      * seeking from the end :data:`os.SEEK_END` the whole file is decompressed
+        once to determine it's size. Therefore it is preferred to use
+        :data:`os.SEEK_SET` or :data:`os.SEEK_CUR` to avoid the processing
+        overhead
+      * seeking backwards from the current position rewinds the file to ``0``
         and decompresses the chunks to the requested offset
       * seeking is only supported in files opened for reading
-      * if the new offset is out of bound, it is adjusted to either 0 or EOF.
+      * if the new offset is out of bound, it is adjusted to either ``0`` or
+        ``EOF``.
 
     Args:
-      offset: seek offset in the uncompressed content represented as number
-      whence: seek mode. Supported modes are os.SEEK_SET (absolute seek),
-        os.SEEK_CUR (seek relative to the current position), and os.SEEK_END
-        (seek relative to the end, offset should be negative).
+      offset (:class:`int`): seek offset in the uncompressed content represented
+        as number
+      whence (:class:`int`): seek mode. Supported modes are :data:`os.SEEK_SET`
+        (absolute seek), :data:`os.SEEK_CUR` (seek relative to the current
+        position), and :data:`os.SEEK_END` (seek relative to the end, offset
+        should be negative).
 
     Raises:
-      IOError: When this buffer is closed.
-      ValueError: When whence is invalid or the file is not seekable
+      :class:`~exceptions.IOError`: When this buffer is closed.
+      :class:`~exceptions.ValueError`: When whence is invalid or the file is not
+        seekable
     """
     if whence == os.SEEK_SET:
       absolute_offset = offset

@@ -310,38 +310,54 @@ def with_input_types(*positional_hints, **keyword_hints):
   be type-hinted in totality if even one parameter is type-hinted.
 
   Once fully decorated, if the arguments passed to the resulting function
-  violate the type-hint constraints defined, a TypeCheckError detailing the
-  error will be raised.
+  violate the type-hint constraints defined, a :class:`TypeCheckError`
+  detailing the error will be raised.
 
-  To be used as::
+  To be used as:
 
-    * @with_input_types(s=str)  # just @with_input_types(str) will work too.
-      def upper(s):
-        return s.upper()
+  .. testcode::
 
-  Or::
+    from apache_beam.typehints import with_input_types
 
-    * @with_input_types(ls=List[Tuple[int, int])
-      def increment(ls):
-        [(i + 1, j + 1) for (i,j) in ls]
+    @with_input_types(s=str)  # just @with_input_types(str) will work too.
+    def upper(s):
+      return s.upper()
+
+  Or:
+
+  .. testcode::
+
+    from apache_beam.typehints import with_input_types
+    from apache_beam.typehints import List
+    from apache_beam.typehints import Tuple
+
+    @with_input_types(ls=List[Tuple[int, int]])
+    def increment(ls):
+      [(i + 1, j + 1) for (i,j) in ls]
 
   Args:
     *positional_hints: Positional type-hints having identical order as the
       function's formal arguments. Values for this argument must either be a
-      built-in Python type or an instance of a TypeContraint created by
-      'indexing' a CompositeTypeHint instance with a type parameter.
+      built-in Python type or an instance of a
+      :class:`~apache_beam.typehints.typehints.TypeConstraint` created by
+      'indexing' a
+      :class:`~apache_beam.typehints.typehints.CompositeTypeHint` instance
+      with a type parameter.
     **keyword_hints: Keyword arguments mirroring the names of the parameters to
       the decorated functions. The value of each keyword argument must either
       be one of the allowed built-in Python types, a custom class, or an
-      instance of a TypeContraint created by 'indexing' a CompositeTypeHint
-      instance with a type parameter.
+      instance of a :class:`~apache_beam.typehints.typehints.TypeConstraint`
+      created by 'indexing' a
+      :class:`~apache_beam.typehints.typehints.CompositeTypeHint` instance
+      with a type parameter.
 
   Raises:
-    ValueError: If not all function arguments have corresponding type-hints
-      specified. Or if the inner wrapper function isn't passed a function
-      object.
-    TypeCheckError: If the any of the passed type-hint constraints are not a
-      type or TypeContraint instance.
+    :class:`~exceptions.ValueError`: If not all function arguments have
+      corresponding type-hints specified. Or if the inner wrapper function isn't
+      passed a function object.
+    :class:`TypeCheckError`: If the any of the passed type-hint
+      constraints are not a type or
+      :class:`~apache_beam.typehints.typehints.TypeConstraint` instance.
 
   Returns:
     The original function decorated such that it enforces type-hint constraints
@@ -375,37 +391,54 @@ def with_output_types(*return_type_hint, **kwargs):
 
   Only a single type-hint is accepted to specify the return type of the return
   value. If the function to be decorated has multiple return values, then one
-  should use: 'Tuple[type_1, type_2]' to annotate the types of the return
+  should use: ``Tuple[type_1, type_2]`` to annotate the types of the return
   values.
 
   If the ultimate return value for the function violates the specified type-hint
-  a TypeCheckError will be raised detailing the type-constraint violation.
+  a :class:`TypeCheckError` will be raised detailing the type-constraint
+  violation.
 
-  This decorator is intended to be used like::
+  This decorator is intended to be used like:
 
-    * @with_output_types(Set[Coordinate])
-      def parse_ints(ints):
-        ....
-        return [Coordinate.from_int(i) for i in ints]
+  .. testcode::
 
-  Or with a simple type-hint::
+    from apache_beam.typehints import with_output_types
+    from apache_beam.typehints import Set
 
-    * @with_output_types(bool)
-      def negate(p):
-        return not p if p else p
+    class Coordinate:
+      def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    @with_output_types(Set[Coordinate])
+    def parse_ints(ints):
+      # ....
+      return {Coordinate(i, i) for i in ints}
+
+  Or with a simple type-hint:
+
+  .. testcode::
+
+    from apache_beam.typehints import with_output_types
+
+    @with_output_types(bool)
+    def negate(p):
+      return not p if p else p
 
   Args:
     *return_type_hint: A type-hint specifying the proper return type of the
       function. This argument should either be a built-in Python type or an
-      instance of a 'TypeConstraint' created by 'indexing' a
-      'CompositeTypeHint'.
+      instance of a :class:`~apache_beam.typehints.typehints.TypeConstraint`
+      created by 'indexing' a
+      :class:`~apache_beam.typehints.typehints.CompositeTypeHint`.
     **kwargs: Not used.
 
   Raises:
-    ValueError: If any kwarg parameters are passed in, or the length of
-      'return_type_hint' is greater than 1. Or if the inner wrapper function
-      isn't passed a function object.
-    TypeCheckError: If the 'return_type_hint' object is in invalid type-hint.
+    :class:`~exceptions.ValueError`: If any kwarg parameters are passed in,
+      or the length of **return_type_hint** is greater than ``1``. Or if the
+      inner wrapper function isn't passed a function object.
+    :class:`TypeCheckError`: If the **return_type_hint** object is
+      in invalid type-hint.
 
   Returns:
     The original function decorated such that it enforces type-hint constraints

@@ -16,21 +16,24 @@
 #
 
 """
-DisplayData, its classes, interfaces and methods.
+:class:`DisplayData`, its classes, interfaces and methods.
 
 The classes in this module allow users and transform developers to define
-static display data to be displayed when a pipeline runs. PTransforms, DoFns
-and other pipeline components are subclasses of the HasDisplayData mixin. To
-add static display data to a component, you can override the display_data
-method of the HasDisplayData class.
+static display data to be displayed when a pipeline runs.
+:class:`~apache_beam.transforms.ptransform.PTransform` s,
+:class:`~apache_beam.transforms.core.DoFn` s
+and other pipeline components are subclasses of the :class:`HasDisplayData`
+mixin. To add static display data to a component, you can override the
+:meth:`HasDisplayData.display_data()` method.
 
 Available classes:
 
-- HasDisplayData - Components that inherit from this class can have static
-    display data shown in the UI.
-- DisplayDataItem - This class represents static display data elements.
-- DisplayData - Internal class that is used to create display data and
-    communicate it to the API.
+* :class:`HasDisplayData` - Components that inherit from this class can have
+  static display data shown in the UI.
+* :class:`DisplayDataItem` - This class represents static display data
+  elements.
+* :class:`DisplayData` - Internal class that is used to create display data
+  and communicate it to the API.
 """
 
 from __future__ import absolute_import
@@ -57,17 +60,19 @@ class HasDisplayData(object):
     static display data.
 
     Returns:
-      A dictionary containing key:value pairs. The value might be an
-      integer, float or string value; a DisplayDataItem for values that
-      have more data (e.g. short value, label, url); or a HasDisplayData
-      instance that has more display data that should be picked up. For
-      example:
+      dict[:class:`str`, `Any`]: A dictionary containing ``key:value`` pairs.
+      The value might be an integer, float or string value; a
+      :class:`DisplayDataItem` for values that have more data
+      (e.g. short value, label, url); or a :class:`HasDisplayData` instance
+      that has more display data that should be picked up. For example::
 
-      { 'key1': 'string_value',
-        'key2': 1234,
-        'key3': 3.14159265,
-        'key4': DisplayDataItem('apache.org', url='http://apache.org'),
-        'key5': subComponent }
+        {
+          'key1': 'string_value',
+          'key2': 1234,
+          'key3': 3.14159265,
+          'key4': DisplayDataItem('apache.org', url='http://apache.org'),
+          'key5': subComponent
+        }
     """
     return {}
 
@@ -121,8 +126,8 @@ class DisplayData(object):
       A DisplayData instance with populated items.
 
     Raises:
-      ValueError: If the has_display_data argument is not an instance of
-        HasDisplayData.
+      :class:`exceptions.ValueError`: If the **has_display_data** argument is
+        not an instance of :class:`HasDisplayData`.
     """
     from apache_beam.options.pipeline_options import PipelineOptions
     if not isinstance(pipeline_options, PipelineOptions):
@@ -144,8 +149,8 @@ class DisplayData(object):
       A DisplayData instance with populated items.
 
     Raises:
-      ValueError: If the has_display_data argument is not an instance of
-        HasDisplayData.
+      :class:`exceptions.ValueError`: If the **has_display_data** argument is
+        not an instance of :class:`HasDisplayData`.
     """
     if not isinstance(has_display_data, HasDisplayData):
       raise ValueError('Element of class {}.{} does not subclass HasDisplayData'
@@ -214,11 +219,13 @@ class DisplayDataItem(object):
     return False
 
   def is_valid(self):
-    """ Checks that all the necessary fields of the DisplayDataItem are
-    filled in. It checks that neither key, namespace, value or type are None.
+    """ Checks that all the necessary fields of the :class:`DisplayDataItem`
+    are filled in. It checks that neither key, namespace, value or type are
+    :data:`None`.
 
     Raises:
-      ValueError: If the item does not have a key, namespace, value or type.
+      :class:`~exceptions.ValueError`: If the item does not have a key,
+        namespace, value or type.
     """
     if self.key is None:
       raise ValueError('Invalid DisplayDataItem. Key must not be None')
@@ -247,14 +254,15 @@ class DisplayDataItem(object):
     return res
 
   def get_dict(self):
-    """ Returns the internal-API dictionary representing the DisplayDataItem.
+    """ Returns the internal-API dictionary representing the
+    :class:`DisplayDataItem`.
 
     Returns:
-      A dictionary. The internal-API dictionary representing the
-      DisplayDataItem
+      Dict[:class:`str`, `Any`]: A dictionary. The internal-API dictionary
+      representing the :class:`DisplayDataItem`.
 
     Raises:
-      ValueError: if the item is not valid.
+      :class:`~exceptions.ValueError`: if the item is not valid.
     """
     self.is_valid()
     return self._get_dict()

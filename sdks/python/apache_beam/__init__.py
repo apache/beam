@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK for Python.
+"""
+Apache Beam SDK for Python
+==========================
 
-Apache Beam <https://beam.apache.org/>
-provides a simple, powerful programming model for building both batch
-and streaming parallel data processing pipelines.
+`Apache Beam <https://beam.apache.org>`_ provides a simple, powerful programming
+model for building both batch and streaming parallel data processing pipelines.
 
 The Apache Beam SDK for Python provides access to Apache Beam capabilities
 from the Python programming language.
@@ -33,32 +34,40 @@ Overview
 --------
 The key concepts in this programming model are
 
-* PCollection:  represents a collection of data, which could be
-  bounded or unbounded in size.
-* PTransform:  represents a computation that transforms input
-  PCollections into output PCollections.
-* Pipeline:  manages a directed acyclic graph of PTransforms and
-  PCollections that is ready for execution.
-* Runner:  specifies where and how the Pipeline should execute.
-* Reading and Writing Data:  your pipeline can read from an external
-  source and write to an external data sink.
+* :class:`~apache_beam.pvalue.PCollection`: represents a collection of data,
+  which could be bounded or unbounded in size.
+* :class:`~apache_beam.transforms.ptransform.PTransform`: represents a
+  computation that transforms input PCollections into output PCollections.
+* :class:`~apache_beam.pipeline.Pipeline`: manages a directed acyclic graph of
+  :class:`~apache_beam.transforms.ptransform.PTransform` s and
+  :class:`~apache_beam.pvalue.PCollection` s that is ready for execution.
+* :class:`~apache_beam.runners.runner.PipelineRunner`: specifies where and how
+  the pipeline should execute.
+* :class:`~apache_beam.io.iobase.Read`: read from an external source.
+* :class:`~apache_beam.io.iobase.Write`: write to an external data sink.
 
 Typical usage
 -------------
 At the top of your source file::
 
-    import apache_beam as beam
+  import apache_beam as beam
 
 After this import statement
 
-* transform classes are available as beam.FlatMap, beam.GroupByKey, etc.
-* Pipeline class is available as beam.Pipeline
-* text read/write transforms are available as beam.io.ReadfromText,
-  beam.io.WriteToText
+* Transform classes are available as
+  :class:`beam.FlatMap <apache_beam.transforms.core.FlatMap>`,
+  :class:`beam.GroupByKey <apache_beam.transforms.core.GroupByKey>`, etc.
+* Pipeline class is available as
+  :class:`beam.Pipeline <apache_beam.pipeline.Pipeline>`
+* Text read/write transforms are available as
+  :class:`beam.io.ReadFromText <apache_beam.io.textio.ReadFromText>`,
+  :class:`beam.io.WriteToText <apache_beam.io.textio.WriteToText>`.
 
 Examples
 --------
-The examples subdirectory has some examples.
+The `examples subdirectory
+<https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples>`_
+has some examples.
 
 """
 
