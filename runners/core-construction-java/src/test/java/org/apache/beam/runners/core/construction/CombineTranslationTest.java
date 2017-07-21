@@ -103,8 +103,10 @@ public class CombineTranslationTest {
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
       RunnerApi.Components componentsProto = sdkComponents.toComponents();
 
-      assertEquals(combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
-          CombineTranslation.getAccumulatorCoder(combineProto, componentsProto));
+      assertEquals(
+          combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
+          CombineTranslation.getAccumulatorCoder(
+              combineProto, RehydratedComponents.forComponents(componentsProto)));
       assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
     }
   }
@@ -146,7 +148,8 @@ public class CombineTranslationTest {
 
       assertEquals(
           combineFn.getAccumulatorCoder(pipeline.getCoderRegistry(), input.getCoder()),
-          CombineTranslation.getAccumulatorCoder(combineProto, componentsProto));
+          CombineTranslation.getAccumulatorCoder(
+              combineProto, RehydratedComponents.forComponents(componentsProto)));
       assertEquals(combineFn, CombineTranslation.getCombineFn(combineProto));
     }
   }

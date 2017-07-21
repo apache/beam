@@ -63,6 +63,7 @@ import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
@@ -1089,6 +1090,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       private final Collection<byte[]> elements;
       private final RunnerApi.MessageWithComponents coderSpec;
 
+      // lazily initialized by parsing coderSpec
+      private transient Coder<T> coder;
+      private Coder<T> getCoder() throws IOException {
+        if (coder == null) {
+          coder =
+              (Coder)
+                  CoderTranslation.fromProto(
+                      coderSpec.getCoder(),
+                      RehydratedComponents.forComponents(coderSpec.getComponents()));
+        }
+        return coder;
+      }
+
       private DecodeAndEmitDoFn(Collection<byte[]> elements, Coder<T> coder) throws IOException {
         this.elements = elements;
         this.coderSpec = CoderTranslation.toProto(coder);
@@ -1096,8 +1110,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws IOException {
-        Coder<T> coder =
-            (Coder) CoderTranslation.fromProto(coderSpec.getCoder(), coderSpec.getComponents());
         for (byte[] element : elements) {
           context.output(CoderUtils.decodeFromByteArray(coder, element));
         }

@@ -136,7 +136,9 @@ public class CoderTranslationTest {
       RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, componentsBuilder);
 
       Components encodedComponents = componentsBuilder.toComponents();
-      Coder<?> decodedCoder = CoderTranslation.fromProto(coderProto, encodedComponents);
+      Coder<?> decodedCoder =
+          CoderTranslation.fromProto(
+              coderProto, RehydratedComponents.forComponents(encodedComponents));
       assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {

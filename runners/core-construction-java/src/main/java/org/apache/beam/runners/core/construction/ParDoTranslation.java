@@ -262,6 +262,8 @@ public class ParDoTranslation {
     ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
 
     List<PCollectionView<?>> views = new ArrayList<>();
+    RehydratedComponents components =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
     for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
       String sideInputTag = sideInputEntry.getKey();
       RunnerApi.SideInput sideInput = sideInputEntry.getValue();
@@ -276,7 +278,7 @@ public class ParDoTranslation {
               sideInputTag,
               originalPCollection,
               parDoProto,
-              sdkComponents.toComponents()));
+              components));
     }
     return views;
   }
@@ -353,18 +355,13 @@ public class ParDoTranslation {
   }
 
   @VisibleForTesting
-  static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RunnerApi.Components components)
+  static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RehydratedComponents components)
       throws IOException {
     switch (stateSpec.getSpecCase()) {
       case VALUE_SPEC:
-        return StateSpecs.value(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getValueSpec().getCoderId()), components));
+        return StateSpecs.value(components.getCoder(stateSpec.getValueSpec().getCoderId()));
       case BAG_SPEC:
-        return StateSpecs.bag(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getBagSpec().getElementCoderId()),
-                components));
+        return StateSpecs.bag(components.getCoder(stateSpec.getBagSpec().getElementCoderId()));
       case COMBINING_SPEC:
         FunctionSpec combineFnSpec = stateSpec.getCombiningSpec().getCombineFn().getSpec();
 
@@ -386,26 +383,16 @@ public class ParDoTranslation {
         // Rawtype coder cast because it is required to be a valid accumulator coder
         // for the CombineFn, by construction
         return StateSpecs.combining(
-            (Coder)
-                CoderTranslation.fromProto(
-                    components
-                        .getCodersMap()
-                        .get(stateSpec.getCombiningSpec().getAccumulatorCoderId()),
-                    components),
+            (Coder) components.getCoder(stateSpec.getCombiningSpec().getAccumulatorCoderId()),
             combineFn);
 
       case MAP_SPEC:
         return StateSpecs.map(
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(stateSpec.getMapSpec().getKeyCoderId()), components),
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(stateSpec.getMapSpec().getValueCoderId()), components));
+            components.getCoder(stateSpec.getMapSpec().getKeyCoderId()),
+            components.getCoder(stateSpec.getMapSpec().getValueCoderId()));
 
       case SET_SPEC:
-        return StateSpecs.set(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getSetSpec().getElementCoderId()),
-                components));
+        return StateSpecs.set(components.getCoder(stateSpec.getSetSpec().getElementCoderId()));
 
       case SPEC_NOT_SET:
       default:
@@ -517,7 +504,7 @@ public class ParDoTranslation {
       String localName,
       PCollection<?> pCollection,
       RunnerApi.PTransform parDoTransform,
-      Components components)
+      RehydratedComponents components)
       throws IOException {
     checkArgument(
         localName != null,
@@ -527,20 +514,13 @@ public class ParDoTranslation {
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
 
-    RunnerApi.PCollection inputCollection =
-        components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(localName));
-    WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategyTranslation.fromProto(
-            components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
-            components);
-    Coder<?> elemCoder =
-        CoderTranslation
-            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+    WindowingStrategy<?, ?> windowingStrategy = pCollection.getWindowingStrategy().fixDefaults();
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(
                 FullWindowedValueCoder.of(
-                    elemCoder, windowingStrategy.getWindowFn().windowCoder()));
+                    pCollection.getCoder(),
+                    pCollection.getWindowingStrategy().getWindowFn().windowCoder()));
     checkArgument(
         sideInput.getAccessPattern().getUrn().equals(Materializations.ITERABLE_MATERIALIZATION_URN),
         "Unknown View Materialization URN %s",
