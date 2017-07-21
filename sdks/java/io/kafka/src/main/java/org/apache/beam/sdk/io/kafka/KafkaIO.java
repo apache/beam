@@ -1792,12 +1792,12 @@ public class KafkaIO {
     // across a fixed number of shards and records in each shard are written in order. It drops
     // any records that are already written and buffers those arriving out of order.
     //
-    //  // Exactly once sink involves two shuffles of the records:
-    //            A -- GBK --> B -- GBK --> C
+    // Exactly once sink involves two shuffles of the records:
+    //    A : Assign a shard ---> B : Assign sequential ID ---> C : Write to Kafka in order
     //
     // Processing guarantees also require deterministic processing within user transforms.
-    // in this case that implies the order of the records seen by C should not be affected by
-    // restarts in upstream stages link B & A.
+    // Here, that requires order of the records committed to Kafka by C should not be affected by
+    // restarts in C and its upstream stages.
     //
     // A : Assigns a random shard for message. Note that there are no ordering guarantees for
     //     writing user records to Kafka. User can still control partitioning among topic
