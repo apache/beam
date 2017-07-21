@@ -94,6 +94,7 @@ public class TextIOReadTest {
   private static final List<String> TINY =
       Arrays.asList("Irritable eagle", "Optimistic jay", "Fanciful hawk");
   private static final List<String> LARGE = makeLines(1000);
+  private static int uniquifier = 0;
 
   private static Path tempFolder;
   private static File emptyTxt;
@@ -296,17 +297,19 @@ public class TextIOReadTest {
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, List<String> expected) {
 
+    int thisUniquifier = ++uniquifier;
+
     TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
-    PAssert.that(p.apply("Read_" + file + "_" + compressionType.toString(), read))
+    PAssert.that(
+            p.apply("Read_" + file + "_" + compressionType.toString() + "_" + thisUniquifier, read))
         .containsInAnyOrder(expected);
 
     TextIO.ReadAll readAll =
         TextIO.readAll().withCompressionType(compressionType).withDesiredBundleSizeBytes(10);
     PAssert.that(
-            p.apply("Create_" + file, Create.of(file.getPath()))
-                .apply("Read_" + compressionType.toString(), readAll))
+            p.apply("Create_" + file + "_" + thisUniquifier, Create.of(file.getPath()))
+                .apply("Read_" + compressionType.toString() + "_" + thisUniquifier, readAll))
         .containsInAnyOrder(expected);
-    p.run();
   }
 
   /** Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n). */
@@ -324,6 +327,7 @@ public class TextIOReadTest {
   public void testSmallCompressedGzipReadNoExtension() throws Exception {
     File smallGzNoExtension = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
     assertReadingCompressedFileMatchesExpected(smallGzNoExtension, GZIP, TINY);
+    p.run();
   }
 
   /**
@@ -340,6 +344,7 @@ public class TextIOReadTest {
     assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, GZIP, TINY);
     // Should also work with AUTO mode set.
     assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, AUTO, TINY);
+    p.run();
   }
 
   /** Tests reading from a small, bzip2ed file with no .bz2 extension but BZIP2 compression set. */
@@ -348,6 +353,7 @@ public class TextIOReadTest {
   public void testSmallCompressedBzip2ReadNoExtension() throws Exception {
     File smallBz2NoExtension = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
     assertReadingCompressedFileMatchesExpected(smallBz2NoExtension, BZIP2, TINY);
+    p.run();
   }
 
   /**
@@ -393,6 +399,7 @@ public class TextIOReadTest {
       assertReadingCompressedFileMatchesExpected(tinyTxt, type, TINY);
       assertReadingCompressedFileMatchesExpected(largeTxt, type, LARGE);
     }
+    p.run();
   }
 
   @Test
@@ -411,6 +418,7 @@ public class TextIOReadTest {
     // GZIP files with non-gz extension should work in GZIP mode.
     File gzFile = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
     assertReadingCompressedFileMatchesExpected(gzFile, GZIP, TINY);
+    p.run();
   }
 
   @Test
@@ -429,6 +437,7 @@ public class TextIOReadTest {
     // BZ2 files with non-bz2 extension should work in BZIP2 mode.
     File bz2File = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
     assertReadingCompressedFileMatchesExpected(bz2File, BZIP2, TINY);
+    p.run();
   }
 
   @Test
@@ -447,6 +456,7 @@ public class TextIOReadTest {
     // Zip files with non-zip extension should work in ZIP mode.
     File zipFile = writeToFile(TINY, "tiny_zip_no_extension", ZIP);
     assertReadingCompressedFileMatchesExpected(zipFile, ZIP, TINY);
+    p.run();
   }
 
   @Test
@@ -465,6 +475,7 @@ public class TextIOReadTest {
     // Deflate files with non-deflate extension should work in DEFLATE mode.
     File deflateFile = writeToFile(TINY, "tiny_deflate_no_extension", DEFLATE);
     assertReadingCompressedFileMatchesExpected(deflateFile, DEFLATE, TINY);
+    p.run();
   }
 
   /**
@@ -476,6 +487,7 @@ public class TextIOReadTest {
   public void testZipCompressedReadWithNoEntries() throws Exception {
     String filename = createZipFile(new ArrayList<String>(), "empty zip file");
     assertReadingCompressedFileMatchesExpected(new File(filename), CompressionType.ZIP, EMPTY);
+    p.run();
   }
 
   /**
@@ -493,6 +505,7 @@ public class TextIOReadTest {
 
     String filename = createZipFile(expected, "multiple entries", entry0, entry1, entry2);
     assertReadingCompressedFileMatchesExpected(new File(filename), CompressionType.ZIP, expected);
+    p.run();
   }
 
   /**
@@ -513,6 +526,7 @@ public class TextIOReadTest {
 
     assertReadingCompressedFileMatchesExpected(
         new File(filename), CompressionType.ZIP, Arrays.asList("cat", "dog"));
+    p.run();
   }
 
   @Test
