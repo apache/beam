@@ -740,6 +740,13 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeySerializer(IntegerSerializer.class)
             .withValueSerializer(LongSerializer.class)
+            // .withEOS()
+            // .withSinkGroupId("test")
+            // .withNumShards(1)
+            // .withKeyCoder(BigEndianIntegerCoder.of())
+            // .withValueCoder(BigEndianLongCoder.of())
+            // .withConsumerFactoryFn(new ConsumerFactoryFn(
+            //   Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
       p.run();
@@ -1070,7 +1077,7 @@ public class KafkaIOTest {
   /**
    * Singleton MockProudcer. Using a singleton here since we need access to the object to fetch
    * the actual records published to the producer. This prohibits running the tests using
-   * the producer in parallel, but there are only one or two tests.
+   * the producer in parallel. These tests only take a few millis each.
    */
   private static final MockProducer<Integer, Long> MOCK_PRODUCER =
     new MockProducer<Integer, Long>(
