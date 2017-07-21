@@ -749,7 +749,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       outputFilenames = keyedResults
           .apply("FinalizeGroupByKey", GroupByKey.<Void, FileResult<DestinationT>>create())
           .apply(
-              "Finalize",
+              "FinalizeWindowed",
               ParDo.of(
                   new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>, String>() {
                     @ProcessElement
@@ -796,7 +796,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // use a side input here.
       PCollection<Void> singletonCollection = p.apply(Create.of((Void) null));
       outputFilenames = singletonCollection.apply(
-          "Finalize",
+          "FinalizeUnwindowed",
           ParDo.of(
                   new DoFn<Void, String>() {
                     @ProcessElement
