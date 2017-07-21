@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
@@ -140,26 +141,31 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * Reads from the given file name or pattern ("glob"). The returned source can be further
    * configured by calling {@link #withSchema} to return a type other than {@link GenericRecord}.
    */
-  public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
+  public static AvroSource<GenericRecord> from(ValueProvider<String> fileNameOrPattern) {
     return new AvroSource<>(fileNameOrPattern, DEFAULT_MIN_BUNDLE_SIZE, null, GenericRecord.class);
+  }
+
+  /** Like {@link #from(ValueProvider)}. */
+  public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
+    return from(ValueProvider.StaticValueProvider.of(fileNameOrPattern));
   }
 
   /** Reads files containing records that conform to the given schema. */
   public AvroSource<GenericRecord> withSchema(String schema) {
     return new AvroSource<>(
-        getFileOrPatternSpec(), getMinBundleSize(), schema, GenericRecord.class);
+        getFileOrPatternSpecProvider(), getMinBundleSize(), schema, GenericRecord.class);
   }
 
   /** Like {@link #withSchema(String)}. */
   public AvroSource<GenericRecord> withSchema(Schema schema) {
     return new AvroSource<>(
-        getFileOrPatternSpec(), getMinBundleSize(), schema.toString(), GenericRecord.class);
+        getFileOrPatternSpecProvider(), getMinBundleSize(), schema.toString(), GenericRecord.class);
   }
 
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
     return new AvroSource<>(
-        getFileOrPatternSpec(),
+        getFileOrPatternSpecProvider(),
         getMinBundleSize(),
         ReflectData.get().getSchema(clazz).toString(),
         clazz);
@@ -170,12 +176,16 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
-    return new AvroSource<>(getFileOrPatternSpec(), minBundleSize, readerSchemaString, type);
+    return new AvroSource<>(
+        getFileOrPatternSpecProvider(), minBundleSize, readerSchemaString, type);
   }
 
   /** Constructor for FILEPATTERN mode. */
   private AvroSource(
-      String fileNameOrPattern, long minBundleSize, String readerSchemaString, Class<T> type) {
+      ValueProvider<String> fileNameOrPattern,
+      long minBundleSize,
+      String readerSchemaString,
+      Class<T> type) {
     super(fileNameOrPattern, minBundleSize);
     this.readerSchemaString = internSchemaString(readerSchemaString);
     this.type = type;
@@ -366,7 +376,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
             type);
       case FILEPATTERN:
         return new AvroSource<>(
-            getFileOrPatternSpec(), getMinBundleSize(), readerSchemaString, type);
+            getFileOrPatternSpecProvider(), getMinBundleSize(), readerSchemaString, type);
         default:
           throw new InvalidObjectException(
               String.format("Unknown mode %s for AvroSource %s", getMode(), this));
