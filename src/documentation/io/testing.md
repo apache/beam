@@ -148,11 +148,11 @@ Prerequisites:
 1.  [Install PerfKit Benchmarker](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker)
 1.  Have a running Kubernetes cluster you can connect to locally using kubectl
 
-You won't need to invoke PerfKit Benchmarker directly. Run mvn verify in the directory of the I/O module you'd like to test, with the parameter io-it-suite.
+You won't need to invoke PerfKit Benchmarker directly. Run mvn verify in the directory of the I/O module you'd like to test, with the parameter io-it-suite when running in jenkins CI or with a kubernetes cluster on the same network or io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network.
 
 Example run with the direct runner:
 ```
-mvn verify -Dio-it-suite -Dio-it-suite-local -pl sdks/java/io/jdbc,sdks/java/io/jdbc -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" -DforceDirectRunner -DintegrationTestPipelineOptions=["--myTestParam=val"]
+mvn verify -Dio-it-suite-local -pl sdks/java/io/jdbc,sdks/java/io/jdbc -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" -DforceDirectRunner -DintegrationTestPipelineOptions=["--myTestParam=val"]
 ```
 
 
@@ -180,13 +180,13 @@ Parameter descriptions:
     <tr>
      <td>-Dio-it-suite
      </td>
-     <td>Invokes the call to PerfKit Benchmarker.
+     <td>Invokes the call to PerfKit Benchmarker when running in apache beam's jenkins instance or with a kubernetes cluster on the same network.
      </td>
     </tr>
     <tr>
      <td>-Dio-it-suite-local
      </td>
-     <td>Modifies the call to PerfKit Benchmarker so that it exposes the postgres service via LoadBalancer, making it available to users not on the immediate network of the kubernetes cluster. This is useful if you are running on a remote kubernetes cluster.
+     <td>io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network. May not be supported for all I/O transforms.
      </td>
     </tr>
     <tr>
@@ -228,15 +228,15 @@ If you're using Kubernetes, make sure you can connect to your cluster locally us
         1.  A core yml script for the data store itself, plus a `NodePort` service. The `NodePort` service opens a port to the data store for anyone who connects to the Kubernetes cluster's machines.
         1.  A separate script, called for-local-dev, which sets up a LoadBalancer service.
     1.  Examples:
-        1.  For JDBC, you can set up Postgres: `kubectl create -f ./test-infra/kubernetes/postgres/postgres.yml`
-        1.  For Elasticsearch, you can run the setup script: `bash ./test-infra/kubernetes/elasticsearch/setup.sh`
+        1.  For JDBC, you can set up Postgres: `kubectl create -f .test-infra/kubernetes/postgres/postgres.yml`
+        1.  For Elasticsearch, you can run the setup script: `bash .test-infra/kubernetes/elasticsearch/setup.sh`
 1.  Determine the IP address of the service:
     1.  NodePort service: `kubectl get pods -l 'component=elasticsearch' -o jsonpath={.items[0].status.podIP}`
     1.  LoadBalancer service:` kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`
 1.  Run the test using the instructions in the class (e.g. see the instructions in JdbcIOIT.java)
 1.  Tell Kubernetes to delete the resources specified in the Kubernetes scripts:
-    1.  JDBC: `kubectl delete -f ./test-infra/kubernetes/postgres/postgres.yml`
-    1.  Elasticsearch: `bash ./test-infra/kubernetes/elasticsearch/teardown.sh`
+    1.  JDBC: `kubectl delete -f .test-infra/kubernetes/postgres/postgres.yml`
+    1.  Elasticsearch: `bash .test-infra/kubernetes/elasticsearch/teardown.sh`
 
 
 ### Implementing Integration Tests {#implementing-integration-tests}
@@ -262,7 +262,7 @@ These are the conventions used by integration testing code:
     *   Validate the actual contents of all rows in an efficient manner. An easy way to do this is by taking a hash of the rows and combining them. `HashingFn` can help make this simple, and `TestRow` has pre-computed hashes.
     *   For easy debugging, use `PAssert`'s `containsInAnyOrder` to validate the contents of a subset of all rows.
 *   **Tests should assume they may be run multiple times and/or simultaneously on the same database instance.**
-    *   Clean up test data: do this in an `@afterClass` to ensure it runs.
+    *   Clean up test data: do this in an `@AfterClass` to ensure it runs.
     *   Use unique table names per run (timestamps are an easy way to do this) and per-method where appropriate.
 
 An end to end example of these principles can be found in [JdbcIOIT](https://github.com/ssisk/beam/blob/jdbc-it-perf/sdks/java/io/jdbc/src/test/java/org/apache/beam/sdk/io/jdbc/JdbcIOIT.java).
@@ -277,14 +277,14 @@ If you would like help with this or have other questions, contact the Beam dev@ 
 Guidelines for creating a Beam data store Kubernetes script:
 1.  **You must only provide access to the data store instance via a `NodePort` service.**
     *   This is a requirement for security, since it means that only the local network has access to the data store. This is particularly important since many data stores don't have security on by default, and even if they do, their passwords will be checked in to our public Github repo.
-1.  **Convention: define two Kubernetes scripts.**
+1.  **You should define two Kubernetes scripts.**
     *   This is the best known way to implement item #1.
-    *   The first script will be the core script run on the Beam CI servers and should contain the main datastore instance script (`StatefulSet`) plus a `NodePort` service exposing the data store.
+    *   The first script will contain the main datastore instance script (`StatefulSet`) plus a `NodePort` service exposing the data store. This will be the script run by the Beam Jenkins continuous integration server.
     *   The second script will define a `LoadBalancer` service, used for local development if the Kubernetes cluster is on another network. This file's name is usually suffixed with '-for-local-dev'.
 1.  **You must ensure that pods are recreated after crashes.**
     *   If you use a `pod` directly, it will not be recreated if the pod crashes or something causes the cluster to move the container for your pod.
-    *   In most cases, you'll want to use `StatefulSet` as it supports persistent disks that last between restarts, and having a stable network identifier associated with the pod using a particular persistent disk. `Deployment`s/`ReplicaSet`s are also possibly useful, but likely in fewer scenarios since they do not have those features.
-1.  **Convention: create separate scripts for small and large instances of your data store.**
+    *   In most cases, you'll want to use `StatefulSet` as it supports persistent disks that last between restarts, and having a stable network identifier associated with the pod using a particular persistent disk. `Deployment` and `ReplicaSet` are also possibly useful, but likely in fewer scenarios since they do not have those features.
+1.  **You should create separate scripts for small and large instances of your data store.**
     *   This seems to be the best way to support having both a small and large data store available for integration testing, as discussed in [Small Scale and Large Scale Integration Tests](#small-scale-and-large-scale-integration-tests).
 1.  **You must use a Docker image from a trusted source and pin the version of the Docker image.**
     *   You should prefer images in this order:
@@ -310,7 +310,7 @@ All known cases of dynamic pipeline options are for extracting the IP address th
 
 
 
-*   The type of the IP address to get (load balancer? node address?)
+*   The type of the IP address to get (load balancer/node address)
 *   The pipeline option to pass that IP address to
 *   How to find the Kubernetes resource with that value (ie. what load balancer service name? what node selector?)
 
@@ -502,7 +502,7 @@ The [JdbcIO pom](https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/po
      </td>
      <td>The test to run.
      </td>
-     <td>JdbcIOIT
+     <td>org.apache.beam.sdk.io.jdbc.JdbcIOIT
      </td>
     </tr>
     <tr>
