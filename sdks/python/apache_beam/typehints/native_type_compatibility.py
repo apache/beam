@@ -82,13 +82,14 @@ def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
   Args:
-    typ: typing type.
+    typ (type): typing type.
 
   Returns:
-    The given type converted to a Beam type as far as we can do the conversion.
+    type: The given type converted to a Beam type as far as we can do the
+    conversion.
 
   Raises:
-    ValueError: The type was malformed.
+    ~exceptions.ValueError: The type was malformed.
   """
 
   type_map = [
