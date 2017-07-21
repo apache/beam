@@ -84,7 +84,19 @@
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <version>${mapreduce.version}</version>
     </dependency>
-    
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-common</artifactId>
+      <version>${mapreduce.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${mapreduce.version}</version>
+    </dependency>
+
     <!-- Beam dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
