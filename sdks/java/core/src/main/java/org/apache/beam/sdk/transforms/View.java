@@ -497,7 +497,7 @@ public class View {
     /**
      * Return the {@link PCollectionView} that is returned by applying this {@link PTransform}.
      *
-     * <p>This should not be used to obtain the output of any given application of this
+     * @deprecated This should not be used to obtain the output of any given application of this
      * {@link PTransform}. That should be obtained by inspecting the {@link Node}
      * that contains this {@link CreatePCollectionView}, as this view may have been replaced within
      * pipeline surgery.

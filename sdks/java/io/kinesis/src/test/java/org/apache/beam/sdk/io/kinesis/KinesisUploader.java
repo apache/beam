@@ -29,6 +29,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -37,47 +38,46 @@ import java.util.List;
  */
 public class KinesisUploader {
 
-    public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
+  public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
 
-    public static void uploadAll(List<String> data, KinesisTestOptions options) {
-        AmazonKinesisClient client = new AmazonKinesisClient(
-                new StaticCredentialsProvider(
-                        new BasicAWSCredentials(
-                                options.getAwsAccessKey(), options.getAwsSecretKey()))
-        ).withRegion(Regions.fromName(options.getAwsKinesisRegion()));
+  public static void uploadAll(List<String> data, KinesisTestOptions options) {
+    AmazonKinesisClient client = new AmazonKinesisClient(
+        new StaticCredentialsProvider(
+            new BasicAWSCredentials(
+                options.getAwsAccessKey(), options.getAwsSecretKey()))
+    ).withRegion(Regions.fromName(options.getAwsKinesisRegion()));
 
-        List<List<String>> partitions = Lists.partition(data, MAX_NUMBER_OF_RECORDS_IN_BATCH);
+    List<List<String>> partitions = Lists.partition(data, MAX_NUMBER_OF_RECORDS_IN_BATCH);
 
+    for (List<String> partition : partitions) {
+      List<PutRecordsRequestEntry> allRecords = newArrayList();
+      for (String row : partition) {
+        allRecords.add(new PutRecordsRequestEntry().
+            withData(ByteBuffer.wrap(row.getBytes(Charsets.UTF_8))).
+            withPartitionKey(Integer.toString(row.hashCode()))
 
-        for (List<String> partition : partitions) {
-            List<PutRecordsRequestEntry> allRecords = newArrayList();
-            for (String row : partition) {
-                allRecords.add(new PutRecordsRequestEntry().
-                        withData(ByteBuffer.wrap(row.getBytes(Charsets.UTF_8))).
-                        withPartitionKey(Integer.toString(row.hashCode()))
+        );
+      }
 
-                );
-            }
-
-            PutRecordsResult result;
-            do {
-                result = client.putRecords(
-                        new PutRecordsRequest().
-                                withStreamName(options.getAwsKinesisStream()).
-                                withRecords(allRecords));
-                List<PutRecordsRequestEntry> failedRecords = newArrayList();
-                int i = 0;
-                for (PutRecordsResultEntry row : result.getRecords()) {
-                    if (row.getErrorCode() != null) {
-                        failedRecords.add(allRecords.get(i));
-                    }
-                    ++i;
-                }
-                allRecords = failedRecords;
-            }
-
-            while (result.getFailedRecordCount() > 0);
+      PutRecordsResult result;
+      do {
+        result = client.putRecords(
+            new PutRecordsRequest().
+                withStreamName(options.getAwsKinesisStream()).
+                withRecords(allRecords));
+        List<PutRecordsRequestEntry> failedRecords = newArrayList();
+        int i = 0;
+        for (PutRecordsResultEntry row : result.getRecords()) {
+          if (row.getErrorCode() != null) {
+            failedRecords.add(allRecords.get(i));
+          }
+          ++i;
         }
+        allRecords = failedRecords;
+      }
+
+      while (result.getFailedRecordCount() > 0);
     }
+  }
 
 }

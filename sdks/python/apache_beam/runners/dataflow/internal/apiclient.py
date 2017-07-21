@@ -500,8 +500,11 @@ class DataflowApplicationClient(object):
     logging.info('Created job with id: [%s]', response.id)
     logging.info(
         'To access the Dataflow monitoring console, please navigate to '
-        'https://console.developers.google.com/project/%s/dataflow/job/%s',
-        self.google_cloud_options.project, response.id)
+        'https://console.cloud.google.com/dataflow/jobsDetail'
+        '/locations/%s/jobs/%s?project=%s',
+        self.google_cloud_options.region,
+        response.id,
+        self.google_cloud_options.project)
 
     return response
 

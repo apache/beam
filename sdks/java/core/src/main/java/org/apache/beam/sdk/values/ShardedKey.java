@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * A key and a shard number.
- */
-class ShardedKey<K> implements Serializable {
+/** A key and a shard number. */
+public class ShardedKey<K> implements Serializable {
   private static final long serialVersionUID = 1L;
   private final K key;
   private final int shardNumber;
@@ -33,7 +31,7 @@ class ShardedKey<K> implements Serializable {
     return new ShardedKey<>(key, shardNumber);
   }
 
-  ShardedKey(K key, int shardNumber) {
+  private ShardedKey(K key, int shardNumber) {
     this.key = key;
     this.shardNumber = shardNumber;
   }

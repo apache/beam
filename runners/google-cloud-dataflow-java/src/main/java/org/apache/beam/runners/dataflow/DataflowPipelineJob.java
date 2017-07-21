@@ -164,6 +164,17 @@ public class DataflowPipelineJob implements PipelineResult {
     return dataflowOptions.getProject();
   }
 
+  public DataflowPipelineOptions getDataflowOptions() {
+    return dataflowOptions;
+  }
+
+  /**
+   * Get the region this job exists in.
+   */
+  public String getRegion() {
+    return dataflowOptions.getRegion();
+  }
+
   /**
    * Returns a new {@link DataflowPipelineJob} for the job that replaced this one, if applicable.
    *
@@ -340,7 +351,9 @@ public class DataflowPipelineJob implements PipelineResult {
                   getJobId(),
                   getReplacedByJob().getJobId(),
                   MonitoringUtil.getJobMonitoringPageURL(
-                      getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
+                      getReplacedByJob().getProjectId(),
+                      getRegion(),
+                      getReplacedByJob().getJobId()));
               break;
             default:
               LOG.info("Job {} failed with status {}.", getJobId(), state);
@@ -418,7 +431,8 @@ public class DataflowPipelineJob implements PipelineResult {
                 "Failed to cancel job in state %s, "
                     + "please go to the Developers Console to cancel it manually: %s",
                 state,
-                MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+                MonitoringUtil.getJobMonitoringPageURL(
+                    getProjectId(), getRegion(), getJobId()));
             LOG.warn(errorMsg);
             throw new IOException(errorMsg, e);
           }

@@ -2596,6 +2596,43 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * Tests a GBK followed immediately by a {@link ParDo} that users timers. This checks a common
+   * case where both GBK and the user code share a timer delivery bundle.
+   */
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testGbkFollowedByUserTimers() throws Exception {
+
+    DoFn<KV<String, Iterable<Integer>>, Integer> fn =
+        new DoFn<KV<String, Iterable<Integer>>, Integer>() {
+
+          public static final String TIMER_ID = "foo";
+
+          @TimerId(TIMER_ID)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
+            timer.offset(Duration.standardSeconds(1)).setRelative();
+            context.output(3);
+          }
+
+          @OnTimer(TIMER_ID)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(KV.of("hello", 37)))
+            .apply(GroupByKey.<String, Integer>create())
+            .apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
   @Test
   @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerAlignBounded() throws Exception {

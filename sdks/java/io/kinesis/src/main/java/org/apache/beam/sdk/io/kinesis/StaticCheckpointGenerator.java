@@ -23,20 +23,21 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * Always returns the same instance of checkpoint.
  */
 class StaticCheckpointGenerator implements CheckpointGenerator {
-    private final KinesisReaderCheckpoint checkpoint;
 
-    public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
-        checkNotNull(checkpoint, "checkpoint");
-        this.checkpoint = checkpoint;
-    }
+  private final KinesisReaderCheckpoint checkpoint;
 
-    @Override
-    public KinesisReaderCheckpoint generate(SimplifiedKinesisClient client) {
-        return checkpoint;
-    }
+  public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
+    checkNotNull(checkpoint, "checkpoint");
+    this.checkpoint = checkpoint;
+  }
 
-    @Override
-    public String toString() {
-        return checkpoint.toString();
-    }
+  @Override
+  public KinesisReaderCheckpoint generate(SimplifiedKinesisClient client) {
+    return checkpoint;
+  }
+
+  @Override
+  public String toString() {
+    return checkpoint.toString();
+  }
 }

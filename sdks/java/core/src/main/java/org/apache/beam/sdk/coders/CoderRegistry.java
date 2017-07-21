@@ -234,6 +234,9 @@ public class CoderRegistry {
    * type uses the given {@link Coder}.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal
@@ -254,6 +257,9 @@ public class CoderRegistry {
    * used for its input elements.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal
@@ -276,6 +282,9 @@ public class CoderRegistry {
    * subclass, given {@link Coder Coders} to use for all other type parameters (if any).
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal

@@ -52,6 +52,9 @@ class DirectTimerInternals implements TimerInternals {
     timerUpdateBuilder.setTimer(TimerData.of(timerId, namespace, target, timeDomain));
   }
 
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
@@ -63,12 +66,18 @@ class DirectTimerInternals implements TimerInternals {
     throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId) {
     throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(TimerData timerKey) {

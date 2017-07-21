@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,6 +46,21 @@ public class PCollectionTranslation {
         .setIsBounded(toProto(pCollection.isBounded()))
         .setWindowingStrategyId(windowingStrategyId)
         .build();
+  }
+
+  public static PCollection<?> fromProto(
+      Pipeline pipeline, RunnerApi.PCollection pCollection, RunnerApi.Components components)
+      throws IOException {
+    return PCollection.createPrimitiveOutputInternal(
+            pipeline,
+            WindowingStrategyTranslation.fromProto(
+                components.getWindowingStrategiesOrThrow(pCollection.getWindowingStrategyId()),
+                components),
+            fromProto(pCollection.getIsBounded()))
+        .setCoder(
+            (Coder)
+                CoderTranslation.fromProto(
+                    components.getCodersOrThrow(pCollection.getCoderId()), components));
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {

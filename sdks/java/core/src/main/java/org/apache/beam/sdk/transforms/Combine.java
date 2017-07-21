@@ -1416,7 +1416,6 @@ public class Combine {
      * Returns a {@code CombineFn} that uses the given
      * {@code SerializableFunction} to combine values.
      */
-    @Deprecated
     public static <V> SimpleCombineFn<V> of(
         SerializableFunction<Iterable<V>, V> combiner) {
       return new SimpleCombineFn<>(combiner);

@@ -16,28 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.transforms;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricName;
+/** Useful {@link SerializableFunction} overrides. */
+public class SerializableFunctions {
+  private static class Identity<T> implements SerializableFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
 
-/**
- * Metrics are keyed by the step name they are associated with and the name of the metric.
- */
-@Experimental(Kind.METRICS)
-@AutoValue
-public abstract class MetricKey implements Serializable {
+  private static class Constant<InT, OutT> implements SerializableFunction<InT, OutT> {
+    OutT value;
 
-  /** The step name that is associated with this metric. */
-  public abstract String stepName();
+    Constant(OutT value) {
+      this.value = value;
+    }
 
-  /** The name of the metric. */
-  public abstract MetricName metricName();
+    @Override
+    public OutT apply(InT input) {
+      return value;
+    }
+  }
 
-  public static MetricKey create(String stepName, MetricName metricName) {
-    return new AutoValue_MetricKey(stepName, metricName);
+  public static <T> SerializableFunction<T, T> identity() {
+    return new Identity<>();
+  }
+
+  public static <InT, OutT> SerializableFunction<InT, OutT> constant(OutT value) {
+    return new Constant<>(value);
   }
 }

@@ -861,8 +861,9 @@ public class PAssert {
     }
 
     /**
-     * Always throws an {@link UnsupportedOperationException}: users are probably looking for
-     * {@link #isEqualTo}.
+     * @throws UnsupportedOperationException always
+     * @deprecated {@link Object#equals(Object)} is not supported on PAssert objects. If you meant
+     * to test object equality, use {@link #isEqualTo} instead.
      */
     @Deprecated
     @Override

@@ -43,10 +43,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -67,8 +70,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -76,7 +88,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -284,6 +299,7 @@ public class BigQueryIO {
   public static Read read() {
     return new AutoValue_BigQueryIO_Read.Builder()
         .setValidate(true)
+        .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .build();
   }
@@ -296,6 +312,9 @@ public class BigQueryIO {
     abstract boolean getValidate();
     @Nullable abstract Boolean getFlattenResults();
     @Nullable abstract Boolean getUseLegacySql();
+
+    abstract Boolean getWithTemplateCompatibility();
+
     abstract BigQueryServices getBigQueryServices();
     abstract Builder toBuilder();
 
@@ -306,6 +325,9 @@ public class BigQueryIO {
       abstract Builder setValidate(boolean validate);
       abstract Builder setFlattenResults(Boolean flattenResults);
       abstract Builder setUseLegacySql(Boolean useLegacySql);
+
+      abstract Builder setWithTemplateCompatibility(Boolean useTemplateCompatibility);
+
       abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Read build();
     }
@@ -397,9 +419,33 @@ public class BigQueryIO {
       return toBuilder().setUseLegacySql(false).build();
     }
 
+    /**
+     * Use new template-compatible source implementation.
+     *
+     * <p>Use new template-compatible source implementation. This implementation is compatible with
+     * repeated template invocations. It does not support dynamic work rebalancing.
+     */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public Read withTemplateCompatibility() {
+      return toBuilder().setWithTemplateCompatibility(true).build();
+    }
+
     @VisibleForTesting
     Read withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
+    }
+
+    private BigQuerySourceBase createSource(String jobUuid) {
+      BigQuerySourceBase source;
+      if (getQuery() == null
+          || (getQuery().isAccessible() && Strings.isNullOrEmpty(getQuery().get()))) {
+        source = BigQueryTableSource.create(jobUuid, getTableProvider(), getBigQueryServices());
+      } else {
+        source =
+            BigQueryQuerySource.create(
+                jobUuid, getQuery(), getFlattenResults(), getUseLegacySql(), getBigQueryServices());
+      }
+      return source;
     }
 
     @Override
@@ -483,41 +529,115 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
-      final String stepUuid = BigQueryHelpers.randomUUIDString();
-      BoundedSource<TableRow> source;
-
-      if (getQuery() != null
-          && (!getQuery().isAccessible() || !Strings.isNullOrEmpty(getQuery().get()))) {
-        source =
-            BigQueryQuerySource.create(
-                stepUuid,
-                getQuery(),
-                getFlattenResults(),
-                getUseLegacySql(),
-                getBigQueryServices());
+      Pipeline p = input.getPipeline();
+      final PCollectionView<String> jobIdTokenView;
+      PCollection<String> jobIdTokenCollection = null;
+      PCollection<TableRow> rows;
+      if (!getWithTemplateCompatibility()) {
+        // Create a singleton job ID token at construction time.
+        final String staticJobUuid = BigQueryHelpers.randomUUIDString();
+        jobIdTokenView =
+            p.apply("TriggerIdCreation", Create.of(staticJobUuid))
+                .apply("ViewId", View.<String>asSingleton());
+        // Apply the traditional Source model.
+        rows =
+            p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid)))
+                .setCoder(getDefaultOutputCoder());
       } else {
-        source =
-            BigQueryTableSource.create(
-                stepUuid,
-                getTableProvider(),
-                getBigQueryServices());
+        // Create a singleton job ID token at execution time.
+        jobIdTokenCollection =
+            p.apply("TriggerIdCreation", Create.of("ignored"))
+                .apply(
+                    "CreateJobId",
+                    MapElements.via(
+                        new SimpleFunction<String, String>() {
+                          @Override
+                          public String apply(String input) {
+                            return BigQueryHelpers.randomUUIDString();
+                          }
+                        }));
+        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.<String>asSingleton());
+
+        final TupleTag<String> filesTag = new TupleTag<>();
+        final TupleTag<String> tableSchemaTag = new TupleTag<>();
+        PCollectionTuple tuple =
+            jobIdTokenCollection.apply(
+                "RunCreateJob",
+                ParDo.of(
+                        new DoFn<String, String>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) throws Exception {
+                            String jobUuid = c.element();
+                            BigQuerySourceBase source = createSource(jobUuid);
+                            String schema =
+                                BigQueryHelpers.toJsonString(
+                                    source.getSchema(c.getPipelineOptions()));
+                            c.output(tableSchemaTag, schema);
+                            List<ResourceId> files = source.extractFiles(c.getPipelineOptions());
+                            for (ResourceId file : files) {
+                              c.output(file.toString());
+                            }
+                          }
+                        })
+                    .withOutputTags(filesTag, TupleTagList.of(tableSchemaTag)));
+        tuple.get(filesTag).setCoder(StringUtf8Coder.of());
+        tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
+        final PCollectionView<String> schemaView =
+            tuple.get(tableSchemaTag).apply(View.<String>asSingleton());
+        rows =
+            tuple
+                .get(filesTag)
+                .apply(
+                    WithKeys.of(
+                        new SerializableFunction<String, String>() {
+                          public String apply(String s) {
+                            return s;
+                          }
+                        }))
+                .apply(Reshuffle.<String, String>of())
+                .apply(Values.<String>create())
+                .apply(
+                    "ReadFiles",
+                    ParDo.of(
+                            new DoFn<String, TableRow>() {
+                              @ProcessElement
+                              public void processElement(ProcessContext c) throws Exception {
+                                TableSchema schema =
+                                    BigQueryHelpers.fromJsonString(
+                                        c.sideInput(schemaView), TableSchema.class);
+                                String jobUuid = c.sideInput(jobIdTokenView);
+                                BigQuerySourceBase source = createSource(jobUuid);
+                                List<BoundedSource<TableRow>> sources =
+                                    source.createSources(
+                                        ImmutableList.of(
+                                            FileSystems.matchNewResource(
+                                                c.element(), false /* is directory */)),
+                                        schema);
+                                checkArgument(sources.size() == 1, "Expected exactly one source.");
+                                BoundedSource<TableRow> avroSource = sources.get(0);
+                                BoundedSource.BoundedReader<TableRow> reader =
+                                    avroSource.createReader(c.getPipelineOptions());
+                                for (boolean more = reader.start(); more; more = reader.advance()) {
+                                  c.output(reader.getCurrent());
+                                }
+                              }
+                            })
+                        .withSideInputs(schemaView, jobIdTokenView));
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
             @Override
-            void cleanup(PipelineOptions options) throws Exception {
+            void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
+              PipelineOptions options = c.getPipelineOptions();
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+              String jobUuid = c.getJobId();
               final String extractDestinationDir =
-                  resolveTempLocation(
-                      bqOptions.getTempLocation(),
-                      "BigQueryExtractTemp",
-                      stepUuid);
-
+                  resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", jobUuid);
+              final String executingProject = bqOptions.getProject();
               JobReference jobRef =
                   new JobReference()
-                      .setProjectId(bqOptions.getProject())
-                      .setJobId(
-                          getExtractJobId(createJobIdToken(bqOptions.getJobName(), stepUuid)));
+                      .setProjectId(executingProject)
+                      .setJobId(getExtractJobId(createJobIdToken(bqOptions.getJobName(), jobUuid)));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -525,16 +645,13 @@ public class BigQueryIO {
                 List<ResourceId> extractFiles =
                     getExtractFilePaths(extractDestinationDir, extractJob);
                 if (extractFiles != null && !extractFiles.isEmpty()) {
-                  FileSystems.delete(extractFiles,
-                      MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+                  FileSystems.delete(
+                      extractFiles, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
               }
             }
           };
-      return input.getPipeline()
-          .apply(org.apache.beam.sdk.io.Read.from(source))
-          .setCoder(getDefaultOutputCoder())
-          .apply(new PassThroughThenCleanup<TableRow>(cleanupOperation));
+      return rows.apply(new PassThroughThenCleanup<TableRow>(cleanupOperation, jobIdTokenView));
     }
 
     @Override
