@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
@@ -54,14 +56,17 @@ import org.apache.beam.sdk.values.PDone;
  * {@link PTransform}s for reading and writing Avro files.
  *
  * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()}, using
- * {@link AvroIO.Read#from} to specify the filename or filepattern to read from. See {@link
- * FileSystems} for information on supported file systems and filepatterns.
+ * {@link AvroIO.Read#from} to specify the filename or filepattern to read from. Alternatively, if
+ * the filepatterns to be read are themselves in a {@link PCollection}, apply {@link #readAll}.
+ *
+ * <p>See {@link FileSystems} for information on supported file systems and filepatterns.
  *
  * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}. To read
  * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
  * {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
- * schema.
+ * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link
+ * #readAllGenericRecords}.
  *
  * <p>For example:
  *
@@ -77,6 +82,18 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.readGenericRecords(schema)
  *                .from("gs://my_bucket/path/to/records-*.avro"));
+ * }</pre>
+ *
+ * <p>Reading from a {@link PCollection} of filepatterns:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<String> filepatterns = p.apply(...);
+ * PCollection<AvroAutoGenClass> records =
+ *     filepatterns.apply(AvroIO.read(AvroAutoGenClass.class));
+ * PCollection<GenericRecord> genericRecords =
+ *     filepatterns.apply(AvroIO.readGenericRecords(schema));
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
@@ -133,9 +150,32 @@ public class AvroIO {
         .build();
   }
 
+  /** Like {@link #read}, but reads each filepattern in the input {@link PCollection}. */
+  public static <T> ReadAll<T> readAll(Class<T> recordClass) {
+    return new AutoValue_AvroIO_ReadAll.Builder<T>()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        // 64MB is a reasonable value that allows to amortize the cost of opening files,
+        // but is not so large as to exhaust a typical runner's maximum amount of output per
+        // ProcessElement call.
+        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .build();
+  }
+
   /** Reads Avro file(s) containing records of the specified schema. */
   public static Read<GenericRecord> readGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_Read.Builder<GenericRecord>()
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .build();
+  }
+
+  /**
+   * Like {@link #readGenericRecords(Schema)}, but reads each filepattern in the input {@link
+   * PCollection}.
+   */
+  public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
+    return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .build();
@@ -147,6 +187,14 @@ public class AvroIO {
    */
   public static Read<GenericRecord> readGenericRecords(String schema) {
     return readGenericRecords(new Schema.Parser().parse(schema));
+  }
+
+  /**
+   * Like {@link #readGenericRecords(String)}, but reads each filepattern in the input {@link
+   * PCollection}.
+   */
+  public static ReadAll<GenericRecord> readAllGenericRecords(String schema) {
+    return readAllGenericRecords(new Schema.Parser().parse(schema));
   }
 
   /**
@@ -217,14 +265,12 @@ public class AvroIO {
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       checkNotNull(getSchema(), "schema");
-
-      @SuppressWarnings("unchecked")
-      AvroSource<T> source =
-          getRecordClass() == GenericRecord.class
-              ? (AvroSource<T>) AvroSource.from(getFilepattern()).withSchema(getSchema())
-              : AvroSource.from(getFilepattern()).withSchema(getRecordClass());
-
-      return input.getPipeline().apply("Read", org.apache.beam.sdk.io.Read.from(source));
+      return input
+          .getPipeline()
+          .apply(
+              "Read",
+              org.apache.beam.sdk.io.Read.from(
+                  createSource(getFilepattern(), getRecordClass(), getSchema())));
     }
 
     @Override
@@ -232,6 +278,70 @@ public class AvroIO {
       super.populateDisplayData(builder);
       builder.addIfNotNull(
           DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> AvroSource<T> createSource(
+        ValueProvider<String> filepattern, Class<T> recordClass, Schema schema) {
+      return recordClass == GenericRecord.class
+          ? (AvroSource<T>) AvroSource.from(filepattern).withSchema(schema)
+          : AvroSource.from(filepattern).withSchema(recordClass);
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #readAll}. */
+  @AutoValue
+  public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
+    @Nullable abstract Class<T> getRecordClass();
+    @Nullable abstract Schema getSchema();
+    abstract long getDesiredBundleSizeBytes();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+      abstract Builder<T> setSchema(Schema schema);
+      abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract ReadAll<T> build();
+    }
+
+    @VisibleForTesting
+    ReadAll<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<String> input) {
+      checkNotNull(getSchema(), "schema");
+      return input
+          .apply(
+              "Read all via FileBasedSource",
+              new ReadAllViaFileBasedSource<>(
+                  SerializableFunctions.<String, Boolean>constant(true) /* isSplittable */,
+                  getDesiredBundleSizeBytes(),
+                  new CreateSourceFn<>(getRecordClass(), getSchema().toString())))
+          .setCoder(AvroCoder.of(getRecordClass(), getSchema()));
+    }
+  }
+
+  private static class CreateSourceFn<T>
+      implements SerializableFunction<String, FileBasedSource<T>> {
+    private final Class<T> recordClass;
+    private final Supplier<Schema> schemaSupplier;
+
+    public CreateSourceFn(Class<T> recordClass, String jsonSchema) {
+      this.recordClass = recordClass;
+      this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
+    }
+
+    @Override
+    public FileBasedSource<T> apply(String input) {
+      return Read.createSource(
+          StaticValueProvider.of(input), recordClass, schemaSupplier.get());
     }
   }
 
