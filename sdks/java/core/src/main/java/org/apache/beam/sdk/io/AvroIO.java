@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -185,10 +185,10 @@ public class AvroIO {
         .setWindowedWrites(false);
   }
 
-  /** Implementation of {@link #read}. */
+  /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable abstract String getFilepattern();
+    @Nullable abstract ValueProvider<String> getFilepattern();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
 
@@ -196,7 +196,7 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setFilepattern(String filepattern);
+      abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
       abstract Builder<T> setSchema(Schema schema);
 
@@ -204,45 +204,34 @@ public class AvroIO {
     }
 
     /** Reads from the given filename or filepattern. */
-    public Read<T> from(String filepattern) {
+    public Read<T> from(ValueProvider<String> filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
+    }
+
+    /** Like {@link #from(ValueProvider)}. */
+    public Read<T> from(String filepattern) {
+      return from(StaticValueProvider.of(filepattern));
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      if (getFilepattern() == null) {
-        throw new IllegalStateException(
-            "need to set the filepattern of an AvroIO.Read transform");
-      }
-      if (getSchema() == null) {
-        throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
-      }
+      checkNotNull(getFilepattern(), "filepattern");
+      checkNotNull(getSchema(), "schema");
 
       @SuppressWarnings("unchecked")
-      Bounded<T> read =
+      AvroSource<T> source =
           getRecordClass() == GenericRecord.class
-              ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
-                  AvroSource.from(getFilepattern()).withSchema(getSchema()))
-              : org.apache.beam.sdk.io.Read.from(
-                  AvroSource.from(getFilepattern()).withSchema(getRecordClass()));
+              ? (AvroSource<T>) AvroSource.from(getFilepattern()).withSchema(getSchema())
+              : AvroSource.from(getFilepattern()).withSchema(getRecordClass());
 
-      PCollection<T> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      return input.getPipeline().apply("Read", org.apache.beam.sdk.io.Read.from(source));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-        .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
-          .withLabel("Input File Pattern"));
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return AvroCoder.of(getRecordClass(), getSchema());
+      builder.addIfNotNull(
+          DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
     }
   }
 
