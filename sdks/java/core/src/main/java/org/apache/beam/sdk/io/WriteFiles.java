@@ -123,7 +123,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
   static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<UserT, DestinationT, OutputT> sink;
-  private WriteOperation<OutputT, DestinationT> writeOperation;
+  private WriteOperation<DestinationT, OutputT> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
   @Nullable private final PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards;
@@ -368,7 +368,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     private final Coder<DestinationT> destinationCoder;
     private final boolean windowedWrites;
 
-    private Map<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> writers;
+    private Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
     WriteBundles(
@@ -397,7 +397,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // the map will only have a single element.
       DestinationT destination = sink.getDynamicDestinations().getDestination(c.element());
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
-      Writer<OutputT, DestinationT> writer = writers.get(key);
+      Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
         if (writers.size() <= maxNumWritersPerBundle) {
           String uuid = UUID.randomUUID().toString();
@@ -436,9 +436,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      for (Map.Entry<WriterKey<DestinationT>, Writer<OutputT, DestinationT>> entry :
+      for (Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> entry :
           writers.entrySet()) {
-        Writer<OutputT, DestinationT> writer = entry.getValue();
+        Writer<DestinationT, OutputT> writer = entry.getValue();
         FileResult<DestinationT> result;
         try {
           result = writer.close();
@@ -477,10 +477,10 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
       // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
-      Map<DestinationT, Writer<OutputT, DestinationT>> writers = Maps.newHashMap();
+      Map<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
       for (UserT input : c.element().getValue()) {
         DestinationT destination = sink.getDynamicDestinations().getDestination(input);
-        Writer<OutputT, DestinationT> writer = writers.get(destination);
+        Writer<DestinationT, OutputT> writer = writers.get(destination);
         if (writer == null) {
           LOG.debug("Opening writer for write operation {}", writeOperation);
           writer = writeOperation.createWriter();
@@ -501,8 +501,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       }
 
       // Close all writers.
-      for (Map.Entry<DestinationT, Writer<OutputT, DestinationT>> entry : writers.entrySet()) {
-        Writer<OutputT, DestinationT> writer = entry.getValue();
+      for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
+        Writer<DestinationT, OutputT> writer = entry.getValue();
         FileResult<DestinationT> result;
         try {
           // Close the writer; if this throws let the error propagate.
@@ -522,8 +522,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private static <OutputT, DestinationT> void writeOrClose(
-      Writer<OutputT, DestinationT> writer, OutputT t) throws Exception {
+  private static <DestinationT, OutputT> void writeOrClose(
+      Writer<DestinationT, OutputT> writer, OutputT t) throws Exception {
     try {
       writer.write(t);
     } catch (Exception e) {
@@ -664,8 +664,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       throw new RuntimeException(e);
     }
 
-    List<PCollectionView<?>> dynamicDestinationsSideInputs = Lists.newArrayList();
-    dynamicDestinationsSideInputs.addAll(sink.getSideInputs());
+    List<PCollectionView<?>> dynamicDestinationsSideInputs = sink.getSideInputs();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
@@ -859,7 +858,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           minShardsNeeded,
           destination);
       for (int i = 0; i < extraShardsNeeded; ++i) {
-        Writer<OutputT, DestinationT> writer = writeOperation.createWriter();
+        Writer<DestinationT, OutputT> writer = writeOperation.createWriter();
         // Currently this code path is only called in the unwindowed case.
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, destination);
         FileResult<DestinationT> emptyWrite = writer.close();

@@ -81,7 +81,7 @@ class XmlSink<T> extends FileBasedSink<T, Void, T> {
   }
 
   /** {@link WriteOperation} for XML {@link FileBasedSink}s. */
-  protected static final class XmlWriteOperation<T> extends WriteOperation<T, Void> {
+  protected static final class XmlWriteOperation<T> extends WriteOperation<Void, T> {
     public XmlWriteOperation(XmlSink<T> sink) {
       super(sink);
     }
@@ -116,7 +116,7 @@ class XmlSink<T> extends FileBasedSink<T, Void, T> {
   }
 
   /** A {@link Writer} that can write objects as XML elements. */
-  protected static final class XmlWriter<T> extends Writer<T, Void> {
+  protected static final class XmlWriter<T> extends Writer<Void, T> {
     final Marshaller marshaller;
     private OutputStream os = null;
 

@@ -194,8 +194,8 @@ public class TextIO {
    *
    * <p>This version allows you to apply {@link TextIO} writes to a PCollection of a custom type
    * {@link UserT}. A format mechanism that converts the input type {@link UserT} to the String that
-   * will be written to the file. If using a custom {@link DynamicDestinations} object this is done
-   * using {@link DynamicDestinations#formatRecord}, otherwise the {@link
+   * will be written to the file must be specified. If using a custom {@link DynamicDestinations}
+   * object this is done using {@link DynamicDestinations#formatRecord}, otherwise the {@link
    * TypedWrite#withFormatFunction} can be used to specify a format function.
    *
    * <p>The advantage of using a custom type is that is it allows a user-provided {@link

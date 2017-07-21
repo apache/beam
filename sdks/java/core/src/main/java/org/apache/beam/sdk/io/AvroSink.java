@@ -46,13 +46,13 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
   }
 
   @Override
-  public WriteOperation<OutputT, DestinationT> createWriteOperation() {
+  public WriteOperation<DestinationT, OutputT> createWriteOperation() {
     return new AvroWriteOperation<>(this, genericRecords);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
-  private static class AvroWriteOperation<OutputT, DestinationT>
-      extends WriteOperation<OutputT, DestinationT> {
+  private static class AvroWriteOperation<DestinationT, OutputT>
+      extends WriteOperation<DestinationT, OutputT> {
     private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
 
@@ -66,19 +66,19 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
     }
 
     @Override
-    public Writer<OutputT, DestinationT> createWriter() throws Exception {
+    public Writer<DestinationT, OutputT> createWriter() throws Exception {
       return new AvroWriter<>(this, dynamicDestinations, genericRecords);
     }
   }
 
   /** A {@link Writer Writer} for Avro files. */
-  private static class AvroWriter<OutputT, DestinationT> extends Writer<OutputT, DestinationT> {
+  private static class AvroWriter<DestinationT, OutputT> extends Writer<DestinationT, OutputT> {
     private DataFileWriter<OutputT> dataFileWriter;
     private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
 
     public AvroWriter(
-        WriteOperation<OutputT, DestinationT> writeOperation,
+        WriteOperation<DestinationT, OutputT> writeOperation,
         DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations,
         boolean genericRecords) {
       super(writeOperation, MimeTypes.BINARY);

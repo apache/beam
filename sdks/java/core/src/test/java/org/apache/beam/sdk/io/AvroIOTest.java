@@ -93,6 +93,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+
 /** Tests for AvroIO Read and Write transforms. */
 @RunWith(JUnit4.class)
 public class AvroIOTest {
@@ -552,6 +553,12 @@ public class AvroIOTest {
   private static String schemaFromPrefix(String prefix) {
     return SCHEMA_TEMPLATE_STRING.replace("$$", prefix);
   }
+  private static GenericRecord createRecord(String record, String prefix, Schema schema) {
+    GenericRecord genericRecord = new GenericData.Record(schema);
+    genericRecord.put(prefix + "full", record);
+    genericRecord.put(prefix + "suffix", record.substring(1));
+    return genericRecord;
+  }
 
   private static class TestDynamicDestinations
       extends DynamicAvroDestinations<String, String, GenericRecord> {
@@ -571,27 +578,14 @@ public class AvroIOTest {
     }
 
     @Override
-    public Map<String, Object> getMetadata(String destination) {
-      return super.getMetadata(destination);
-    }
-
-    @Override
-    public CodecFactory getCodec(String destination) {
-      return super.getCodec(destination);
-    }
-
-    @Override
     public List<PCollectionView<?>> getSideInputs() {
-      return ImmutableList.<PCollectionView<?>>builder().add(schemaView).build();
+      return ImmutableList.<PCollectionView<?>>of(schemaView);
     }
 
     @Override
     public GenericRecord formatRecord(String record) {
       String prefix = record.substring(0, 1);
-      GenericRecord genericRecord = new GenericData.Record(getSchema(prefix));
-      genericRecord.put(prefix + "full", record);
-      genericRecord.put(prefix + "suffix", record.substring(1));
-      return genericRecord;
+      return createRecord(record, prefix, getSchema(prefix));
     }
 
     @Override
@@ -620,10 +614,13 @@ public class AvroIOTest {
         tmpFolder.getRoot().toPath(), "testDynamicDestinations").toString(), true);
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
+    List<GenericRecord> expectedElements = Lists.newArrayListWithExpectedSize(elements.size());
     Map<String, String> schemaMap = Maps.newHashMap();
     for (String element : elements) {
       String prefix = element.substring(0, 1);
-      schemaMap.put(prefix, schemaFromPrefix(prefix));
+      String jsonSchema = schemaFromPrefix(prefix);
+      schemaMap.put(prefix, jsonSchema);
+      expectedElements.add(createRecord(element, prefix, Schema.parse(jsonSchema)));
     }
     PCollectionView<Map<String, String>> schemaView =
         p.apply("createSchemaView", Create.of(schemaMap)).apply(View.<String, String>asMap());
@@ -643,18 +640,20 @@ public class AvroIOTest {
       prefixes.add(element.substring(0, 1));
     }
     prefixes = ImmutableSet.copyOf(prefixes).asList();
+
+    List<GenericRecord> actualElements = new ArrayList<>();
     for (String prefix : prefixes) {
       File expectedFile = new File(baseDir.resolve("file_" + prefix + ".txt-00000-of-00001",
           StandardResolveOptions.RESOLVE_FILE).toString());
       assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
-      try (DataFileReader<GenericClass> reader =
-               new DataFileReader<>(expectedFile,
-                   new ReflectDatumReader<GenericClass>(
-                       ReflectData.get().getSchema(GenericClass.class)))) {
-
+      Schema schema = Schema.parse(schemaFromPrefix(prefix));
+      try (DataFileReader<GenericRecord> reader =
+               new DataFileReader<>(expectedFile, new GenericDatumReader<GenericRecord>(schema))) {
+        Iterators.addAll(actualElements, reader);
       }
       expectedFile.delete();
     }
+    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
   }
 
   @Test

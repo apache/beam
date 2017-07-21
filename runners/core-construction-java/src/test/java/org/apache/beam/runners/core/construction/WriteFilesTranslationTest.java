@@ -127,7 +127,7 @@ public class WriteFilesTranslationTest {
     }
 
     @Override
-    public WriteOperation<Object, Void> createWriteOperation() {
+    public WriteOperation<Void, Object> createWriteOperation() {
       return new DummyWriteOperation(this);
     }
 
@@ -152,13 +152,13 @@ public class WriteFilesTranslationTest {
     }
   }
 
-  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Object, Void> {
+  private static class DummyWriteOperation extends FileBasedSink.WriteOperation<Void, Object> {
     public DummyWriteOperation(FileBasedSink<Object, Void, Object> sink) {
       super(sink);
     }
 
     @Override
-    public FileBasedSink.Writer<Object, Void> createWriter() throws Exception {
+    public FileBasedSink.Writer<Void, Object> createWriter() throws Exception {
       throw new UnsupportedOperationException("Should never be called.");
     }
   }

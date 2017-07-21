@@ -254,11 +254,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * {@link #getSideInputs()}.
      */
     protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-      checkArgument(
-          getSideInputs().contains(view),
-          "View %s not declared in getSideInputs() (%s)",
-          view,
-          getSideInputs());
       return sideInputAccessor.sideInput(view);
     }
 
@@ -307,7 +302,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     // Gets the destination coder. If the user does not provide one, try to find one in the coder
     // registry. If no coder can be found, throws CannotProvideCoderException.
-    public Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+    final Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
         throws CannotProvideCoderException {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder != null) {
@@ -404,7 +399,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   }
 
   /** Returns the list of side inputs used by this sink. */
-  public List<PCollectionView<?>> getSideInputs() {
+  public final List<PCollectionView<?>> getSideInputs() {
     return (sideInputs != null) ? sideInputs : dynamicDestinations.getSideInputs();
   }
 
@@ -428,7 +423,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   public void validate(PipelineOptions options) {}
 
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
-  public abstract WriteOperation<OutputT, DestinationT> createWriteOperation();
+  public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
@@ -471,7 +466,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    *
    * @param <OutputT> the type of values written to the sink.
    */
-  public abstract static class WriteOperation<OutputT, DestinationT> implements Serializable {
+  public abstract static class WriteOperation<DestinationT, OutputT> implements Serializable {
     /** The Sink that this WriteOperation will write to. */
     protected final FileBasedSink<?, DestinationT, OutputT> sink;
 
@@ -550,7 +545,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * Clients must implement to return a subclass of {@link Writer}. This method must not mutate
      * the state of the object.
      */
-    public abstract Writer<OutputT, DestinationT> createWriter() throws Exception;
+    public abstract Writer<DestinationT, OutputT> createWriter() throws Exception;
 
     /** Indicates that the operation will be performing windowed writes. */
     public void setWindowedWrites(boolean windowedWrites) {
@@ -798,10 +793,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    *
    * @param <OutputT> the type of values to write.
    */
-  public abstract static class Writer<OutputT, DestinationT> {
+  public abstract static class Writer<DestinationT, OutputT> {
     private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
 
-    private final WriteOperation<OutputT, DestinationT> writeOperation;
+    private final WriteOperation<DestinationT, OutputT> writeOperation;
 
     /** Unique id for this output bundle. */
     private String id;
@@ -828,7 +823,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final String mimeType;
 
     /** Construct a new {@link Writer} that will produce files of the given MIME type. */
-    public Writer(WriteOperation<OutputT, DestinationT> writeOperation, String mimeType) {
+    public Writer(WriteOperation<DestinationT, OutputT> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
@@ -1001,7 +996,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     /** Return the WriteOperation that this Writer belongs to. */
-    public WriteOperation<OutputT, DestinationT> getWriteOperation() {
+    public WriteOperation<DestinationT, OutputT> getWriteOperation() {
       return writeOperation;
     }
 

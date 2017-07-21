@@ -275,16 +275,17 @@ public class AvroIO {
    *
    * <p>This version allows you to apply {@link AvroIO} writes to a PCollection of a custom type
    * {@link UserT}. A format mechanism that converts the input type {@link UserT} to the output type
-   * that will be written to the file. If using a custom {@link DynamicDestinations} object this is
-   * done using {@link DynamicAvroDestinations#formatRecord}, otherwise the {@link
-   * AvroIO.TypedWrite#withFormatFunction} can be used to specify a format function.
+   * that will be written to the file must be specified. If using a custom {@link
+   * DynamicDestinations} object this is done using {@link DynamicAvroDestinations#formatRecord},
+   * otherwise the {@link AvroIO.TypedWrite#withFormatFunction} can be used to specify a format
+   * function.
    *
    * <p>The advantage of using a custom type is that is it allows a user-provided {@link
    * DynamicDestinations} object, set via {@link TextIO.Write#to(DynamicDestinations)} to examine
    * the custom type when choosing a destination.
    *
    * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
-   * ()} instead.
+   * instead.
    */
   public static <UserT, OutputT> TypedWrite<UserT, OutputT> writeCustomType() {
     return AvroIO.<UserT, OutputT>defaultWriteBuilder().setGenericRecords(false).build();
@@ -727,7 +728,7 @@ public class AvroIO {
     }
 
     /**
-     * Use a {@link DynamicDestinations} object to vend {@link FilenamePolicy} objects. These
+     * Use a {@link DynamicAvroDestinations} object to vend {@link FilenamePolicy} objects. These
      * objects can examine the input record when creating a {@link FilenamePolicy}. A directory for
      * temporary files must be specified using {@link #withTempDirectory}.
      */
@@ -738,7 +739,7 @@ public class AvroIO {
     }
 
     /**
-     * Set's the the output schema. Can only be used when the output type is {@link GenericRecord}
+     * Sets the the output schema. Can only be used when the output type is {@link GenericRecord}
      * and when not using {@link #to(DynamicAvroDestinations)}.
      */
     public TypedWrite<UserT, OutputT> withSchema(Schema schema) {
