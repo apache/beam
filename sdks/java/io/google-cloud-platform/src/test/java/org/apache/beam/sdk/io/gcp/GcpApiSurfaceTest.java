@@ -23,10 +23,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 
-import java.util.Collections;
+import java.io.IOException;
 import java.util.Set;
-import java.util.regex.Pattern;
 
+import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -37,13 +37,27 @@ import org.junit.runners.JUnit4;
 /** API surface verification for {@link org.apache.beam.sdk.io.gcp}. */
 @RunWith(JUnit4.class)
 public class GcpApiSurfaceTest {
+    /**
+     * All classes transitively reachable via only public method signatures of GCP.
+     *
+     * <p>Note that our idea of "public" does not include various internal-only APIs.
+     */
+    private static ApiSurface gcpApiSurface(final Package gcpPackage ,
+                                            final ClassLoader classLoader) throws IOException {
+        final ApiSurface apiSurface =
+                ApiSurface.ofPackage(gcpPackage, classLoader)
+                        .pruningPattern(BigqueryMatcher.class.getName())
+                        .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+                        .pruningPattern("org[.]apache[.]beam[.].*IT")
+                        .pruningPattern("java[.]lang.*")
+                        .pruningPattern("java[.]util.*");
+        return apiSurface;
+    }
 
   @Test
   public void testGcpApiSurface() throws Exception {
-
-    ApiSurface apiSurface = new GcpApiSurface(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet()).buildApiSurface();
-
+    final Package thisPackage = getClass().getPackage();
+    final ClassLoader thisClassLoader = getClass().getClassLoader();
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
@@ -85,6 +99,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.joda.time"));
 
-    assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
+    assertThat(gcpApiSurface(thisPackage, thisClassLoader),
+            containsOnlyClassesMatching(allowedClasses));
   }
 }

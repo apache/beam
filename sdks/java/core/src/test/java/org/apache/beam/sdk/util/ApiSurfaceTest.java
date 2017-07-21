@@ -27,12 +27,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-
-import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -43,31 +38,11 @@ import org.junit.runners.JUnit4;
 /** Functionality tests for ApiSurface. */
 @RunWith(JUnit4.class)
 public class ApiSurfaceTest {
-    /** Test class implementation.*/
-  public  class ApiSurfaceTestImpl extends  ApiSurface{
-      public ApiSurfaceTestImpl(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
-          super(rootClasses, patternsToPrune);
-      }
-
-      @Override
-      public ApiSurface buildApiSurface() throws IOException {
-          return null;
-      }
-
-      @Override
-      protected ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
-                                                           Set<Pattern> patternsToPrune) {
-          return new ApiSurfaceTestImpl(rootClasses, patternsToPrune);
-      }
-  }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private void assertExposed(final Class classToExamine, final Class... exposedClasses) {
 
-     ApiSurface apiSurface = new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet())
-            .ofClass(classToExamine)
-            .pruningPrefix("java");
+    final ApiSurface apiSurface = ApiSurface.ofClass(classToExamine).pruningPrefix("java");
 
     final ImmutableSet<Matcher<Class<?>>> allowed =
         FluentIterable.from(
@@ -124,9 +99,7 @@ public class ApiSurfaceTest {
   @Test
   public void testIgnoreAll() throws Exception {
     ApiSurface apiSurface =
-            new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
-                    Collections.<Pattern>emptySet())
-            .ofClass(ExposedWildcardBound.class)
+        ApiSurface.ofClass(ExposedWildcardBound.class)
             .includingClass(Object.class)
             .includingClass(ApiSurface.class)
             .pruningPattern(".*");
@@ -139,9 +112,7 @@ public class ApiSurfaceTest {
 
   @Test
   public void testprunedPattern() throws Exception {
-    ApiSurface apiSurface =  new ApiSurfaceTestImpl(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet())
-            .ofClass(NotPruned.class).pruningClass(PrunedPattern.class);
+    ApiSurface apiSurface = ApiSurface.ofClass(NotPruned.class).pruningClass(PrunedPattern.class);
     assertThat(apiSurface.getExposedClasses(), containsInAnyOrder((Class) NotPruned.class));
   }
 

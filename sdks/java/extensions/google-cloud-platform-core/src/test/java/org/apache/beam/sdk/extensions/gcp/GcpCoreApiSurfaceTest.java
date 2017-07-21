@@ -23,9 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 
-import java.util.Collections;
+import java.io.IOException;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import org.apache.beam.sdk.util.ApiSurface;
 import org.hamcrest.Matcher;
@@ -33,32 +32,48 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** API surface verification for Google Cloud Platform core components. */
+/**
+ * API surface verification for Google Cloud Platform core components.
+ */
 @RunWith(JUnit4.class)
 public class GcpCoreApiSurfaceTest {
+    /**
+     * All classes transitively reachable via only public method signatures of the GCPCore.
+     *
+     * <p>Note that our idea of "public" does not include various internal-only APIs.
+     */
+    private static ApiSurface gcpCoreApiSurface(
+            final Package gcpCorePackage, final ClassLoader classLoader) throws IOException {
+        final ApiSurface apiSurface =
+                ApiSurface.ofPackage(gcpCorePackage, classLoader)
+                        .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+                        .pruningPattern("org[.]apache[.]beam[.].*IT")
+                        .pruningPattern("java[.]lang.*")
+                        .pruningPattern("java[.]util.*");
+        return apiSurface;
+    }
 
-  @Test
-  public void testGcpCoreApiSurface() throws Exception {
-    final ApiSurface apiSurface = new GcpCoreApiSurface(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet())
-            .buildApiSurface();
+    @Test
+    public void testGcpCoreApiSurface() throws Exception {
+        final Package thisPackage = getClass().getPackage();
+        final ClassLoader thisClassLoader = getClass().getClassLoader();
 
-    @SuppressWarnings("unchecked")
-    final Set<Matcher<Class<?>>> allowedClasses =
-        ImmutableSet.of(
-            classesInPackage("com.google.api.client.googleapis"),
-            classesInPackage("com.google.api.client.http"),
-            classesInPackage("com.google.api.client.json"),
-            classesInPackage("com.google.api.client.util"),
-            classesInPackage("com.google.api.services.storage"),
-            classesInPackage("com.google.auth"),
-            classesInPackage("com.fasterxml.jackson.annotation"),
-            classesInPackage("java"),
-            classesInPackage("javax"),
-            classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time")
-        );
 
-    assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
-  }
+        @SuppressWarnings("unchecked") final Set<Matcher<Class<?>>> allowedClasses =
+                ImmutableSet.of(
+                        classesInPackage("com.google.api.client.googleapis"),
+                        classesInPackage("com.google.api.client.http"),
+                        classesInPackage("com.google.api.client.json"),
+                        classesInPackage("com.google.api.client.util"),
+                        classesInPackage("com.google.api.services.storage"),
+                        classesInPackage("com.google.auth"),
+                        classesInPackage("com.fasterxml.jackson.annotation"),
+                        classesInPackage("java"),
+                        classesInPackage("javax"),
+                        classesInPackage("org.apache.beam.sdk"),
+                        classesInPackage("org.joda.time")
+                );
+        assertThat(gcpCoreApiSurface(thisPackage, thisClassLoader),
+                containsOnlyClassesMatching(allowedClasses));
+    }
 }

@@ -22,12 +22,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 
-import java.util.Collections;
+import java.io.IOException;
 import java.util.Set;
-import java.util.regex.Pattern;
-
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.sdk.util.CoreSdkApiSurface;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,6 +32,18 @@ import org.junit.runners.JUnit4;
 /** API surface verification for {@link org.apache.beam}. */
 @RunWith(JUnit4.class)
 public class SdkCoreApiSurfaceTest {
+    /**
+     * All classes transitively reachable via only public method signatures of the SDK.
+     *
+     * <p>Note that our idea of "public" does not include various internal-only APIs.
+     */
+    public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
+        return ApiSurface.ofPackage("org.apache.beam", classLoader)
+                .pruningPattern("org[.]apache[.]beam[.].*Test")
+                // Exposes Guava, but not intended for users
+                .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+                .pruningPrefix("java");
+    }
 
   @Test
   public void testSdkApiSurface() throws Exception {
@@ -53,9 +62,8 @@ public class SdkCoreApiSurfaceTest {
             // via Avro
             "org.joda.time",
             "org.junit");
-    ApiSurface surface = new CoreSdkApiSurface(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet()).buildApiSurface();
+
     assertThat(
-        surface, containsOnlyPackages(allowed));
+        getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
   }
 }

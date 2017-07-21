@@ -86,7 +86,7 @@ import org.slf4j.LoggerFactory;
  * not interesting.
  */
 @SuppressWarnings("rawtypes")
-public abstract  class ApiSurface {
+public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
   /** A factory method to create a {@link Class} matcher for classes residing in a given package. */
@@ -321,26 +321,25 @@ public abstract  class ApiSurface {
   ///////////////
 
   /** Returns an empty {@link ApiSurface}. */
-  private  ApiSurface empty() {
+  public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
-    return ofRootClassesAndPatternsToPrune(Collections.<Class<?>>emptySet(),
-            Collections.<Pattern>emptySet());
+    return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public  ApiSurface ofPackage(String packageName, ClassLoader classLoader)
+  public static ApiSurface ofPackage(String packageName, ClassLoader classLoader)
       throws IOException {
-    return empty().includingPackage(packageName, classLoader);
+    return ApiSurface.empty().includingPackage(packageName, classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public  ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
+  public static ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
     return ofPackage(aPackage.getName(), classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing just the surface of the given class. */
-  public  ApiSurface ofClass(Class<?> clazz) {
-    return empty().includingClass(clazz);
+  public static ApiSurface ofClass(Class<?> clazz) {
+    return ApiSurface.empty().includingClass(clazz);
   }
 
   /**
@@ -369,7 +368,7 @@ public abstract  class ApiSurface {
     LOG.debug("Including package {} and subpackages: {}", packageName, newRootClasses);
     newRootClasses.addAll(rootClasses);
 
-    return ofRootClassesAndPatternsToPrune(newRootClasses, patternsToPrune);
+    return new ApiSurface(newRootClasses, patternsToPrune);
   }
 
   /** Returns an {@link ApiSurface} like this one, but also including the given class. */
@@ -378,7 +377,7 @@ public abstract  class ApiSurface {
     LOG.debug("Including class {}", clazz);
     newRootClasses.add(clazz);
     newRootClasses.addAll(rootClasses);
-    return ofRootClassesAndPatternsToPrune(newRootClasses, patternsToPrune);
+    return new ApiSurface(newRootClasses, patternsToPrune);
   }
 
   /**
@@ -409,7 +408,7 @@ public abstract  class ApiSurface {
     Set<Pattern> newPatterns = Sets.newHashSet();
     newPatterns.addAll(patternsToPrune);
     newPatterns.add(pattern);
-    return ofRootClassesAndPatternsToPrune(rootClasses, newPatterns);
+    return new ApiSurface(rootClasses, newPatterns);
   }
 
   /** See {@link #pruningPattern(Pattern)}. */
@@ -420,9 +419,6 @@ public abstract  class ApiSurface {
   /** Returns all public classes originally belonging to the package in the {@link ApiSurface}. */
   public Set<Class<?>> getRootClasses() {
     return rootClasses;
-  }
-  public Set<Pattern> getPatternsToPrune(){
-    return patternsToPrune;
   }
 
   /** Returns exposed types in this set, including arrays and primitives as specified. */
@@ -500,7 +496,7 @@ public abstract  class ApiSurface {
   private Pattern prunedPattern = null;
   private Set<Type> visited = null;
 
-  protected ApiSurface(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
+  private ApiSurface(Set<Class<?>> rootClasses, Set<Pattern> patternsToPrune) {
     this.rootClasses = rootClasses;
     this.patternsToPrune = patternsToPrune;
   }
@@ -825,15 +821,5 @@ public abstract  class ApiSurface {
   private boolean exposed(int modifiers) {
     return 0 != (modifiers & (Modifier.PUBLIC | Modifier.PROTECTED));
   }
-  /**
-   * This method provides the definition of the API surface for the implementing package.
-   **/
-  public abstract ApiSurface buildApiSurface() throws IOException;
-  /**
-   * Method that acts as a constructor.
-   * Since this class is Abstract this Method provides a way to instantiate objects
-   * from the subclass.
-   **/
-  protected abstract  ApiSurface ofRootClassesAndPatternsToPrune(Set<Class<?>> rootClasses,
-                                                              Set<Pattern> patternsToPrune);
+
 }
