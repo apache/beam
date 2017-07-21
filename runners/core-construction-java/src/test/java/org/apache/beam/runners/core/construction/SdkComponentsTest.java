@@ -124,6 +124,18 @@ public class SdkComponentsTest {
                   equalTo(windowingStrategies.size()));
             } else {
               transforms.add(node);
+              if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
+                  PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+                // Combine translation introduces a coder that is not assigned to any PCollection
+                // in the default expansion, and must be explicitly added here.
+                try {
+                  addCoders(
+                      CombineTranslation.getAccumulatorCoder(
+                          node.toAppliedPTransform(getPipeline())));
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              }
             }
           }
 
@@ -146,7 +158,7 @@ public class SdkComponentsTest {
           private void addCoders(Coder<?> coder) {
             coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
             if (coder instanceof StructuredCoder) {
-              for (Coder<?> component : ((StructuredCoder <?>) coder).getComponents()) {
+              for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
                 addCoders(component);
               }
             }
