@@ -176,30 +176,22 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *   public UserDynamicAvroDestinations( PCollectionView<Map<Integer, String>> userToSchemaMap) {
  *     this.userToSchemaMap = userToSchemaMap;
  *   }
- *   @Override
  *   public GenericRecord formatRecord(UserEvent record) {
  *     return formatUserRecord(record, getSchema(record.getUserId()));
  *   }
- *   @Override
  *   public Schema getSchema(Integer userId) {
  *     return new Schema.Parser().parse(sideInput(userToSchemaMap).get(userId));
  *   }
- *   @Override
  *   public Integer getDestination(UserEvent record) {
  *     return record.getUserId();
  *   }
- *
- *   @Override
  *   public Integer getDefaultDestination() {
  *     return 0;
  *   }
- *   @Override
  *   public FilenamePolicy getFilenamePolicy(Integer userId) {
  *     return DefaultFilenamePolicy.fromParams(new Params().withBaseFilename(baseDir + "/user-"
  *     + userId + "/events"));
  *   }
- *
- *   @Override
  *   public List<PCollectionView<?>> getSideInputs() {
  *     return ImmutableList.<PCollectionView<?>>of(userToSchemaMap);
  *   }
@@ -925,7 +917,7 @@ public class AvroIO {
                   getWindowedWrites());
         }
         dynamicDestinations =
-            constantAvros(
+            constantDestinations(
                 usedFilenamePolicy,
                 getSchema(),
                 getMetadata(),
@@ -1137,7 +1129,7 @@ public class AvroIO {
    * Returns a {@link DynamicAvroDestinations} that always returns the same
    * {@link FilenamePolicy}, schema, metadata, and codec.
    */
-  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantAvros(
+  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantDestinations(
       FilenamePolicy filenamePolicy, Schema schema, Map<String, Object> metadata,
       CodecFactory codec, SerializableFunction<UserT, OutputT> formatFunction) {
     return new ConstantAvroDestination<>(
