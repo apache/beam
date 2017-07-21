@@ -108,7 +108,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
       if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
         if (mergingAndIntersecting) {
           // merge intersecting windows.
-          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
+          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow,
+              ((IntervalWindow) currentWindow).getClass());
         }
         // keep accumulating and carry on ;-)
         accumulator = combineFn.addInput(accumulator, nextValue.getValue(),
@@ -205,7 +206,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
       if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
         if (mergingAndIntersecting) {
           // merge intersecting windows.
-          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
+          currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow,
+              ((IntervalWindow) currentWindow).getClass());
         }
         // add to window accumulators.
         currentWindowAccumulators.add(nextValue.getValue());

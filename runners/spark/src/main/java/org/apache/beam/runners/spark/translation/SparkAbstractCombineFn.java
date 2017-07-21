@@ -36,12 +36,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-
+import org.joda.time.Instant;
 
 /**
  * An abstract for the SparkRunner implementation of
@@ -89,12 +90,23 @@ public class SparkAbstractCombineFn implements Serializable {
     return sorted;
   }
 
-  protected static boolean isIntersecting(IntervalWindow union, IntervalWindow window) {
+  protected static <W extends IntervalWindow> boolean isIntersecting(W union, W window) {
     return union == null || union.intersects(window);
   }
 
-  protected static IntervalWindow merge(IntervalWindow union, IntervalWindow window) {
-    return union == null ? window : union.span(window);
+  protected static <W extends IntervalWindow> W merge(W union, W window, Class<? extends W> clazz) {
+
+    if (union == null) {
+      return window;
+    }
+    // to the the same as in IntervalWindow.span but in W window to be able to return a W instance
+    Instant start = new Instant(Math.min(union.start().getMillis(), window.start().getMillis()));
+    Instant end = new Instant(Math.max(union.end().getMillis(), window.end().getMillis()));
+    W outputWindow = InstanceBuilder.ofType(clazz)
+        .withArg(Instant.class, start)
+        .withArg(Instant.class, end)
+        .build();
+    return outputWindow;
   }
 
   /**
