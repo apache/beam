@@ -27,8 +27,7 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
 
   // Construct Maven goals for this job.
-  profiles = [ // TODO: Some of these are definitely not necessary.
-    'release',
+  profiles = [
     'direct-runner',
     'dataflow-runner',
     'spark-runner',
@@ -40,11 +39,9 @@ mavenJob('beam_PreCommit_Java_CodeHealth') {
     '-e',
     "-P${profiles.join(',')}",
     "-pl '!sdks/python'",
-    // TODO: This incantation fails in the root -- figure out why.
     'checkstyle:check',
     'findbugs:check',
-    'rat:check',
-    // TODO: Need something here for javadoc.
+    'org.apache.rat:apache-rat-plugin:check',
   ]
   goals(args.join(' '))
 }
