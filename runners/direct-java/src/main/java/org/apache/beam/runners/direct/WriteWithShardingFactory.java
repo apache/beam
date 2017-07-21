@@ -66,8 +66,8 @@ class WriteWithShardingFactory<InputT>
       List<PCollectionView<?>> sideInputs =
           WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
       FileBasedSink sink = WriteFilesTranslation.getSink(transform);
-      sink.setSideInputs(sideInputs);
-      WriteFiles<InputT, ?, ?> replacement = WriteFiles.to(sink);
+      WriteFiles<InputT, ?, ?> replacement =
+          WriteFiles.to(sink).withOverriddenSideInputs(sideInputs);
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }

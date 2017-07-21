@@ -55,7 +55,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -145,7 +144,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Object, Void, Object>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(null, SerializableFunctions.identity())) {
+                DynamicFileDestinations.constant(null)) {
               @Override
               public WriteOperation<Void, Object> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");

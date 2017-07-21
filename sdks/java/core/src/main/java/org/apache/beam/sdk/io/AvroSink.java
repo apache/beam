@@ -46,6 +46,11 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
   }
 
   @Override
+  public DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations() {
+    return (DynamicAvroDestinations<UserT, DestinationT, OutputT>) super.getDynamicDestinations();
+  }
+
+  @Override
   public WriteOperation<DestinationT, OutputT> createWriteOperation() {
     return new AvroWriteOperation<>(this, genericRecords);
   }
@@ -60,8 +65,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
         AvroSink<?, DestinationT, OutputT> sink,
         boolean genericRecords) {
       super(sink);
-      this.dynamicDestinations =
-        (DynamicAvroDestinations<?, DestinationT, ?>) sink.getDynamicDestinations();
+      this.dynamicDestinations = sink.getDynamicDestinations();
       this.genericRecords = genericRecords;
     }
 

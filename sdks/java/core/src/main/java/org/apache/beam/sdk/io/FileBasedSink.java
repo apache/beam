@@ -203,8 +203,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
   }
 
-  private DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations;
-  private List<PCollectionView<?>> sideInputs;
+  private final DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations;
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
@@ -396,19 +395,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   @SuppressWarnings("unchecked")
   public DynamicDestinations<UserT, DestinationT, OutputT> getDynamicDestinations() {
     return (DynamicDestinations<UserT, DestinationT, OutputT>) dynamicDestinations;
-  }
-
-  /** Returns the list of side inputs used by this sink. */
-  public final List<PCollectionView<?>> getSideInputs() {
-    return (sideInputs != null) ? sideInputs : dynamicDestinations.getSideInputs();
-  }
-
-  /**
-  * Sets the list of side inputs used by this sink. Will override what DynamicDestinations
-  * returns.
-  */
-  public void setSideInputs(List<PCollectionView<?>> sideInputs) {
-    this.sideInputs = sideInputs;
   }
 
   /**

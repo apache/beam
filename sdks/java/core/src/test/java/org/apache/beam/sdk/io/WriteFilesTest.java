@@ -68,7 +68,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
@@ -361,8 +360,7 @@ public class WriteFilesTest {
                     .withBaseFilename(
                         getBaseOutputDirectory()
                             .resolve("file", StandardResolveOptions.RESOLVE_FILE))
-                    .withShardTemplate("-SS-of-NN")),
-    SerializableFunctions.<String>identity());
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
@@ -523,8 +521,7 @@ public class WriteFilesTest {
                     .withBaseFilename(
                         getBaseOutputDirectory()
                             .resolve("file", StandardResolveOptions.RESOLVE_FILE))
-                    .withShardTemplate("-SS-of-NN")),
-                    SerializableFunctions.<String>identity());
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
@@ -549,8 +546,7 @@ public class WriteFilesTest {
                     .withBaseFilename(
                         getBaseOutputDirectory()
                             .resolve("file", StandardResolveOptions.RESOLVE_FILE))
-                    .withShardTemplate("-SS-of-NN")),
-                    SerializableFunctions.<String>identity());
+                    .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
             getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {

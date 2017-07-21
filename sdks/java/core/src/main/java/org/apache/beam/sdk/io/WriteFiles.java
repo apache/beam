@@ -133,6 +133,15 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   private final ValueProvider<Integer> numShardsProvider;
   private final boolean windowedWrites;
   private int maxNumWritersPerBundle;
+  // If set,this is used instead of DynamicDestinations.getSideInputs. This is used by the Beam
+  // translation code.
+  private final List<PCollectionView<?>> overriddenSideInputs;
+
+  private List<PCollectionView<?>> getSideInputs() {
+    return (overriddenSideInputs != null)
+        ? overriddenSideInputs
+        : getSink().getDynamicDestinations().getSideInputs();
+  }
 
   /**
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
@@ -146,7 +155,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         null /* runner-determined sharding */,
         null,
         false,
-        DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
+        DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE,
+        null);
   }
 
   private WriteFiles(
@@ -154,17 +164,19 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards,
       @Nullable ValueProvider<Integer> numShardsProvider,
       boolean windowedWrites,
-      int maxNumWritersPerBundle) {
+      int maxNumWritersPerBundle,
+      List<PCollectionView<?>> overriddenSideInputs) {
     this.sink = sink;
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
+    this.overriddenSideInputs = overriddenSideInputs;
   }
 
   @Override
   public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-    return PCollectionViews.toAdditionalInputs(sink.getSideInputs());
+    return PCollectionViews.toAdditionalInputs(getSideInputs());
   }
 
   @Override
@@ -265,7 +277,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         computeNumShards,
         numShardsProvider,
         windowedWrites,
-        maxNumWritersPerBundle);
+        maxNumWritersPerBundle,
+        overriddenSideInputs);
   }
 
   /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
@@ -276,7 +289,19 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         computeNumShards,
         numShardsProvider,
         windowedWrites,
-        maxNumWritersPerBundle);
+        maxNumWritersPerBundle,
+        overriddenSideInputs);
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withOverriddenSideInputs
+  (List<PCollectionView<?>> overriddenSideInputs) {
+    return new WriteFiles<>(
+        sink,
+        computeNumShards,
+        numShardsProvider,
+        windowedWrites,
+        maxNumWritersPerBundle,
+        overriddenSideInputs);
   }
 
   /**
@@ -291,7 +316,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     checkNotNull(
         sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
     return new WriteFiles<>(
-        sink, sharding, null, windowedWrites, maxNumWritersPerBundle);
+        sink, sharding, null, windowedWrites, maxNumWritersPerBundle, overriddenSideInputs);
   }
 
   /**
@@ -300,7 +325,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return new WriteFiles<>(
-        sink, null, null, windowedWrites, maxNumWritersPerBundle);
+        sink, null, null, windowedWrites, maxNumWritersPerBundle, overriddenSideInputs);
   }
 
   /**
@@ -317,7 +342,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withWindowedWrites() {
     return new WriteFiles<>(
-        sink, computeNumShards, numShardsProvider, true, maxNumWritersPerBundle);
+        sink,
+        computeNumShards,
+        numShardsProvider,
+        true,
+        maxNumWritersPerBundle,
+        overriddenSideInputs);
   }
 
   private static class WriterKey<DestinationT> {
@@ -664,7 +694,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       throw new RuntimeException(e);
     }
 
-    List<PCollectionView<?>> dynamicDestinationsSideInputs = sink.getSideInputs();
+    List<PCollectionView<?>> dynamicDestinationsSideInputs = getSideInputs();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");

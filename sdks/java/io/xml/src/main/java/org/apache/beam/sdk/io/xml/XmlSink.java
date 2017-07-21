@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -49,8 +48,7 @@ class XmlSink<T> extends FileBasedSink<T, Void, T> {
   XmlSink(XmlIO.Write<T> spec) {
     super(
         spec.getFilenamePrefix(),
-        DynamicFileDestinations.constant(
-            makeFilenamePolicy(spec), SerializableFunctions.<T>identity()));
+        DynamicFileDestinations.<T>constant(makeFilenamePolicy(spec)));
     this.spec = spec;
   }
 

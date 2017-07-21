@@ -620,7 +620,7 @@ public class AvroIOTest {
       String prefix = element.substring(0, 1);
       String jsonSchema = schemaFromPrefix(prefix);
       schemaMap.put(prefix, jsonSchema);
-      expectedElements.add(createRecord(element, prefix, Schema.parse(jsonSchema)));
+      expectedElements.add(createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
     }
     PCollectionView<Map<String, String>> schemaView =
         p.apply("createSchemaView", Create.of(schemaMap)).apply(View.<String, String>asMap());
@@ -646,7 +646,7 @@ public class AvroIOTest {
       File expectedFile = new File(baseDir.resolve("file_" + prefix + ".txt-00000-of-00001",
           StandardResolveOptions.RESOLVE_FILE).toString());
       assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
-      Schema schema = Schema.parse(schemaFromPrefix(prefix));
+      Schema schema = new Schema.Parser().parse(schemaFromPrefix(prefix));
       try (DataFileReader<GenericRecord> reader =
                new DataFileReader<>(expectedFile, new GenericDatumReader<GenericRecord>(schema))) {
         Iterators.addAll(actualElements, reader);

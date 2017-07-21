@@ -39,7 +39,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -159,6 +158,59 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     .withSuffix(".avro"));
  * }</pre>
  *
+ * <p>The following shows a more-complex example of AvroIO.Write usage, generating dynamic file
+ * destinations as well as a dynamic Avro schema per file. In this example, a PCollection of user
+ * events (e.g. actions on a website) is written out to Avro files. Each event contains the user id
+ * as an integer field. We want events for each user to go into a specific directory for that user,
+ * and each user's data should be written with a specific schema for that user; a side input is
+ * used, so the schema can be calculated in a different stage.
+ *
+ * <pre>{@code
+ * // This is the user class that controls dynamic destinations for this avro write. The input to
+ * // AvroIO.Write will be UserEvent, and we will be writing GenericRecords to the file (in order
+ * // to have dynamic schemas). Everything is per userid, so we define a dynamic destination type
+ * // of Integer.
+ * class UserDynamicAvroDestinations
+ *     extends DynamicAvroDestinations<UserEvent, Integer, GenericRecord> {
+ *   private final PCollectionView<Map<Integer, String>> userToSchemaMap;
+ *   public UserDynamicAvroDestinations( PCollectionView<Map<Integer, String>> userToSchemaMap) {
+ *     this.userToSchemaMap = userToSchemaMap;
+ *   }
+ *   @Override
+ *   public GenericRecord formatRecord(UserEvent record) {
+ *     return formatUserRecord(record, getSchema(record.getUserId()));
+ *   }
+ *   @Override
+ *   public Schema getSchema(Integer userId) {
+ *     return new Schema.Parser().parse(sideInput(userToSchemaMap).get(userId));
+ *   }
+ *   @Override
+ *   public Integer getDestination(UserEvent record) {
+ *     return record.getUserId();
+ *   }
+ *
+ *   @Override
+ *   public Integer getDefaultDestination() {
+ *     return 0;
+ *   }
+ *   @Override
+ *   public FilenamePolicy getFilenamePolicy(Integer userId) {
+ *     return DefaultFilenamePolicy.fromParams(new Params().withBaseFilename(baseDir + "/user-"
+ *     + userId + "/events"));
+ *   }
+ *
+ *   @Override
+ *   public List<PCollectionView<?>> getSideInputs() {
+ *     return ImmutableList.<PCollectionView<?>>of(userToSchemaMap);
+ *   }
+ * }
+ * PCollection<UserEvents> events = ...;
+ * PCollectionView<Integer, String> schemaMap = events.apply(
+ *     "ComputeSchemas", new ComputePerUserSchemas());
+ * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
+ *     .to(new UserDynamicAvros()));
+ * }</pre>
+ *
  * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
  * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
  * overridden using {@link AvroIO.Write#withCodec}.
@@ -271,18 +323,18 @@ public class AvroIO {
   /**
    * A {@link PTransform} that writes a {@link PCollection} to an avro file (or multiple avro files
    * matching a sharding pattern), with each element of the input collection encoded into its own
-   * line.
+   * record of type OutputT.
    *
    * <p>This version allows you to apply {@link AvroIO} writes to a PCollection of a custom type
    * {@link UserT}. A format mechanism that converts the input type {@link UserT} to the output type
    * that will be written to the file must be specified. If using a custom {@link
-   * DynamicDestinations} object this is done using {@link DynamicAvroDestinations#formatRecord},
-   * otherwise the {@link AvroIO.TypedWrite#withFormatFunction} can be used to specify a format
-   * function.
+   * DynamicAvroDestinations} object this is done using {@link
+   * DynamicAvroDestinations#formatRecord}, otherwise the {@link
+   * AvroIO.TypedWrite#withFormatFunction} can be used to specify a format function.
    *
    * <p>The advantage of using a custom type is that is it allows a user-provided {@link
-   * DynamicDestinations} object, set via {@link TextIO.Write#to(DynamicDestinations)} to examine
-   * the custom type when choosing a destination.
+   * DynamicAvroDestinations} object, set via {@link AvroIO.Write#to(DynamicAvroDestinations)} to
+   * examine the custom type when choosing a destination.
    *
    * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
    * instead.
@@ -873,7 +925,7 @@ public class AvroIO {
                   getWindowedWrites());
         }
         dynamicDestinations =
-            DynamicFileDestinations.constantAvros(
+            constantAvros(
                 usedFilenamePolicy,
                 getSchema(),
                 getMetadata(),
@@ -1081,6 +1133,16 @@ public class AvroIO {
     }
   }
 
+  /**
+   * Returns a {@link DynamicAvroDestinations} that always returns the same
+   * {@link FilenamePolicy}, schema, metadata, and codec.
+   */
+  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantAvros(
+      FilenamePolicy filenamePolicy, Schema schema, Map<String, Object> metadata,
+      CodecFactory codec, SerializableFunction<UserT, OutputT> formatFunction) {
+    return new ConstantAvroDestination<>(
+        filenamePolicy, schema, metadata, codec, formatFunction);
+  }
   /////////////////////////////////////////////////////////////////////////////
 
   /** Disallow construction of utility class. */

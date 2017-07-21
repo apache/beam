@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /**
@@ -41,8 +40,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
       ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
     return new SimpleSink<>(
         tempDirectory,
-        DynamicFileDestinations.constant(
-            filenamePolicy, SerializableFunctions.<String>identity()),
+        DynamicFileDestinations.<String>constant(filenamePolicy),
         CompressionType.UNCOMPRESSED);
   }
 
@@ -59,8 +57,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
                     .withBaseFilename(
                         baseDirectory.resolve(prefix, StandardResolveOptions.RESOLVE_FILE))
                     .withShardTemplate(shardTemplate)
-                    .withSuffix(suffix)),
-                    SerializableFunctions.<String>identity());
+                    .withSuffix(suffix)));
     return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
   }
 
