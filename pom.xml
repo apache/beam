@@ -152,6 +152,8 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <snappy-java.version>1.1.4-M3</snappy-java.version>
+    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+    <commons.csv.version>1.4</commons.csv.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
@@ -1134,6 +1136,18 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-network-common_2.10</artifactId>
         <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${kafka.clients.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>${commons.csv.version}</version>
       </dependency>
 
       <!-- Testing -->
