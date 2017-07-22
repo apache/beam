@@ -1505,8 +1505,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         List<PCollectionView<?>> sideInputs =
             WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
         FileBasedSink sink = WriteFilesTranslation.getSink(transform);
-        sink.setSideInputs(sideInputs);
-        WriteFiles<UserT, DestinationT, OutputT> replacement = WriteFiles.to(sink);
+        WriteFiles<UserT, DestinationT, OutputT> replacement =
+            WriteFiles.to(sink).withOverriddenSideInputs(sideInputs);
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }
