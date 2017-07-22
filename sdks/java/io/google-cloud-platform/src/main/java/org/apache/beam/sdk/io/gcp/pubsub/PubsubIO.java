@@ -491,7 +491,9 @@ public class PubsubIO {
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   private static <T> Write<T> write() {
-    return new AutoValue_PubsubIO_Write.Builder<T>().build();
+    return new org.apache.beam.sdk.io.gcp.pubsub.AutoValue_PubsubIO_Write.Builder<T>()
+            .setBatchSize(100)
+            .build();
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
@@ -735,6 +737,9 @@ public class PubsubIO {
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
+    /** the batch size for bulk submissions to pubsub. */
+    abstract int getBatchSize();
+
     /** The name of the message attribute to publish message timestamps in. */
     @Nullable
     abstract String getTimestampAttribute();
@@ -752,6 +757,8 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
+
+      abstract Builder<T> setBatchSize(int batchSize);
 
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
@@ -777,6 +784,21 @@ public class PubsubIO {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
+    }
+
+    /**
+     * Writes to Pub/Sub are batched to efficiently send data. The value of the attribute will
+     * be a number representing the number of Pub/Sub messages to queue before sending off the
+     * bulk request. For example, if given 1000 the write sink will wait until 1000 messages have
+     * been received, or the pipeline has finished, whichever is first.
+     *
+     * <p>Pub/Sub has a limitation of 10mb per individual request/batch. This attribute was
+     * requested dynamic to allow larger Pub/Sub messages to be sent using this source. Thus
+     * allowing customizable batches and control of number of events before the 10mb size limit
+     * is hit.
+     */
+    public Write<T> withBatchSize(int batchSize) {
+      return toBuilder().setBatchSize(batchSize).build();
     }
 
     /**
@@ -851,12 +873,13 @@ public class PubsubIO {
      */
     public class PubsubBoundedWriter extends DoFn<T, Void> {
 
-      private static final int MAX_PUBLISH_BATCH_SIZE = 100;
       private transient List<OutgoingMessage> output;
       private transient PubsubClient pubsubClient;
+      private int maxPublishBatchSize;
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws IOException {
+        this.maxPublishBatchSize = getBatchSize();
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
@@ -873,7 +896,7 @@ public class PubsubIO {
         // NOTE: The record id is always null.
         output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
 
-        if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
+        if (output.size() >= maxPublishBatchSize) {
           publish();
         }
       }
