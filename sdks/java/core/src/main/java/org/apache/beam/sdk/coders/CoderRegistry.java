@@ -147,9 +147,13 @@ public class CoderRegistry {
     Set<CoderProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
         ServiceLoader.load(CoderProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+
+    // DefaultCoder should have the highest precedence and SerializableCoder the lowest
+    codersToRegister.addAll(new DefaultCoder.DefaultCoderProviderRegistrar().getCoderProviders());
     for (CoderProviderRegistrar registrar : registrars) {
         codersToRegister.addAll(registrar.getCoderProviders());
     }
+    codersToRegister.add(SerializableCoder.getCoderProvider());
 
     REGISTERED_CODER_FACTORIES = ImmutableList.copyOf(codersToRegister);
   }

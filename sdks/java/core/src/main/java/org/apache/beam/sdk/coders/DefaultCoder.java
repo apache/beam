@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -57,7 +56,6 @@ public @interface DefaultCoder {
    * the {@code @DefaultCoder} annotation to provide {@link CoderProvider coder providers} that
    * creates {@link Coder}s.
    */
-  @AutoService(CoderProviderRegistrar.class)
   class DefaultCoderProviderRegistrar implements CoderProviderRegistrar {
 
     @Override
