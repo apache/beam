@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -193,7 +194,7 @@ public class SolrIO {
 
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable abstract String getQuery();
 
@@ -277,16 +278,29 @@ public class SolrIO {
     }
   }
 
+  /**  A POJO describing a replica of Solr. */
+  @AutoValue
+  abstract static class ReplicaInfo implements Serializable {
+    public abstract String coreName();
+    public abstract String coreUrl();
+    public abstract String baseUrl();
+
+    static ReplicaInfo create(Replica replica) {
+      return new AutoValue_SolrIO_ReplicaInfo(replica.getCoreName(),
+          replica.getCoreUrl(), replica.getBaseUrl());
+    }
+  }
+
   /** A {@link BoundedSource} reading from Solr. */
   @VisibleForTesting static class BoundedSolrSource extends BoundedSource<SolrDocument> {
 
     private final SolrIO.Read spec;
     // replica is the info of the shard where the source will read the documents
-    @Nullable private final Replica replica;
+    @Nullable private final ReplicaInfo replica;
 
     BoundedSolrSource(Read spec, @Nullable Replica replica) {
       this.spec = spec;
-      this.replica = replica;
+      this.replica = replica == null ? null : ReplicaInfo.create(replica);
     }
 
     @Override public List<? extends BoundedSource<SolrDocument>> split(long desiredBundleSizeBytes,
@@ -316,9 +330,9 @@ public class SolrIO {
       }
     }
 
-    private long getEstimatedSizeOfShard(Replica replica) throws IOException {
+    private long getEstimatedSizeOfShard(@Nonnull ReplicaInfo replica) throws IOException {
       try (HttpSolrClient solrClient = spec.getConnectionConfiguration()
-          .createClient(replica.getBaseUrl())) {
+          .createClient(replica.baseUrl())) {
         CoreAdminRequest req = new CoreAdminRequest();
         req.setAction(CoreAdminParams.CoreAdminAction.STATUS);
         req.setIndexInfoNeeded(true);
@@ -328,7 +342,7 @@ public class SolrIO {
         } catch (SolrServerException e) {
           throw new IOException("Can not get core status from " + replica, e);
         }
-        NamedList<Object> coreStatus = response.getCoreStatus(replica.getCoreName());
+        NamedList<Object> coreStatus = response.getCoreStatus(replica.coreName());
         NamedList<Object> indexStats = (NamedList<Object>) coreStatus.get("index");
         return (long) indexStats.get("sizeInBytes");
       }
@@ -343,7 +357,7 @@ public class SolrIO {
         DocCollection docCollection = clusterState.getCollection(config.getCollection());
         for (Slice slice : docCollection.getSlices()) {
           Replica replica = slice.getLeader();
-          sizeInBytes += getEstimatedSizeOfShard(replica);
+          sizeInBytes += getEstimatedSizeOfShard(ReplicaInfo.create(replica));
         }
       }
       return sizeInBytes;
@@ -352,7 +366,7 @@ public class SolrIO {
     @Override public void populateDisplayData(DisplayData.Builder builder) {
       spec.populateDisplayData(builder);
       if (replica != null) {
-        builder.addIfNotNull(DisplayData.item("shardUrl", replica.getCoreUrl()));
+        builder.addIfNotNull(DisplayData.item("shardUrl", replica.coreUrl()));
       }
     }
 
@@ -434,7 +448,7 @@ public class SolrIO {
     @Override public boolean start() throws IOException {
       if (source.replica != null) {
         solrClient = source.spec.getConnectionConfiguration()
-            .createClient(source.replica.getCoreUrl());
+            .createClient(source.replica.coreUrl());
       } else {
         solrClient = source.spec.getConnectionConfiguration().createClient();
       }
