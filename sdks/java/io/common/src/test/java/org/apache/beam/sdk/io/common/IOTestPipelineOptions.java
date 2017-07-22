@@ -71,6 +71,12 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   Integer getElasticsearchHttpPort();
   void setElasticsearchHttpPort(Integer value);
 
+  /* Solr */
+  @Description("Address of Zookeeper server for Solr")
+  @Default.String("zookeeper-server")
+  String getZookeeperSolrServer();
+  void setZookeeperSolrServer(String value);
+
   /* Cassandra */
   @Description("Host for Cassandra server (host name/ip address)")
   @Default.String("cassandra-host")
