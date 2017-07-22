@@ -201,6 +201,18 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     super.validate();
   }
 
+  /**
+   * Used by the Dataflow worker. Do not introduce new usages. Do not delete without confirming that
+   * Dataflow ValidatesRunner tests pass.
+   *
+   * @deprecated Used by Dataflow worker
+   */
+  @Deprecated
+  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end)
+      throws IOException {
+    return createForSubrangeOfFile(FileSystems.matchSingleFileSpec(fileName), start, end);
+  }
+
   @Override
   public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileMetadata, long start, long end) {
     return new AvroSource<>(fileMetadata, getMinBundleSize(), start, end, readerSchemaString, type);
