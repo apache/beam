@@ -70,7 +70,7 @@ public class WriteFilesTranslation {
         .setWindowedWrites(transform.isWindowedWrites())
         .setRunnerDeterminedSharding(
             transform.getNumShards() == null && transform.getSharding() == null)
-        .putAllDynamicDestinationSideInputs(sideInputs)
+        .putAllSideInputs(sideInputs)
         .build();
   }
 
@@ -128,7 +128,7 @@ public class WriteFilesTranslation {
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs =
-        getWriteFilesPayload(transform).getDynamicDestinationSideInputsMap();
+        getWriteFilesPayload(transform).getSideInputsMap();
     for (Map.Entry<String, SideInput> entry : sideInputs.entrySet()) {
       PCollection<?> originalPCollection =
           checkNotNull(

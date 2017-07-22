@@ -133,15 +133,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   private final ValueProvider<Integer> numShardsProvider;
   private final boolean windowedWrites;
   private int maxNumWritersPerBundle;
-  // If set,this is used instead of DynamicDestinations.getSideInputs. This is used by the Beam
-  // translation code.
-  private final List<PCollectionView<?>> overriddenSideInputs;
-
-  private List<PCollectionView<?>> getSideInputs() {
-    return (overriddenSideInputs != null)
-        ? overriddenSideInputs
-        : getSink().getDynamicDestinations().getSideInputs();
-  }
+  // This is the set of side inputs used by this transform. This is usually populated by the users's
+  // DynamicDestinations object.
+  private final List<PCollectionView<?>> sideInputs;
 
   /**
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
@@ -156,7 +150,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         null,
         false,
         DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE,
-        null);
+        sink.getDynamicDestinations().getSideInputs());
   }
 
   private WriteFiles(
@@ -165,18 +159,18 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       @Nullable ValueProvider<Integer> numShardsProvider,
       boolean windowedWrites,
       int maxNumWritersPerBundle,
-      List<PCollectionView<?>> overriddenSideInputs) {
+      List<PCollectionView<?>> sideInputs) {
     this.sink = sink;
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
-    this.overriddenSideInputs = overriddenSideInputs;
+    this.sideInputs = sideInputs;
   }
 
   @Override
   public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-    return PCollectionViews.toAdditionalInputs(getSideInputs());
+    return PCollectionViews.toAdditionalInputs(sideInputs);
   }
 
   @Override
@@ -278,7 +272,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         numShardsProvider,
         windowedWrites,
         maxNumWritersPerBundle,
-        overriddenSideInputs);
+        sideInputs);
   }
 
   /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
@@ -290,18 +284,18 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         numShardsProvider,
         windowedWrites,
         maxNumWritersPerBundle,
-        overriddenSideInputs);
+        sideInputs);
   }
 
-  public WriteFiles<UserT, DestinationT, OutputT> withOverriddenSideInputs
-  (List<PCollectionView<?>> overriddenSideInputs) {
+  public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
+      List<PCollectionView<?>> sideInputs) {
     return new WriteFiles<>(
         sink,
         computeNumShards,
         numShardsProvider,
         windowedWrites,
         maxNumWritersPerBundle,
-        overriddenSideInputs);
+        sideInputs);
   }
 
   /**
@@ -316,7 +310,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     checkNotNull(
         sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
     return new WriteFiles<>(
-        sink, sharding, null, windowedWrites, maxNumWritersPerBundle, overriddenSideInputs);
+        sink, sharding, null, windowedWrites, maxNumWritersPerBundle, sideInputs);
   }
 
   /**
@@ -325,7 +319,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return new WriteFiles<>(
-        sink, null, null, windowedWrites, maxNumWritersPerBundle, overriddenSideInputs);
+        sink, null, null, windowedWrites, maxNumWritersPerBundle, sideInputs);
   }
 
   /**
@@ -347,7 +341,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         numShardsProvider,
         true,
         maxNumWritersPerBundle,
-        overriddenSideInputs);
+        sideInputs);
   }
 
   private static class WriterKey<DestinationT> {
@@ -694,7 +688,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       throw new RuntimeException(e);
     }
 
-    List<PCollectionView<?>> dynamicDestinationsSideInputs = getSideInputs();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
@@ -705,7 +698,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           input.apply(
               writeName,
               ParDo.of(new WriteBundles(windowedWrites, unwrittedRecordsTag, destinationCoder))
-                  .withSideInputs(dynamicDestinationsSideInputs)
+                  .withSideInputs(sideInputs)
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
           writeTuple
@@ -721,17 +714,17 @@ public class WriteFiles<UserT, DestinationT, OutputT>
               .apply(
                   "WriteUnwritten",
                   ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE))
-                  .withSideInputs(dynamicDestinationsSideInputs))
+                  .withSideInputs(sideInputs))
               .setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
       results =
           PCollectionList.of(writtenBundleFiles)
               .and(writtenGroupedFiles)
               .apply(Flatten.<FileResult<DestinationT>>pCollections());
     } else {
-      List<PCollectionView<?>> sideInputs = Lists.newArrayList();
+      List<PCollectionView<?>> shardingSideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
         numShardsView = input.apply(computeNumShards);
-        sideInputs.add(numShardsView);
+        shardingSideInputs.add(numShardsView);
       } else {
         numShardsView = null;
       }
@@ -744,7 +737,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                               numShardsView,
                               (numShardsView != null) ? null : numShardsProvider,
                               destinationCoder))
-                      .withSideInputs(sideInputs))
+                      .withSideInputs(shardingSideInputs))
               .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
               .apply("GroupIntoShards", GroupByKey.<ShardedKey<Integer>, UserT>create());
       shardedWindowCoder =
@@ -758,7 +751,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           sharded.apply(
               "WriteShardedBundles",
               ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_WHEN_WRITING))
-                  .withSideInputs(dynamicDestinationsSideInputs));
+                  .withSideInputs(sideInputs));
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
 
@@ -803,12 +796,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     } else {
       final PCollectionView<Iterable<FileResult<DestinationT>>> resultsView =
           results.apply(View.<FileResult<DestinationT>>asIterable());
-      ImmutableList.Builder<PCollectionView<?>> sideInputs =
+      ImmutableList.Builder<PCollectionView<?>> finalizeSideInputs =
           ImmutableList.<PCollectionView<?>>builder().add(resultsView);
       if (numShardsView != null) {
-        sideInputs.add(numShardsView);
+        finalizeSideInputs.add(numShardsView);
       }
-      sideInputs.addAll(dynamicDestinationsSideInputs);
+      finalizeSideInputs.addAll(sideInputs);
 
       // Finalize the write in another do-once ParDo on the singleton collection containing the
       // Writer. The results from the per-bundle writes are given as an Iterable side input.
@@ -858,7 +851,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                       writeOperation.removeTemporaryFiles(tempFiles);
                     }
                   })
-              .withSideInputs(sideInputs.build()));
+              .withSideInputs(finalizeSideInputs.build()));
     }
     return PDone.in(input.getPipeline());
   }
