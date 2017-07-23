@@ -367,6 +367,18 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         RecordIdMethod.RANDOM);
   }
 
+  public PubsubUnboundedSink(
+          PubsubClientFactory pubsubFactory,
+          ValueProvider<TopicPath> topic,
+          String timestampAttribute,
+          String idAttribute,
+          int numShards,
+          int publishBatchSize,
+          int publishBatchBytes) {
+    this(pubsubFactory, topic, timestampAttribute, idAttribute, numShards,
+            publishBatchSize, publishBatchBytes, DEFAULT_MAX_LATENCY,
+            RecordIdMethod.RANDOM);
+  }
   /** Get the topic being written to. */
   public TopicPath getTopic() {
     return topic.get();
