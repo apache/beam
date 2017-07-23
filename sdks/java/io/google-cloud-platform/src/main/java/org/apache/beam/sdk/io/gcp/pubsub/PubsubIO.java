@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import javax.naming.SizeLimitExceededException;
+
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -492,7 +494,8 @@ public class PubsubIO {
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   private static <T> Write<T> write() {
     return new org.apache.beam.sdk.io.gcp.pubsub.AutoValue_PubsubIO_Write.Builder<T>()
-            .setBatchSize(100)
+            .setBatchSize(1000)
+            .setMaxBatchBytesSize(1000000)
             .build();
   }
 
@@ -740,6 +743,9 @@ public class PubsubIO {
     /** the batch size for bulk submissions to pubsub. */
     abstract int getBatchSize();
 
+    /** the maximum batch size, by bytes. */
+    abstract int getMaxBatchBytesSize();
+
     /** The name of the message attribute to publish message timestamps in. */
     @Nullable
     abstract String getTimestampAttribute();
@@ -759,6 +765,8 @@ public class PubsubIO {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
 
       abstract Builder<T> setBatchSize(int batchSize);
+
+      abstract Builder<T> setMaxBatchBytesSize(int maxBatchBytesSize);
 
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
@@ -799,6 +807,14 @@ public class PubsubIO {
      */
     public Write<T> withBatchSize(int batchSize) {
       return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Writes to Pub/Sub are limited by 10mb in general. This attribute controls the maximum allowed
+     * bytes to be sent to Pub/Sub in a single batched message.
+     */
+    public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
+      return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
     }
 
     /**
@@ -875,12 +891,18 @@ public class PubsubIO {
 
       private transient List<OutgoingMessage> output;
       private transient PubsubClient pubsubClient;
+      private transient int currentOutputBytes;
+
+      private int maxPublishBatchByteSize;
       private int maxPublishBatchSize;
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws IOException {
+        this.maxPublishBatchByteSize = getMaxBatchBytesSize();
         this.maxPublishBatchSize = getBatchSize();
         this.output = new ArrayList<>();
+        this.currentOutputBytes = 0;
+
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
             FACTORY.newClient(
@@ -888,17 +910,27 @@ public class PubsubIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws IOException {
+      public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
-        // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
 
-        if (output.size() >= maxPublishBatchSize) {
+        if (payload.length > maxPublishBatchByteSize) {
+          String msg = String.format("Pub/Sub message size (%d) exceeded maximum batch size (%d)",
+                  payload.length, maxPublishBatchByteSize);
+          throw new SizeLimitExceededException(msg);
+        }
+
+        // Checking before adding the message stops us from violating the max bytes
+        if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
+                || (output.size() >= maxPublishBatchSize)) {
           publish();
         }
+
+        // NOTE: The record id is always null.
+        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        currentOutputBytes += payload.length;
       }
 
       @FinishBundle
@@ -907,6 +939,7 @@ public class PubsubIO {
           publish();
         }
         output = null;
+        currentOutputBytes = 0;
         pubsubClient.close();
         pubsubClient = null;
       }
@@ -918,6 +951,7 @@ public class PubsubIO {
                 PubsubClient.topicPathFromName(topic.project, topic.topic), output);
         checkState(n == output.size());
         output.clear();
+        currentOutputBytes = 0;
       }
 
       @Override
