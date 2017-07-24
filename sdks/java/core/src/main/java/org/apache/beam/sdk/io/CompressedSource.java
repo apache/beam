@@ -35,6 +35,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -407,7 +408,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * Returns the delegate source's default output coder.
    */
   @Override
-  public final Coder<T> getDefaultOutputCoder() {
+  public final Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
     return sourceDelegate.getDefaultOutputCoder();
   }
 

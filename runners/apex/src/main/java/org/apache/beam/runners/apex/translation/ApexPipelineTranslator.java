@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,7 +149,7 @@ public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     public void translate(Read.Bounded<T> transform, TranslationContext context) {
       // TODO: adapter is visibleForTesting
       BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(
-          transform.getSource());
+          transform.getSource(), context.<PCollection<T>>getOutput().getCoder());
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
           unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);

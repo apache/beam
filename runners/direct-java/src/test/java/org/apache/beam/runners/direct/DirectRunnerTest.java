@@ -45,6 +45,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -573,7 +574,7 @@ public class DirectRunnerTest implements Serializable {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return underlying.getDefaultOutputCoder();
     }
   }

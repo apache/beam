@@ -127,6 +127,7 @@ public final class StreamingTransformTranslator {
                 context.getStreamingContext(),
                 context.getRuntimeContext(),
                 transform.getSource(),
+                context.getOutput(transform).getCoder(),
                 stepName));
       }
 

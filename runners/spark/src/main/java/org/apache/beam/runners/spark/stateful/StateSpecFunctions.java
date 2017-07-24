@@ -161,7 +161,7 @@ public class StateSpecFunctions {
         final List<byte[]> readValues = new ArrayList<>();
         WindowedValue.FullWindowedValueCoder<T> coder =
             WindowedValue.FullWindowedValueCoder.of(
-                source.getDefaultOutputCoder(),
+                microbatchSource.getOutputCoder(),
                 GlobalWindow.Coder.INSTANCE);
         try {
           // measure how long a read takes per-partition.

@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -212,7 +213,20 @@ public class SourceTestUtils {
       List<? extends BoundedSource<T>> sources,
       PipelineOptions options)
       throws Exception {
-    Coder<T> coder = referenceSource.getDefaultOutputCoder();
+    assertSourcesEqualReferenceSource(
+        referenceSource, sources, referenceSource.getDefaultOutputCoder(), options);
+  }
+
+  /**
+   * Same as {@link #assertSourcesEqualReferenceSource(BoundedSource, List, Coder,
+   * PipelineOptions)}, but the coder is specified explicitly.
+   */
+  public static <T> void assertSourcesEqualReferenceSource(
+      BoundedSource<T> referenceSource,
+      List<? extends BoundedSource<T>> sources,
+      Coder<T> coder,
+      PipelineOptions options)
+      throws Exception {
     List<T> referenceRecords = readFromSource(referenceSource, options);
     List<T> bundleRecords = new ArrayList<>();
     for (BoundedSource<T> source : sources) {
@@ -239,7 +253,17 @@ public class SourceTestUtils {
    */
   public static <T> void assertUnstartedReaderReadsSameAsItsSource(
       BoundedSource.BoundedReader<T> reader, PipelineOptions options) throws Exception {
-    Coder<T> coder = reader.getCurrentSource().getDefaultOutputCoder();
+    assertUnstartedReaderReadsSameAsItsSource(
+        reader, reader.getCurrentSource().getDefaultOutputCoder(), options);
+  }
+
+  /**
+   * Same as {@link #assertUnstartedReaderReadsSameAsItsSource(BoundedReader, Coder,
+   * PipelineOptions)}, but the coder is specified explicitly.
+   */
+  public static <T> void assertUnstartedReaderReadsSameAsItsSource(
+      BoundedSource.BoundedReader<T> reader, Coder<T> coder, PipelineOptions options)
+      throws Exception {
     List<T> expected = readFromUnstartedReader(reader);
     List<T> actual = readFromSource(reader.getCurrentSource(), options);
     List<ReadableStructuralValue<T>> expectedStructural = createStructuralValues(coder, expected);
@@ -296,7 +320,29 @@ public class SourceTestUtils {
       PipelineOptions options)
       throws Exception {
     return assertSplitAtFractionBehaviorImpl(
-        source, readFromSource(source, options), numItemsToReadBeforeSplit, splitFraction,
+        source,
+        source.getDefaultOutputCoder(),
+        readFromSource(source, options),
+        numItemsToReadBeforeSplit,
+        splitFraction,
+        expectedOutcome,
+        options);
+  }
+
+  /**
+   * Same as {@link #assertSplitAtFractionBehavior(BoundedSource, Coder, int, double,
+   * ExpectedSplitOutcome, PipelineOptions)}, but the coder is specified explicitly.
+   */
+  public static <T> SplitAtFractionResult assertSplitAtFractionBehavior(
+      BoundedSource<T> source,
+      Coder<T> coder,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      ExpectedSplitOutcome expectedOutcome,
+      PipelineOptions options)
+      throws Exception {
+    return assertSplitAtFractionBehaviorImpl(
+        source, coder, readFromSource(source, options), numItemsToReadBeforeSplit, splitFraction,
         expectedOutcome, options);
   }
 
@@ -333,8 +379,13 @@ public class SourceTestUtils {
   }
 
   private static <T> SourceTestUtils.SplitAtFractionResult assertSplitAtFractionBehaviorImpl(
-      BoundedSource<T> source, List<T> expectedItems, int numItemsToReadBeforeSplit,
-      double splitFraction, ExpectedSplitOutcome expectedOutcome, PipelineOptions options)
+      BoundedSource<T> source,
+      Coder<T> coder,
+      List<T> expectedItems,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      ExpectedSplitOutcome expectedOutcome,
+      PipelineOptions options)
       throws Exception {
     try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       BoundedSource<T> originalSource = reader.getCurrentSource();
@@ -381,15 +432,28 @@ public class SourceTestUtils {
       currentItems.addAll(readRemainingFromReader(reader, numItemsToReadBeforeSplit > 0));
       BoundedSource<T> primary = reader.getCurrentSource();
       return verifySingleSplitAtFractionResult(
-          source, expectedItems, currentItems, primary, residual,
-          numItemsToReadBeforeSplit, splitFraction, options);
+          source,
+          coder,
+          expectedItems,
+          currentItems,
+          primary,
+          residual,
+          numItemsToReadBeforeSplit,
+          splitFraction,
+          options);
     }
   }
 
   private static <T> SourceTestUtils.SplitAtFractionResult verifySingleSplitAtFractionResult(
-      BoundedSource<T> source, List<T> expectedItems, List<T> currentItems,
-      BoundedSource<T> primary, BoundedSource<T> residual,
-      int numItemsToReadBeforeSplit, double splitFraction, PipelineOptions options)
+      BoundedSource<T> source,
+      Coder<T> coder,
+      List<T> expectedItems,
+      List<T> currentItems,
+      BoundedSource<T> primary,
+      BoundedSource<T> residual,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      PipelineOptions options)
       throws Exception {
     List<T> primaryItems = readFromSource(primary, options);
     if (residual != null) {
@@ -415,7 +479,6 @@ public class SourceTestUtils {
               source,
               primary,
               residual);
-      Coder<T> coder = primary.getDefaultOutputCoder();
       List<ReadableStructuralValue<T>> primaryValues =
           createStructuralValues(coder, primaryItems);
       List<ReadableStructuralValue<T>> currentValues =
@@ -488,6 +551,7 @@ public class SourceTestUtils {
    */
   private static <T> void assertSplitAtFractionBinary(
       BoundedSource<T> source,
+      Coder<T> coder,
       List<T> expectedItems,
       int numItemsToBeReadBeforeSplit,
       double leftFraction,
@@ -507,16 +571,16 @@ public class SourceTestUtils {
     double middleFraction = (rightFraction + leftFraction) / 2;
     if (leftResult == null) {
       leftResult = assertSplitAtFractionBehaviorImpl(
-          source, expectedItems, numItemsToBeReadBeforeSplit, leftFraction,
+          source, coder, expectedItems, numItemsToBeReadBeforeSplit, leftFraction,
           ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
     }
     if (rightResult == null) {
       rightResult = assertSplitAtFractionBehaviorImpl(
-          source, expectedItems, numItemsToBeReadBeforeSplit, rightFraction,
+          source, coder, expectedItems, numItemsToBeReadBeforeSplit, rightFraction,
           ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
     }
     SplitAtFractionResult middleResult = assertSplitAtFractionBehaviorImpl(
-        source, expectedItems, numItemsToBeReadBeforeSplit, middleFraction,
+        source, coder, expectedItems, numItemsToBeReadBeforeSplit, middleFraction,
         ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
     if (middleResult.numResidualItems != -1) {
       stats.successfulFractions.add(middleFraction);
@@ -530,12 +594,12 @@ public class SourceTestUtils {
     // if middle is not equivalent to left or right.
     if (leftResult.numPrimaryItems != middleResult.numPrimaryItems) {
       assertSplitAtFractionBinary(
-          source, expectedItems, numItemsToBeReadBeforeSplit,
+          source, coder, expectedItems, numItemsToBeReadBeforeSplit,
           leftFraction, leftResult, middleFraction, middleResult, options, stats);
     }
     if (rightResult.numPrimaryItems != middleResult.numPrimaryItems) {
       assertSplitAtFractionBinary(
-          source, expectedItems, numItemsToBeReadBeforeSplit,
+          source, coder, expectedItems, numItemsToBeReadBeforeSplit,
           middleFraction, middleResult, rightFraction, rightResult, options, stats);
     }
   }
@@ -551,6 +615,15 @@ public class SourceTestUtils {
    */
   public static <T> void assertSplitAtFractionExhaustive(
       BoundedSource<T> source, PipelineOptions options) throws Exception {
+    assertSplitAtFractionExhaustive(source, source.getDefaultOutputCoder(), options);
+  }
+
+  /**
+   * Same as {@link #assertSplitAtFractionExhaustive(BoundedSource, Coder, PipelineOptions)}, but
+   * the coder is specified explicitly.
+   */
+  public static <T> void assertSplitAtFractionExhaustive(
+      BoundedSource<T> source, Coder<T> coder, PipelineOptions options) throws Exception {
     List<T> expectedItems = readFromSource(source, options);
     assertFalse("Empty source", expectedItems.isEmpty());
     assertFalse("Source reads a single item", expectedItems.size() == 1);
@@ -560,7 +633,7 @@ public class SourceTestUtils {
       boolean anyNonTrivialFractions = false;
       for (int i = 0; i < expectedItems.size(); i++) {
         SplitFractionStatistics stats = new SplitFractionStatistics();
-        assertSplitAtFractionBinary(source, expectedItems, i,
+        assertSplitAtFractionBinary(source, coder, expectedItems, i,
             0.0, null, 1.0, null, options, stats);
         if (!stats.successfulFractions.isEmpty()) {
           anySuccessfulFractions = true;
@@ -607,7 +680,7 @@ public class SourceTestUtils {
             break;
           }
           if (assertSplitAtFractionConcurrent(
-              executor, source, expectedItems, i, minNonTrivialFraction, options)) {
+              executor, source, coder, expectedItems, i, minNonTrivialFraction, options)) {
             haveSuccess = true;
           } else {
             haveFailure = true;
@@ -634,7 +707,7 @@ public class SourceTestUtils {
   }
 
   private static <T> boolean assertSplitAtFractionConcurrent(
-      ExecutorService executor, BoundedSource<T> source, List<T> expectedItems,
+      ExecutorService executor, BoundedSource<T> source, Coder<T> coder, List<T> expectedItems,
       final int numItemsToReadBeforeSplitting, final double fraction, PipelineOptions options)
       throws Exception {
     @SuppressWarnings("resource")  // Closed in readerThread
@@ -674,7 +747,7 @@ public class SourceTestUtils {
       return false;
     }
     SplitAtFractionResult res = verifySingleSplitAtFractionResult(
-        source, expectedItems, currentItems, splitSources.getKey(), splitSources.getValue(),
+        source, coder, expectedItems, currentItems, splitSources.getKey(), splitSources.getValue(),
         numItemsToReadBeforeSplitting, fraction, options);
     return (res.numResidualItems > 0);
   }
@@ -728,7 +801,7 @@ public class SourceTestUtils {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return boundedSource.getDefaultOutputCoder();
     }
 

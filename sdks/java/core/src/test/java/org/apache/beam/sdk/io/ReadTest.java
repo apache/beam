@@ -24,18 +24,26 @@ import static org.hamcrest.Matchers.hasItem;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -50,6 +58,9 @@ import org.junit.runners.JUnit4;
 public class ReadTest implements Serializable{
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void failsWhenCustomBoundedSourceIsNotSerializable() {
@@ -148,6 +159,130 @@ public class ReadTest implements Serializable{
         .displayDataForPrimitiveSourceTransforms(unbounded);
     assertThat(unboundedDisplayData, hasItem(hasDisplayItem("source")));
     assertThat(unboundedDisplayData, hasItem(includesDisplayDataFor("source", unboundedSource)));
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testReadBoundedSourceWithoutCoder() {
+    PCollection<Long> res =
+        pipeline.apply(Read.from(new BoundedSourceWithoutCoder())).setCoder(VarLongCoder.of());
+    PAssert.that(res).containsInAnyOrder(0L, 1L, 2L, 3L, 4L);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testReadBoundedFromUnboundedSourceWithoutCoder() {
+    PCollection<Long> res =
+        pipeline.apply(
+            Read.from(new UnboundedSourceWithoutCoder())
+                .withMaxNumRecords(1)
+                .withCoder(VarLongCoder.of()));
+    PAssert.that(res).containsInAnyOrder(42L);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testReadFromUnboundedSourceWithoutCoder() {
+    PCollection<Long> res =
+        pipeline.apply(Read.from(new UnboundedSourceWithoutCoder())).setCoder(VarLongCoder.of());
+    PAssert.that(res).containsInAnyOrder(42L);
+    pipeline.run();
+  }
+
+  private static class BoundedSourceWithoutCoder extends BoundedSource<Long> {
+    @Override
+    public List<BoundedSourceWithoutCoder> split(
+        long desiredBundleSizeBytes, PipelineOptions options) {
+      return Arrays.asList(this);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<Long> createReader(PipelineOptions options) throws IOException {
+      return CountingSource.createSourceForSubrange(0, 5).createReader(options);
+    }
+
+    @Override
+    public void validate() {}
+
+    // Does not implement getDefaultOutputCoder().
+  }
+
+  private static class UnboundedSourceWithoutCoder extends UnboundedSource<Long, CheckpointMark> {
+    @Override
+    public List<UnboundedSourceWithoutCoder> split(int desiredNumSplits, PipelineOptions options)
+        throws Exception {
+      return Arrays.asList(this);
+    }
+
+    @Override
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable CheckpointMark checkpointMark) throws IOException {
+      return new Reader(this);
+    }
+
+    @Override
+    public Coder<CheckpointMark> getCheckpointMarkCoder() {
+      return null;
+    }
+
+    @Override
+    public void validate() {}
+
+    // Does not implement getDefaultOutputCoder().
+
+    private static class Reader extends UnboundedReader<Long> {
+      private final UnboundedSourceWithoutCoder source;
+
+      private Reader(UnboundedSourceWithoutCoder source) {
+        this.source = source;
+      }
+
+      @Override
+      public Long getCurrent() throws NoSuchElementException {
+        return 42L;
+      }
+
+      @Override
+      public Instant getCurrentTimestamp() throws NoSuchElementException {
+        return Instant.now();
+      }
+
+      @Override
+      public void close() throws IOException {}
+
+      @Override
+      public boolean start() throws IOException {
+        return true;
+      }
+
+      @Override
+      public boolean advance() throws IOException {
+        return false;
+      }
+
+      @Override
+      public Instant getWatermark() {
+        // Terminate the pipeline immediately.
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
+
+      @Override
+      public CheckpointMark getCheckpointMark() {
+        return new NoOpCheckpointMark();
+      }
+
+      @Override
+      public UnboundedSource<Long, ?> getCurrentSource() {
+        return source;
+      }
+    }
   }
 
   private abstract static class CustomBoundedSource extends BoundedSource<String> {

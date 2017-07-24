@@ -76,23 +76,27 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
   private final BoundedSource<T> source;
+  // Coder of the actual PCollection being replaced - potentially set explicitly by the user
+  // via PCollection.setCoder().
+  private final Coder<T> outputCoder;
 
   /**
    * Constructs a {@link PTransform} that performs an unbounded read from a {@link BoundedSource}.
    */
-  public UnboundedReadFromBoundedSource(BoundedSource<T> source) {
+  public UnboundedReadFromBoundedSource(BoundedSource<T> source, Coder<T> outputCoder) {
     this.source = source;
+    this.outputCoder = outputCoder;
   }
 
   @Override
   public PCollection<T> expand(PBegin input) {
     return input.getPipeline().apply(
-        Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
+        Read.from(new BoundedToUnboundedSourceAdapter<>(source, outputCoder)));
   }
 
   @Override
   protected Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+    return outputCoder;
   }
 
   @Override
@@ -115,10 +119,12 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   public static class BoundedToUnboundedSourceAdapter<T>
       extends UnboundedSource<T, BoundedToUnboundedSourceAdapter.Checkpoint<T>> {
 
-    private BoundedSource<T> boundedSource;
+    private final BoundedSource<T> boundedSource;
+    private final Coder<T> outputCoder;
 
-    public BoundedToUnboundedSourceAdapter(BoundedSource<T> boundedSource) {
+    public BoundedToUnboundedSourceAdapter(BoundedSource<T> boundedSource, Coder<T> outputCoder) {
       this.boundedSource = boundedSource;
+      this.outputCoder = outputCoder;
     }
 
     @Override
@@ -147,7 +153,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
             new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
               @Override
               public BoundedToUnboundedSourceAdapter<T> apply(BoundedSource<T> input) {
-                return new BoundedToUnboundedSourceAdapter<>(input);
+                return new BoundedToUnboundedSourceAdapter<>(input, outputCoder);
               }});
       } catch (Exception e) {
         LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
@@ -167,13 +173,13 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
     @Override
     public Coder<T> getDefaultOutputCoder() {
-      return boundedSource.getDefaultOutputCoder();
+      return outputCoder;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
-      return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
+      return new CheckpointCoder<>(outputCoder);
     }
 
     @VisibleForTesting
