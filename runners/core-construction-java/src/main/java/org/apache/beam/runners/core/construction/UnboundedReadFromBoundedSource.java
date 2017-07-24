@@ -173,12 +173,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
-    public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
-      try {
-        return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
-      } catch (CannotProvideCoderException e) {
-        throw new RuntimeException(e);
-      }
+    public Coder<Checkpoint<T>> getCheckpointMarkCoder() throws CannotProvideCoderException {
+      return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
     }
 
     @VisibleForTesting

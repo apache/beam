@@ -145,7 +145,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     return source.getDefaultOutputCoder();
   }
 
-  public Coder<CheckpointMarkT> getCheckpointMarkCoder() {
+  public Coder<CheckpointMarkT> getCheckpointMarkCoder() throws CannotProvideCoderException {
     return source.getCheckpointMarkCoder();
   }
 
