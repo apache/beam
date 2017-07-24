@@ -3,17 +3,19 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -25,31 +27,30 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 /**
  * Adaptor from Beam {@link BoundedSource} to MapReduce {@link InputFormat}.
  */
-public class BeamInputFormat<K, V> extends InputFormat {
+public class BeamInputFormat<T> extends InputFormat {
 
+  public static final String BEAM_SERIALIZED_BOUNDED_SOURCE = "beam-serialized-bounded-source";
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES = 5 * 1000 * 1000;
 
-  private BoundedSource<KV<K, V>> source;
+  private BoundedSource<T> source;
   private PipelineOptions options;
 
   public BeamInputFormat() {
   }
 
-  public BeamInputFormat(BoundedSource<KV<K, V>> source, PipelineOptions options) {
-    this.source = checkNotNull(source, "source");
-    this.options = checkNotNull(options, "options");
-  }
-
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
-    source = (BoundedSource<KV<K,V>>) SerializableUtils.deserializeFromByteArray(
-        Base64.decodeBase64(context.getConfiguration().get("source")),
-        "");
+    String serializedBoundedSource = context.getConfiguration().get(BEAM_SERIALIZED_BOUNDED_SOURCE);
+    if (Strings.isNullOrEmpty(serializedBoundedSource)) {
+      return ImmutableList.of();
+    }
+    source = (BoundedSource<T>) SerializableUtils.deserializeFromByteArray(
+        Base64.decodeBase64(serializedBoundedSource), "BoundedSource");
     try {
       return FluentIterable.from(source.split(DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options))
-          .transform(new Function<BoundedSource<KV<K, V>>, InputSplit>() {
+          .transform(new Function<BoundedSource<T>, InputSplit>() {
             @Override
-            public InputSplit apply(BoundedSource<KV<K, V>> source) {
+            public InputSplit apply(BoundedSource<T> source) {
               try {
                 return new BeamInputSplit(source.getEstimatedSizeBytes(options));
               } catch (Exception e) {
@@ -65,8 +66,8 @@ public class BeamInputFormat<K, V> extends InputFormat {
   @Override
   public RecordReader createRecordReader(
       InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
-    source = (BoundedSource<KV<K,V>>) SerializableUtils.deserializeFromByteArray(
-        Base64.decodeBase64(context.getConfiguration().get("source")),
+    source = (BoundedSource<T>) SerializableUtils.deserializeFromByteArray(
+        Base64.decodeBase64(context.getConfiguration().get(BEAM_SERIALIZED_BOUNDED_SOURCE)),
         "");
     return new BeamRecordReader<>(source.createReader(options));
   }
@@ -102,12 +103,12 @@ public class BeamInputFormat<K, V> extends InputFormat {
     }
   }
 
-  private class BeamRecordReader<K, V> extends RecordReader {
+  private class BeamRecordReader<T> extends RecordReader {
 
-    private final BoundedSource.BoundedReader<KV<K, V>> reader;
+    private final BoundedSource.BoundedReader<T> reader;
     private boolean started;
 
-    public BeamRecordReader(BoundedSource.BoundedReader<KV<K, V>> reader) {
+    public BeamRecordReader(BoundedSource.BoundedReader<T> reader) {
       this.reader = checkNotNull(reader, "reader");
       this.started = false;
     }
@@ -128,12 +129,13 @@ public class BeamInputFormat<K, V> extends InputFormat {
 
     @Override
     public Object getCurrentKey() throws IOException, InterruptedException {
-      return reader.getCurrent().getKey();
+      return "global";
     }
 
     @Override
     public Object getCurrentValue() throws IOException, InterruptedException {
-      return reader.getCurrent().getValue();
+      return WindowedValue.timestampedValueInGlobalWindow(
+          reader.getCurrent(), reader.getCurrentTimestamp());
     }
 
     @Override

@@ -199,7 +199,7 @@ public class MapReduceWordCount {
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     conf.set(
-        "source",
+        BeamInputFormat.BEAM_SERIALIZED_BOUNDED_SOURCE,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(source)));
 
     Job job = Job.getInstance(conf, "word count");

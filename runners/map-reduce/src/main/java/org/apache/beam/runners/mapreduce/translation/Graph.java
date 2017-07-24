@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -233,6 +234,10 @@ public class Graph {
 
     public void addLast(PTransform<?, ?> transform) {
       path.addLast(transform);
+    }
+
+    public Iterable<PTransform<?, ?>> transforms() {
+      return path;
     }
 
     @Override

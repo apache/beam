@@ -17,6 +17,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -63,46 +64,25 @@ public class WordCountTest {
     }
   }
 
-  /**
-   * A PTransform that converts a PCollection containing lines of text into a PCollection of
-   * formatted word counts.
-   *
-   * <p>Concept #3: This is a custom composite transform that bundles two transforms (ParDo and
-   * Count) as a reusable PTransform subclass. Using composite transforms allows for easy reuse,
-   * modular testing, and an improved monitoring experience.
-   */
-  public static class CountWords extends PTransform<PCollection<String>,
-      PCollection<KV<String, Long>>> {
-    @Override
-    public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
-
-      // Convert lines of text into individual words.
-      PCollection<String> words = lines.apply(
-          ParDo.of(new ExtractWordsFn()));
-
-      // Count the number of times each word occurs.
-      PCollection<KV<String, Long>> wordCounts =
-          words.apply(Count.<String>perElement());
-
-      return wordCounts;
-    }
-  }
-
   @Test
   public void testWordCount() {
-    String input = "gs://apache-beam-samples/shakespeare/kinglear.txt";
+    BasicConfigurator.configure();
+
+    String input = "/Users/peihe/github/beam/LICENSE";
     String output =  "./output";
-    PipelineOptions options = PipelineOptionsFactory.create();
+    MapReducePipelineOptions options = PipelineOptionsFactory.as(MapReducePipelineOptions.class);
+    options.setJarClass(this.getClass());
     options.setRunner(MapReduceRunner.class);
     Pipeline p = Pipeline.create(options);
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
     p.apply("ReadLines", TextIO.read().from(input))
-        .apply(new CountWords())
-        .apply(MapElements.via(new FormatAsTextFn()))
-        .apply("WriteCounts", TextIO.write().to(output));
+        .apply(ParDo.of(new ExtractWordsFn()));
+//        .apply(Count.<String>perElement())
+//        .apply(MapElements.via(new FormatAsTextFn()))
+//        .apply("WriteCounts", TextIO.write().to(output));
 
-    p.run().waitUntilFinish();
+    p.run();
   }
 }
