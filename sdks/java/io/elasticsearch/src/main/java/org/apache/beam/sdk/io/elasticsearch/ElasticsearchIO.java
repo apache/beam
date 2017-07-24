@@ -25,10 +25,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,6 +43,8 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -60,7 +66,9 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
+import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -155,6 +163,12 @@ public class ElasticsearchIO {
     @Nullable
     abstract String getPassword();
 
+    @Nullable
+    abstract String getKeystorePath();
+
+    @Nullable
+    abstract String getKeystorePassword();
+
     abstract String getIndex();
 
     abstract String getType();
@@ -168,6 +182,10 @@ public class ElasticsearchIO {
       abstract Builder setUsername(String username);
 
       abstract Builder setPassword(String password);
+
+      abstract Builder setKeystorePath(String keystorePath);
+
+      abstract Builder setKeystorePassword(String password);
 
       abstract Builder setIndex(String index);
 
@@ -239,6 +257,32 @@ public class ElasticsearchIO {
       return builder().setPassword(password).build();
     }
 
+    /**
+     * If Elasticsearch uses SSL with mutual authentication (via shield),
+     * provide the keystore containing the client key.
+     *
+     * @param keystorePath the location of the keystore containing the client key.
+     * @return the {@link ConnectionConfiguration} object with keystore path set.
+     */
+    public ConnectionConfiguration withKeystorePath(String keystorePath) {
+      checkArgument(keystorePath != null, "ConnectionConfiguration.create()"
+          + ".withKeystorePath(keystorePath) called with null keystorePath");
+      return builder().setKeystorePath(keystorePath).build();
+    }
+
+    /**
+     * If Elasticsearch uses SSL with mutual authentication (via shield),
+     * provide the password to open the client keystore.
+     *
+     * @param keystorePassword the password of the client keystore.
+     * @return the {@link ConnectionConfiguration} object with keystore password set.
+     */
+    public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
+        checkArgument(keystorePassword != null, "ConnectionConfiguration.create()"
+            + ".withKeystorePassword(keystorePassword) called with null keystorePassword");
+        return builder().setKeystorePassword(keystorePassword).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
@@ -246,7 +290,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    RestClient createClient() throws MalformedURLException {
+    RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
       int i = 0;
       for (String address : getAddresses()) {
@@ -266,6 +310,27 @@ public class ElasticsearchIO {
                 return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
               }
             });
+      }
+      if (getKeystorePath() != null) {
+        try {
+          KeyStore keyStore = KeyStore.getInstance("jks");
+          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
+            keyStore.load(is, getKeystorePassword().toCharArray());
+          }
+          final SSLContext sslContext = SSLContexts.custom()
+              .loadTrustMaterial(keyStore, null).build();
+          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+          restClientBuilder.setHttpClientConfigCallback(
+              new RestClientBuilder.HttpClientConfigCallback() {
+            @Override
+            public HttpAsyncClientBuilder customizeHttpClient(
+                HttpAsyncClientBuilder httpClientBuilder) {
+              return httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
+            }
+          });
+        } catch (Exception e) {
+          throw new IOException("Can't load the client certificate from the keystore", e);
+        }
       }
       return restClientBuilder.build();
     }
