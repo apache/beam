@@ -26,8 +26,8 @@ import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.rel.BeamLogicalConvention;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -107,7 +107,7 @@ public class BeamQueryPlanner {
    * which is linked with the given {@code pipeline}. The final output stream is returned as
    * {@code PCollection} so more operations can be applied.
    */
-  public PCollection<BeamSqlRow> compileBeamPipeline(String sqlStatement, Pipeline basePipeline
+  public PCollection<BeamRow> compileBeamPipeline(String sqlStatement, Pipeline basePipeline
       , BeamSqlEnv sqlEnv) throws Exception {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 

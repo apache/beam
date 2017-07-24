@@ -23,6 +23,8 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
+import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -34,11 +36,11 @@ import org.apache.commons.csv.CSVRecord;
  * Utility methods for working with {@code BeamTable}.
  */
 public final class BeamTableUtils {
-  public static BeamSqlRow csvLine2BeamSqlRow(
+  public static BeamRow csvLine2BeamSqlRow(
       CSVFormat csvFormat,
       String line,
-      BeamSqlRowType beamSqlRowType) {
-    BeamSqlRow row = new BeamSqlRow(beamSqlRowType);
+      BeamRowType beamSqlRowType) {
+    BeamRow row = new BeamRow(beamSqlRowType);
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
@@ -60,7 +62,7 @@ public final class BeamTableUtils {
     return row;
   }
 
-  public static String beamSqlRow2CsvLine(BeamSqlRow row, CSVFormat csvFormat) {
+  public static String beamSqlRow2CsvLine(BeamRow row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.size(); i++) {
@@ -73,7 +75,7 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static void addFieldWithAutoTypeCasting(BeamSqlRow row, int idx, Object rawObj) {
+  public static void addFieldWithAutoTypeCasting(BeamRow row, int idx, Object rawObj) {
     if (rawObj == null) {
       row.addField(idx, null);
       return;

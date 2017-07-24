@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -48,11 +48,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(BeamSqlRowType beamSqlRowType) {
+  protected BeamKafkaTable(BeamRowType beamSqlRowType) {
     super(beamSqlRowType);
   }
 
-  public BeamKafkaTable(BeamSqlRowType beamSqlRowType, String bootstrapServers,
+  public BeamKafkaTable(BeamRowType beamSqlRowType, String bootstrapServers,
       List<String> topics) {
     super(beamSqlRowType);
     this.bootstrapServers = bootstrapServers;
@@ -69,14 +69,14 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     return BeamIOType.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSqlRow>>
+  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamRow>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<BeamSqlRow>, PCollection<KV<byte[], byte[]>>>
+  public abstract PTransform<PCollection<BeamRow>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
-  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamRow> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("read",
             KafkaIO.<byte[], byte[]>read()
                 .withBootstrapServers(bootstrapServers)
@@ -89,13 +89,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   }
 
   @Override
-  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamRow>, PDone> buildIOWriter() {
     checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return new PTransform<PCollection<BeamSqlRow>, PDone>() {
+    return new PTransform<PCollection<BeamRow>, PDone>() {
       @Override
-      public PDone expand(PCollection<BeamSqlRow> input) {
+      public PDone expand(PCollection<BeamRow> input) {
         return input.apply("out_reformat", getPTransformForOutput()).apply("persistent",
             KafkaIO.<byte[], byte[]>write()
                 .withBootstrapServers(bootstrapServers)

@@ -23,7 +23,7 @@ import java.util.Date;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -39,7 +39,7 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
     return getOperands().size() == 0;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+  @Override public BeamSqlPrimitive evaluate(BeamRow inputRow) {
     return BeamSqlPrimitive.of(outputType, new Date());
   }
 }

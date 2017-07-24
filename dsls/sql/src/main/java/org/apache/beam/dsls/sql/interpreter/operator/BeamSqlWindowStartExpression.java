@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Date;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -35,7 +35,7 @@ public class BeamSqlWindowStartExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRow) {
+  public BeamSqlPrimitive<Date> evaluate(BeamRow inputRow) {
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         new Date(inputRow.getWindowStart().getMillis()));
   }

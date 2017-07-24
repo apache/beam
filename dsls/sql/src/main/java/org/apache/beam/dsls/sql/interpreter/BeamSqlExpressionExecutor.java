@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 
 /**
  * {@code BeamSqlExpressionExecutor} fills the gap between relational
@@ -34,10 +34,10 @@ public interface BeamSqlExpressionExecutor extends Serializable {
   void prepare();
 
   /**
-   * apply transformation to input record {@link BeamSqlRow}.
+   * apply transformation to input record {@link BeamRow}.
    *
    */
-  List<Object> execute(BeamSqlRow inputRow);
+  List<Object> execute(BeamRow inputRow);
 
   void close();
 }

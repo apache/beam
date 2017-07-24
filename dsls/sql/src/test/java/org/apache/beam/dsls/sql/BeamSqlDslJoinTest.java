@@ -23,9 +23,9 @@ import static org.apache.beam.dsls.sql.rel.BeamJoinRelBoundedVsBoundedTest.ORDER
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.sd.BeamRowCoder;
+import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -41,8 +41,8 @@ public class BeamSqlDslJoinTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final BeamSqlRowType SOURCE_RECORD_TYPE =
-      BeamSqlRowType.create(
+  private static final BeamRowType SOURCE_RECORD_TYPE =
+      BeamRowType.create(
           Arrays.asList(
               "order_id", "site_id", "price"
           ),
@@ -51,11 +51,11 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamSqlRowCoder SOURCE_CODER =
-      new BeamSqlRowCoder(SOURCE_RECORD_TYPE);
+  private static final BeamRowCoder SOURCE_CODER =
+      new BeamRowCoder(SOURCE_RECORD_TYPE);
 
-  private static final BeamSqlRowType RESULT_RECORD_TYPE =
-      BeamSqlRowType.create(
+  private static final BeamRowType RESULT_RECORD_TYPE =
+      BeamRowType.create(
           Arrays.asList(
           "order_id", "site_id", "price", "order_id0", "site_id0", "price0"
           ),
@@ -65,8 +65,8 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamSqlRowCoder RESULT_CODER =
-      new BeamSqlRowCoder(RESULT_RECORD_TYPE);
+  private static final BeamRowCoder RESULT_CODER =
+      new BeamRowCoder(RESULT_RECORD_TYPE);
 
   @Test
   public void testInnerJoin() throws Exception {
@@ -178,13 +178,13 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  private PCollection<BeamSqlRow> queryFromOrderTables(String sql) {
+  private PCollection<BeamRow> queryFromOrderTables(String sql) {
     return PCollectionTuple
         .of(
-            new TupleTag<BeamSqlRow>("ORDER_DETAILS1"),
+            new TupleTag<BeamRow>("ORDER_DETAILS1"),
             ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER)
         )
-        .and(new TupleTag<BeamSqlRow>("ORDER_DETAILS2"),
+        .and(new TupleTag<BeamRow>("ORDER_DETAILS2"),
             ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER)
         ).apply("join", BeamSql.query(sql)).setCoder(RESULT_CODER);
   }

@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.schema;
+package org.apache.beam.sdk.sd;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.sql.Types;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -37,10 +37,10 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
- *  A {@link Coder} encodes {@link BeamSqlRow}.
+ *  A {@link Coder} encodes {@link BeamRow}.
  */
-public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
-  private BeamSqlRowType tableSchema;
+public class BeamRowCoder extends CustomCoder<BeamRow> {
+  private BeamRowType tableSchema;
 
   private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
 
@@ -52,52 +52,52 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
   private static final ByteCoder byteCoder = ByteCoder.of();
 
-  public BeamSqlRowCoder(BeamSqlRowType tableSchema) {
+  public BeamRowCoder(BeamRowType tableSchema) {
     this.tableSchema = tableSchema;
   }
 
   @Override
-  public void encode(BeamSqlRow value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(BeamRow value, OutputStream outStream) throws CoderException, IOException {
     listCoder.encode(value.getNullFields(), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
         continue;
       }
 
-      switch (CalciteUtils.getFieldType(value.getDataType(), idx)) {
-        case INTEGER:
+      switch (value.getDataType().getFieldsType().get(idx)) {
+        case Types.INTEGER:
           intCoder.encode(value.getInteger(idx), outStream);
           break;
-        case SMALLINT:
+        case Types.SMALLINT:
           intCoder.encode((int) value.getShort(idx), outStream);
           break;
-        case TINYINT:
+        case Types.TINYINT:
           byteCoder.encode(value.getByte(idx), outStream);
           break;
-        case DOUBLE:
+        case Types.DOUBLE:
           doubleCoder.encode(value.getDouble(idx), outStream);
           break;
-        case FLOAT:
+        case Types.FLOAT:
           doubleCoder.encode((double) value.getFloat(idx), outStream);
           break;
-        case DECIMAL:
+        case Types.DECIMAL:
           bigDecimalCoder.encode(value.getBigDecimal(idx), outStream);
           break;
-        case BIGINT:
+        case Types.BIGINT:
           longCoder.encode(value.getLong(idx), outStream);
           break;
-        case VARCHAR:
-        case CHAR:
+        case Types.VARCHAR:
+        case Types.CHAR:
           stringCoder.encode(value.getString(idx), outStream);
           break;
-        case TIME:
+        case Types.TIME:
           longCoder.encode(value.getGregorianCalendar(idx).getTime().getTime(), outStream);
           break;
-        case DATE:
-        case TIMESTAMP:
+        case Types.DATE:
+        case Types.TIMESTAMP:
           longCoder.encode(value.getDate(idx).getTime(), outStream);
           break;
-        case BOOLEAN:
+        case Types.BOOLEAN:
           byteCoder.encode((byte) (value.getBoolean(idx) ? 1 : 0), outStream);
           break;
 
@@ -112,58 +112,58 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   }
 
   @Override
-  public BeamSqlRow decode(InputStream inStream) throws CoderException, IOException {
+  public BeamRow decode(InputStream inStream) throws CoderException, IOException {
     List<Integer> nullFields = listCoder.decode(inStream);
 
-    BeamSqlRow record = new BeamSqlRow(tableSchema);
+    BeamRow record = new BeamRow(tableSchema);
     record.setNullFields(nullFields);
     for (int idx = 0; idx < tableSchema.size(); ++idx) {
       if (nullFields.contains(idx)) {
         continue;
       }
 
-      switch (CalciteUtils.getFieldType(tableSchema, idx)) {
-        case INTEGER:
+      switch (tableSchema.getFieldsType().get(idx)) {
+        case Types.INTEGER:
           record.addField(idx, intCoder.decode(inStream));
           break;
-        case SMALLINT:
+        case Types.SMALLINT:
           record.addField(idx, intCoder.decode(inStream).shortValue());
           break;
-        case TINYINT:
+        case Types.TINYINT:
           record.addField(idx, byteCoder.decode(inStream));
           break;
-        case DOUBLE:
+        case Types.DOUBLE:
           record.addField(idx, doubleCoder.decode(inStream));
           break;
-        case FLOAT:
+        case Types.FLOAT:
           record.addField(idx, doubleCoder.decode(inStream).floatValue());
           break;
-        case BIGINT:
+        case Types.BIGINT:
           record.addField(idx, longCoder.decode(inStream));
           break;
-        case DECIMAL:
+        case Types.DECIMAL:
           record.addField(idx, bigDecimalCoder.decode(inStream));
           break;
-        case VARCHAR:
-        case CHAR:
+        case Types.VARCHAR:
+        case Types.CHAR:
           record.addField(idx, stringCoder.decode(inStream));
           break;
-        case TIME:
+        case Types.TIME:
           GregorianCalendar calendar = new GregorianCalendar();
           calendar.setTime(new Date(longCoder.decode(inStream)));
           record.addField(idx, calendar);
           break;
-        case DATE:
-        case TIMESTAMP:
+        case Types.DATE:
+        case Types.TIMESTAMP:
           record.addField(idx, new Date(longCoder.decode(inStream)));
           break;
-        case BOOLEAN:
+        case Types.BOOLEAN:
           record.addField(idx, byteCoder.decode(inStream) == 1);
           break;
 
         default:
           throw new UnsupportedOperationException("Data type: "
-              + CalciteUtils.toCalciteType(tableSchema.getFieldsType().get(idx))
+              + tableSchema.getFieldsType().get(idx)
               + " not supported yet!");
       }
     }
@@ -174,7 +174,7 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
     return record;
   }
 
-  public BeamSqlRowType getTableSchema() {
+  public BeamRowType getTableSchema() {
     return tableSchema;
   }
 

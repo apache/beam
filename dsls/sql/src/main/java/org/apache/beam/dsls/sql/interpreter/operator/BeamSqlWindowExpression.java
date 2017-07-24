@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Date;
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -42,7 +42,7 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamSqlRow inputRow) {
+  public BeamSqlPrimitive<Date> evaluate(BeamRow inputRow) {
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         (Date) operands.get(0).evaluate(inputRow).getValue());
   }

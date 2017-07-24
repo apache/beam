@@ -16,52 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.beam.dsls.sql.schema;
+package org.apache.beam.sdk.sd;
 
 import java.math.BigDecimal;
+import java.sql.Types;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
-
-import org.apache.beam.dsls.sql.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 /**
- * Tests for BeamSqlRowCoder.
+ * Tests for BeamRowCoder.
  */
-public class BeamSqlRowCoderTest {
+public class BeamRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    final RelProtoDataType protoRowType = new RelProtoDataType() {
-      @Override
-      public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder()
-            .add("col_tinyint", SqlTypeName.TINYINT)
-            .add("col_smallint", SqlTypeName.SMALLINT)
-            .add("col_integer", SqlTypeName.INTEGER)
-            .add("col_bigint", SqlTypeName.BIGINT)
-            .add("col_float", SqlTypeName.FLOAT)
-            .add("col_double", SqlTypeName.DOUBLE)
-            .add("col_decimal", SqlTypeName.DECIMAL)
-            .add("col_string_varchar", SqlTypeName.VARCHAR)
-            .add("col_time", SqlTypeName.TIME)
-            .add("col_timestamp", SqlTypeName.TIMESTAMP)
-            .add("col_boolean", SqlTypeName.BOOLEAN)
-            .build();
-      }
-    };
+    BeamRowType beamSQLRowType = BeamRowType.create(
+        Arrays.asList("col_tinyint", "col_smallint", "col_integer", "col_bigint", "col_float",
+            "col_double", "col_decimal", "col_string_varchar", "col_time", "col_timestamp",
+            "col_boolean"),
+        Arrays.asList(Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT, Types.FLOAT,
+            Types.DOUBLE, Types.DECIMAL, Types.VARCHAR, Types.TIME, Types.TIMESTAMP,
+            Types.BOOLEAN));
 
-    BeamSqlRowType beamSQLRowType = CalciteUtils.toBeamRowType(
-        protoRowType.apply(new JavaTypeFactoryImpl(
-            RelDataTypeSystem.DEFAULT)));
-    BeamSqlRow row = new BeamSqlRow(beamSQLRowType);
+    BeamRow row = new BeamRow(beamSQLRowType);
     row.addField("col_tinyint", Byte.valueOf("1"));
     row.addField("col_smallint", Short.valueOf("1"));
     row.addField("col_integer", 1);
@@ -77,7 +57,7 @@ public class BeamSqlRowCoderTest {
     row.addField("col_boolean", true);
 
 
-    BeamSqlRowCoder coder = new BeamSqlRowCoder(beamSQLRowType);
+    BeamRowCoder coder = new BeamRowCoder(beamSQLRowType);
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

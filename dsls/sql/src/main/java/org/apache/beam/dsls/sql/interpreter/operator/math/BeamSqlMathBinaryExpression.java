@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -39,7 +39,7 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
     return numberOfOperands() == 2 && isOperandNumeric(opType(0)) && isOperandNumeric(opType(1));
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamRow inputRow) {
     BeamSqlExpression leftOp = op(0);
     BeamSqlExpression rightOp = op(1);
     return calculate(leftOp.evaluate(inputRow), rightOp.evaluate(inputRow));

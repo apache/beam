@@ -18,11 +18,11 @@
 package org.apache.beam.dsls.sql;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptUtil;
 
@@ -43,7 +43,7 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, BeamSqlEnv sqlEnv)
+  public static PCollection<BeamRow> compilePipeline(String sqlStatement, BeamSqlEnv sqlEnv)
       throws Exception{
     PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
         .as(PipelineOptions.class); // FlinkPipelineOptions.class
@@ -56,9 +56,9 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline
+  public static PCollection<BeamRow> compilePipeline(String sqlStatement, Pipeline basePipeline
       , BeamSqlEnv sqlEnv) throws Exception{
-    PCollection<BeamSqlRow> resultStream =
+    PCollection<BeamRow> resultStream =
         sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }

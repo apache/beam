@@ -21,8 +21,8 @@ package org.apache.beam.dsls.sql.schema.text;
 import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSqlRow;
 
 import java.io.Serializable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -33,13 +33,13 @@ import org.apache.commons.csv.CSVFormat;
  * IOReader for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableIOReader
-    extends PTransform<PCollection<String>, PCollection<BeamSqlRow>>
+    extends PTransform<PCollection<String>, PCollection<BeamRow>>
     implements Serializable {
   private String filePattern;
-  protected BeamSqlRowType beamSqlRowType;
+  protected BeamRowType beamSqlRowType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamSqlRowType beamSqlRowType, String filePattern,
+  public BeamTextCSVTableIOReader(BeamRowType beamSqlRowType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.beamSqlRowType = beamSqlRowType;
@@ -47,8 +47,8 @@ public class BeamTextCSVTableIOReader
   }
 
   @Override
-  public PCollection<BeamSqlRow> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new DoFn<String, BeamSqlRow>() {
+  public PCollection<BeamRow> expand(PCollection<String> input) {
+    return input.apply(ParDo.of(new DoFn<String, BeamRow>() {
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();

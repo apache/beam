@@ -18,6 +18,8 @@
 package org.apache.beam.dsls.sql.schema;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -29,14 +31,14 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
-  private transient PCollection<BeamSqlRow> upstream;
+  private transient PCollection<BeamRow> upstream;
 
-  protected BeamPCollectionTable(BeamSqlRowType beamSqlRowType) {
+  protected BeamPCollectionTable(BeamRowType beamSqlRowType) {
     super(beamSqlRowType);
   }
 
-  public BeamPCollectionTable(PCollection<BeamSqlRow> upstream,
-      BeamSqlRowType beamSqlRowType){
+  public BeamPCollectionTable(PCollection<BeamRow> upstream,
+      BeamRowType beamSqlRowType){
     this(beamSqlRowType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
@@ -49,12 +51,12 @@ public class BeamPCollectionTable extends BaseBeamTable {
   }
 
   @Override
-  public PCollection<BeamSqlRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<BeamRow> buildIOReader(Pipeline pipeline) {
     return upstream;
   }
 
   @Override
-  public PTransform<? super PCollection<BeamSqlRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamRow>, PDone> buildIOWriter() {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 

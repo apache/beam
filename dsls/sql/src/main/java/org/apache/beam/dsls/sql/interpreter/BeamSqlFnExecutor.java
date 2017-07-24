@@ -88,7 +88,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpressi
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -102,7 +102,7 @@ import org.apache.calcite.util.NlsString;
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
  * {@code BeamSqlFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
- * which can be evaluated against the {@link BeamSqlRow}.
+ * which can be evaluated against the {@link BeamRow}.
  *
  */
 public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
@@ -427,7 +427,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   @Override
-  public List<Object> execute(BeamSqlRow inputRow) {
+  public List<Object> execute(BeamRow inputRow) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
       results.add(exp.evaluate(inputRow).getValue());

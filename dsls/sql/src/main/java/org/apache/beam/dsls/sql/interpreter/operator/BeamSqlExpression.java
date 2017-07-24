@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -49,7 +49,7 @@ public abstract class BeamSqlExpression implements Serializable {
     return op(idx).getOutputType();
   }
 
-  public <T> T opValueEvaluated(int idx, BeamSqlRow row) {
+  public <T> T opValueEvaluated(int idx, BeamRow row) {
     return (T) op(idx).evaluate(row).getValue();
   }
 
@@ -59,10 +59,10 @@ public abstract class BeamSqlExpression implements Serializable {
   public abstract boolean accept();
 
   /**
-   * Apply input record {@link BeamSqlRow} to this expression,
+   * Apply input record {@link BeamRow} to this expression,
    * the output value is wrapped with {@link BeamSqlPrimitive}.
    */
-  public abstract BeamSqlPrimitive evaluate(BeamSqlRow inputRow);
+  public abstract BeamSqlPrimitive evaluate(BeamRow inputRow);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;

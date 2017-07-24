@@ -24,8 +24,8 @@ import org.apache.beam.dsls.sql.BeamSqlCli;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.TestUtils;
 import org.apache.beam.dsls.sql.mock.MockedUnboundedTable;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
 import org.apache.beam.dsls.sql.transform.BeamSqlOutputToConsoleFn;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -88,7 +88,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    PCollection<BeamRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -121,7 +121,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
     // 2, 2 | 2, 5
     // 3, 3 | NULL, NULL
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    PCollection<BeamRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -151,7 +151,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    PCollection<BeamRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -181,7 +181,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest {
         + " o1.order_id1=o2.order_id"
         ;
 
-    PCollection<BeamSqlRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
+    PCollection<BeamRow> rows = BeamSqlCli.compilePipeline(sql, pipeline, beamSqlEnv);
     rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("hello")));
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(

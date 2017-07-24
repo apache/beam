@@ -21,7 +21,7 @@ package org.apache.beam.dsls.sql.interpreter.operator.math;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 
@@ -45,7 +45,7 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
     return acceptance;
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamRow inputRow) {
     BeamSqlExpression operand = op(0);
     return calculate(operand.evaluate(inputRow));
   }

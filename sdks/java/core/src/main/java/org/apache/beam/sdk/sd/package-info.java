@@ -15,27 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.transform;
-
-import org.apache.beam.sdk.sd.BeamRow;
-import org.apache.beam.sdk.transforms.DoFn;
-
 /**
- * A test PTransform to display output in console.
+ * {@link org.apache.beam.sdk.sd.BeamRow}, self-described with
+ * {@link org.apache.beam.sdk.sd.BeamRowType}, and encoded/decoded with
+ * {@link org.apache.beam.sdk.sd.BeamRowCoder} is the foundation of structure data process in Beam.
  *
+ * <p>Similar as the <em>row</em> concept in database, {@link org.apache.beam.sdk.sd.BeamRow}
+ * represents one row element in a {@link org.apache.beam.sdk.values.PCollection<BeamRow>}.
+ * Limited SQL types are supported now, visit
+ * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
+ * for more details.
  */
-public class BeamSqlOutputToConsoleFn extends DoFn<BeamRow, Void> {
-
-  private String stepName;
-
-  public BeamSqlOutputToConsoleFn(String stepName) {
-    super();
-    this.stepName = stepName;
-  }
-
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    System.out.println("Output: " + c.element().getDataValues());
-  }
-
-}
+package org.apache.beam.sdk.sd;

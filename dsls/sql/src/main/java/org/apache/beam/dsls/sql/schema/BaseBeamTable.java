@@ -18,17 +18,18 @@
 package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.sd.BeamRowType;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
 public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamSqlRowType beamSqlRowType;
-  public BaseBeamTable(BeamSqlRowType beamSqlRowType) {
+  protected BeamRowType beamSqlRowType;
+  public BaseBeamTable(BeamRowType beamSqlRowType) {
     this.beamSqlRowType = beamSqlRowType;
   }
 
-  @Override public BeamSqlRowType getRowType() {
+  @Override public BeamRowType getRowType() {
     return beamSqlRowType;
   }
 }

@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.dsls.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
@@ -49,7 +49,7 @@ public class BeamMinusRel extends Minus implements BeamRelNode {
     return new BeamMinusRel(getCluster(), traitSet, inputs, all);
   }
 
-  @Override public PCollection<BeamSqlRow> buildBeamPipeline(PCollectionTuple inputPCollections
+  @Override public PCollection<BeamRow> buildBeamPipeline(PCollectionTuple inputPCollections
       , BeamSqlEnv sqlEnv) throws Exception {
     return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
   }
