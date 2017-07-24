@@ -650,7 +650,8 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertFalse(client.tables.Delete.called)
     self.assertFalse(client.tables.Insert.called)
 
-  def test_table_with_write_disposition_truncate(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_table_with_write_disposition_truncate(self, _patched_sleep):
     client = mock.Mock()
     table = bigquery.Table(
         tableReference=bigquery.TableReference(

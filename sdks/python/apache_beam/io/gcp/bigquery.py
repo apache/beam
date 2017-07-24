@@ -1002,12 +1002,23 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
+      created_table = self._create_table(project_id=project_id,
+                                         dataset_id=dataset_id,
+                                         table_id=table_id,
+                                         schema=schema or found_table.schema)
       # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
       # the table before this point.
-      return self._create_table(project_id=project_id,
-                                dataset_id=dataset_id,
-                                table_id=table_id,
-                                schema=schema or found_table.schema)
+      if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
+        # BigQuery can route data to the old table for 2 mins max so wait
+        # that much time before creating the table and writing it
+        logging.warning('Sleeping for 150 seconds before the write as ' +
+                        'BigQuery inserts can be routed to deleted table ' +
+                        'for 2 mins after the delete and create.')
+        # TODO(BEAM-2673): Remove this sleep by migrating to load api
+        time.sleep(150)
+        return created_table
+      else:
+        return created_table
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
