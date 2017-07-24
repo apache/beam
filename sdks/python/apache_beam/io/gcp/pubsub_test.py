@@ -58,6 +58,7 @@ class TestPubSubSink(unittest.TestCase):
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

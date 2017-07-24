@@ -19,13 +19,10 @@ package org.apache.beam.sdk.coders;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -69,9 +66,20 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   @Override
+  public void encode(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     coder.encode(applyAndWrapExceptions(toFn, value), outStream, context);
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -107,8 +115,14 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    *         coder.
    */
   @Override
-  public Object structuralValue(T value) throws Exception {
-    return coder.structuralValue(toFn.apply(value));
+  public Object structuralValue(T value) {
+    try {
+      IntermediateT intermediate = toFn.apply(value);
+      return coder.structuralValue(intermediate);
+    } catch (Exception exn) {
+      throw new IllegalArgumentException(
+          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+    }
   }
 
   @Override
@@ -134,34 +148,6 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
         .add("toFn", toFn)
         .add("fromFn", fromFn)
         .toString();
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @return a {@link String} composed from the underlying coder class name and its encoding id.
-   *         Note that this omits any description of the coding functions. These should be modified
-   *         with care.
-   */
-  @Override
-  public String getEncodingId() {
-    return delegateEncodingId(coder.getClass(), coder.getEncodingId());
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @return allowed encodings which are composed from the underlying coder class and its allowed
-   *         encoding ids. Note that this omits any description of the coding functions. These
-   *         should be modified with care.
-   */
-  @Override
-  public Collection<String> getAllowedEncodings() {
-    List<String> allowedEncodings = Lists.newArrayList();
-    for (String allowedEncoding : coder.getAllowedEncodings()) {
-      allowedEncodings.add(delegateEncodingId(coder.getClass(), allowedEncoding));
-    }
-    return allowedEncodings;
   }
 
   @Override
@@ -195,7 +181,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   private final CodingFunction<IntermediateT, T> fromFn;
 
   // null unless the user explicitly provides a TypeDescriptor.
-  // If null, then the machinery from the superclass (StandardCoder) will be used
+  // If null, then the machinery from the superclass (StructuredCoder) will be used
   // to try to deduce a good type descriptor.
   @Nullable private final TypeDescriptor<T> typeDescriptor;
 

@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -39,9 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -288,6 +285,7 @@ public class HadoopInputFormatIO {
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
+      validateTransform();
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
@@ -315,10 +313,10 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Validates inputs provided by the pipeline user before reading the data.
+     * Validates construction of this transform.
      */
-    @Override
-    public void validate(PBegin input) {
+    @VisibleForTesting
+    void validateTransform() {
       checkNotNull(getConfiguration(), "getConfiguration()");
       // Validate that the key translation input type must be same as key class of InputFormat.
       validateTranslationFunction(getinputFormatKeyClass(), getKeyTranslationFunction(),
@@ -449,7 +447,7 @@ public class HadoopInputFormatIO {
     }
 
     @Override
-    public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
+    public List<BoundedSource<KV<K, V>>> split(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
       // desiredBundleSizeBytes is not being considered as splitting based on this
       // value is not supported by inputFormat getSplits() method.
@@ -485,7 +483,7 @@ public class HadoopInputFormatIO {
     /**
      * This is a helper function to compute splits. This method will also calculate size of the
      * data being read. Note: This method is executed exactly once and the splits are retrieved
-     * and cached in this. These splits are further used by splitIntoBundles() and
+     * and cached in this. These splits are further used by split() and
      * getEstimatedSizeBytes().
      */
     @VisibleForTesting

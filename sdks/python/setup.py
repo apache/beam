@@ -90,6 +90,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
+    'grpcio>=1.0,<2.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
@@ -102,7 +103,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools>=0.5.8,<1.0.0',
+  'google-apitools==0.5.10',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.1',
   # GCP packages required by tests
@@ -120,12 +121,16 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={'apache_beam': ['**/*.pyx', '**/*.pxd', 'tests/data/*']},
+    package_data={'apache_beam': [
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*']},
     ext_modules=cythonize([
-        '**/*.pyx',
+        'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
-        'apache_beam/runners/common.py',
         'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',

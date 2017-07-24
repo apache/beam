@@ -25,13 +25,16 @@ import unittest
 # from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
@@ -39,10 +42,7 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import Read
 from apache_beam.transforms import WindowInto
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -278,7 +278,7 @@ class PipelineTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
-        p | Create([ValueError]) | Map(raise_exception)
+        p | Create([ValueError('msg')]) | Map(raise_exception)
 
   # TODO(BEAM-1894).
   # def test_eager_pipeline(self):
@@ -295,16 +295,6 @@ class DoFnTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
-    assert_that(pcoll, equal_to([11, 12]))
-    pipeline.run()
-
-  def test_context_param(self):
-    class TestDoFn(DoFn):
-      def process(self, element, context=DoFn.ContextParam):
-        yield context.element + 10
-
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Create' >> Create([1, 2])| 'Do' >> ParDo(TestDoFn())
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
@@ -452,7 +442,7 @@ class RunnerApiTest(unittest.TestCase):
     p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
     proto = p.to_runner_api()
 
-    p2 = Pipeline.from_runner_api(proto, p.runner, p.options)
+    p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
     p2.run()
 
 

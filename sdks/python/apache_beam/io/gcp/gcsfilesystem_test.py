@@ -36,6 +36,40 @@ except ImportError:
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
 
+  def test_scheme(self):
+    file_system = gcsfilesystem.GCSFileSystem()
+    self.assertEqual(file_system.scheme(), 'gs')
+    self.assertEqual(gcsfilesystem.GCSFileSystem.scheme(), 'gs')
+
+  def test_join(self):
+    file_system = gcsfilesystem.GCSFileSystem()
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path', 'to', 'file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path', 'to/file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path', '/to/file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path/', 'to', 'file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path/', 'to/file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path/', '/to/file'))
+    with self.assertRaises(ValueError):
+      file_system.join('/bucket/path/', '/to/file')
+
+  def test_split(self):
+    file_system = gcsfilesystem.GCSFileSystem()
+    self.assertEqual(('gs://foo/bar', 'baz'),
+                     file_system.split('gs://foo/bar/baz'))
+    self.assertEqual(('gs://foo', ''),
+                     file_system.split('gs://foo/'))
+    self.assertEqual(('gs://foo', ''),
+                     file_system.split('gs://foo'))
+
+    with self.assertRaises(ValueError):
+      file_system.split('/no/gcs/prefix')
+
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples(self, mock_gcsio):
     # Prepare mocks.

@@ -36,16 +36,14 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.BoundedCountingInput;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -53,7 +51,6 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -89,16 +86,15 @@ public class PipelineTest {
   @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  static class PipelineWrapper extends Pipeline {
-    protected PipelineWrapper(PipelineRunner<?> runner) {
-      super(runner, PipelineOptionsFactory.create());
-    }
-  }
-
   // Mock class that throws a user code exception during the call to
   // Pipeline.run().
   static class TestPipelineRunnerThrowingUserException
       extends PipelineRunner<PipelineResult> {
+
+    public static TestPipelineRunnerThrowingUserException fromOptions(PipelineOptions options) {
+      return new TestPipelineRunnerThrowingUserException();
+    }
+
     @Override
     public PipelineResult run(Pipeline pipeline) {
       Throwable t = new IllegalStateException("user code exception");
@@ -108,8 +104,13 @@ public class PipelineTest {
 
   // Mock class that throws an SDK or API client code exception during
   // the call to Pipeline.run().
-  static class TestPipelineRunnerThrowingSDKException
+  static class TestPipelineRunnerThrowingSdkException
       extends PipelineRunner<PipelineResult> {
+
+    public static TestPipelineRunnerThrowingSdkException fromOptions(PipelineOptions options) {
+      return new TestPipelineRunnerThrowingSdkException();
+    }
+
     @Override
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
@@ -118,8 +119,9 @@ public class PipelineTest {
 
   @Test
   public void testPipelineUserExceptionHandling() {
-    Pipeline p = new PipelineWrapper(
-        new TestPipelineRunnerThrowingUserException());
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(TestPipelineRunnerThrowingUserException.class);
+    Pipeline p = Pipeline.create(options);
 
     // Check pipeline runner correctly catches user errors.
     thrown.expect(PipelineExecutionException.class);
@@ -130,7 +132,9 @@ public class PipelineTest {
 
   @Test
   public void testPipelineSDKExceptionHandling() {
-    Pipeline p = new PipelineWrapper(new TestPipelineRunnerThrowingSDKException());
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(TestPipelineRunnerThrowingSdkException.class);
+    Pipeline p = Pipeline.create(options);
 
     // Check pipeline runner correctly catches SDK errors.
     try {
@@ -191,8 +195,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyNotLogged("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyNotLogged("do not have stable unique names");
   }
 
   @Test
@@ -203,8 +207,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyWarn("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyWarn("do not have stable unique names");
   }
 
   @Test
@@ -213,8 +217,9 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
 
-    thrown.expectMessage("does not have a stable unique name.");
+    thrown.expectMessage("do not have stable unique names");
     pipeline.apply(Create.of(5, 6, 7));
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
   }
 
   /**
@@ -317,8 +322,8 @@ public class PipelineTest {
   @Test
   public void testReplaceAll() {
     pipeline.enableAbandonedNodeEnforcement(false);
-    pipeline.apply(CountingInput.unbounded());
-    pipeline.apply(CountingInput.upTo(100L));
+    pipeline.apply("unbounded", GenerateSequence.from(0));
+    pipeline.apply("bounded", GenerateSequence.from(0).to(100));
 
     pipeline.replaceAll(
         ImmutableList.of(
@@ -326,18 +331,18 @@ public class PipelineTest {
                 new PTransformMatcher() {
                   @Override
                   public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof UnboundedCountingInput;
+                    return application.getTransform() instanceof GenerateSequence;
                   }
                 },
-                new UnboundedCountingInputOverride()),
+                new GenerateSequenceToCreateOverride()),
             PTransformOverride.of(
                 new PTransformMatcher() {
                   @Override
                   public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof BoundedCountingInput;
+                    return application.getTransform() instanceof Create.Values;
                   }
                 },
-                new BoundedCountingInputOverride())));
+                new CreateValuesToEmptyFlattenOverride())));
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override
@@ -348,9 +353,9 @@ public class PipelineTest {
                   not(
                       anyOf(
                           Matchers.<Class<? extends PTransform>>equalTo(
-                              UnboundedCountingInput.class),
+                              GenerateSequence.class),
                           Matchers.<Class<? extends PTransform>>equalTo(
-                              BoundedCountingInput.class))));
+                              Create.Values.class))));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
@@ -364,7 +369,7 @@ public class PipelineTest {
   @Test
   public void testReplaceAllIncomplete() {
     pipeline.enableAbandonedNodeEnforcement(false);
-    pipeline.apply(CountingInput.unbounded());
+    pipeline.apply(GenerateSequence.from(0));
 
     // The order is such that the output of the second will match the first, which is not permitted
     thrown.expect(IllegalStateException.class);
@@ -374,22 +379,23 @@ public class PipelineTest {
                 new PTransformMatcher() {
                   @Override
                   public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof BoundedCountingInput;
+                    return application.getTransform() instanceof Create.Values;
                   }
                 },
-                new BoundedCountingInputOverride()),
+                new CreateValuesToEmptyFlattenOverride()),
             PTransformOverride.of(
                 new PTransformMatcher() {
                   @Override
                   public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof UnboundedCountingInput;
+                    return application.getTransform() instanceof GenerateSequence;
                   }
                 },
-                new UnboundedCountingInputOverride())));
+                new GenerateSequenceToCreateOverride())));
   }
 
   @Test
   public void testReplacedNames() {
+    pipeline.enableAbandonedNodeEnforcement(false);
     final PCollection<String> originalInput = pipeline.apply(Create.of("foo", "bar", "baz"));
     class OriginalTransform extends PTransform<PCollection<String>, PCollection<Long>> {
       @Override
@@ -455,11 +461,11 @@ public class PipelineTest {
     assertThat(names, not(hasItem("original_application/custom_name2")));
   }
 
-  static class BoundedCountingInputOverride
-      implements PTransformOverrideFactory<PBegin, PCollection<Long>, BoundedCountingInput> {
+  static class GenerateSequenceToCreateOverride
+      implements PTransformOverrideFactory<PBegin, PCollection<Long>, GenerateSequence> {
     @Override
     public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<Long>, BoundedCountingInput> transform) {
+        AppliedPTransform<PBegin, PCollection<Long>, GenerateSequence> transform) {
       return PTransformReplacement.of(transform.getPipeline().begin(), Create.of(0L));
     }
 
@@ -476,18 +482,28 @@ public class PipelineTest {
               TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
   }
-  static class UnboundedCountingInputOverride
-      implements PTransformOverrideFactory<PBegin, PCollection<Long>, UnboundedCountingInput> {
+
+  private static class EmptyFlatten<T> extends PTransform<PBegin, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      PCollectionList<T> empty = PCollectionList.empty(input.getPipeline());
+      return empty.apply(Flatten.<T>pCollections());
+    }
+  }
+
+  static class CreateValuesToEmptyFlattenOverride<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
 
     @Override
-    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<Long>, UnboundedCountingInput> transform) {
-      return PTransformReplacement.of(transform.getPipeline().begin(), CountingInput.upTo(100L));
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new EmptyFlatten<T>());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PValue> replacement =
           Iterables.getOnlyElement(newOutput.expand().entrySet());

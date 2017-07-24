@@ -17,18 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -40,25 +33,10 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
+public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
-  }
-
-  @JsonCreator
-  public static KvCoder<?, ?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
-    return of(components.get(0), components.get(1));
-  }
-
-  public static <K, V> List<Object> getInstanceComponents(
-      KV<K, V> exampleValue) {
-    return Arrays.asList(
-        exampleValue.getKey(),
-        exampleValue.getValue());
   }
 
   public Coder<K> getKeyCoder() {
@@ -80,19 +58,30 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
   }
 
   @Override
+  public void encode(KV<K, V> kv, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(kv, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(KV<K, V> kv, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.encode(kv.getKey(), outStream, context.nested());
+    keyCoder.encode(kv.getKey(), outStream);
     valueCoder.encode(kv.getValue(), outStream, context);
+  }
+
+  @Override
+  public KV<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     return KV.of(key, value);
   }
@@ -104,8 +93,8 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic("Key coder must be deterministic", getKeyCoder());
-    verifyDeterministic("Value coder must be deterministic", getValueCoder());
+    verifyDeterministic(this, "Key coder must be deterministic", getKeyCoder());
+    verifyDeterministic(this, "Value coder must be deterministic", getValueCoder());
   }
 
   @Override
@@ -114,7 +103,7 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
   }
 
   @Override
-  public Object structuralValue(KV<K, V> kv) throws Exception {
+  public Object structuralValue(KV<K, V> kv) {
     if (consistentWithEquals()) {
       return kv;
     } else {
@@ -123,20 +112,13 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
     }
   }
 
-  @Override
-  protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClassName("kind:pair");
-    addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
-    return result;
-  }
-
   /**
    * Returns whether both keyCoder and valueCoder are considered not expensive.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv, Context context) {
-    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(), context.nested())
-        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(), context);
+  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv) {
+    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey())
+        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue());
   }
 
   /**
@@ -145,13 +127,13 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
    */
   @Override
   public void registerByteSizeObserver(
-      KV<K, V> kv, ElementByteSizeObserver observer, Context context)
+      KV<K, V> kv, ElementByteSizeObserver observer)
       throws Exception {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(kv.getKey(), observer);
+    valueCoder.registerByteSizeObserver(kv.getValue(), observer);
   }
 
   @Override

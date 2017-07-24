@@ -91,7 +91,13 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
   /**
    * Convert {@link KV} into {@link KeyedWorkItem}s.
    */
-  public static class ToKeyedWorkItems<K, V> implements ApexOperatorFn<KV<K, V>> {
+  public static <K, V> ApexProcessFnOperator<KV<K, V>> toKeyedWorkItems(
+      ApexPipelineOptions options) {
+    ApexOperatorFn<KV<K, V>> fn = new ToKeyedWorkItems<>();
+    return new ApexProcessFnOperator<KV<K, V>>(fn, options.isTupleTracingEnabled());
+  }
+
+  private static class ToKeyedWorkItems<K, V> implements ApexOperatorFn<KV<K, V>> {
     @Override
     public final void process(ApexStreamTuple<WindowedValue<KV<K, V>>> tuple,
         OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter) {

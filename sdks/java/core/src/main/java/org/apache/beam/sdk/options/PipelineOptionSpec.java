@@ -21,9 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.auto.value.AutoValue;
 import java.lang.reflect.Method;
 
-/**
- * For internal use. Specification for an option defined in a {@link PipelineOptions} interface.
- */
+/** Specification for an option defined in a {@link PipelineOptions} interface. */
 @AutoValue
 abstract class PipelineOptionSpec {
   static PipelineOptionSpec of(Class<? extends PipelineOptions> clazz, String name, Method getter) {

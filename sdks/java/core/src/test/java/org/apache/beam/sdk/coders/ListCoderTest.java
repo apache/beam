@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -62,21 +60,6 @@ public class ListCoderTest {
   }
 
   @Test
-  public void testGetInstanceComponentsNonempty() throws Exception {
-    List<Integer> list = Arrays.asList(21, 5, 3, 5);
-    List<Object> components = ListCoder.getInstanceComponents(list);
-    assertEquals(1, components.size());
-    assertEquals(21, components.get(0));
-  }
-
-  @Test
-  public void testGetInstanceComponentsEmpty() throws Exception {
-    List<Integer> list = Arrays.asList();
-    List<Object> components = ListCoder.getInstanceComponents(list);
-    assertNull(components);
-  }
-
-  @Test
   public void testEmptyList() throws Exception {
     List<Integer> list = Collections.emptyList();
     Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
@@ -86,14 +69,6 @@ public class ListCoderTest {
   @Test
   public void testCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(TEST_CODER);
-  }
-
-  // If this changes, it implies the binary format has changed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 
   /**

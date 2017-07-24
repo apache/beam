@@ -29,10 +29,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
@@ -45,7 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -53,7 +54,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -192,8 +192,8 @@ import org.apache.beam.sdk.values.TypedPValue;
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
- * {@link DoFn.Context#output(Object)}, while an element is added to any additional output
- * {@link PCollection} using {@link DoFn.Context#output(TupleTag, Object)}. For example:
+ * {@link WindowedContext#output(Object)}, while an element is added to any additional output
+ * {@link PCollection} using {@link WindowedContext#output(TupleTag, Object)}. For example:
  *
  * <pre>{@code
  * PCollection<String> words = ...;
@@ -446,7 +446,7 @@ public class ParDo {
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
-        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
         stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
@@ -477,10 +477,10 @@ public class ParDo {
       Type typeArgument = typeArguments[i];
       TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(typeArgument);
       try {
-        coders[i] = coderRegistry.getDefaultCoder(typeDescriptor);
+        coders[i] = coderRegistry.getCoder(typeDescriptor);
       } catch (CannotProvideCoderException e) {
         try {
-          coders[i] = coderRegistry.getDefaultCoder(
+          coders[i] = coderRegistry.getCoder(
               typeDescriptor, inputCoder.getEncodedTypeDescriptor(), inputCoder);
         } catch (CannotProvideCoderException ignored) {
           // Since not all type arguments will have a registered coder we ignore this exception.
@@ -623,7 +623,7 @@ public class ParDo {
     @SuppressWarnings("unchecked")
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
-      return input.getPipeline().getCoderRegistry().getDefaultCoder(
+      return input.getPipeline().getCoderRegistry().getCoder(
           getFn().getOutputTypeDescriptor(),
           getFn().getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
@@ -664,7 +664,7 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
       }
       return additionalInputs.build();
     }
@@ -763,11 +763,11 @@ public class ParDo {
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends InputT> input, TypedPValue<T> output)
+        PCollection<? extends InputT> input, PCollection<T> output)
         throws CannotProvideCoderException {
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
-      return input.getPipeline().getCoderRegistry().getDefaultCoder(
+      return input.getPipeline().getCoderRegistry().getCoder(
           output.getTypeDescriptor(),
           getFn().getInputTypeDescriptor(),
           inputCoder);
@@ -809,7 +809,7 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
       }
       return additionalInputs.build();
     }

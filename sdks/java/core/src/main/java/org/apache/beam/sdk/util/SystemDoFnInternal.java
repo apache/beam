@@ -26,9 +26,6 @@ import java.lang.annotation.Target;
 /**
  * Annotation to mark {@code DoFns} as an internal component of the Beam SDK.
  *
- * <p>Currently, the only effect of this is to mark any aggregators reported by an annotated
- * {@code DoFn} as a system counter (as opposed to a user counter).
- *
  * <p>This is internal to the Beam SDK.
  */
 @Documented

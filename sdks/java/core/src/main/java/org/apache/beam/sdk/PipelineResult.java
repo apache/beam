@@ -21,11 +21,12 @@ import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
 /**
  * Result of {@link Pipeline#run()}.
+ *
+ * <p>This is often a job handle to an underlying data processing engine.
  */
 public interface PipelineResult {
 
@@ -64,20 +65,14 @@ public interface PipelineResult {
    */
   State waitUntilFinish();
 
-  /**
-   * Retrieves the current value of the provided {@link Aggregator}.
-   *
-   * @param aggregator the {@link Aggregator} to retrieve values for.
-   * @return the current values of the {@link Aggregator},
-   * which may be empty if there are no values yet.
-   * @throws AggregatorRetrievalException if the {@link Aggregator} values could not be retrieved.
-   */
-  <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException;
-
   // TODO: method to retrieve error messages.
 
-  /** Named constants for common values for the job state. */
+  /**
+   * Possible job states, for both completed and ongoing jobs.
+   *
+   * <p>When determining if a job is still running, consult the {@link #isTerminal()} method rather
+   * than inspecting the precise state.
+   */
   enum State {
 
     /** The job state could not be obtained or was not specified. */
@@ -126,7 +121,7 @@ public interface PipelineResult {
   }
 
   /**
-   * Return the object to access metrics from the pipeline.
+   * Returns the object to access metrics from the pipeline.
    *
    * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
    */

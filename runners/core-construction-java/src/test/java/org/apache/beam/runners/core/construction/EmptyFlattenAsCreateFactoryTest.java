@@ -23,13 +23,13 @@ import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.values.PCollection;
@@ -71,8 +71,8 @@ public class EmptyFlattenAsCreateFactoryTest {
   @Test
   public void getInputNonEmptyThrows() {
     PCollectionList<Long> nonEmpty =
-        PCollectionList.of(pipeline.apply(CountingInput.unbounded()))
-            .and(pipeline.apply(CountingInput.upTo(100L)));
+        PCollectionList.of(pipeline.apply("unbounded", GenerateSequence.from(0)))
+            .and(pipeline.apply("bounded", GenerateSequence.from(0).to(100)));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(nonEmpty.expand().toString());
     thrown.expectMessage(EmptyFlattenAsCreateFactory.class.getSimpleName());
@@ -87,8 +87,8 @@ public class EmptyFlattenAsCreateFactoryTest {
 
   @Test
   public void mapOutputsSucceeds() {
-    PCollection<Long> original = pipeline.apply("Original", CountingInput.unbounded());
-    PCollection<Long> replacement = pipeline.apply("Replacement", CountingInput.unbounded());
+    PCollection<Long> original = pipeline.apply("Original", GenerateSequence.from(0));
+    PCollection<Long> replacement = pipeline.apply("Replacement", GenerateSequence.from(0));
     Map<PValue, ReplacementOutput> mapping = factory.mapOutputs(original.expand(), replacement);
 
     assertThat(

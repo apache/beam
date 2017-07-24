@@ -24,18 +24,86 @@ import filecmp
 import os
 import shutil
 import tempfile
+import mock
+
+from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.localfilesystem import LocalFileSystem
+
+
+def _gen_fake_join(separator):
+  """Returns a callable that joins paths with the given separator."""
+
+  def _join(first_path, *paths):
+    return separator.join((first_path.rstrip(separator),) + paths)
+
+  return _join
+
+
+def _gen_fake_split(separator):
+  """Returns a callable that splits a with the given separator."""
+
+  def _split(path):
+    sep_index = path.rfind(separator)
+    if sep_index >= 0:
+      return (path[:sep_index], path[sep_index + 1:])
+    else:
+      return (path, '')
+
+  return _split
 
 
 class LocalFileSystemTest(unittest.TestCase):
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
-    self.fs = LocalFileSystem()
+    self.fs = localfilesystem.LocalFileSystem()
 
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
+
+  def test_scheme(self):
+    self.assertIsNone(self.fs.scheme())
+    self.assertIsNone(localfilesystem.LocalFileSystem.scheme())
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_unix_path_join(self, *unused_mocks):
+    # Test joining of Unix paths.
+    localfilesystem.os.path.join.side_effect = _gen_fake_join('/')
+    self.assertEqual('/tmp/path/to/file',
+                     self.fs.join('/tmp/path', 'to', 'file'))
+    self.assertEqual('/tmp/path/to/file',
+                     self.fs.join('/tmp/path', 'to/file'))
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_windows_path_join(self, *unused_mocks):
+    # Test joining of Windows paths.
+    localfilesystem.os.path.join.side_effect = _gen_fake_join('\\')
+    self.assertEqual(r'C:\tmp\path\to\file',
+                     self.fs.join(r'C:\tmp\path', 'to', 'file'))
+    self.assertEqual(r'C:\tmp\path\to\file',
+                     self.fs.join(r'C:\tmp\path', r'to\file'))
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_unix_path_split(self, os_mock):
+    os_mock.path.abspath.side_effect = lambda a: a
+    os_mock.path.split.side_effect = _gen_fake_split('/')
+    self.assertEqual(('/tmp/path/to', 'file'),
+                     self.fs.split('/tmp/path/to/file'))
+    # Actual os.path.split will split following to '/' and 'tmp' when run in
+    # Unix.
+    self.assertEqual(('', 'tmp'),
+                     self.fs.split('/tmp'))
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_windows_path_split(self, os_mock):
+    os_mock.path.abspath = lambda a: a
+    os_mock.path.split.side_effect = _gen_fake_split('\\')
+    self.assertEqual((r'C:\tmp\path\to', 'file'),
+                     self.fs.split(r'C:\tmp\path\to\file'))
+    # Actual os.path.split will split following to 'C:\' and 'tmp' when run in
+    # Windows.
+    self.assertEqual((r'C:', 'tmp'),
+                     self.fs.split(r'C:\tmp'))
 
   def test_mkdirs(self):
     path = os.path.join(self.tmpdir, 't1/t2')

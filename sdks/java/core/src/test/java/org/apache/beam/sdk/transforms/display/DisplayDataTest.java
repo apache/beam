@@ -44,8 +44,10 @@ import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
@@ -1297,6 +1299,21 @@ public class DisplayDataTest implements Serializable {
 
     thrown.expectCause(is(cause));
     DisplayData.from(component);
+  }
+
+  @AutoValue
+  abstract static class Foo implements HasDisplayData {
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(DisplayData.item("someKey", "someValue"));
+    }
+  }
+
+  @Test
+  public void testAutoValue() {
+    DisplayData data = DisplayData.from(new AutoValue_DisplayDataTest_Foo());
+    Item item = Iterables.getOnlyElement(data.asMap().values());
+    assertEquals(Foo.class, item.getNamespace());
   }
 
   private String quoted(Object obj) {

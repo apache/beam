@@ -17,28 +17,23 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.KV;
 
 /**
  * {@link Coder} for {@link KafkaRecord}.
  */
-public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
+public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final VarLongCoder longCoder = VarLongCoder.of();
@@ -46,19 +41,18 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
 
   private final KvCoder<K, V> kvCoder;
 
-  @JsonCreator
-  public static KafkaRecordCoder<?, ?> of(@JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-                                          List<Coder<?>> components) {
-    KvCoder<?, ?> kvCoder = KvCoder.of(components);
-    return of(kvCoder.getKeyCoder(), kvCoder.getValueCoder());
-  }
-
   public static <K, V> KafkaRecordCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new KafkaRecordCoder<K, V>(keyCoder, valueCoder);
   }
 
   public KafkaRecordCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
     this.kvCoder = KvCoder.of(keyCoder, valueCoder);
+  }
+
+  @Override
+  public void encode(KafkaRecord<K, V> value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
@@ -70,6 +64,11 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
     longCoder.encode(value.getOffset(), outStream, nested);
     longCoder.encode(value.getTimestamp(), outStream, nested);
     kvCoder.encode(value.getKV(), outStream, context);
+  }
+
+  @Override
+  public KafkaRecord<K, V> decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -95,14 +94,14 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
   }
 
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value, Context context) {
-    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV(), context);
+  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
+    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
     //TODO : do we have to implement getEncodedSize()?
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public Object structuralValue(KafkaRecord<K, V> value) throws Exception {
+  public Object structuralValue(KafkaRecord<K, V> value) {
     if (consistentWithEquals()) {
       return value;
     } else {

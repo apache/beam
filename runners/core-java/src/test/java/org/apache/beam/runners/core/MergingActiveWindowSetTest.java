@@ -45,7 +45,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MergingActiveWindowSetTest {
   private Sessions windowFn;
-  private StateInternals<String> state;
+  private StateInternals state;
   private MergingActiveWindowSet<IntervalWindow> set;
   private ActiveWindowSet.MergeCallback<IntervalWindow> callback;
 

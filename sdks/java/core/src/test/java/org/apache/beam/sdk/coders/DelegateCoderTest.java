@@ -24,11 +24,8 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -108,64 +105,6 @@ public class DelegateCoderTest implements Serializable {
 
   private static final String TEST_ENCODING_ID = "test-encoding-id";
   private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
-
-  private static class TestAllowedEncodingsCoder extends StandardCoder<Integer> {
-
-    @Override
-    public void encode(Integer value, OutputStream outstream, Context context) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Integer decode(InputStream instream, Context context) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void verifyDeterministic() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public String getEncodingId() {
-      return TEST_ENCODING_ID;
-    }
-
-    @Override
-    public Collection<String> getAllowedEncodings() {
-      return Collections.singletonList(TEST_ALLOWED_ENCODING);
-    }
-  }
-
-  @Test
-  public void testEncodingId() throws Exception {
-    Coder<Integer> underlyingCoder = new TestAllowedEncodingsCoder();
-
-    Coder<Integer> trivialDelegateCoder = DelegateCoder.of(
-      underlyingCoder,
-      new DelegateCoder.CodingFunction<Integer, Integer>() {
-        @Override
-        public Integer apply(Integer input) {
-          return input;
-        }
-      },
-      new DelegateCoder.CodingFunction<Integer, Integer>() {
-        @Override
-        public Integer apply(Integer input) {
-          return input;
-        }
-      });
-    CoderProperties.coderHasEncodingId(
-        trivialDelegateCoder, TestAllowedEncodingsCoder.class.getName() + ":" + TEST_ENCODING_ID);
-    CoderProperties.coderAllowsEncoding(
-        trivialDelegateCoder,
-        TestAllowedEncodingsCoder.class.getName() + ":" + TEST_ALLOWED_ENCODING);
-  }
 
   @Test
   public void testCoderEquals() throws Exception {

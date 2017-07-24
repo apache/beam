@@ -23,10 +23,10 @@ import unittest
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.options.pipeline_options import OptionsContext
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.utils.pipeline_options import OptionsContext
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).

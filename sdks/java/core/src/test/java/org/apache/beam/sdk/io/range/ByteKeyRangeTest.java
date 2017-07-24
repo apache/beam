@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.ByteString;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -375,19 +375,19 @@ public class ByteKeyRangeTest {
 
   /** Asserts the two keys are equal except trailing zeros. */
   private static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
-    ByteString shortKey = expected.getValue();
-    ByteString longKey = key.getValue();
-    if (shortKey.size() > longKey.size()) {
+    ByteBuffer shortKey = expected.getValue();
+    ByteBuffer longKey = key.getValue();
+    if (shortKey.remaining() > longKey.remaining()) {
       shortKey = key.getValue();
       longKey = expected.getValue();
     }
-    for (int i = 0; i < shortKey.size(); ++i) {
-      if (shortKey.byteAt(i) != longKey.byteAt(i)) {
+    for (int i = 0; i < shortKey.remaining(); ++i) {
+      if (shortKey.get(i) != longKey.get(i)) {
         fail(String.format("Expected %s (up to trailing zeros), got %s", expected, key));
       }
     }
-    for (int j = shortKey.size(); j < longKey.size(); ++j) {
-      if (longKey.byteAt(j) != 0) {
+    for (int j = shortKey.remaining(); j < longKey.remaining(); ++j) {
+      if (longKey.get(j) != 0) {
         fail(String.format("Expected %s (up to trailing zeros), got %s", expected, key));
       }
     }

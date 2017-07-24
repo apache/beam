@@ -18,20 +18,32 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Equivalence;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
 class SdkComponents {
@@ -50,6 +62,48 @@ class SdkComponents {
     return new SdkComponents();
   }
 
+  public static RunnerApi.Pipeline translatePipeline(Pipeline p) {
+    final SdkComponents components = create();
+    final Collection<String> rootIds = new HashSet<>();
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =
+              ArrayListMultimap.create();
+
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (node.isRootNode()) {
+              for (AppliedPTransform<?, ?, ?> pipelineRoot : children.get(node)) {
+                rootIds.add(components.getExistingPTransformId(pipelineRoot));
+              }
+            } else {
+              children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+              try {
+                components.registerPTransform(node.toAppliedPTransform(), children.get(node));
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+            try {
+              components.registerPTransform(
+                  node.toAppliedPTransform(), Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+            } catch (IOException e) {
+              throw new IllegalStateException(e);
+            }
+          }
+        });
+    // TODO: Display Data
+    return RunnerApi.Pipeline.newBuilder()
+        .setComponents(components.toComponents())
+        .addAllRootTransformIds(rootIds)
+        .build();
+  }
+
   private SdkComponents() {
     this.componentsBuilder = RunnerApi.Components.newBuilder();
     this.transformIds = HashBiMap.create();
@@ -62,18 +116,50 @@ class SdkComponents {
    * Registers the provided {@link AppliedPTransform} into this {@link SdkComponents}, returning a
    * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
    * {@link AppliedPTransform} will return the same unique ID.
+   *
+   * <p>All of the children must already be registered within this {@link SdkComponents}.
    */
-  String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
-    String existing = transformIds.get(pTransform);
+  String registerPTransform(
+      AppliedPTransform<?, ?, ?> appliedPTransform, List<AppliedPTransform<?, ?, ?>> children)
+      throws IOException {
+    String name = getApplicationName(appliedPTransform);
+    // If this transform is present in the components, nothing to do. return the existing name.
+    // Otherwise the transform must be translated and added to the components.
+    if (componentsBuilder.getTransformsOrDefault(name, null) != null) {
+      return name;
+    }
+    checkNotNull(children, "child nodes may not be null");
+    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
+    return name;
+  }
+
+  /**
+   * Gets the ID for the provided {@link AppliedPTransform}. The provided {@link AppliedPTransform}
+   * will not be added to the components produced by this {@link SdkComponents} until it is
+   * translated via {@link #registerPTransform(AppliedPTransform, List)}.
+   */
+  private String getApplicationName(AppliedPTransform<?, ?, ?> appliedPTransform) {
+    String existing = transformIds.get(appliedPTransform);
     if (existing != null) {
       return existing;
     }
-    String name = pTransform.getFullName();
+
+    String name = appliedPTransform.getFullName();
     if (name.isEmpty()) {
-      name = uniqify("unnamed_ptransform", transformIds.values());
+      name = "unnamed-ptransform";
     }
-    transformIds.put(pTransform, name);
+    name = uniqify(name, transformIds.values());
+    transformIds.put(appliedPTransform, name);
     return name;
+  }
+
+  String getExistingPTransformId(AppliedPTransform<?, ?, ?> appliedPTransform) {
+    checkArgument(
+        transformIds.containsKey(appliedPTransform),
+        "%s %s has not been previously registered",
+        AppliedPTransform.class.getSimpleName(),
+        appliedPTransform);
+    return transformIds.get(appliedPTransform);
   }
 
   /**

@@ -21,7 +21,9 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -31,15 +33,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -59,7 +59,16 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 0;
   private final EvaluationContext evaluationContext;
-  @VisibleForTesting final ExecutorService executor = Executors.newCachedThreadPool();
+
+  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
+  @VisibleForTesting
+  final ExecutorService executor =
+      Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+              .setThreadFactory(MoreExecutors.platformThreadFactory())
+              .setDaemon(true)
+              .setNameFormat("direct-dynamic-split-requester")
+              .build());
 
   private final long minimumDynamicSplitSize;
 
@@ -196,7 +205,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       long estimatedBytes = source.getEstimatedSizeBytes(options);
       long bytesPerBundle = estimatedBytes / targetParallelism;
       List<? extends BoundedSource<T>> bundles =
-          source.splitIntoBundles(bytesPerBundle, options);
+          source.split(bytesPerBundle, options);
       ImmutableList.Builder<CommittedBundle<BoundedSourceShard<T>>> shards =
           ImmutableList.builder();
       for (BoundedSource<T> bundle : bundles) {

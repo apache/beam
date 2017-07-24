@@ -24,6 +24,9 @@ import threading
 
 from apache_beam.io import iobase
 
+__all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
+           'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
+
 
 class OffsetRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
@@ -191,7 +194,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
 
 class GroupedShuffleRangeTracker(iobase.RangeTracker):
-  """A 'RangeTracker' for positions used by'GroupedShuffleReader'.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A 'RangeTracker' for positions used by'GroupedShuffleReader'.
 
   These positions roughly correspond to hashes of keys. In case of hash
   collisions, multiple groups can have the same position. In that case, the
@@ -354,7 +359,8 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if self._stop_position is None or position < self._stop_position:
         self._last_claim = position
         return True
-      return False
+      else:
+        return False
 
   def position_at_fraction(self, fraction):
     return self.fraction_to_position(
@@ -372,13 +378,15 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
             position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
-      return None
+      else:
+        return None
 
   def fraction_consumed(self):
     if self._last_claim is self.UNSTARTED:
       return 0
-    return self.position_to_fraction(
-        self._last_claim, self._start_position, self._stop_position)
+    else:
+      return self.position_to_fraction(
+          self._last_claim, self._start_position, self._stop_position)
 
   def position_to_fraction(self, pos, start, end):
     """

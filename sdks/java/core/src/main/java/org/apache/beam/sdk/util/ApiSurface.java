@@ -33,8 +33,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ClassInfo;
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeToken;
@@ -353,8 +351,16 @@ public class ApiSurface {
     ClassPath classPath = ClassPath.from(classLoader);
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
-      Class clazz = classInfo.load();
+    for (ClassPath.ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
+      Class clazz = null;
+      try {
+        clazz = classInfo.load();
+      } catch (NoClassDefFoundError e) {
+        // TODO: Ignore any NoClassDefFoundError errors as a workaround. (BEAM-2231)
+        LOG.warn("Failed to load class: {}", classInfo.toString(), e);
+        continue;
+      }
+
       if (exposed(clazz.getModifiers())) {
         newRootClasses.add(clazz);
       }

@@ -21,9 +21,8 @@ import inspect
 import unittest
 
 
-import apache_beam.typehints as typehints
+import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
-from apache_beam.typehints import is_consistent_with
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
@@ -34,6 +33,8 @@ from apache_beam.typehints.decorators import _interleave_type_check
 from apache_beam.typehints.decorators import _positional_arg_hints
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import GeneratorWrapper
+from apache_beam.typehints.typehints import is_consistent_with
 
 
 def check_or_interleave(hint, value, var):
@@ -712,7 +713,7 @@ class TestGeneratorWrapper(TypeHintTestCase):
 
     l = []
     interleave_func = lambda x: l.append(x)
-    wrapped_gen = typehints.GeneratorWrapper(count(4), interleave_func)
+    wrapped_gen = GeneratorWrapper(count(4), interleave_func)
 
     # Should function as a normal generator.
     self.assertEqual(0, next(wrapped_gen))
@@ -1032,12 +1033,12 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
 class DecoratorHelpers(TypeHintTestCase):
 
   def test_hint_helper(self):
-    self.assertTrue(typehints.is_consistent_with(Any, int))
-    self.assertTrue(typehints.is_consistent_with(int, Any))
-    self.assertTrue(typehints.is_consistent_with(str, object))
-    self.assertFalse(typehints.is_consistent_with(object, str))
-    self.assertTrue(typehints.is_consistent_with(str, Union[str, int]))
-    self.assertFalse(typehints.is_consistent_with(Union[str, int], str))
+    self.assertTrue(is_consistent_with(Any, int))
+    self.assertTrue(is_consistent_with(int, Any))
+    self.assertTrue(is_consistent_with(str, object))
+    self.assertFalse(is_consistent_with(object, str))
+    self.assertTrue(is_consistent_with(str, Union[str, int]))
+    self.assertFalse(is_consistent_with(Union[str, int], str))
 
   def test_positional_arg_hints(self):
     self.assertEquals(typehints.Any, _positional_arg_hints('x', {}))
@@ -1056,6 +1057,7 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEquals(
         {'a': int, 'b': str, 'c': Any, 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
+
 
 if __name__ == '__main__':
   unittest.main()

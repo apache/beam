@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 /**
- * The exception thrown when a {@link CoderProvider} cannot
+ * The exception thrown when a {@link CoderRegistry} or {@link CoderProvider} cannot
  * provide a {@link Coder} that has been requested.
  */
 public class CannotProvideCoderException extends Exception {

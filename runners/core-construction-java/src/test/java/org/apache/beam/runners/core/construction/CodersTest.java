@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -31,16 +30,17 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -59,13 +59,14 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link Coders}. */
 @RunWith(Enclosed.class)
 public class CodersTest {
-  private static final Set<StandardCoder<?>> KNOWN_CODERS =
-      ImmutableSet.<StandardCoder<?>>builder()
+  private static final Set<StructuredCoder<?>> KNOWN_CODERS =
+      ImmutableSet.<StructuredCoder<?>>builder()
           .add(ByteArrayCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
+          .add(LengthPrefixCoder.of(IterableCoder.of(VarLongCoder.of())))
           .add(GlobalWindow.Coder.INSTANCE)
           .add(
               FullWindowedValueCoder.of(
@@ -83,18 +84,27 @@ public class CodersTest {
       // Validates that every known coder in the Coders class is represented in a "Known Coder"
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
-      Set<Class<? extends StandardCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
-      Set<Class<? extends StandardCoder>> knownCoderTests = new HashSet<>();
-      for (StandardCoder<?> coder : KNOWN_CODERS) {
+      Set<Class<? extends StructuredCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
+      Set<Class<? extends StructuredCoder>> knownCoderTests = new HashSet<>();
+      for (StructuredCoder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
       }
-      Set<Class<? extends StandardCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
+      Set<Class<? extends StructuredCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
       missingKnownCoders.removeAll(knownCoderTests);
-      checkState(
-          missingKnownCoders.isEmpty(),
-          "Missing validation of known coder %s in %s",
+      assertThat(
+          String.format(
+              "Missing validation of known coder %s in %s",
+              missingKnownCoders, CodersTest.class.getSimpleName()),
           missingKnownCoders,
-          CodersTest.class.getSimpleName());
+          Matchers.empty());
+    }
+
+    @Test
+    public void validateCoderTranslators() {
+      assertThat(
+          "Every Known Coder must have a Known Translator",
+          Coders.KNOWN_CODER_URNS.keySet(),
+          equalTo(Coders.KNOWN_TRANSLATORS.keySet()));
     }
   }
 
@@ -131,32 +141,23 @@ public class CodersTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(), not(equalTo(Coders.CUSTOM_CODER_URN)));
+              encodedCoder.getSpec().getSpec().getUrn(),
+              not(equalTo(Coders.JAVA_SERIALIZED_CODER_URN)));
         }
       }
     }
 
     static class Record implements Serializable {}
 
-    private static class RecordCoder extends CustomCoder<Record> {
+    private static class RecordCoder extends AtomicCoder<Record> {
       @Override
-      public void encode(Record value, OutputStream outStream, Context context)
+      public void encode(Record value, OutputStream outStream)
           throws CoderException, IOException {}
 
       @Override
-      public Record decode(InputStream inStream, Context context)
+      public Record decode(InputStream inStream)
           throws CoderException, IOException {
         return new Record();
-      }
-
-      @Override
-      public boolean equals(Object other) {
-        return other != null && getClass().equals(other.getClass());
-      }
-
-      @Override
-      public int hashCode() {
-        return getClass().hashCode();
       }
     }
   }

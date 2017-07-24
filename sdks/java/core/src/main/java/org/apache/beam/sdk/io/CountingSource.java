@@ -28,10 +28,9 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,44 +38,26 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A source that produces longs. When used as a {@link BoundedSource}, {@link CountingSource}
- * starts at {@code 0} and counts up to a specified maximum. When used as an
- * {@link UnboundedSource}, it counts up to {@link Long#MAX_VALUE} and then never produces more
- * output. (In practice, this limit should never be reached.)
+ * Most users should use {@link GenerateSequence} instead.
+ *
+ * <p>A source that produces longs. When used as a {@link BoundedSource}, {@link CountingSource}
+ * starts at {@code 0} and counts up to a specified maximum. When used as an {@link
+ * UnboundedSource}, it counts up to {@link Long#MAX_VALUE} and then never produces more output. (In
+ * practice, this limit should never be reached.)
  *
  * <p>The bounded {@link CountingSource} is implemented based on {@link OffsetBasedSource} and
  * {@link OffsetBasedSource.OffsetBasedReader}, so it performs efficient initial splitting and it
  * supports dynamic work rebalancing.
  *
- * <p>To produce a bounded {@code PCollection<Long>}, use {@link CountingSource#upTo(long)}:
- *
- * <pre>{@code
- * Pipeline p = ...
- * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(1000);
- * PCollection<Long> bounded = p.apply(producer);
- * }</pre>
- *
- * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingInput#unbounded()},
- * calling {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values
- * with timestamps other than {@link Instant#now}.
- *
- * <pre>{@code
- * Pipeline p = ...
- *
- * // To create an unbounded PCollection that uses processing time as the element timestamp.
- * PCollection<Long> unbounded = p.apply(CountingInput.unbounded());
- * // Or, to create an unbounded source that uses a provided function to set the element timestamp.
- * PCollection<Long> unboundedWithTimestamps =
- *     p.apply(CountingInput.unbounded().withTimestampFn(someFn));
- *
- * }</pre>
+ * <p>To produce a bounded source, use {@link #createSourceForSubrange(long, long)}. To produce an
+ * unbounded source, use {@link #createUnboundedFrom(long)}.
  */
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements,
    * from {@code 0} to {@code numElements - 1}.
    *
-   * @deprecated use {@link CountingInput#upTo(long)} instead
+   * @deprecated use {@link GenerateSequence} instead
    */
   @Deprecated
   public static BoundedSource<Long> upTo(long numElements) {
@@ -103,8 +84,8 @@ public class CountingSource {
    * Create a new {@link UnboundedCountingSource}.
    */
   // package-private to return a typed UnboundedCountingSource rather than the UnboundedSource type.
-  static UnboundedCountingSource createUnbounded() {
-    return new UnboundedCountingSource(0, 1, 1L, Duration.ZERO, new NowTimestampFn());
+  static UnboundedCountingSource createUnboundedFrom(long start) {
+    return new UnboundedCountingSource(start, 1, 1L, Duration.ZERO, new NowTimestampFn());
   }
 
   /**
@@ -117,7 +98,7 @@ public class CountingSource {
    * <p>Elements in the resulting {@link PCollection PCollection&lt;Long&gt;} will have timestamps
    * corresponding to processing time at element generation, provided by {@link Instant#now}.
    *
-   * @deprecated use {@link CountingInput#unbounded()} instead
+   * @deprecated use {@link GenerateSequence} instead
    */
   @Deprecated
   public static UnboundedSource<Long, CounterMark> unbounded() {
@@ -133,8 +114,8 @@ public class CountingSource {
    *
    * <p>Note that the timestamps produced by {@code timestampFn} may not decrease.
    *
-   * @deprecated use {@link CountingInput#unbounded()} and call
-   *             {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} instead
+   * @deprecated use {@link GenerateSequence} and call
+   *             {@link GenerateSequence#withTimestampFn(SerializableFunction)} instead
    */
   @Deprecated
   public static UnboundedSource<Long, CounterMark> unboundedWithTimestampFn(
@@ -209,7 +190,7 @@ public class CountingSource {
   private static class BoundedCountingReader extends OffsetBasedSource.OffsetBasedReader<Long> {
     private long current;
 
-    private final Counter elementsRead = Metrics.counter("io", "elementsRead");
+    private final Counter elementsRead = SourceMetrics.elementsRead();
 
     public BoundedCountingReader(OffsetBasedSource<Long> source) {
       super(source);
@@ -326,7 +307,7 @@ public class CountingSource {
      * {@code [2, 8, 14, ...)}, and {@code [4, 10, 16, ...)}.
      */
     @Override
-    public List<? extends UnboundedSource<Long, CountingSource.CounterMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<Long, CountingSource.CounterMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       // Using Javadoc example, stride 2 with 3 splits becomes stride 6.
       long newStride = stride * desiredNumSplits;
@@ -373,7 +354,7 @@ public class CountingSource {
     private Instant currentTimestamp;
     private Instant firstStarted;
 
-    private final Counter elementsRead = Metrics.counter("io", "elementsRead");
+    private final Counter elementsRead = SourceMetrics.elementsRead();
 
     public UnboundedCountingReader(UnboundedCountingSource source, CounterMark mark) {
       this.source = source;

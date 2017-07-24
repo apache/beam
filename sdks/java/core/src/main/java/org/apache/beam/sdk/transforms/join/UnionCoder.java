@@ -17,23 +17,21 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A UnionCoder encodes RawUnionValues.
  */
-public class UnionCoder extends StandardCoder<RawUnionValue> {
+public class UnionCoder extends StructuredCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
@@ -42,13 +40,6 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
    */
   public static UnionCoder of(List<Coder<?>> elementCoders) {
     return new UnionCoder(elementCoders);
-  }
-
-  @JsonCreator
-  public static UnionCoder jsonOf(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> elements) {
-    return UnionCoder.of(elements);
   }
 
   private int getIndexForEncoding(RawUnionValue union) {
@@ -62,6 +53,12 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
           + (elementCoders.size() - 1) + "]");
     }
     return index;
+  }
+
+  @Override
+  public void encode(RawUnionValue union, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(union, outStream, Context.NESTED);
   }
 
   @SuppressWarnings("unchecked")
@@ -84,6 +81,11 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
   }
 
   @Override
+  public RawUnionValue decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public RawUnionValue decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     int index = VarInt.decodeInt(inStream);
@@ -93,11 +95,15 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return Collections.emptyList();
   }
 
   @Override
   public List<? extends Coder<?>> getComponents() {
+    return elementCoders;
+  }
+
+  public List<? extends Coder<?>> getElementCoders() {
     return elementCoders;
   }
 
@@ -106,11 +112,11 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
    * time, we defer the return value to that coder.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union) {
     int index = getIndexForEncoding(union);
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    return coder.isRegisterByteSizeObserverCheap(union.getValue(), context);
+    return coder.isRegisterByteSizeObserverCheap(union.getValue());
   }
 
   /**
@@ -118,7 +124,7 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
    */
   @Override
   public void registerByteSizeObserver(
-      RawUnionValue union, ElementByteSizeObserver observer, Context context)
+      RawUnionValue union, ElementByteSizeObserver observer)
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -126,7 +132,7 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
     // Write out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.registerByteSizeObserver(union.getValue(), observer, context);
+    coder.registerByteSizeObserver(union.getValue(), observer);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -140,7 +146,6 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
-        "UnionCoder is only deterministic if all element coders are",
-        elementCoders);
+        this, "UnionCoder is only deterministic if all element coders are", elementCoders);
   }
 }

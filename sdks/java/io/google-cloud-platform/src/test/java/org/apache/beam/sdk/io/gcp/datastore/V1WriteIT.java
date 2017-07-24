@@ -24,9 +24,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
-import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -66,7 +66,7 @@ public class V1WriteIT {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
-    p.apply(CountingInput.upTo(numEntities))
+    p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
         .apply(DatastoreIO.v1().write().withProjectId(project));

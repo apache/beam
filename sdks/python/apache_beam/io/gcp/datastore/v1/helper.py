@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Cloud Datastore helper functions."""
+"""Cloud Datastore helper functions.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 import sys
 
 # Protect against environments where datastore library is not available.
@@ -24,13 +27,13 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from google.cloud.proto.datastore.v1 import entity_pb2
   from google.cloud.proto.datastore.v1 import query_pb2
+  from google.rpc import code_pb2
   from googledatastore import PropertyFilter, CompositeFilter
   from googledatastore import helper as datastore_helper
   from googledatastore.connection import Datastore
   from googledatastore.connection import RPCError
-  QUERY_NOT_FINISHED = query_pb2.QueryResultBatch.NOT_FINISHED
 except ImportError:
-  QUERY_NOT_FINISHED = None
+  pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
 from apache_beam.internal.gcp import auth
@@ -77,7 +80,7 @@ def compare_path(p1, p2):
   3. If no `id` is defined for both paths, then their `names` are compared.
   """
 
-  result = str_compare(p1.kind, p2.kind)
+  result = cmp(p1.kind, p2.kind)
   if result != 0:
     return result
 
@@ -85,20 +88,12 @@ def compare_path(p1, p2):
     if not p2.HasField('id'):
       return -1
 
-    return p1.id - p2.id
+    return cmp(p1.id, p2.id)
 
   if p2.HasField('id'):
     return 1
 
-  return str_compare(p1.name, p2.name)
-
-
-def str_compare(s1, s2):
-  if s1 == s2:
-    return 0
-  elif s1 < s2:
-    return -1
-  return 1
+  return cmp(p1.name, p2.name)
 
 
 def get_datastore(project):
@@ -129,8 +124,12 @@ def make_partition(project, namespace):
 def retry_on_rpc_error(exception):
   """A retry filter for Cloud Datastore RPCErrors."""
   if isinstance(exception, RPCError):
-    return exception.code >= 500
-  # TODO(vikasrk): Figure out what other errors should be retried.
+    err_code = exception.code
+    # TODO(BEAM-2156): put these codes in a global list and use that instead.
+    return (err_code == code_pb2.DEADLINE_EXCEEDED or
+            err_code == code_pb2.UNAVAILABLE or
+            err_code == code_pb2.UNKNOWN or
+            err_code == code_pb2.INTERNAL)
   return False
 
 
@@ -221,7 +220,6 @@ class QueryIterator(object):
 
   Entities are read in batches. Retries on failures.
   """
-  _NOT_FINISHED = QUERY_NOT_FINISHED
   # Maximum number of results to request per query.
   _BATCH_SIZE = 500
 
@@ -265,4 +263,5 @@ class QueryIterator(object):
       # read).
       more_results = ((self._limit > 0) and
                       ((num_results == self._BATCH_SIZE) or
-                       (resp.batch.more_results == self._NOT_FINISHED)))
+                       (resp.batch.more_results ==
+                        query_pb2.QueryResultBatch.NOT_FINISHED)))

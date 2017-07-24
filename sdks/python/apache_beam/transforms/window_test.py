@@ -20,7 +20,8 @@
 import unittest
 
 from apache_beam.runners import pipeline_context
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -29,21 +30,20 @@ from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
-from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 def context(element, timestamp):
@@ -57,6 +57,8 @@ class ReifyWindowsFn(core.DoFn):
   def process(self, element, window=core.DoFn.WindowParam):
     key, values = element
     yield "%s @ %s" % (key, window), values
+
+
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 
@@ -107,6 +109,20 @@ class WindowTest(unittest.TestCase):
     self.assertEqual(expected, windowfn.assign(context('v', 7)))
     self.assertEqual(expected, windowfn.assign(context('v', 8)))
     self.assertEqual(expected, windowfn.assign(context('v', 11)))
+
+  def test_sliding_windows_assignment_fraction(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=1.5)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 3)))
+
+  def test_sliding_windows_assignment_fraction_large_offset(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=4.0)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(4.0, 7.5), IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 4.5)))
 
   def test_sessions_merging(self):
     windowfn = Sessions(10)
@@ -255,7 +271,7 @@ class RunnerApiTest(unittest.TestCase):
         Windowing(FixedWindows(1, 3), AfterCount(6),
                   accumulation_mode=AccumulationMode.ACCUMULATING),
         Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
-                  output_time_fn=OutputTimeFn.OUTPUT_AT_LATEST,
+                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST,
                   accumulation_mode=AccumulationMode.DISCARDING)):
       context = pipeline_context.PipelineContext()
       self.assertEqual(

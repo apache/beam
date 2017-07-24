@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CloudObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,7 +33,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link LengthPrefixCoder}. */
 @RunWith(JUnit4.class)
 public class LengthPrefixCoderTest {
-  private static final StandardCoder<byte[]> TEST_CODER = LengthPrefixCoder.of(ByteArrayCoder.of());
+  private static final StructuredCoder<byte[]> TEST_CODER =
+      LengthPrefixCoder.of(ByteArrayCoder.of());
 
   private static final List<byte[]> TEST_VALUES = Arrays.asList(
     new byte[]{ 0xa, 0xb, 0xc },
@@ -53,12 +53,6 @@ public class LengthPrefixCoderTest {
       "AA");
 
   @Test
-  public void testCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = TEST_CODER.asCloudObject();
-    assertEquals("kind:length_prefix", cloudObject.getClassName());
-  }
-
-  @Test
   public void testCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(TEST_CODER);
   }
@@ -70,23 +64,22 @@ public class LengthPrefixCoderTest {
 
   @Test
   public void testEncodedSize() throws Exception {
-    assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.NESTED));
-    assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.OUTER));
+    assertEquals(5L,
+        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
   }
 
   @Test
   public void testObserverIsCheap() throws Exception {
-    NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0, Coder.Context.OUTER));
+    LengthPrefixCoder<Double> coder = LengthPrefixCoder.of(DoubleCoder.of());
+    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0));
   }
 
   @Test
   public void testObserverIsNotCheap() throws Exception {
-    NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
+    LengthPrefixCoder<List<String>> coder =
+        LengthPrefixCoder.of(ListCoder.of(StringUtf8Coder.of()));
     assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test"), Coder.Context.OUTER));
+        ImmutableList.of("hi", "test")));
   }
 
   @Test
@@ -98,11 +91,10 @@ public class LengthPrefixCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(TEST_CODER, Coder.Context.OUTER,
-        new byte[][]{{ 0xa, 0xb, 0xc }});
-
-    CoderProperties.testByteCount(TEST_CODER, Coder.Context.NESTED,
-        new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+    CoderProperties.testByteCount(
+        LengthPrefixCoder.of(VarIntCoder.of()),
+        Coder.Context.NESTED,
+        new Integer[]{0, 10, 1000});
   }
 
   @Test
@@ -112,14 +104,6 @@ public class LengthPrefixCoderTest {
         CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
       }
     }
-  }
-
-  // If this changes, it implies the binary format has changed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 
   @Test

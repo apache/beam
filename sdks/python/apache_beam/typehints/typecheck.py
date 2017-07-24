@@ -15,23 +15,26 @@
 # limitations under the License.
 #
 
-"""Runtime type checking support."""
+"""Runtime type checking support.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import collections
 import inspect
 import sys
 import types
 
-from apache_beam.pvalue import SideOutputValue
+from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
-from apache_beam.typehints import check_constraint
-from apache_beam.typehints import CompositeTypeHintError
-from apache_beam.typehints import GeneratorWrapper
-from apache_beam.typehints import SimpleTypeHintError
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import GeneratorWrapper
+from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import CompositeTypeHintError
+from apache_beam.typehints.typehints import SimpleTypeHintError
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -106,7 +109,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
     self.dofn = dofn
-    self._process_fn = self.dofn.process_argspec_fn()
+    self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
       self._input_hints = getcallargs_forhints(
@@ -136,7 +139,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
     def type_check_output(o):
       # TODO(robertwb): Multi-output.
-      x = o.value if isinstance(o, (SideOutputValue, WindowedValue)) else o
+      x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
       self._type_check(self._output_type_hint, x, is_input=False)
 
     # If the return type is a generator, then we will need to interleave our

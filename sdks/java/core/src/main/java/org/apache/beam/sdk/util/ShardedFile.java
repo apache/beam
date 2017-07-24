@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.Sleeper;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;

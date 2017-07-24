@@ -20,10 +20,7 @@ package org.apache.beam.runners.dataflow.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.Structs.addLong;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
@@ -35,6 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -42,12 +40,11 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -170,20 +167,20 @@ public class IsmFormat {
   /**
    * A {@link Coder} for {@link IsmRecord}s.
    *
-   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used
-   * to materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder
-   * is combined with an {@code IsmSink} will one produce an Ism file.
+   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used to
+   * materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder is combined with
+   * an {@code IsmSink} will one produce an Ism file.
    *
    * <p>The {@link IsmRecord} encoded format is:
+   *
    * <ul>
-   *   <li>encoded key component 1 using key component coder 1</li>
-   *   <li>...</li>
-   *   <li>encoded key component N using key component coder N</li>
-   *   <li>encoded value using value coder</li>
+   *   <li>encoded key component 1 using key component coder 1
+   *   <li>...
+   *   <li>encoded key component N using key component coder N
+   *   <li>encoded value using value coder
    * </ul>
    */
-  public static class IsmRecordCoder<V>
-      extends StandardCoder<IsmRecord<V>> {
+  public static class IsmRecordCoder<V> extends CustomCoder<IsmRecord<V>> {
     /** Returns an IsmRecordCoder with the specified key component coders, value coder. */
     public static <V> IsmRecordCoder<V> of(
         int numberOfShardKeyCoders,
@@ -200,24 +197,6 @@ public class IsmFormat {
           numberOfMetadataShardKeyCoders,
           keyComponentCoders,
           valueCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static IsmRecordCoder<?> of(
-        @JsonProperty(PropertyNames.NUM_SHARD_CODERS) int numberOfShardCoders,
-        @JsonProperty(PropertyNames.NUM_METADATA_SHARD_CODERS) int numberOfMetadataShardCoders,
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() >= 2,
-          "Expecting at least 2 components, got " + components.size());
-      return of(
-          numberOfShardCoders,
-          numberOfMetadataShardCoders,
-          components.subList(0, components.size() - 1),
-          components.get(components.size() - 1));
     }
 
     private final int numberOfShardKeyCoders;
@@ -252,35 +231,35 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(IsmRecord<V> value, OutputStream outStream,
-        Coder.Context context) throws CoderException, IOException {
+    public void encode(IsmRecord<V> value, OutputStream outStream)
+        throws CoderException, IOException {
       if (value.getKeyComponents().size() != keyComponentCoders.size()) {
         throw new CoderException(String.format(
             "Expected %s key component(s) but received key component(s) %s.",
             keyComponentCoders.size(), value.getKeyComponents()));
       }
       for (int i = 0; i < keyComponentCoders.size(); ++i) {
-        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream, context.nested());
+        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream);
       }
       if (isMetadataKey(value.getKeyComponents())) {
-        ByteArrayCoder.of().encode(value.getMetadata(), outStream, context.nested());
+        ByteArrayCoder.of().encode(value.getMetadata(), outStream);
       } else {
-        valueCoder.encode(value.getValue(), outStream, context.nested());
+        valueCoder.encode(value.getValue(), outStream);
       }
     }
 
     @Override
-    public IsmRecord<V> decode(InputStream inStream, Coder.Context context)
+    public IsmRecord<V> decode(InputStream inStream)
         throws CoderException, IOException {
       List<Object> keyComponents = new ArrayList<>(keyComponentCoders.size());
       for (Coder<?> keyCoder : keyComponentCoders) {
-        keyComponents.add(keyCoder.decode(inStream, context.nested()));
+        keyComponents.add(keyCoder.decode(inStream));
       }
       if (isMetadataKey(keyComponents)) {
         return IsmRecord.<V>meta(
-            keyComponents, ByteArrayCoder.of().decode(inStream, context.nested()));
+            keyComponents, ByteArrayCoder.of().decode(inStream));
       } else {
-        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream, context.nested()));
+        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream));
       }
     }
 
@@ -379,17 +358,10 @@ public class IsmFormat {
     }
 
     @Override
-    protected CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addLong(result, PropertyNames.NUM_SHARD_CODERS, numberOfShardKeyCoders);
-      addLong(result, PropertyNames.NUM_METADATA_SHARD_CODERS, numberOfMetadataShardKeyCoders);
-      return result;
-    }
-
-    @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {
-      verifyDeterministic("Key component coders expected to be deterministic.", keyComponentCoders);
-      verifyDeterministic("Value coder expected to be deterministic.", valueCoder);
+      verifyDeterministic(
+          this, "Key component coders expected to be deterministic.", keyComponentCoders);
+      verifyDeterministic(this, "Value coder expected to be deterministic.", valueCoder);
     }
 
     @Override
@@ -403,7 +375,7 @@ public class IsmFormat {
     }
 
     @Override
-    public Object structuralValue(IsmRecord<V> record) throws Exception {
+    public Object structuralValue(IsmRecord<V> record) {
       checkNotNull(record);
       checkState(record.getKeyComponents().size() == keyComponentCoders.size(),
           "Expected the number of key component coders %s "
@@ -424,6 +396,28 @@ public class IsmFormat {
         }
       }
       return super.structuralValue(record);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (!(other instanceof IsmRecordCoder)) {
+        return false;
+      }
+      IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;
+      return Objects.equals(this.numberOfShardKeyCoders, that.numberOfShardKeyCoders)
+          && Objects.equals(
+              this.numberOfMetadataShardKeyCoders, that.numberOfMetadataShardKeyCoders)
+          && Objects.equals(this.keyComponentCoders, that.keyComponentCoders)
+          && Objects.equals(this.valueCoder, that.valueCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          numberOfShardKeyCoders, numberOfMetadataShardKeyCoders, keyComponentCoders, valueCoder);
     }
   }
 
@@ -482,22 +476,10 @@ public class IsmFormat {
    * A coder for metadata key component. Can be used to wrap key component coder allowing for
    * the metadata key component to be used as a place holder instead of an actual key.
    */
-  public static class MetadataKeyCoder<K> extends StandardCoder<K> {
+  public static class MetadataKeyCoder<K> extends StructuredCoder<K> {
     public static <K> MetadataKeyCoder<K> of(Coder<K> keyCoder) {
       checkNotNull(keyCoder);
       return new MetadataKeyCoder<>(keyCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static MetadataKeyCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() == 1,
-          "Expecting one component, got " + components.size());
-      return of(components.get(0));
     }
 
     private final Coder<K> keyCoder;
@@ -511,24 +493,24 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(K value, OutputStream outStream, Coder.Context context)
+    public void encode(K value, OutputStream outStream)
         throws CoderException, IOException {
       if (value == METADATA_KEY) {
         outStream.write(0);
       } else {
         outStream.write(1);
-        keyCoder.encode(value, outStream, context.nested());
+        keyCoder.encode(value, outStream);
       }
     }
 
     @Override
-    public K decode(InputStream inStream, Coder.Context context)
+    public K decode(InputStream inStream)
         throws CoderException, IOException {
       int marker = inStream.read();
       if (marker == 0) {
         return (K) getMetadataKey();
       } else if (marker == 1) {
-        return keyCoder.decode(inStream, context.nested());
+        return keyCoder.decode(inStream);
       } else {
         throw new CoderException(String.format("Expected marker but got %s.", marker));
       }
@@ -541,7 +523,7 @@ public class IsmFormat {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic("Expected key coder to be deterministic", keyCoder);
+      verifyDeterministic(this, "Expected key coder to be deterministic", keyCoder);
     }
   }
 
@@ -632,32 +614,35 @@ public class IsmFormat {
     private static final IsmShardCoder INSTANCE = new IsmShardCoder();
 
     /** Returns an IsmShardCoder. */
-    @JsonCreator
     public static IsmShardCoder of() {
       return INSTANCE;
     }
 
-    private IsmShardCoder() {
-    }
+    private IsmShardCoder() {}
 
     @Override
-    public void encode(IsmShard value, OutputStream outStream, Coder.Context context)
+    public void encode(IsmShard value, OutputStream outStream)
         throws CoderException, IOException {
       checkState(value.getIndexOffset() >= 0,
           "%s attempting to be written without index offset.",
           value);
-      VarIntCoder.of().encode(value.getId(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getBlockOffset(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getIndexOffset(), outStream, context);
+      VarIntCoder.of().encode(value.getId(), outStream);
+      VarLongCoder.of().encode(value.getBlockOffset(), outStream);
+      VarLongCoder.of().encode(value.getIndexOffset(), outStream);
     }
 
     @Override
-    public IsmShard decode(
-        InputStream inStream, Coder.Context context) throws CoderException, IOException {
+    public IsmShard decode(InputStream inStream) throws CoderException, IOException {
       return IsmShard.of(
-          VarIntCoder.of().decode(inStream, context.nested()),
-          VarLongCoder.of().decode(inStream, context.nested()),
-          VarLongCoder.of().decode(inStream, context));
+          VarIntCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream));
+    }
+
+    @Override
+    public void verifyDeterministic() {
+      VarIntCoder.of().verifyDeterministic();
+      VarLongCoder.of().verifyDeterministic();
     }
 
     @Override
@@ -692,23 +677,25 @@ public class IsmFormat {
   public static final class KeyPrefixCoder extends AtomicCoder<KeyPrefix> {
     private static final KeyPrefixCoder INSTANCE = new KeyPrefixCoder();
 
-    @JsonCreator
     public static KeyPrefixCoder of() {
       return INSTANCE;
     }
 
     @Override
-    public void encode(KeyPrefix value, OutputStream outStream, Coder.Context context)
+    public void encode(KeyPrefix value, OutputStream outStream)
         throws CoderException, IOException {
       VarInt.encode(value.getSharedKeySize(), outStream);
       VarInt.encode(value.getUnsharedKeySize(), outStream);
     }
 
     @Override
-    public KeyPrefix decode(InputStream inStream, Coder.Context context)
+    public KeyPrefix decode(InputStream inStream)
         throws CoderException, IOException {
       return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
     }
+
+    @Override
+    public void verifyDeterministic() {}
 
     @Override
     public boolean consistentWithEquals() {
@@ -716,12 +703,12 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
+    public long getEncodedElementByteSize(KeyPrefix value)
         throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
@@ -762,13 +749,12 @@ public class IsmFormat {
   public static final class FooterCoder extends AtomicCoder<Footer> {
     private static final FooterCoder INSTANCE = new FooterCoder();
 
-    @JsonCreator
     public static FooterCoder of() {
       return INSTANCE;
     }
 
     @Override
-    public void encode(Footer value, OutputStream outStream, Coder.Context context)
+    public void encode(Footer value, OutputStream outStream)
         throws CoderException, IOException {
       DataOutputStream dataOut = new DataOutputStream(outStream);
       dataOut.writeLong(value.getIndexPosition());
@@ -778,7 +764,7 @@ public class IsmFormat {
     }
 
     @Override
-    public Footer decode(InputStream inStream, Coder.Context context)
+    public Footer decode(InputStream inStream)
         throws CoderException, IOException {
       DataInputStream dataIn = new DataInputStream(inStream);
       Footer footer = Footer.of(dataIn.readLong(), dataIn.readLong(), dataIn.readLong());
@@ -791,17 +777,20 @@ public class IsmFormat {
     }
 
     @Override
+    public void verifyDeterministic() {}
+
+    @Override
     public boolean consistentWithEquals() {
       return true;
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(Footer value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(Footer value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(Footer value, Coder.Context context)
+    public long getEncodedElementByteSize(Footer value)
         throws Exception {
       return Footer.FIXED_LENGTH;
     }

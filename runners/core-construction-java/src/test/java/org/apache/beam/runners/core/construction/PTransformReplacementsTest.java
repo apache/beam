@@ -23,9 +23,9 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private PCollection<Long> mainInput = pipeline.apply(CountingInput.unbounded());
+  private PCollection<Long> mainInput = pipeline.apply(GenerateSequence.from(0));
   private PCollectionView<String> sideInput =
       pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
 

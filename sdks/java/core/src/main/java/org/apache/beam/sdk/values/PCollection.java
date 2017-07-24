@@ -17,18 +17,26 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
 
 /**
  * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type
@@ -39,9 +47,10 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * be passed as the inputs of other PTransforms.
  *
  * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones. For example, {@link CountingInput#upTo} produces a fixed set of integers,
- * so it produces a bounded {@link PCollection}. {@link CountingInput#unbounded} produces all
- * integers as an infinite stream, so it produces an unbounded {@link PCollection}.
+ * produce unbounded ones. For example, {@link GenerateSequence#from} with
+ * {@link GenerateSequence#to} produces a fixed set of integers, so it produces a bounded
+ * {@link PCollection}. {@link GenerateSequence#from} without a {@link GenerateSequence#to}
+ * produces all integers as an infinite stream, so it produces an unbounded {@link PCollection}.
  *
  * <p>Each element in a {@link PCollection} has an associated timestamp. Readers assign timestamps
  * to elements when they create {@link PCollection PCollections}, and other
@@ -61,7 +70,119 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
-public class PCollection<T> extends TypedPValue<T> {
+public class PCollection<T> extends PValueBase implements PValue {
+
+  /**
+   * The {@link Coder} used by this {@link PCollection} to encode and decode the values stored in
+   * it, or null if not specified nor inferred yet.
+   */
+  private CoderOrFailure<T> coderOrFailure =
+      new CoderOrFailure<>(null, "No Coder was specified, and Coder Inference did not occur");
+  private TypeDescriptor<T> typeDescriptor;
+
+  @Override
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    super.finishSpecifyingOutput(transformName, input, transform);
+  }
+
+  /**
+   * After building, finalizes this {@link PValue} to make it ready for
+   * running.  Automatically invoked whenever the {@link PValue} is "used"
+   * (e.g., when apply() is called on it) and when the Pipeline is
+   * run (useful if this is a {@link PValue} with no consumers).
+   */
+  @Override
+  public void finishSpecifying(PInput input, PTransform<?, ?> transform) {
+    if (isFinishedSpecifying()) {
+      return;
+    }
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    // Ensure that this TypedPValue has a coder by inferring the coder if none exists; If not,
+    // this will throw an exception.
+    getCoder();
+    super.finishSpecifying(input, transform);
+  }
+
+  /**
+   * Returns a {@link TypeDescriptor TypeDescriptor&lt;T&gt;} with some reflective information
+   * about {@code T}, if possible. May return {@code null} if no information
+   * is available. Subclasses may override this to enable better
+   * {@code Coder} inference.
+   */
+  public TypeDescriptor<T> getTypeDescriptor() {
+    return typeDescriptor;
+  }
+
+  /**
+   * If the coder is not explicitly set, this sets the coder for this {@link PCollection} to the
+   * best coder that can be inferred based upon the known {@link TypeDescriptor}. By default, this
+   * is null, but can and should be improved by subclasses.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private CoderOrFailure<T> inferCoderOrFail(
+      PInput input, PTransform<?, ?> transform, CoderRegistry registry) {
+    // First option for a coder: use the Coder set on this PValue.
+    if (coderOrFailure.coder != null) {
+      return coderOrFailure;
+    }
+
+    // Second option for a coder: use the default Coder from the producing PTransform.
+    CannotProvideCoderException inputCoderException;
+    try {
+      return new CoderOrFailure<>(
+          ((PTransform) transform).getDefaultOutputCoder(input, this), null);
+    } catch (CannotProvideCoderException exc) {
+      inputCoderException = exc;
+    }
+
+    // Third option for a coder: Look in the coder registry.
+    TypeDescriptor<T> token = getTypeDescriptor();
+    CannotProvideCoderException inferFromTokenException = null;
+    if (token != null) {
+      try {
+        return new CoderOrFailure<>(registry.getCoder(token), null);
+      } catch (CannotProvideCoderException exc) {
+        inferFromTokenException = exc;
+        // Attempt to detect when the token came from a TupleTag used for a ParDo output,
+        // and provide a better error message if so. Unfortunately, this information is not
+        // directly available from the TypeDescriptor, so infer based on the type of the PTransform
+        // and the error message itself.
+        if (transform instanceof ParDo.MultiOutput
+            && exc.getReason() == ReasonCode.TYPE_ERASURE) {
+          inferFromTokenException = new CannotProvideCoderException(exc.getMessage()
+              + " If this error occurs for an output of the producing ParDo, verify that the "
+              + "TupleTag for this output is constructed with proper type information (see "
+              + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
+        }
+      }
+    }
+
+    // Build up the error message and list of causes.
+    StringBuilder messageBuilder = new StringBuilder()
+        .append("Unable to return a default Coder for ").append(this)
+        .append(". Correct one of the following root causes:");
+
+    // No exception, but give the user a message about .setCoder() has not been called.
+    messageBuilder.append("\n  No Coder has been manually specified; ")
+        .append(" you may do so using .setCoder().");
+
+    if (inferFromTokenException != null) {
+      messageBuilder
+          .append("\n  Inferring a Coder from the CoderRegistry failed: ")
+          .append(inferFromTokenException.getMessage());
+    }
+
+    if (inputCoderException != null) {
+      messageBuilder
+          .append("\n  Using the default output Coder from the producing PTransform failed: ")
+          .append(inputCoderException.getMessage());
+    }
+
+    // Build and throw the exception.
+    return new CoderOrFailure<>(null, messageBuilder.toString());
+  }
 
   /**
    * The enumeration of cases for whether a {@link PCollection} is bounded.
@@ -125,9 +246,9 @@ public class PCollection<T> extends TypedPValue<T> {
    * @throws IllegalStateException if the {@link Coder} hasn't been set, and
    * couldn't be inferred.
    */
-  @Override
   public Coder<T> getCoder() {
-    return super.getCoder();
+    checkState(coderOrFailure.coder != null, coderOrFailure.failure);
+    return coderOrFailure.coder;
   }
 
   /**
@@ -138,9 +259,11 @@ public class PCollection<T> extends TypedPValue<T> {
    * been finalized and may no longer be set.
    * Once {@link #apply} has been called, this will be the case.
    */
-  @Override
   public PCollection<T> setCoder(Coder<T> coder) {
-    super.setCoder(coder);
+    checkState(
+        !isFinishedSpecifying(), "cannot change the Coder of %s once it's been used", this);
+    checkArgument(coder != null, "Cannot setCoder(null)");
+    this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
   }
 
@@ -201,37 +324,33 @@ public class PCollection<T> extends TypedPValue<T> {
    * {@link PCollectionTuple}, {@link PCollectionList}, or {@code PTransform<?, PCollection<T>>},
    * etc., to provide more detailed reflective information.
    */
-  @Override
   public PCollection<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor) {
-    super.setTypeDescriptor(typeDescriptor);
+    this.typeDescriptor = typeDescriptor;
     return this;
   }
 
   /**
-   * Sets the {@link WindowingStrategy} of this {@link PCollection}.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setWindowingStrategyInternal(WindowingStrategy<?, ?> windowingStrategy) {
      this.windowingStrategy = windowingStrategy;
      return this;
   }
 
   /**
-   * Sets the {@link PCollection.IsBounded} of this {@link PCollection}.
-   *
-   * <p>For use by internal transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
     this.isBounded = isBounded;
     return this;
   }
 
   /**
-   * Creates and returns a new {@link PCollection} for a primitive output.
-   *
-   * <p>For use by primitive transformations only.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    */
+  @Internal
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy,
@@ -239,5 +358,15 @@ public class PCollection<T> extends TypedPValue<T> {
     return new PCollection<T>(pipeline)
         .setWindowingStrategyInternal(windowingStrategy)
         .setIsBoundedInternal(isBounded);
+  }
+
+  private static class CoderOrFailure<T> {
+    @Nullable private final Coder<T> coder;
+    @Nullable private final String failure;
+
+    public CoderOrFailure(@Nullable Coder<T> coder, @Nullable String failure) {
+      this.coder = coder;
+      this.failure = failure;
+    }
   }
 }

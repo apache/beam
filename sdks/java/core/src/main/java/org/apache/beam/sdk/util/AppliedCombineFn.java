@@ -23,13 +23,13 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
- * A {@link KeyedCombineFnWithContext} with a fixed accumulator coder. This is created from a
- * specific application of the {@link KeyedCombineFnWithContext}.
+ * A {@link GlobalCombineFn} with a fixed accumulator coder. This is created from a
+ * specific application of the {@link GlobalCombineFn}.
  *
  *  <p>Because the {@code AccumT} may reference {@code InputT}, the specific {@code Coder<AccumT>}
  *  may depend on the {@code Coder<InputT>}.
@@ -41,14 +41,14 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializable {
 
-  private final PerKeyCombineFn<K, InputT, AccumT, OutputT> fn;
+  private final GlobalCombineFn<InputT, AccumT, OutputT> fn;
   private final Coder<AccumT> accumulatorCoder;
 
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final KvCoder<K, InputT> kvCoder;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
-  private AppliedCombineFn(PerKeyCombineFn<K, InputT, AccumT, OutputT> fn,
+  private AppliedCombineFn(GlobalCombineFn<InputT, AccumT, OutputT> fn,
       Coder<AccumT> accumulatorCoder, Iterable<PCollectionView<?>> sideInputViews,
       KvCoder<K, InputT> kvCoder, WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
@@ -60,41 +60,41 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
 
   public static <K, InputT, AccumT, OutputT> AppliedCombineFn<K, InputT, AccumT, OutputT>
       withAccumulatorCoder(
-          PerKeyCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+          GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           Coder<AccumT> accumCoder) {
     return withAccumulatorCoder(fn, accumCoder, null, null, null);
   }
 
   public static <K, InputT, AccumT, OutputT> AppliedCombineFn<K, InputT, AccumT, OutputT>
       withAccumulatorCoder(
-          PerKeyCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+          GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           Coder<AccumT> accumCoder, Iterable<PCollectionView<?>> sideInputViews,
           KvCoder<K, InputT> kvCoder, WindowingStrategy<?, ?> windowingStrategy) {
     // Casting down the K and InputT is safe because they're only used as inputs.
     @SuppressWarnings("unchecked")
-    PerKeyCombineFn<K, InputT, AccumT, OutputT> clonedFn =
-        (PerKeyCombineFn<K, InputT, AccumT, OutputT>) SerializableUtils.clone(fn);
+    GlobalCombineFn<InputT, AccumT, OutputT> clonedFn =
+        (GlobalCombineFn<InputT, AccumT, OutputT>) SerializableUtils.clone(fn);
     return create(clonedFn, accumCoder, sideInputViews, kvCoder, windowingStrategy);
   }
 
   @VisibleForTesting
   public static <K, InputT, AccumT, OutputT> AppliedCombineFn<K, InputT, AccumT, OutputT>
-      withInputCoder(PerKeyCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+      withInputCoder(GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           CoderRegistry registry, KvCoder<K, InputT> kvCoder) {
     return withInputCoder(fn, registry, kvCoder, null, null);
   }
 
   public static <K, InputT, AccumT, OutputT> AppliedCombineFn<K, InputT, AccumT, OutputT>
-      withInputCoder(PerKeyCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+      withInputCoder(GlobalCombineFn<? super InputT, AccumT, OutputT> fn,
           CoderRegistry registry, KvCoder<K, InputT> kvCoder,
           Iterable<PCollectionView<?>> sideInputViews, WindowingStrategy<?, ?> windowingStrategy) {
     // Casting down the K and InputT is safe because they're only used as inputs.
     @SuppressWarnings("unchecked")
-    PerKeyCombineFn<K, InputT, AccumT, OutputT> clonedFn =
-        (PerKeyCombineFn<K, InputT, AccumT, OutputT>) SerializableUtils.clone(fn);
+    GlobalCombineFn<InputT, AccumT, OutputT> clonedFn =
+        (GlobalCombineFn<InputT, AccumT, OutputT>) SerializableUtils.clone(fn);
     try {
-      Coder<AccumT> accumulatorCoder = clonedFn.getAccumulatorCoder(
-          registry, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+      Coder<AccumT> accumulatorCoder =
+          clonedFn.getAccumulatorCoder(registry, kvCoder.getValueCoder());
       return create(clonedFn, accumulatorCoder, sideInputViews, kvCoder, windowingStrategy);
     } catch (CannotProvideCoderException e) {
       throw new IllegalStateException("Could not determine coder for accumulator", e);
@@ -102,14 +102,14 @@ public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializabl
   }
 
   private static <K, InputT, AccumT, OutputT> AppliedCombineFn<K, InputT, AccumT, OutputT> create(
-      PerKeyCombineFn<K, InputT, AccumT, OutputT> fn,
+      GlobalCombineFn<InputT, AccumT, OutputT> fn,
       Coder<AccumT> accumulatorCoder, Iterable<PCollectionView<?>> sideInputViews,
       KvCoder<K, InputT> kvCoder, WindowingStrategy<?, ?> windowingStrategy) {
     return new AppliedCombineFn<>(
         fn, accumulatorCoder, sideInputViews, kvCoder, windowingStrategy);
   }
 
-  public PerKeyCombineFn<K, InputT, AccumT, OutputT> getFn() {
+  public GlobalCombineFn<InputT, AccumT, OutputT> getFn() {
     return fn;
   }
 

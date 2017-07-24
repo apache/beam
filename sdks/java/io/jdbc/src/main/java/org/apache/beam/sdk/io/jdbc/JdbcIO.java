@@ -25,13 +25,13 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Random;
-
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -340,7 +340,7 @@ public class JdbcIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(getQuery() != null,
           "JdbcIO.read() requires a query to be set via withQuery(query)");
       checkState(getRowMapper() != null,
@@ -445,7 +445,7 @@ public class JdbcIO {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PipelineOptions options) {
       checkArgument(getDataSourceConfiguration() != null,
           "JdbcIO.write() requires a configuration to be set via "
               + ".withDataSourceConfiguration(configuration)");
@@ -479,7 +479,7 @@ public class JdbcIO {
       }
 
       @StartBundle
-      public void startBundle(Context context) {
+      public void startBundle() {
         batchCount = 0;
       }
 
@@ -494,12 +494,16 @@ public class JdbcIO {
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
-          finishBundle(context);
+          executeBatch();
         }
       }
 
       @FinishBundle
-      public void finishBundle(Context context) throws Exception {
+      public void finishBundle() throws Exception {
+        executeBatch();
+      }
+
+      private void executeBatch() throws SQLException {
         if (batchCount > 0) {
           preparedStatement.executeBatch();
           connection.commit();

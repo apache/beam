@@ -32,26 +32,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
@@ -62,7 +59,7 @@ import org.joda.time.Instant;
  * <p>{@link EvaluationContext} contains shared state for an execution of the
  * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
  * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and managing the {@link AggregatorContainer} and
+ * {@link PCollectionView PCollectionViews}, and managing the
  * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
  * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
  * known to be empty).
@@ -90,12 +87,10 @@ class EvaluationContext {
   private final WatermarkCallbackExecutor callbackExecutor;
 
   /** The stateInternals of the world, by applied PTransform and key. */
-  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals<?>>
+  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals>
       applicationStateInternals;
 
   private final SideInputContainer sideInputContainer;
-
-  private final AggregatorContainer mergedAggregators;
 
   private final DirectMetrics metrics;
 
@@ -126,11 +121,9 @@ class EvaluationContext {
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.mergedAggregators = AggregatorContainer.create();
     this.metrics = new DirectMetrics();
 
-    this.callbackExecutor =
-        WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
+    this.callbackExecutor = WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
   public void initialize(
@@ -174,14 +167,10 @@ class EvaluationContext {
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
         committedBundles,
         outputTypes);
-    // Commit aggregator changes
-    if (result.getAggregatorChanges() != null) {
-      result.getAggregatorChanges().commit();
-    }
     // Update state internals
-    CopyOnAccessInMemoryStateInternals<?> theirState = result.getState();
+    CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
-      CopyOnAccessInMemoryStateInternals<?> committedState = theirState.commit();
+      CopyOnAccessInMemoryStateInternals committedState = theirState.commit();
       StepAndKey stepAndKey =
           StepAndKey.of(
               result.getTransform(), completedBundle == null ? null : completedBundle.getKey());
@@ -331,7 +320,7 @@ class EvaluationContext {
     return new DirectExecutionContext(
         clock,
         key,
-        (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
+        (CopyOnAccessInMemoryStateInternals) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
   }
 
@@ -360,20 +349,6 @@ class EvaluationContext {
   public ReadyCheckingSideInputReader createSideInputReader(
       final List<PCollectionView<?>> sideInputs) {
     return sideInputContainer.createReaderForViews(sideInputs);
-  }
-
-  /**
-   * Returns a new mutator for the {@link AggregatorContainer}.
-   */
-  public AggregatorContainer.Mutator getAggregatorMutator() {
-    return mergedAggregators.createMutator();
-  }
-
-  /**
-   * Returns the counter container for this context.
-   */
-  public AggregatorContainer getAggregatorContainer() {
-    return mergedAggregators;
   }
 
   /** Returns the metrics container for this pipeline. */

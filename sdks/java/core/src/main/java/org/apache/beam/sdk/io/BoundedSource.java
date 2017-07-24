@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  *
  * <p>The operations are:
  * <ul>
- * <li>Splitting into bundles of given size: {@link #splitIntoBundles};
+ * <li>Splitting into sources that read bundles of given size: {@link #split};
  * <li>Size estimation: {@link #getEstimatedSizeBytes};
  * <li>The accompanying {@link BoundedReader reader} has additional functionality to enable runners
  * to dynamically adapt based on runtime conditions.
@@ -54,7 +54,7 @@ public abstract class BoundedSource<T> extends Source<T> {
   /**
    * Splits the source into bundles of approximately {@code desiredBundleSizeBytes}.
    */
-  public abstract List<? extends BoundedSource<T>> splitIntoBundles(
+  public abstract List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
 
   /**

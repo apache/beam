@@ -27,17 +27,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -119,9 +118,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
-          public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+          public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
             throw new IllegalStateException(
-                "Should not access context() from @"
+                "Should not access startBundleContext() from @"
+                    + DoFn.ProcessElement.class.getSimpleName());
+          }
+
+          @Override
+          public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+            throw new IllegalStateException(
+                "Should not access finishBundleContext() from @"
                     + DoFn.ProcessElement.class.getSimpleName());
           }
 
@@ -270,12 +276,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       if (numOutputs >= maxNumOutputs) {
         initiateCheckpoint();
       }
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      throw new UnsupportedOperationException();
     }
   }
 }

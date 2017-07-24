@@ -24,18 +24,18 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -44,10 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
  * the dataset that is over a given length, generates a string containing the
  * list of play names in which that word appears, and saves this information
  * to a bigquery table.
- *
- * <p>Concepts: the Combine.perKey transform, which lets you combine the values in a
- * key-grouped Collection, and how to use an Aggregator to track information in the
- * Monitoring UI.
  *
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
@@ -79,8 +75,7 @@ public class CombinePerKeyExamples {
    * outputs word, play_name.
    */
   static class ExtractLargeWordsFn extends DoFn<TableRow, KV<String, String>> {
-    private final Aggregator<Long, Long> smallerWords =
-        createAggregator("smallerWords", Sum.ofLongs());
+    private final Counter smallerWords = Metrics.counter(ExtractLargeWordsFn.class, "smallerWords");
 
     @ProcessElement
     public void processElement(ProcessContext c){
@@ -92,7 +87,7 @@ public class CombinePerKeyExamples {
       } else {
         // Track how many smaller words we're not including. This information will be
         // visible in the Monitoring UI.
-        smallerWords.addValue(1L);
+        smallerWords.inc();
       }
     }
   }

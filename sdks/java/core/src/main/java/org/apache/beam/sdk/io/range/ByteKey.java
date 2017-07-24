@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.ByteIterator;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
+import javax.annotation.Nonnull;
 
 /**
  * A class representing a key consisting of an array of bytes. Arbitrary-length
@@ -43,10 +45,11 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   public static final ByteKey EMPTY = ByteKey.of();
 
   /**
-   * Creates a new {@link ByteKey} backed by the specified {@link ByteString}.
+   * Creates a new {@link ByteKey} backed by a copy of the data remaining in the specified
+   * {@link ByteBuffer}.
    */
-  public static ByteKey of(ByteString value) {
-    return new ByteKey(value);
+  public static ByteKey copyFrom(ByteBuffer value) {
+    return new ByteKey(ByteString.copyFrom(value));
   }
 
   /**
@@ -55,7 +58,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
    * <p>Makes a copy of the underlying array.
    */
   public static ByteKey copyFrom(byte[] bytes) {
-    return of(ByteString.copyFrom(bytes));
+    return new ByteKey(ByteString.copyFrom(bytes));
   }
 
   /**
@@ -78,12 +81,10 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   }
 
   /**
-   * Returns an immutable {@link ByteString} representing this {@link ByteKey}.
-   *
-   * <p>Does not copy.
+   * Returns a read-only {@link ByteBuffer} representing this {@link ByteKey}.
    */
-  public ByteString getValue() {
-    return value;
+  public ByteBuffer getValue() {
+    return value.asReadOnlyByteBuffer();
   }
 
   /**
@@ -109,7 +110,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
    * size.
    */
   @Override
-  public int compareTo(ByteKey other) {
+  public int compareTo(@Nonnull ByteKey other) {
     checkNotNull(other, "other");
     ByteIterator thisIt = value.iterator();
     ByteIterator otherIt = other.value.iterator();

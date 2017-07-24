@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -40,11 +40,11 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -121,10 +121,10 @@ public class TransformTreeTest {
 
     final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample =
         Sample.fixedSizeGlobally(10);
-    p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
+    p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
         .apply(sample)
         .apply(Flatten.<String>iterables())
-        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
+        .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);
@@ -143,7 +143,7 @@ public class TransformTreeTest {
               assertTrue(visited.add(TransformsSeen.SAMPLE));
               assertNotNull(node.getEnclosingNode());
               assertTrue(node.isCompositeNode());
-            } else if (transform instanceof Write) {
+            } else if (transform instanceof WriteFiles) {
               assertTrue(visited.add(TransformsSeen.WRITE));
               assertNotNull(node.getEnclosingNode());
               assertTrue(node.isCompositeNode());
@@ -165,9 +165,9 @@ public class TransformTreeTest {
             PTransform<?, ?> transform = node.getTransform();
             // Pick is a composite, should not be visited here.
             assertThat(transform, not(instanceOf(Combine.Globally.class)));
-            assertThat(transform, not(instanceOf(Write.class)));
+            assertThat(transform, not(instanceOf(WriteFiles.class)));
             if (transform instanceof Read.Bounded
-                && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
+                && node.getEnclosingNode().getTransform() instanceof TextIO.Read) {
               assertTrue(visited.add(TransformsSeen.READ));
             }
           }

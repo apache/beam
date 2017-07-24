@@ -18,10 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,9 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,13 +47,6 @@ public class IterableCoderTest {
       new LinkedList<>(Arrays.asList(7, 6, 5)));
 
   @Test
-  public void testCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = TEST_CODER.asCloudObject();
-    assertEquals("kind:stream", cloudObject.getClassName());
-    assertTrue(Structs.getBoolean(cloudObject, "is_stream_like"));
-  }
-
-  @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
     CoderProperties.coderSerializable(ListCoder.of(GlobalWindow.Coder.INSTANCE));
   }
@@ -72,31 +60,8 @@ public class IterableCoderTest {
   }
 
   @Test
-  public void testGetInstanceComponentsNonempty() {
-    Iterable<Integer> iterable = Arrays.asList(2, 58, 99, 5);
-    List<Object> components = IterableCoder.getInstanceComponents(iterable);
-    assertEquals(1, components.size());
-    assertEquals(2, components.get(0));
-  }
-
-  @Test
-  public void testGetInstanceComponentsEmpty() {
-    Iterable<Integer> iterable = Arrays.asList();
-    List<Object> components = IterableCoder.getInstanceComponents(iterable);
-    assertNull(components);
-  }
-
-  @Test
   public void testCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(TEST_CODER);
-  }
-
-  // If this changes, it implies that the binary format has changed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 
   /**

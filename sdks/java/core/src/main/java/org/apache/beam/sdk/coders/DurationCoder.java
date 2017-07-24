@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,7 +31,6 @@ import org.joda.time.ReadableDuration;
  */
 public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
-  @JsonCreator
   public static DurationCoder of() {
     return INSTANCE;
   }
@@ -43,7 +41,7 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   private static final TypeDescriptor<ReadableDuration> TYPE_DESCRIPTOR =
       new TypeDescriptor<ReadableDuration>() {};
 
-  private final VarLongCoder longCoder = VarLongCoder.of();
+  private static final VarLongCoder LONG_CODER = VarLongCoder.of();
 
   private DurationCoder() {}
 
@@ -56,18 +54,23 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   }
 
   @Override
-  public void encode(ReadableDuration value, OutputStream outStream, Context context)
+  public void encode(ReadableDuration value, OutputStream outStream)
       throws CoderException, IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null ReadableDuration");
     }
-    longCoder.encode(toLong(value), outStream, context);
+    LONG_CODER.encode(toLong(value), outStream);
   }
 
   @Override
-  public ReadableDuration decode(InputStream inStream, Context context)
+  public ReadableDuration decode(InputStream inStream)
       throws CoderException, IOException {
-      return fromLong(longCoder.decode(inStream, context));
+      return fromLong(LONG_CODER.decode(inStream));
+  }
+
+  @Override
+  public void verifyDeterministic() {
+    LONG_CODER.verifyDeterministic();
   }
 
   /**
@@ -86,14 +89,14 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
    * @return {@code true}, because it is cheap to ascertain the byte size of a long.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ReadableDuration value, Context context) {
-    return longCoder.isRegisterByteSizeObserverCheap(toLong(value), context);
+  public boolean isRegisterByteSizeObserverCheap(ReadableDuration value) {
+    return LONG_CODER.isRegisterByteSizeObserverCheap(toLong(value));
   }
 
   @Override
   public void registerByteSizeObserver(
-      ReadableDuration value, ElementByteSizeObserver observer, Context context) throws Exception {
-    longCoder.registerByteSizeObserver(toLong(value), observer, context);
+      ReadableDuration value, ElementByteSizeObserver observer) throws Exception {
+    LONG_CODER.registerByteSizeObserver(toLong(value), observer);
   }
 
   @Override

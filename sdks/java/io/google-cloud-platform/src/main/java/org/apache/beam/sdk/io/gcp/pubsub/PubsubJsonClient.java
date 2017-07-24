@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 
@@ -70,7 +69,7 @@ class PubsubJsonClient extends PubsubClient {
 
     @Override
     public PubsubClient newClient(
-        @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
       Pubsub pubsub = new Builder(
           Transport.getTransport(),
@@ -83,7 +82,7 @@ class PubsubJsonClient extends PubsubClient {
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
           .build();
-      return new PubsubJsonClient(timestampLabel, idLabel, pubsub);
+      return new PubsubJsonClient(timestampAttribute, idAttribute, pubsub);
     }
 
     @Override
@@ -98,17 +97,17 @@ class PubsubJsonClient extends PubsubClient {
   public static final PubsubClientFactory FACTORY = new PubsubJsonClientFactory();
 
   /**
-   * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
+   * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
   @Nullable
-  private final String timestampLabel;
+  private final String timestampAttribute;
 
   /**
-   * Label to use for custom ids, or {@literal null} if should use Pubsub provided ids.
+   * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
    */
   @Nullable
-  private final String idLabel;
+  private final String idAttribute;
 
   /**
    * Underlying JSON transport.
@@ -117,11 +116,11 @@ class PubsubJsonClient extends PubsubClient {
 
   @VisibleForTesting
   PubsubJsonClient(
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       Pubsub pubsub) {
-    this.timestampLabel = timestampLabel;
-    this.idLabel = idLabel;
+    this.timestampAttribute = timestampAttribute;
+    this.idAttribute = idAttribute;
     this.pubsub = pubsub;
   }
 
@@ -138,19 +137,19 @@ class PubsubJsonClient extends PubsubClient {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
 
       Map<String, String> attributes = outgoingMessage.attributes;
-      if ((timestampLabel != null || idLabel != null) && attributes == null) {
+      if ((timestampAttribute != null || idAttribute != null) && attributes == null) {
         attributes = new TreeMap<>();
       }
       if (attributes != null) {
         pubsubMessage.setAttributes(attributes);
       }
 
-      if (timestampLabel != null) {
-        attributes.put(timestampLabel, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+      if (timestampAttribute != null) {
+        attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
-      if (idLabel != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        attributes.put(idLabel, outgoingMessage.recordId);
+      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+        attributes.put(idAttribute, outgoingMessage.recordId);
       }
 
       pubsubMessages.add(pubsubMessage);
@@ -189,7 +188,7 @@ class PubsubJsonClient extends PubsubClient {
 
       // Timestamp.
       long timestampMsSinceEpoch =
-          extractTimestamp(timestampLabel, message.getMessage().getPublishTime(), attributes);
+          extractTimestamp(timestampAttribute, message.getMessage().getPublishTime(), attributes);
 
       // Ack id.
       String ackId = message.getAckId();
@@ -197,8 +196,8 @@ class PubsubJsonClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idLabel != null && attributes != null) {
-        recordId = attributes.get(idLabel);
+      if (idAttribute != null && attributes != null) {
+        recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {
         // Fall back to the Pubsub provided message id.

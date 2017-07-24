@@ -24,6 +24,33 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 /**
  * The <code>Metrics</code> is a utility class for producing various kinds of metrics for
  * reporting properties of an executing pipeline.
+ *
+ * <p>Metrics are created by calling one of the static methods in this class. Each metric is
+ * associated with a namespace and a name. The namespace allows grouping related metrics together
+ * based on the definition while also disambiguating common names based on where they are defined.
+ *
+ * <p>Reported metrics are implicitly scoped to the transform within the pipeline that reported
+ * them. This allows reporting the same metric name in multiple places and identifying the value
+ * each transform reported, as well as aggregating the metric across
+ *
+ * <p>It is runner-dependent whether Metrics are accessible during pipeline execution or only after
+ * jobs have completed.
+ *
+ * <p>Example:
+ * <pre>{@code
+ * class SomeDoFn extends DoFn<String, String> {
+ *   private Counter counter = Metrics.counter(SomeDoFn.class, "my-counter");
+ *
+ *   {@literal @}ProcessElement
+ *   public void processElement(ProcessContext c) {
+ *     counter.inc();
+ *     Metrics.counter(SomeDoFn.class, "my-counter2").inc();
+ *   }
+ * }
+ * }</pre>
+ *
+ * <p>See {@link MetricResults} (available from the {@code PipelineResults} interface) for an
+ * example off how to query metrics.
  */
 @Experimental(Kind.METRICS)
 public class Metrics {
@@ -75,7 +102,7 @@ public class Metrics {
   }
 
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
-  private static class DelegatingCounter implements Counter, Serializable {
+  private static class DelegatingCounter implements Metric, Counter, Serializable {
     private final MetricName name;
 
     private DelegatingCounter(MetricName name) {
@@ -104,12 +131,16 @@ public class Metrics {
     @Override public void dec(long n) {
       inc(-1 * n);
     }
+
+    @Override public MetricName getName() {
+      return name;
+    }
   }
 
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
-  private static class DelegatingDistribution implements Distribution, Serializable {
+  private static class DelegatingDistribution implements Metric, Distribution, Serializable {
     private final MetricName name;
 
     private DelegatingDistribution(MetricName name) {
@@ -123,12 +154,16 @@ public class Metrics {
         container.getDistribution(name).update(value);
       }
     }
+
+    @Override public MetricName getName() {
+      return name;
+    }
   }
 
   /**
    * Implementation of {@link Gauge} that delegates to the instance for the current context.
    */
-  private static class DelegatingGauge implements Gauge, Serializable {
+  private static class DelegatingGauge implements Metric, Gauge, Serializable {
     private final MetricName name;
 
     private DelegatingGauge(MetricName name) {
@@ -141,6 +176,10 @@ public class Metrics {
       if (container != null) {
         container.getGauge(name).set(value);
       }
+    }
+
+    @Override public MetricName getName() {
+      return name;
     }
   }
 }

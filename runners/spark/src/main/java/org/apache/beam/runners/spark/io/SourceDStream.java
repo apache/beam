@@ -99,12 +99,12 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     this.initialParallelism = ssc().sparkContext().defaultParallelism();
     checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
 
-    this.boundMaxRecords = boundMaxRecords > 0 ? boundMaxRecords : rateControlledMaxRecords();
+    this.boundMaxRecords = boundMaxRecords;
 
     try {
       this.numPartitions =
           createMicrobatchSource()
-              .splitIntoBundles(initialParallelism, options)
+              .split(options)
               .size();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -124,8 +124,34 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
 
   private MicrobatchSource<T, CheckpointMarkT> createMicrobatchSource() {
-    return new MicrobatchSource<>(unboundedSource, boundReadDuration, initialParallelism,
-        boundMaxRecords, -1, id(), readerCacheInterval);
+    return new MicrobatchSource<>(unboundedSource,
+                                  boundReadDuration,
+                                  initialParallelism,
+                                  computeReadMaxRecords(),
+                                  -1,
+                                  id(),
+                                  readerCacheInterval);
+  }
+
+  private long computeReadMaxRecords() {
+    if (boundMaxRecords > 0) {
+      LOG.info("Max records per batch has been set to {}, as configured in the PipelineOptions.",
+               boundMaxRecords);
+      return boundMaxRecords;
+    } else {
+      final scala.Option<Long> rateControlledMax = rateControlledMaxRecords();
+      if (rateControlledMax.isDefined()) {
+        LOG.info("Max records per batch has been set to {}, as advised by the rate controller.",
+                 rateControlledMax.get());
+        return rateControlledMax.get();
+      } else {
+        LOG.info("Max records per batch has not been limited by neither configuration "
+                     + "nor the rate controller, and will remain unlimited for the current batch "
+                     + "({}).",
+                 Long.MAX_VALUE);
+        return Long.MAX_VALUE;
+      }
+    }
   }
 
   @Override
@@ -164,19 +190,18 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
   //---- Bound by records.
 
-  private long rateControlledMaxRecords() {
-    scala.Option<RateController> rateControllerOption = rateController();
-    if (rateControllerOption.isDefined()) {
-      long rateLimitPerSecond = rateControllerOption.get().getLatestRate();
-      if (rateLimitPerSecond > 0) {
-        long totalRateLimit =
-            rateLimitPerSecond * (ssc().graph().batchDuration().milliseconds() / 1000);
-        LOG.info("RateController set limit to {}", totalRateLimit);
-        return totalRateLimit;
-      }
+  private scala.Option<Long> rateControlledMaxRecords() {
+    final scala.Option<RateController> rateControllerOption = rateController();
+    final scala.Option<Long> rateLimitPerBatch;
+    final long rateLimitPerSec;
+    if (rateControllerOption.isDefined()
+        && ((rateLimitPerSec = rateControllerOption.get().getLatestRate()) > 0)) {
+      final long batchDurationSec = ssc().graph().batchDuration().milliseconds() / 1000;
+      rateLimitPerBatch = scala.Option.apply(rateLimitPerSec * batchDurationSec);
+    } else {
+      rateLimitPerBatch = scala.Option.empty();
     }
-    LOG.info("RateController had nothing to report, default is Long.MAX_VALUE");
-    return Long.MAX_VALUE;
+    return rateLimitPerBatch;
   }
 
   private final RateController rateController = new SourceRateController(id(),

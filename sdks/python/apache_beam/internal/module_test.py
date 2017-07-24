@@ -59,4 +59,5 @@ def create_class(datum):
       return 'Z:%s' % datum
   return Z()
 
+
 XYZ_OBJECT = Xyz()

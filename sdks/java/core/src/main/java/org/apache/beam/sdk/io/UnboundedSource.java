@@ -65,7 +65,7 @@ public abstract class UnboundedSource<
    * as possible, but does not have to match exactly.  A low number of splits
    * will limit the amount of parallelism in the source.
    */
-  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> generateInitialSplits(
+  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception;
 
   /**
@@ -83,9 +83,9 @@ public abstract class UnboundedSource<
   /**
    * Returns whether this source requires explicit deduping.
    *
-   * <p>This is needed if the underlying data source can return the same record multiple times,
-   * such a queuing system with a pull-ack model.  Sources where the records read are uniquely
-   * identified by the persisted state in the CheckpointMark do not need this.
+   * <p>This is needed if the underlying data source can return the same record multiple times, such
+   * a queuing system with a pull-ack model. Sources where the records read are uniquely identified
+   * by the persisted state in the CheckpointMark do not need this.
    *
    * <p>Generally, if {@link CheckpointMark#finalizeCheckpoint()} is overridden, this method should
    * return true. Checkpoint finalization is best-effort, and readers can be resumed from a
@@ -233,20 +233,25 @@ public abstract class UnboundedSource<
      * }
      * }</pre>
      *
-     * <p>All elements read up until this method is called will be processed together as a bundle.
-     * (An element is considered 'read' if it could be returned by a call to {@link #getCurrent}.)
-     * Once the result of processing those elements and the returned checkpoint have been durably
+     * <p>All elements read between the last time this method was called (or since this reader was
+     * created, if this method has not been called on this reader) until this method is called will
+     * be processed together as a bundle. (An element is considered 'read' if it could be returned
+     * by a call to {@link #getCurrent}.)
+     *
+     * <p>Once the result of processing those elements and the returned checkpoint have been durably
      * committed, {@link CheckpointMark#finalizeCheckpoint} will be called at most once at some
      * later point on the returned {@link CheckpointMark} object. Checkpoint finalization is
      * best-effort, and checkpoints may not be finalized. If duplicate elements may be produced if
      * checkpoints are not finalized in a timely manner, {@link UnboundedSource#requiresDeduping()}
      * should be overridden to return true, and {@link UnboundedReader#getCurrentRecordId()} should
-     * be overriden to return unique record IDs.
+     * be overridden to return unique record IDs.
+     *
+     * <p>A checkpoint will be committed to durable storage only if all all previous checkpoints
+     * produced by the same reader have also been committed.
      *
      * <p>The returned object should not be modified.
      *
-     * <p>May be called after {@link #advance} or {@link #start} has returned false, but not before
-     * {@link #start} has been called.
+     * <p>May not be called before {@link #start} has been called.
      */
     public abstract CheckpointMark getCheckpointMark();
 

@@ -44,8 +44,10 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -299,21 +301,21 @@ public class UnboundedReadFromBoundedSourceTest {
    */
   private static class UnsplittableSource extends FileBasedSource<Byte> {
     public UnsplittableSource(String fileOrPatternSpec, long minBundleSize) {
-      super(fileOrPatternSpec, minBundleSize);
+      super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
     }
 
     public UnsplittableSource(
-        String fileName, long minBundleSize, long startOffset, long endOffset) {
-      super(fileName, minBundleSize, startOffset, endOffset);
+        Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+      super(metadata, minBundleSize, startOffset, endOffset);
     }
 
     @Override
-    protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
-      return new UnsplittableSource(fileName, getMinBundleSize(), start, end);
+    protected UnsplittableSource createForSubrangeOfFile(Metadata metadata, long start, long end) {
+      return new UnsplittableSource(metadata, getMinBundleSize(), start, end);
     }
 
     @Override
-    protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
+    protected UnsplittableReader createSingleFileReader(PipelineOptions options) {
       return new UnsplittableReader(this);
     }
 

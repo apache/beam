@@ -33,20 +33,19 @@ import org.apache.beam.runners.core.BaseExecutionContext.StepContext;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -86,7 +85,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -107,7 +105,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -138,7 +135,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     // Setting the timer needs the current time, as it is set relative
@@ -167,7 +163,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -188,7 +183,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     thrown.expect(UserCodeException.class);
@@ -215,7 +209,6 @@ public class SimpleDoFnRunnerTest {
             null,
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(windowFn));
 
     Instant currentTime = new Instant(42);
@@ -255,7 +248,6 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<Duration>(),
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -292,7 +284,6 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<Duration>(),
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -330,7 +321,6 @@ public class SimpleDoFnRunnerTest {
             new TupleTag<Duration>(),
             Collections.<TupleTag<?>>emptyList(),
             mockStepContext,
-            null,
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
@@ -357,12 +347,12 @@ public class SimpleDoFnRunnerTest {
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle() throws Exception {
       throw exceptionToThrow;
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       throw exceptionToThrow;
     }
 
@@ -397,7 +387,7 @@ public class SimpleDoFnRunnerTest {
 
     @ProcessElement
     public void process(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
-      timer.setForNowPlus(TIMER_OFFSET);
+      timer.offset(TIMER_OFFSET).setRelative();
     }
 
     @OnTimer(TIMER_ID)

@@ -25,7 +25,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 
 # Protect against environments where apitools library is not available.
@@ -87,7 +87,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--temp_location=/dev/null',
                             '--template_location=/bad/path',
                             '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline.options)
+    remote_runner.job = apiclient.Job(pipeline._options)
 
     with self.assertRaises(IOError):
       pipeline.run().wait_until_finish()

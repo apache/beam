@@ -28,22 +28,17 @@ import hamcrest as hc
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-from apache_beam import typehints
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
-from apache_beam.pvalue import PCollection
 from apache_beam.runners import DirectRunner
-from apache_beam.runners import runner
 from apache_beam.runners import create_runner
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class RunnerTest(unittest.TestCase):
@@ -123,42 +118,6 @@ class RunnerTest(unittest.TestCase):
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
-  def test_group_by_key_input_visitor_with_valid_inputs(self):
-    p = TestPipeline()
-    pcoll1 = PCollection(p)
-    pcoll2 = PCollection(p)
-    pcoll3 = PCollection(p)
-    for transform in [beam.GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = None
-      pcoll2.element_type = typehints.Any
-      pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
-      for pcoll in [pcoll1, pcoll2, pcoll3]:
-        runner.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, transform, "label", [pcoll]))
-        self.assertEqual(pcoll.element_type,
-                         typehints.KV[typehints.Any, typehints.Any])
-
-  def test_group_by_key_input_visitor_with_invalid_inputs(self):
-    p = TestPipeline()
-    pcoll1 = PCollection(p)
-    pcoll2 = PCollection(p)
-    for transform in [beam.GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = typehints.TupleSequenceConstraint
-      pcoll2.element_type = typehints.Set
-      err_msg = "Input to GroupByKey must be of Tuple or Any type"
-      for pcoll in [pcoll1, pcoll2]:
-        with self.assertRaisesRegexp(ValueError, err_msg):
-          runner.group_by_key_input_visitor().visit_transform(
-              AppliedPTransform(None, transform, "label", [pcoll]))
-
-  def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
-    p = TestPipeline()
-    pcoll = PCollection(p)
-    for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
-      pcoll.element_type = typehints.Any
-      runner.group_by_key_input_visitor().visit_transform(
-          AppliedPTransform(None, transform, "label", [pcoll]))
-      self.assertEqual(pcoll.element_type, typehints.Any)
 
 if __name__ == '__main__':
   unittest.main()

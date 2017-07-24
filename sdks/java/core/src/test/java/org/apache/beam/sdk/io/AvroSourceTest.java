@@ -42,22 +42,25 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.AvroSource.AvroMetadata;
 import org.apache.beam.sdk.io.AvroSource.AvroReader;
 import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -81,7 +84,7 @@ public class AvroSourceTest {
   private enum SyncBehavior {
     SYNC_REGULAR, // Sync at regular, user defined intervals
     SYNC_RANDOM, // Sync at random intervals
-    SYNC_DEFAULT; // Sync at default intervals (i.e., no manual syncing).
+    SYNC_DEFAULT // Sync at default intervals (i.e., no manual syncing).
   }
 
   private static final int DEFAULT_RECORD_COUNT = 1000;
@@ -97,7 +100,9 @@ public class AvroSourceTest {
     String path = tmpFile.toString();
 
     FileOutputStream os = new FileOutputStream(tmpFile);
-    DatumWriter<T> datumWriter = coder.createDatumWriter();
+    DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
+        ? new GenericDatumWriter<T>(coder.getSchema())
+        : new ReflectDatumWriter<T>(coder.getSchema());
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       writer.setCodec(CodecFactory.fromString(codec));
       writer.create(coder.getSchema(), os);
@@ -168,7 +173,7 @@ public class AvroSourceTest {
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     List<? extends BoundedSource<FixedRecord>> splits =
-        source.splitIntoBundles(file.length() / 3, null);
+        source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       int items = SourceTestUtils.readFromSource(subSource, null).size();
       // Shouldn't split while unstarted.
@@ -201,7 +206,7 @@ public class AvroSourceTest {
     }
 
     List<? extends BoundedSource<FixedRecord>> splits =
-        source.splitIntoBundles(file.length() / 3, null);
+        source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
         assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
@@ -339,7 +344,7 @@ public class AvroSourceTest {
     int nonEmptySplits;
 
     // Split with the minimum bundle size
-    splits = source.splitIntoBundles(100L, options);
+    splits = source.split(100L, options);
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
@@ -351,7 +356,7 @@ public class AvroSourceTest {
     assertTrue(nonEmptySplits > 2);
 
     // Split with larger bundle size
-    splits = source.splitIntoBundles(file.length() / 4, options);
+    splits = source.split(file.length() / 4, options);
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
@@ -363,7 +368,7 @@ public class AvroSourceTest {
     assertTrue(nonEmptySplits > 2);
 
     // Split with the file length
-    splits = source.splitIntoBundles(file.length(), options);
+    splits = source.split(file.length(), options);
     assertTrue(splits.size() == 1);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
@@ -433,8 +438,9 @@ public class AvroSourceTest {
     List<Bird> birds = createRandomRecords(100);
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
+    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
@@ -451,14 +457,15 @@ public class AvroSourceTest {
     List<Bird> birds = createRandomRecords(100);
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
+    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaA).createForSubrangeOfFile(filename, 0L, 0L);
+        .withSchema(schemaA).createForSubrangeOfFile(fileMetadata, 0L, 0L);
     AvroSource<GenericRecord> sourceB = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaB).createForSubrangeOfFile(filename, 0L, 0L);
+        .withSchema(schemaB).createForSubrangeOfFile(fileMetadata, 0L, 0L);
     assertSame(sourceA.getReadSchema(), sourceA.getFileSchema());
     assertSame(sourceA.getReadSchema(), sourceB.getReadSchema());
     assertSame(sourceA.getReadSchema(), sourceB.getFileSchema());
@@ -652,6 +659,37 @@ public class AvroSourceTest {
     DisplayData displayData = DisplayData.from(source);
     assertThat(displayData, hasDisplayItem("filePattern", "foobar.txt"));
     assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
+  }
+
+  @Test
+  public void testReadMetadataWithCodecs() throws Exception {
+    // Test reading files generated using all codecs.
+    String codecs[] = {DataFileConstants.NULL_CODEC, DataFileConstants.BZIP2_CODEC,
+        DataFileConstants.DEFLATE_CODEC, DataFileConstants.SNAPPY_CODEC,
+        DataFileConstants.XZ_CODEC};
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+
+    for (String codec : codecs) {
+      String filename = generateTestFile(
+          codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+
+      Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+      AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
+      assertEquals(codec, metadata.getCodec());
+    }
+  }
+
+  @Test
+  public void testReadSchemaString() throws Exception {
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+    String codec = DataFileConstants.NULL_CODEC;
+    String filename = generateTestFile(
+        codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+    Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+    AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
+    // By default, parse validates the schema, which is what we want.
+    Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
+    assertEquals(4, schema.getFields().size());
   }
 
   /**

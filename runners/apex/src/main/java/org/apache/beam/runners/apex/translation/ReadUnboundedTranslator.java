@@ -19,7 +19,6 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.InputOperator;
-
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;

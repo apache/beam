@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.state.MapState;
 
 /**
  * Category tag for validation tests which utilize {@link MapState}.

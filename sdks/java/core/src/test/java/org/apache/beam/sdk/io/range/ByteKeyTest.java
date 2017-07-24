@@ -111,7 +111,7 @@ public class ByteKeyTest {
           assertTrue(String.format("Expected that %s is equal to itself.", left), eq);
           assertTrue(
               String.format("Expected that %s is equal to a copy of itself.", left),
-              left.equals(ByteKey.of(right.getValue())));
+              left.equals(ByteKey.copyFrom(right.getValue())));
         } else {
           assertFalse(String.format("Expected that %s is not equal to %s", left, right), eq);
         }
@@ -128,7 +128,7 @@ public class ByteKeyTest {
     int collisions = 0;
     for (int i = 0; i < TEST_KEYS.length; ++i) {
       int left = TEST_KEYS[i].hashCode();
-      int leftClone = ByteKey.of(TEST_KEYS[i].getValue()).hashCode();
+      int leftClone = ByteKey.copyFrom(TEST_KEYS[i].getValue()).hashCode();
       assertEquals(
           String.format("Expected same hash code for %s and a copy of itself", TEST_KEYS[i]),
           left,

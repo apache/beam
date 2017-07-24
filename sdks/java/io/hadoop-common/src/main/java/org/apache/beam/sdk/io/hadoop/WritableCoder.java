@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.auto.service.AutoService;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
@@ -45,7 +50,7 @@ import org.apache.hadoop.io.Writable;
  *
  * @param <T> the type of elements handled by this coder.
  */
-public class WritableCoder<T extends Writable> extends StandardCoder<T> {
+public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   private static final long serialVersionUID = 0L;
 
   /**
@@ -56,18 +61,6 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
     return new WritableCoder<>(clazz);
   }
 
-  @JsonCreator
-  @SuppressWarnings("unchecked")
-  public static WritableCoder<?> of(@JsonProperty("type") String classType)
-      throws ClassNotFoundException {
-    Class<?> clazz = Class.forName(classType);
-    if (!Writable.class.isAssignableFrom(clazz)) {
-      throw new ClassNotFoundException(
-          "Class " + classType + " does not implement Writable");
-    }
-    return of((Class<? extends Writable>) clazz);
-  }
-
   private final Class<T> type;
 
   public WritableCoder(Class<T> type) {
@@ -75,13 +68,13 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context) throws IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     value.write(new DataOutputStream(outStream));
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public T decode(InputStream inStream, Context context) throws IOException {
+  public T decode(InputStream inStream) throws IOException {
     try {
       if (type == NullWritable.class) {
         // NullWritable has no default constructor
@@ -97,14 +90,7 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
 
   @Override
   public List<Coder<?>> getCoderArguments() {
-    return null;
-  }
-
-  @Override
-  public CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    result.put("type", type.getName());
-    return result;
+    return Collections.emptyList();
   }
 
   @Override
@@ -113,4 +99,71 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
         "Hadoop Writable may be non-deterministic.");
   }
 
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof WritableCoder)) {
+      return false;
+    }
+    WritableCoder<?> that = (WritableCoder<?>) other;
+    return Objects.equals(this.type, that.type);
+  }
+
+  @Override
+  public int hashCode() {
+    return type.hashCode();
+  }
+
+  /**
+   * Returns a {@link CoderProvider} which uses the {@link WritableCoder} for Hadoop
+   * {@link Writable writable types}.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
+   */
+  public static CoderProvider getCoderProvider() {
+    return new WritableCoderProvider();
+  }
+
+  /**
+   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
+   * {@link Writable writable types}.
+   */
+  @AutoService(CoderProviderRegistrar.class)
+  public static class WritableCoderProviderRegistrar implements CoderProviderRegistrar {
+
+    @Override
+    public List<CoderProvider> getCoderProviders() {
+      return Collections.singletonList(getCoderProvider());
+    }
+  }
+
+  /**
+   * A {@link CoderProvider} for Hadoop {@link Writable writable types}.
+   */
+  private static class WritableCoderProvider extends CoderProvider {
+    private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
+
+    @Override
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (!typeDescriptor.isSubtypeOf(WRITABLE_TYPE)) {
+        throw new CannotProvideCoderException(
+            String.format(
+                "Cannot provide %s because %s does not implement the interface %s",
+                WritableCoder.class.getSimpleName(),
+                typeDescriptor,
+                Writable.class.getName()));
+      }
+
+      try {
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = WritableCoder.of((Class) typeDescriptor.getRawType());
+        return coder;
+      } catch (IllegalArgumentException e) {
+        throw new CannotProvideCoderException(e);
+      }
+    }
+  }
 }

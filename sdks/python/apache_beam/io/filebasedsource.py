@@ -30,10 +30,15 @@ from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.options.value_provider import ValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import check_accessible
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
+
+__all__ = ['FileBasedSource']
 
 
 class FileBasedSource(iobase.BoundedSource):
@@ -51,7 +56,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Initializes ``FileBasedSource``.
 
     Args:
-      file_pattern: the file glob to read.
+      file_pattern: the file glob to read a string or a ValueProvider
+                    (placeholder to inject a runtime value).
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
       compression_type: compression type to use
@@ -69,17 +75,20 @@ class FileBasedSource(iobase.BoundedSource):
                 creation time.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
-                 string.
+                 string or a ValueProvider.
       ValueError: when compression and splittable files are specified.
       IOError: when the file pattern specified yields an empty result.
     """
-    if not isinstance(file_pattern, basestring):
-      raise TypeError(
-          '%s: file_pattern must be a string;  got %r instead' %
-          (self.__class__.__name__, file_pattern))
 
+    if not isinstance(file_pattern, (basestring, ValueProvider)):
+      raise TypeError('%s: file_pattern must be of type string'
+                      ' or ValueProvider; got %r instead'
+                      % (self.__class__.__name__, file_pattern))
+
+    if isinstance(file_pattern, basestring):
+      file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
-    self._file_system = get_filesystem(file_pattern)
+
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
     if not CompressionTypes.is_valid_compression_type(compression_type):
@@ -92,19 +101,22 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    if validate:
+    if validate and file_pattern.is_accessible():
       self._validate()
 
   def display_data(self):
-    return {'file_pattern': DisplayDataItem(self._pattern,
+    return {'file_pattern': DisplayDataItem(str(self._pattern),
                                             label="File Pattern"),
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
 
+  @check_accessible(['_pattern'])
   def _get_concat_source(self):
     if self._concat_source is None:
+      pattern = self._pattern.get()
+
       single_file_sources = []
-      match_result = self._file_system.match([self._pattern])[0]
+      match_result = FileSystems.match([pattern])[0]
       files_metadata = match_result.metadata_list
 
       # We create a reference for FileBasedSource that will be serialized along
@@ -139,18 +151,21 @@ class FileBasedSource(iobase.BoundedSource):
     return self._concat_source
 
   def open_file(self, file_name):
-    return get_filesystem(file_name).open(
+    return FileSystems.open(
         file_name, 'application/octet-stream',
         compression_type=self._compression_type)
 
+  @check_accessible(['_pattern'])
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
+    pattern = self._pattern.get()
+
     # Limit the responses as we only want to check if something exists
-    match_result = self._file_system.match([self._pattern], limits=[1])[0]
+    match_result = FileSystems.match([pattern], limits=[1])[0]
     if len(match_result.metadata_list) <= 0:
       raise IOError(
-          'No files found based on the file pattern %s' % self._pattern)
+          'No files found based on the file pattern %s' % pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
@@ -159,8 +174,10 @@ class FileBasedSource(iobase.BoundedSource):
         start_position=start_position,
         stop_position=stop_position)
 
+  @check_accessible(['_pattern'])
   def estimate_size(self):
-    match_result = self._file_system.match([self._pattern])[0]
+    pattern = self._pattern.get()
+    match_result = FileSystems.match([pattern])[0]
     return sum([f.size_in_bytes for f in match_result.metadata_list])
 
   def read(self, range_tracker):
@@ -185,7 +202,7 @@ class FileBasedSource(iobase.BoundedSource):
                             defined by a given ``RangeTracker``.
 
     Returns:
-      a iterator that gives the records read from the given file.
+      an iterator that gives the records read from the given file.
     """
     raise NotImplementedError
 

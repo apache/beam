@@ -31,6 +31,17 @@ import itertools
 from apache_beam import typehints
 
 
+__all__ = [
+    'PCollection',
+    'TaggedOutput',
+    'AsSingleton',
+    'AsIter',
+    'AsList',
+    'AsDict',
+    'EmptySideInput',
+]
+
+
 class PValue(object):
   """Base class for PCollection.
 
@@ -206,14 +217,14 @@ class DoOutputsTuple(object):
     elif self._tags and tag not in self._tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
-          "nor any of the side tags %s" % (
+          "nor any of the tags %s" % (
               tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
 
     if tag is not None:
-      self._transform.side_output_tags.add(tag)
+      self._transform.output_tags.add(tag)
       pcoll = PCollection(self._pipeline, tag=tag)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
@@ -230,19 +241,19 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class SideOutputValue(object):
+class TaggedOutput(object):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
   are distinguished by string tags. The DoFn will return plain values
-  if it wants to emit on the main output and SideOutputValue objects
+  if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
 
   def __init__(self, tag, value):
     if not isinstance(tag, basestring):
       raise TypeError(
-          'Attempting to create a SideOutputValue with non-string tag %s' % tag)
+          'Attempting to create a TaggedOutput with non-string tag %s' % tag)
     self.tag = tag
     self.value = value
 
@@ -391,13 +402,6 @@ class AsDict(AsSideInput):
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
-
-
-# For backwards compatibility with worker code.
-SingletonPCollectionView = AsSingleton
-IterablePCollectionView = AsIter
-ListPCollectionView = AsList
-DictPCollectionView = AsDict
 
 
 class EmptySideInput(object):

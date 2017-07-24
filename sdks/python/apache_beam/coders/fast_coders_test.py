@@ -32,6 +32,7 @@ class FastCoders(unittest.TestCase):
     # pylint: disable=unused-variable
     import apache_beam.coders.stream
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

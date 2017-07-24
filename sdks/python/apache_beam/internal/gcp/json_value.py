@@ -25,13 +25,17 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+from apache_beam.options.value_provider import ValueProvider
+
 
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
 
 
 def get_typed_value_descriptor(obj):
-  """Converts a basic type into a @type/value dictionary.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts a basic type into a @type/value dictionary.
 
   Args:
     obj: A basestring, bool, int, or float to be converted.
@@ -57,7 +61,9 @@ def get_typed_value_descriptor(obj):
 
 
 def to_json_value(obj, with_type=False):
-  """Converts Python objects into extra_types.JsonValue objects.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts Python objects into extra_types.JsonValue objects.
 
   Args:
     obj: Python object to be converted. Can be 'None'.
@@ -104,12 +110,18 @@ def to_json_value(obj, with_type=False):
       raise TypeError('Can not encode {} as a 64-bit integer'.format(obj))
   elif isinstance(obj, float):
     return extra_types.JsonValue(double_value=obj)
+  elif isinstance(obj, ValueProvider):
+    if obj.is_accessible():
+      return to_json_value(obj.get())
+    return extra_types.JsonValue(is_null=True)
   else:
     raise TypeError('Cannot convert %s to a JSON value.' % repr(obj))
 
 
 def from_json_value(v):
-  """Converts extra_types.JsonValue objects into Python objects.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Converts extra_types.JsonValue objects into Python objects.
 
   Args:
     v: JsonValue object to be converted.

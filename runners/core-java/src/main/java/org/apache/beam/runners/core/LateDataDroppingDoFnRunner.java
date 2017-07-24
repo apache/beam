@@ -21,14 +21,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
@@ -49,13 +50,14 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   private final DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner;
   private final LateDataFilter lateDataFilter;
 
+  public static final String DROPPED_DUE_TO_LATENESS = "droppedDueToLateness";
+
   public LateDataDroppingDoFnRunner(
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner,
       WindowingStrategy<?, ?> windowingStrategy,
-      TimerInternals timerInternals,
-      Aggregator<Long, Long> droppedDueToLateness) {
+      TimerInternals timerInternals) {
     this.doFnRunner = doFnRunner;
-    lateDataFilter = new LateDataFilter(windowingStrategy, timerInternals, droppedDueToLateness);
+    lateDataFilter = new LateDataFilter(windowingStrategy, timerInternals);
   }
 
   @Override
@@ -90,15 +92,15 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   static class LateDataFilter {
     private final WindowingStrategy<?, ?> windowingStrategy;
     private final TimerInternals timerInternals;
-    private final Aggregator<Long, Long> droppedDueToLateness;
+    private final Counter droppedDueToLateness;
 
     public LateDataFilter(
         WindowingStrategy<?, ?> windowingStrategy,
-        TimerInternals timerInternals,
-        Aggregator<Long, Long> droppedDueToLateness) {
+        TimerInternals timerInternals) {
       this.windowingStrategy = windowingStrategy;
       this.timerInternals = timerInternals;
-      this.droppedDueToLateness = droppedDueToLateness;
+      this.droppedDueToLateness = Metrics.counter(LateDataDroppingDoFnRunner.class,
+          DROPPED_DUE_TO_LATENESS);
     }
 
     /**
@@ -130,7 +132,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
         BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
         if (canDropDueToExpiredWindow(window)) {
           // The element is too late for this window.
-          droppedDueToLateness.addValue(1L);
+          droppedDueToLateness.inc();
           WindowTracing.debug(
               "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
               + "since too far behind inputWatermark:{}; outputWatermark:{}",
@@ -158,7 +160,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     /** Is {@code window} expired w.r.t. the garbage collection watermark? */
     private boolean canDropDueToExpiredWindow(BoundedWindow window) {
       Instant inputWM = timerInternals.currentInputWatermarkTime();
-      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness()).isBefore(inputWM);
+      return LateDataUtils.garbageCollectionTime(window, windowingStrategy).isBefore(inputWM);
     }
   }
 }

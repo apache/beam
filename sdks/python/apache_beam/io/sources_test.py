@@ -27,9 +27,9 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class LineSource(iobase.BoundedSource):
@@ -100,7 +100,7 @@ class SourcesTest(unittest.TestCase):
   def test_run_direct(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(LineSource(file_name))
+    pcoll = pipeline | beam.io.Read(LineSource(file_name))
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
     pipeline.run()

@@ -33,12 +33,14 @@ _sym_db = _symbol_database.Default()
 
 from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='beam_runner_api.proto',
   package='org.apache.beam.runner_api.v1',
   syntax='proto3',
-  serialized_pb=_b('\n\x15\x62\x65\x61m_runner_api.proto\x12\x1dorg.apache.beam.runner_api.v1\x1a\x19google/protobuf/any.proto\"\x8d\x07\n\nComponents\x12M\n\ntransforms\x18\x01 \x03(\x0b\x32\x39.org.apache.beam.runner_api.v1.Components.TransformsEntry\x12Q\n\x0cpcollections\x18\x02 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.Components.PcollectionsEntry\x12`\n\x14windowing_strategies\x18\x03 \x03(\x0b\x32\x42.org.apache.beam.runner_api.v1.Components.WindowingStrategiesEntry\x12\x45\n\x06\x63oders\x18\x04 \x03(\x0b\x32\x35.org.apache.beam.runner_api.v1.Components.CodersEntry\x12Q\n\x0c\x65nvironments\x18\x05 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.Components.EnvironmentsEntry\x1a\\\n\x0fTransformsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x38\n\x05value\x18\x02 \x01(\x0b\x32).org.apache.beam.runner_api.v1.PTransform:\x02\x38\x01\x1a_\n\x11PcollectionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x39\n\x05value\x18\x02 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.PCollection:\x02\x38\x01\x1al\n\x18WindowingStrategiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12?\n\x05value\x18\x02 \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowingStrategy:\x02\x38\x01\x1aS\n\x0b\x43odersEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x33\n\x05value\x18\x02 \x01(\x0b\x32$.org.apache.beam.runner_api.v1.Coder:\x02\x38\x01\x1a_\n\x11\x45nvironmentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x39\n\x05value\x18\x02 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.Environment:\x02\x38\x01\"\xe2\x06\n\x15MessageWithComponents\x12=\n\ncomponents\x18\x01 \x01(\x0b\x32).org.apache.beam.runner_api.v1.Components\x12\x35\n\x05\x63oder\x18\x02 \x01(\x0b\x32$.org.apache.beam.runner_api.v1.CoderH\x00\x12H\n\x0f\x63ombine_payload\x18\x03 \x01(\x0b\x32-.org.apache.beam.runner_api.v1.CombinePayloadH\x00\x12K\n\x11sdk_function_spec\x18\x04 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpecH\x00\x12\x45\n\x0epar_do_payload\x18\x06 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.ParDoPayloadH\x00\x12?\n\nptransform\x18\x07 \x01(\x0b\x32).org.apache.beam.runner_api.v1.PTransformH\x00\x12\x41\n\x0bpcollection\x18\x08 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.PCollectionH\x00\x12\x42\n\x0cread_payload\x18\t \x01(\x0b\x32*.org.apache.beam.runner_api.v1.ReadPayloadH\x00\x12>\n\nside_input\x18\x0b \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInputH\x00\x12O\n\x13window_into_payload\x18\x0c \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowIntoPayloadH\x00\x12N\n\x12windowing_strategy\x18\r \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowingStrategyH\x00\x12\x44\n\rfunction_spec\x18\x0e \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpecH\x00\x42\x06\n\x04root\"\xa6\x01\n\x08Pipeline\x12=\n\ncomponents\x18\x01 \x01(\x0b\x32).org.apache.beam.runner_api.v1.Components\x12\x19\n\x11root_transform_id\x18\x02 \x01(\t\x12@\n\x0c\x64isplay_data\x18\x03 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\"\xa4\x03\n\nPTransform\x12\x13\n\x0bunique_name\x18\x05 \x01(\t\x12\x39\n\x04spec\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12\x15\n\rsubtransforms\x18\x02 \x03(\t\x12\x45\n\x06inputs\x18\x03 \x03(\x0b\x32\x35.org.apache.beam.runner_api.v1.PTransform.InputsEntry\x12G\n\x07outputs\x18\x04 \x03(\x0b\x32\x36.org.apache.beam.runner_api.v1.PTransform.OutputsEntry\x12@\n\x0c\x64isplay_data\x18\x06 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\x1a-\n\x0bInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a.\n\x0cOutputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xd3\x01\n\x0bPCollection\x12\x13\n\x0bunique_name\x18\x01 \x01(\t\x12\x10\n\x08\x63oder_id\x18\x02 \x01(\t\x12<\n\nis_bounded\x18\x03 \x01(\x0e\x32(.org.apache.beam.runner_api.v1.IsBounded\x12\x1d\n\x15windowing_strategy_id\x18\x04 \x01(\t\x12@\n\x0c\x64isplay_data\x18\x05 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\"\xb8\x03\n\x0cParDoPayload\x12=\n\x05\x64o_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12<\n\nparameters\x18\x02 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.Parameter\x12P\n\x0bside_inputs\x18\x03 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.ParDoPayload.SideInputsEntry\x12=\n\x0bstate_specs\x18\x04 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.StateSpec\x12=\n\x0btimer_specs\x18\x05 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.TimerSpec\x1a[\n\x0fSideInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInput:\x02\x38\x01\"\x8b\x01\n\tParameter\x12;\n\x04type\x18\x01 \x01(\x0e\x32-.org.apache.beam.runner_api.v1.Parameter.Type\"A\n\x04Type\x12\n\n\x06WINDOW\x10\x00\x12\x14\n\x10PIPELINE_OPTIONS\x10\x01\x12\x17\n\x13RESTRICTION_TRACKER\x10\x02\"\x0b\n\tStateSpec\"\x0b\n\tTimerSpec\"\x8b\x01\n\x0bReadPayload\x12>\n\x06source\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12<\n\nis_bounded\x18\x02 \x01(\x0e\x32(.org.apache.beam.runner_api.v1.IsBounded\"V\n\x11WindowIntoPayload\x12\x41\n\twindow_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\"\xe1\x02\n\x0e\x43ombinePayload\x12\x42\n\ncombine_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12\x1c\n\x14\x61\x63\x63umulator_coder_id\x18\x02 \x01(\t\x12<\n\nparameters\x18\x03 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.Parameter\x12R\n\x0bside_inputs\x18\x04 \x03(\x0b\x32=.org.apache.beam.runner_api.v1.CombinePayload.SideInputsEntry\x1a[\n\x0fSideInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInput:\x02\x38\x01\"b\n\x05\x43oder\x12<\n\x04spec\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12\x1b\n\x13\x63omponent_coder_ids\x18\x02 \x03(\t\"\xda\x03\n\x11WindowingStrategy\x12\x41\n\twindow_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12@\n\x0cmerge_status\x18\x02 \x01(\x0e\x32*.org.apache.beam.runner_api.v1.MergeStatus\x12\x17\n\x0fwindow_coder_id\x18\x03 \x01(\t\x12\x37\n\x07trigger\x18\x04 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12J\n\x11\x61\x63\x63umulation_mode\x18\x05 \x01(\x0e\x32/.org.apache.beam.runner_api.v1.AccumulationMode\x12>\n\x0boutput_time\x18\x06 \x01(\x0e\x32).org.apache.beam.runner_api.v1.OutputTime\x12H\n\x10\x63losing_behavior\x18\x07 \x01(\x0e\x32..org.apache.beam.runner_api.v1.ClosingBehavior\x12\x18\n\x10\x61llowed_lateness\x18\x08 \x01(\x03\"\xad\r\n\x07Trigger\x12\x44\n\tafter_all\x18\x01 \x01(\x0b\x32/.org.apache.beam.runner_api.v1.Trigger.AfterAllH\x00\x12\x44\n\tafter_any\x18\x02 \x01(\x0b\x32/.org.apache.beam.runner_api.v1.Trigger.AfterAnyH\x00\x12\x46\n\nafter_each\x18\x03 \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.Trigger.AfterEachH\x00\x12V\n\x13\x61\x66ter_end_of_window\x18\x04 \x01(\x0b\x32\x37.org.apache.beam.runner_api.v1.Trigger.AfterEndOfWindowH\x00\x12[\n\x15\x61\x66ter_processing_time\x18\x05 \x01(\x0b\x32:.org.apache.beam.runner_api.v1.Trigger.AfterProcessingTimeH\x00\x12t\n\"after_synchronized_processing_time\x18\x06 \x01(\x0b\x32\x46.org.apache.beam.runner_api.v1.Trigger.AfterSynchronizedProcessingTimeH\x00\x12?\n\x06\x61lways\x18\x0c \x01(\x0b\x32-.org.apache.beam.runner_api.v1.Trigger.AlwaysH\x00\x12\x41\n\x07\x64\x65\x66\x61ult\x18\x07 \x01(\x0b\x32..org.apache.beam.runner_api.v1.Trigger.DefaultH\x00\x12L\n\relement_count\x18\x08 \x01(\x0b\x32\x33.org.apache.beam.runner_api.v1.Trigger.ElementCountH\x00\x12=\n\x05never\x18\t \x01(\x0b\x32,.org.apache.beam.runner_api.v1.Trigger.NeverH\x00\x12\x46\n\nor_finally\x18\n \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.Trigger.OrFinallyH\x00\x12?\n\x06repeat\x18\x0b \x01(\x0b\x32-.org.apache.beam.runner_api.v1.Trigger.RepeatH\x00\x1aG\n\x08\x41\x66terAll\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1aG\n\x08\x41\x66terAny\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1aH\n\tAfterEach\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x8f\x01\n\x10\x41\x66terEndOfWindow\x12=\n\rearly_firings\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12<\n\x0clate_firings\x18\x02 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x66\n\x13\x41\x66terProcessingTime\x12O\n\x14timestamp_transforms\x18\x01 \x03(\x0b\x32\x31.org.apache.beam.runner_api.v1.TimestampTransform\x1a!\n\x1f\x41\x66terSynchronizedProcessingTime\x1a\t\n\x07\x44\x65\x66\x61ult\x1a%\n\x0c\x45lementCount\x12\x15\n\relement_count\x18\x01 \x01(\x05\x1a\x07\n\x05Never\x1a\x08\n\x06\x41lways\x1az\n\tOrFinally\x12\x34\n\x04main\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12\x37\n\x07\x66inally\x18\x02 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x44\n\x06Repeat\x12:\n\nsubtrigger\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.TriggerB\t\n\x07trigger\"\x8e\x02\n\x12TimestampTransform\x12H\n\x05\x64\x65lay\x18\x01 \x01(\x0b\x32\x37.org.apache.beam.runner_api.v1.TimestampTransform.DelayH\x00\x12M\n\x08\x61lign_to\x18\x02 \x01(\x0b\x32\x39.org.apache.beam.runner_api.v1.TimestampTransform.AlignToH\x00\x1a\x1d\n\x05\x44\x65lay\x12\x14\n\x0c\x64\x65lay_millis\x18\x01 \x01(\x03\x1a)\n\x07\x41lignTo\x12\x0e\n\x06period\x18\x03 \x01(\x03\x12\x0e\n\x06offset\x18\x04 \x01(\x03\x42\x15\n\x13timestamp_transform\"\xdc\x01\n\tSideInput\x12\x43\n\x0e\x61\x63\x63\x65ss_pattern\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12?\n\x07view_fn\x18\x02 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12I\n\x11window_mapping_fn\x18\x03 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\"\x1a\n\x0b\x45nvironment\x12\x0b\n\x03url\x18\x01 \x01(\t\"d\n\x0fSdkFunctionSpec\x12\x39\n\x04spec\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12\x16\n\x0e\x65nvironment_id\x18\x02 \x01(\t\"D\n\x0c\x46unctionSpec\x12\x0b\n\x03urn\x18\x01 \x01(\t\x12\'\n\tparameter\x18\x02 \x01(\x0b\x32\x14.google.protobuf.Any\"\xf7\x03\n\x0b\x44isplayData\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.org.apache.beam.runner_api.v1.DisplayData.Item\x1a\x46\n\nIdentifier\x12\x14\n\x0ctransform_id\x18\x01 \x01(\t\x12\x15\n\rtransform_urn\x18\x02 \x01(\t\x12\x0b\n\x03key\x18\x03 \x01(\t\x1a\xf9\x01\n\x04Item\x12\x41\n\x02id\x18\x01 \x01(\x0b\x32\x35.org.apache.beam.runner_api.v1.DisplayData.Identifier\x12=\n\x04type\x18\x02 \x01(\x0e\x32/.org.apache.beam.runner_api.v1.DisplayData.Type\x12#\n\x05value\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any\x12)\n\x0bshort_value\x18\x04 \x01(\x0b\x32\x14.google.protobuf.Any\x12\r\n\x05label\x18\x05 \x01(\t\x12\x10\n\x08link_url\x18\x06 \x01(\t\"d\n\x04Type\x12\n\n\x06STRING\x10\x00\x12\x0b\n\x07INTEGER\x10\x01\x12\t\n\x05\x46LOAT\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\r\n\tTIMESTAMP\x10\x04\x12\x0c\n\x08\x44URATION\x10\x05\x12\x0e\n\nJAVA_CLASS\x10\x06*\'\n\tIsBounded\x12\x0b\n\x07\x42OUNDED\x10\x00\x12\r\n\tUNBOUNDED\x10\x01*C\n\x0bMergeStatus\x12\x0f\n\x0bNON_MERGING\x10\x00\x12\x0f\n\x0bNEEDS_MERGE\x10\x01\x12\x12\n\x0e\x41LREADY_MERGED\x10\x02*4\n\x10\x41\x63\x63umulationMode\x12\x0e\n\nDISCARDING\x10\x00\x12\x10\n\x0c\x41\x43\x43UMULATING\x10\x01*8\n\x0f\x43losingBehavior\x12\x0f\n\x0b\x45MIT_ALWAYS\x10\x00\x12\x14\n\x10\x45MIT_IF_NONEMPTY\x10\x01*I\n\nOutputTime\x12\x11\n\rEND_OF_WINDOW\x10\x00\x12\x12\n\x0eLATEST_IN_PANE\x10\x01\x12\x14\n\x10\x45\x41RLIEST_IN_PANE\x10\x02*S\n\nTimeDomain\x12\x0e\n\nEVENT_TIME\x10\x00\x12\x13\n\x0fPROCESSING_TIME\x10\x01\x12 \n\x1cSYNCHRONIZED_PROCESSING_TIME\x10\x02\x42\x31\n$org.apache.beam.sdk.common.runner.v1B\tRunnerApib\x06proto3')
+  serialized_pb=_b('\n\x15\x62\x65\x61m_runner_api.proto\x12\x1dorg.apache.beam.runner_api.v1\x1a\x19google/protobuf/any.proto\"\x8d\x07\n\nComponents\x12M\n\ntransforms\x18\x01 \x03(\x0b\x32\x39.org.apache.beam.runner_api.v1.Components.TransformsEntry\x12Q\n\x0cpcollections\x18\x02 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.Components.PcollectionsEntry\x12`\n\x14windowing_strategies\x18\x03 \x03(\x0b\x32\x42.org.apache.beam.runner_api.v1.Components.WindowingStrategiesEntry\x12\x45\n\x06\x63oders\x18\x04 \x03(\x0b\x32\x35.org.apache.beam.runner_api.v1.Components.CodersEntry\x12Q\n\x0c\x65nvironments\x18\x05 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.Components.EnvironmentsEntry\x1a\\\n\x0fTransformsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x38\n\x05value\x18\x02 \x01(\x0b\x32).org.apache.beam.runner_api.v1.PTransform:\x02\x38\x01\x1a_\n\x11PcollectionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x39\n\x05value\x18\x02 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.PCollection:\x02\x38\x01\x1al\n\x18WindowingStrategiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12?\n\x05value\x18\x02 \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowingStrategy:\x02\x38\x01\x1aS\n\x0b\x43odersEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x33\n\x05value\x18\x02 \x01(\x0b\x32$.org.apache.beam.runner_api.v1.Coder:\x02\x38\x01\x1a_\n\x11\x45nvironmentsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x39\n\x05value\x18\x02 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.Environment:\x02\x38\x01\"\xe2\x06\n\x15MessageWithComponents\x12=\n\ncomponents\x18\x01 \x01(\x0b\x32).org.apache.beam.runner_api.v1.Components\x12\x35\n\x05\x63oder\x18\x02 \x01(\x0b\x32$.org.apache.beam.runner_api.v1.CoderH\x00\x12H\n\x0f\x63ombine_payload\x18\x03 \x01(\x0b\x32-.org.apache.beam.runner_api.v1.CombinePayloadH\x00\x12K\n\x11sdk_function_spec\x18\x04 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpecH\x00\x12\x45\n\x0epar_do_payload\x18\x06 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.ParDoPayloadH\x00\x12?\n\nptransform\x18\x07 \x01(\x0b\x32).org.apache.beam.runner_api.v1.PTransformH\x00\x12\x41\n\x0bpcollection\x18\x08 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.PCollectionH\x00\x12\x42\n\x0cread_payload\x18\t \x01(\x0b\x32*.org.apache.beam.runner_api.v1.ReadPayloadH\x00\x12>\n\nside_input\x18\x0b \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInputH\x00\x12O\n\x13window_into_payload\x18\x0c \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowIntoPayloadH\x00\x12N\n\x12windowing_strategy\x18\r \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.WindowingStrategyH\x00\x12\x44\n\rfunction_spec\x18\x0e \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpecH\x00\x42\x06\n\x04root\"\xa7\x01\n\x08Pipeline\x12=\n\ncomponents\x18\x01 \x01(\x0b\x32).org.apache.beam.runner_api.v1.Components\x12\x1a\n\x12root_transform_ids\x18\x02 \x03(\t\x12@\n\x0c\x64isplay_data\x18\x03 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\"\xa4\x03\n\nPTransform\x12\x13\n\x0bunique_name\x18\x05 \x01(\t\x12\x39\n\x04spec\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12\x15\n\rsubtransforms\x18\x02 \x03(\t\x12\x45\n\x06inputs\x18\x03 \x03(\x0b\x32\x35.org.apache.beam.runner_api.v1.PTransform.InputsEntry\x12G\n\x07outputs\x18\x04 \x03(\x0b\x32\x36.org.apache.beam.runner_api.v1.PTransform.OutputsEntry\x12@\n\x0c\x64isplay_data\x18\x06 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\x1a-\n\x0bInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a.\n\x0cOutputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xd3\x01\n\x0bPCollection\x12\x13\n\x0bunique_name\x18\x01 \x01(\t\x12\x10\n\x08\x63oder_id\x18\x02 \x01(\t\x12<\n\nis_bounded\x18\x03 \x01(\x0e\x32(.org.apache.beam.runner_api.v1.IsBounded\x12\x1d\n\x15windowing_strategy_id\x18\x04 \x01(\t\x12@\n\x0c\x64isplay_data\x18\x05 \x01(\x0b\x32*.org.apache.beam.runner_api.v1.DisplayData\"\x98\x05\n\x0cParDoPayload\x12=\n\x05\x64o_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12<\n\nparameters\x18\x02 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.Parameter\x12P\n\x0bside_inputs\x18\x03 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.ParDoPayload.SideInputsEntry\x12P\n\x0bstate_specs\x18\x04 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.ParDoPayload.StateSpecsEntry\x12P\n\x0btimer_specs\x18\x05 \x03(\x0b\x32;.org.apache.beam.runner_api.v1.ParDoPayload.TimerSpecsEntry\x1a[\n\x0fSideInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInput:\x02\x38\x01\x1a[\n\x0fStateSpecsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.StateSpec:\x02\x38\x01\x1a[\n\x0fTimerSpecsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.TimerSpec:\x02\x38\x01\"\x8b\x01\n\tParameter\x12;\n\x04type\x18\x01 \x01(\x0e\x32-.org.apache.beam.runner_api.v1.Parameter.Type\"A\n\x04Type\x12\n\n\x06WINDOW\x10\x00\x12\x14\n\x10PIPELINE_OPTIONS\x10\x01\x12\x17\n\x13RESTRICTION_TRACKER\x10\x02\"\x0b\n\tStateSpec\"\x0b\n\tTimerSpec\"\x8b\x01\n\x0bReadPayload\x12>\n\x06source\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12<\n\nis_bounded\x18\x02 \x01(\x0e\x32(.org.apache.beam.runner_api.v1.IsBounded\"V\n\x11WindowIntoPayload\x12\x41\n\twindow_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\"\xe1\x02\n\x0e\x43ombinePayload\x12\x42\n\ncombine_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12\x1c\n\x14\x61\x63\x63umulator_coder_id\x18\x02 \x01(\t\x12<\n\nparameters\x18\x03 \x03(\x0b\x32(.org.apache.beam.runner_api.v1.Parameter\x12R\n\x0bside_inputs\x18\x04 \x03(\x0b\x32=.org.apache.beam.runner_api.v1.CombinePayload.SideInputsEntry\x1a[\n\x0fSideInputsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x37\n\x05value\x18\x02 \x01(\x0b\x32(.org.apache.beam.runner_api.v1.SideInput:\x02\x38\x01\"b\n\x05\x43oder\x12<\n\x04spec\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12\x1b\n\x13\x63omponent_coder_ids\x18\x02 \x03(\t\"\xda\x03\n\x11WindowingStrategy\x12\x41\n\twindow_fn\x18\x01 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12@\n\x0cmerge_status\x18\x02 \x01(\x0e\x32*.org.apache.beam.runner_api.v1.MergeStatus\x12\x17\n\x0fwindow_coder_id\x18\x03 \x01(\t\x12\x37\n\x07trigger\x18\x04 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12J\n\x11\x61\x63\x63umulation_mode\x18\x05 \x01(\x0e\x32/.org.apache.beam.runner_api.v1.AccumulationMode\x12>\n\x0boutput_time\x18\x06 \x01(\x0e\x32).org.apache.beam.runner_api.v1.OutputTime\x12H\n\x10\x63losing_behavior\x18\x07 \x01(\x0e\x32..org.apache.beam.runner_api.v1.ClosingBehavior\x12\x18\n\x10\x61llowed_lateness\x18\x08 \x01(\x03\"\xad\r\n\x07Trigger\x12\x44\n\tafter_all\x18\x01 \x01(\x0b\x32/.org.apache.beam.runner_api.v1.Trigger.AfterAllH\x00\x12\x44\n\tafter_any\x18\x02 \x01(\x0b\x32/.org.apache.beam.runner_api.v1.Trigger.AfterAnyH\x00\x12\x46\n\nafter_each\x18\x03 \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.Trigger.AfterEachH\x00\x12V\n\x13\x61\x66ter_end_of_window\x18\x04 \x01(\x0b\x32\x37.org.apache.beam.runner_api.v1.Trigger.AfterEndOfWindowH\x00\x12[\n\x15\x61\x66ter_processing_time\x18\x05 \x01(\x0b\x32:.org.apache.beam.runner_api.v1.Trigger.AfterProcessingTimeH\x00\x12t\n\"after_synchronized_processing_time\x18\x06 \x01(\x0b\x32\x46.org.apache.beam.runner_api.v1.Trigger.AfterSynchronizedProcessingTimeH\x00\x12?\n\x06\x61lways\x18\x0c \x01(\x0b\x32-.org.apache.beam.runner_api.v1.Trigger.AlwaysH\x00\x12\x41\n\x07\x64\x65\x66\x61ult\x18\x07 \x01(\x0b\x32..org.apache.beam.runner_api.v1.Trigger.DefaultH\x00\x12L\n\relement_count\x18\x08 \x01(\x0b\x32\x33.org.apache.beam.runner_api.v1.Trigger.ElementCountH\x00\x12=\n\x05never\x18\t \x01(\x0b\x32,.org.apache.beam.runner_api.v1.Trigger.NeverH\x00\x12\x46\n\nor_finally\x18\n \x01(\x0b\x32\x30.org.apache.beam.runner_api.v1.Trigger.OrFinallyH\x00\x12?\n\x06repeat\x18\x0b \x01(\x0b\x32-.org.apache.beam.runner_api.v1.Trigger.RepeatH\x00\x1aG\n\x08\x41\x66terAll\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1aG\n\x08\x41\x66terAny\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1aH\n\tAfterEach\x12;\n\x0bsubtriggers\x18\x01 \x03(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x8f\x01\n\x10\x41\x66terEndOfWindow\x12=\n\rearly_firings\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12<\n\x0clate_firings\x18\x02 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x66\n\x13\x41\x66terProcessingTime\x12O\n\x14timestamp_transforms\x18\x01 \x03(\x0b\x32\x31.org.apache.beam.runner_api.v1.TimestampTransform\x1a!\n\x1f\x41\x66terSynchronizedProcessingTime\x1a\t\n\x07\x44\x65\x66\x61ult\x1a%\n\x0c\x45lementCount\x12\x15\n\relement_count\x18\x01 \x01(\x05\x1a\x07\n\x05Never\x1a\x08\n\x06\x41lways\x1az\n\tOrFinally\x12\x34\n\x04main\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x12\x37\n\x07\x66inally\x18\x02 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.Trigger\x1a\x44\n\x06Repeat\x12:\n\nsubtrigger\x18\x01 \x01(\x0b\x32&.org.apache.beam.runner_api.v1.TriggerB\t\n\x07trigger\"\x8e\x02\n\x12TimestampTransform\x12H\n\x05\x64\x65lay\x18\x01 \x01(\x0b\x32\x37.org.apache.beam.runner_api.v1.TimestampTransform.DelayH\x00\x12M\n\x08\x61lign_to\x18\x02 \x01(\x0b\x32\x39.org.apache.beam.runner_api.v1.TimestampTransform.AlignToH\x00\x1a\x1d\n\x05\x44\x65lay\x12\x14\n\x0c\x64\x65lay_millis\x18\x01 \x01(\x03\x1a)\n\x07\x41lignTo\x12\x0e\n\x06period\x18\x03 \x01(\x03\x12\x0e\n\x06offset\x18\x04 \x01(\x03\x42\x15\n\x13timestamp_transform\"\xdc\x01\n\tSideInput\x12\x43\n\x0e\x61\x63\x63\x65ss_pattern\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12?\n\x07view_fn\x18\x02 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\x12I\n\x11window_mapping_fn\x18\x03 \x01(\x0b\x32..org.apache.beam.runner_api.v1.SdkFunctionSpec\"\x1a\n\x0b\x45nvironment\x12\x0b\n\x03url\x18\x01 \x01(\t\"d\n\x0fSdkFunctionSpec\x12\x39\n\x04spec\x18\x01 \x01(\x0b\x32+.org.apache.beam.runner_api.v1.FunctionSpec\x12\x16\n\x0e\x65nvironment_id\x18\x02 \x01(\t\"D\n\x0c\x46unctionSpec\x12\x0b\n\x03urn\x18\x01 \x01(\t\x12\'\n\tparameter\x18\x02 \x01(\x0b\x32\x14.google.protobuf.Any\"\xf7\x03\n\x0b\x44isplayData\x12>\n\x05items\x18\x01 \x03(\x0b\x32/.org.apache.beam.runner_api.v1.DisplayData.Item\x1a\x46\n\nIdentifier\x12\x14\n\x0ctransform_id\x18\x01 \x01(\t\x12\x15\n\rtransform_urn\x18\x02 \x01(\t\x12\x0b\n\x03key\x18\x03 \x01(\t\x1a\xf9\x01\n\x04Item\x12\x41\n\x02id\x18\x01 \x01(\x0b\x32\x35.org.apache.beam.runner_api.v1.DisplayData.Identifier\x12=\n\x04type\x18\x02 \x01(\x0e\x32/.org.apache.beam.runner_api.v1.DisplayData.Type\x12#\n\x05value\x18\x03 \x01(\x0b\x32\x14.google.protobuf.Any\x12)\n\x0bshort_value\x18\x04 \x01(\x0b\x32\x14.google.protobuf.Any\x12\r\n\x05label\x18\x05 \x01(\t\x12\x10\n\x08link_url\x18\x06 \x01(\t\"d\n\x04Type\x12\n\n\x06STRING\x10\x00\x12\x0b\n\x07INTEGER\x10\x01\x12\t\n\x05\x46LOAT\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\r\n\tTIMESTAMP\x10\x04\x12\x0c\n\x08\x44URATION\x10\x05\x12\x0e\n\nJAVA_CLASS\x10\x06*\'\n\tIsBounded\x12\x0b\n\x07\x42OUNDED\x10\x00\x12\r\n\tUNBOUNDED\x10\x01*C\n\x0bMergeStatus\x12\x0f\n\x0bNON_MERGING\x10\x00\x12\x0f\n\x0bNEEDS_MERGE\x10\x01\x12\x12\n\x0e\x41LREADY_MERGED\x10\x02*4\n\x10\x41\x63\x63umulationMode\x12\x0e\n\nDISCARDING\x10\x00\x12\x10\n\x0c\x41\x43\x43UMULATING\x10\x01*8\n\x0f\x43losingBehavior\x12\x0f\n\x0b\x45MIT_ALWAYS\x10\x00\x12\x14\n\x10\x45MIT_IF_NONEMPTY\x10\x01*I\n\nOutputTime\x12\x11\n\rEND_OF_WINDOW\x10\x00\x12\x12\n\x0eLATEST_IN_PANE\x10\x01\x12\x14\n\x10\x45\x41RLIEST_IN_PANE\x10\x02*S\n\nTimeDomain\x12\x0e\n\nEVENT_TIME\x10\x00\x12\x13\n\x0fPROCESSING_TIME\x10\x01\x12 \n\x1cSYNCHRONIZED_PROCESSING_TIME\x10\x02\x42\x31\n$org.apache.beam.sdk.common.runner.v1B\tRunnerApib\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_any__pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -60,8 +62,8 @@ _ISBOUNDED = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7358,
-  serialized_end=7397,
+  serialized_start=7583,
+  serialized_end=7622,
 )
 _sym_db.RegisterEnumDescriptor(_ISBOUNDED)
 
@@ -87,8 +89,8 @@ _MERGESTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7399,
-  serialized_end=7466,
+  serialized_start=7624,
+  serialized_end=7691,
 )
 _sym_db.RegisterEnumDescriptor(_MERGESTATUS)
 
@@ -110,8 +112,8 @@ _ACCUMULATIONMODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7468,
-  serialized_end=7520,
+  serialized_start=7693,
+  serialized_end=7745,
 )
 _sym_db.RegisterEnumDescriptor(_ACCUMULATIONMODE)
 
@@ -133,8 +135,8 @@ _CLOSINGBEHAVIOR = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7522,
-  serialized_end=7578,
+  serialized_start=7747,
+  serialized_end=7803,
 )
 _sym_db.RegisterEnumDescriptor(_CLOSINGBEHAVIOR)
 
@@ -160,8 +162,8 @@ _OUTPUTTIME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7580,
-  serialized_end=7653,
+  serialized_start=7805,
+  serialized_end=7878,
 )
 _sym_db.RegisterEnumDescriptor(_OUTPUTTIME)
 
@@ -187,8 +189,8 @@ _TIMEDOMAIN = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7655,
-  serialized_end=7738,
+  serialized_start=7880,
+  serialized_end=7963,
 )
 _sym_db.RegisterEnumDescriptor(_TIMEDOMAIN)
 
@@ -231,8 +233,8 @@ _PARAMETER_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=3188,
-  serialized_end=3253,
+  serialized_start=3413,
+  serialized_end=3478,
 )
 _sym_db.RegisterEnumDescriptor(_PARAMETER_TYPE)
 
@@ -273,8 +275,8 @@ _DISPLAYDATA_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=7256,
-  serialized_end=7356,
+  serialized_start=7481,
+  serialized_end=7581,
 )
 _sym_db.RegisterEnumDescriptor(_DISPLAYDATA_TYPE)
 
@@ -649,9 +651,9 @@ _PIPELINE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='root_transform_id', full_name='org.apache.beam.runner_api.v1.Pipeline.root_transform_id', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='root_transform_ids', full_name='org.apache.beam.runner_api.v1.Pipeline.root_transform_ids', index=1,
+      number=2, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -675,7 +677,7 @@ _PIPELINE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=1865,
-  serialized_end=2031,
+  serialized_end=2032,
 )
 
 
@@ -712,8 +714,8 @@ _PTRANSFORM_INPUTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2361,
-  serialized_end=2406,
+  serialized_start=2362,
+  serialized_end=2407,
 )
 
 _PTRANSFORM_OUTPUTSENTRY = _descriptor.Descriptor(
@@ -749,8 +751,8 @@ _PTRANSFORM_OUTPUTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2408,
-  serialized_end=2454,
+  serialized_start=2409,
+  serialized_end=2455,
 )
 
 _PTRANSFORM = _descriptor.Descriptor(
@@ -814,8 +816,8 @@ _PTRANSFORM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2034,
-  serialized_end=2454,
+  serialized_start=2035,
+  serialized_end=2455,
 )
 
 
@@ -873,8 +875,8 @@ _PCOLLECTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2457,
-  serialized_end=2668,
+  serialized_start=2458,
+  serialized_end=2669,
 )
 
 
@@ -911,8 +913,82 @@ _PARDOPAYLOAD_SIDEINPUTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3020,
-  serialized_end=3111,
+  serialized_start=3059,
+  serialized_end=3150,
+)
+
+_PARDOPAYLOAD_STATESPECSENTRY = _descriptor.Descriptor(
+  name='StateSpecsEntry',
+  full_name='org.apache.beam.runner_api.v1.ParDoPayload.StateSpecsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='org.apache.beam.runner_api.v1.ParDoPayload.StateSpecsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='org.apache.beam.runner_api.v1.ParDoPayload.StateSpecsEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3152,
+  serialized_end=3243,
+)
+
+_PARDOPAYLOAD_TIMERSPECSENTRY = _descriptor.Descriptor(
+  name='TimerSpecsEntry',
+  full_name='org.apache.beam.runner_api.v1.ParDoPayload.TimerSpecsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='org.apache.beam.runner_api.v1.ParDoPayload.TimerSpecsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='org.apache.beam.runner_api.v1.ParDoPayload.TimerSpecsEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3245,
+  serialized_end=3336,
 )
 
 _PARDOPAYLOAD = _descriptor.Descriptor(
@@ -960,7 +1036,7 @@ _PARDOPAYLOAD = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_PARDOPAYLOAD_SIDEINPUTSENTRY, ],
+  nested_types=[_PARDOPAYLOAD_SIDEINPUTSENTRY, _PARDOPAYLOAD_STATESPECSENTRY, _PARDOPAYLOAD_TIMERSPECSENTRY, ],
   enum_types=[
   ],
   options=None,
@@ -969,8 +1045,8 @@ _PARDOPAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2671,
-  serialized_end=3111,
+  serialized_start=2672,
+  serialized_end=3336,
 )
 
 
@@ -1001,8 +1077,8 @@ _PARAMETER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3114,
-  serialized_end=3253,
+  serialized_start=3339,
+  serialized_end=3478,
 )
 
 
@@ -1025,8 +1101,8 @@ _STATESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3255,
-  serialized_end=3266,
+  serialized_start=3480,
+  serialized_end=3491,
 )
 
 
@@ -1049,8 +1125,8 @@ _TIMERSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3268,
-  serialized_end=3279,
+  serialized_start=3493,
+  serialized_end=3504,
 )
 
 
@@ -1087,8 +1163,8 @@ _READPAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3282,
-  serialized_end=3421,
+  serialized_start=3507,
+  serialized_end=3646,
 )
 
 
@@ -1118,8 +1194,8 @@ _WINDOWINTOPAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3423,
-  serialized_end=3509,
+  serialized_start=3648,
+  serialized_end=3734,
 )
 
 
@@ -1156,8 +1232,8 @@ _COMBINEPAYLOAD_SIDEINPUTSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3020,
-  serialized_end=3111,
+  serialized_start=3059,
+  serialized_end=3150,
 )
 
 _COMBINEPAYLOAD = _descriptor.Descriptor(
@@ -1207,8 +1283,8 @@ _COMBINEPAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3512,
-  serialized_end=3865,
+  serialized_start=3737,
+  serialized_end=4090,
 )
 
 
@@ -1245,8 +1321,8 @@ _CODER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3867,
-  serialized_end=3965,
+  serialized_start=4092,
+  serialized_end=4190,
 )
 
 
@@ -1325,8 +1401,8 @@ _WINDOWINGSTRATEGY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3968,
-  serialized_end=4442,
+  serialized_start=4193,
+  serialized_end=4667,
 )
 
 
@@ -1356,8 +1432,8 @@ _TRIGGER_AFTERALL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5377,
-  serialized_end=5448,
+  serialized_start=5602,
+  serialized_end=5673,
 )
 
 _TRIGGER_AFTERANY = _descriptor.Descriptor(
@@ -1386,8 +1462,8 @@ _TRIGGER_AFTERANY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5450,
-  serialized_end=5521,
+  serialized_start=5675,
+  serialized_end=5746,
 )
 
 _TRIGGER_AFTEREACH = _descriptor.Descriptor(
@@ -1416,8 +1492,8 @@ _TRIGGER_AFTEREACH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5523,
-  serialized_end=5595,
+  serialized_start=5748,
+  serialized_end=5820,
 )
 
 _TRIGGER_AFTERENDOFWINDOW = _descriptor.Descriptor(
@@ -1453,8 +1529,8 @@ _TRIGGER_AFTERENDOFWINDOW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5598,
-  serialized_end=5741,
+  serialized_start=5823,
+  serialized_end=5966,
 )
 
 _TRIGGER_AFTERPROCESSINGTIME = _descriptor.Descriptor(
@@ -1483,8 +1559,8 @@ _TRIGGER_AFTERPROCESSINGTIME = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5743,
-  serialized_end=5845,
+  serialized_start=5968,
+  serialized_end=6070,
 )
 
 _TRIGGER_AFTERSYNCHRONIZEDPROCESSINGTIME = _descriptor.Descriptor(
@@ -1506,8 +1582,8 @@ _TRIGGER_AFTERSYNCHRONIZEDPROCESSINGTIME = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5847,
-  serialized_end=5880,
+  serialized_start=6072,
+  serialized_end=6105,
 )
 
 _TRIGGER_DEFAULT = _descriptor.Descriptor(
@@ -1529,8 +1605,8 @@ _TRIGGER_DEFAULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5882,
-  serialized_end=5891,
+  serialized_start=6107,
+  serialized_end=6116,
 )
 
 _TRIGGER_ELEMENTCOUNT = _descriptor.Descriptor(
@@ -1559,8 +1635,8 @@ _TRIGGER_ELEMENTCOUNT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5893,
-  serialized_end=5930,
+  serialized_start=6118,
+  serialized_end=6155,
 )
 
 _TRIGGER_NEVER = _descriptor.Descriptor(
@@ -1582,8 +1658,8 @@ _TRIGGER_NEVER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5932,
-  serialized_end=5939,
+  serialized_start=6157,
+  serialized_end=6164,
 )
 
 _TRIGGER_ALWAYS = _descriptor.Descriptor(
@@ -1605,8 +1681,8 @@ _TRIGGER_ALWAYS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5941,
-  serialized_end=5949,
+  serialized_start=6166,
+  serialized_end=6174,
 )
 
 _TRIGGER_ORFINALLY = _descriptor.Descriptor(
@@ -1642,8 +1718,8 @@ _TRIGGER_ORFINALLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5951,
-  serialized_end=6073,
+  serialized_start=6176,
+  serialized_end=6298,
 )
 
 _TRIGGER_REPEAT = _descriptor.Descriptor(
@@ -1672,8 +1748,8 @@ _TRIGGER_REPEAT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6075,
-  serialized_end=6143,
+  serialized_start=6300,
+  serialized_end=6368,
 )
 
 _TRIGGER = _descriptor.Descriptor(
@@ -1782,8 +1858,8 @@ _TRIGGER = _descriptor.Descriptor(
       name='trigger', full_name='org.apache.beam.runner_api.v1.Trigger.trigger',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=4445,
-  serialized_end=6154,
+  serialized_start=4670,
+  serialized_end=6379,
 )
 
 
@@ -1813,8 +1889,8 @@ _TIMESTAMPTRANSFORM_DELAY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6332,
-  serialized_end=6361,
+  serialized_start=6557,
+  serialized_end=6586,
 )
 
 _TIMESTAMPTRANSFORM_ALIGNTO = _descriptor.Descriptor(
@@ -1850,8 +1926,8 @@ _TIMESTAMPTRANSFORM_ALIGNTO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6363,
-  serialized_end=6404,
+  serialized_start=6588,
+  serialized_end=6629,
 )
 
 _TIMESTAMPTRANSFORM = _descriptor.Descriptor(
@@ -1890,8 +1966,8 @@ _TIMESTAMPTRANSFORM = _descriptor.Descriptor(
       name='timestamp_transform', full_name='org.apache.beam.runner_api.v1.TimestampTransform.timestamp_transform',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=6157,
-  serialized_end=6427,
+  serialized_start=6382,
+  serialized_end=6652,
 )
 
 
@@ -1935,8 +2011,8 @@ _SIDEINPUT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6430,
-  serialized_end=6650,
+  serialized_start=6655,
+  serialized_end=6875,
 )
 
 
@@ -1966,8 +2042,8 @@ _ENVIRONMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6652,
-  serialized_end=6678,
+  serialized_start=6877,
+  serialized_end=6903,
 )
 
 
@@ -2004,8 +2080,8 @@ _SDKFUNCTIONSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6680,
-  serialized_end=6780,
+  serialized_start=6905,
+  serialized_end=7005,
 )
 
 
@@ -2042,8 +2118,8 @@ _FUNCTIONSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6782,
-  serialized_end=6850,
+  serialized_start=7007,
+  serialized_end=7075,
 )
 
 
@@ -2087,8 +2163,8 @@ _DISPLAYDATA_IDENTIFIER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6932,
-  serialized_end=7002,
+  serialized_start=7157,
+  serialized_end=7227,
 )
 
 _DISPLAYDATA_ITEM = _descriptor.Descriptor(
@@ -2152,8 +2228,8 @@ _DISPLAYDATA_ITEM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7005,
-  serialized_end=7254,
+  serialized_start=7230,
+  serialized_end=7479,
 )
 
 _DISPLAYDATA = _descriptor.Descriptor(
@@ -2183,8 +2259,8 @@ _DISPLAYDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6853,
-  serialized_end=7356,
+  serialized_start=7078,
+  serialized_end=7581,
 )
 
 _COMPONENTS_TRANSFORMSENTRY.fields_by_name['value'].message_type = _PTRANSFORM
@@ -2259,11 +2335,15 @@ _PCOLLECTION.fields_by_name['is_bounded'].enum_type = _ISBOUNDED
 _PCOLLECTION.fields_by_name['display_data'].message_type = _DISPLAYDATA
 _PARDOPAYLOAD_SIDEINPUTSENTRY.fields_by_name['value'].message_type = _SIDEINPUT
 _PARDOPAYLOAD_SIDEINPUTSENTRY.containing_type = _PARDOPAYLOAD
+_PARDOPAYLOAD_STATESPECSENTRY.fields_by_name['value'].message_type = _STATESPEC
+_PARDOPAYLOAD_STATESPECSENTRY.containing_type = _PARDOPAYLOAD
+_PARDOPAYLOAD_TIMERSPECSENTRY.fields_by_name['value'].message_type = _TIMERSPEC
+_PARDOPAYLOAD_TIMERSPECSENTRY.containing_type = _PARDOPAYLOAD
 _PARDOPAYLOAD.fields_by_name['do_fn'].message_type = _SDKFUNCTIONSPEC
 _PARDOPAYLOAD.fields_by_name['parameters'].message_type = _PARAMETER
 _PARDOPAYLOAD.fields_by_name['side_inputs'].message_type = _PARDOPAYLOAD_SIDEINPUTSENTRY
-_PARDOPAYLOAD.fields_by_name['state_specs'].message_type = _STATESPEC
-_PARDOPAYLOAD.fields_by_name['timer_specs'].message_type = _TIMERSPEC
+_PARDOPAYLOAD.fields_by_name['state_specs'].message_type = _PARDOPAYLOAD_STATESPECSENTRY
+_PARDOPAYLOAD.fields_by_name['timer_specs'].message_type = _PARDOPAYLOAD_TIMERSPECSENTRY
 _PARAMETER.fields_by_name['type'].enum_type = _PARAMETER_TYPE
 _PARAMETER_TYPE.containing_type = _PARAMETER
 _READPAYLOAD.fields_by_name['source'].message_type = _SDKFUNCTIONSPEC
@@ -2500,12 +2580,28 @@ ParDoPayload = _reflection.GeneratedProtocolMessageType('ParDoPayload', (_messag
     # @@protoc_insertion_point(class_scope:org.apache.beam.runner_api.v1.ParDoPayload.SideInputsEntry)
     ))
   ,
+
+  StateSpecsEntry = _reflection.GeneratedProtocolMessageType('StateSpecsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _PARDOPAYLOAD_STATESPECSENTRY,
+    __module__ = 'beam_runner_api_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.beam.runner_api.v1.ParDoPayload.StateSpecsEntry)
+    ))
+  ,
+
+  TimerSpecsEntry = _reflection.GeneratedProtocolMessageType('TimerSpecsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _PARDOPAYLOAD_TIMERSPECSENTRY,
+    __module__ = 'beam_runner_api_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.beam.runner_api.v1.ParDoPayload.TimerSpecsEntry)
+    ))
+  ,
   DESCRIPTOR = _PARDOPAYLOAD,
   __module__ = 'beam_runner_api_pb2'
   # @@protoc_insertion_point(class_scope:org.apache.beam.runner_api.v1.ParDoPayload)
   ))
 _sym_db.RegisterMessage(ParDoPayload)
 _sym_db.RegisterMessage(ParDoPayload.SideInputsEntry)
+_sym_db.RegisterMessage(ParDoPayload.StateSpecsEntry)
+_sym_db.RegisterMessage(ParDoPayload.TimerSpecsEntry)
 
 Parameter = _reflection.GeneratedProtocolMessageType('Parameter', (_message.Message,), dict(
   DESCRIPTOR = _PARAMETER,
@@ -2767,6 +2863,10 @@ _PTRANSFORM_OUTPUTSENTRY.has_options = True
 _PTRANSFORM_OUTPUTSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 _PARDOPAYLOAD_SIDEINPUTSENTRY.has_options = True
 _PARDOPAYLOAD_SIDEINPUTSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
+_PARDOPAYLOAD_STATESPECSENTRY.has_options = True
+_PARDOPAYLOAD_STATESPECSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
+_PARDOPAYLOAD_TIMERSPECSENTRY.has_options = True
+_PARDOPAYLOAD_TIMERSPECSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 _COMBINEPAYLOAD_SIDEINPUTSENTRY.has_options = True
 _COMBINEPAYLOAD_SIDEINPUTSENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 # @@protoc_insertion_point(module_scope)

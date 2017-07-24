@@ -27,6 +27,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -44,9 +46,10 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
-import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -55,15 +58,9 @@ import org.junit.Test;
  */
 public class SparkRunnerDebuggerTest {
 
-  @Rule
-  public final PipelineRule batchPipelineRule = PipelineRule.batch();
-
-  @Rule
-  public final PipelineRule streamingPipelineRule = PipelineRule.streaming();
-
   @Test
   public void debugBatchPipeline() {
-    TestSparkPipelineOptions options = batchPipelineRule.getOptions();
+    PipelineOptions options = PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
     options.setRunner(SparkRunnerDebugger.class);
 
     Pipeline pipeline = Pipeline.create(options);
@@ -86,20 +83,19 @@ public class SparkRunnerDebuggerTest {
 
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(TextIO.Write.to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
+        .apply(TextIO.write().to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
     final String expectedPipeline = "sparkContext.parallelize(Arrays.asList(...))\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
-        + "_.combineByKey(..., new org.apache.beam.sdk.transforms"
-        + ".Combine$CombineFn$KeyIgnoringCombineFn(), ...)\n"
+        + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
         + "_.groupByKey()\n"
-        + "_.map(new org.apache.beam.sdk.transforms.Combine$CombineFn$KeyIgnoringCombineFn())\n"
+        + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark"
         + ".SparkRunnerDebuggerTest$PlusOne())\n"
         + "sparkContext.union(...)\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
-        + "_.<org.apache.beam.sdk.io.TextIO$Write$Bound>";
+        + "_.<org.apache.beam.sdk.io.AutoValue_TextIO_Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
         (SparkRunnerDebugger.DebugSparkPipelineResult) pipeline.run();
@@ -110,7 +106,9 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugStreamingPipeline() {
-    TestSparkPipelineOptions options = streamingPipelineRule.getOptions();
+    TestSparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setForceStreaming(true);
     options.setRunner(SparkRunnerDebugger.class);
 
     Pipeline pipeline = Pipeline.create(options);
@@ -118,14 +116,14 @@ public class SparkRunnerDebuggerTest {
     KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers("mykafka:9092")
         .withTopics(Collections.singletonList("my_input_topic"))
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of());
+        .withKeyDeserializer(StringDeserializer.class)
+        .withValueDeserializer(StringDeserializer.class);
 
     KafkaIO.Write<String, String> write = KafkaIO.<String, String>write()
         .withBootstrapServers("myotherkafka:9092")
         .withTopic("my_output_topic")
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of());
+        .withKeySerializer(StringSerializer.class)
+        .withValueSerializer(StringSerializer.class);
 
     KvCoder<String, String> stringKvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
@@ -143,7 +141,7 @@ public class SparkRunnerDebuggerTest {
         + "SparkRunnerDebuggerTest$FormatKVFn())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
         + "_.groupByKey()\n"
-        + "_.map(new org.apache.beam.sdk.transforms.Combine$CombineFn$KeyIgnoringCombineFn())\n"
+        + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Keys$1())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
         + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";

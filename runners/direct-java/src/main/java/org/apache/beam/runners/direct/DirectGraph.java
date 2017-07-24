@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -63,27 +63,27 @@ class DirectGraph {
     this.stepNames = stepNames;
   }
 
-  public AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
+  AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
     return producers.get(produced);
   }
 
-  public List<AppliedPTransform<?, ?, ?>> getPrimitiveConsumers(PValue consumed) {
+  List<AppliedPTransform<?, ?, ?>> getPrimitiveConsumers(PValue consumed) {
     return primitiveConsumers.get(consumed);
   }
 
-  public Set<AppliedPTransform<?, ?, ?>> getRootTransforms() {
+  Set<AppliedPTransform<?, ?, ?>> getRootTransforms() {
     return rootTransforms;
   }
 
-  public Set<PCollectionView<?>> getViews() {
+  Set<PCollectionView<?>> getViews() {
     return views;
   }
 
-  public String getStepName(AppliedPTransform<?, ?, ?> step) {
+  String getStepName(AppliedPTransform<?, ?, ?> step) {
     return stepNames.get(step);
   }
 
-  public Collection<AppliedPTransform<?, ?, ?>> getPrimitiveTransforms() {
+  Collection<AppliedPTransform<?, ?, ?>> getPrimitiveTransforms() {
     return stepNames.keySet();
   }
 }

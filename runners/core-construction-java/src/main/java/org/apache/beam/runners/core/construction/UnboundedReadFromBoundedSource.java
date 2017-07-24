@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
@@ -40,7 +38,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Read;
@@ -50,7 +48,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -61,7 +58,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link PTransform} that converts a {@link BoundedSource} as an {@link UnboundedSource}.
  *
- * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#splitIntoBundles},
+ * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#split},
  * and element timestamps are propagated. While any elements remain, the watermark is the beginning
  * of time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, and after all elements have been produced
  * the watermark goes to the end of time {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
@@ -130,7 +127,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public List<BoundedToUnboundedSourceAdapter<T>> generateInitialSplits(
+    public List<BoundedToUnboundedSourceAdapter<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       try {
         long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
@@ -140,7 +137,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           return ImmutableList.of(this);
         }
         List<? extends BoundedSource<T>> splits =
-            boundedSource.splitIntoBundles(desiredBundleSize, options);
+            boundedSource.split(desiredBundleSize, options);
         if (splits == null) {
           LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);
@@ -206,16 +203,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @VisibleForTesting
-    static class CheckpointCoder<T> extends StandardCoder<Checkpoint<T>> {
-
-      @JsonCreator
-      public static CheckpointCoder<?> of(
-          @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-          List<Coder<?>> components) {
-        checkArgument(components.size() == 1,
-            "Expecting 1 components, got %s", components.size());
-        return new CheckpointCoder<>(components.get(0));
-      }
+    static class CheckpointCoder<T> extends StructuredCoder<Checkpoint<T>> {
 
       // The coder for a list of residual elements and their timestamps
       private final Coder<List<TimestampedValue<T>>> elemsCoder;
@@ -233,19 +221,19 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       @Override
-      public void encode(Checkpoint<T> value, OutputStream outStream, Context context)
+      public void encode(Checkpoint<T> value, OutputStream outStream)
           throws CoderException, IOException {
-        elemsCoder.encode(value.residualElements, outStream, context.nested());
-        sourceCoder.encode(value.residualSource, outStream, context);
+        elemsCoder.encode(value.residualElements, outStream);
+        sourceCoder.encode(value.residualSource, outStream);
       }
 
       @SuppressWarnings("unchecked")
       @Override
-      public Checkpoint<T> decode(InputStream inStream, Context context)
+      public Checkpoint<T> decode(InputStream inStream)
           throws CoderException, IOException {
         return new Checkpoint<>(
-            elemsCoder.decode(inStream, context.nested()),
-            sourceCoder.decode(inStream, context));
+            elemsCoder.decode(inStream),
+            sourceCoder.decode(inStream));
       }
 
       @Override

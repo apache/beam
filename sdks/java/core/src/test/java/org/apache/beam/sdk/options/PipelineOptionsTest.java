@@ -19,9 +19,11 @@ package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,5 +94,16 @@ public class PipelineOptionsTest {
     Map<String, ?> expected = ImmutableMap.of(
         "bool", ImmutableMap.of("type", Boolean.class));
     assertEquals(expected, options.outputRuntimeOptions());
+  }
+
+  @Test
+  public void testPipelineOptionsIdIsUniquePerInstance() {
+    Set<Long> ids = new HashSet<Long>();
+    for (int i = 0; i < 1000; ++i) {
+      long id = PipelineOptionsFactory.create().getOptionsId();
+      if (!ids.add(id)) {
+        fail(String.format("Generated duplicate id %s, existing generated ids %s", id, ids));
+      }
+    }
   }
 }

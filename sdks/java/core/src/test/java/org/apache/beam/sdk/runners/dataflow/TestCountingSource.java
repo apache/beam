@@ -104,7 +104,7 @@ public class TestCountingSource
   }
 
   @Override
-  public List<TestCountingSource> generateInitialSplits(
+  public List<TestCountingSource> split(
       int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
     int numSplits = allowSplitting ? desiredNumSplits : 1;

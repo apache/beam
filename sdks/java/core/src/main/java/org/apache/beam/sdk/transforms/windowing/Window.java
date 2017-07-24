@@ -30,14 +30,14 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 
 /**
- * {@code Window} logically divides up or groups the elements of a
+ * {@link Window} logically divides up or groups the elements of a
  * {@link PCollection} into finite windows according to a {@link WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
@@ -50,16 +50,16 @@ import org.joda.time.Duration;
  *
  * <h2>Windowing</h2>
  *
- * <p>Windowing a {@code PCollection} divides the elements into windows based
+ * <p>Windowing a {@link PCollection} divides the elements into windows based
  * on the associated event time for each element. This is especially useful
- * for {@code PCollection}s with unbounded size, since it allows operating on
- * a sub-group of the elements placed into a related window. For {@code PCollection}s
+ * for {@link PCollection PCollections} with unbounded size, since it allows operating on
+ * a sub-group of the elements placed into a related window. For {@link PCollection PCollections}
  * with a bounded size (aka. conventional batch mode), by default, all data is
- * implicitly in a single window, unless {@code Window} is applied.
+ * implicitly in a single window, unless {@link Window} is applied.
  *
  * <p>For example, a simple form of windowing divides up the data into
  * fixed-width time intervals, using {@link FixedWindows}.
- * The following example demonstrates how to use {@code Window} in a pipeline
+ * The following example demonstrates how to use {@link Window} in a pipeline
  * that counts the number of occurrences of strings each minute:
  *
  * <pre>{@code
@@ -193,7 +193,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   @Nullable abstract AccumulationMode getAccumulationMode();
   @Nullable abstract Duration getAllowedLateness();
   @Nullable abstract ClosingBehavior getClosingBehavior();
-  @Nullable abstract OutputTimeFn<?> getOutputTimeFn();
+  @Nullable abstract TimestampCombiner getTimestampCombiner();
 
   abstract Builder<T> toBuilder();
 
@@ -204,7 +204,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     abstract Builder<T> setAccumulationMode(AccumulationMode mode);
     abstract Builder<T> setAllowedLateness(Duration allowedLateness);
     abstract Builder<T> setClosingBehavior(ClosingBehavior closingBehavior);
-    abstract Builder<T> setOutputTimeFn(OutputTimeFn<?> outputTimeFn);
+    abstract Builder<T> setTimestampCombiner(TimestampCombiner timestampCombiner);
 
     abstract Window<T> build();
   }
@@ -273,12 +273,12 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
+   * <b><i>(Experimental)</i></b> Override the default {@link TimestampCombiner}, to control
    * the output timestamp of values output from a {@link GroupByKey} operation.
    */
   @Experimental(Kind.OUTPUT_TIME)
-  public Window<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
-    return toBuilder().setOutputTimeFn(outputTimeFn).build();
+  public Window<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
+    return toBuilder().setTimestampCombiner(timestampCombiner).build();
   }
 
   /**
@@ -300,8 +300,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * Get the output strategy of this {@link Window Window PTransform}. For internal use
    * only.
    */
-  // Rawtype cast of OutputTimeFn cannot be eliminated with intermediate variable, as it is
-  // casting between wildcards
   public WindowingStrategy<?, ?> getOutputStrategyInternal(
       WindowingStrategy<?, ?> inputStrategy) {
     WindowingStrategy<?, ?> result = inputStrategy;
@@ -320,14 +318,13 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
     }
-    if (getOutputTimeFn() != null) {
-      result = result.withOutputTimeFn(getOutputTimeFn());
+    if (getTimestampCombiner() != null) {
+      result = result.withTimestampCombiner(getTimestampCombiner());
     }
     return result;
   }
 
-  @Override
-  public void validate(PCollection<T> input) {
+  private void applicableTo(PCollection<?> input) {
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
 
@@ -365,6 +362,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   @Override
   public PCollection<T> expand(PCollection<T> input) {
+    applicableTo(input);
+
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
     if (getWindowFn() == null) {
@@ -411,9 +410,9 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
         .withLabel("Window Closing Behavior"));
     }
 
-    if (getOutputTimeFn() != null) {
-      builder.add(DisplayData.item("outputTimeFn", getOutputTimeFn().getClass())
-        .withLabel("Output Time Function"));
+    if (getTimestampCombiner() != null) {
+      builder.add(DisplayData.item("timestampCombiner", getTimestampCombiner().toString())
+        .withLabel("Timestamp Combiner"));
     }
   }
 
@@ -429,6 +428,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   /**
    * A Primitive {@link PTransform} that assigns windows to elements based on a {@link WindowFn}.
+   * Pipeline authors should use {@link Window} directly instead.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final Window<T> original;

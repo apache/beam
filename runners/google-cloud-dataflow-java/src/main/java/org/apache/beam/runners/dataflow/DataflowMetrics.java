@@ -17,18 +17,21 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.MetricFiltering;
+import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricFiltering;
-import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -76,9 +79,9 @@ class DataflowMetrics extends MetricResults {
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
     String fullStepName = metricUpdate.getName().getContext().get("step");
-    fullStepName = (dataflowPipelineJob.aggregatorTransforms != null
-        ? dataflowPipelineJob.aggregatorTransforms
-            .getAppliedTransformForStepName(fullStepName).getFullName() : fullStepName);
+    fullStepName = (dataflowPipelineJob.transformStepNames != null
+        ? dataflowPipelineJob.transformStepNames
+        .inverse().get(fullStepName).getFullName() : fullStepName);
     return MetricKey.create(
         fullStepName,
         MetricName.named(
@@ -133,22 +136,32 @@ class DataflowMetrics extends MetricResults {
         ImmutableList.builder();
     ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults = ImmutableList.builder();
     for (MetricKey metricKey : metricHashKeys) {
-      String metricName = metricKey.metricName().name();
-      if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
-          || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
-        // Skip distribution metrics, as these are not yet properly supported.
-        LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
-            + "User Interface");
+      if (!MetricFiltering.matches(filter, metricKey)) {
+        // Skip unmatched metrics early.
         continue;
       }
-      String namespace = metricKey.metricName().namespace();
-      String step = metricKey.stepName();
-      Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
-      Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
-      if (MetricFiltering.matches(filter, metricKey)) {
-        counterResults.add(DataflowMetricResult.create(
-            MetricName.named(namespace, metricName),
-            step, committed, attempted));
+
+      // This code is not robust to evolutions in the types of metrics that can be returned, so
+      // wrap it in a try-catch and log errors.
+      try {
+        String metricName = metricKey.metricName().name();
+        if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
+            || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
+          // Skip distribution metrics, as these are not yet properly supported.
+          LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
+              + "User Interface");
+          continue;
+        }
+
+        String namespace = metricKey.metricName().namespace();
+        String step = metricKey.stepName();
+        Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
+        Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
+        counterResults.add(
+            DataflowMetricResult.create(
+                MetricName.named(namespace, metricName), step, committed, attempted));
+      } catch (Exception e) {
+        LOG.warn("Error handling metric {} for filter {}, skipping result.", metricKey, filter);
       }
     }
     return DataflowMetricQueryResults.create(
@@ -169,7 +182,9 @@ class DataflowMetrics extends MetricResults {
       LOG.warn("Unable to query job metrics.\n");
       return DataflowMetricQueryResults.create(counters, distributions, gauges);
     }
-    metricUpdates = jobMetrics.getMetrics();
+    metricUpdates = firstNonNull(
+        jobMetrics.getMetrics(),
+        Collections.<com.google.api.services.dataflow.model.MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
   }
 

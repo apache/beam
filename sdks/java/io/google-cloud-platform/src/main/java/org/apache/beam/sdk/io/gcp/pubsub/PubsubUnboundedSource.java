@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -59,21 +58,18 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -83,7 +79,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A PTransform which streams messages from Pubsub.
+ * Users should use {@link PubsubIO#read} instead.
+ *
+ * <p>A PTransform which streams messages from Pubsub.
  * <ul>
  * <li>The underlying implementation in an {@link UnboundedSource} which receives messages
  * in batches and hands them out one at a time.
@@ -109,7 +107,7 @@ import org.slf4j.LoggerFactory;
  * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
-public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
+public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
   /**
@@ -120,7 +118,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   /**
    * Coder for checkpoints.
    */
-  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = new PubsubCheckpointCoder<>();
+  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
   /**
    * Maximum number of messages per pull.
@@ -230,7 +228,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * we need to restore.
    */
   @VisibleForTesting
-  static class PubsubCheckpoint<T> implements UnboundedSource.CheckpointMark {
+  static class PubsubCheckpoint implements UnboundedSource.CheckpointMark {
     /**
      * The {@link SubscriptionPath} to the subscription the reader is reading from. May be
      * {@code null} if the {@link PubsubUnboundedSource} contains the subscription.
@@ -246,7 +244,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * the 'true' active reader may have changed.
      */
     @Nullable
-    private PubsubReader<T> reader;
+    private PubsubReader reader;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been passed
@@ -267,7 +265,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     public PubsubCheckpoint(
         @Nullable String subscriptionPath,
-        @Nullable PubsubReader<T> reader,
+        @Nullable PubsubReader reader,
         @Nullable List<String> safeToAckIds,
         List<String> notYetReadIds) {
       this.subscriptionPath = subscriptionPath;
@@ -326,7 +324,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     /**
      * Return current time according to {@code reader}.
      */
-    private static long now(PubsubReader<?> reader) {
+    private static long now(PubsubReader reader) {
       if (reader.outer.outer.clock == null) {
         return System.currentTimeMillis();
       } else {
@@ -339,7 +337,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * NACK all messages which have been read from Pubsub but not passed downstream.
      * This way Pubsub will send them again promptly.
      */
-    public void nackAll(PubsubReader<T> reader) throws IOException {
+    public void nackAll(PubsubReader reader) throws IOException {
       checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
       List<String> batchYetToAckIds =
           new ArrayList<>(Math.min(notYetReadIds.size(), ACK_BATCH_SIZE));
@@ -359,26 +357,31 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   /** The coder for our checkpoints. */
-  private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint<T>> {
+  private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint> {
     private static final Coder<String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
+    public static <T> PubsubCheckpointCoder<T> of() {
+      return new PubsubCheckpointCoder<>();
+    }
+
+    private PubsubCheckpointCoder() {}
+
     @Override
-    public void encode(PubsubCheckpoint<T> value, OutputStream outStream, Context context)
+    public void encode(PubsubCheckpoint value, OutputStream outStream)
         throws IOException {
       SUBSCRIPTION_PATH_CODER.encode(
           value.subscriptionPath,
-          outStream,
-          context.nested());
-      LIST_CODER.encode(value.notYetReadIds, outStream, context);
+          outStream);
+      LIST_CODER.encode(value.notYetReadIds, outStream);
     }
 
     @Override
-    public PubsubCheckpoint<T> decode(InputStream inStream, Context context) throws IOException {
-      String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
-      List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
-      return new PubsubCheckpoint<>(path, null, null, notYetReadIds);
+    public PubsubCheckpoint decode(InputStream inStream) throws IOException {
+      String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
+      List<String> notYetReadIds = LIST_CODER.decode(inStream);
+      return new PubsubCheckpoint(path, null, null, notYetReadIds);
     }
   }
 
@@ -391,15 +394,13 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * but not yet consumed downstream and/or ACKed back to Pubsub.
    */
   @VisibleForTesting
-  static class PubsubReader<T> extends UnboundedSource.UnboundedReader<T> {
+  static class PubsubReader extends UnboundedSource.UnboundedReader<PubsubMessage> {
     /**
      * For access to topic and checkpointCoder.
      */
-    private final PubsubSource<T> outer;
+    private final PubsubSource outer;
     @VisibleForTesting
     final SubscriptionPath subscription;
-
-    private final SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
 
     /**
      * Client on which to talk to Pubsub. Contains a null value if the client has been closed.
@@ -592,16 +593,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     /**
      * Construct a reader.
      */
-    public PubsubReader(PubsubOptions options, PubsubSource<T> outer, SubscriptionPath subscription,
-                        SimpleFunction<PubsubIO.PubsubMessage, T> parseFn)
+    public PubsubReader(PubsubOptions options, PubsubSource outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
       this.subscription = subscription;
-      this.parseFn = parseFn;
       pubsubClient =
           new AtomicReference<>(
               outer.outer.pubsubFactory.newClient(
-                  outer.outer.timestampLabel, outer.outer.idLabel, options));
+                  outer.outer.timestampAttribute, outer.outer.idAttribute, options));
       ackTimeoutMs = -1;
       safeToAckIds = new HashSet<>();
       notYetRead = new ArrayDeque<>();
@@ -864,7 +863,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
             (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
       }
 
-      LOG.info("Pubsub {} has "
+      LOG.debug("Pubsub {} has "
                + "{} received messages, "
                + "{} current unread messages, "
                + "{} current unread bytes, "
@@ -969,20 +968,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     @Override
-    public T getCurrent() throws NoSuchElementException {
+    public PubsubMessage getCurrent() throws NoSuchElementException {
       if (current == null) {
         throw new NoSuchElementException();
       }
-      try {
-        if (parseFn != null) {
-          return parseFn.apply(new PubsubIO.PubsubMessage(
-                  current.elementBytes, current.attributes));
-        } else {
-          return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
-        }
-      } catch (CoderException e) {
-        throw new RuntimeException("Unable to decode element from Pubsub message: ", e);
-      }
+      return new PubsubMessage(current.elementBytes, current.attributes);
     }
 
     @Override
@@ -1030,7 +1020,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     @Override
-    public PubsubSource<T> getCurrentSource() {
+    public PubsubSource getCurrentSource() {
       return outer;
     }
 
@@ -1072,7 +1062,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     @Override
-    public PubsubCheckpoint<T> getCheckpointMark() {
+    public PubsubCheckpoint getCheckpointMark() {
       int cur = numInFlightCheckpoints.incrementAndGet();
       maxInFlightCheckpoints = Math.max(maxInFlightCheckpoints, cur);
       // It's possible for a checkpoint to be taken but never finalized.
@@ -1086,10 +1076,10 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       }
       if (outer.subscriptionPath == null) {
         // need to include the subscription in case we resume, as it's not stored in the source.
-        return new PubsubCheckpoint<>(
+        return new PubsubCheckpoint(
             subscription.getPath(), this, snapshotSafeToAckIds, snapshotNotYetReadIds);
       }
-      return new PubsubCheckpoint<>(null, this, snapshotSafeToAckIds, snapshotNotYetReadIds);
+      return new PubsubCheckpoint(null, this, snapshotSafeToAckIds, snapshotNotYetReadIds);
     }
 
     @Override
@@ -1103,28 +1093,28 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // ================================================================================
 
   @VisibleForTesting
-  static class PubsubSource<T> extends UnboundedSource<T, PubsubCheckpoint<T>> {
-    public final PubsubUnboundedSource<T> outer;
+  static class PubsubSource extends UnboundedSource<PubsubMessage, PubsubCheckpoint> {
+    public final PubsubUnboundedSource outer;
     // The subscription to read from.
     @VisibleForTesting
     final SubscriptionPath subscriptionPath;
 
-    public PubsubSource(PubsubUnboundedSource<T> outer) {
+    public PubsubSource(PubsubUnboundedSource outer) {
       this(outer, outer.getSubscription());
     }
 
-    private PubsubSource(PubsubUnboundedSource<T> outer, SubscriptionPath subscriptionPath) {
+    private PubsubSource(PubsubUnboundedSource outer, SubscriptionPath subscriptionPath) {
       this.outer = outer;
       this.subscriptionPath = subscriptionPath;
     }
 
     @Override
-    public List<PubsubSource<T>> generateInitialSplits(
+    public List<PubsubSource> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
-      List<PubsubSource<T>> result = new ArrayList<>(desiredNumSplits);
-      PubsubSource<T> splitSource = this;
+      List<PubsubSource> result = new ArrayList<>(desiredNumSplits);
+      PubsubSource splitSource = this;
       if (subscriptionPath == null) {
-        splitSource = new PubsubSource<>(outer, outer.createRandomSubscription(options));
+        splitSource = new PubsubSource(outer, outer.createRandomSubscription(options));
       }
       for (int i = 0; i < desiredNumSplits * SCALE_OUT; i++) {
         // Since the source is immutable and Pubsub automatically shards we simply
@@ -1135,23 +1125,22 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     @Override
-    public PubsubReader<T> createReader(
+    public PubsubReader createReader(
         PipelineOptions options,
-        @Nullable PubsubCheckpoint<T> checkpoint) {
-      PubsubReader<T> reader;
+        @Nullable PubsubCheckpoint checkpoint) {
+      PubsubReader reader;
       SubscriptionPath subscription = subscriptionPath;
       if (subscription == null) {
         if (checkpoint == null) {
-          // This reader has never been started and there was no call to #splitIntoBundles; create
-          // a single random subscription, which will be kept in the checkpoint.
+          // This reader has never been started and there was no call to #split;
+          // create a single random subscription, which will be kept in the checkpoint.
           subscription = outer.createRandomSubscription(options);
         } else {
           subscription = checkpoint.getSubscription();
         }
       }
       try {
-        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription,
-                outer.parseFn);
+        reader = new PubsubReader(options.as(PubsubOptions.class), this, subscription);
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
@@ -1170,15 +1159,15 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     @Nullable
     @Override
-    public Coder<PubsubCheckpoint<T>> getCheckpointMarkCoder() {
-      @SuppressWarnings("unchecked") PubsubCheckpointCoder<T> typedCoder =
-          (PubsubCheckpointCoder<T>) CHECKPOINT_CODER;
-      return typedCoder;
+    public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
+      return CHECKPOINT_CODER;
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
-      return outer.elementCoder;
+    public Coder<PubsubMessage> getDefaultOutputCoder() {
+      return outer.getNeedsAttributes()
+          ? PubsubMessageWithAttributesCoder.of()
+          : PubsubMessagePayloadOnlyCoder.of();
     }
 
     @Override
@@ -1197,8 +1186,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // StatsFn
   // ================================================================================
 
-  private static class StatsFn<T> extends DoFn<T, T> {
-    private final Counter elementCounter = Metrics.counter(StatsFn.class, "elements");
+  private static class StatsFn extends DoFn<PubsubMessage, PubsubMessage> {
+    private final Counter elementCounter = SourceMetrics.elementsRead();
 
     private final PubsubClientFactory pubsubFactory;
     @Nullable
@@ -1206,22 +1195,22 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Nullable
     private final ValueProvider<TopicPath> topic;
     @Nullable
-    private final String timestampLabel;
+    private final String timestampAttribute;
     @Nullable
-    private final String idLabel;
+    private final String idAttribute;
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
         @Nullable ValueProvider<SubscriptionPath> subscription,
         @Nullable ValueProvider<TopicPath> topic,
-        @Nullable String timestampLabel,
-        @Nullable String idLabel) {
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute) {
       checkArgument(pubsubFactory != null, "pubsubFactory should not be null");
       this.pubsubFactory = pubsubFactory;
       this.subscription = subscription;
       this.topic = topic;
-      this.timestampLabel = timestampLabel;
-      this.idLabel = idLabel;
+      this.timestampAttribute = timestampAttribute;
+      this.idAttribute = idAttribute;
     }
 
     @ProcessElement
@@ -1246,8 +1235,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         builder.add(DisplayData.item("topic", topicString));
       }
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
-      builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
+      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
+      builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
 
@@ -1291,32 +1280,21 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   private ValueProvider<SubscriptionPath> subscription;
 
   /**
-   * Coder for elements. Elements are effectively double-encoded: first to a byte array
-   * using this checkpointCoder, then to a base-64 string to conform to Pubsub's payload
-   * conventions.
-   */
-  private final Coder<T> elementCoder;
-
-  /**
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
   @Nullable
-  private final String timestampLabel;
+  private final String timestampAttribute;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
    * a unique id ourselves.
    */
   @Nullable
-  private final String idLabel;
+  private final String idAttribute;
 
-  /**
-   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be
-   * used to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
-   */
-  @Nullable
-  SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
+  /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
+  private final boolean needsAttributes;
 
   @VisibleForTesting
   PubsubUnboundedSource(
@@ -1325,10 +1303,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
-      Coder<T> elementCoder,
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
-      @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes) {
     checkArgument((topic == null) != (subscription == null),
                   "Exactly one of topic and subscription must be given");
     checkArgument((topic == null) == (project == null),
@@ -1338,10 +1315,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     this.project = project;
     this.topic = topic;
     this.subscription = subscription;
-    this.elementCoder = checkNotNull(elementCoder);
-    this.timestampLabel = timestampLabel;
-    this.idLabel = idLabel;
-    this.parseFn = parseFn;
+    this.timestampAttribute = timestampAttribute;
+    this.idAttribute = idAttribute;
+    this.needsAttributes = needsAttributes;
   }
 
   /**
@@ -1352,19 +1328,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
-      Coder<T> elementCoder,
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
-      @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
-    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel,
-        parseFn);
-  }
-
-  /**
-   * Get the coder used for elements.
-   */
-  public Coder<T> getElementCoder() {
-    return elementCoder;
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes) {
+    this(
+        null,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes);
   }
 
   /**
@@ -1408,42 +1383,39 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   /**
-   * Get the timestamp label.
+   * Get the timestamp attribute.
    */
   @Nullable
-  public String getTimestampLabel() {
-    return timestampLabel;
+  public String getTimestampAttribute() {
+    return timestampAttribute;
   }
 
   /**
-   * Get the id label.
+   * Get the id attribute.
    */
   @Nullable
-  public String getIdLabel() {
-    return idLabel;
+  public String getIdAttribute() {
+    return idAttribute;
   }
 
-  /**
-   * Get the parsing function for PubSub attributes.
-   */
-  @Nullable
-  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() {
-    return parseFn;
+  public boolean getNeedsAttributes() {
+    return needsAttributes;
   }
 
   @Override
-  public PCollection<T> expand(PBegin input) {
+  public PCollection<PubsubMessage> expand(PBegin input) {
     return input.getPipeline().begin()
-                .apply(Read.from(new PubsubSource<T>(this)))
+                .apply(Read.from(new PubsubSource(this)))
                 .apply("PubsubUnboundedSource.Stats",
-                    ParDo.of(new StatsFn<T>(
-                        pubsubFactory, subscription, topic, timestampLabel, idLabel)));
+                    ParDo.of(new StatsFn(
+                        pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
     try {
       try (PubsubClient pubsubClient =
-          pubsubFactory.newClient(timestampLabel, idLabel, options.as(PubsubOptions.class))) {
+          pubsubFactory.newClient(
+              timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
         checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
         SubscriptionPath subscriptionPath =

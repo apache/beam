@@ -76,7 +76,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
       def process(self, element):
         if element < 0:
-          yield pvalue.SideOutputValue('tag_negative', element)
+          yield pvalue.TaggedOutput('tag_negative', element)
         else:
           yield element
 

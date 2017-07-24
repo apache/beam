@@ -35,19 +35,21 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -57,18 +59,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -92,7 +90,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient UncommittedBundle<Integer> mockUncommittedBundle;
 
   private static final String KEY = "any-key";
-  private transient StateInternals<Object> stateInternals =
+  private transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
@@ -104,7 +102,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    when((StateInternals<Object>) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
             SideInputContainer.create(
@@ -133,7 +131,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     ParDo.of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement
@@ -165,7 +163,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         StateNamespaces.window(IntervalWindow.getCoder(), firstWindow);
     StateNamespace secondWindowNamespace =
         StateNamespaces.window(IntervalWindow.getCoder(), secondWindow);
-    StateTag<Object, ValueState<String>> tag =
+    StateTag<ValueState<String>> tag =
         StateTags.tagForSpec(stateId, StateSpecs.value(StringUtf8Coder.of()));
 
     // Set up non-empty state. We don't mock + verify calls to clear() but instead
@@ -247,7 +245,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                         .of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement

@@ -29,11 +29,12 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -48,10 +49,10 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -71,7 +72,7 @@ public class PCollectionsTest {
   public static Iterable<PCollection<?>> data() {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> ints = pipeline.apply("ints", Create.of(1, 2, 3));
-    PCollection<Long> longs = pipeline.apply("unbounded longs", CountingInput.unbounded());
+    PCollection<Long> longs = pipeline.apply("unbounded longs", GenerateSequence.from(0));
     PCollection<Long> windowedLongs =
         longs.apply(
             "into fixed windows",
@@ -83,7 +84,7 @@ public class PCollectionsTest {
             .apply("group", GroupByKey.<String, String>create());
     PCollection<Long> coderLongs =
         pipeline
-            .apply("counts with alternative coder", CountingInput.upTo(10L))
+            .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
     PCollection<Integer> allCustomInts =
         pipeline
@@ -129,13 +130,13 @@ public class PCollectionsTest {
   @AutoValue
   abstract static class CustomIntCoder extends CustomCoder<Integer> {
     @Override
-    public void encode(Integer value, OutputStream outStream, Context context) throws IOException {
-      VarInt.encode(value, outStream);
+    public Integer decode(InputStream inStream) throws IOException {
+      return VarInt.decodeInt(inStream);
     }
 
     @Override
-    public Integer decode(InputStream inStream, Context context) throws IOException {
-      return VarInt.decodeInt(inStream);
+    public void encode(Integer value, OutputStream outStream) throws IOException {
+      VarInt.encode(value, outStream);
     }
   }
 
@@ -158,17 +159,17 @@ public class PCollectionsTest {
 
     @Override
     public Coder<BoundedWindow> windowCoder() {
-      return new CustomCoder<BoundedWindow>() {
+      return new AtomicCoder<BoundedWindow>() {
         @Override public void verifyDeterministic() {}
 
         @Override
-        public void encode(BoundedWindow value, OutputStream outStream, Context context)
+        public void encode(BoundedWindow value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value.maxTimestamp().getMillis(), outStream);
         }
 
         @Override
-        public BoundedWindow decode(InputStream inStream, Context context) throws IOException {
+        public BoundedWindow decode(InputStream inStream) throws IOException {
           final Instant ts = new Instant(VarInt.decodeLong(inStream));
           return new BoundedWindow() {
             @Override

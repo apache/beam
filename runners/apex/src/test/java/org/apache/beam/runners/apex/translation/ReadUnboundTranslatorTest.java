@@ -35,7 +35,7 @@ import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInput
 import org.apache.beam.runners.apex.translation.utils.CollectionSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -92,12 +92,12 @@ public class ReadUnboundTranslatorTest {
     Pipeline p = Pipeline.create(options);
 
     Set<Long> expected = ContiguousSet.create(Range.closedOpen(0L, 10L), DiscreteDomain.longs());
-    p.apply(CountingInput.upTo(10))
+    p.apply(GenerateSequence.from(0).to(10))
         .apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
-    String operatorName = "CountingInput.BoundedCountingInput/Read(BoundedCountingSource)";
+    String operatorName = "GenerateSequence/Read(BoundedCountingSource)";
     DAG.OperatorMeta om = dag.getOperatorMeta(operatorName);
     Assert.assertNotNull(om);
     Assert.assertEquals(om.getOperator().getClass(), ApexReadUnboundedInputOperator.class);

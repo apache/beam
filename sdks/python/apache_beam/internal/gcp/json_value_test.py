@@ -21,6 +21,8 @@ import unittest
 
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 # Protect against environments where apitools library is not available.
@@ -49,6 +51,15 @@ class JsonValueTest(unittest.TestCase):
 
   def test_float_to(self):
     self.assertEquals(JsonValue(double_value=2.75), to_json_value(2.75))
+
+  def test_static_value_provider_to(self):
+    svp = StaticValueProvider(str, 'abc')
+    self.assertEquals(JsonValue(string_value=svp.value), to_json_value(svp))
+
+  def test_runtime_value_provider_to(self):
+    RuntimeValueProvider.runtime_options = None
+    rvp = RuntimeValueProvider('arg', 123, int)
+    self.assertEquals(JsonValue(is_null=True), to_json_value(rvp))
 
   def test_none_to(self):
     self.assertEquals(JsonValue(is_null=True), to_json_value(None))

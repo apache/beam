@@ -40,7 +40,7 @@ public interface WindowingInternals<InputT, OutputT> {
    * Unsupported state internals. The key type is unknown. It is up to the user to use the
    * correct type of key.
    */
-  StateInternals<?> stateInternals();
+  StateInternals stateInternals();
 
   /**
    * Output the value at the specified timestamp in the listed windows.

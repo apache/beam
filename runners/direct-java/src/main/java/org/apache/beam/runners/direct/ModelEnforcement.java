@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>ModelEnforcement is performed on a per-element and per-bundle basis. The
  * {@link ModelEnforcement} is provided with the input bundle as part of
- * {@link ModelEnforcementFactory#forBundle(DirectRunner.CommittedBundle, AppliedPTransform)} each
+ * {@link ModelEnforcementFactory#forBundle(CommittedBundle, AppliedPTransform)} each
  * element before and after that element is provided to an underlying {@link TransformEvaluator},
  * and the output {@link TransformResult} and committed output bundles after the
  * {@link TransformEvaluator} has completed.
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
  * (such as the immutability of input elements). When the element is output or the bundle is
  * completed, the required conditions can be enforced across all elements.
  */
-public interface ModelEnforcement<T> {
+interface ModelEnforcement<T> {
   /**
    * Called before a call to {@link TransformEvaluator#processElement(WindowedValue)} on the
    * provided {@link WindowedValue}.
@@ -53,10 +53,10 @@ public interface ModelEnforcement<T> {
   /**
    * Called after a bundle has been completed and {@link TransformEvaluator#finishBundle()} has been
    * called, producing the provided {@link TransformResult} and
-   * {@link DirectRunner.CommittedBundle output bundles}.
+   * {@link CommittedBundle output bundles}.
    */
   void afterFinish(
-      DirectRunner.CommittedBundle<T> input,
+      CommittedBundle<T> input,
       TransformResult<T> result,
-      Iterable<? extends DirectRunner.CommittedBundle<?>> outputs);
+      Iterable<? extends CommittedBundle<?>> outputs);
 }

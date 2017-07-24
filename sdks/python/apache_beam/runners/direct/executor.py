@@ -24,33 +24,32 @@ import logging
 import Queue
 import sys
 import threading
-import traceback
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
 
 
-class ExecutorService(object):
+class _ExecutorService(object):
   """Thread pool for executing tasks in parallel."""
 
   class CallableTask(object):
 
-    def __call__(self):
+    def call(self):
       pass
 
     @property
     def name(self):
       return None
 
-  class ExecutorServiceWorker(threading.Thread):
+  class _ExecutorServiceWorker(threading.Thread):
     """Worker thread for executing a single task at a time."""
 
     # Amount to block waiting for getting an item from the queue in seconds.
     TIMEOUT = 5
 
     def __init__(self, queue, index):
-      super(ExecutorService.ExecutorServiceWorker, self).__init__()
+      super(_ExecutorService._ExecutorServiceWorker, self).__init__()
       self.queue = queue
       self._index = index
       self._default_name = 'ExecutorServiceWorker-' + str(index)
@@ -71,7 +70,7 @@ class ExecutorService(object):
         # Do not block indefinitely, otherwise we may not act for a requested
         # shutdown.
         return self.queue.get(
-            timeout=ExecutorService.ExecutorServiceWorker.TIMEOUT)
+            timeout=_ExecutorService._ExecutorServiceWorker.TIMEOUT)
       except Queue.Empty:
         return None
 
@@ -83,7 +82,7 @@ class ExecutorService(object):
           try:
             if not self.shutdown_requested:
               self._update_name(task)
-              task()
+              task.call()
               self._update_name()
           finally:
             self.queue.task_done()
@@ -93,12 +92,12 @@ class ExecutorService(object):
 
   def __init__(self, num_workers):
     self.queue = Queue.Queue()
-    self.workers = [ExecutorService.ExecutorServiceWorker(
+    self.workers = [_ExecutorService._ExecutorServiceWorker(
         self.queue, i) for i in range(num_workers)]
     self.shutdown_requested = False
 
   def submit(self, task):
-    assert isinstance(task, ExecutorService.CallableTask)
+    assert isinstance(task, _ExecutorService.CallableTask)
     if not self.shutdown_requested:
       self.queue.put(task)
 
@@ -123,7 +122,7 @@ class ExecutorService(object):
     # last task).
 
 
-class TransformEvaluationState(object):
+class _TransformEvaluationState(object):
 
   def __init__(self, executor_service, scheduled):
     self.executor_service = executor_service
@@ -137,7 +136,7 @@ class TransformEvaluationState(object):
     self.scheduled.remove(completed_work)
 
 
-class ParallelEvaluationState(TransformEvaluationState):
+class _ParallelEvaluationState(_TransformEvaluationState):
   """A TransformEvaluationState with unlimited parallelism.
 
   Any TransformExecutor scheduled will be immediately submitted to the
@@ -149,25 +148,25 @@ class ParallelEvaluationState(TransformEvaluationState):
   pass
 
 
-class SerialEvaluationState(TransformEvaluationState):
+class _SerialEvaluationState(_TransformEvaluationState):
   """A TransformEvaluationState with a single work queue.
 
   Any TransformExecutor scheduled will be placed on the work queue. Only one
   item of work will be submitted to the ExecutorService at any time.
 
   A principal use of this is for evaluators that keeps a global state such as
-  GroupByKeyOnly.
+  _GroupByKeyOnly.
   """
 
   def __init__(self, executor_service, scheduled):
-    super(SerialEvaluationState, self).__init__(executor_service, scheduled)
+    super(_SerialEvaluationState, self).__init__(executor_service, scheduled)
     self.serial_queue = collections.deque()
     self.currently_evaluating = None
     self._lock = threading.Lock()
 
   def complete(self, completed_work):
     self._update_currently_evaluating(None, completed_work)
-    super(SerialEvaluationState, self).complete(completed_work)
+    super(_SerialEvaluationState, self).complete(completed_work)
 
   def schedule(self, new_work):
     self._update_currently_evaluating(new_work, None)
@@ -182,10 +181,10 @@ class SerialEvaluationState(TransformEvaluationState):
       if self.serial_queue and not self.currently_evaluating:
         next_work = self.serial_queue.pop()
         self.currently_evaluating = next_work
-        super(SerialEvaluationState, self).schedule(next_work)
+        super(_SerialEvaluationState, self).schedule(next_work)
 
 
-class TransformExecutorServices(object):
+class _TransformExecutorServices(object):
   """Schedules and completes TransformExecutors.
 
   Controls the concurrency as appropriate for the applied transform the executor
@@ -195,7 +194,7 @@ class TransformExecutorServices(object):
   def __init__(self, executor_service):
     self._executor_service = executor_service
     self._scheduled = set()
-    self._parallel = ParallelEvaluationState(
+    self._parallel = _ParallelEvaluationState(
         self._executor_service, self._scheduled)
     self._serial_cache = WeakValueDictionary()
 
@@ -205,7 +204,7 @@ class TransformExecutorServices(object):
   def serial(self, step):
     cached = self._serial_cache.get(step)
     if not cached:
-      cached = SerialEvaluationState(self._executor_service, self._scheduled)
+      cached = _SerialEvaluationState(self._executor_service, self._scheduled)
       self._serial_cache[step] = cached
     return cached
 
@@ -231,17 +230,19 @@ class _CompletionCallback(object):
     output_committed_bundles = self._evaluation_context.handle_result(
         input_committed_bundle, self._timers, transform_result)
     for output_committed_bundle in output_committed_bundles:
-      self._all_updates.offer(_ExecutorServiceParallelExecutor.ExecutorUpdate(
+      self._all_updates.offer(_ExecutorServiceParallelExecutor._ExecutorUpdate(
           output_committed_bundle, None))
     return output_committed_bundles
 
   def handle_exception(self, exception):
     self._all_updates.offer(
-        _ExecutorServiceParallelExecutor.ExecutorUpdate(None, exception))
+        _ExecutorServiceParallelExecutor._ExecutorUpdate(None, exception))
 
 
-class TransformExecutor(ExecutorService.CallableTask):
-  """TransformExecutor will evaluate a bundle using an applied ptransform.
+class TransformExecutor(_ExecutorService.CallableTask):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  TransformExecutor will evaluate a bundle using an applied ptransform.
 
   A CallableTask responsible for constructing a TransformEvaluator and
   evaluating it on some bundle of input, and registering the result using the
@@ -261,7 +262,7 @@ class TransformExecutor(ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
 
-  def __call__(self):
+  def call(self):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
     metrics_container = MetricsContainer(self._applied_transform.full_label)
@@ -292,10 +293,10 @@ class TransformExecutor(ExecutorService.CallableTask):
 
       with scoped_metrics_container:
         result = evaluator.finish_bundle()
-        result.metric_updates = metrics_container.get_cumulative()
+        result.logical_metric_updates = metrics_container.get_cumulative()
 
       if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.output_bundles:
+        for uncommitted_bundle in result.uncommitted_output_bundles:
           self._evaluation_context.append_to_cache(
               self._applied_transform, uncommitted_bundle.tag,
               uncommitted_bundle.get_elements_iterable())
@@ -308,7 +309,6 @@ class TransformExecutor(ExecutorService.CallableTask):
       self._completion_callback.handle_result(self._input_bundle, result)
       return result
     except Exception as e:  # pylint: disable=broad-except
-      logging.warning('Task failed: %s', traceback.format_exc(), exc_info=True)
       self._completion_callback.handle_exception(e)
     finally:
       self._evaluation_context.metrics().commit_physical(
@@ -318,6 +318,7 @@ class TransformExecutor(ExecutorService.CallableTask):
 
 
 class Executor(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, *args, **kwargs):
     self._executor = _ExecutorServiceParallelExecutor(*args, **kwargs)
@@ -336,17 +337,17 @@ class _ExecutorServiceParallelExecutor(object):
 
   def __init__(self, value_to_consumers, transform_evaluator_registry,
                evaluation_context):
-    self.executor_service = ExecutorService(
+    self.executor_service = _ExecutorService(
         _ExecutorServiceParallelExecutor.NUM_WORKERS)
-    self.transform_executor_services = TransformExecutorServices(
+    self.transform_executor_services = _TransformExecutorServices(
         self.executor_service)
     self.value_to_consumers = value_to_consumers
     self.transform_evaluator_registry = transform_evaluator_registry
     self.evaluation_context = evaluation_context
     self.all_updates = _ExecutorServiceParallelExecutor._TypedUpdateQueue(
-        _ExecutorServiceParallelExecutor.ExecutorUpdate)
+        _ExecutorServiceParallelExecutor._ExecutorUpdate)
     self.visible_updates = _ExecutorServiceParallelExecutor._TypedUpdateQueue(
-        _ExecutorServiceParallelExecutor.VisibleExecutorUpdate)
+        _ExecutorServiceParallelExecutor._VisibleExecutorUpdate)
     self.default_completion_callback = _CompletionCallback(
         evaluation_context, self.all_updates)
 
@@ -414,7 +415,7 @@ class _ExecutorServiceParallelExecutor(object):
       assert isinstance(item, self._item_type)
       self._queue.put_nowait(item)
 
-  class ExecutorUpdate(object):
+  class _ExecutorUpdate(object):
     """An internal status update on the state of the executor."""
 
     def __init__(self, produced_bundle=None, exception=None):
@@ -427,7 +428,7 @@ class _ExecutorServiceParallelExecutor(object):
         # Not the right exception.
         self.exc_info = (exception, None, None)
 
-  class VisibleExecutorUpdate(object):
+  class _VisibleExecutorUpdate(object):
     """An update of interest to the user.
 
     Used for awaiting the completion to decide whether to return normally or
@@ -439,7 +440,7 @@ class _ExecutorServiceParallelExecutor(object):
       self.exception = exc_info[1] or exc_info[0]
       self.exc_info = exc_info
 
-  class _MonitorTask(ExecutorService.CallableTask):
+  class _MonitorTask(_ExecutorService.CallableTask):
     """MonitorTask continuously runs to ensure that pipeline makes progress."""
 
     def __init__(self, executor):
@@ -449,7 +450,7 @@ class _ExecutorServiceParallelExecutor(object):
     def name(self):
       return 'monitor'
 
-    def __call__(self):
+    def call(self):
       try:
         update = self._executor.all_updates.poll()
         while update:
@@ -460,7 +461,7 @@ class _ExecutorServiceParallelExecutor(object):
             logging.warning('A task failed with exception.\n %s',
                             update.exception)
             self._executor.visible_updates.offer(
-                _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
+                _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
                     update.exc_info))
           update = self._executor.all_updates.poll()
         self._executor.evaluation_context.schedule_pending_unblocked_tasks(
@@ -469,7 +470,7 @@ class _ExecutorServiceParallelExecutor(object):
       except Exception as e:  # pylint: disable=broad-except
         logging.error('Monitor task died due to exception.\n %s', e)
         self._executor.visible_updates.offer(
-            _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
+            _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
                 sys.exc_info()))
       finally:
         if not self._should_shutdown():
@@ -499,11 +500,11 @@ class _ExecutorServiceParallelExecutor(object):
       else:
         if self._executor.evaluation_context.is_done():
           self._executor.visible_updates.offer(
-              _ExecutorServiceParallelExecutor.VisibleExecutorUpdate())
+              _ExecutorServiceParallelExecutor._VisibleExecutorUpdate())
         else:
           # Nothing is scheduled for execution, but watermarks incomplete.
           self._executor.visible_updates.offer(
-              _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
+              _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
                   (Exception('Monitor task detected a pipeline stall.'),
                    None,
                    None)))

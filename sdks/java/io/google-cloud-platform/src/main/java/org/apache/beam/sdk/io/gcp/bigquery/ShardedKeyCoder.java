@@ -18,10 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,9 +25,8 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.util.PropertyNames;
 
 
 /**
@@ -39,18 +34,13 @@ import org.apache.beam.sdk.util.PropertyNames;
  */
 @VisibleForTesting
 class ShardedKeyCoder<KeyT>
-    extends StandardCoder<ShardedKey<KeyT>> {
+    extends StructuredCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }
 
-  @JsonCreator
-  public static <KeyT> ShardedKeyCoder<KeyT> of(
-       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-           List<Coder<KeyT>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of(components.get(0));
-  }
+  private final Coder<KeyT> keyCoder;
+  private final VarIntCoder shardNumberCoder;
 
   protected ShardedKeyCoder(Coder<KeyT> keyCoder) {
     this.keyCoder = keyCoder;
@@ -63,25 +53,22 @@ class ShardedKeyCoder<KeyT>
   }
 
   @Override
-  public void encode(ShardedKey<KeyT> key, OutputStream outStream, Context context)
+  public void encode(ShardedKey<KeyT> key, OutputStream outStream)
       throws IOException {
-    keyCoder.encode(key.getKey(), outStream, context.nested());
-    shardNumberCoder.encode(key.getShardNumber(), outStream, context);
+    keyCoder.encode(key.getKey(), outStream);
+    shardNumberCoder.encode(key.getShardNumber(), outStream);
   }
 
   @Override
-  public ShardedKey<KeyT> decode(InputStream inStream, Context context)
+  public ShardedKey<KeyT> decode(InputStream inStream)
       throws IOException {
     return new ShardedKey<>(
-        keyCoder.decode(inStream, context.nested()),
-        shardNumberCoder.decode(inStream, context));
+        keyCoder.decode(inStream),
+        shardNumberCoder.decode(inStream));
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     keyCoder.verifyDeterministic();
   }
-
-  Coder<KeyT> keyCoder;
-  VarIntCoder shardNumberCoder;
 }

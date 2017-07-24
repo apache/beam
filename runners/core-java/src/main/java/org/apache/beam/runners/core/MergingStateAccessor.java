@@ -20,8 +20,8 @@ package org.apache.beam.runners.core;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.state.State;
 
 /**
  * Interface for accessing persistent state while windows are merging.
@@ -37,5 +37,5 @@ public interface MergingStateAccessor<K, W extends BoundedWindow>
    * are known to have state.
    */
   <StateT extends State> Map<W, StateT> accessInEachMergingWindow(
-      StateTag<? super K, StateT> address);
+      StateTag<StateT> address);
 }

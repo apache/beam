@@ -61,19 +61,18 @@ import shutil
 import sys
 import tempfile
 
-
-from apache_beam import utils
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 # Update this version to the next version whenever there is a change that will
 # require changes to the execution environment.
-BEAM_CONTAINER_VERSION = 'beam-0.7.0-20170316'
+BEAM_CONTAINER_VERSION = '2.0.0'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -191,12 +190,12 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
 
   if staging_temp_dir:
     local_packages.extend(
-        [utils.path.join(staging_temp_dir, f) for f in os.listdir(
+        [FileSystems.join(staging_temp_dir, f) for f in os.listdir(
             staging_temp_dir)])
 
   for package in local_packages:
     basename = os.path.basename(package)
-    staged_path = utils.path.join(staging_location, basename)
+    staged_path = FileSystems.join(staging_location, basename)
     file_copy(package, staged_path)
     resources.append(basename)
   # Create a file containing the list of extra packages and stage it.
@@ -209,7 +208,7 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   with open(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), 'wt') as f:
     for package in local_packages:
       f.write('%s\n' % os.path.basename(package))
-  staged_path = utils.path.join(staging_location, EXTRA_PACKAGES_FILE)
+  staged_path = FileSystems.join(staging_location, EXTRA_PACKAGES_FILE)
   # Note that the caller of this function is responsible for deleting the
   # temporary folder where all temp files are created, including this one.
   file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
@@ -245,7 +244,9 @@ def _populate_requirements_cache(requirements_file, cache_dir):
 def stage_job_resources(
     options, file_copy=_dependency_file_copy, build_setup_args=None,
     temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
-  """Creates (if needed) and stages job resources to options.staging_location.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates (if needed) and stages job resources to options.staging_location.
 
   Args:
     options: Command line options. More specifically the function will expect
@@ -290,8 +291,8 @@ def stage_job_resources(
       raise RuntimeError('The file %s cannot be found. It was specified in the '
                          '--requirements_file command line option.' %
                          setup_options.requirements_file)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  REQUIREMENTS_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   REQUIREMENTS_FILE)
     file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
     requirements_cache_path = (
@@ -305,8 +306,8 @@ def stage_job_resources(
     populate_requirements_cache(
         setup_options.requirements_file, requirements_cache_path)
     for pkg in  glob.glob(os.path.join(requirements_cache_path, '*')):
-      file_copy(pkg, utils.path.join(google_cloud_options.staging_location,
-                                     os.path.basename(pkg)))
+      file_copy(pkg, FileSystems.join(google_cloud_options.staging_location,
+                                      os.path.basename(pkg)))
       resources.append(os.path.basename(pkg))
 
   # Handle a setup file if present.
@@ -324,8 +325,8 @@ def stage_job_resources(
           'setup.py instead of %s' % setup_options.setup_file)
     tarball_file = _build_setup_package(setup_options.setup_file, temp_dir,
                                         build_setup_args)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  WORKFLOW_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   WORKFLOW_TARBALL_FILE)
     file_copy(tarball_file, staged_path)
     resources.append(WORKFLOW_TARBALL_FILE)
 
@@ -344,8 +345,8 @@ def stage_job_resources(
     pickled_session_file = os.path.join(temp_dir,
                                         names.PICKLED_MAIN_SESSION_FILE)
     pickler.dump_session(pickled_session_file)
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  names.PICKLED_MAIN_SESSION_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.PICKLED_MAIN_SESSION_FILE)
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
@@ -359,8 +360,8 @@ def stage_job_resources(
     else:
       stage_tarball_from_remote_location = False
 
-    staged_path = utils.path.join(google_cloud_options.staging_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.DATAFLOW_SDK_TARBALL_FILE)
     if stage_tarball_from_remote_location:
       # If --sdk_location is not specified then the appropriate package
       # will be obtained from PyPI (https://pypi.python.org) based on the
@@ -468,7 +469,9 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
 
 
 def get_required_container_version():
-  """Returns the Google Cloud Dataflow container version for remote execution.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the Google Cloud Dataflow container version for remote execution.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
@@ -488,7 +491,9 @@ def get_required_container_version():
 
 
 def get_sdk_name_and_version():
-  """Returns name and version of SDK reported to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
@@ -497,7 +502,9 @@ def get_sdk_name_and_version():
 
 
 def get_sdk_package_name():
-  """Returns the PyPI package name to be staged to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the PyPI package name to be staged to Google Cloud Dataflow."""
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME

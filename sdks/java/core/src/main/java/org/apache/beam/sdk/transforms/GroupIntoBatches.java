@@ -23,17 +23,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.TimerSpecs;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -112,14 +111,14 @@ public class GroupIntoBatches<K, InputT>
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     @StateId(BATCH_ID)
-    private final StateSpec<Object, BagState<InputT>> batchSpec;
+    private final StateSpec<BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<Object, CombiningState<Long, Long, Long>>
+    private final StateSpec<CombiningState<Long, long[], Long>>
         numElementsInBatchSpec;
 
     @StateId(KEY_ID)
-    private final StateSpec<Object, ValueState<K>> keySpec;
+    private final StateSpec<ValueState<K>> keySpec;
 
     private final long prefetchFrequency;
 
@@ -131,35 +130,19 @@ public class GroupIntoBatches<K, InputT>
       this.batchSize = batchSize;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
-      this.numElementsInBatchSpec =
-          StateSpecs.combining(
-              VarLongCoder.of(),
-              new Combine.CombineFn<Long, Long, Long>() {
+      this.numElementsInBatchSpec = StateSpecs.combining(new Combine.BinaryCombineLongFn() {
 
-                @Override
-                public Long createAccumulator() {
-                  return 0L;
-                }
+        @Override
+        public long identity() {
+          return 0L;
+        }
 
-                @Override
-                public Long addInput(Long accumulator, Long input) {
-                  return accumulator + input;
-                }
+        @Override
+        public long apply(long left, long right) {
+          return left + right;
+        }
 
-                @Override
-                public Long mergeAccumulators(Iterable<Long> accumulators) {
-                  long sum = 0L;
-                  for (Long accumulator : accumulators) {
-                    sum += accumulator;
-                  }
-                  return sum;
-                }
-
-                @Override
-                public Long extractOutput(Long accumulator) {
-                  return accumulator;
-                }
-              });
+      });
 
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
@@ -171,7 +154,7 @@ public class GroupIntoBatches<K, InputT>
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, Long, Long> numElementsInBatch,
+            CombiningState<Long, long[], Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
@@ -203,7 +186,7 @@ public class GroupIntoBatches<K, InputT>
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, Long, Long> numElementsInBatch,
+            CombiningState<Long, long[], Long> numElementsInBatch,
         BoundedWindow window) {
       LOGGER.debug(
           "*** END OF WINDOW *** for timer timestamp {} in windows {}",
@@ -212,13 +195,13 @@ public class GroupIntoBatches<K, InputT>
     }
 
     private void flushBatch(
-        Context c,
+        WindowedContext c,
         ValueState<K> key,
         BagState<InputT> batch,
-        CombiningState<Long, Long, Long> numElementsInBatch) {
+        CombiningState<Long, long[], Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
-      if (Iterables.size(values) > 0) {
+      if (!Iterables.isEmpty(values)) {
         c.output(KV.of(key.read(), values));
       }
       batch.clear();

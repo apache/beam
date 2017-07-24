@@ -25,8 +25,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Objects;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -168,7 +166,7 @@ public class LatestFnTest {
   }
 
   @Test
-  public void testExtractOutputDefaultAggregator() {
+  public void testExtractOutputDefaultAccumulator() {
     TimestampedValue<Long> accum = fn.createAccumulator();
     assertThat(fn.extractOutput(accum), nullValue());
   }
@@ -180,23 +178,10 @@ public class LatestFnTest {
   }
 
   @Test
-  public void testAggregator() throws Exception {
-    LatestAggregatorsFn<Long> doFn = new LatestAggregatorsFn<>(TV_MINUS_TEN.getValue());
-    DoFnTester<Long, Long> harness = DoFnTester.of(doFn);
-    for (TimestampedValue<Long> element : Arrays.asList(TV, TV_PLUS_TEN, TV_MINUS_TEN)) {
-      harness.processTimestampedElement(element);
-    }
-
-    assertEquals(TV_PLUS_TEN.getValue(), harness.getAggregatorValue(doFn.allValuesAgg));
-    assertEquals(TV_MINUS_TEN.getValue(), harness.getAggregatorValue(doFn.specialValueAgg));
-    assertThat(harness.getAggregatorValue(doFn.noValuesAgg), nullValue());
-  }
-
-  @Test
   public void testDefaultCoderHandlesNull() throws CannotProvideCoderException {
     Latest.LatestFn<Long> fn = new Latest.LatestFn<>();
 
-    CoderRegistry registry = new CoderRegistry();
+    CoderRegistry registry = CoderRegistry.createDefault();
     TimestampedValue.TimestampedValueCoder<Long> inputCoder =
         TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of());
 
@@ -204,30 +189,5 @@ public class LatestFnTest {
         fn.getDefaultOutputCoder(registry, inputCoder), instanceOf(NullableCoder.class));
     assertThat("Default accumulator coder should handle null values",
         fn.getAccumulatorCoder(registry, inputCoder), instanceOf(NullableCoder.class));
-  }
-
-  static class LatestAggregatorsFn<T> extends DoFn<T, T> {
-    private final T specialValue;
-    LatestAggregatorsFn(T specialValue) {
-      this.specialValue = specialValue;
-    }
-
-    Aggregator<TimestampedValue<T>, T> allValuesAgg =
-        createAggregator("allValues", new Latest.LatestFn<T>());
-
-    Aggregator<TimestampedValue<T>, T> specialValueAgg =
-        createAggregator("oneValue", new Latest.LatestFn<T>());
-
-    Aggregator<TimestampedValue<T>, T> noValuesAgg =
-        createAggregator("noValues", new Latest.LatestFn<T>());
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      TimestampedValue<T> val = TimestampedValue.of(c.element(), c.timestamp());
-      allValuesAgg.addValue(val);
-      if (Objects.equals(c.element(), specialValue)) {
-        specialValueAgg.addValue(val);
-      }
-    }
   }
 }

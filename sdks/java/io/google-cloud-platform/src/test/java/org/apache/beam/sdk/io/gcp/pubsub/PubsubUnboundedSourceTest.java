@@ -34,12 +34,12 @@ import static org.junit.Assert.assertTrue;
 import com.google.api.client.util.Clock;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -70,8 +70,8 @@ public class PubsubUnboundedSourceTest {
   private static final String DATA = "testData";
   private static final long TIMESTAMP = 1234L;
   private static final long REQ_TIME = 6373L;
-  private static final String TIMESTAMP_LABEL = "timestamp";
-  private static final String ID_LABEL = "id";
+  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final String ID_ATTRIBUTE = "id";
   private static final String ACK_ID = "testAckId";
   private static final String RECORD_ID = "testRecordId";
   private static final int ACK_TIMEOUT_S = 60;
@@ -79,7 +79,7 @@ public class PubsubUnboundedSourceTest {
   private AtomicLong now;
   private Clock clock;
   private PubsubTestClientFactory factory;
-  private PubsubSource<String> primSource;
+  private PubsubSource primSource;
 
   @Rule
   public TestPipeline p = TestPipeline.create();
@@ -93,11 +93,11 @@ public class PubsubUnboundedSourceTest {
       }
     };
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
-    PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(
+    PubsubUnboundedSource source =
+        new PubsubUnboundedSource(
             clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
-            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL, null);
-    primSource = new PubsubSource<>(source);
+            TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, true /* needsAttributes */);
+    primSource = new PubsubSource(source);
   }
 
   private void setupOneMessage() {
@@ -114,6 +114,10 @@ public class PubsubUnboundedSourceTest {
     factory = null;
   }
 
+  private static String data(PubsubMessage message) {
+    return new String(message.getPayload(), StandardCharsets.UTF_8);
+  }
+
   @Test
   public void checkpointCoderIsSane() throws Exception {
     setupOneMessage(ImmutableList.<IncomingMessage>of());
@@ -126,13 +130,13 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void readOneMessage() throws IOException {
     setupOneMessage();
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     // Read one message.
     assertTrue(reader.start());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     assertFalse(reader.advance());
     // ACK the message.
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     reader.close();
   }
@@ -140,19 +144,19 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void timeoutAckAndRereadOneMessage() throws IOException {
     setupOneMessage();
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     assertTrue(reader.start());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     // Let the ACK deadline for the above expire.
     now.addAndGet(65 * 1000);
     pubsubClient.advance();
     // We'll now receive the same message again.
     assertTrue(reader.advance());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     assertFalse(reader.advance());
     // Now ACK the message.
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     reader.close();
   }
@@ -160,11 +164,11 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void extendAck() throws IOException {
     setupOneMessage();
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Pull the first message but don't take a checkpoint for it.
     assertTrue(reader.start());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     // Extend the ack
     now.addAndGet(55 * 1000);
     pubsubClient.advance();
@@ -174,7 +178,7 @@ public class PubsubUnboundedSourceTest {
     pubsubClient.advance();
     assertFalse(reader.advance());
     // Now ACK the message.
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     reader.close();
   }
@@ -182,11 +186,11 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void timeoutAckExtensions() throws IOException {
     setupOneMessage();
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Pull the first message but don't take a checkpoint for it.
     assertTrue(reader.start());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     // Extend the ack.
     now.addAndGet(55 * 1000);
     pubsubClient.advance();
@@ -202,9 +206,9 @@ public class PubsubUnboundedSourceTest {
     pubsubClient.advance();
     // Reread the same message.
     assertTrue(reader.advance());
-    assertEquals(DATA, reader.getCurrent());
+    assertEquals(DATA, data(reader.getCurrent()));
     // Now ACK the message.
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     reader.close();
   }
@@ -218,20 +222,20 @@ public class PubsubUnboundedSourceTest {
       incoming.add(new IncomingMessage(data.getBytes(), null, TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     // Consume two messages, only read one.
     assertTrue(reader.start());
-    assertEquals("data_0", reader.getCurrent());
+    assertEquals("data_0", data(reader.getCurrent()));
 
     // Grab checkpoint.
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     assertEquals(1, checkpoint.notYetReadIds.size());
     assertEquals("ackid_1", checkpoint.notYetReadIds.get(0));
 
     // Read second message.
     assertTrue(reader.advance());
-    assertEquals("data_1", reader.getCurrent());
+    assertEquals("data_1", data(reader.getCurrent()));
 
     // Restore from checkpoint.
     byte[] checkpointBytes =
@@ -244,7 +248,7 @@ public class PubsubUnboundedSourceTest {
     // Re-read second message.
     reader = primSource.createReader(p.getOptions(), checkpoint);
     assertTrue(reader.start());
-    assertEquals("data_1", reader.getCurrent());
+    assertEquals("data_1", data(reader.getCurrent()));
 
     // We are done.
     assertFalse(reader.advance());
@@ -278,7 +282,7 @@ public class PubsubUnboundedSourceTest {
     }
     setupOneMessage(incoming);
 
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
 
     for (int i = 0; i < n; i++) {
@@ -290,7 +294,7 @@ public class PubsubUnboundedSourceTest {
       // We'll checkpoint and ack within the 2min limit.
       now.addAndGet(30);
       pubsubClient.advance();
-      String data = reader.getCurrent();
+      String data = data(reader.getCurrent());
       Integer messageNum = dataToMessageNum.remove(data);
       // No duplicate messages.
       assertNotNull(messageNum);
@@ -310,7 +314,7 @@ public class PubsubUnboundedSourceTest {
         }
         assertThat(watermark, lessThanOrEqualTo(minOutstandingTimestamp));
         // Ack messages, but only every other finalization.
-        PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+        PubsubCheckpoint checkpoint = reader.getCheckpointMark();
         if (i % 2000 == 1999) {
           checkpoint.finalizeCheckpoint();
         }
@@ -324,29 +328,28 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
-  public void noSubscriptionSplitIntoBundlesGeneratesSubscription() throws Exception {
+  public void noSubscriptionSplitGeneratesSubscription() throws Exception {
     TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
     factory = PubsubTestClient.createFactoryForCreateSubscription();
-    PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(
+    PubsubUnboundedSource source =
+        new PubsubUnboundedSource(
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
-            null,
-            StringUtf8Coder.of(),
-            null,
-            null,
-            null);
+            null /* subscription */,
+            null /* timestampLabel */,
+            null /* idLabel */,
+            false /* needsAttributes */);
     assertThat(source.getSubscription(), nullValue());
 
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    List<PubsubSource<String>> splits =
-        (new PubsubSource<>(source)).generateInitialSplits(3, options);
+    List<PubsubSource> splits =
+        (new PubsubSource(source)).split(3, options);
     // We have at least one returned split
     assertThat(splits, hasSize(greaterThan(0)));
-    for (PubsubSource<String> split : splits) {
+    for (PubsubSource split : splits) {
       // Each split is equal
       assertThat(split, equalTo(splits.get(0)));
     }
@@ -358,37 +361,36 @@ public class PubsubUnboundedSourceTest {
   public void noSubscriptionNoSplitGeneratesSubscription() throws Exception {
     TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
     factory = PubsubTestClient.createFactoryForCreateSubscription();
-    PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(
+    PubsubUnboundedSource source =
+        new PubsubUnboundedSource(
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
-            null,
-            StringUtf8Coder.of(),
-            null,
-            null,
-            null);
+            null /* subscription */,
+            null /* timestampLabel */,
+            null /* idLabel */,
+            false /* needsAttributes */);
     assertThat(source.getSubscription(), nullValue());
 
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    PubsubSource<String> actualSource = new PubsubSource<>(source);
-    PubsubReader<String> reader = actualSource.createReader(options, null);
+    PubsubSource actualSource = new PubsubSource(source);
+    PubsubReader reader = actualSource.createReader(options, null);
     SubscriptionPath createdSubscription = reader.subscription;
     assertThat(createdSubscription, not(nullValue()));
 
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     assertThat(checkpoint.subscriptionPath, equalTo(createdSubscription.getPath()));
 
     checkpoint.finalizeCheckpoint();
-    PubsubCheckpoint<String> deserCheckpoint =
+    PubsubCheckpoint deserCheckpoint =
         CoderUtils.clone(actualSource.getCheckpointMarkCoder(), checkpoint);
     assertThat(checkpoint.subscriptionPath, not(nullValue()));
     assertThat(checkpoint.subscriptionPath, equalTo(deserCheckpoint.subscriptionPath));
 
-    PubsubReader<String> readerFromOriginal = actualSource.createReader(options, checkpoint);
-    PubsubReader<String> readerFromDeser = actualSource.createReader(options, deserCheckpoint);
+    PubsubReader readerFromOriginal = actualSource.createReader(options, checkpoint);
+    PubsubReader readerFromDeser = actualSource.createReader(options, deserCheckpoint);
 
     assertThat(readerFromOriginal.subscription, equalTo(createdSubscription));
     assertThat(readerFromDeser.subscription, equalTo(createdSubscription));
@@ -400,9 +402,9 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void closeWithActiveCheckpoints() throws Exception {
     setupOneMessage();
-    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
     reader.start();
-    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     reader.close();
     checkpoint.finalizeCheckpoint();
   }

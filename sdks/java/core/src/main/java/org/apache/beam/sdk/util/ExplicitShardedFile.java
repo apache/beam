@@ -18,12 +18,8 @@
 
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
@@ -32,7 +28,10 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,11 +48,14 @@ public class ExplicitShardedFile implements ShardedFile {
           .withInitialBackoff(DEFAULT_SLEEP_DURATION)
           .withMaxRetries(MAX_READ_RETRIES);
 
-  private final Collection<String> files;
+  private final List<Metadata> files;
 
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
-  public ExplicitShardedFile(Collection<String> files) {
-    this.files = files;
+  public ExplicitShardedFile(Collection<String> files) throws IOException {
+    this.files = new LinkedList<>();
+    for (String file: files) {
+      this.files.add(FileSystems.matchSingleFileSpec(file));
+    }
   }
 
   @Override
@@ -63,13 +65,12 @@ public class ExplicitShardedFile implements ShardedFile {
       return Collections.emptyList();
     }
 
-    IOChannelFactory factory = IOChannelUtils.getFactory(Iterables.get(files, 0));
     IOException lastException = null;
 
     do {
       try {
         // Read data from file paths
-        return readLines(files, factory);
+        return readLines(files);
       } catch (IOException e) {
         // Ignore and retry
         lastException = e;
@@ -104,11 +105,12 @@ public class ExplicitShardedFile implements ShardedFile {
    * than can be reasonably processed serially, in-memory, by a single thread.
    */
   @VisibleForTesting
-  List<String> readLines(Collection<String> files, IOChannelFactory factory) throws IOException {
+  List<String> readLines(Collection<Metadata> files) throws IOException {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
-    for (String file : files) {
-      try (Reader reader = Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+    for (Metadata file : files) {
+      try (Reader reader = Channels.newReader(FileSystems.open(file.resourceId()),
+          StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug("[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);
