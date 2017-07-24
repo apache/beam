@@ -49,24 +49,6 @@
   </profiles>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <!-- DSLs will generally offer test suites for runners, as sdks/java does. -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-jar-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>default-test-jar</id>
-              <goals>
-                <goal>test-jar</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
