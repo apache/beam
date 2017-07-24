@@ -36,7 +36,7 @@ import org.apache.beam.fn.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.fn.v1.BeamFnApi.LogControl;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
 import org.apache.beam.fn.v1.BeamFnLoggingGrpc;
-import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;

@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Collection of useful coders."""
+"""Collection of useful coders.
+
+Only those coders listed in __all__ are part of the public API of this module.
+"""
 
 import base64
 import cPickle as pickle
@@ -43,6 +46,13 @@ except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
+
+
+__all__ = ['Coder',
+           'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
+           'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
+           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
 def serialize_coder(coder):
@@ -116,6 +126,10 @@ class Coder(object):
                                         self.estimate_size)
 
   def get_impl(self):
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the CoderImpl backing this Coder.
+    """
     if not hasattr(self, '_impl'):
       self._impl = self._create_impl()
       assert isinstance(self._impl, coder_impl.CoderImpl)
@@ -152,13 +166,17 @@ class Coder(object):
       raise ValueError('Not a KV coder: %s.' % self)
 
   def _get_component_coders(self):
-    """Returns the internal component coders of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the internal component coders of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
     return []
 
   def as_cloud_object(self):
-    """Returns Google Cloud Dataflow API description of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns Google Cloud Dataflow API description of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
 
@@ -184,6 +202,8 @@ class Coder(object):
     # pylint: enable=protected-access
 
   def to_runner_api(self, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
     # TODO(BEAM-115): Use specialized URNs and components.
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
@@ -196,6 +216,8 @@ class Coder(object):
 
   @staticmethod
   def from_runner_api(proto, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
     any_proto = proto.spec.spec.parameter
     bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
     any_proto.Unpack(bytes_proto)
@@ -688,22 +710,6 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-class WindowCoder(PickleCoder):
-  """Coder for windows in windowed values."""
-
-  def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
-
-  def is_deterministic(self):
-    # Note that WindowCoder as implemented is not deterministic because the
-    # implementation simply pickles windows.  See the corresponding comments
-    # on PickleCoder for more details.
-    return False
-
-  def as_cloud_object(self):
-    return super(WindowCoder, self).as_cloud_object(is_pair_like=False)
-
-
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
 
@@ -795,7 +801,9 @@ class WindowedValueCoder(FastCoder):
 
 
 class LengthPrefixCoder(FastCoder):
-  """Coder which prefixes the length of the encoded object in the stream."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the length of the encoded object in the stream."""
 
   def __init__(self, value_coder):
     self._value_coder = value_coder

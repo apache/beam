@@ -32,11 +32,11 @@ Typical usage:
 
   # Add to the pipeline a "Create" transform. When executed this
   # transform will produce a PCollection object with the specified values.
-  pcoll = p | 'create' >> beam.Create([1, 2, 3])
+  pcoll = p | 'Create' >> beam.Create([1, 2, 3])
 
   # Another transform could be applied to pcoll, e.g., writing to a text file.
   # For other transforms, refer to transforms/ directory.
-  pcoll | 'write' >> beam.io.WriteToText('./output')
+  pcoll | 'Write' >> beam.io.WriteToText('./output')
 
   # run() will execute the DAG stored in the pipeline.  The execution of the
   # nodes visited is done using the specified local runner.
@@ -52,21 +52,22 @@ import os
 import shutil
 import tempfile
 
-from google.protobuf import wrappers_pb2
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
+from apache_beam.typehints import typehints
 from apache_beam.typehints import TypeCheckError
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
-from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.pipeline_options import TypeOptions
-from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.utils.annotations import deprecated
+
+
+__all__ = ['Pipeline']
 
 
 class Pipeline(object):
@@ -76,8 +77,8 @@ class Pipeline(object):
   the PValues are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
-  If same transform instance needs to be applied then a clone should be created
-  with a new label (e.g., transform.clone('new label')).
+  If same transform instance needs to be applied then the right shift operator
+  should be used to designate new names (e.g. `input | "label" >> my_tranform`).
   """
 
   def __init__(self, runner=None, options=None, argv=None):
@@ -97,25 +98,24 @@ class Pipeline(object):
       ValueError: if either the runner or options argument is not of the
       expected type.
     """
-
     if options is not None:
       if isinstance(options, PipelineOptions):
-        self.options = options
+        self._options = options
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
             'Received : %r', options)
     elif argv is not None:
       if isinstance(argv, list):
-        self.options = PipelineOptions(argv)
+        self._options = PipelineOptions(argv)
       else:
         raise ValueError(
             'Parameter argv, if specified, must be a list. Received : %r', argv)
     else:
-      self.options = PipelineOptions([])
+      self._options = PipelineOptions([])
 
     if runner is None:
-      runner = self.options.view_as(StandardOptions).runner
+      runner = self._options.view_as(StandardOptions).runner
       if runner is None:
         runner = StandardOptions.DEFAULT_RUNNER
         logging.info(('Missing pipeline option (runner). Executing pipeline '
@@ -128,7 +128,7 @@ class Pipeline(object):
                       'name of a registered runner.')
 
     # Validate pipeline options
-    errors = PipelineOptionsValidator(self.options, runner).validate()
+    errors = PipelineOptionsValidator(self._options, runner).validate()
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
@@ -142,6 +142,13 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
+
+  @property
+  @deprecated(since='First stable release',
+              extra_message='References to <pipeline>.options'
+              ' will not be supported')
+  def options(self):
+    return self._options
 
   def _current_transform(self):
     """Returns the transform currently on the top of the stack."""
@@ -157,9 +164,9 @@ class Pipeline(object):
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self.options).run(False)
+          self.to_runner_api(), self.runner, self._options).run(False)
 
-    if self.options.view_as(SetupOptions).save_main_session:
+    if self._options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
@@ -177,6 +184,8 @@ class Pipeline(object):
 
   def visit(self, visitor):
     """Visits depth-first every node of a pipeline's DAG.
+
+    Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
       visitor: PipelineVisitor object whose callbacks will be called for each
@@ -249,7 +258,7 @@ class Pipeline(object):
     self._current_transform().add_part(current)
     self.transforms_stack.append(current)
 
-    type_options = self.options.view_as(TypeOptions)
+    type_options = self._options.view_as(TypeOptions)
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
@@ -329,6 +338,7 @@ class Pipeline(object):
     return Visitor.ok
 
   def to_runner_api(self):
+    """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.runners.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
@@ -336,17 +346,19 @@ class Pipeline(object):
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())
     proto = beam_runner_api_pb2.Pipeline(
-        root_transform_id=root_transform_id,
+        root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
     return proto
 
   @staticmethod
   def from_runner_api(proto, runner, options):
+    """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(proto.components)
+    root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [
-        context.transforms.get_by_id(proto.root_transform_id)]
+        context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = set([
         t.unique_name for t in proto.components.transforms.values()])
@@ -356,9 +368,10 @@ class Pipeline(object):
 
 
 class PipelineVisitor(object):
-  """Visitor pattern class used to traverse a DAG of transforms.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  Visitor pattern class used to traverse a DAG of transforms
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def visit_value(self, value, producer_node):
@@ -385,9 +398,10 @@ class PipelineVisitor(object):
 
 
 class AppliedPTransform(object):
-  """A transform node representing an instance of applying a PTransform.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  A transform node representing an instance of applying a PTransform
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def __init__(self, parent, transform, full_label, inputs):
@@ -513,12 +527,15 @@ class AppliedPTransform(object):
 
   def to_runner_api(self, context):
     from apache_beam.runners.api import beam_runner_api_pb2
+
+    def transform_to_runner_api(transform, context):
+      if transform is None:
+        return None
+      else:
+        return transform.to_runner_api(context)
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=urns.PICKLED_TRANSFORM,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=pickler.dumps(self.transform)))),
+        spec=transform_to_runner_api(self.transform, context),
         subtransforms=[context.transforms.get_id(part) for part in self.parts],
         # TODO(BEAM-115): Side inputs.
         inputs={tag: context.pcollections.get_id(pc)
@@ -532,9 +549,7 @@ class AppliedPTransform(object):
   def from_runner_api(proto, context):
     result = AppliedPTransform(
         parent=None,
-        transform=pickler.loads(
-            proto_utils.unpack_Any(proto.spec.parameter,
-                                   wrappers_pb2.BytesValue).value),
+        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
         inputs=[
             context.pcollections.get_by_id(id) for id in proto.inputs.values()])

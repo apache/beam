@@ -42,24 +42,23 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -72,7 +71,7 @@ import org.joda.time.Instant;
  *
  * <ul>
  * <li>Tracking the windows that are active (have buffered data) as elements arrive and triggers are
- *     fired.
+ *  fired.
  * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it when the
  *     trigger fires.
  * <li>Calling the appropriate callbacks on {@link ReduceFn} based on trigger execution, timer
@@ -107,9 +106,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final OutputWindowedValue<KV<K, OutputT>> outputter;
 
-  private final StateInternals<K> stateInternals;
+  private final StateInternals stateInternals;
 
-  private final Aggregator<Long, Long> droppedDueToClosedWindow;
+  private final Counter droppedDueToClosedWindow;
+
+  public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "droppedDueToClosedWindow";
 
   private final K key;
 
@@ -171,7 +172,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * <ul>
    * <li>State: Bag of hold timestamps.
    * <li>State style: RENAMED
-   * <li>Merging: Depending on {@link OutputTimeFn}, may need to be recalculated on merging.
+   * <li>Merging: Depending on {@link TimestampCombiner}, may need to be recalculated on merging.
    * When a pane fires it may be necessary to add (back) an end-of-window or garbage collection
    * hold.
    * <li>Lifetime: Cleared when a pane fires or when the window is garbage collected.
@@ -211,11 +212,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       K key,
       WindowingStrategy<?, W> windowingStrategy,
       ExecutableTriggerStateMachine triggerStateMachine,
-      StateInternals<K> stateInternals,
+      StateInternals stateInternals,
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
       SideInputReader sideInputReader,
-      Aggregator<Long, Long> droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       PipelineOptions options) {
     this.key = key;
@@ -223,8 +223,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
     this.stateInternals = stateInternals;
     this.outputter = outputter;
-    this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.reduceFn = reduceFn;
+    this.droppedDueToClosedWindow = Metrics.counter(ReduceFnRunner.class,
+        DROPPED_DUE_TO_CLOSED_WINDOW);
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectWindowingStrategy =
@@ -264,7 +265,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return activeWindows.getActiveAndNewWindows().isEmpty();
   }
 
-  private Set<W> openWindows(Collection<W> windows) {
+  private Set<W> windowsThatAreOpen(Collection<W> windows) {
     Set<W> result = new HashSet<>();
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.Context directContext = contextFactory.base(
@@ -339,7 +340,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     prefetchWindowsForValues(windows);
 
     // All windows that are open before element processing may need to fire.
-    Set<W> windowsToConsider = openWindows(windows);
+    Set<W> windowsToConsider = windowsThatAreOpen(windows);
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
@@ -581,7 +582,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
-        droppedDueToClosedWindow.addValue(1L);
+        droppedDueToClosedWindow.inc();
         WindowTracing.debug(
             "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
             + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",
@@ -661,7 +662,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = directContext.window();
       this.isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
           && timer.getTimestamp().equals(window.maxTimestamp());
-      Instant cleanupTime = garbageCollectionTime(window);
+      Instant cleanupTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       this.isGarbageCollection = !timer.getTimestamp().isBefore(cleanupTime);
     }
 
@@ -767,9 +768,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           // cleanup event and handled by the above).
           // Note we must do this even if the trigger is finished so that we are sure to cleanup
           // any final trigger finished bits.
-          checkState(windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
+          checkState(
+              windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
               "Unexpected zero getAllowedLateness");
-          Instant cleanupTime = garbageCollectionTime(directContext.window());
+          Instant cleanupTime =
+              LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
           WindowTracing.debug(
               "ReduceFnRunner.onTimer: Scheduling cleanup timer for key:{}; window:{} at {} with "
                   + "inputWatermark:{}; outputWatermark:{}",
@@ -955,6 +958,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
         watermarkHold.extractAndRelease(renamedContext, isFinished).read();
+    // TODO: This isn't accurate if the elements are late. See BEAM-2262
     final Instant outputTimestamp = pair.oldHold;
     @Nullable Instant newHold = pair.newHold;
 
@@ -970,11 +974,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       if (newHold.isAfter(directContext.window().maxTimestamp())) {
         // The hold must be for garbage collection, which can't have happened yet.
         checkState(
-          newHold.isEqual(garbageCollectionTime(directContext.window())),
-          "new hold %s should be at garbage collection for window %s plus %s",
-          newHold,
-          directContext.window(),
-          windowingStrategy.getAllowedLateness());
+            newHold.isEqual(
+                LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy)),
+            "new hold %s should be at garbage collection for window %s plus %s",
+            newHold,
+            directContext.window(),
+            windowingStrategy.getAllowedLateness());
       } else {
         // The hold must be for the end-of-window, which can't have happened yet.
         checkState(
@@ -1040,7 +1045,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     String which;
     Instant timer;
     if (endOfWindow.isBefore(inputWM)) {
-      timer = garbageCollectionTime(directContext.window());
+      timer = LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
       which = "garbage collection";
     } else {
       timer = endOfWindow;
@@ -1070,28 +1075,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         timerInternals.currentOutputWatermarkTime());
     Instant eow = directContext.window().maxTimestamp();
     directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
-    Instant gc = garbageCollectionTime(directContext.window());
+    Instant gc = LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
     if (gc.isAfter(eow)) {
       directContext.timers().deleteTimer(gc, TimeDomain.EVENT_TIME);
     }
   }
 
-  /**
-   * Return when {@code window} should be garbage collected. If the window's expiration time is on
-   * or after the end of the global window, it will be truncated to the end of the global window.
-   */
-  private Instant garbageCollectionTime(W window) {
-
-    // If the end of the window + allowed lateness is beyond the "end of time" aka the end of the
-    // global window, then we truncate it. The conditional is phrased like it is because the
-    // addition of EOW + allowed lateness might even overflow the maximum allowed Instant
-    if (GlobalWindow.INSTANCE
-        .maxTimestamp()
-        .minus(windowingStrategy.getAllowedLateness())
-        .isBefore(window.maxTimestamp())) {
-      return GlobalWindow.INSTANCE.maxTimestamp();
-    } else {
-      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-    }
-  }
 }

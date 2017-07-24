@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;
@@ -59,9 +58,14 @@ public class RandomAccessData {
   public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
 
-    @JsonCreator
     public static RandomAccessDataCoder of() {
       return INSTANCE;
+    }
+
+    @Override
+    public void encode(RandomAccessData value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Coder.Context.NESTED);
     }
 
     @Override
@@ -74,6 +78,11 @@ public class RandomAccessData {
         VarInt.encode(value.size, outStream);
       }
       value.writeTo(outStream, 0, value.size);
+    }
+
+    @Override
+    public RandomAccessData decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
@@ -90,27 +99,25 @@ public class RandomAccessData {
     }
 
     @Override
+    public void verifyDeterministic() {}
+
+    @Override
     public boolean consistentWithEquals() {
       return true;
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(
-        RandomAccessData value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(RandomAccessData value) {
       return true;
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value, Coder.Context context)
+    protected long getEncodedElementByteSize(RandomAccessData value)
         throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      long size = 0;
-      if (!context.isWholeStream) {
-        size += VarInt.getLength(value.size);
-      }
-      return size + value.size;
+      return VarInt.getLength(value.size) + value.size;
     }
   }
 

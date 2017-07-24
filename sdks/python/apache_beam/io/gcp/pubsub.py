@@ -26,6 +26,8 @@ from apache_beam import coders
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 
+__all__ = ['PubSubSink', 'PubSubSource']
+
 
 class PubSubSource(dataflow_io.NativeSource):
   """Source for reading from a given Cloud Pub/Sub topic.

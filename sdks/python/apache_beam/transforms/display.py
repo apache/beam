@@ -40,6 +40,7 @@ from datetime import datetime, timedelta
 import inspect
 import json
 
+
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
 
@@ -123,7 +124,7 @@ class DisplayData(object):
       ValueError: If the has_display_data argument is not an instance of
         HasDisplayData.
     """
-    from apache_beam.utils.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options import PipelineOptions
     if not isinstance(pipeline_options, PipelineOptions):
       raise ValueError(
           'Element of class {}.{} does not subclass PipelineOptions'

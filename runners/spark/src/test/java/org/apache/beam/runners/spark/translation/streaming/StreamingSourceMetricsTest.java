@@ -18,42 +18,44 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.PipelineRule;
-import org.apache.beam.runners.spark.TestSparkPipelineOptions;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
-
+import org.junit.experimental.categories.Category;
 
 /**
  * Verify metrics support for {@link Source Sources} in streaming pipelines.
  */
 public class StreamingSourceMetricsTest implements Serializable {
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   // Force streaming pipeline using pipeline rule.
   @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
+  @Category(StreamingTest.class)
   public void testUnboundedSourceMetrics() {
-    TestSparkPipelineOptions options = pipelineRule.getOptions();
-
-    Pipeline pipeline = Pipeline.create(options);
-
     final long numElements = 1000;
 
-    pipeline.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
+    pipeline.apply(
+        // Use maxReadTime to force unbounded mode.
+        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
 
     PipelineResult pipelineResult = pipeline.run();
 
@@ -62,10 +64,15 @@ public class StreamingSourceMetricsTest implements Serializable {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
                     .build());
 
     assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(UnboundedCountingSource)",
+            1000L)));
   }
 }

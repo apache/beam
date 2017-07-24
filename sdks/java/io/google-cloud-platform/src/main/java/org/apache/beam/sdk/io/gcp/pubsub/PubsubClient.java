@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
@@ -43,16 +42,15 @@ abstract class PubsubClient implements Closeable {
    */
   public interface PubsubClientFactory extends Serializable {
     /**
-     * Construct a new Pubsub client. It should be closed via {@link #close} in order
-     * to ensure tidy cleanup of underlying netty resources (or use the try-with-resources
-     * construct). Uses {@code options} to derive pubsub endpoints and application credentials.
-     * If non-{@literal null}, use {@code timestampLabel} and {@code idLabel} to store custom
-     * timestamps/ids within message metadata.
+     * Construct a new Pubsub client. It should be closed via {@link #close} in order to ensure tidy
+     * cleanup of underlying netty resources (or use the try-with-resources construct). Uses {@code
+     * options} to derive pubsub endpoints and application credentials. If non-{@literal null}, use
+     * {@code timestampAttribute} and {@code idAttribute} to store custom timestamps/ids within
+     * message metadata.
      */
     PubsubClient newClient(
-        @Nullable String timestampLabel,
-        @Nullable String idLabel,
-        PubsubOptions options) throws IOException;
+        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+        throws IOException;
 
     /**
      * Return the display name for this factory. Eg "Json", "gRPC".
@@ -87,33 +85,33 @@ abstract class PubsubClient implements Closeable {
    * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
    * attributes} and {@code pubsubTimestamp}.
    *
-   * <p>If {@code timestampLabel} is non-{@literal null} then the message attributes must contain
-   * that label, and the value of that label will be taken as the timestamp.
+   * <p>If {@code timestampAttribute} is non-{@literal null} then the message attributes must
+   * contain that attribute, and the value of that attribute will be taken as the timestamp.
    * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
    * pubsubTimestamp}.
    *
    * @throws IllegalArgumentException if the timestamp cannot be recognized as a ms-since-unix-epoch
-   * or RFC3339 time.
+   *     or RFC3339 time.
    */
   protected static long extractTimestamp(
-      @Nullable String timestampLabel,
+      @Nullable String timestampAttribute,
       @Nullable String pubsubTimestamp,
       @Nullable Map<String, String> attributes) {
     Long timestampMsSinceEpoch;
-    if (Strings.isNullOrEmpty(timestampLabel)) {
+    if (Strings.isNullOrEmpty(timestampAttribute)) {
       timestampMsSinceEpoch = asMsSinceEpoch(pubsubTimestamp);
       checkArgument(timestampMsSinceEpoch != null,
                     "Cannot interpret PubSub publish timestamp: %s",
                     pubsubTimestamp);
     } else {
-      String value = attributes == null ? null : attributes.get(timestampLabel);
+      String value = attributes == null ? null : attributes.get(timestampAttribute);
       checkArgument(value != null,
-                    "PubSub message is missing a value for timestamp label %s",
-                    timestampLabel);
+                    "PubSub message is missing a value for timestamp attribute %s",
+                    timestampAttribute);
       timestampMsSinceEpoch = asMsSinceEpoch(value);
       checkArgument(timestampMsSinceEpoch != null,
-                    "Cannot interpret value of label %s as timestamp: %s",
-                    timestampLabel, value);
+                    "Cannot interpret value of attribute %s as timestamp: %s",
+                    timestampAttribute, value);
     }
     return timestampMsSinceEpoch;
   }
@@ -318,11 +316,10 @@ abstract class PubsubClient implements Closeable {
     public final long timestampMsSinceEpoch;
 
     /**
-     * If using an id label, the record id to associate with this record's metadata so the receiver
-     * can reject duplicates. Otherwise {@literal null}.
+     * If using an id attribute, the record id to associate with this record's metadata so the
+     * receiver can reject duplicates. Otherwise {@literal null}.
      */
-    @Nullable
-    public final String recordId;
+    @Nullable public final String recordId;
 
     public OutgoingMessage(byte[] elementBytes, Map<String, String> attributes,
                            long timestampMsSinceEpoch, @Nullable String recordId) {

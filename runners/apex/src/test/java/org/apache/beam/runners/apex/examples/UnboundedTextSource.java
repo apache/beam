@@ -23,9 +23,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -39,7 +37,7 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
   private static final long serialVersionUID = 1L;
 
   @Override
-  public List<? extends UnboundedSource<String, CheckpointMark>> generateInitialSplits(
+  public List<? extends UnboundedSource<String, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.<UnboundedSource<String, CheckpointMark>>singletonList(this);
   }

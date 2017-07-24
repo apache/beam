@@ -23,6 +23,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  * <p>All methods are protected, and they are for file system providers to implement.
  * Clients should use {@link FileSystems} utility.
  */
+@Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.
@@ -139,4 +142,23 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * to determine the state of the resources.
    */
   protected abstract void delete(Collection<ResourceIdT> resourceIds) throws IOException;
+
+  /**
+   * Returns a new {@link ResourceId} for this filesystem that represents the named resource.
+   * The user supplies both the resource spec and whether it is a directory.
+   *
+   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including
+   * any necessary escaping, for this {@link FileSystem}.
+   *
+   * <p>This function may throw an {@link IllegalArgumentException} if given an invalid argument,
+   * such as when the specified {@code singleResourceSpec} is not a valid resource name.
+   */
+  protected abstract ResourceIdT matchNewResource(String singleResourceSpec, boolean isDirectory);
+
+  /**
+   * Get the URI scheme which defines the namespace of the {@link FileSystem}.
+   *
+   * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
+   */
+  protected abstract String getScheme();
 }

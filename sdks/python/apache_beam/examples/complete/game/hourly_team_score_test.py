@@ -21,8 +21,10 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.test_pipeline import TestPipeline
 from apache_beam.examples.complete.game import hourly_team_score
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class HourlyTeamScoreTest(unittest.TestCase):
@@ -44,8 +46,9 @@ class HourlyTeamScoreTest(unittest.TestCase):
                     start_min='2015-11-16-15-20',
                     stop_min='2015-11-16-17-20',
                     window_duration=60))
-      beam.assert_that(result, beam.equal_to([
+      assert_that(result, equal_to([
           ('team1', 18), ('team2', 2), ('team3', 13)]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

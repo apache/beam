@@ -20,14 +20,19 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.values.POutputValueBase;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * The result of a {@link BigQueryIO.Write} transform.
  */
-final class WriteResult extends POutputValueBase {
+public final class WriteResult implements POutput {
+
+  private final Pipeline pipeline;
+
   /**
    * Creates a {@link WriteResult} in the given {@link Pipeline}.
    */
@@ -41,6 +46,15 @@ final class WriteResult extends POutputValueBase {
   }
 
   private WriteResult(Pipeline pipeline) {
-    super(pipeline);
+    this.pipeline = pipeline;
   }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  @Override
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

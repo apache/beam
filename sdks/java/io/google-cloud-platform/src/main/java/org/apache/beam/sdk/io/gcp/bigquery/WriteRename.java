@@ -23,18 +23,16 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -44,61 +42,67 @@ import org.slf4j.LoggerFactory;
 /**
  * Copies temporary tables to destination table.
  */
-class WriteRename extends DoFn<String, Void> {
+class WriteRename extends DoFn<Void, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
-  private final ValueProvider<String> jsonTableRef;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  private final PCollectionView<Iterable<String>> tempTablesView;
-  @Nullable
-  private final String tableDescription;
+  // Map from final destination to a list of temporary tables that need to be copied into it.
+  private final PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView;
+
 
   public WriteRename(
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
-      ValueProvider<String> jsonTableRef,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      PCollectionView<Iterable<String>> tempTablesView,
-      @Nullable String tableDescription) {
+      PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
-    this.jsonTableRef = jsonTableRef;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
     this.tempTablesView = tempTablesView;
-    this.tableDescription = tableDescription;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<String> tempTablesJson = Lists.newArrayList(c.sideInput(tempTablesView));
+    Map<TableDestination, Iterable<String>> tempTablesMap =
+        Maps.newHashMap(c.sideInput(tempTablesView));
 
-    // Do not copy if no temp tables are provided
-    if (tempTablesJson.size() == 0) {
-      return;
+    // Process each destination table.
+    for (Map.Entry<TableDestination, Iterable<String>> entry : tempTablesMap.entrySet()) {
+      TableDestination finalTableDestination = entry.getKey();
+      List<String> tempTablesJson = Lists.newArrayList(entry.getValue());
+      // Do not copy if no temp tables are provided
+      if (tempTablesJson.size() == 0) {
+        return;
+      }
+
+      List<TableReference> tempTables = Lists.newArrayList();
+      for (String table : tempTablesJson) {
+        tempTables.add(BigQueryHelpers.fromJsonString(table, TableReference.class));
+      }
+
+      // Make sure each destination table gets a unique job id.
+      String jobIdPrefix = BigQueryHelpers.createJobId(
+          c.sideInput(jobIdToken), finalTableDestination, -1);
+
+      copy(
+          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+          jobIdPrefix,
+          finalTableDestination.getTableReference(),
+          tempTables,
+          writeDisposition,
+          createDisposition,
+          finalTableDestination.getTableDescription());
+
+      DatasetService tableService =
+          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+      removeTemporaryTables(tableService, tempTables);
     }
-
-    List<TableReference> tempTables = Lists.newArrayList();
-    for (String table : tempTablesJson) {
-      tempTables.add(BigQueryHelpers.fromJsonString(table, TableReference.class));
-    }
-    copy(
-        bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-        c.sideInput(jobIdToken),
-        BigQueryHelpers.fromJsonString(jsonTableRef.get(), TableReference.class),
-        tempTables,
-        writeDisposition,
-        createDisposition,
-        tableDescription);
-
-    DatasetService tableService =
-        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
-    removeTemporaryTables(tableService, tempTables);
   }
 
   private void copy(
@@ -118,13 +122,13 @@ class WriteRename extends DoFn<String, Void> {
 
     String projectId = ref.getProjectId();
     Job lastFailedCopyJob = null;
-    for (int i = 0; i < Write.MAX_RETRY_JOBS; ++i) {
+    for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
       JobReference jobRef = new JobReference()
           .setProjectId(projectId)
           .setJobId(jobId);
       jobService.startCopyJob(jobRef, copyConfig);
-      Job copyJob = jobService.pollJob(jobRef, Write.LOAD_JOB_POLL_MAX_RETRIES);
+      Job copyJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(copyJob);
       switch (jobStatus) {
         case SUCCEEDED:
@@ -149,7 +153,7 @@ class WriteRename extends DoFn<String, Void> {
         "Failed to create copy job with id prefix %s, "
             + "reached max retries: %d, last failed copy job: %s.",
         jobIdPrefix,
-        Write.MAX_RETRY_JOBS,
+        BatchLoads.MAX_RETRY_JOBS,
         BigQueryHelpers.jobToPrettyString(lastFailedCopyJob)));
   }
 
@@ -170,8 +174,6 @@ class WriteRename extends DoFn<String, Void> {
     super.populateDisplayData(builder);
 
     builder
-        .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
-            .withLabel("Table Reference"))
         .add(DisplayData.item("writeDisposition", writeDisposition.toString())
             .withLabel("Write Disposition"))
         .add(DisplayData.item("createDisposition", createDisposition.toString())

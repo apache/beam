@@ -23,12 +23,14 @@ import threading
 
 from apache_beam import pipeline
 from apache_beam import pvalue
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class WatermarkManager(object):
-  """Tracks and updates watermarks for all AppliedPTransforms."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks and updates watermarks for all AppliedPTransforms."""
 
   WATERMARK_POS_INF = MAX_TIMESTAMP
   WATERMARK_NEG_INF = MIN_TIMESTAMP
@@ -41,12 +43,12 @@ class WatermarkManager(object):
     self._transform_to_watermarks = {}
 
     for root_transform in root_transforms:
-      self._transform_to_watermarks[root_transform] = TransformWatermarks(
+      self._transform_to_watermarks[root_transform] = _TransformWatermarks(
           self._clock)
 
     for consumers in value_to_consumers.values():
       for consumer in consumers:
-        self._transform_to_watermarks[consumer] = TransformWatermarks(
+        self._transform_to_watermarks[consumer] = _TransformWatermarks(
             self._clock)
 
     for consumers in value_to_consumers.values():
@@ -139,7 +141,7 @@ class WatermarkManager(object):
     return all_timers
 
 
-class TransformWatermarks(object):
+class _TransformWatermarks(object):
   """Tracks input and output watermarks for aan AppliedPTransform."""
 
   def __init__(self, clock):
@@ -210,12 +212,12 @@ class TransformWatermarks(object):
 
   @property
   def synchronized_processing_output_time(self):
-    return self._clock.now
+    return self._clock.time()
 
   def extract_fired_timers(self):
     with self._lock:
       if self._fired_timers:
-        return  False
+        return False
 
       should_fire = (
           self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and

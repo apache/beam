@@ -117,6 +117,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     source = self._create_source(data)
     source_test_utils.assert_split_at_fraction_exhaustive(source)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -39,8 +39,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.direct.BoundedReadEvaluatorFactory.BoundedSourceShard;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -52,9 +50,9 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -265,7 +263,7 @@ public class BoundedReadEvaluatorFactoryTest {
   public void boundedSourceInMemoryTransformEvaluatorShardsOfSource() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Long>> splits =
-        source.splitIntoBundles(source.getEstimatedSizeBytes(options) / 2, options);
+        source.split(source.getEstimatedSizeBytes(options) / 2, options);
 
     UncommittedBundle<BoundedSourceShard<Long>> rootBundle = bundleFactory.createRootBundle();
     for (BoundedSource<Long> split : splits) {
@@ -365,7 +363,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public List<? extends OffsetBasedSource<T>> splitIntoBundles(
+    public List<? extends OffsetBasedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       return ImmutableList.of(this);
     }

@@ -139,6 +139,17 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(ValidatesRunner.class)
+  public void testFilterEqual() {
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.equal(4));
+
+    PAssert.that(output).containsInAnyOrder(4);
+    p.run();
+  }
+
+  @Test
   public void testDisplayData() {
     assertThat(DisplayData.from(Filter.lessThan(123)), hasDisplayItem("predicate", "x < 123"));
 
@@ -147,5 +158,7 @@ public class FilterTest implements Serializable {
     assertThat(DisplayData.from(Filter.greaterThan(345)), hasDisplayItem("predicate", "x > 345"));
 
     assertThat(DisplayData.from(Filter.greaterThanEq(456)), hasDisplayItem("predicate", "x ≥ 456"));
+
+    assertThat(DisplayData.from(Filter.equal(567)), hasDisplayItem("predicate", "x == 567"));
   }
 }

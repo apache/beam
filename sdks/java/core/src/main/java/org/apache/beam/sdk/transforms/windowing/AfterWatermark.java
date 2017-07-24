@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
 
 /**
@@ -75,9 +75,6 @@ public class AfterWatermark {
    */
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
-    private static final int EARLY_INDEX = 0;
-    private static final int LATE_INDEX = 1;
-
     private final OnceTrigger earlyTrigger;
     @Nullable
     private final OnceTrigger lateTrigger;
@@ -91,7 +88,7 @@ public class AfterWatermark {
     }
 
     @SuppressWarnings("unchecked")
-    public AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
+    private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
           ? ImmutableList.<Trigger>of(earlyTrigger)
           : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
@@ -181,7 +178,7 @@ public class AfterWatermark {
     }
 
     @Override
-    public FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
+    protected FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
 

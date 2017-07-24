@@ -214,7 +214,7 @@ public class JmsIOTest {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     int desiredNumSplits = 5;
     JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
-    List<JmsIO.UnboundedJmsSource> splits = initialSource.generateInitialSplits(desiredNumSplits,
+    List<JmsIO.UnboundedJmsSource> splits = initialSource.split(desiredNumSplits,
         pipelineOptions);
     // in the case of a queue, we have concurrent consumers by default, so the initial number
     // splits is equal to the desired number of splits
@@ -227,7 +227,7 @@ public class JmsIOTest {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     int desiredNumSplits = 5;
     JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
-    List<JmsIO.UnboundedJmsSource> splits = initialSource.generateInitialSplits(desiredNumSplits,
+    List<JmsIO.UnboundedJmsSource> splits = initialSource.split(desiredNumSplits,
         pipelineOptions);
     // in the case of a topic, we can have only an unique subscriber on the topic per pipeline
     // else it means we can have duplicate messages (all subscribers on the topic receive every

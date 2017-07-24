@@ -30,7 +30,8 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,15 +58,18 @@ public class EvaluationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
+  private final PipelineOptions options;
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(pipeline);
+    this.options = options;
+    this.runtime = new SparkRuntimeContext(pipeline, options);
   }
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
-    this(jsc, pipeline);
+  public EvaluationContext(
+      JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options, JavaStreamingContext jssc) {
+    this(jsc, pipeline, options);
     this.jssc = jssc;
   }
 
@@ -79,6 +83,10 @@ public class EvaluationContext {
 
   public Pipeline getPipeline() {
     return pipeline;
+  }
+
+  public PipelineOptions getOptions() {
+    return options;
   }
 
   public SparkRuntimeContext getRuntimeContext() {

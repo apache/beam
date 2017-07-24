@@ -21,11 +21,9 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -34,14 +32,15 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,13 +111,14 @@ public class NumberedShardedFile implements ShardedFile {
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(filePattern);
     IOException lastException = null;
 
     do {
       try {
         // Match inputPath which may contains glob
-        Collection<String> files = factory.match(filePattern);
+        Collection<Metadata> files = Iterables.getOnlyElement(
+            FileSystems.match(Collections.singletonList(filePattern))).metadata();
+
         LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePattern);
 
         if (files.isEmpty() || !checkTotalNumOfFiles(files)) {
@@ -126,7 +126,7 @@ public class NumberedShardedFile implements ShardedFile {
         }
 
         // Read data from file paths
-        return readLines(files, factory);
+        return readLines(files);
       } catch (IOException e) {
         // Ignore and retry
         lastException = e;
@@ -162,12 +162,13 @@ public class NumberedShardedFile implements ShardedFile {
    * than can be reasonably processed serially, in-memory, by a single thread.
    */
   @VisibleForTesting
-  List<String> readLines(Collection<String> files, IOChannelFactory factory) throws IOException {
+  List<String> readLines(Collection<Metadata> files) throws IOException {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
-    for (String file : files) {
+    for (Metadata file : files) {
       try (Reader reader =
-               Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+               Channels.newReader(FileSystems.open(file.resourceId()),
+                   StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug(
@@ -188,14 +189,15 @@ public class NumberedShardedFile implements ShardedFile {
    * of given files equals the number that is parsed from shard name.
    */
   @VisibleForTesting
-  boolean checkTotalNumOfFiles(Collection<String> files) {
-    for (String filePath : files) {
-      Path fileName = Paths.get(filePath).getFileName();
+  boolean checkTotalNumOfFiles(Collection<Metadata> files) {
+    for (Metadata fileMedadata : files) {
+      String fileName = fileMedadata.resourceId().getFilename();
+
       if (fileName == null) {
         // this path has zero elements
         continue;
       }
-      Matcher matcher = shardTemplate.matcher(fileName.toString());
+      Matcher matcher = shardTemplate.matcher(fileName);
       if (!matcher.matches()) {
         // shard name doesn't match the pattern, check with the next shard
         continue;

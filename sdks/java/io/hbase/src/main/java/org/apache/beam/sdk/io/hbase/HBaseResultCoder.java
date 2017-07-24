@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.hadoop.hbase.client.Result;
@@ -42,13 +41,13 @@ class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
   }
 
   @Override
-  public void encode(Result value, OutputStream outputStream, Coder.Context context)
+  public void encode(Result value, OutputStream outputStream)
           throws IOException {
     ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
   }
 
   @Override
-  public Result decode(InputStream inputStream, Coder.Context context)
+  public Result decode(InputStream inputStream)
       throws IOException {
     return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
   }

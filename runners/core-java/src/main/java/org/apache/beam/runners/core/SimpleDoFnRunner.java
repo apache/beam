@@ -32,12 +32,16 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -48,18 +52,12 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -108,7 +106,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -135,15 +132,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorFactory,
             windowingStrategy.getWindowFn());
   }
 
   @Override
   public void startBundle() {
+    DoFnStartBundleContext<InputT, OutputT> startBundleContext =
+        createStartBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeStartBundle(context);
+      invoker.invokeStartBundle(startBundleContext);
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
@@ -204,13 +202,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void finishBundle() {
+    DoFnFinishBundleContext<InputT, OutputT> finishBundleContext =
+        createFinishBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeFinishBundle(context);
+      invoker.invokeFinishBundle(finishBundleContext);
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
     }
+  }
+
+  private DoFnStartBundleContext<InputT, OutputT> createStartBundleContext(
+      DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+    return new DoFnStartBundleContext<>(fn, context);
+  }
+
+  private DoFnFinishBundleContext<InputT, OutputT> createFinishBundleContext(
+      DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+    return new DoFnFinishBundleContext<>(fn, context);
   }
 
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
@@ -232,8 +242,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <InputT> the type of the {@link DoFn} (main) input elements
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+  private static class DoFnContext<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -242,7 +251,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -259,9 +267,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         StepContext stepContext,
-        AggregatorFactory aggregatorFactory,
         WindowFn<?, ?> windowFn) {
-      fn.super();
       this.options = options;
       this.fn = fn;
       this.sideInputReader = sideInputReader;
@@ -275,14 +281,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       this.stepContext = stepContext;
-      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
-      super.setupDelegateAggregators();
     }
 
     //////////////////////////////////////////////////////////////////////////////
 
-    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -382,37 +385,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         stepContext.noteOutput(tag, windowedElem);
       }
     }
+  }
 
-    // Following implementations of output, outputWithTimestamp, and output
-    // are only accessible in DoFn.startBundle and DoFn.finishBundle, and will be shadowed by
-    // ProcessContext's versions in DoFn.processElement.
-    @Override
-    public void output(OutputT output) {
-      outputWindowedValue(output, null, null, PaneInfo.NO_FIRING);
+
+  /**
+   * A concrete implementation of {@link DoFn.StartBundleContext}.
+   */
+  private class DoFnStartBundleContext<InputT, OutputT>
+      extends DoFn<InputT, OutputT>.StartBundleContext
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final DoFn<InputT, OutputT> fn;
+    private final DoFnContext<InputT, OutputT> context;
+
+    private DoFnStartBundleContext(DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+      fn.super();
+      this.fn = fn;
+      this.context = context;
     }
 
     @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      outputWindowedValue(output, timestamp, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      checkNotNull(tag, "TupleTag passed to output cannot be null");
-      outputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
-      outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
     }
 
     @Override
@@ -422,14 +415,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Context context(DoFn<InputT, OutputT> doFn) {
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       return this;
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access FinishBundleContext outside of @FinishBundle method.");
     }
 
     @Override
     public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          "Cannot access ProcessContext outside of @Processelement method.");
+          "Cannot access ProcessContext outside of @ProcessElement method.");
     }
 
     @Override
@@ -454,6 +453,85 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+  }
+
+  /**
+   * B
+   * A concrete implementation of {@link DoFn.FinishBundleContext}.
+   */
+  private class DoFnFinishBundleContext<InputT, OutputT>
+      extends DoFn<InputT, OutputT>.FinishBundleContext
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final DoFnContext<InputT, OutputT> context;
+
+    private DoFnFinishBundleContext(
+        DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+      fn.super();
+      this.context = context;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
+    }
+
+    @Override
+    public BoundedWindow window() {
+      throw new UnsupportedOperationException(
+          "Cannot access window outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access StartBundleContext outside of @StartBundle method.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access ProcessContext outside of @ProcessElement method.");
+    }
+
+    @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
+    public RestrictionTracker<?> restrictionTracker() {
+      throw new UnsupportedOperationException(
+          "Cannot access RestrictionTracker outside of @ProcessElement method.");
+    }
+
+    @Override
+    public State state(String stateId) {
+      throw new UnsupportedOperationException(
+          "Cannot access state outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException(
+          "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+      context.outputWindowedValue(WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      context.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
     }
   }
 
@@ -600,20 +678,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    protected <AggregatorInputT, AggregatorOutputT>
-        Aggregator<AggregatorInputT, AggregatorOutputT> createAggregator(
-            String name, CombineFn<AggregatorInputT, ?, AggregatorOutputT> combiner) {
-      return context.createAggregator(name, combiner);
-    }
-
-    @Override
     public BoundedWindow window() {
       return Iterables.getOnlyElement(windowedValue.getWindows());
     }
 
     @Override
-    public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
-      return this;
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
     }
 
     @Override
@@ -635,8 +711,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
@@ -720,14 +796,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
+    }
+
+    @Override
     public TimeDomain timeDomain() {
       return timeDomain;
     }
 
-    @Override
-    public Context context(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Context parameters are not supported.");
-    }
 
     @Override
     public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
@@ -747,8 +829,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
@@ -797,13 +879,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       context.outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name,
-        CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      throw new UnsupportedOperationException("Cannot createAggregator in @OnTimer method");
-    }
   }
 
   private static class TimerInternalsTimer implements Timer {
@@ -817,6 +892,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final StateNamespace namespace;
     private final String timerId;
     private final TimerSpec spec;
+    private Duration period = Duration.ZERO;
+    private Duration offset = Duration.ZERO;
 
     public TimerInternalsTimer(
         BoundedWindow window,
@@ -841,10 +918,43 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void setForNowPlus(Duration durationFromNow) {
-      Instant target = getCurrentTime().plus(durationFromNow);
-      verifyTargetTime(target);
+    public void setRelative() {
+      Instant target;
+      Instant now = getCurrentTime();
+      if (period.equals(Duration.ZERO)) {
+        target = now.plus(offset);
+      } else {
+        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
+        target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
+      }
+      target = minTargetAndGcTime(target);
       setUnderlyingTimer(target);
+    }
+
+    @Override
+    public Timer offset(Duration offset) {
+      this.offset = offset;
+      return this;
+    }
+
+    @Override
+    public Timer align(Duration period) {
+      this.period = period;
+      return this;
+    }
+
+    /**
+     * For event time timers the target time should be prior to window GC time. So it return
+     * min(time to set, GC Time of window).
+     */
+    private Instant minTargetAndGcTime(Instant target) {
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
+        if (target.isAfter(windowExpiry)) {
+          return windowExpiry;
+        }
+      }
+      return target;
     }
 
     /**
@@ -865,7 +975,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         throw new IllegalStateException(
             "Cannot only set relative timers in processing time domain."
-                + " Use #setForNowPlus(Duration)");
+                + " Use #setRelative()");
       }
     }
 
@@ -876,11 +986,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      */
     private void setUnderlyingTimer(Instant target) {
       timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
-    }
-
-    @Override
-    public void cancel() {
-      timerInternals.deleteTimer(namespace, timerId);
     }
 
     private Instant getCurrentTime() {
@@ -896,5 +1001,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
       }
     }
+
   }
 }

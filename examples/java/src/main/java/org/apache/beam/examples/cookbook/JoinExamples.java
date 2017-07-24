@@ -169,7 +169,7 @@ public class JoinExamples {
     PCollection<TableRow> eventsTable = p.apply(BigQueryIO.read().from(GDELT_EVENTS_TABLE));
     PCollection<TableRow> countryCodes = p.apply(BigQueryIO.read().from(COUNTRY_CODES));
     PCollection<String> formattedResults = joinEvents(eventsTable, countryCodes);
-    formattedResults.apply(TextIO.Write.to(options.getOutput()));
+    formattedResults.apply(TextIO.write().to(options.getOutput()));
     p.run().waitUntilFinish();
   }
 

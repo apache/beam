@@ -17,27 +17,26 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
 
 /**
- * A {@link PValueBase} is an abstract base class that provides
- * sensible default implementations for methods of {@link PValue}.
- * In particular, this includes functionality for getting/setting:
+ * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
  *
- * <ul>
- *   <li> The {@link Pipeline} that the {@link PValue} is part of.</li>
- *   <li> Whether the {@link PValue} has bee finalized (as an input
- *     or an output), after which its properties can no longer be changed.</li>
- * </ul>
- *
- * <p>For internal use.
+ * <p>An abstract base class that provides default implementations for some methods of
+ * {@link PValue}.
  */
-public abstract class PValueBase extends POutputValueBase implements PValue {
+@Internal
+public abstract class PValueBase implements PValue {
+
+  private final Pipeline pipeline;
+
   /**
    * Returns the name of this {@link PValueBase}.
    *
@@ -56,16 +55,13 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Sets the name of this {@link PValueBase}.  Returns {@code this}.
+   * Sets the name of this {@link PValueBase}. Returns {@code this}.
    *
    * @throws IllegalStateException if this {@link PValueBase} has
    * already been finalized and may no longer be set.
    */
   public PValueBase setName(String name) {
-    if (finishedSpecifying) {
-      throw new IllegalStateException(
-          "cannot change the name of " + this + " once it's been used");
-    }
+    checkState(!finishedSpecifying, "cannot change the name of %s once it's been used", this);
     this.name = name;
     return this;
   }
@@ -73,7 +69,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   /////////////////////////////////////////////////////////////////////////////
 
   protected PValueBase(Pipeline pipeline) {
-    super(pipeline);
+    this.pipeline = pipeline;
   }
 
   /**
@@ -82,11 +78,11 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * valid.
    */
   protected PValueBase() {
-    super();
+    this.pipeline = null;
   }
 
   /**
-   * The name of this {@link PValueBase}, or null if not yet set.
+   * The name of this {@link PValueBase}, or {@code null} if not yet set.
    */
   private String name;
 
@@ -101,34 +97,13 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    */
   private boolean finishedSpecifying = false;
 
-  @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
-    recordAsOutput(transform, "out");
-  }
-
-  /**
-   * Records that this {@link POutputValueBase} is an output with the
-   * given name of the given {@link AppliedPTransform} in the given
-   * {@link Pipeline}.
-   *
-   * <p>To be invoked only by {@link POutput#recordAsOutput}
-   * implementations.  Not to be invoked directly by user code.
-   */
-  protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
-                                String outName) {
-    super.recordAsOutput(transform);
-    if (name == null) {
-      name = transform.getFullName() + "." + outName;
-    }
-  }
-
   /**
    * Returns whether this {@link PValueBase} has been finalized, and
    * its core properties, e.g., name, can no longer be changed.
    *
    * <p>For internal use only.
    */
-  public boolean isFinishedSpecifyingInternal() {
+  boolean isFinishedSpecifying() {
     return finishedSpecifying;
   }
 
@@ -156,5 +131,22 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    */
   protected String getKindString() {
     return NameUtils.approximateSimpleName(getClass());
+  }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  @Override
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    if (name == null) {
+      setName(defaultName(transformName));
+    }
+  }
+
+  static String defaultName(String transformName) {
+    return String.format("%s.%s", transformName, "out");
   }
 }

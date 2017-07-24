@@ -74,15 +74,6 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public boolean tableExists(String tableId) throws IOException {
-    if (!BigtableSession.isAlpnProviderEnabled()) {
-      LOG.info(
-          "Skipping existence check for table {} (BigtableOptions {}) because ALPN is not"
-              + " configured.",
-          tableId,
-          options);
-      return true;
-    }
-
     try (BigtableSession session = new BigtableSession(options)) {
       GetTableRequest getTable =
           GetTableRequest.newBuilder()
@@ -117,8 +108,8 @@ class BigtableServiceImpl implements BigtableService {
     public boolean start() throws IOException {
       RowRange range =
           RowRange.newBuilder()
-              .setStartKeyClosed(source.getRange().getStartKey().getValue())
-              .setEndKeyOpen(source.getRange().getEndKey().getValue())
+              .setStartKeyClosed(ByteString.copyFrom(source.getRange().getStartKey().getValue()))
+              .setEndKeyOpen(ByteString.copyFrom(source.getRange().getEndKey().getValue()))
               .build();
       RowSet rowSet = RowSet.newBuilder()
           .addRowRanges(range)

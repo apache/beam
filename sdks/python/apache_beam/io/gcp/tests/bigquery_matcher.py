@@ -21,8 +21,11 @@ import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
 
-from apache_beam.tests.test_utils import compute_hash
+from apache_beam.testing.test_utils import compute_hash
 from apache_beam.utils import retry
+
+__all__ = ['BigqueryMatcher']
+
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

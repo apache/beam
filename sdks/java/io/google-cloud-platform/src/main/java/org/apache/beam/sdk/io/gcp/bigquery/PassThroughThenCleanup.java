@@ -53,9 +53,9 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
     PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
         .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
 
-    PCollectionView<Void> cleanupSignalView = outputs.get(cleanupSignal)
+    PCollectionView<Iterable<Void>> cleanupSignalView = outputs.get(cleanupSignal)
         .setCoder(VoidCoder.of())
-        .apply(View.<Void>asSingleton().withDefaultValue(null));
+        .apply(View.<Void>asIterable());
 
     input.getPipeline()
         .apply("Create(CleanupOperation)", Create.of(cleanupOperation))

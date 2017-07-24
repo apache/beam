@@ -20,11 +20,12 @@ package org.apache.beam.examples;
 
 import java.util.Date;
 import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,7 +36,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WordCountIT {
-
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "508517575eba8d8d5a54f7f0080a00951cfe84ca";
@@ -59,11 +59,11 @@ public class WordCountIT {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
-    options.setOutput(IOChannelUtils.resolve(
-        options.getTempRoot(),
-        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-        "output",
-        "results"));
+    options.setOutput(FileSystems.matchNewResource(options.getTempRoot(), true)
+        .resolve(String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+            StandardResolveOptions.RESOLVE_DIRECTORY)
+        .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
+        .resolve("results", StandardResolveOptions.RESOLVE_FILE).toString());
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 

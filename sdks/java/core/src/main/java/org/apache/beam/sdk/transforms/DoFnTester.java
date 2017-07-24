@@ -33,7 +33,7 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -219,10 +218,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     if (state == State.UNINITIALIZED) {
       initializeState();
     }
-    TestContext context = new TestContext();
-    context.setupDelegateAggregators();
     try {
-      fnInvoker.invokeStartBundle(context);
+      fnInvoker.invokeStartBundle(new TestStartBundleContext());
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -293,9 +290,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+            public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
-                  "Not expected to access DoFn.Context from @ProcessElement");
+                  "Not expected to access DoFn.StartBundleContext from @ProcessElement");
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access DoFn.FinishBundleContext from @ProcessElement");
             }
 
             @Override
@@ -305,8 +310,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException(
-                  "DoFnTester doesn't support timers yet.");
+              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
             }
 
             @Override
@@ -316,7 +320,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public org.apache.beam.sdk.util.state.State state(String stateId) {
+            public org.apache.beam.sdk.state.State state(String stateId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
             }
 
@@ -346,7 +350,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         "Must be inside bundle to call finishBundle, but was: %s",
         state);
     try {
-      fnInvoker.invokeFinishBundle(new TestContext());
+      fnInvoker.invokeFinishBundle(new TestFinishBundleContext());
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -503,23 +507,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  /**
-   * Returns the value of the provided {@link Aggregator}.
-   */
-  public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
-    return extractAggregatorValue(agg.getName(), agg.getCombineFn());
-  }
-
-  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      String name, CombineFn<?, AccumT, AggregateT> combiner) {
-    @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(name);
-    if (accumulator == null) {
-      accumulator = combiner.createAccumulator();
-    }
-    return combiner.extractOutput(accumulator);
-  }
-
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
@@ -541,8 +528,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private class TestContext extends DoFn<InputT, OutputT>.Context {
-    TestContext() {
+  private class TestStartBundleContext extends DoFn<InputT, OutputT>.StartBundleContext {
+
+    private TestStartBundleContext() {
       fn.super();
     }
 
@@ -550,25 +538,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     public PipelineOptions getPipelineOptions() {
       return options;
     }
+  }
 
-    @Override
-    public void output(OutputT output) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
+  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
 
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      throwUnsupportedOutputFromBundleMethods();
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      throwUnsupportedOutputFromBundleMethods();
+    private TestFinishBundleContext() {
+      fn.super();
     }
 
     private void throwUnsupportedOutputFromBundleMethods() {
@@ -577,50 +552,19 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    protected <AggInT, AggOutT> Aggregator<AggInT, AggOutT> createAggregator(
-        final String name, final CombineFn<AggInT, ?, AggOutT> combiner) {
-      return aggregator(name, combiner);
+    public PipelineOptions getPipelineOptions() {
+      return options;
     }
 
-    private <AinT, AccT, AoutT> Aggregator<AinT, AoutT> aggregator(
-        final String name,
-        final CombineFn<AinT, AccT, AoutT> combiner) {
+    @Override
+    public void output(
+        OutputT output, Instant timestamp, BoundedWindow window) {
+      throwUnsupportedOutputFromBundleMethods();
+    }
 
-      Aggregator<AinT, AoutT> aggregator = new Aggregator<AinT, AoutT>() {
-        @Override
-        public void addValue(AinT value) {
-          AccT accum = (AccT) accumulators.get(name);
-          AccT newAccum = combiner.addInput(accum, value);
-          accumulators.put(name, newAccum);
-        }
-
-        @Override
-        public String getName() {
-          return name;
-        }
-
-        @Override
-        public CombineFn<AinT, ?, AoutT> getCombineFn() {
-          return combiner;
-        }
-      };
-
-      // Aggregator instantiation is idempotent
-      if (accumulators.containsKey(name)) {
-        Class<?> currentAccumClass = accumulators.get(name).getClass();
-        Class<?> createAccumClass = combiner.createAccumulator().getClass();
-        checkState(
-            currentAccumClass.isAssignableFrom(createAccumClass),
-            "Aggregator %s already initialized with accumulator type %s "
-                + "but was re-initialized with accumulator type %s",
-            name,
-            currentAccumClass,
-            createAccumClass);
-
-      } else {
-        accumulators.put(name, combiner.createAccumulator());
-      }
-      return aggregator;
+    @Override
+    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      throwUnsupportedOutputFromBundleMethods();
     }
   }
 
@@ -630,12 +574,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
-    private final TestContext context;
     private final ValueInSingleWindow<InputT> element;
 
     private TestProcessContext(ValueInSingleWindow<InputT> element) {
       fn.super();
-      this.context = new TestContext();
       this.element = element;
     }
 
@@ -677,7 +619,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return context.getPipelineOptions();
+      return options;
     }
 
     @Override
@@ -701,14 +643,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }
 
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at DoFn construction time with"
-          + " createAggregator, and ensure they are set up by the time startBundle is"
-          + " called with setupDelegateAggregators.");
+    private void throwUnsupportedOutputFromBundleMethods() {
+      throw new UnsupportedOperationException(
+          "DoFnTester doesn't support output from bundle methods");
     }
+
   }
 
   @Override
@@ -749,8 +688,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** The side input values to provide to the {@link DoFn} under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
-
-  private Map<String, Object> accumulators;
 
   /** The output tags used by the {@link DoFn} under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
@@ -807,6 +744,5 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     fnInvoker = DoFnInvokers.invokerFor(fn);
     fnInvoker.invokeSetup();
     outputs = new HashMap<>();
-    accumulators = new HashMap<>();
   }
 }

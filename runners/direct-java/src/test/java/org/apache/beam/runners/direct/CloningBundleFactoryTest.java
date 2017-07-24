@@ -31,8 +31,6 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -180,15 +178,14 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       return null;
     }
@@ -198,13 +195,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       throw new CoderException("Decode not allowed");
     }
@@ -214,13 +210,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override
@@ -246,13 +241,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override

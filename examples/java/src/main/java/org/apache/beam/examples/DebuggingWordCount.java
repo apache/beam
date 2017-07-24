@@ -22,14 +22,14 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * <p>New Concepts:
  * <pre>
  *   1. Logging using SLF4J, even in a distributed environment
- *   2. Creating a custom aggregator (runners have varying levels of support)
+ *   2. Creating a custom metric (runners have varying levels of support)
  *   3. Testing your Pipeline via PAssert
  * </pre>
  *
@@ -90,14 +90,12 @@ public class DebuggingWordCount {
     }
 
     /**
-     * Concept #2: A custom aggregator can track values in your pipeline as it runs. Each
-     * runner provides varying levels of support for aggregators, and may expose them
+     * Concept #2: A custom metric can track values in your pipeline as it runs. Each
+     * runner provides varying levels of support for metrics, and may expose them
      * in a dashboard, etc.
      */
-    private final Aggregator<Long, Long> matchedWords =
-        createAggregator("matchedWords", Sum.ofLongs());
-    private final Aggregator<Long, Long> unmatchedWords =
-        createAggregator("unmatchedWords", Sum.ofLongs());
+    private final Counter matchedWords = Metrics.counter(FilterTextFn.class, "matchedWords");
+    private final Counter unmatchedWords = Metrics.counter(FilterTextFn.class, "unmatchedWords");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -105,14 +103,14 @@ public class DebuggingWordCount {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline
         // these log lines will appear only if the log level is set to "DEBUG" or lower.
         LOG.debug("Matched: " + c.element().getKey());
-        matchedWords.addValue(1L);
+        matchedWords.inc();
         c.output(c.element());
       } else {
         // Log at the "TRACE" level each element that is not matched. Different log levels
         // can be used to control the verbosity of logging providing an effective mechanism
         // to filter less important information.
         LOG.trace("Did not match: " + c.element().getKey());
-        unmatchedWords.addValue(1L);
+        unmatchedWords.inc();
       }
     }
   }
@@ -138,7 +136,7 @@ public class DebuggingWordCount {
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> filteredWords =
-        p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
          .apply(new WordCount.CountWords())
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 

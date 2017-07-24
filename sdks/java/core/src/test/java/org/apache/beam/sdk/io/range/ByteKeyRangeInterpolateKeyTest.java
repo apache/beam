@@ -66,7 +66,6 @@ public class ByteKeyRangeInterpolateKeyTest {
         last = key;
       } catch (IllegalStateException e) {
         assertThat(message, e.getMessage(), containsString("near-empty ByteKeyRange"));
-        continue;
       }
     }
   }

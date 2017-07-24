@@ -59,7 +59,7 @@ public class FakeStepContext implements StepContext {
   }
 
   @Override
-  public StateInternals<?> stateInternals() {
+  public StateInternals stateInternals() {
     throw new UnsupportedOperationException();
   }
 

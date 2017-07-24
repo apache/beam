@@ -15,7 +15,11 @@
 # limitations under the License.
 #
 
-"""Fake datastore used for unit testing."""
+"""Fake datastore used for unit testing.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 import uuid
 
 # Protect against environments where datastore library is not available.
@@ -86,13 +90,17 @@ def create_response(entities, end_cursor, finish):
   return resp
 
 
-def create_entities(count):
+def create_entities(count, id_or_name=False):
   """Creates a list of entities with random keys."""
   entities = []
 
   for _ in range(count):
     entity_result = query_pb2.EntityResult()
-    entity_result.entity.key.path.add().name = str(uuid.uuid4())
+    if id_or_name:
+      entity_result.entity.key.path.add().id = (
+          uuid.uuid4().int & ((1 << 63) - 1))
+    else:
+      entity_result.entity.key.path.add().name = str(uuid.uuid4())
     entities.append(entity_result)
 
   return entities

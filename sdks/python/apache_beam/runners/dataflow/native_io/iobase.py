@@ -16,6 +16,8 @@
 #
 
 """Dataflow native sources and sinks.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 
 import logging
@@ -32,6 +34,7 @@ def _dict_printable_fields(dict_object, skip_fields):
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in skip_fields]
+
 
 _minor_fields = ['coder', 'key_coder', 'value_coder',
                  'config_bytes', 'elements',

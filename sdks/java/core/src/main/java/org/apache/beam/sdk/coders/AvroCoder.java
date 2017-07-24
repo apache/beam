@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.Structs.addString;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,10 +29,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import javax.annotation.Nullable;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -57,7 +56,6 @@ import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -102,7 +100,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of elements handled by this coder
  */
-public class AvroCoder<T> extends StandardCoder<T> {
+public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
    * Returns an {@code AvroCoder} instance for the provided element type.
@@ -119,7 +117,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, ReflectData.get().getSchema(clazz));
+    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
   }
 
   /**
@@ -143,27 +141,39 @@ public class AvroCoder<T> extends StandardCoder<T> {
     return new AvroCoder<>(type, schema);
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  @JsonCreator
-  public static AvroCoder<?> of(
-      @JsonProperty("type") String classType,
-      @JsonProperty("schema") String schema) throws ClassNotFoundException {
-    Schema.Parser parser = new Schema.Parser();
-    return new AvroCoder(Class.forName(classType), parser.parse(schema));
+  /**
+   * Returns a {@link CoderProvider} which uses the {@link AvroCoder} if possible for
+   * all types.
+   *
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
+   * accept dangerous types such as {@link Object}.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
+   */
+  @SuppressWarnings("unused")
+  public static CoderProvider getCoderProvider() {
+    return new AvroCoderProvider();
   }
 
-  public static final CoderProvider PROVIDER = new CoderProvider() {
+  /**
+   * A {@link CoderProvider} that constructs an {@link AvroCoder} for Avro compatible classes.
+   *
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
+   * accept dangerous types such as {@link Object}.
+   */
+  static class AvroCoderProvider extends CoderProvider {
     @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor) {
-      // This is a downcast from `? super T` to T. However, because
-      // it comes from a TypeDescriptor<T>, the class object itself
-      // is the same so the supertype in question shares the same
-      // generated AvroCoder schema.
-      @SuppressWarnings("unchecked")
-      Class<T> rawType = (Class<T>) typeDescriptor.getRawType();
-      return AvroCoder.of(rawType);
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      try {
+        return AvroCoder.of(typeDescriptor);
+      } catch (AvroRuntimeException e) {
+        throw new CannotProvideCoderException(
+            String.format("%s is not compatible with Avro", typeDescriptor),
+            e);
+      }
     }
-  };
+  }
 
   private final Class<T> type;
   private final SerializableSchemaSupplier schemaSupplier;
@@ -212,6 +222,25 @@ public class AvroCoder<T> extends StandardCoder<T> {
     }
   }
 
+  /**
+   * A {@link Serializable} object that lazily supplies a {@link ReflectData} built from the
+   * appropriate {@link ClassLoader} for the type encoded by this {@link AvroCoder}.
+   */
+  private static class SerializableReflectDataSupplier
+      implements Serializable, Supplier<ReflectData> {
+
+    private final Class<?> clazz;
+
+    private SerializableReflectDataSupplier(Class<?> clazz) {
+      this.clazz = clazz;
+    }
+
+    @Override
+    public ReflectData get() {
+      return new ReflectData(clazz.getClassLoader());
+    }
+  }
+
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
@@ -219,6 +248,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
   private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
+
+  // Lazily re-instantiated after deserialization
+  private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
@@ -231,53 +263,33 @@ public class AvroCoder<T> extends StandardCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    // Reader and writer are allocated once per thread and are "final" for thread-local Coder
-    // instance.
-    this.reader = new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
-      @Override
-      public DatumReader<T> initialValue() {
-        return createDatumReader();
-      }
-    };
-    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-      @Override
-      public DatumWriter<T> initialValue() {
-        return createDatumWriter();
-      }
-    };
-  }
+    this.reflectData = Suppliers.memoize(new SerializableReflectDataSupplier(getType()));
 
-  /**
-   * The encoding identifier is designed to support evolution as per the design of Avro
-   * In order to use this class effectively, carefully read the Avro
-   * documentation at
-   * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Schema+Resolution">Schema Resolution</a>
-   * to ensure that the old and new schema <i>match</i>.
-   *
-   * <p>In particular, this encoding identifier is guaranteed to be the same for {@code AvroCoder}
-   * instances of the same principal class, and otherwise distinct. The schema is not included
-   * in the identifier.
-   *
-   * <p>When modifying a class to be encoded as Avro, here are some guidelines; see the above link
-   * for greater detail.
-   *
-   * <ul>
-   * <li>Avoid changing field names.
-   * <li>Never remove a <code>required</code> field.
-   * <li>Only add <code>optional</code> fields, with sensible defaults.
-   * <li>When changing the type of a field, consult the Avro documentation to ensure the new and
-   * old types are interchangeable.
-   * </ul>
-   *
-   * <p>Code consuming this message class should be prepared to support <i>all</i> versions of
-   * the class until it is certain that no remaining serialized instances exist.
-   *
-   * <p>If backwards incompatible changes must be made, the best recourse is to change the name
-   * of your class.
-   */
-  @Override
-  public String getEncodingId() {
-    return type.getName();
+    // Reader and writer are allocated once per thread per Coder
+    this.reader =
+        new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumReader<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumReader<T>(myCoder.getSchema())
+                : new ReflectDatumReader<T>(
+                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
+
+    this.writer =
+        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumWriter<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumWriter<T>(myCoder.getSchema())
+                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
   }
 
   /**
@@ -288,7 +300,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context) throws IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     // Get a BinaryEncoder instance from the ThreadLocal cache and attempt to reuse it.
     BinaryEncoder encoderInstance = ENCODER_FACTORY.directBinaryEncoder(outStream, encoder.get());
     // Save the potentially-new instance for reuse later.
@@ -298,25 +310,12 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws IOException {
+  public T decode(InputStream inStream) throws IOException {
     // Get a BinaryDecoder instance from the ThreadLocal cache and attempt to reuse it.
     BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
     // Save the potentially-new instance for later.
     decoder.set(decoderInstance);
     return reader.get().read(null, decoderInstance);
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    addString(result, "type", type.getName());
-    addString(result, "schema", schemaSupplier.get().toString());
-    return result;
   }
 
   /**
@@ -328,37 +327,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
   public void verifyDeterministic() throws NonDeterministicException {
     if (!nonDeterministicReasons.isEmpty()) {
       throw new NonDeterministicException(this, nonDeterministicReasons);
-    }
-  }
-
-  /**
-   * Returns a new {@link DatumReader} that can be used to read from an Avro file directly. Assumes
-   * the schema used to read is the same as the schema that was used when writing.
-   *
-   * @deprecated For {@code AvroCoder} internal use only.
-   */
-  // TODO: once we can remove this deprecated function, inline in constructor.
-  @Deprecated
-  public DatumReader<T> createDatumReader() {
-    if (type.equals(GenericRecord.class)) {
-      return new GenericDatumReader<>(schemaSupplier.get());
-    } else {
-      return new ReflectDatumReader<>(schemaSupplier.get());
-    }
-  }
-
-  /**
-   * Returns a new {@link DatumWriter} that can be used to write to an Avro file directly.
-   *
-   * @deprecated For {@code AvroCoder} internal use only.
-   */
-  // TODO: once we can remove this deprecated function, inline in constructor.
-  @Deprecated
-  public DatumWriter<T> createDatumWriter() {
-    if (type.equals(GenericRecord.class)) {
-      return new GenericDatumWriter<>(schemaSupplier.get());
-    } else {
-      return new ReflectDatumWriter<>(schemaSupplier.get());
     }
   }
 
@@ -730,5 +698,23 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
       throw new IllegalArgumentException("Unable to get field " + name + " from " + originalClazz);
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof AvroCoder)) {
+      return false;
+    }
+    AvroCoder<?> that = (AvroCoder<?>) other;
+    return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schemaSupplier.get(), typeDescriptor);
   }
 }

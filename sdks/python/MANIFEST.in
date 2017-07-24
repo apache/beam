@@ -16,3 +16,5 @@
 #
 
 include README.md
+include NOTICE
+include LICENSE

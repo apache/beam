@@ -19,7 +19,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.joda.time.Duration;
 
 /**
@@ -30,7 +29,7 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
       "The result of template creation should not be used.";
 
   public DataflowTemplateJob() {
-    super(null, null, null);
+    super(null, null, null, null);
   }
 
   @Override

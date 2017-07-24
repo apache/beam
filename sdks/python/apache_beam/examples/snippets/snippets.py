@@ -31,8 +31,10 @@ string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
-from apache_beam.test_pipeline import TestPipeline
 from apache_beam.metrics import Metrics
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -74,6 +76,11 @@ def construct_pipeline(renames):
   """A reverse words snippet as an example for constructing a pipeline."""
   import re
 
+  # This is duplicate of the import statement in
+  # pipelines_constructing_creating tag below, but required to avoid
+  # Unresolved reference in ReverseWords class
+  import apache_beam as beam
+
   class ReverseWords(beam.PTransform):
     """A PTransform that reverses individual elements in a PCollection."""
 
@@ -85,7 +92,8 @@ def construct_pipeline(renames):
     return True
 
   # [START pipelines_constructing_creating]
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
@@ -120,7 +128,7 @@ def model_pipelines(argv):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -155,7 +163,7 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -172,16 +180,18 @@ def model_pcollection(argv):
   # [START model_pcollection]
   p = beam.Pipeline(options=pipeline_options)
 
-  (p
-   | beam.Create([
-       'To be, or not to be: that is the question: ',
-       'Whether \'tis nobler in the mind to suffer ',
-       'The slings and arrows of outrageous fortune, ',
-       'Or to take arms against a sea of troubles, '])
+  lines = (p
+           | beam.Create([
+               'To be, or not to be: that is the question: ',
+               'Whether \'tis nobler in the mind to suffer ',
+               'The slings and arrows of outrageous fortune, ',
+               'Or to take arms against a sea of troubles, ']))
+  # [END model_pcollection]
+
+  (lines
    | beam.io.WriteToText(my_options.output))
 
   result = p.run()
-  # [END model_pcollection]
   result.wait_until_finish()
 
 
@@ -189,7 +199,7 @@ def pipeline_options_remote(argv):
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   from apache_beam import Pipeline
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
@@ -204,8 +214,8 @@ def pipeline_options_remote(argv):
       parser.add_argument('--output')
   # [END pipeline_options_define_custom]
 
-  from apache_beam.utils.pipeline_options import GoogleCloudOptions
-  from apache_beam.utils.pipeline_options import StandardOptions
+  from apache_beam.options.pipeline_options import GoogleCloudOptions
+  from apache_beam.options.pipeline_options import StandardOptions
 
   # [START pipeline_options_dataflow_service]
   # Create and set your PipelineOptions.
@@ -240,7 +250,7 @@ def pipeline_options_local(argv):
   """Creating a Pipeline using a PipelineOptions object for local execution."""
 
   from apache_beam import Pipeline
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   options = PipelineOptions(flags=argv)
 
@@ -333,7 +343,7 @@ def pipeline_monitoring(renames):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class WordCountOptions(PipelineOptions):
 
@@ -397,9 +407,9 @@ def examples_wordcount_minimal(renames):
 
   import apache_beam as beam
 
-  from apache_beam.utils.pipeline_options import GoogleCloudOptions
-  from apache_beam.utils.pipeline_options import StandardOptions
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import GoogleCloudOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START examples_wordcount_minimal_options]
   options = PipelineOptions()
@@ -454,7 +464,7 @@ def examples_wordcount_wordcount(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   argv = []
 
@@ -558,8 +568,9 @@ def examples_wordcount_debugging(renames):
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
-  beam.assert_that(
-      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.testing.util.assert_that(
+      filtered_words, beam.testing.util.equal_to(
+          [('Flourish', 3), ('stomach', 1)]))
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
@@ -568,6 +579,57 @@ def examples_wordcount_debugging(renames):
 
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
+
+
+import apache_beam as beam
+from apache_beam.io import iobase
+from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.transforms.core import PTransform
+from apache_beam.options.pipeline_options import PipelineOptions
+
+
+# Defining a new source.
+# [START model_custom_source_new_source]
+class CountingSource(iobase.BoundedSource):
+
+  def __init__(self, count):
+    self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+    self._count = count
+
+  def estimate_size(self):
+    return self._count
+
+  def get_range_tracker(self, start_position, stop_position):
+    if start_position is None:
+      start_position = 0
+    if stop_position is None:
+      stop_position = self._count
+
+    return OffsetRangeTracker(start_position, stop_position)
+
+  def read(self, range_tracker):
+    for i in range(self._count):
+      if not range_tracker.try_claim(i):
+        return
+      self.records_read.inc()
+      yield i
+
+  def split(self, desired_bundle_size, start_position=None,
+            stop_position=None):
+    if start_position is None:
+      start_position = 0
+    if stop_position is None:
+      stop_position = self._count
+
+    bundle_start = start_position
+    while bundle_start < self._count:
+      bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+      yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                source=self,
+                                start_position=bundle_start,
+                                stop_position=bundle_stop)
+      bundle_start = bundle_stop
+# [END model_custom_source_new_source]
 
 
 def model_custom_source(count):
@@ -595,53 +657,6 @@ def model_custom_source(count):
 
   """
 
-  import apache_beam as beam
-  from apache_beam.io import iobase
-  from apache_beam.io.range_trackers import OffsetRangeTracker
-  from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.pipeline_options import PipelineOptions
-
-  # Defining a new source.
-  # [START model_custom_source_new_source]
-  class CountingSource(iobase.BoundedSource):
-
-    def __init__(self, count):
-      self._count = count
-
-    def estimate_size(self):
-      return self._count
-
-    def get_range_tracker(self, start_position, stop_position):
-      if start_position is None:
-        start_position = 0
-      if stop_position is None:
-        stop_position = self._count
-
-      return OffsetRangeTracker(start_position, stop_position)
-
-    def read(self, range_tracker):
-      for i in range(self._count):
-        if not range_tracker.try_claim(i):
-          return
-        yield i
-
-    def split(self, desired_bundle_size, start_position=None,
-              stop_position=None):
-      if start_position is None:
-        start_position = 0
-      if stop_position is None:
-        stop_position = self._count
-
-      bundle_start = start_position
-      while bundle_start < self._count:
-        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
-        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                  source=self,
-                                  start_position=bundle_start,
-                                  stop_position=bundle_stop)
-        bundle_start = bundle_stop
-  # [END model_custom_source_new_source]
-
   # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
   p = beam.Pipeline(options=PipelineOptions())
@@ -649,8 +664,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_new_source]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   p.run().wait_until_finish()
@@ -679,8 +694,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_ptransform]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   # Don't test runner api due to pickling errors.
@@ -735,7 +750,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # Defining the new sink.
   # [START model_custom_sink_new_sink]
@@ -829,7 +844,7 @@ def model_textio(renames):
     return re.findall(r'[A-Za-z\']+', x)
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
@@ -860,7 +875,7 @@ def model_textio_compressed(renames, expected):
       compression_type=beam.io.filesystem.CompressionTypes.GZIP)
   # [END model_textio_write_compressed]
 
-  beam.assert_that(lines, beam.equal_to(expected))
+  assert_that(lines, equal_to(expected))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run().wait_until_finish()
 
@@ -873,7 +888,7 @@ def model_datastoreio():
   from google.cloud.proto.datastore.v1 import query_pb2
   import googledatastore
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 
@@ -906,7 +921,7 @@ def model_datastoreio():
 def model_bigqueryio():
   """Using a Read and Write transform to read/write to BigQuery."""
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_bigqueryio_read]
   p = beam.Pipeline(options=PipelineOptions())
@@ -1002,9 +1017,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   # types.)
   # [START model_multiple_pcollections_flatten]
   merged = (
-      # [START model_multiple_pcollections_tuple]
       (pcoll1, pcoll2, pcoll3)
-      # [END model_multiple_pcollections_tuple]
       # A list of tuples can be "piped" directly into a Flatten transform.
       | beam.Flatten())
   # [END model_multiple_pcollections_flatten]

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -31,12 +32,11 @@ class DisplayDataValidator {
   private DisplayDataValidator() {}
 
   static void validatePipeline(Pipeline pipeline) {
-    validateOptions(pipeline);
     validateTransforms(pipeline);
   }
 
-  private static void validateOptions(Pipeline pipeline) {
-    evaluateDisplayData(pipeline.getOptions());
+  static void validateOptions(PipelineOptions options) {
+    evaluateDisplayData(options);
   }
 
   private static void validateTransforms(Pipeline pipeline) {

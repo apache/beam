@@ -30,12 +30,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -57,7 +55,7 @@ import org.joda.time.format.DateTimeFormatter;
  * from command-line arguments with {@link PipelineOptionsFactory#fromArgs(String[])}.
  * They can be converted to another type by invoking {@link PipelineOptions#as(Class)} and
  * can be accessed from within a {@link DoFn} by invoking
- * {@link Context#getPipelineOptions()}.
+ * {@code getPipelineOptions()} on the input {@link DoFn.ProcessContext Context} object.
  *
  * <p>For example:
  * <pre>{@code
@@ -187,8 +185,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <a href="https://github.com/FasterXML/jackson-annotations">annotations</a> to aid in
  * serialization of custom types. We point you to the public
  * <a href="https://github.com/FasterXML/jackson">Jackson documentation</a> when attempting
- * to add serialization support for your custom types. See {@link GoogleApiTracer} for an
- * example using the Jackson annotations to serialize and deserialize a custom type.
+ * to add serialization support for your custom types. Note that {@link PipelineOptions} relies on
+ * Jackson's ability to automatically configure the {@link ObjectMapper} with additional modules via
+ * {@link ObjectMapper#findModules()}.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only
  * some of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a
@@ -334,8 +333,8 @@ public interface PipelineOptions extends HasDisplayData {
    */
   @Hidden
   @Default.InstanceFactory(AtomicLongFactory.class)
-  Long getOptionsId();
-  void setOptionsId(Long id);
+  long getOptionsId();
+  void setOptionsId(long id);
 
   /**
    * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique

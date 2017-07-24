@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
-import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -44,25 +43,20 @@ class BigQueryTableSource extends BigQuerySourceBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
   static BigQueryTableSource create(
-      ValueProvider<String> jobIdToken,
+      String stepUuid,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
-      BigQueryServices bqServices,
-      ValueProvider<String> executingProject) {
-    return new BigQueryTableSource(
-        jobIdToken, table, extractDestinationDir, bqServices, executingProject);
+      BigQueryServices bqServices) {
+    return new BigQueryTableSource(stepUuid, table, bqServices);
   }
 
   private final ValueProvider<String> jsonTable;
   private final AtomicReference<Long> tableSizeBytes;
 
   private BigQueryTableSource(
-      ValueProvider<String> jobIdToken,
+      String stepUuid,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
-      BigQueryServices bqServices,
-      ValueProvider<String> executingProject) {
-    super(jobIdToken, extractDestinationDir, bqServices, executingProject);
+      BigQueryServices bqServices) {
+    super(stepUuid, bqServices);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
   }
@@ -109,8 +103,8 @@ class BigQueryTableSource extends BigQuerySourceBase {
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
-          TableReference.class);
+      TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
+          BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
       Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
           .getTable(table).getNumBytes();

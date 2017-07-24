@@ -26,6 +26,9 @@ import shutil
 import tempfile
 
 
+__all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
+
+
 def _get_runner_map(runner_names, module_path):
   """Create a map of runner name in lower case to full import path to the
   runner class.
@@ -56,7 +59,9 @@ _ALL_KNOWN_RUNNERS = (
 
 
 def create_runner(runner_name):
-  """Creates a runner instance from a runner class name.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates a runner instance from a runner class name.
 
   Args:
     runner_name: Name of the pipeline runner. Possible values are:
@@ -94,53 +99,11 @@ def create_runner(runner_name):
             runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
 
 
-def group_by_key_input_visitor():
-  # Imported here to avoid circular dependencies.
-  from apache_beam.pipeline import PipelineVisitor
-
-  class GroupByKeyInputVisitor(PipelineVisitor):
-    """A visitor that replaces `Any` element type for input `PCollection` of
-    a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
-
-    TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
-    we could directly replace the coder instead of mutating the element type.
-    """
-
-    def visit_transform(self, transform_node):
-      # Imported here to avoid circular dependencies.
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam import GroupByKey, GroupByKeyOnly
-      from apache_beam import typehints
-      if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
-        pcoll = transform_node.inputs[0]
-        input_type = pcoll.element_type
-        # If input_type is not specified, then treat it as `Any`.
-        if not input_type:
-          input_type = typehints.Any
-
-        if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
-          if isinstance(input_type, typehints.AnyTypeConstraint):
-            # `Any` type needs to be replaced with a KV[Any, Any] to
-            # force a KV coder as the main output coder for the pcollection
-            # preceding a GroupByKey.
-            pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
-          else:
-            # TODO: Handle other valid types,
-            # e.g. Union[KV[str, int], KV[str, float]]
-            raise ValueError(
-                "Input to GroupByKey must be of Tuple or Any type. "
-                "Found %s for %s" % (input_type, pcoll))
-
-  return GroupByKeyInputVisitor()
-
-
 class PipelineRunner(object):
   """A runner of a pipeline object.
 
   The base runner provides a run() method for visiting every node in the
   pipeline's DAG and executing the transforms computing the PValue in the node.
-  It also provides a clear() method for visiting every node and clearing out
-  the values contained in PValue objects produced during a run.
 
   A custom runner will typically provide implementations for some of the
   transform methods (ParDo, GroupByKey, Create, etc.). It may also
@@ -167,40 +130,7 @@ class PipelineRunner(object):
           logging.error('Error while visiting %s', transform_node.full_label)
           raise
 
-    pipeline.visit(group_by_key_input_visitor())
     pipeline.visit(RunVisitor(self))
-
-  def clear(self, pipeline, node=None):
-    """Clear all nodes or nodes reachable from node of materialized values.
-
-    Args:
-      pipeline: Pipeline object containing PValues to be cleared.
-      node: Optional node in the Pipeline processing DAG. If specified only
-        nodes reachable from this node will be cleared (ancestors of the node).
-
-    This method is not intended (for now) to be called by users of Runner
-    objects. It is a hook for future layers on top of the current programming
-    model to control how much of the previously computed values are kept
-    around. Presumably an interactivity layer will use it. The simplest way
-    to change the behavior would be to define a runner that overwrites the
-    clear_pvalue() method since this method (runner.clear) will visit all
-    relevant nodes and call clear_pvalue on them.
-
-    """
-
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-
-    class ClearVisitor(PipelineVisitor):
-
-      def __init__(self, runner):
-        self.runner = runner
-
-      def visit_value(self, value, _):
-        self.runner.clear_pvalue(value)
-
-    pipeline.visit(ClearVisitor(self), node=node)
 
   def apply(self, transform, input):
     """Runner callback for a pipeline.apply call.
@@ -245,7 +175,9 @@ class PipelineRunner(object):
 
 
 class PValueCache(object):
-  """Local cache for arbitrary information computed for PValue objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Local cache for arbitrary information computed for PValue objects."""
 
   def __init__(self, use_disk_backed_cache=False):
     # Cache of values computed while a runner executes a pipeline. This is a
@@ -325,8 +257,8 @@ class PValueCache(object):
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
-        # This is an undeclared, empty side output of a DoFn executed
-        # in the local runner before this side output referenced.
+        # This is an undeclared, empty output of a DoFn executed
+        # in the local runner before this output was referenced.
         return []
       else:
         raise

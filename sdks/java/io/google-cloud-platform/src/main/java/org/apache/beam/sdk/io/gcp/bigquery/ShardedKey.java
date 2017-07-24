@@ -18,10 +18,14 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import java.io.Serializable;
+import java.util.Objects;
+
 /**
  * A key and a shard number.
  */
-class ShardedKey<K> {
+class ShardedKey<K> implements Serializable {
+  private static final long serialVersionUID = 1L;
   private final K key;
   private final int shardNumber;
 
@@ -40,5 +44,24 @@ class ShardedKey<K> {
 
   public int getShardNumber() {
     return shardNumber;
+  }
+
+  @Override
+  public String toString() {
+    return "key: " + key + " shard: " + shardNumber;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof ShardedKey)) {
+      return false;
+    }
+    ShardedKey<K> other = (ShardedKey<K>) o;
+    return Objects.equals(key, other.key) && Objects.equals(shardNumber, other.shardNumber);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(key, shardNumber);
   }
 }

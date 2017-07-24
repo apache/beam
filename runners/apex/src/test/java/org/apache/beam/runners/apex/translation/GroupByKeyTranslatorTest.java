@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
@@ -83,12 +83,12 @@ public class GroupByKeyTranslatorTest {
         );
 
     p.apply(Read.from(new TestSource(data, new Instant(5000))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
-            .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp()))
+        .apply(
+            Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
+                .withTimestampCombiner(TimestampCombiner.LATEST))
         .apply(Count.<String>perElement())
         .apply(ParDo.of(new KeyedByTimestamp<KV<String, Long>>()))
-        .apply(ParDo.of(new EmbeddedCollector()))
-        ;
+        .apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     result.getApexDAG();
@@ -131,7 +131,7 @@ public class GroupByKeyTranslatorTest {
     }
 
     @Override
-    public List<? extends UnboundedSource<String, CheckpointMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<String, CheckpointMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       return Collections.<UnboundedSource<String, CheckpointMark>>singletonList(this);
     }

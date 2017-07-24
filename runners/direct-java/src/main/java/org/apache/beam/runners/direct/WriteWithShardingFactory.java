@@ -26,9 +26,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -43,18 +43,19 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides {@link Write} {@link PTransform PTransforms}
- * with an unspecified number of shards with a write with a specified number of shards. The number
- * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
+ * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles}
+ * {@link PTransform PTransforms} with an unspecified number of shards with a write with a
+ * specified number of shards. The number of shards is the log base 10 of the number of input
+ * records, with up to 2 additional shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write<InputT>> {
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
   public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, Write<InputT>> transform) {
+      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
 
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
@@ -108,7 +109,7 @@ class WriteWithShardingFactory<InputT>
 
     private int calculateShards(long totalRecords) {
       if (totalRecords == 0) {
-        // Write out at least one shard, even if there is no input.
+        // WriteFiles out at least one shard, even if there is no input.
         return 1;
       }
       // Windows get their own number of random extra shards. This is stored in a side input, so

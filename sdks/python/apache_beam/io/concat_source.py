@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Concat Source, which reads the union of several other sources.
+"""For internal use only; no backwards-compatibility guarantees.
+
+Concat Source, which reads the union of several other sources.
 """
 
 import bisect
@@ -25,7 +27,9 @@ from apache_beam.io import iobase
 
 
 class ConcatSource(iobase.BoundedSource):
-  """A ``BoundedSource`` that can group a set of ``BoundedSources``.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A ``BoundedSource`` that can group a set of ``BoundedSources``.
 
   Primarily for internal use, use the ``apache_beam.Flatten`` transform
   to create the union of several reads.
@@ -84,11 +88,14 @@ class ConcatSource(iobase.BoundedSource):
       # Getting coder from the first sub-sources. This assumes all sub-sources
       # to produce the same coder.
       return self._source_bundles[0].source.default_output_coder()
-    return super(ConcatSource, self).default_output_coder()
+    else:
+      return super(ConcatSource, self).default_output_coder()
 
 
 class ConcatRangeTracker(iobase.RangeTracker):
-  """Range tracker for ConcatSource"""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Range tracker for ConcatSource"""
 
   def __init__(self, start, end, source_bundles):
     """Initializes ``ConcatRangeTracker``
@@ -164,12 +171,13 @@ class ConcatRangeTracker(iobase.RangeTracker):
         return False
       elif source_ix == self._end[0] and self._end[1] is None:
         return False
-
-      assert source_ix >= self._claimed_source_ix
-      self._claimed_source_ix = source_ix
-      if source_pos is None:
-        return True
-      return self.sub_range_tracker(source_ix).try_claim(source_pos)
+      else:
+        assert source_ix >= self._claimed_source_ix
+        self._claimed_source_ix = source_ix
+        if source_pos is None:
+          return True
+        else:
+          return self.sub_range_tracker(source_ix).try_claim(source_pos)
 
   def try_split(self, pos):
     source_ix, source_pos = pos
@@ -183,24 +191,24 @@ class ConcatRangeTracker(iobase.RangeTracker):
       elif source_ix == self._end[0] and self._end[1] is None:
         # At/after end.
         return None
-
-      if source_ix > self._claimed_source_ix:
-        # Prefer to split on even boundary.
-        split_pos = None
-        ratio = self._cumulative_weights[source_ix]
       else:
-        # Split the current subsource.
-        split = self.sub_range_tracker(source_ix).try_split(
-            source_pos)
-        if not split:
-          return None
-        split_pos, frac = split
-        ratio = self.local_to_global(source_ix, frac)
+        if source_ix > self._claimed_source_ix:
+          # Prefer to split on even boundary.
+          split_pos = None
+          ratio = self._cumulative_weights[source_ix]
+        else:
+          # Split the current subsource.
+          split = self.sub_range_tracker(source_ix).try_split(
+              source_pos)
+          if not split:
+            return None
+          split_pos, frac = split
+          ratio = self.local_to_global(source_ix, frac)
 
-      self._end = source_ix, split_pos
-      self._cumulative_weights = [min(w / ratio, 1)
-                                  for w in self._cumulative_weights]
-      return (source_ix, split_pos), ratio
+        self._end = source_ix, split_pos
+        self._cumulative_weights = [min(w / ratio, 1)
+                                    for w in self._cumulative_weights]
+        return (source_ix, split_pos), ratio
 
   def set_current_position(self, pos):
     raise NotImplementedError('Should only be called on sub-trackers')
@@ -210,9 +218,10 @@ class ConcatRangeTracker(iobase.RangeTracker):
     last = self._end[0] if self._end[1] is None else self._end[0] + 1
     if source_ix == last:
       return (source_ix, None)
-    return (source_ix,
-            self.sub_range_tracker(source_ix).position_at_fraction(
-                source_frac))
+    else:
+      return (source_ix,
+              self.sub_range_tracker(source_ix).position_at_fraction(
+                  source_frac))
 
   def fraction_consumed(self):
     with self._lock:
@@ -231,14 +240,15 @@ class ConcatRangeTracker(iobase.RangeTracker):
     if frac == 1:
       last = self._end[0] if self._end[1] is None else self._end[0] + 1
       return (last, None)
-    cw = self._cumulative_weights
-    # Find the last source that starts at or before frac.
-    source_ix = bisect.bisect(cw, frac) - 1
-    # Return this source, converting what's left of frac after starting
-    # this source into a value in [0.0, 1.0) representing how far we are
-    # towards the next source.
-    return (source_ix,
-            (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
+    else:
+      cw = self._cumulative_weights
+      # Find the last source that starts at or before frac.
+      source_ix = bisect.bisect(cw, frac) - 1
+      # Return this source, converting what's left of frac after starting
+      # this source into a value in [0.0, 1.0) representing how far we are
+      # towards the next source.
+      return (source_ix,
+              (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
 
   def sub_range_tracker(self, source_ix):
     assert self._start[0] <= source_ix <= self._end[0]

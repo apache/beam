@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.hadoop.hbase.client.Delete;
@@ -45,16 +44,14 @@ class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
   }
 
   @Override
-  public void encode(Mutation mutation, OutputStream outStream,
-                     Coder.Context context) throws IOException {
+  public void encode(Mutation mutation, OutputStream outStream) throws IOException {
     MutationType type = getType(mutation);
     MutationProto proto = ProtobufUtil.toMutation(type, mutation);
     proto.writeDelimitedTo(outStream);
   }
 
   @Override
-  public Mutation decode(InputStream inStream,
-                         Coder.Context context) throws IOException {
+  public Mutation decode(InputStream inStream) throws IOException {
     return ProtobufUtil.toMutation(MutationProto.parseDelimitedFrom(inStream));
   }
 

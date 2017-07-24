@@ -26,9 +26,9 @@ from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils
 from apache_beam.io.concat_source import ConcatSource
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class RangeSource(iobase.BoundedSource):
@@ -214,7 +214,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(100, 1000),
                           ])
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(source)
+    pcoll = pipeline | beam.io.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 
     pipeline.run()
@@ -225,6 +225,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(1000, 1010),
                           ])
     source_test_utils.assert_split_at_fraction_exhaustive(source)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -17,21 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.sdk.util.Structs.addList;
-
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
-import com.fasterxml.jackson.databind.DatabindContext;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
-import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.google.api.client.util.Base64;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.io.BaseEncoding;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,15 +27,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.TypeVariable;
-import java.util.Map;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -55,17 +37,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public final class CoderUtils {
   private CoderUtils() {}  // Non-instantiable
-
-  /** A mapping from well known coder types to their implementing classes. */
-  private static final Map<String, Class<?>> WELL_KNOWN_CODER_TYPES =
-      ImmutableMap.<String, Class<?>>builder()
-      .put("kind:pair", KvCoder.class)
-      .put("kind:stream", IterableCoder.class)
-      .put("kind:global_window", GlobalWindow.Coder.class)
-      .put("kind:interval_window", IntervalWindow.IntervalWindowCoder.class)
-      .put("kind:length_prefix", LengthPrefixCoder.class)
-      .put("kind:windowed_value", WindowedValue.FullWindowedValueCoder.class)
-      .build();
 
   private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
@@ -194,7 +165,7 @@ public final class CoderUtils {
   public static <T> String encodeToBase64(Coder<T> coder, T value)
       throws CoderException {
     byte[] rawValue = encodeToByteArray(coder, value);
-    return Base64.encodeBase64URLSafeString(rawValue);
+    return BaseEncoding.base64Url().omitPadding().encode(rawValue);
   }
 
   /**
@@ -202,7 +173,9 @@ public final class CoderUtils {
    */
   public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) throws CoderException {
     return decodeFromSafeStream(
-        coder, new ByteArrayInputStream(Base64.decodeBase64(encodedValue)), Coder.Context.OUTER);
+        coder,
+        new ByteArrayInputStream(BaseEncoding.base64Url().omitPadding().decode(encodedValue)),
+        Coder.Context.OUTER);
   }
 
   /**
@@ -215,106 +188,5 @@ public final class CoderUtils {
         (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();
     TypeDescriptor codedType = TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
     return codedType;
-  }
-
-  public static CloudObject makeCloudEncoding(
-      String type,
-      CloudObject... componentSpecs) {
-    CloudObject encoding = CloudObject.forClassName(type);
-    if (componentSpecs.length > 0) {
-      addList(encoding, PropertyNames.COMPONENT_ENCODINGS, componentSpecs);
-    }
-    return encoding;
-  }
-
-  /**
-   * A {@link com.fasterxml.jackson.databind.Module} that adds the type
-   * resolver needed for Coder definitions.
-   */
-  static final class Jackson2Module extends SimpleModule {
-    /**
-     * The Coder custom type resolver.
-     *
-     * <p>This resolver resolves coders. If the Coder ID is a particular
-     * well-known identifier, it's replaced with the corresponding class.
-     * All other Coder instances are resolved by class name, using the package
-     * org.apache.beam.sdk.coders if there are no "."s in the ID.
-     */
-    private static final class Resolver extends TypeIdResolverBase {
-      @SuppressWarnings("unused") // Used via @JsonTypeIdResolver annotation on Mixin
-      public Resolver() {
-        super(TypeFactory.defaultInstance().constructType(Coder.class),
-            TypeFactory.defaultInstance());
-      }
-
-      @Deprecated
-      @Override
-      public JavaType typeFromId(String id) {
-        return typeFromId(null, id);
-      }
-
-      @Override
-      public JavaType typeFromId(DatabindContext context, String id) {
-        Class<?> clazz = getClassForId(id);
-        @SuppressWarnings("rawtypes")
-        TypeVariable[] tvs = clazz.getTypeParameters();
-        JavaType[] types = new JavaType[tvs.length];
-        for (int lupe = 0; lupe < tvs.length; lupe++) {
-          types[lupe] = TypeFactory.unknownType();
-        }
-        return _typeFactory.constructSimpleType(clazz, types);
-      }
-
-      private Class<?> getClassForId(String id) {
-        try {
-          if (id.contains(".")) {
-            return Class.forName(id);
-          }
-
-          if (WELL_KNOWN_CODER_TYPES.containsKey(id)) {
-            return WELL_KNOWN_CODER_TYPES.get(id);
-          }
-
-          // Otherwise, see if the ID is the name of a class in
-          // org.apache.beam.sdk.coders.  We do this via creating
-          // the class object so that class loaders have a chance to get
-          // involved -- and since we need the class object anyway.
-          return Class.forName(Coder.class.getPackage().getName() + "." + id);
-        } catch (ClassNotFoundException e) {
-          throw new RuntimeException("Unable to convert coder ID " + id + " to class", e);
-        }
-      }
-
-      @Override
-      public String idFromValueAndType(Object o, Class<?> clazz) {
-        return clazz.getName();
-      }
-
-      @Override
-      public String idFromValue(Object o) {
-        return o.getClass().getName();
-      }
-
-      @Override
-      public JsonTypeInfo.Id getMechanism() {
-        return JsonTypeInfo.Id.CUSTOM;
-      }
-    }
-
-    /**
-     * The mixin class defining how Coders are handled by the deserialization
-     * {@link ObjectMapper}.
-     *
-     * <p>This is done via a mixin so that this resolver is <i>only</i> used
-     * during deserialization requested by the Apache Beam SDK.
-     */
-    @JsonTypeIdResolver(Resolver.class)
-    @JsonTypeInfo(use = Id.CUSTOM, include = As.PROPERTY, property = PropertyNames.OBJECT_TYPE_NAME)
-    private static final class Mixin {}
-
-    public Jackson2Module() {
-      super("BeamCoders");
-      setMixInAnnotation(Coder.class, Mixin.class);
-    }
   }
 }

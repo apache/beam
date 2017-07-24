@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kinesis;
 
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -27,26 +28,27 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
  * {@link PTransform}s for reading from
  * <a href="https://aws.amazon.com/kinesis/">Kinesis</a> streams.
  *
- * <h3>Usage</h3>
- *
- * <p>Main class you're going to operate is called {@link KinesisIO}.
- * It follows the usage conventions laid out by other *IO classes like
- * BigQueryIO or PubsubIOLet's see how you can set up a simple Pipeline, which reads from Kinesis:
+ * <p>Example usage:
  *
  * <pre>{@code
- * p.
- *   apply(KinesisIO.Read.
- *     from("streamName", InitialPositionInStream.LATEST).
- *     using("AWS_KEY", _"AWS_SECRET", STREAM_REGION).
- *     apply( ... ) // other transformations
+ * p.apply(KinesisIO.read()
+ *     .from("streamName", InitialPositionInStream.LATEST)
+ *     .withClientProvider("AWS_KEY", _"AWS_SECRET", STREAM_REGION)
+ *  .apply( ... ) // other transformations
  * }</pre>
  *
  * <p>As you can see you need to provide 3 things:
@@ -81,80 +83,132 @@ import org.joda.time.Instant;
  * <p>Usage is pretty straightforward:
  *
  * <pre>{@code
- * p.
- *   apply(KinesisIO.Read.
- *    from("streamName", InitialPositionInStream.LATEST).
- *    using(MyCustomKinesisClientProvider()).
- *    apply( ... ) // other transformations
+ * p.apply(KinesisIO.read()
+ *    .from("streamName", InitialPositionInStream.LATEST)
+ *    .withClientProvider(new MyCustomKinesisClientProvider())
+ *  .apply( ... ) // other transformations
  * }</pre>
  *
  * <p>There’s also possibility to start reading using arbitrary point in time -
  * in this case you need to provide {@link Instant} object:
  *
  * <pre>{@code
- * p.
- *   apply(KinesisIO.Read.
- *     from("streamName", instant).
- *     using(MyCustomKinesisClientProvider()).
- *     apply( ... ) // other transformations
+ * p.apply(KinesisIO.read()
+ *     .from("streamName", instant)
+ *     .withClientProvider(new MyCustomKinesisClientProvider())
+ *  .apply( ... ) // other transformations
  * }</pre>
  *
  */
 @Experimental
 public final class KinesisIO {
-    /**
-     * A {@link PTransform} that reads from a Kinesis stream.
-     */
-    public static final class Read {
+    /** Returns a new {@link Read} transform for reading from Kinesis. */
+    public static Read read() {
+        return new AutoValue_KinesisIO_Read.Builder().setMaxNumRecords(-1).build();
+    }
 
-        private final String streamName;
-        private final StartingPoint initialPosition;
+    /** Implementation of {@link #read}. */
+    @AutoValue
+    public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
+        @Nullable
+        abstract String getStreamName();
 
-        private Read(String streamName, StartingPoint initialPosition) {
-            this.streamName = checkNotNull(streamName, "streamName");
-            this.initialPosition = checkNotNull(initialPosition, "initialPosition");
+        @Nullable
+        abstract StartingPoint getInitialPosition();
+
+        @Nullable
+        abstract KinesisClientProvider getClientProvider();
+
+        abstract int getMaxNumRecords();
+
+        @Nullable
+        abstract Duration getMaxReadTime();
+
+        abstract Builder toBuilder();
+
+        @AutoValue.Builder
+        abstract static class Builder {
+            abstract Builder setStreamName(String streamName);
+            abstract Builder setInitialPosition(StartingPoint startingPoint);
+            abstract Builder setClientProvider(KinesisClientProvider clientProvider);
+            abstract Builder setMaxNumRecords(int maxNumRecords);
+            abstract Builder setMaxReadTime(Duration maxReadTime);
+
+            abstract Read build();
         }
 
         /**
          * Specify reading from streamName at some initial position.
          */
-        public static Read from(String streamName, InitialPositionInStream initialPosition) {
-            return new Read(streamName, new StartingPoint(
-                    checkNotNull(initialPosition, "initialPosition")));
+        public Read from(String streamName, InitialPositionInStream initialPosition) {
+            return toBuilder()
+                .setStreamName(streamName)
+                .setInitialPosition(
+                    new StartingPoint(checkNotNull(initialPosition, "initialPosition")))
+                .build();
         }
 
         /**
          * Specify reading from streamName beginning at given {@link Instant}.
          * This {@link Instant} must be in the past, i.e. before {@link Instant#now()}.
          */
-        public static Read from(String streamName, Instant initialTimestamp) {
-            return new Read(streamName, new StartingPoint(
-                    checkNotNull(initialTimestamp, "initialTimestamp")));
+        public Read from(String streamName, Instant initialTimestamp) {
+            return toBuilder()
+                .setStreamName(streamName)
+                .setInitialPosition(
+                    new StartingPoint(checkNotNull(initialTimestamp, "initialTimestamp")))
+                .build();
         }
 
         /**
          * Allows to specify custom {@link KinesisClientProvider}.
          * {@link KinesisClientProvider} provides {@link AmazonKinesis} instances which are later
          * used for communication with Kinesis.
-         * You should use this method if {@link Read#using(String, String, Regions)} does not
-         * suite your needs.
+         * You should use this method if {@link Read#withClientProvider(String, String, Regions)}
+         * does not suit your needs.
          */
-        public org.apache.beam.sdk.io.Read.Unbounded<KinesisRecord> using
-        (KinesisClientProvider kinesisClientProvider) {
-            return org.apache.beam.sdk.io.Read.from(
-                    new KinesisSource(kinesisClientProvider, streamName,
-                            initialPosition));
+        public Read withClientProvider(KinesisClientProvider kinesisClientProvider) {
+            return toBuilder().setClientProvider(kinesisClientProvider).build();
         }
 
         /**
          * Specify credential details and region to be used to read from Kinesis.
          * If you need more sophisticated credential protocol, then you should look at
-         * {@link Read#using(KinesisClientProvider)}.
+         * {@link Read#withClientProvider(KinesisClientProvider)}.
          */
-        public org.apache.beam.sdk.io.Read.Unbounded<KinesisRecord> using(String awsAccessKey,
-                                                                          String awsSecretKey,
-                                                                          Regions region) {
-            return using(new BasicKinesisProvider(awsAccessKey, awsSecretKey, region));
+        public Read withClientProvider(String awsAccessKey, String awsSecretKey, Regions region) {
+            return withClientProvider(new BasicKinesisProvider(awsAccessKey, awsSecretKey, region));
+        }
+
+        /** Specifies to read at most a given number of records. */
+        public Read withMaxNumRecords(int maxNumRecords) {
+            checkArgument(
+                maxNumRecords > 0, "maxNumRecords must be positive, but was: %s", maxNumRecords);
+            return toBuilder().setMaxNumRecords(maxNumRecords).build();
+        }
+
+        /** Specifies to read at most a given number of records. */
+        public Read withMaxReadTime(Duration maxReadTime) {
+            checkNotNull(maxReadTime, "maxReadTime");
+            return toBuilder().setMaxReadTime(maxReadTime).build();
+        }
+
+        @Override
+        public PCollection<KinesisRecord> expand(PBegin input) {
+            org.apache.beam.sdk.io.Read.Unbounded<KinesisRecord> read =
+                org.apache.beam.sdk.io.Read.from(
+                    new KinesisSource(getClientProvider(), getStreamName(), getInitialPosition()));
+            if (getMaxNumRecords() > 0) {
+                BoundedReadFromUnboundedSource<KinesisRecord> bounded =
+                    read.withMaxNumRecords(getMaxNumRecords());
+                return getMaxReadTime() == null
+                    ? input.apply(bounded)
+                    : input.apply(bounded.withMaxReadTime(getMaxReadTime()));
+            } else {
+                return getMaxReadTime() == null
+                    ? input.apply(read)
+                    : input.apply(read.withMaxReadTime(getMaxReadTime()));
+            }
         }
 
         private static final class BasicKinesisProvider implements KinesisClientProvider {

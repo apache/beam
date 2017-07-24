@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,7 +75,7 @@ public class MinimalWordCount {
     // the input text (a set of Shakespeare's texts).
 
     // This example reads a public data set consisting of the complete works of Shakespeare.
-    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
+    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 
      // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
@@ -83,7 +84,7 @@ public class MinimalWordCount {
      .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
                        @ProcessElement
                        public void processElement(ProcessContext c) {
-                         for (String word : c.element().split("[^a-zA-Z']+")) {
+                         for (String word : c.element().split(ExampleUtils.TOKENIZER_PATTERN)) {
                            if (!word.isEmpty()) {
                              c.output(word);
                            }
@@ -110,7 +111,7 @@ public class MinimalWordCount {
      // formatted strings) to a series of text files.
      //
      // By default, it will write to a set of files with names like wordcount-00001-of-00005
-     .apply(TextIO.Write.to("wordcounts"));
+     .apply(TextIO.write().to("wordcounts"));
 
     // Run the pipeline.
     p.run().waitUntilFinish();

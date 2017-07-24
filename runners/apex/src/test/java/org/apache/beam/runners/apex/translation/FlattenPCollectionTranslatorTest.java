@@ -26,12 +26,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import org.apache.apex.api.EmbeddedAppLauncher;
-import org.apache.apex.api.Launcher;
-import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -100,16 +98,11 @@ public class FlattenPCollectionTranslatorTest {
   @Test
   public void testFlattenSingleCollection() {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-    options.setRunner(ApexRunner.class);
-    ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
-    EmbeddedAppLauncher<?> launcher = Launcher.getLauncher(LaunchMode.EMBEDDED);
-    DAG dag = launcher.getDAG();
-
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create();
     PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
     PCollectionList.of(single).apply(Flatten.<String>pCollections())
       .apply(ParDo.of(new EmbeddedCollector()));
-    translator.translate(p, dag);
+    DAG dag = TestApexRunner.translate(p, options);
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }

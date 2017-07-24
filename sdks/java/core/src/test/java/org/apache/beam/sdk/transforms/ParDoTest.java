@@ -54,17 +54,26 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -88,18 +97,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
-import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.MapState;
-import org.apache.beam.sdk.util.state.SetState;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -171,12 +169,11 @@ public class ParDoTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertThat(state,
           anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
 
       state = State.STARTED;
-      outputToAll(c, "started");
     }
 
     @ProcessElement
@@ -188,18 +185,17 @@ public class ParDoTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle(FinishBundleContext c) {
       assertThat(state,
                  anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
       state = State.FINISHED;
-      outputToAll(c, "finished");
-    }
-
-    private void outputToAll(Context c, String value) {
-      c.output(value);
+      c.output("finished", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
       for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
-        c.output(additionalOutputTupleTag,
-                     additionalOutputTupleTag.getId() + ": " + value);
+        c.output(
+            additionalOutputTupleTag,
+            additionalOutputTupleTag.getId() + ": " + "finished",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE);
       }
     }
 
@@ -221,7 +217,7 @@ public class ParDoTest implements Serializable {
 
   static class TestStartBatchErrorDoFn extends DoFn<Integer, String> {
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       throw new RuntimeException("test error in initialize");
     }
 
@@ -245,7 +241,7 @@ public class ParDoTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle(FinishBundleContext c) {
       throw new RuntimeException("test error in finalize");
     }
   }
@@ -889,7 +885,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testMultiOutputAppliedMultipleTimesDifferentOutputs() {
     pipeline.enableAbandonedNodeEnforcement(false);
-    PCollection<Long> longs = pipeline.apply(CountingInput.unbounded());
+    PCollection<Long> longs = pipeline.apply(GenerateSequence.from(0));
 
     TupleTag<Long> mainOut = new TupleTag<>();
     final TupleTag<String> valueAsString = new TupleTag<>();
@@ -988,33 +984,31 @@ public class ParDoTest implements Serializable {
       return INSTANCE;
     }
 
-    @SuppressWarnings("unused") // used to create a CoderFactory
-    public static List<Object> getInstanceComponents(TestDummy exampleValue) {
-      return Collections.emptyList();
-    }
-
     @Override
-    public void encode(TestDummy value, OutputStream outStream, Context context)
+    public void encode(TestDummy value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public TestDummy decode(InputStream inStream, Context context)
+    public TestDummy decode(InputStream inStream)
         throws CoderException, IOException {
       return new TestDummy();
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(TestDummy value, Context context) {
+    public boolean isRegisterByteSizeObserverCheap(TestDummy value) {
       return true;
     }
 
     @Override
     public void registerByteSizeObserver(
-        TestDummy value, ElementByteSizeObserver observer, Context context)
+        TestDummy value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 
   private static class TaggedOutputDummyFn extends DoFn<Integer, Integer> {
@@ -1085,7 +1079,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  private static class MyIntegerCoder extends CustomCoder<MyInteger> {
+  private static class MyIntegerCoder extends AtomicCoder<MyInteger> {
     private static final MyIntegerCoder INSTANCE = new MyIntegerCoder();
 
     private final VarIntCoder delegate = VarIntCoder.of();
@@ -1095,15 +1089,15 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream, Context context)
+    public void encode(MyInteger value, OutputStream outStream)
         throws CoderException, IOException {
-      delegate.encode(value.getValue(), outStream, context);
+      delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+    public MyInteger decode(InputStream inStream) throws CoderException,
         IOException {
-      return new MyInteger(delegate.decode(inStream, context));
+      return new MyInteger(delegate.decode(inStream));
     }
   }
 
@@ -1154,13 +1148,10 @@ public class ParDoTest implements Serializable {
 
     @Override
     public Void apply(Iterable<String> outputs) {
-      List<String> starteds = new ArrayList<>();
       List<String> processeds = new ArrayList<>();
       List<String> finisheds = new ArrayList<>();
       for (String output : outputs) {
-        if (output.contains("started")) {
-          starteds.add(output);
-        } else if (output.contains("finished")) {
+        if (output.contains("finished")) {
           finisheds.add(output);
         } else {
           processeds.add(output);
@@ -1194,10 +1185,6 @@ public class ParDoTest implements Serializable {
         assertThat(processeds, contains(expectedProcessedsArray));
       }
 
-      assertEquals(starteds.size(), finisheds.size());
-      for (String started : starteds) {
-        assertEquals(additionalOutputPrefix + "started", started);
-      }
       for (String finished : finisheds) {
         assertEquals(additionalOutputPrefix + "finished", finished);
       }
@@ -1242,7 +1229,9 @@ public class ParDoTest implements Serializable {
     outputTuple.get(additionalOutputTag).apply(View.<TestDummy>asSingleton());
 
     assertEquals(new TestDummyCoder(), outputTuple.get(additionalOutputTag).getCoder());
-    outputTuple.get(additionalOutputTag).finishSpecifyingOutput(input, pardo); // Check for crashes
+    outputTuple
+        .get(additionalOutputTag)
+        .finishSpecifyingOutput("ParDo", input, pardo); // Check for crashes
     assertEquals(new TestDummyCoder(),
         outputTuple.get(additionalOutputTag).getCoder()); // Check for corruption
   }
@@ -1479,7 +1468,6 @@ public class ParDoTest implements Serializable {
   private static class Checker implements SerializableFunction<Iterable<String>, Void> {
     @Override
     public Void apply(Iterable<String> input) {
-      boolean foundStart = false;
       boolean foundElement = false;
       boolean foundFinish = false;
       for (String str : input) {
@@ -1488,16 +1476,11 @@ public class ParDoTest implements Serializable {
             throw new AssertionError("Received duplicate element");
           }
           foundElement = true;
-        } else if (str.equals("start:2:2")) {
-          foundStart = true;
         } else if (str.equals("finish:3:3")) {
           foundFinish = true;
         } else {
           throw new AssertionError("Got unexpected value: " + str);
         }
-      }
-      if (!foundStart) {
-        throw new AssertionError("Missing \"start:2:2\"");
       }
       if (!foundElement) {
         throw new AssertionError("Missing \"elem:1:1\"");
@@ -1514,19 +1497,14 @@ public class ParDoTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testWindowingInStartAndFinishBundle() {
 
+    final FixedWindows windowFn = FixedWindows.of(Duration.millis(1));
     PCollection<String> output =
         pipeline
             .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
-            .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
+            .apply(Window.<String>into(windowFn))
             .apply(
                 ParDo.of(
                     new DoFn<String, String>() {
-                      @StartBundle
-                      public void startBundle(Context c) {
-                        c.outputWithTimestamp("start", new Instant(2));
-                        System.out.println("Start: 2");
-                      }
-
                       @ProcessElement
                       public void processElement(ProcessContext c) {
                         c.output(c.element());
@@ -1535,8 +1513,9 @@ public class ParDoTest implements Serializable {
                       }
 
                       @FinishBundle
-                      public void finishBundle(Context c) {
-                        c.outputWithTimestamp("finish", new Instant(3));
+                      public void finishBundle(FinishBundleContext c) {
+                        Instant ts = new Instant(3);
+                        c.output("finish", ts, windowFn.assignWindow(ts));
                         System.out.println("Finish: 3");
                       }
                     }))
@@ -1547,30 +1526,6 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWindowingInStartBundleException() {
-
-    pipeline
-        .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(
-            ParDo.of(
-                new DoFn<String, String>() {
-                  @StartBundle
-                  public void startBundle(Context c) {
-                    c.output("start");
-                  }
-
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element());
-                  }
-                }));
-
-    thrown.expectMessage("WindowFn attempted to access input timestamp when none was available");
-    pipeline.run();
-  }
   @Test
   public void testDoFnDisplayData() {
     DoFn<String, String> fn = new DoFn<String, String>() {
@@ -1623,7 +1578,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Integer>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> intState =
+          private final StateSpec<ValueState<Integer>> intState =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1652,7 +1607,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<Integer, Integer>, Integer>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> seenSpec =
+          private final StateSpec<ValueState<Integer>> seenSpec =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1696,13 +1651,13 @@ public class ParDoTest implements Serializable {
   public void testValueStateCoderInference() {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, MyInteger> fn =
         new DoFn<KV<String, Integer>, MyInteger>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<MyInteger>> intState =
+          private final StateSpec<ValueState<MyInteger>> intState =
               StateSpecs.value();
 
           @ProcessElement
@@ -1732,7 +1687,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, MyInteger>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<MyInteger>> intState =
+          private final StateSpec<ValueState<MyInteger>> intState =
               StateSpecs.value();
 
           @ProcessElement
@@ -1763,7 +1718,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, MyInteger>, MyInteger>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<MyInteger>> intState =
+          private final StateSpec<ValueState<MyInteger>> intState =
               StateSpecs.value();
 
           @ProcessElement
@@ -1789,13 +1744,13 @@ public class ParDoTest implements Serializable {
   public void testCoderInferenceOfList() {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, List<MyInteger>> fn =
         new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<List<MyInteger>>> intState =
+          private final StateSpec<ValueState<List<MyInteger>>> intState =
               StateSpecs.value();
 
           @ProcessElement
@@ -1826,7 +1781,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Integer>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> intState =
+          private final StateSpec<ValueState<Integer>> intState =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1874,7 +1829,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> intState =
+          private final StateSpec<ValueState<Integer>> intState =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1890,7 +1845,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Integer>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> intState =
+          private final StateSpec<ValueState<Integer>> intState =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1927,7 +1882,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Integer>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<Integer>> intState =
+          private final StateSpec<ValueState<Integer>> intState =
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
@@ -1974,7 +1929,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, List<Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, BagState<Integer>> bufferState =
+          private final StateSpec<BagState<Integer>> bufferState =
               StateSpecs.bag(VarIntCoder.of());
 
           @ProcessElement
@@ -2005,13 +1960,13 @@ public class ParDoTest implements Serializable {
   public void testBagStateCoderInference() {
     final String stateId = "foo";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, List<MyInteger>> fn =
         new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+          private final StateSpec<BagState<MyInteger>> bufferState =
               StateSpecs.bag();
 
           @ProcessElement
@@ -2049,7 +2004,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, List<MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+          private final StateSpec<BagState<MyInteger>> bufferState =
               StateSpecs.bag();
 
           @ProcessElement
@@ -2086,10 +2041,10 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Set<Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, SetState<Integer>> setState =
+          private final StateSpec<SetState<Integer>> setState =
               StateSpecs.set(VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2124,16 +2079,16 @@ public class ParDoTest implements Serializable {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, Set<MyInteger>> fn =
         new DoFn<KV<String, Integer>, Set<MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+          private final StateSpec<SetState<MyInteger>> setState = StateSpecs.set();
 
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2173,10 +2128,10 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, Set<MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+          private final StateSpec<SetState<MyInteger>> setState = StateSpecs.set();
 
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2215,10 +2170,10 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, MapState<String, Integer>> mapState =
+          private final StateSpec<MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2256,15 +2211,16 @@ public class ParDoTest implements Serializable {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
         new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          private final StateSpec<MapState<String, MyInteger>> mapState = StateSpecs.map();
+
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2308,9 +2264,10 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          private final StateSpec<MapState<String, MyInteger>> mapState = StateSpecs.map();
+
           @StateId(countStateId)
-          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+          private final StateSpec<CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2354,16 +2311,13 @@ public class ParDoTest implements Serializable {
           private static final double EPSILON = 0.0001;
 
           @StateId(stateId)
-          private final StateSpec<
-                  Object, CombiningState<Double, CountSum<Double>, Double>>
-              combiningState =
-                  StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
+          private final StateSpec<CombiningState<Double, CountSum<Double>, Double>> combiningState =
+              StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
 
           @ProcessElement
           public void processElement(
               ProcessContext c,
-              @StateId(stateId)
-                  CombiningState<Double, CountSum<Double>, Double> state) {
+              @StateId(stateId) CombiningState<Double, CountSum<Double>, Double> state) {
             state.add(c.element().getValue());
             Double currentValue = state.read();
             if (Math.abs(currentValue - 0.5) < EPSILON) {
@@ -2385,7 +2339,7 @@ public class ParDoTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testCombiningStateCoderInference() {
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, MyIntegerCoder.of());
 
     final String stateId = "foo";
 
@@ -2394,40 +2348,38 @@ public class ParDoTest implements Serializable {
           private static final int EXPECTED_SUM = 16;
 
           @StateId(stateId)
-          private final StateSpec<
-              Object, CombiningState<Integer, MyInteger, Integer>>
-              combiningState =
-              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
-                @Override
-                public MyInteger createAccumulator() {
-                  return new MyInteger(0);
-                }
+          private final StateSpec<CombiningState<Integer, MyInteger, Integer>> combiningState =
+              StateSpecs.combining(
+                  new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                    @Override
+                    public MyInteger createAccumulator() {
+                      return new MyInteger(0);
+                    }
 
-                @Override
-                public MyInteger addInput(MyInteger accumulator, Integer input) {
-                  return new MyInteger(accumulator.getValue() + input);
-                }
+                    @Override
+                    public MyInteger addInput(MyInteger accumulator, Integer input) {
+                      return new MyInteger(accumulator.getValue() + input);
+                    }
 
-                @Override
-                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
-                  int newValue = 0;
-                  for (MyInteger myInteger : accumulators) {
-                    newValue += myInteger.getValue();
-                  }
-                  return new MyInteger(newValue);
-                }
+                    @Override
+                    public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                      int newValue = 0;
+                      for (MyInteger myInteger : accumulators) {
+                        newValue += myInteger.getValue();
+                      }
+                      return new MyInteger(newValue);
+                    }
 
-                @Override
-                public Integer extractOutput(MyInteger accumulator) {
-                  return accumulator.getValue();
-                }
-              });
+                    @Override
+                    public Integer extractOutput(MyInteger accumulator) {
+                      return accumulator.getValue();
+                    }
+                  });
 
           @ProcessElement
           public void processElement(
               ProcessContext c,
-              @StateId(stateId)
-                  CombiningState<Integer, MyInteger, Integer> state) {
+              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state) {
             state.add(c.element().getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
@@ -2456,40 +2408,38 @@ public class ParDoTest implements Serializable {
           private static final int EXPECTED_SUM = 16;
 
           @StateId(stateId)
-          private final StateSpec<
-              Object, CombiningState<Integer, MyInteger, Integer>>
-              combiningState =
-              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
-                @Override
-                public MyInteger createAccumulator() {
-                  return new MyInteger(0);
-                }
+          private final StateSpec<CombiningState<Integer, MyInteger, Integer>> combiningState =
+              StateSpecs.combining(
+                  new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                    @Override
+                    public MyInteger createAccumulator() {
+                      return new MyInteger(0);
+                    }
 
-                @Override
-                public MyInteger addInput(MyInteger accumulator, Integer input) {
-                  return new MyInteger(accumulator.getValue() + input);
-                }
+                    @Override
+                    public MyInteger addInput(MyInteger accumulator, Integer input) {
+                      return new MyInteger(accumulator.getValue() + input);
+                    }
 
-                @Override
-                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
-                  int newValue = 0;
-                  for (MyInteger myInteger : accumulators) {
-                    newValue += myInteger.getValue();
-                  }
-                  return new MyInteger(newValue);
-                }
+                    @Override
+                    public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                      int newValue = 0;
+                      for (MyInteger myInteger : accumulators) {
+                        newValue += myInteger.getValue();
+                      }
+                      return new MyInteger(newValue);
+                    }
 
-                @Override
-                public Integer extractOutput(MyInteger accumulator) {
-                  return accumulator.getValue();
-                }
-              });
+                    @Override
+                    public Integer extractOutput(MyInteger accumulator) {
+                      return accumulator.getValue();
+                    }
+                  });
 
           @ProcessElement
           public void processElement(
               ProcessContext c,
-              @StateId(stateId)
-                  CombiningState<Integer, MyInteger, Integer> state) {
+              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state) {
             state.add(c.element().getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
@@ -2499,7 +2449,7 @@ public class ParDoTest implements Serializable {
         };
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Unable to infer a coder for GroupingState and no Coder was specified.");
+    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
 
     pipeline
         .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
@@ -2521,7 +2471,7 @@ public class ParDoTest implements Serializable {
         new DoFn<KV<String, Integer>, List<Integer>>() {
 
           @StateId(stateId)
-          private final StateSpec<Object, BagState<Integer>> bufferState =
+          private final StateSpec<BagState<Integer>> bufferState =
               StateSpecs.bag(VarIntCoder.of());
 
           @ProcessElement
@@ -2583,7 +2533,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2600,6 +2550,36 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAlignBounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    PCollection<KV<Integer, Instant>> output =
+        pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(KV.of(3, BoundedWindow.TIMESTAMP_MIN_VALUE),
+        KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testTimerReceivedInOriginalWindow() throws Exception {
     final String timerId = "foo";
 
@@ -2611,7 +2591,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
           }
 
           @OnTimer(timerId)
@@ -2695,7 +2675,7 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<String>> stateSpec =
+          private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());
 
           @ProcessElement
@@ -2764,7 +2744,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("relative timers");
@@ -2794,7 +2774,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("event time timer");
@@ -2815,7 +2795,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2849,7 +2829,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2868,6 +2848,81 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        .advanceWatermarkTo(new Instant(5))
+        .addElements(KV.of("hello", 37))
+        .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1).plus(1)))
+        .advanceWatermarkToInfinity();
+
+    PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(KV.of(3, new Instant(5)),
+        KV.of(42, new Instant(Duration.standardSeconds(1).minus(1).getMillis())));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            // This aligned time will exceed the END_OF_GLOBAL_WINDOW
+            timer.align(Duration.standardDays(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        // See GlobalWindow,
+        // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
+        .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+        .addElements(KV.of("hello", 37))
+        .advanceWatermarkToInfinity();
+
+    PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(
+        KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
+        KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
     pipeline.run();
   }
 

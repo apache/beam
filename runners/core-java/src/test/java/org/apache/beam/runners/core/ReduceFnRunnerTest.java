@@ -38,10 +38,14 @@ import static org.mockito.Mockito.withSettings;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.Sum;
@@ -56,23 +60,21 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -143,6 +145,8 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
             AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
@@ -167,7 +171,10 @@ public class ReduceFnRunnerTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4);
 
-    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = container.getCounter(MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(1, droppedElements);
   }
 
   @Test
@@ -210,7 +217,7 @@ public class ReduceFnRunnerTest {
 
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100));
 
@@ -218,7 +225,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            Sum.ofIntegers().<String>asKeyedFn(),
+            Sum.ofIntegers(),
             VarIntCoder.of());
 
     injectElement(tester, 2);
@@ -284,14 +291,14 @@ public class ReduceFnRunnerTest {
 
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) windowFn)
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(allowedLateness);
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+            .combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.injectElements(TimestampedValue.of(13, elementTimestamp));
 
@@ -315,7 +322,7 @@ public class ReduceFnRunnerTest {
 
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100));
 
@@ -323,7 +330,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            Sum.ofIntegers().<String>asKeyedFn(),
+            Sum.ofIntegers(),
             VarIntCoder.of());
 
     injectElement(tester, 1);
@@ -387,9 +394,14 @@ public class ReduceFnRunnerTest {
             });
 
     SumAndVerifyContextFn combineFn = new SumAndVerifyContextFn(mockView, expectedValue);
-    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
-        mainInputWindowingStrategy, mockTriggerStateMachine, combineFn.<String>asKeyedFn(),
-        VarIntCoder.of(), options, mockSideInputReader);
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(
+            mainInputWindowingStrategy,
+            mockTriggerStateMachine,
+            combineFn,
+            VarIntCoder.of(),
+            options,
+            mockSideInputReader);
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     for (int i = 0; i < 8; ++i) {
@@ -411,6 +423,8 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
@@ -439,7 +453,11 @@ public class ReduceFnRunnerTest {
     // Holding for the end-of-window transition.
     assertEquals(new Instant(9), tester.getWatermarkHold());
     // Nothing dropped.
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     // Input watermark -> 4, output watermark should advance that far as well
     tester.advanceInputWatermark(new Instant(4));
@@ -497,7 +515,11 @@ public class ReduceFnRunnerTest {
     // Because we're about to expire the window, we output it.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     injectElement(tester, 8);
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     // Exceed the GC limit, triggering the last pane to be fired
     tester.advanceInputWatermark(new Instant(50));
@@ -615,7 +637,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -668,7 +690,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -695,7 +717,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -724,7 +746,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -1062,12 +1084,14 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
         WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
         .withTrigger(AfterWatermark.pastEndOfWindow())
         .withAllowedLateness(Duration.millis(1000)),
-        Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        Sum.ofIntegers(), VarIntCoder.of());
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
@@ -1075,7 +1099,11 @@ public class ReduceFnRunnerTest {
         // assigned to [-30, 70), [0, 100), [30, 130)
         TimestampedValue.of(12, new Instant(40)));
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     tester.advanceInputWatermark(new Instant(70));
     tester.injectElements(
@@ -1083,18 +1111,28 @@ public class ReduceFnRunnerTest {
         // but [-30, 70) is closed by the trigger
         TimestampedValue.of(14, new Instant(60)));
 
-    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(1, droppedElements);
 
     tester.advanceInputWatermark(new Instant(130));
     // assigned to [-30, 70), [0, 100), [30, 130)
     // but they are all closed
     tester.injectElements(TimestampedValue.of(16, new Instant(40)));
 
-    assertEquals(4, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(4, droppedElements);
   }
 
   @Test
   public void testIdempotentEmptyPanesDiscarding() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1135,11 +1173,17 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
   }
 
   @Test
   public void testIdempotentEmptyPanesAccumulating() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1182,7 +1226,11 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = container.getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
   }
 
   /**
@@ -1195,7 +1243,7 @@ public class ReduceFnRunnerTest {
 
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
             .withTrigger(
                 AfterEach.<IntervalWindow>inOrder(
                     Repeatedly.forever(
@@ -1209,8 +1257,7 @@ public class ReduceFnRunnerTest {
             .withAllowedLateness(Duration.millis(100));
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
-        ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
@@ -1251,22 +1298,21 @@ public class ReduceFnRunnerTest {
 
     WindowingStrategy<?, IntervalWindow> strategy =
         WindowingStrategy.of((WindowFn<?, IntervalWindow>) FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger(AfterEach.<IntervalWindow>inOrder(
-                Repeatedly
-                    .forever(
-                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
-                            new Duration(5)))
-                    .orFinally(AfterWatermark.pastEndOfWindow()),
-                Repeatedly.forever(
-                    AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
-                        new Duration(25)))))
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
+            .withTrigger(
+                AfterEach.<IntervalWindow>inOrder(
+                    Repeatedly.forever(
+                            AfterProcessingTime.pastFirstElementInPane()
+                                .plusDelayOf(new Duration(5)))
+                        .orFinally(AfterWatermark.pastEndOfWindow()),
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(new Duration(25)))))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100));
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
-        ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));

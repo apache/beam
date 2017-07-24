@@ -35,12 +35,12 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -62,6 +62,8 @@ import org.junit.runners.Suite;
   TestPipelineTest.TestPipelineEnforcementsTest.WithCrashingPipelineRunner.class
 })
 public class TestPipelineTest implements Serializable {
+  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** Tests related to the creation of a {@link TestPipeline}. */
   @RunWith(JUnit4.class)
@@ -86,16 +88,14 @@ public class TestPipelineTest implements Serializable {
 
     @Test
     public void testCreationOfPipelineOptions() throws Exception {
-      ObjectMapper mapper = new ObjectMapper();
       String stringOptions =
-          mapper.writeValueAsString(
+          MAPPER.writeValueAsString(
               new String[] {
-                "--runner=org.apache.beam.sdk.testing.CrashingRunner", "--project=testProject"
+                "--runner=org.apache.beam.sdk.testing.CrashingRunner"
               });
       System.getProperties().put("beamTestPipelineOptions", stringOptions);
-      GcpOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
       assertEquals(CrashingRunner.class, options.getRunner());
-      assertEquals(options.getProject(), "testProject");
     }
 
     @Test

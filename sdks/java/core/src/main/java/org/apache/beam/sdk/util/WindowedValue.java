@@ -17,12 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -39,7 +35,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -576,7 +572,7 @@ public abstract class WindowedValue<T> {
    * Abstract class for {@code WindowedValue} coder.
    */
   public abstract static class WindowedValueCoder<T>
-      extends StandardCoder<WindowedValue<T>> {
+      extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
@@ -611,17 +607,6 @@ public abstract class WindowedValue<T> {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
-    @JsonCreator
-    public static FullWindowedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 2,
-                    "Expecting 2 components, got " + components.size());
-      @SuppressWarnings("unchecked")
-      Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
-      return of(components.get(0), window);
-    }
-
     FullWindowedValueCoder(Coder<T> valueCoder,
                            Coder<? extends BoundedWindow> windowCoder) {
       super(valueCoder);
@@ -651,26 +636,34 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(windowedElem, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(WindowedValue<T> windowedElem,
                        OutputStream outStream,
                        Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
-      InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream, nestedContext);
-      windowsCoder.encode(windowedElem.getWindows(), outStream, nestedContext);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, nestedContext);
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
+      windowsCoder.encode(windowedElem.getWindows(), outStream);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
+    }
+
+    @Override
+    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
-      Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
+      Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows =
-          windowsCoder.decode(inStream, nestedContext);
-      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+          windowsCoder.decode(inStream);
+      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }
@@ -678,33 +671,31 @@ public abstract class WindowedValue<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          "FullWindowedValueCoder requires a deterministic valueCoder",
-          valueCoder);
+          this, "FullWindowedValueCoder requires a deterministic valueCoder", valueCoder);
       verifyDeterministic(
-          "FullWindowedValueCoder requires a deterministic windowCoder",
-          windowCoder);
+          this, "FullWindowedValueCoder requires a deterministic windowCoder", windowCoder);
     }
 
     @Override
     public void registerByteSizeObserver(WindowedValue<T> value,
-                                         ElementByteSizeObserver observer,
-                                         Context context) throws Exception {
-      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context.nested());
-      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context.nested());
-      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
+                                         ElementByteSizeObserver observer) throws Exception {
+      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
+      windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
+      valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClassName("kind:windowed_value");
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
-    }
-
+    /**
+     * {@inheritDoc}.
+     *
+     * @return a singleton list containing the {@code valueCoder} of this
+     *         {@link FullWindowedValueCoder}.
+     */
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      // The value type is the only generic type parameter exposed by this coder. The component
+      // coders include the window coder as well
+      return Collections.singletonList(valueCoder);
     }
 
     @Override
@@ -725,14 +716,6 @@ public abstract class WindowedValue<T> {
       return new ValueOnlyWindowedValueCoder<>(valueCoder);
     }
 
-    @JsonCreator
-    public static ValueOnlyWindowedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1, "Expecting 1 component, got " + components.size());
-      return of(components.get(0));
-    }
-
     ValueOnlyWindowedValueCoder(Coder<T> valueCoder) {
       super(valueCoder);
     }
@@ -743,9 +726,20 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(windowedElem, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
         throws CoderException, IOException {
       valueCoder.encode(windowedElem.getValue(), outStream, context);
+    }
+
+    @Override
+    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -758,27 +752,21 @@ public abstract class WindowedValue<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
+          this,
           "ValueOnlyWindowedValueCoder requires a deterministic valueCoder",
           valueCoder);
     }
 
     @Override
     public void registerByteSizeObserver(
-        WindowedValue<T> value, ElementByteSizeObserver observer, Context context)
+        WindowedValue<T> value, ElementByteSizeObserver observer)
         throws Exception {
-      valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
-    }
-
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
+      valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return Arrays.<Coder<?>>asList(valueCoder);
+      return Collections.singletonList(valueCoder);
     }
   }
 }

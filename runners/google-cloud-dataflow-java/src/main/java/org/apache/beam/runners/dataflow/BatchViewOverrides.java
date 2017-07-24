@@ -17,12 +17,9 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingMap;
@@ -57,10 +54,10 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -77,20 +74,19 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.PCollectionViews;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
@@ -1025,7 +1021,7 @@ class BatchViewOverrides {
 
       long indexInBundle;
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle() throws Exception {
         indexInBundle = 0;
       }
 
@@ -1339,7 +1335,7 @@ class BatchViewOverrides {
    * A {@link Coder} for {@link TransformedMap}s.
    */
   static class TransformedMapCoder<K, V1, V2>
-      extends StandardCoder<TransformedMap<K, V1, V2>> {
+      extends StructuredCoder<TransformedMap<K, V1, V2>> {
     private final Coder<Function<V1, V2>> transformCoder;
     private final Coder<Map<K, V1>> originalMapCoder;
 
@@ -1354,32 +1350,19 @@ class BatchViewOverrides {
       return new TransformedMapCoder<>(transformCoder, originalMapCoder);
     }
 
-    @JsonCreator
-    public static <K, V1, V2> TransformedMapCoder<K, V1, V2> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-            List<Coder<?>> components) {
-      checkArgument(components.size() == 2,
-          "Expecting 2 components, got " + components.size());
-      @SuppressWarnings("unchecked")
-      Coder<Function<V1, V2>> transformCoder = (Coder<Function<V1, V2>>) components.get(0);
-      @SuppressWarnings("unchecked")
-      Coder<Map<K, V1>> originalMapCoder = (Coder<Map<K, V1>>) components.get(1);
-      return of(transformCoder, originalMapCoder);
+    @Override
+    public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream)
+        throws CoderException, IOException {
+      transformCoder.encode(value.transform, outStream);
+      originalMapCoder.encode(value.originalMap, outStream);
     }
 
     @Override
-    public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream,
-        Coder.Context context) throws CoderException, IOException {
-      transformCoder.encode(value.transform, outStream, context.nested());
-      originalMapCoder.encode(value.originalMap, outStream, context);
-    }
-
-    @Override
-    public TransformedMap<K, V1, V2> decode(
-        InputStream inStream, Coder.Context context) throws CoderException, IOException {
+    public TransformedMap<K, V1, V2> decode(InputStream inStream)
+        throws CoderException, IOException {
       return new TransformedMap<>(
-          transformCoder.decode(inStream, context.nested()),
-          originalMapCoder.decode(inStream, context));
+          transformCoder.decode(inStream),
+          originalMapCoder.decode(inStream));
     }
 
     @Override
@@ -1390,8 +1373,8 @@ class BatchViewOverrides {
     @Override
     public void verifyDeterministic()
         throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-      verifyDeterministic("Expected transform coder to be deterministic.", transformCoder);
-      verifyDeterministic("Expected map coder to be deterministic.", originalMapCoder);
+      verifyDeterministic(this, "Expected transform coder to be deterministic.", transformCoder);
+      verifyDeterministic(this, "Expected map coder to be deterministic.", originalMapCoder);
     }
   }
 

@@ -27,11 +27,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.NotSerializableException;
 import java.io.ObjectOutputStream;
 import java.util.List;
+import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.state.StateContexts;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,12 +47,12 @@ public class CombineFnUtilTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  KeyedCombineFnWithContext<Integer, Integer, Integer, Integer> mockCombineFn;
+  CombineFnWithContext<Integer, Integer, Integer> mockCombineFn;
 
   @SuppressWarnings("unchecked")
   @Before
   public void setUp() {
-    mockCombineFn = mock(KeyedCombineFnWithContext.class, withSettings().serializable());
+    mockCombineFn = mock(CombineFnWithContext.class, withSettings().serializable());
   }
 
   @Test
@@ -72,10 +71,6 @@ public class CombineFnUtilTest {
     CombineFnWithContext<Integer, int[], Integer> fnWithContext =
         CombineFnUtil.toFnWithContext(Sum.ofIntegers());
     assertTrue(fnWithContext == CombineFnUtil.toFnWithContext(fnWithContext));
-
-    KeyedCombineFnWithContext<Object, Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(Sum.ofIntegers().asKeyedFn());
-    assertTrue(keyedFnWithContext == CombineFnUtil.toFnWithContext(keyedFnWithContext));
   }
 
   @Test
@@ -89,14 +84,5 @@ public class CombineFnUtilTest {
       accum = fnWithContext.addInput(accum, i, nullContext);
     }
     assertEquals(10, fnWithContext.extractOutput(accum, nullContext).intValue());
-
-    KeyedCombineFnWithContext<String, Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(Sum.ofIntegers().<String>asKeyedFn());
-    String key = "key";
-    accum = keyedFnWithContext.createAccumulator(key, nullContext);
-    for (Integer i : inputs) {
-      accum = keyedFnWithContext.addInput(key, accum, i, nullContext);
-    }
-    assertEquals(10, keyedFnWithContext.extractOutput(key, accum, nullContext).intValue());
   }
 }

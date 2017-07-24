@@ -32,9 +32,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -45,7 +44,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -58,6 +56,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -146,7 +145,8 @@ public class TransformHierarchyTest implements Serializable {
     final PCollectionList<Long> appended =
         pcList.and(
             PCollection.<Long>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED));
+                    pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+                .setName("prim"));
     hierarchy.pushNode(
         "AddPc",
         pcList,
@@ -254,7 +254,7 @@ public class TransformHierarchyTest implements Serializable {
               }
             });
 
-    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    GenerateSequence genUpstream = GenerateSequence.from(0);
     PCollection<Long> upstream = pipeline.apply(genUpstream);
     PCollection<Long> output = upstream.apply("Original", originalParDo);
     hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);
@@ -417,7 +417,7 @@ public class TransformHierarchyTest implements Serializable {
               }
             });
 
-    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    GenerateSequence genUpstream = GenerateSequence.from(0);
     PCollection<Long> upstream = pipeline.apply(genUpstream);
     PCollection<Long> output = upstream.apply("Original", originalParDo);
     Node upstreamNode = hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);

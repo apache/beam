@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -34,7 +33,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.zip.Inflater;
@@ -50,21 +48,24 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.util.AvroUtils;
-import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.utils.CountingInputStream;
+import org.apache.commons.compress.utils.IOUtils;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
- * A {@link FileBasedSource} for reading Avro files.
+ * Do not use in pipelines directly: most users should use {@link AvroIO.Read}.
+ *
+ * <p>A {@link FileBasedSource} for reading Avro files.
  *
  * <p>To read a {@link PCollection} of objects from one or more Avro files, use
  * {@link AvroSource#from} to specify the path(s) of the files to read. The {@link AvroSource} that
@@ -81,15 +82,6 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * {@code
  * AvroSource<MyType> source = AvroSource.from(file.toPath()).withSchema(MyType.class);
  * PCollection<MyType> records = Read.from(mySource);
- * }
- * </pre>
- *
- * <p>The {@link AvroSource#readFromFileWithClass(String, Class)} method is a convenience method
- * that returns a read transform. For example:
- *
- * <pre>
- * {@code
- * PCollection<MyType> records = AvroSource.readFromFileWithClass(file.toPath(), MyType.class));
  * }
  * </pre>
  *
@@ -133,7 +125,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.
-  static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
+  private static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
 
   // The JSON schema used to encode records.
   private final String readSchemaString;
@@ -163,15 +155,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   // Schema used to encode records, lazily initialized.
   private transient Schema readSchema;
-
-  /**
-   * Creates a {@link Read} transform that will read from an {@link AvroSource} that is configured
-   * to read records of the given type from a file pattern.
-   */
-  public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
-    return Read.from(new AvroSource<>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
-        ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
-  }
 
   /**
    * Creates an {@link AvroSource} that reads from the given file name or pattern ("glob"). The
@@ -237,9 +220,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     this.fileSchemaString = null;
   }
 
-  private AvroSource(String fileName, long minBundleSize, long startOffset, long endOffset,
+  private AvroSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset,
       String schema, Class<T> type, String codec, byte[] syncMarker, String fileSchema) {
-    super(fileName, minBundleSize, startOffset, endOffset);
+    super(metadata, minBundleSize, startOffset, endOffset);
     this.readSchemaString = internSchemaString(schema);
     this.codec = codec;
     this.syncMarker = syncMarker;
@@ -254,8 +237,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     super.validate();
   }
 
+  @Deprecated // Added to let DataflowRunner migrate off of this; to be deleted.
+  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end)
+      throws IOException {
+    return createForSubrangeOfFile(FileSystems.matchSingleFileSpec(fileName), start, end);
+  }
+
   @Override
-  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileMetadata, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
     String readSchemaString = this.readSchemaString;
@@ -267,11 +256,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     if (codec == null || syncMarker == null || fileSchemaString == null) {
       AvroMetadata metadata;
       try {
-        Collection<String> files = FileBasedSource.expandFilePattern(fileName);
-        checkArgument(files.size() <= 1, "More than 1 file matched %s");
-        metadata = AvroUtils.readMetadataFromFile(fileName);
+        metadata = readMetadataFromFile(fileMetadata.resourceId());
       } catch (IOException e) {
-        throw new RuntimeException("Error reading metadata from file " + fileName, e);
+        throw new RuntimeException("Error reading metadata from file " + fileMetadata, e);
       }
       codec = metadata.getCodec();
       syncMarker = metadata.getSyncMarker();
@@ -287,7 +274,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // readSchemaString. This allows for Java to have an efficient serialization since it
     // will only encode the schema once while just storing pointers to the encoded version
     // within this source.
-    return new AvroSource<>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
+    return new AvroSource<>(fileMetadata, getMinBundleSize(), start, end, readSchemaString, type,
         codec, syncMarker, fileSchemaString);
   }
 
@@ -342,6 +329,109 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     return codec;
   }
 
+  /**
+   * Avro file metadata.
+   */
+  @VisibleForTesting
+  static class AvroMetadata {
+    private byte[] syncMarker;
+    private String codec;
+    private String schemaString;
+
+    AvroMetadata(byte[] syncMarker, String codec, String schemaString) {
+      this.syncMarker = checkNotNull(syncMarker, "syncMarker");
+      this.codec = checkNotNull(codec, "codec");
+      this.schemaString = checkNotNull(schemaString, "schemaString");
+    }
+
+    /**
+     * The JSON-encoded <a href="https://avro.apache.org/docs/1.7.7/spec.html#schemas">schema</a>
+     * string for the file.
+     */
+    public String getSchemaString() {
+      return schemaString;
+    }
+
+    /**
+     * The <a href="https://avro.apache.org/docs/1.7.7/spec.html#Required+Codecs">codec</a> of the
+     * file.
+     */
+    public String getCodec() {
+      return codec;
+    }
+
+    /**
+     * The 16-byte sync marker for the file.  See the documentation for
+     * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">Object
+     * Container File</a> for more information.
+     */
+    public byte[] getSyncMarker() {
+      return syncMarker;
+    }
+  }
+
+  /**
+   * Reads the {@link AvroMetadata} from the header of an Avro file.
+   *
+   * <p>This method parses the header of an Avro
+   * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">
+   * Object Container File</a>.
+   *
+   * @throws IOException if the file is an invalid format.
+   */
+  @VisibleForTesting
+  static AvroMetadata readMetadataFromFile(ResourceId fileResource) throws IOException {
+    String codec = null;
+    String schemaString = null;
+    byte[] syncMarker;
+    try (InputStream stream = Channels.newInputStream(FileSystems.open(fileResource))) {
+      BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(stream, null);
+
+      // The header of an object container file begins with a four-byte magic number, followed
+      // by the file metadata (including the schema and codec), encoded as a map. Finally, the
+      // header ends with the file's 16-byte sync marker.
+      // See https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files for details on
+      // the encoding of container files.
+
+      // Read the magic number.
+      byte[] magic = new byte[DataFileConstants.MAGIC.length];
+      decoder.readFixed(magic);
+      if (!Arrays.equals(magic, DataFileConstants.MAGIC)) {
+        throw new IOException("Missing Avro file signature: " + fileResource);
+      }
+
+      // Read the metadata to find the codec and schema.
+      ByteBuffer valueBuffer = ByteBuffer.allocate(512);
+      long numRecords = decoder.readMapStart();
+      while (numRecords > 0) {
+        for (long recordIndex = 0; recordIndex < numRecords; recordIndex++) {
+          String key = decoder.readString();
+          // readBytes() clears the buffer and returns a buffer where:
+          // - position is the start of the bytes read
+          // - limit is the end of the bytes read
+          valueBuffer = decoder.readBytes(valueBuffer);
+          byte[] bytes = new byte[valueBuffer.remaining()];
+          valueBuffer.get(bytes);
+          if (key.equals(DataFileConstants.CODEC)) {
+            codec = new String(bytes, "UTF-8");
+          } else if (key.equals(DataFileConstants.SCHEMA)) {
+            schemaString = new String(bytes, "UTF-8");
+          }
+        }
+        numRecords = decoder.mapNext();
+      }
+      if (codec == null) {
+        codec = DataFileConstants.NULL_CODEC;
+      }
+
+      // Finally, read the sync marker.
+      syncMarker = new byte[DataFileConstants.SYNC_SIZE];
+      decoder.readFixed(syncMarker);
+    }
+    checkState(schemaString != null, "No schema present in Avro file metadata %s", fileResource);
+    return new AvroMetadata(syncMarker, codec, schemaString);
+  }
+
   private DatumReader<T> createDatumReader() {
     Schema readSchema = getReadSchema();
     Schema fileSchema = getFileSchema();
@@ -389,7 +479,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     switch (getMode()) {
       case SINGLE_FILE_OR_SUBRANGE:
         return new AvroSource<>(
-            getFileOrPatternSpec(),
+            getSingleFileMetadata(),
             getMinBundleSize(),
             getStartOffset(),
             getEndOffset(),
@@ -574,23 +664,27 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       long headerSize = countStream.getBytesRead() - preHeaderCount;
 
       // Create the current block by reading blockSize bytes. Block sizes permitted by the Avro
-      // specification are [32, 2^30], so this narrowing is ok.
+      // specification are [32, 2^30], so the cast is safe.
       byte[] data = new byte[(int) blockSize];
-      int read = stream.read(data);
-      checkState(blockSize == read, "Only %s/%s bytes in the block were read", read, blockSize);
+      int bytesRead = IOUtils.readFully(stream, data);
+      checkState(
+          blockSize == bytesRead,
+          "Only able to read %s/%s bytes in the block before EOF reached.",
+          bytesRead,
+          blockSize);
       currentBlock = new AvroBlock<>(data, numRecords, getCurrentSource());
 
       // Read the end of this block, which MUST be a sync marker for correctness.
       byte[] syncMarker = getCurrentSource().getSyncMarker();
       byte[] readSyncMarker = new byte[syncMarker.length];
       long syncMarkerOffset = startOfNextBlock + headerSize + blockSize;
-      long bytesRead = stream.read(readSyncMarker);
+      bytesRead = IOUtils.readFully(stream, readSyncMarker);
       checkState(
           bytesRead == syncMarker.length,
-          "When trying to read a sync marker at position %s, only able to read %s/%s bytes",
-          syncMarkerOffset,
+          "Only able to read %s/%s bytes of Avro sync marker at position %s before EOF reached.",
           bytesRead,
-          syncMarker.length);
+          syncMarker.length,
+          syncMarkerOffset);
       if (!Arrays.equals(syncMarker, readSyncMarker)) {
         throw new IllegalStateException(
             String.format(

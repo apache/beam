@@ -19,7 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,7 +34,6 @@ import java.math.MathContext;
  */
 public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
-  @JsonCreator
   public static BigDecimalCoder of() {
     return INSTANCE;
   }
@@ -44,25 +42,42 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
   private static final BigDecimalCoder INSTANCE = new BigDecimalCoder();
 
-  private final VarIntCoder integerCoder = VarIntCoder.of();
-  private final BigIntegerCoder bigIntegerCoder = BigIntegerCoder.of();
+  private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+  private static final BigIntegerCoder BIG_INT_CODER = BigIntegerCoder.of();
 
   private BigDecimalCoder() {}
+
+  @Override
+  public void encode(BigDecimal value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
 
   @Override
   public void encode(BigDecimal value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    integerCoder.encode(value.scale(), outStream, context.nested());
-    bigIntegerCoder.encode(value.unscaledValue(), outStream, context);
+    VAR_INT_CODER.encode(value.scale(), outStream);
+    BIG_INT_CODER.encode(value.unscaledValue(), outStream, context);
+  }
+
+  @Override
+  public BigDecimal decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    int scale = integerCoder.decode(inStream, context.nested());
-    BigInteger bigInteger = bigIntegerCoder.decode(inStream, context);
+    int scale = VAR_INT_CODER.decode(inStream);
+    BigInteger bigInteger = BIG_INT_CODER.decode(inStream, context);
     return new BigDecimal(bigInteger, scale);
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    VAR_INT_CODER.verifyDeterministic();
+    BIG_INT_CODER.verifyDeterministic();
   }
 
   /**
@@ -81,7 +96,7 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(BigDecimal value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(BigDecimal value) {
     return true;
   }
 
@@ -93,9 +108,9 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    * representation of the {@link BigInteger} that, when scaled, equals the given value.
    */
   @Override
-  protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(BigDecimal value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    return integerCoder.getEncodedElementByteSize(value.scale(), context.nested())
-        + bigIntegerCoder.getEncodedElementByteSize(value.unscaledValue(), context);
+    return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
+        + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
   }
 }

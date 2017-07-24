@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.hbase;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,9 +30,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.ByteStringCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -52,7 +49,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.conf.Configuration;
-
 import org.apache.hadoop.hbase.ClusterStatus;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.RegionLoad;
@@ -126,8 +122,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to HBase</h3>
  *
  * <p>The HBase sink executes a set of row mutations on a single table. It takes as input a
- * {@link PCollection PCollection&lt;KV&lt;ByteString, Iterable&lt;Mutation&gt;&gt;&gt;}, where the
- * {@link ByteString} is the key of the row being mutated, and each {@link Mutation} represents an
+ * {@link PCollection PCollection&lt;KV&lt;byte[], Iterable&lt;Mutation&gt;&gt;&gt;}, where the
+ * {@code byte[]} is the key of the row being mutated, and each {@link Mutation} represents an
  * idempotent transformation to that row.
  *
  * <p>To configure a HBase sink, you must supply a table id and a {@link Configuration}
@@ -135,7 +131,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * Configuration configuration = ...;
- * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
+ * PCollection<KV<byte[], Iterable<Mutation>>> data = ...;
  * data.setCoder(HBaseIO.WRITE_CODER);
  *
  * data.apply("write",
@@ -259,7 +255,7 @@ public class HBaseIO {
         }
 
         @Override
-        public void validate(PBegin input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null,
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
@@ -422,10 +418,9 @@ public class HBaseIO {
             return sources;
         }
 
-        @Override
-        public List<? extends BoundedSource<Result>>
-            splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
-                throws Exception {
+    @Override
+    public List<? extends BoundedSource<Result>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
             LOG.debug("desiredBundleSize {} bytes", desiredBundleSizeBytes);
             long estimatedSizeBytes = getEstimatedSizeBytes(options);
             int numSplits = 1;
@@ -550,7 +545,7 @@ public class HBaseIO {
      * @see HBaseIO
      */
     public static class Write
-            extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
+            extends PTransform<PCollection<KV<byte[], Iterable<Mutation>>>, PDone> {
 
         /**
          * Returns a new {@link HBaseIO.Write} that will write to the HBase instance
@@ -579,13 +574,13 @@ public class HBaseIO {
         }
 
         @Override
-        public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+        public PDone expand(PCollection<KV<byte[], Iterable<Mutation>>> input) {
             input.apply(ParDo.of(new HBaseWriterFn(tableId, serializableConfiguration)));
             return PDone.in(input.getPipeline());
         }
 
         @Override
-        public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+        public void validate(PipelineOptions options) {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
@@ -617,7 +612,7 @@ public class HBaseIO {
         private final String tableId;
         private final SerializableConfiguration serializableConfiguration;
 
-        private class HBaseWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+        private class HBaseWriterFn extends DoFn<KV<byte[], Iterable<Mutation>>, Void> {
 
             public HBaseWriterFn(String tableId,
                                  SerializableConfiguration serializableConfiguration) {
@@ -639,14 +634,9 @@ public class HBaseIO {
                 recordsWritten = 0;
             }
 
-            @StartBundle
-            public void startBundle(Context c) throws Exception {
-
-            }
-
             @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
-                KV<ByteString, Iterable<Mutation>> record = ctx.element();
+                KV<byte[], Iterable<Mutation>> record = ctx.element();
                 List<Mutation> mutations = new ArrayList<>();
                 for (Mutation mutation : record.getValue()) {
                     mutations.add(mutation);
@@ -656,7 +646,7 @@ public class HBaseIO {
             }
 
             @FinishBundle
-            public void finishBundle(Context c) throws Exception {
+            public void finishBundle() throws Exception {
                 mutator.flush();
             }
 
@@ -688,6 +678,6 @@ public class HBaseIO {
         }
     }
 
-    public static final Coder<KV<ByteString, Iterable<Mutation>>> WRITE_CODER =
-            KvCoder.of(ByteStringCoder.of(), IterableCoder.of(HBaseMutationCoder.of()));
+    public static final Coder<KV<byte[], Iterable<Mutation>>> WRITE_CODER =
+            KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(HBaseMutationCoder.of()));
 }

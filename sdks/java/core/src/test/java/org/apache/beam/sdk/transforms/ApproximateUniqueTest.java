@@ -49,7 +49,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Suite;
 
 /**
- * Tests for the ApproximateUnique aggregator transform.
+ * Tests for the ApproximateUnique transform.
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({

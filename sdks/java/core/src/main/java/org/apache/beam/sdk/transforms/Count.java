@@ -23,11 +23,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.util.Iterator;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,6 +58,9 @@ public class Count {
   /**
    * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
+   *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code Combine.globally(Count.<T>combineFn()).withoutDefaults()} instead.
    */
   public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
     return Combine.globally(new CountFn<T>());
@@ -71,24 +75,17 @@ public class Count {
   }
 
   /**
-   * Returns a {@link PerElement Count.PerElement} {@link PTransform} that counts the number of
-   * occurrences of each element in its input {@link PCollection}.
+   * Returns a {@link PTransform} that counts the number of occurrences of each element
+   * in its input {@link PCollection}.
    *
-   * <p>See {@link PerElement Count.PerElement} for more details.
-   */
-  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
-    return new PerElement<>();
-  }
-
-  /**
-   * {@code Count.PerElement<T>} takes a {@code PCollection<T>} and returns a
+   * <p>The returned {@code PTransform} takes a {@code PCollection<T>} and returns a
    * {@code PCollection<KV<T, Long>>} representing a map from each distinct element of the input
    * {@code PCollection} to the number of times that element occurs in the input. Each key in the
    * output {@code PCollection} is unique.
    *
-   * <p>This transform compares two values of type {@code T} by first encoding each element using
-   * the input {@code PCollection}'s {@code Coder}, then comparing the encoded bytes. Because of
-   * this, the input coder must be deterministic.
+   * <p>The returned transform compares two values of type {@code T} by first encoding each
+   * element using the input {@code PCollection}'s {@code Coder}, then comparing the encoded
+   * bytes. Because of this, the input coder must be deterministic.
    * (See {@link org.apache.beam.sdk.coders.Coder#verifyDeterministic()} for more detail).
    * Performing the comparison in this manner admits efficient parallel evaluation.
    *
@@ -101,6 +98,13 @@ public class Count {
    * PCollection<KV<String, Long>> wordCounts =
    *     words.apply(Count.<String>perElement());
    * } </pre>
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
+    return new PerElement<>();
+  }
+
+  /**
+   * Private implementation of {@link #perElement()}.
    *
    * @param <T> the type of the elements of the input {@code PCollection}, and the type of the keys
    * of the output {@code PCollection}
@@ -163,15 +167,15 @@ public class Count {
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry,
                                              Coder<T> inputCoder) {
-      return new CustomCoder<long[]>() {
+      return new AtomicCoder<long[]>() {
         @Override
-        public void encode(long[] value, OutputStream outStream, Context context)
+        public void encode(long[] value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value[0], outStream);
         }
 
         @Override
-        public long[] decode(InputStream inStream, Context context)
+        public long[] decode(InputStream inStream)
             throws IOException, CoderException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
@@ -181,18 +185,13 @@ public class Count {
         }
 
         @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        public boolean isRegisterByteSizeObserverCheap(long[] value) {
           return true;
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
-        }
-
-        @Override
-        public String getEncodingId() {
-          return "VarLongSingletonArray";
         }
       };
     }

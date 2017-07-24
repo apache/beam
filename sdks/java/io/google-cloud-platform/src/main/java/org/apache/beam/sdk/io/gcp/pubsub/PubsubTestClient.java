@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
@@ -137,7 +136,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
       }
@@ -183,7 +182,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
       }
@@ -227,7 +226,7 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient() {
           @Override

@@ -39,21 +39,20 @@ import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
@@ -113,11 +112,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final StructuralKey<?> structuralKey;
     private final Collection<UncommittedBundle<?>> outputBundles;
     private final ImmutableList.Builder<WindowedValue<KeyedWorkItem<K, V>>> unprocessedElements;
-    private final AggregatorContainer.Mutator aggregatorChanges;
 
     private final SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
-    private final Aggregator<Long, Long> droppedDueToClosedWindow;
-    private final Aggregator<Long, Long> droppedDueToLateness;
+    private final Counter droppedDueToClosedWindow;
+    private final Counter droppedDueToLateness;
 
     public GroupAlsoByWindowEvaluator(
         final EvaluationContext evaluationContext,
@@ -140,17 +138,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
       outputBundles = new ArrayList<>();
       unprocessedElements = ImmutableList.builder();
-      aggregatorChanges = evaluationContext.getAggregatorMutator();
 
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
-      droppedDueToClosedWindow = aggregatorChanges.createSystemAggregator(stepContext,
-          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-          Sum.ofLongs());
-      droppedDueToLateness = aggregatorChanges.createSystemAggregator(stepContext,
-          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER,
-          Sum.ofLongs());
+      droppedDueToClosedWindow = Metrics.counter(GroupAlsoByWindowEvaluator.class,
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+      droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
 
     @Override
@@ -164,21 +159,21 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               (PCollection<KV<K, Iterable<V>>>)
                   Iterables.getOnlyElement(application.getOutputs().values()));
       outputBundles.add(bundle);
-      CopyOnAccessInMemoryStateInternals<K> stateInternals =
-          (CopyOnAccessInMemoryStateInternals<K>) stepContext.stateInternals();
+      CopyOnAccessInMemoryStateInternals stateInternals =
+          (CopyOnAccessInMemoryStateInternals) stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
+      RunnerApi.Trigger runnerApiTrigger =
+          Triggers.toProto(windowingStrategy.getTrigger());
       ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
           new ReduceFnRunner<>(
               key,
               windowingStrategy,
               ExecutableTriggerStateMachine.create(
-                  TriggerStateMachines.stateMachineForTrigger(
-                      Triggers.toProto(windowingStrategy.getTrigger()))),
+                  TriggerStateMachines.stateMachineForTrigger(runnerApiTrigger)),
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
               new UnsupportedSideInputReader("GroupAlsoByWindow"),
-              droppedDueToClosedWindow,
               reduceFn,
               evaluationContext.getPipelineOptions());
 
@@ -192,13 +187,12 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult<KeyedWorkItem<K, V>> finishBundle() throws Exception {
       // State is initialized within the constructor. It can never be null.
-      CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
+      CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
       return StepTransformResult.<KeyedWorkItem<K, V>>withHold(
               application, state.getEarliestWatermarkHold())
           .withState(state)
           .addOutput(outputBundles)
           .withTimerUpdate(stepContext.getTimerUpdate())
-          .withAggregatorChanges(aggregatorChanges)
           .addUnprocessedElements(unprocessedElements.build())
           .build();
     }
@@ -230,7 +224,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                           .isBefore(timerInternals.currentInputWatermarkTime());
                   if (expired) {
                     // The element is too late for this window.
-                    droppedDueToLateness.addValue(1L);
+                    droppedDueToLateness.inc();
                     WindowTracing.debug(
                         "GroupAlsoByWindow: Dropping element at {} for key: {}; "
                             + "window: {} since it is too far behind inputWatermark: {}",

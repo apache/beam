@@ -44,6 +44,9 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.windowed_value import WindowedValue
+
+__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -559,7 +562,9 @@ class RangeTracker(object):
 
 
 class Sink(HasDisplayData):
-  """A resource that can be written to using the ``beam.io.Write`` transform.
+  """This class is deprecated, no backwards-compatibility guarantees.
+
+  A resource that can be written to using the ``beam.io.Write`` transform.
 
   Here ``beam`` stands for Apache Beam Python code imported in following manner.
   ``import apache_beam as beam``.
@@ -591,8 +596,8 @@ class Sink(HasDisplayData):
   single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
-  See also ``apache_beam.io.fileio.FileSink`` which provides a simpler API
-  for writing sinks that produce files.
+  See also ``apache_beam.io.filebasedsink.FileBasedSink`` which provides a
+  simpler API for writing sinks that produce files.
 
   **Execution of the Write transform**
 
@@ -756,7 +761,9 @@ class Sink(HasDisplayData):
 
 
 class Writer(object):
-  """Writes a bundle of elements from a ``PCollection`` to a sink.
+  """This class is deprecated, no backwards-compatibility guarantees.
+
+  Writes a bundle of elements from a ``PCollection`` to a sink.
 
   A Writer  ``iobase.Writer.write()`` writes and elements to the sink while
   ``iobase.Writer.close()`` is called after all elements in the bundle have been
@@ -805,7 +812,8 @@ class Read(ptransform.PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    return self.source.coder
+    else:
+      return self.source.coder
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
@@ -903,7 +911,7 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
-    return do_once | 'finalize_write' >> core.FlatMap(
+    return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
@@ -930,7 +938,8 @@ class _WriteBundleDoFn(core.DoFn):
 
   def finish_bundle(self):
     if self.writer is not None:
-      yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
+      yield WindowedValue(self.writer.close(), window.MAX_TIMESTAMP,
+                          [window.GlobalWindow()])
 
 
 class _WriteKeyedBundleDoFn(core.DoFn):
@@ -976,8 +985,3 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, element
-
-
-# For backwards compatibility.
-# pylint: disable=wrong-import-position
-from apache_beam.runners.dataflow.native_io.iobase import *

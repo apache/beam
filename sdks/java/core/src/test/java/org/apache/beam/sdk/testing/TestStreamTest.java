@@ -313,28 +313,4 @@ public class TestStreamTest implements Serializable {
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
-
-  @Test
-  public void testEncodeDecode() throws Exception {
-    TestStream.Event<Integer> elems =
-        TestStream.ElementEvent.add(
-            TimestampedValue.of(1, new Instant()),
-            TimestampedValue.of(-10, new Instant()),
-            TimestampedValue.of(Integer.MAX_VALUE, new Instant()));
-    TestStream.Event<Integer> wm = TestStream.WatermarkEvent.advanceTo(new Instant(100));
-    TestStream.Event<Integer> procTime =
-        TestStream.ProcessingTimeEvent.advanceBy(Duration.millis(90548));
-
-    TestStream.EventCoder<Integer> coder = TestStream.EventCoder.of(VarIntCoder.of());
-
-    CoderProperties.coderSerializable(coder);
-    CoderProperties.coderDecodeEncodeEqual(coder, elems);
-    CoderProperties.coderDecodeEncodeEqual(coder, wm);
-    CoderProperties.coderDecodeEncodeEqual(coder, procTime);
-  }
-
-  @Test
-  public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(TestStream.EventCoder.of(GlobalWindow.Coder.INSTANCE));
-  }
 }

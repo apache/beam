@@ -88,7 +88,7 @@ def run(argv=None):
 
   p = beam.Pipeline(argv=pipeline_args)
 
-  input_data = p | beam.Read(beam.io.BigQuerySource(known_args.input))
+  input_data = p | beam.io.Read(beam.io.BigQuerySource(known_args.input))
 
   # pylint: disable=expression-not-assigned
   (filter_cold_days(input_data, known_args.month_filter)

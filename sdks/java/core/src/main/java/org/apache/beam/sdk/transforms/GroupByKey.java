@@ -25,12 +25,13 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>},
@@ -97,7 +98,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
- * {@link Window#withOutputTimeFn windowing operation}.
+ * {@link Window#withTimestampCombiner(TimestampCombiner)} windowing operation}.
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
@@ -183,21 +184,6 @@ public class GroupByKey<K, V>
     }
   }
 
-  @Override
-  public void validate(PCollection<KV<K, V>> input) {
-    applicableTo(input);
-
-    // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
-    // the key coder is deterministic.
-    Coder<K> keyCoder = getKeyCoder(input.getCoder());
-    try {
-      keyCoder.verifyDeterministic();
-    } catch (NonDeterministicException e) {
-      throw new IllegalStateException(
-          "the keyCoder of a GroupByKey must be deterministic", e);
-    }
-  }
-
   public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
     WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
     if (!inputWindowFn.isNonMerging()) {
@@ -215,6 +201,18 @@ public class GroupByKey<K, V>
 
   @Override
   public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    applicableTo(input);
+
+    // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
+    // the key coder is deterministic.
+    Coder<K> keyCoder = getKeyCoder(input.getCoder());
+    try {
+      keyCoder.verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new IllegalStateException(
+          "the keyCoder of a GroupByKey must be deterministic", e);
+    }
+
     // This primitive operation groups by the combination of key and window,
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the

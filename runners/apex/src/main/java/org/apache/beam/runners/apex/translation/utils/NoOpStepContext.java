@@ -60,7 +60,7 @@ public class NoOpStepContext implements ExecutionContext.StepContext, Serializab
   }
 
   @Override
-  public StateInternals<?> stateInternals() {
+  public StateInternals stateInternals() {
     return null;
   }
 

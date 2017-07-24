@@ -22,11 +22,13 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.joda.time.Instant;
 
 /**
- * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
- * See {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
+ * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}. See
+ * {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
+ *
+ * <p>This is a distinguished class to make it easy for runners to optimize for this common case.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class DefaultTrigger extends Trigger{
+public class DefaultTrigger extends Trigger {
 
   private DefaultTrigger() {
     super();
@@ -51,7 +53,7 @@ public class DefaultTrigger extends Trigger{
   }
 
   @Override
-  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }
 }

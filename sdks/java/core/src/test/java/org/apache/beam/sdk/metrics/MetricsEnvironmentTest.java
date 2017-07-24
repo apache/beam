@@ -18,15 +18,16 @@
 
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricUpdate;
-import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /**
  * Tests for {@link MetricsEnvironment}.
@@ -41,8 +42,13 @@ public class MetricsEnvironmentTest {
   @Test
   public void testUsesAppropriateMetricsContainer() {
     Counter counter = Metrics.counter("ns", "name");
-    MetricsContainer c1 = new MetricsContainer("step1");
-    MetricsContainer c2 = new MetricsContainer("step2");
+
+    MetricsContainer c1 = Mockito.mock(MetricsContainer.class);
+    MetricsContainer c2 = Mockito.mock(MetricsContainer.class);
+    Counter counter1 = Mockito.mock(Counter.class);
+    Counter counter2 = Mockito.mock(Counter.class);
+    when(c1.getCounter(MetricName.named("ns", "name"))).thenReturn(counter1);
+    when(c2.getCounter(MetricName.named("ns", "name"))).thenReturn(counter2);
 
     MetricsEnvironment.setCurrentContainer(c1);
     counter.inc();
@@ -50,10 +56,9 @@ public class MetricsEnvironmentTest {
     counter.dec();
     MetricsEnvironment.setCurrentContainer(null);
 
-    MetricUpdates updates1 = c1.getUpdates();
-    MetricUpdates updates2 = c2.getUpdates();
-    assertThat(updates1.counterUpdates(), contains(metricUpdate("ns", "name", "step1", 1L)));
-    assertThat(updates2.counterUpdates(), contains(metricUpdate("ns", "name", "step2", -1L)));
+    verify(counter1).inc(1L);
+    verify(counter2).inc(-1L);
+    verifyNoMoreInteractions(counter1, counter2);
   }
 
   @Test

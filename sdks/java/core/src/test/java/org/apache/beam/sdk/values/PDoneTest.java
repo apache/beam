@@ -71,7 +71,7 @@ public class PDoneTest {
       return
           begin
           .apply(Create.of(LINES))
-          .apply(TextIO.Write.to(filename));
+          .apply(TextIO.write().to(filename));
     }
   }
 

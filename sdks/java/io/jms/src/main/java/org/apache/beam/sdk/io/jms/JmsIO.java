@@ -295,7 +295,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
@@ -340,7 +340,7 @@ public class JmsIO {
     }
 
     @Override
-    public List<UnboundedJmsSource> generateInitialSplits(
+    public List<UnboundedJmsSource> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
       if (spec.getTopic() != null) {
@@ -654,7 +654,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PCollection<String> input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "
@@ -673,8 +673,8 @@ public class JmsIO {
         this.spec = spec;
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
+      @Setup
+      public void setup() throws Exception {
         if (producer == null) {
           if (spec.getUsername() != null) {
             this.connection =
@@ -699,17 +699,12 @@ public class JmsIO {
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
-        try {
-          TextMessage message = session.createTextMessage(value);
-          producer.send(message);
-        } catch (Exception t) {
-          finishBundle(null);
-          throw t;
-        }
+        TextMessage message = session.createTextMessage(value);
+        producer.send(message);
       }
 
-      @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      @Teardown
+      public void teardown() throws Exception {
         producer.close();
         producer = null;
         session.close();

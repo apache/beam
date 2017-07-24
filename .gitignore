@@ -22,6 +22,9 @@ env/
 sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
+sdks/python/LICENSE
+sdks/python/NOTICE
+sdks/python/README.md
 
 # Ignore IntelliJ files.
 .idea/

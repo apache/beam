@@ -22,15 +22,15 @@ import com.google.common.collect.Table;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.StateTag.StateBinder;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateContext;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateContext;
 
 /**
  * Table mapping {@code StateNamespace} and {@code StateTag<?>} to a {@code State} instance.
  */
-public abstract class StateTable<K> {
+public abstract class StateTable {
 
-  private final Table<StateNamespace, StateTag<? super K, ?>, State> stateTable =
+  private final Table<StateNamespace, StateTag<?>, State> stateTable =
       HashBasedTable.create();
 
   /**
@@ -39,7 +39,7 @@ public abstract class StateTable<K> {
    * already present in this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
-      StateNamespace namespace, StateTag<? super K, StateT> tag, StateContext<?> c) {
+      StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
     State storage = stateTable.get(namespace, tag);
     if (storage != null) {
       @SuppressWarnings("unchecked")
@@ -68,7 +68,7 @@ public abstract class StateTable<K> {
     return stateTable.containsRow(namespace);
   }
 
-  public Map<StateTag<? super K, ?>, State> getTagsInUse(StateNamespace namespace) {
+  public Map<StateTag<?>, State> getTagsInUse(StateNamespace namespace) {
     return stateTable.row(namespace);
   }
 
@@ -80,5 +80,5 @@ public abstract class StateTable<K> {
    * Provide the {@code StateBinder} to use for creating {@code Storage} instances
    * in the specified {@code namespace}.
    */
-  protected abstract StateBinder<K> binderForNamespace(StateNamespace namespace, StateContext<?> c);
+  protected abstract StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c);
 }

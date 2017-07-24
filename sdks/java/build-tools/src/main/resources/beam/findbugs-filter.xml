@@ -74,6 +74,16 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
+    <Field name="typeDescriptor"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--
+    the field is used only in getEncodedTypeDescriptor, where it is restored if it is not present due to
+    serialization
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.io.jms.JmsRecord"/>
     <Field name="jmsDestination"/>
     <Bug pattern="SE_BAD_FIELD"/>
@@ -117,13 +127,6 @@
     <Field name="value" />
     <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
     <!-- Cached value is lazily restored on read. -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
-    <Method name="reset" />
-    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
-    <!-- Explicitly handled in implementation. -->
   </Match>
 
   <Match>
@@ -210,7 +213,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Class name="org.apache.beam.sdk.extensions.gcp.storage.GcsResourceId"/>
     <Method name="getCurrentDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     <!--
@@ -368,7 +371,7 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
@@ -380,10 +383,16 @@
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningStateSpec"/>
+    <Class name="StateSpecs$CombiningStateSpec"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ClassPath$ClassInfo"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    <!--[BEAM-1676] Class doesn't override equals in superclass-->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>

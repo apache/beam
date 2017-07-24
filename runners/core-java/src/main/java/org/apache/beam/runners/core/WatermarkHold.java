@@ -22,15 +22,14 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -55,37 +54,38 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * used for elements.
    */
   public static <W extends BoundedWindow>
-      StateTag<Object, WatermarkHoldState<W>> watermarkHoldTagForOutputTimeFn(
-          OutputTimeFn<? super W> outputTimeFn) {
-    return StateTags.<Object, WatermarkHoldState<W>>makeSystemTagInternal(
-        StateTags.<W>watermarkStateInternal("hold", outputTimeFn));
+      StateTag<WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
+          TimestampCombiner timestampCombiner) {
+    return StateTags.<WatermarkHoldState>makeSystemTagInternal(
+        StateTags.<W>watermarkStateInternal("hold", timestampCombiner));
   }
 
   /**
    * Tag for state containing end-of-window and garbage collection output watermark holds.
-   * (We can't piggy-back on the data hold state since the outputTimeFn may be
-   * {@link OutputTimeFns#outputAtLatestInputTimestamp()}, in which case every pane will
+   * (We can't piggy-back on the data hold state since the timestampCombiner may be
+   * {@link TimestampCombiner#EARLIEST}, in which case every pane will
    * would take the end-of-window time as its element time.)
    */
   @VisibleForTesting
-  public static final StateTag<Object, WatermarkHoldState<BoundedWindow>> EXTRA_HOLD_TAG =
+  public static final StateTag<WatermarkHoldState> EXTRA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal(
-          "extra", OutputTimeFns.outputAtEarliestInputTimestamp()));
+          "extra", TimestampCombiner.EARLIEST));
 
   private final TimerInternals timerInternals;
   private final WindowingStrategy<?, W> windowingStrategy;
-  private final StateTag<Object, WatermarkHoldState<W>> elementHoldTag;
+  private final StateTag<WatermarkHoldState> elementHoldTag;
 
   public WatermarkHold(TimerInternals timerInternals, WindowingStrategy<?, W> windowingStrategy) {
     this.timerInternals = timerInternals;
     this.windowingStrategy = windowingStrategy;
-    this.elementHoldTag = watermarkHoldTagForOutputTimeFn(windowingStrategy.getOutputTimeFn());
+    this.elementHoldTag =
+        watermarkHoldTagForTimestampCombiner(windowingStrategy.getTimestampCombiner());
   }
 
   /**
    * Add a hold to prevent the output watermark progressing beyond the (possibly adjusted) timestamp
-   * of the element in {@code context}. We allow the actual hold time to be shifted later by
-   * {@link OutputTimeFn#assignOutputTime}, but no further than the end of the window. The hold will
+   * of the element in {@code context}. We allow the actual hold time to be shifted later by the
+   * {@link TimestampCombiner}, but no further than the end of the window. The hold will
    * remain until cleared by {@link #extractAndRelease}. Return the timestamp at which the hold
    * was placed, or {@literal null} if no hold was placed.
    *
@@ -199,15 +199,18 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * strategy's output time function.
    */
   private Instant shift(Instant timestamp, W window) {
-    Instant shifted = windowingStrategy.getOutputTimeFn().assignOutputTime(timestamp, window);
+    Instant shifted =
+        windowingStrategy
+            .getTimestampCombiner()
+            .assign(window, windowingStrategy.getWindowFn().getOutputTime(timestamp, window));
     checkState(!shifted.isBefore(timestamp),
-        "OutputTimeFn moved element from %s to earlier time %s for window %s",
+        "TimestampCombiner moved element from %s to earlier time %s for window %s",
         BoundedWindow.formatTimestamp(timestamp),
         BoundedWindow.formatTimestamp(shifted),
         window);
     checkState(timestamp.isAfter(window.maxTimestamp())
             || !shifted.isAfter(window.maxTimestamp()),
-        "OutputTimeFn moved element from %s to %s which is beyond end of "
+        "TimestampCombiner moved element from %s to %s which is beyond end of "
             + "window %s",
         timestamp, shifted, window);
 
@@ -217,7 +220,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Attempt to add an 'element hold'. Return the {@link Instant} at which the hold was
    * added (ie the element timestamp plus any forward shift requested by the
-   * {@link WindowingStrategy#getOutputTimeFn}), or {@literal null} if no hold was added.
+   * {@link WindowingStrategy#getTimestampCombiner}), or {@literal null} if no hold was added.
    * The hold is only added if both:
    * <ol>
    * <li>The backend will be able to respect it. In other words the output watermark cannot
@@ -362,8 +365,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       ReduceFn<?, ?, ?, W>.Context context, boolean paneIsEmpty) {
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Instant eow = context.window().maxTimestamp();
-    Instant gcHold = eow.plus(windowingStrategy.getAllowedLateness());
+    Instant gcHold = LateDataUtils.garbageCollectionTime(context.window(), windowingStrategy);
 
     if (!windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
       WindowTracing.trace(
@@ -384,6 +386,12 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       return null;
     }
 
+    if (!gcHold.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      // If the garbage collection hold is past the timestamp we can represent, instead truncate
+      // to the maximum timestamp that is not positive infinity. This ensures all windows will
+      // eventually be garbage collected.
+      gcHold = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L));
+    }
     checkState(!gcHold.isBefore(inputWM),
         "Garbage collection hold %s cannot be before input watermark %s",
         gcHold, inputWM);
@@ -450,7 +458,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * Return (a future for) the earliest hold for {@code context}. Clear all the holds after
    * reading, but add/restore an end-of-window or garbage collection hold if required.
    *
-   * <p>The returned timestamp is the output timestamp according to the {@link OutputTimeFn}
+   * <p>The returned timestamp is the output timestamp according to the {@link TimestampCombiner}
    * from the windowing strategy of this {@link WatermarkHold}, combined across all the non-late
    * elements in the current pane. If there is no such value the timestamp is the end
    * of the window.
@@ -462,8 +470,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
             + "outputWatermark:{}",
         context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    final WatermarkHoldState<W> elementHoldState = context.state().access(elementHoldTag);
-    final WatermarkHoldState<BoundedWindow> extraHoldState = context.state().access(EXTRA_HOLD_TAG);
+    final WatermarkHoldState elementHoldState = context.state().access(elementHoldTag);
+    final WatermarkHoldState extraHoldState = context.state().access(EXTRA_HOLD_TAG);
     return new ReadableState<OldAndNewHolds>() {
       @Override
       public ReadableState<OldAndNewHolds> readLater() {

@@ -42,6 +42,10 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
@@ -55,11 +59,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -69,7 +69,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  */
 public class DoFnSignatures {
 
-  private DoFnSignatures() {};
+  private DoFnSignatures() {}
 
   private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
@@ -346,14 +346,14 @@ public class DoFnSignatures {
     if (startBundleMethod != null) {
       ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
       signatureBuilder.setStartBundle(
-          analyzeBundleMethod(startBundleErrors, fnT, startBundleMethod, inputT, outputT));
+          analyzeStartBundleMethod(startBundleErrors, fnT, startBundleMethod, inputT, outputT));
     }
 
     if (finishBundleMethod != null) {
       ErrorReporter finishBundleErrors =
           errors.forMethod(DoFn.FinishBundle.class, finishBundleMethod);
       signatureBuilder.setFinishBundle(
-          analyzeBundleMethod(finishBundleErrors, fnT, finishBundleMethod, inputT, outputT));
+          analyzeFinishBundleMethod(finishBundleErrors, fnT, finishBundleMethod, inputT, outputT));
     }
 
     if (setupMethod != null) {
@@ -607,12 +607,25 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
-   * InputT} and {@code OutputT}.
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.StartBundleContext} given
+   * {@code InputT} and {@code OutputT}.
    */
-  private static <InputT, OutputT> TypeDescriptor<DoFn<InputT, OutputT>.Context> doFnContextTypeOf(
-      TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
-    return new TypeDescriptor<DoFn<InputT, OutputT>.Context>() {}.where(
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.StartBundleContext> doFnStartBundleContextTypeOf(
+          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.StartBundleContext>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.FinishBundleContext} given
+   * {@code InputT} and {@code OutputT}.
+   */
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.FinishBundleContext> doFnFinishBundleContextTypeOf(
+          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.FinishBundleContext>() {}.where(
             new TypeParameter<InputT>() {}, inputT)
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
@@ -752,7 +765,6 @@ public class DoFnSignatures {
       TypeDescriptor<?> outputT) {
 
     TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
-    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
 
     TypeDescriptor<?> paramT = param.getType();
@@ -765,11 +777,6 @@ public class DoFnSignatures {
         "ProcessContext argument must have type %s",
         formatType(expectedProcessContextT));
       return Parameter.processContext();
-    } else if (rawType.equals(DoFn.Context.class)) {
-      paramErrors.checkArgument(paramT.equals(expectedContextT),
-          "Context argument must have type %s",
-          formatType(expectedContextT));
-      return Parameter.context();
     } else if (rawType.equals(DoFn.OnTimerContext.class)) {
       paramErrors.checkArgument(
           paramT.equals(expectedOnTimerContextT),
@@ -921,17 +928,36 @@ public class DoFnSignatures {
   }
 
   @VisibleForTesting
-  static DoFnSignature.BundleMethod analyzeBundleMethod(
+  static DoFnSignature.BundleMethod analyzeStartBundleMethod(
       ErrorReporter errors,
       TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
-    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedContextT = doFnStartBundleContextTypeOf(inputT, outputT);
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(
-        params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT),
+        params.length == 0
+            || (params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT)),
+        "Must take a single argument of type %s",
+        formatType(expectedContextT));
+    return DoFnSignature.BundleMethod.create(m);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.BundleMethod analyzeFinishBundleMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    TypeDescriptor<?> expectedContextT = doFnFinishBundleContextTypeOf(inputT, outputT);
+    Type[] params = m.getGenericParameterTypes();
+    errors.checkArgument(
+        params.length == 0
+            || (params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT)),
         "Must take a single argument of type %s",
         formatType(expectedContextT));
     return DoFnSignature.BundleMethod.create(m);
@@ -1188,7 +1214,8 @@ public class DoFnSignatures {
       }
 
       Class<?> stateSpecRawType = field.getType();
-      if (!(stateSpecRawType.equals(StateSpec.class))) {
+      if (!(TypeDescriptor.of(stateSpecRawType)
+          .isSubtypeOf(TypeDescriptor.of(StateSpec.class)))) {
         errors.throwIllegalArgument(
                 "%s annotation on non-%s field [%s] that has class %s",
             DoFn.StateId.class.getSimpleName(),
@@ -1208,14 +1235,26 @@ public class DoFnSignatures {
 
       Type stateSpecType = field.getGenericType();
 
+      // A type descriptor for whatever type the @StateId-annotated class has, which
+      // must be some subtype of StateSpec
+      TypeDescriptor<? extends StateSpec<?>> stateSpecSubclassTypeDescriptor =
+          (TypeDescriptor) TypeDescriptor.of(stateSpecType);
+
+      // A type descriptor for StateSpec, with the generic type parameters filled
+      // in according to the specialization of the subclass (or just straight params)
+      TypeDescriptor<StateSpec<?>> stateSpecTypeDescriptor =
+          (TypeDescriptor)
+      stateSpecSubclassTypeDescriptor.getSupertype(StateSpec.class);
+
+      // The type of the state, which may still have free type variables from the
+      // context
+      Type unresolvedStateType =
+          ((ParameterizedType) stateSpecTypeDescriptor.getType()).getActualTypeArguments()[0];
+
       // By static typing this is already a well-formed State subclass
       TypeDescriptor<? extends State> stateType =
           (TypeDescriptor<? extends State>)
-              TypeDescriptor.of(fnClazz)
-                  .resolveType(
-                      TypeDescriptor.of(
-                              ((ParameterizedType) stateSpecType).getActualTypeArguments()[1])
-                          .getType());
+              TypeDescriptor.of(fnClazz).resolveType(unresolvedStateType);
 
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }

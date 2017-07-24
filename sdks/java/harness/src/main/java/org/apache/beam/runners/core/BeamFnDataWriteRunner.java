@@ -26,8 +26,9 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.runners.dataflow.util.CloudObject;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
  */
 public class BeamFnDataWriteRunner<InputT> {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final BeamFnApi.Target outputTarget;
   private final Coder<WindowedValue<InputT>> coder;
@@ -62,11 +64,18 @@ public class BeamFnDataWriteRunner<InputT> {
     this.outputTarget = outputTarget;
 
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder = Serializer.deserialize(
-        OBJECT_MAPPER.readValue(
-            coderSpec.getFunctionSpec().getData().unpack(BytesValue.class).getValue().newInput(),
-            Map.class),
-        Coder.class);
+    Coder<WindowedValue<InputT>> coder =
+        (Coder<WindowedValue<InputT>>)
+            CloudObjects.coderFromCloudObject(
+                CloudObject.fromSpec(
+                    OBJECT_MAPPER.readValue(
+                        coderSpec
+                            .getFunctionSpec()
+                            .getData()
+                            .unpack(BytesValue.class)
+                            .getValue()
+                            .newInput(),
+                        Map.class)));
     this.coder = coder;
   }
 

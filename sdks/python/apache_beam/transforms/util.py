@@ -20,14 +20,10 @@
 
 from __future__ import absolute_import
 
-from apache_beam import pvalue
-from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
-from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
-from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 
@@ -38,9 +34,6 @@ __all__ = [
     'KvSwap',
     'RemoveDuplicates',
     'Values',
-    'assert_that',
-    'equal_to',
-    'is_empty',
     ]
 
 
@@ -169,75 +162,3 @@ def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
           | 'ToPairs' >> Map(lambda v: (v, None))
           | 'Group' >> CombinePerKey(lambda vs: None)
           | 'RemoveDuplicates' >> Keys())
-
-
-class BeamAssertException(Exception):
-  """Exception raised by matcher classes used by assert_that transform."""
-
-  pass
-
-
-# Note that equal_to always sorts the expected and actual since what we
-# compare are PCollections for which there is no guaranteed order.
-# However the sorting does not go beyond top level therefore [1,2] and [2,1]
-# are considered equal and [[1,2]] and [[2,1]] are not.
-# TODO(silviuc): Add contains_in_any_order-style matchers.
-def equal_to(expected):
-  expected = list(expected)
-
-  def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
-  return _equal
-
-
-def is_empty():
-  def _empty(actual):
-    actual = list(actual)
-    if actual:
-      raise BeamAssertException(
-          'Failed assert: [] == %r' % actual)
-  return _empty
-
-
-def assert_that(actual, matcher, label='assert_that'):
-  """A PTransform that checks a PCollection has an expected value.
-
-  Note that assert_that should be used only for testing pipelines since the
-  check relies on materializing the entire PCollection being checked.
-
-  Args:
-    actual: A PCollection.
-    matcher: A matcher function taking as argument the actual value of a
-      materialized PCollection. The matcher validates this actual value against
-      expectations and raises BeamAssertException if they are not met.
-    label: Optional string label. This is needed in case several assert_that
-      transforms are introduced in the same pipeline.
-
-  Returns:
-    Ignored.
-  """
-  assert isinstance(actual, pvalue.PCollection)
-
-  class AssertThat(PTransform):
-
-    def expand(self, pcoll):
-      # We must have at least a single element to ensure the matcher
-      # code gets run even if the input pcollection is empty.
-      keyed_singleton = pcoll.pipeline | Create([(None, None)])
-      keyed_actual = (
-          pcoll
-          | WindowInto(window.GlobalWindows())
-          | "ToVoidKey" >> Map(lambda v: (None, v)))
-      _ = ((keyed_singleton, keyed_actual)
-           | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
-           | "Match" >> Map(matcher))
-
-    def default_label(self):
-      return label
-
-  actual | AssertThat()  # pylint: disable=expression-not-assigned

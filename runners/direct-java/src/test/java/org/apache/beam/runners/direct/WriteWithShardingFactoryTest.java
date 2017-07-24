@@ -32,31 +32,35 @@ import java.io.FileReader;
 import java.io.Reader;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.PCollectionViews;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -68,7 +72,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WriteWithShardingFactoryTest {
-  public static final int INPUT_SIZE = 10000;
+  private static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
   private WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -82,19 +86,22 @@ public class WriteWithShardingFactoryTest {
     Collections.shuffle(strs);
 
     String fileName = "resharded_write";
-    String outputPath = tmp.getRoot().getAbsolutePath();
-    String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
-    // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
-    // resharding should be automatically applied
-    p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
+    String targetLocation = tmp.getRoot().toPath().resolve(fileName).toString();
+    String targetLocationGlob = targetLocation + '*';
 
+    // TextIO is implemented in terms of the WriteFiles PTransform. When sharding is not specified,
+    // resharding should be automatically applied
+    p.apply(Create.of(strs)).apply(TextIO.write().to(targetLocation));
     p.run();
 
-    Collection<String> files = IOChannelUtils.getFactory(outputPath).match(targetLocation + "*");
+    List<Metadata> matches = FileSystems.match(targetLocationGlob).metadata();
     List<String> actuals = new ArrayList<>(strs.size());
-    for (String file : files) {
-      CharBuffer buf = CharBuffer.allocate((int) new File(file).length());
-      try (Reader reader = new FileReader(file)) {
+    List<String> files = new ArrayList<>(strs.size());
+    for (Metadata match : matches) {
+      String filename = match.resourceId().toString();
+      files.add(filename);
+      CharBuffer buf = CharBuffer.allocate((int) new File(filename).length());
+      try (Reader reader = new FileReader(filename)) {
         reader.read(buf);
         buf.flip();
       }
@@ -121,10 +128,20 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    Write<Object> original = Write.to(new TestSink());
+    ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
+    FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
+        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
+    WriteFiles<Object> original = WriteFiles.to(
+        new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
+          @Override
+          public WriteOperation<Object> createWriteOperation() {
+            throw new IllegalArgumentException("Should not be used");
+          }
+        });
+    @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
-    AppliedPTransform<PCollection<Object>, PDone, Write<Object>> originalApplication =
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
         AppliedPTransform.of(
             "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 
@@ -205,15 +222,5 @@ public class WriteWithShardingFactoryTest {
 
     List<Integer> shards = fnTester.processBundle((long) count);
     assertThat(shards, containsInAnyOrder(13));
-  }
-
-  private static class TestSink extends Sink<Object> {
-    @Override
-    public void validate(PipelineOptions options) {}
-
-    @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
-      throw new IllegalArgumentException("Should not be used");
-    }
   }
 }

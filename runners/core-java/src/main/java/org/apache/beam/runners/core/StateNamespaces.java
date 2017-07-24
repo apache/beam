@@ -142,7 +142,12 @@ public class StateNamespaces {
       }
 
       WindowNamespace<?> that = (WindowNamespace<?>) obj;
-      return Objects.equals(this.window, that.window);
+      return Objects.equals(
+          this.windowStructuralValue(), that.windowStructuralValue());
+    }
+
+    private Object windowStructuralValue() {
+      return windowCoder.structuralValue(window);
     }
 
     @Override
@@ -223,7 +228,11 @@ public class StateNamespaces {
 
       WindowAndTriggerNamespace<?> that = (WindowAndTriggerNamespace<?>) obj;
       return this.triggerIndex == that.triggerIndex
-          && Objects.equals(this.window, that.window);
+          && Objects.equals(this.windowStructuralValue(), that.windowStructuralValue());
+    }
+
+    private Object windowStructuralValue() {
+      return windowCoder.structuralValue(window);
     }
 
     @Override

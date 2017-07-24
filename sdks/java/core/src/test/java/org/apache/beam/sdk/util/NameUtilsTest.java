@@ -137,7 +137,7 @@ public class NameUtilsTest {
     assertEquals(
         "NameUtilsTest.SomeTransform",
         NameUtils.approximatePTransformName(AutoValue_NameUtilsTest_SomeTransform.class));
-    assertEquals("TextIO.Write", NameUtils.approximatePTransformName(TextIO.Write.Bound.class));
+    assertEquals("TextIO.Write", NameUtils.approximatePTransformName(TextIO.Write.class));
   }
 
   @AutoValue

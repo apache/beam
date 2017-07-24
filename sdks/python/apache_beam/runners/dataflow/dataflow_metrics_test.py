@@ -23,6 +23,8 @@ import unittest
 
 import mock
 
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
@@ -43,6 +45,68 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
+  ONLY_COUNTERS_LIST = {"metrics": [
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"},
+                    {"key": "tentative",
+                     "value": "true"}]
+                },
+                "name": "words",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 26185},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"}]
+                },
+                "name": "words",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 26181},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"},
+                    {"key": "tentative",
+                     "value": "true"}]
+                },
+                "name": "empty_lines",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 1080},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"}]
+                },
+                "name": "empty_lines",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 1080},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+  ]}
   STRUCTURED_COUNTER_LIST = {"metrics": [
       {"name": {"context":
                 {"additionalProperties": [
@@ -57,6 +121,7 @@ class TestDataflowMetrics(unittest.TestCase):
                 "origin": "user"
                },
        "scalar": {"integer_value": 109475},
+       "distribution": None,
        "updateTime": "2017-03-22T18:47:06.402Z"
       },
       {"name": {"context":
@@ -70,72 +135,71 @@ class TestDataflowMetrics(unittest.TestCase):
                 "origin": "user"
                },
        "scalar": {"integer_value": 109475},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"},
+                    {"key": "tentative",
+                     "value": "true"}]
+                },
+                "name": "word_length_dist",
+                "origin": "user"
+               },
+       "scalar": None,
+       "distribution": {
+           "object_value": {
+               "properties": [
+                   {"key": "min", "value":
+                    {"integer_value": 2}},
+                   {"key": "max", "value":
+                    {"integer_value": 16}},
+                   {"key": "count", "value":
+                    {"integer_value": 2}},
+                   {"key": "mean", "value":
+                    {"integer_value": 9}},
+                   {"key": "sum", "value":
+                    {"integer_value": 18}},]
+           }
+       },
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"}]
+                },
+                "name": "word_length_dist",
+                "origin": "user"
+               },
+       "scalar": None,
+       "distribution": {
+           "object_value": {
+               "properties": [
+                   {"key": "min", "value":
+                    {"integer_value": 2}},
+                   {"key": "max", "value":
+                    {"integer_value": 16}},
+                   {"key": "count", "value":
+                    {"integer_value": 2}},
+                   {"key": "mean", "value":
+                    {"integer_value": 9}},
+                   {"key": "sum", "value":
+                    {"integer_value": 18}},
+               ]
+           }
+       },
        "updateTime": "2017-03-22T18:47:06.402Z"
       },
   ]}
 
-  BASIC_COUNTER_LIST = {"metrics": [
-      {"name": {"context":
-                {"additionalProperties":[
-                    {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
-                              "empty_lines_TentativeAggregateValue"},
-                    {"key": "step", "value": "split"}]},
-                "name": "split/__main__.WordExtractingDoFn/empty_lines",
-                "origin": "user"},
-       "scalar": {"integer_value": 1080},
-       "updateTime": "2017-02-23T01:13:36.659Z"},
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
-                              "empty_lines_TentativeAggregateValue"},
-                    {"key": "step", "value": "split"},
-                    {"key": "tentative", "value": "true"}]},
-                "name": "split/__main__.WordExtractingDoFn/empty_lines",
-                "origin": "user"},
-       "scalar": {"integer_value": 1080},
-       "updateTime": "2017-02-23T01:13:36.659Z"},
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
-                              "words_TentativeAggregateValue"},
-                    {"key": "step", "value": "split"}]},
-                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
-                "origin": "user"},
-       "scalar": {"integer_value": 26181},
-       "updateTime": "2017-02-23T01:13:36.659Z"},
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value": "user-split-longstepname/split/"
-                              "__main__.WordExtractingDoFn/"
-                              "words_TentativeAggregateValue"},
-                    {"key": "step", "value": "split"},
-                    {"key": "tentative", "value": "true"}]},
-                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
-                "origin": "user"},
-       "scalar": {"integer_value": 26185},
-       "updateTime": "2017-02-23T01:13:36.659Z"},
-      {"name": {"context":
-                {"additionalProperties": [
-                    {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
-                              "secretdistribution(DIST)"},
-                    {"key": "step", "value": "split"},
-                    {"key": "tentative", "value": "true"}]},
-                "name":
-                "split/__main__.WordExtractingDoFn/secretdistribution(DIST)",
-                "origin": "user"},
-       "scalar": {"integer_value": 15},
-       "updateTime": "2017-02-23T01:13:36.659Z"}
-  ]}
-
   def setup_mock_client_result(self, counter_list=None):
-    if counter_list is None:
-      counter_list = self.BASIC_COUNTER_LIST
-
     mock_client = mock.Mock()
     mock_query_result = DictToObject(counter_list)
     mock_client.get_job_metrics.return_value = mock_query_result
@@ -145,7 +209,8 @@ class TestDataflowMetrics(unittest.TestCase):
     return mock_client, mock_job_result
 
   def test_cache_functions(self):
-    mock_client, mock_job_result = self.setup_mock_client_result()
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.STRUCTURED_COUNTER_LIST)
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
 
     # At first creation, we should always query dataflow.
@@ -160,7 +225,7 @@ class TestDataflowMetrics(unittest.TestCase):
     dm.query()
     self.assertTrue(dm._cached_metrics)
 
-  def test_query_structured_counters(self):
+  def test_query_structured_metrics(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
         self.STRUCTURED_COUNTER_LIST)
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
@@ -175,9 +240,23 @@ class TestDataflowMetrics(unittest.TestCase):
         ]
     self.assertEqual(query_result['counters'], expected_counters)
 
+    expected_distributions = [
+        MetricResult(
+            MetricKey('split',
+                      MetricName('__main__.WordExtractingDoFn',
+                                 'word_length_dist')),
+            DistributionResult(DistributionData(
+                18, 2, 2, 16)),
+            DistributionResult(DistributionData(
+                18, 2, 2, 16))),
+        ]
+    self.assertEqual(query_result['distributions'], expected_distributions)
+
   def test_query_counters(self):
-    mock_client, mock_job_result = self.setup_mock_client_result()
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.ONLY_COUNTERS_LIST)
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+    dm._translate_step_name = types.MethodType(lambda self, x: 'split', dm)
     query_result = dm.query()
     expected_counters = [
         MetricResult(
@@ -185,7 +264,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
             1080, 1080),
         MetricResult(
-            MetricKey('longstepname/split',
+            MetricKey('split',
                       MetricName('__main__.WordExtractingDoFn', 'words')),
             26181, 26185),
         ]
@@ -193,6 +272,7 @@ class TestDataflowMetrics(unittest.TestCase):
                             key=lambda x: x.key.metric.name),
                      sorted(expected_counters,
                             key=lambda x: x.key.metric.name))
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -23,7 +23,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CloudObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,17 +31,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GlobalWindowTest {
   @Test
-  public void testCoderCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = GlobalWindow.Coder.INSTANCE.asCloudObject();
-    assertEquals("kind:global_window", cloudObject.getClassName());
-  }
-
-  @Test
   public void testCoderBinaryRepresentation() throws Exception {
     CountingOutputStream out = new CountingOutputStream(ByteStreams.nullOutputStream());
     GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.OUTER);
     assertEquals(0, out.getCount());
-    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.NESTED);
+    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out);
     assertEquals(0, out.getCount());
   }
 

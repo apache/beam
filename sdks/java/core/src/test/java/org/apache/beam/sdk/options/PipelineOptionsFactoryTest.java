@@ -29,19 +29,31 @@ import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -691,9 +703,9 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testPropertyIsSetOnRegisteredPipelineOptionNotPartOfOriginalInterface() {
     PipelineOptions options = PipelineOptionsFactory
-        .fromArgs("--project=testProject")
+        .fromArgs("--streaming")
         .create();
-    assertEquals("testProject", options.as(GcpOptions.class).getProject());
+    assertTrue(options.as(StreamingOptions.class).isStreaming());
   }
 
   /** A test interface containing all the primitives. */
@@ -1641,7 +1653,6 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
-
   /**
    * A {@link PipelineRunnerRegistrar} to demonstrate default {@link PipelineRunner} registration.
    */
@@ -1658,7 +1669,6 @@ public class PipelineOptionsFactoryTest {
     void setRegisteredExampleFooBar(Object registeredExampleFooBar);
   }
 
-
   /**
    * A {@link PipelineOptionsRegistrar} to demonstrate default {@link PipelineOptions} registration.
    */
@@ -1667,6 +1677,63 @@ public class PipelineOptionsFactoryTest {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.<Class<? extends PipelineOptions>>of(RegisteredTestOptions.class);
+    }
+  }
+
+  @Test
+  public void testRegistrationOfJacksonModulesForObjectMapper() throws Exception {
+    JacksonIncompatibleOptions options = PipelineOptionsFactory
+        .fromArgs("--jacksonIncompatible=\"testValue\"")
+        .as(JacksonIncompatibleOptions.class);
+    assertEquals("testValue", options.getJacksonIncompatible().value);
+  }
+
+  /** PipelineOptions used to test auto registration of Jackson modules. */
+  interface JacksonIncompatibleOptions extends PipelineOptions {
+    JacksonIncompatible getJacksonIncompatible();
+    void setJacksonIncompatible(JacksonIncompatible value);
+  }
+
+  /** A Jackson {@link Module} to test auto-registration of modules. */
+  @AutoService(Module.class)
+  public static class RegisteredTestModule extends SimpleModule {
+    public RegisteredTestModule() {
+      super("RegisteredTestModule");
+      setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
+    }
+  }
+
+  /** A class which Jackson does not know how to serialize/deserialize. */
+  public static class JacksonIncompatible {
+    private final String value;
+    public JacksonIncompatible(String value) {
+      this.value = value;
+    }
+  }
+
+  /** A Jackson mixin used to add annotations to other classes. */
+  @JsonDeserialize(using = JacksonIncompatibleDeserializer.class)
+  @JsonSerialize(using = JacksonIncompatibleSerializer.class)
+  public static final class JacksonIncompatibleMixin {}
+
+  /** A Jackson deserializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleDeserializer extends
+      JsonDeserializer<JacksonIncompatible> {
+
+    @Override
+    public JacksonIncompatible deserialize(JsonParser jsonParser,
+        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+      return new JacksonIncompatible(jsonParser.readValueAs(String.class));
+    }
+  }
+
+  /** A Jackson serializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleSerializer extends JsonSerializer<JacksonIncompatible> {
+
+    @Override
+    public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+      jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }
 }

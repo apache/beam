@@ -17,18 +17,20 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 
 /** A {@link Coder} for {@link ElementAndRestriction}. */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class ElementAndRestrictionCoder<ElementT, RestrictionT>
-    extends CustomCoder<ElementAndRestriction<ElementT, RestrictionT>> {
+    extends StructuredCoder<ElementAndRestriction<ElementT, RestrictionT>> {
   private final Coder<ElementT> elementCoder;
   private final Coder<RestrictionT> restrictionCoder;
 
@@ -48,21 +50,32 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
 
   @Override
   public void encode(
-      ElementAndRestriction<ElementT, RestrictionT> value, OutputStream outStream, Context context)
+      ElementAndRestriction<ElementT, RestrictionT> value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null ElementAndRestriction");
     }
-    elementCoder.encode(value.element(), outStream, context.nested());
-    restrictionCoder.encode(value.restriction(), outStream, context);
+    elementCoder.encode(value.element(), outStream);
+    restrictionCoder.encode(value.restriction(), outStream);
   }
 
   @Override
-  public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
+  public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream)
       throws IOException {
-    ElementT key = elementCoder.decode(inStream, context.nested());
-    RestrictionT value = restrictionCoder.decode(inStream, context);
+    ElementT key = elementCoder.decode(inStream);
+    RestrictionT value = restrictionCoder.decode(inStream);
     return ElementAndRestriction.of(key, value);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return ImmutableList.of(elementCoder, restrictionCoder);
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    elementCoder.verifyDeterministic();
+    restrictionCoder.verifyDeterministic();
   }
 
   public Coder<ElementT> getElementCoder() {

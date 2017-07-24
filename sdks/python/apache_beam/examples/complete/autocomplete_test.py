@@ -21,9 +21,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
-from apache_beam.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class AutocompleteTest(unittest.TestCase):
@@ -47,6 +47,7 @@ class AutocompleteTest(unittest.TestCase):
             ('that', ((1, 'that'), )),
         ]))
     p.run()
+
 
 if __name__ == '__main__':
   unittest.main()

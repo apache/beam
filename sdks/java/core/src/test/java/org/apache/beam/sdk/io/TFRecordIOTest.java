@@ -30,7 +30,6 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteStreams;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -43,7 +42,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -93,7 +91,7 @@ public class TFRecordIOTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> LARGE = makeLines(5000);
+  private static final Iterable<String> LARGE = makeLines(1000);
 
   private static Path tempFolder;
 
@@ -136,15 +134,15 @@ public class TFRecordIOTest {
 
     assertEquals(
         "TFRecordIO.Read/Read.out",
-        p.apply(TFRecordIO.Read.withoutValidation().from("foo.*")).getName());
+        p.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
     assertEquals(
         "MyRead/Read.out",
-        p.apply("MyRead", TFRecordIO.Read.withoutValidation().from("foo.*")).getName());
+        p.apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation()).getName());
   }
 
   @Test
   public void testReadDisplayData() {
-    TFRecordIO.Read.Bound read = TFRecordIO.Read
+    TFRecordIO.Read read = TFRecordIO.read()
         .from("foo.*")
         .withCompressionType(GZIP)
         .withoutValidation();
@@ -158,22 +156,20 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    TFRecordIO.Write.Bound write = TFRecordIO.Write
-        .to("foo")
+    TFRecordIO.Write write = TFRecordIO.write()
+        .to("/foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
-        .withCompressionType(GZIP)
-        .withoutValidation();
+        .withCompressionType(GZIP);
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("compressionType", GZIP.toString()));
-    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test
@@ -241,7 +237,7 @@ public class TFRecordIOTest {
     fos.write(data);
     fos.close();
 
-    TFRecordIO.Read.Bound read = TFRecordIO.Read.from(filename);
+    TFRecordIO.Read read = TFRecordIO.read().from(filename);
     PCollection<String> output = p.apply(read).apply(ParDo.of(new ByteArrayToString()));
 
     PAssert.that(output).containsInAnyOrder(expected);
@@ -255,7 +251,7 @@ public class TFRecordIOTest {
     PCollection<byte[]> input = p.apply(Create.of(Arrays.asList(elems)))
         .apply(ParDo.of(new StringToByteArray()));
 
-    TFRecordIO.Write.Bound write = TFRecordIO.Write.to(filename).withoutSharding();
+    TFRecordIO.Write write = TFRecordIO.write().to(filename).withoutSharding();
     input.apply(write);
 
     p.run();
@@ -329,7 +325,7 @@ public class TFRecordIOTest {
     Path baseDir = Files.createTempDirectory(tempFolder, "test-rt");
     String baseFilename = baseDir.resolve(outputName).toString();
 
-    TFRecordIO.Write.Bound write = TFRecordIO.Write.to(baseFilename)
+    TFRecordIO.Write write = TFRecordIO.write().to(baseFilename)
         .withNumShards(numShards)
         .withSuffix(suffix)
         .withCompressionType(writeCompressionType);
@@ -338,7 +334,7 @@ public class TFRecordIOTest {
         .apply(write);
     p.run();
 
-    TFRecordIO.Read.Bound read = TFRecordIO.Read.from(baseFilename + "*")
+    TFRecordIO.Read read = TFRecordIO.read().from(baseFilename + "*")
         .withCompressionType(readCompressionType);
     PCollection<String> output = p2.apply(read).apply(ParDo.of(new ByteArrayToString()));
 

@@ -19,9 +19,9 @@ package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateContext;
 
 /**
  * {@code StateInternals} describes the functionality a runner needs to provide for the
@@ -40,20 +40,20 @@ import org.apache.beam.sdk.util.state.StateContext;
  * used directly, and is highly likely to change.
  */
 @Experimental(Kind.STATE)
-public interface StateInternals<K> {
+public interface StateInternals {
 
   /** The key for this {@link StateInternals}. */
-  K getKey();
+  Object getKey();
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}.
    */
-  <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address);
+  <T extends State> T state(StateNamespace namespace, StateTag<T> address);
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}
    * with the {@link StateContext}.
    */
   <T extends State> T state(
-      StateNamespace namespace, StateTag<? super K, T> address, StateContext<?> c);
+      StateNamespace namespace, StateTag<T> address, StateContext<?> c);
 }
