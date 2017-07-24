@@ -103,13 +103,9 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
-      try {
-        return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
-            WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-            .setCoder(getDefaultOutputCoder());
-      } catch (CannotProvideCoderException e) {
-        throw new RuntimeException(e);
-      }
+
+      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
+          WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
     }
 
     /**
