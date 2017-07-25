@@ -1347,7 +1347,8 @@ bigquery_v2_messages.TableSchema` instance.
       ~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema:
       The schema to be used if the BigQuery table to write has to be created
-      but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\ bigquery_v2_messages.TableSchema` format.
+      but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` format.
     """
     table_schema = bigquery.TableSchema()
     schema_list = [s.strip() for s in schema.split(',')]
