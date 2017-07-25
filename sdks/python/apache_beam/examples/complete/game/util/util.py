@@ -71,6 +71,21 @@ class ParseGameEventFn(beam.DoFn):
       logging.error('Parse error on "%s"', elem)
 
 
+class ExtractAndSumScore(beam.PTransform):
+  """A transform to extract key/score information and sum the scores.
+  The constructor argument `field` determines whether 'team' or 'user' info is
+  extracted.
+  """
+  def __init__(self, field):
+    super(ExtractAndSumScore, self).__init__()
+    self.field = field
+
+  def expand(self, pcoll):
+    return (pcoll
+            | beam.Map(lambda elem: (elem[self.field], elem['score']))
+            | beam.CombinePerKey(sum))
+
+
 class TeamScoresDict(beam.DoFn):
   """Formats the data into a dictionary of BigQuery columns with their values
 
