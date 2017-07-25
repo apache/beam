@@ -436,9 +436,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       bundles = [bundle]
     else:
       bundles = []
-    if self._applied_ptransform.inputs:
-      input_pvalue = self._applied_ptransform.inputs[0]
-    else:
+    input_pvalue = self._applied_ptransform.inputs
+    if not input_pvalue:
       input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     unprocessed_bundle = self._evaluation_context.create_bundle(
         input_pvalue)
