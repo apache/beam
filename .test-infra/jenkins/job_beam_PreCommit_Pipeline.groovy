@@ -29,13 +29,15 @@ pipelineJob('beam_PreCommit_Pipeline') {
   }
 
   parameters {
+    // Allow building at a specific commit.
     stringParam(
-      'sha1',
+      'commit',
       'master',
       'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
   }
 
   wrappers {
+    // Set a timeout appropriate for the precommit tests.
     timeout {
       absolute(120)
       abortBuild()
