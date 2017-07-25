@@ -18,10 +18,11 @@
 /**
  * {@link org.apache.beam.sdk.sd.BeamRow}, self-described with
  * {@link org.apache.beam.sdk.sd.BeamRowType}, and encoded/decoded with
- * {@link org.apache.beam.sdk.sd.BeamRowCoder} is the foundation of structure data process in Beam.
+ * {@link org.apache.beam.sdk.sd.BeamRowCoder} is the foundation of structure data
+ * (aka sd) process in Beam.
  *
  * <p>Similar as the <em>row</em> concept in database, {@link org.apache.beam.sdk.sd.BeamRow}
- * represents one row element in a {@link org.apache.beam.sdk.values.PCollection<BeamRow>}.
+ * represents one row element in a {@link org.apache.beam.sdk.values.PCollection}.
  * Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
  * for more details.
