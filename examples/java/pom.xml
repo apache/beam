@@ -341,6 +341,30 @@
                   </systemPropertyVariables>
                 </configuration>
               </execution>
+              <execution>
+                <id>gearpump-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>none</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.gearpump.TestGearpumpRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
         </plugins>

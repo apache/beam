@@ -49,8 +49,7 @@
   <profiles>
     <profile>
       <id>local-validates-runner-tests</id>
-      <!-- TODO: once on master branch, move to postcommit only -->
-      <activation><activeByDefault>true</activeByDefault></activation>
+      <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>
