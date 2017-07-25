@@ -73,9 +73,7 @@ class UserScore(beam.PTransform):
         pcoll
         | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
         # Extract and sum username/score pairs from the event data.
-        | 'ExtractUserScores' >> beam.Map(
-            lambda elem: (elem['user'], elem['score']))
-        | 'SumUserScores' >> beam.CombinePerKey(sum)
+        | 'ExtractAndSumScore' >> util.ExtractAndSumScore('user')
     )
 
 

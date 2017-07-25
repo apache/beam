@@ -17,6 +17,13 @@
 
 """Fourth in a series of four pipelines that tell a story in a 'gaming' domain.
 
+--------------------------------------------------------------------------------
+NOTE: This example is not yet runnable by Dataflow. The runner still needs
+      support for:
+        * the --save_main_session flag when streaming is enabled
+        * combiners
+--------------------------------------------------------------------------------
+
 New concepts: session windows and finding session duration; use of both
 singleton and non-singleton side inputs.
 
@@ -83,6 +90,10 @@ import apache_beam as beam
 from apache_beam.transforms import combiners
 
 from apache_beam.examples.complete.game.util import util
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 
 class CalculateSpammyUsers(beam.PTransform):
@@ -167,21 +178,23 @@ def run(argv=None):
 
   args, pipeline_args = parser.parse_known_args(argv)
 
-  # We use the save_main_session option because one or more DoFn's in this
-  # workflow rely on global context (e.g., a module imported at module level).
-  pipeline_args += ['--save_main_session']
-
-  # The pipeline_args validator also requires --project
-  pipeline_args += ['--project', args.project]
-
-  # Enforce that this pipeline is always run in streaming mode
-  pipeline_args += ['--streaming']
-
   fixed_window_duration = args.fixed_window_duration * 60
   session_gap = args.session_gap * 60
   user_activity_window_duration = args.user_activity_window_duration * 60
 
-  with beam.Pipeline(argv=pipeline_args) as p:
+  options = PipelineOptions(pipeline_args)
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  options.view_as(SetupOptions).save_main_session = True
+
+  # The GoogleCloudOptions require the project
+  options.view_as(GoogleCloudOptions).project = args.project
+
+  # Enforce that this pipeline is always run in streaming mode
+  options.view_as(StandardOptions).streaming = True
+
+  with beam.Pipeline(options=options) as p:
     # Read events from Pub/Sub using custom timestamps
     raw_events = (
         p
@@ -217,7 +230,7 @@ def run(argv=None):
     )
 
     # Calculate the total score per team over fixed windows, and emit cumulative
-    # updates for late data. Uses the side input derived above-- the set of
+    # updates for late data. Uses the side input derived above --the set of
     # suspected robots-- to filter out scores from those users from the sum.
     # Write the results to BigQuery.
     teams_schema = {
@@ -235,9 +248,7 @@ def run(argv=None):
          lambda elem, spammers: elem['user'] not in spammers,
          spammers_view)
      # Extract and sum teamname/score pairs from the event data.
-     | 'ExtractTeamScores' >> beam.Map(
-         lambda elem: (elem['team'], elem['score']))
-     | 'SumTeamScores' >> beam.CombinePerKey(sum)
+     | 'ExtractAndSumScore' >> util.ExtractAndSumScore('team')
      | 'TeamScoresDict' >> beam.ParDo(util.TeamScoresDict())
      # Write the result to BigQuery
      | 'WriteTeamScoreSums' >> util.WriteToBigQuery(
@@ -249,7 +260,6 @@ def run(argv=None):
     # This information could help the game designers track the changing user
     # engagement as their set of game changes.
     sessions_schema = {
-        #'window_start': 'STRING',
         'mean_duration': 'FLOAT',
     }
     (user_events  # pylint: disable=expression-not-assigned

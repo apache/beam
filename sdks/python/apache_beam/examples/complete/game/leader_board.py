@@ -17,6 +17,12 @@
 
 """Third in a series of four pipelines that tell a story in a 'gaming' domain.
 
+--------------------------------------------------------------------------------
+NOTE: This example is not yet runnable by Dataflow. The runner still needs
+      support for:
+        * the --save_main_session flag when streaming is enabled
+--------------------------------------------------------------------------------
+
 Concepts include: processing unbounded data using fixed windows; use of custom
 timestamps and event-time processing; generation of early/speculative results;
 using AccumulationMode.ACCUMULATING to do cumulative processing of late-arriving
@@ -91,6 +97,10 @@ import apache_beam as beam
 from apache_beam.transforms import trigger
 
 from apache_beam.examples.complete.game.util import util
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 
 class CalculateTeamScores(beam.PTransform):
@@ -118,9 +128,7 @@ class CalculateTeamScores(beam.PTransform):
                                            trigger.AfterCount(20)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum teamname/score pairs from the event data.
-        | 'ExtractTeamScores' >> beam.Map(
-            lambda elem: (elem['team'], elem['score']))
-        | 'SumTeamScores' >> beam.CombinePerKey(sum)
+        | 'ExtractAndSumScore' >> util.ExtractAndSumScore('team')
     )
 
 
@@ -144,9 +152,7 @@ class CalculateUserScores(beam.PTransform):
             trigger=trigger.Repeatedly(trigger.AfterCount(10)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum username/score pairs from the event data.
-        | 'ExtractUserScores' >> beam.Map(
-            lambda elem: (elem['user'], elem['score']))
-        | 'SumUserScores' >> beam.CombinePerKey(sum)
+        | 'ExtractAndSumScore' >> util.ExtractAndSumScore('user')
     )
 
 
@@ -182,17 +188,19 @@ def run(argv=None):
 
   args, pipeline_args = parser.parse_known_args(argv)
 
+  options = PipelineOptions(pipeline_args)
+
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  pipeline_args += ['--save_main_session']
+  options.view_as(SetupOptions).save_main_session = True
 
-  # The pipeline_args validator also requires --project
-  pipeline_args += ['--project', args.project]
+  # The GoogleCloudOptions require the project
+  options.view_as(GoogleCloudOptions).project = args.project
 
   # Enforce that this pipeline is always run in streaming mode
-  pipeline_args += ['--streaming']
+  options.view_as(StandardOptions).streaming = True
 
-  with beam.Pipeline(argv=pipeline_args) as p:
+  with beam.Pipeline(options=options) as p:
     # Read game events from Pub/Sub using custom timestamps, which are extracted
     # from the pubsub data elements, and parse the data.
     events = (

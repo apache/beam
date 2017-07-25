@@ -76,6 +76,9 @@ import logging
 import apache_beam as beam
 
 from apache_beam.examples.complete.game.util import util
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class HourlyTeamScore(beam.PTransform):
@@ -111,9 +114,7 @@ class HourlyTeamScore(beam.PTransform):
             beam.window.FixedWindows(self.window_duration_in_seconds))
 
         # Extract and sum teamname/score pairs from the event data.
-        | 'ExtractTeamScores' >> beam.Map(
-            lambda elem: (elem['team'], elem['score']))
-        | 'SumTeamScores' >> beam.CombinePerKey(sum)
+        | 'ExtractAndSumScore' >> util.ExtractAndSumScore('team')
     )
 
 
@@ -162,19 +163,21 @@ def run(argv=None):
 
   args, pipeline_args = parser.parse_known_args(argv)
 
+  options = PipelineOptions(pipeline_args)
+
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  pipeline_args += ['--save_main_session']
+  options.view_as(SetupOptions).save_main_session = True
 
-  # The pipeline_args validator also requires --project
-  pipeline_args += ['--project', args.project]
+  # The GoogleCloudOptions require the project
+  options.view_as(GoogleCloudOptions).project = args.project
 
   schema = {
       'team': 'STRING',
       'total_score': 'INTEGER',
       'window_start': 'STRING',
   }
-  with beam.Pipeline(argv=pipeline_args) as p:
+  with beam.Pipeline(options=options) as p:
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'HourlyTeamScore' >> HourlyTeamScore(
