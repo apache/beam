@@ -359,10 +359,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       }
     }
     if (sideInputs.isEmpty()) {
-      if (traceTuples) {
-        LOG.debug("\nemitting watermark {}\n", mark);
-      }
-      output.emit(mark);
+      outputWatermark(mark);
       return;
     }
 
@@ -370,10 +367,20 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         Math.min(pushedBackWatermark.get(), currentInputWatermark);
     if (potentialOutputWatermark > currentOutputWatermark) {
       currentOutputWatermark = potentialOutputWatermark;
-      if (traceTuples) {
-        LOG.debug("\nemitting watermark {}\n", currentOutputWatermark);
+      outputWatermark(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
+    }
+  }
+
+  private void outputWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
+    if (traceTuples) {
+      LOG.debug("\nemitting {}\n", mark);
+    }
+    output.emit(mark);
+    if (!additionalOutputPortMapping.isEmpty()) {
+      for (DefaultOutputPort<ApexStreamTuple<?>> additionalOutput :
+          additionalOutputPortMapping.values()) {
+        additionalOutput.emit(mark);
       }
-      output.emit(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
     }
   }
 
