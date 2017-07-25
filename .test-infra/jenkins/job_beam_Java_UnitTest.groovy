@@ -18,39 +18,32 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
-// of precommit tests.
-mavenJob('beam_PreCommit_Java_IntegrationTest') {
-  description('Part of the PreCommit Pipeline. Runs Java Failsafe integration tests.')
+// This is the Java Jenkins job which runs the current set of standard unit tests.
+mavenJob('beam_Java_UnitTest') {
+  description('Runs Java Surefire unit tests. Designed to be run by a pipeline job.')
 
-  common_job_properties.setPipelineJobProperties(delegate, 25, "Java Integration Tests")
-  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
+  // Set standard properties for a job which is part of a pipeline.
+  common_job_properties.setPipelineJobProperties(delegate, 20, "Java Unit Tests")
+  // Set standard properties for a job which pulls artifacts from an upstream job.
+  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
 
   // Construct Maven goals for this job.
   profiles = [
-    'jenkins-precommit',
     'direct-runner',
     'dataflow-runner',
     'spark-runner',
     'flink-runner',
     'apex-runner'
   ]
-  examples_integration_executions = [
-    'apex-runner-integration-tests',
-    'dataflow-runner-integration-tests',
-    'dataflow-runner-integration-tests-streaming',
-    'direct-runner-integration-tests',
-    'flink-runner-integration-tests',
-    'spark-runner-integration-tests',
-  ]
   args = [
     '-B',
     '-e',
     "-P${profiles.join(',')}",
-    "-pl examples/java",
+    'surefire:test@default-test',
+    'coveralls:report', // TODO: Will this work? Can't verify on my own Jenkins due to no coveralls.
+    "-pl '!sdks/python'",
+    '-DrepoToken=$COVERALLS_REPO_TOKEN',
+    '-DpullRequest=$ghprbPullId',
   ]
-  examples_integration_executions.each({
-    value -> args.add("failsafe:integration-test@${value}")
-  })
   goals(args.join(' '))
 }

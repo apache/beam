@@ -157,7 +157,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context, mavenInstallation='Maven 3.3.3') {
+  static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
     context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -260,7 +260,13 @@ class common_job_properties {
     }
   }
 
-  static def setPipelineJobProperties(def context, int tout, String descriptor) {
+  /**
+   * Sets properties for all jobs which are run by a pipeline top-level (maven) job.
+   * @param context    The delegate from the top level of a MavenJob.
+   * @param jobTimeout How long (in minutes) to wait for the job to finish.
+   * @param descriptor A short string identifying the job, e.g. "Java Unit Test".
+   */
+  static def setPipelineJobProperties(def context, int jobTimeout, String descriptor) {
     context.parameters {
       stringParam(
               'ghprbGhRepository',
@@ -288,7 +294,7 @@ class common_job_properties {
 
     wrappers {
       timeout {
-        absolute(tout)
+        absolute(jobTimeout)
         abortBuild()
       }
       credentialsBinding {
@@ -311,9 +317,13 @@ class common_job_properties {
 
     // Set Maven parameters.
     setMavenConfig(context)
-
   }
 
+  /**
+   * Sets job properties common to pipeline jobs which are responsible for being the root of a
+   * build tree. Downstream jobs should pull artifacts from these jobs.
+   * @param context The delegate from the top level of a MavenJob.
+   */
   static def setPipelineBuildJobProperties(def context) {
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -321,7 +331,7 @@ class common_job_properties {
 
     context.parameters {
       stringParam(
-              'sha1',
+              'commit',
               'master',
               'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
     }
@@ -330,6 +340,12 @@ class common_job_properties {
     setBeamSCM(context, 'beam')
   }
 
+  /**
+   * Sets job parameters common to pipeline jobs which are downstream of a job which builds
+   * artifacts for them.
+   * @param context The delegate from the top level of a MavenJob.
+   * @param jobName The job from which to copy artifacts.
+   */
   static def setPipelineDownstreamJobProperties(def context, String jobName) {
     context.parameters {
       stringParam(

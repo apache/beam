@@ -18,26 +18,18 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
-// of precommit tests.
-mavenJob('beam_PreCommit_Java_CodeHealth') {
-  description('Part of the PreCommit Pipeline. Runs Java code health checks.')
+// This is the Java Jenkins job which runs the Beam code health checks.
+mavenJob('beam_Java_CodeHealth') {
+  description('Runs Java code health checks. Meant to be run as part of a pipeline.')
 
+  // Set standard properties for a job which is part of a pipeline.
   common_job_properties.setPipelineJobProperties(delegate, 15, "Java Code Health")
-  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_PreCommit_Java_Build')
+  // This job runs downstream of the beam_Java_Build job and gets artifacts from that job.
+  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
 
-  // Construct Maven goals for this job.
-  profiles = [
-    'direct-runner',
-    'dataflow-runner',
-    'spark-runner',
-    'flink-runner',
-    'apex-runner'
-  ]
   args = [
     '-B',
     '-e',
-    "-P${profiles.join(',')}",
     "-pl '!sdks/python'",
     'checkstyle:check',
     'findbugs:check',

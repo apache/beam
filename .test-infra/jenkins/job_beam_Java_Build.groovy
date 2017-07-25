@@ -18,14 +18,14 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
-// of precommit tests.
-mavenJob('beam_PreCommit_Java_Build') {
-  description('Part of the PreCommit Pipeline. Builds Java SDK and archives artifacts.')
+// This is the Java Jenkins job which builds artifacts for downstream jobs to consume.
+mavenJob('beam_Java_Build') {
+  description('Builds Java SDK and archives artifacts. Meant to be run as part of a pipeline.')
 
-  // Set properties common to PreCommit Pipeline subjobs.
+  // Set standard properties for a job which is part of a pipeline.
   common_job_properties.setPipelineJobProperties(delegate, 15, "Java Build")
-  // Set properties common to PreCommit initial jobs.
+  // Set standard properties for a pipeline job which needs to pull from GitHub instead of an
+  // upstream job.
   common_job_properties.setPipelineBuildJobProperties(delegate)
 
   configure { project ->
@@ -59,7 +59,6 @@ mavenJob('beam_PreCommit_Java_Build') {
     "-pl '!sdks/python,!sdks/java/javadoc'",
     '-DskipTests',
     '-Dcheckstyle.skip',
-    '-Dmaven.javadoc.skip', // TODO: Javadoc still seems to run, figure out what also to skip.
   ]
   goals(args.join(' '))
 
