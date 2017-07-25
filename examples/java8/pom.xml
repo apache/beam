@@ -151,6 +151,18 @@
         </dependency>
       </dependencies>
     </profile>
+
+    <!-- Include the Apache Gearpump (incubating) runner with -P gearpump-runner -->
+    <profile>
+      <id>gearpump-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-gearpump</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
