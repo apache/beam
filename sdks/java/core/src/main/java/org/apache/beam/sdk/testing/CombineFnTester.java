@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -61,14 +62,16 @@ public class CombineFnTester {
       CombineFn<InputT, AccumT, OutputT> fn,
       List<? extends Iterable<InputT>> shards,
       Matcher<? super OutputT> matcher) {
-    checkCombineFnShards(fn, shards, matcher);
+    checkCombineFnShardsSingleMerge(fn, shards, matcher);
     checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher);
+    checkCombineFnShardsIncrementalMerging(fn, shards, matcher);
     Collections.shuffle(shards);
-    checkCombineFnShards(fn, shards, matcher);
+    checkCombineFnShardsSingleMerge(fn, shards, matcher);
     checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher);
+    checkCombineFnShardsIncrementalMerging(fn, shards, matcher);
   }
 
-  private static <InputT, AccumT, OutputT> void checkCombineFnShards(
+  private static <InputT, AccumT, OutputT> void checkCombineFnShardsSingleMerge(
       CombineFn<InputT, AccumT, OutputT> fn,
       Iterable<? extends Iterable<InputT>> shards,
       Matcher<? super OutputT> matcher) {
@@ -86,6 +89,21 @@ public class CombineFnTester {
     accumulators.add(fn.createAccumulator());
     AccumT merged = fn.mergeAccumulators(accumulators);
     assertThat(fn.extractOutput(merged), matcher);
+  }
+
+  private static <InputT, AccumT, OutputT> void checkCombineFnShardsIncrementalMerging(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      List<? extends Iterable<InputT>> shards,
+      Matcher<? super OutputT> matcher) {
+    AccumT accumulator = null;
+    for (AccumT inputAccum : combineInputs(fn, shards)) {
+      if (accumulator == null) {
+        accumulator = inputAccum;
+      } else {
+        accumulator = fn.mergeAccumulators(Arrays.asList(accumulator, inputAccum));
+      }
+    }
+    assertThat(fn.extractOutput(accumulator), matcher);
   }
 
   private static <InputT, AccumT, OutputT> List<AccumT> combineInputs(
