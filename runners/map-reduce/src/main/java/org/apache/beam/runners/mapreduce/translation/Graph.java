@@ -18,6 +18,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 
@@ -26,7 +27,7 @@ import org.apache.commons.lang.builder.ToStringStyle;
  */
 public class Graph {
 
-  private final Map<PTransform, Vertex> vertices;
+  private final Map<Step, Vertex> vertices;
   private final Map<HeadTail, Edge> edges;
   private final Set<Vertex> leafVertices;
 
@@ -36,10 +37,10 @@ public class Graph {
     this.leafVertices = Sets.newHashSet();
   }
 
-  public Vertex addVertex(PTransform<?, ?> transform) {
-    checkState(!vertices.containsKey(transform));
-    Vertex v = new Vertex(transform);
-    vertices.put(transform, v);
+  public Vertex addVertex(Step step) {
+    checkState(!vertices.containsKey(step));
+    Vertex v = new Vertex(step);
+    vertices.put(step, v);
     leafVertices.add(v);
     return v;
   }
@@ -55,8 +56,8 @@ public class Graph {
     return e;
   }
 
-  public Vertex getVertex(PTransform<?, ?> transform) {
-    return vertices.get(transform);
+  public Vertex getVertex(Step step) {
+    return vertices.get(step);
   }
 
   public Edge getEdge(Vertex head, Vertex tail) {
@@ -84,18 +85,18 @@ public class Graph {
   //TODO: add equals, hashCode, toString for following classses.
 
   public static class Vertex {
-    private final PTransform<?, ?> transform;
+    private final Step step;
     private final Set<Edge> incoming;
     private final Set<Edge> outgoing;
 
-    public Vertex(PTransform transform) {
-      this.transform = checkNotNull(transform, "transform");
+    public Vertex(Step step) {
+      this.step = checkNotNull(step, "step");
       this.incoming = Sets.newHashSet();
       this.outgoing = Sets.newHashSet();
     }
 
-    public PTransform<?, ?> getTransform() {
-      return transform;
+    public Step getStep() {
+      return step;
     }
 
     public Set<Edge> getIncoming() {
@@ -107,11 +108,12 @@ public class Graph {
     }
 
     public boolean isSource() {
+      PTransform<?, ?> transform = step.getTransform();
       return transform instanceof Read.Bounded || transform instanceof Read.Unbounded;
     }
 
     public boolean isGroupByKey() {
-      return transform instanceof GroupByKey;
+      return step.getTransform() instanceof GroupByKey;
     }
 
     public void addIncoming(Edge edge) {
@@ -123,6 +125,7 @@ public class Graph {
     }
 
     public void accept(GraphVisitor visitor) {
+      PTransform<?, ?> transform = step.getTransform();
       if (transform instanceof ParDo.SingleOutput || transform instanceof ParDo.MultiOutput) {
         visitor.visitParDo(this);
       } else if (transform instanceof GroupByKey) {
@@ -144,14 +147,14 @@ public class Graph {
       }
       if (obj instanceof Vertex) {
         Vertex other = (Vertex) obj;
-        return transform.equals(other.transform);
+        return step.equals(other.step);
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(this.getClass(), transform);
+      return Objects.hash(this.getClass(), step);
     }
 
     @Override
@@ -218,7 +221,7 @@ public class Graph {
   }
 
   public static class NodePath {
-    private final LinkedList<PTransform<?, ?>> path;
+    private final LinkedList<Step> path;
 
     public NodePath() {
       this.path = new LinkedList<>();
@@ -228,16 +231,16 @@ public class Graph {
       this.path = new LinkedList<>(nodePath.path);
     }
 
-    public void addFirst(PTransform<?, ?> transform) {
-      path.addFirst(transform);
+    public void addFirst(Step step) {
+      path.addFirst(step);
     }
 
-    public void addLast(PTransform<?, ?> transform) {
-      path.addLast(transform);
+    public void addLast(Step step) {
+      path.addLast(step);
     }
 
-    public Iterable<PTransform<?, ?>> transforms() {
-      return path;
+    public Iterable<Step> steps() {
+      return ImmutableList.copyOf(path);
     }
 
     @Override
@@ -260,11 +263,29 @@ public class Graph {
     @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
-      for (PTransform<?, ?> collect : path) {
-        sb.append(collect.getName() + "|");
+      for (Step step : path) {
+        sb.append(step.getFullName() + "|");
       }
-      // sb.deleteCharAt(sb.length() - 1);
+      sb.deleteCharAt(sb.length() - 1);
       return sb.toString();
+    }
+  }
+
+  @AutoValue
+  public abstract static class Step {
+    abstract String getFullName();
+    // TODO: remove public
+    public abstract PTransform<?, ?> getTransform();
+    abstract List<TupleTag<?>> getInputs();
+    abstract List<TupleTag<?>> getOutputs();
+
+    public static Step of(
+        String fullName,
+        PTransform<?, ?> transform,
+        List<TupleTag<?>> inputs,
+        List<TupleTag<?>> outputs) {
+      return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graph_Step(
+          fullName, transform, inputs, outputs);
     }
   }
 

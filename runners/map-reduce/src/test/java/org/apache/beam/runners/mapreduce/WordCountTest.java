@@ -78,8 +78,8 @@ public class WordCountTest {
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
     p.apply("ReadLines", TextIO.read().from(input))
-        .apply(ParDo.of(new ExtractWordsFn()));
-//        .apply(Count.<String>perElement())
+        .apply(ParDo.of(new ExtractWordsFn()))
+        .apply(Count.<String>perElement());
 //        .apply(MapElements.via(new FormatAsTextFn()))
 //        .apply("WriteCounts", TextIO.write().to(output));
 

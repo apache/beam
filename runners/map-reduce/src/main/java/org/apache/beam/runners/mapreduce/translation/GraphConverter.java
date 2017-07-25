@@ -1,40 +1,49 @@
 package org.apache.beam.runners.mapreduce.translation;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.mapreduce.MapReduceRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Pipeline translator for {@link MapReduceRunner}.
  */
 public class GraphConverter extends Pipeline.PipelineVisitor.Defaults {
 
-  private final Map<PValue, Graph.Vertex> outputToProducer;
+  private final Map<PValue, TupleTag<?>> pValueToTupleTag;
+  private final Map<TupleTag<?>, Graph.Vertex> outputToProducer;
   private final Graph graph;
 
   public GraphConverter() {
+    this.pValueToTupleTag = Maps.newHashMap();
     this.outputToProducer = Maps.newHashMap();
     this.graph = new Graph();
   }
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    Graph.Vertex v = graph.addVertex(node.getTransform());
+    Graph.Step step = Graph.Step.of(
+        node.getFullName(),
+        node.getTransform(),
+        ImmutableList.copyOf(node.getInputs().keySet()),
+        ImmutableList.copyOf(node.getOutputs().keySet()));
+    Graph.Vertex v = graph.addVertex(step);
 
-    for (PValue input : node.getInputs().values()) {
-      if (outputToProducer.containsKey(input)) {
-        Graph.Vertex producer = outputToProducer.get(input);
+    for (PValue pValue : node.getInputs().values()) {
+      TupleTag<?> tag = pValueToTupleTag.get(pValue);
+      if (outputToProducer.containsKey(tag)) {
+        Graph.Vertex producer = outputToProducer.get(tag);
         graph.addEdge(producer, v);
       }
     }
 
-    for (PValue output : node.getOutputs().values()) {
-      outputToProducer.put(output, v);
+    for (Map.Entry<TupleTag<?>, PValue> entry : node.getOutputs().entrySet()) {
+      pValueToTupleTag.put(entry.getValue(), entry.getKey());
+      outputToProducer.put(entry.getKey(), v);
     }
   }
 

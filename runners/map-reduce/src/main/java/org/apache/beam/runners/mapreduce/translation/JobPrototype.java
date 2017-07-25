@@ -4,21 +4,23 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
@@ -51,8 +53,9 @@ public class JobPrototype {
     // Setup BoundedSources in BeamInputFormat.
     // TODO: support more than one inputs
     Graph.Vertex head = Iterables.getOnlyElement(vertex.getIncoming()).getHead();
-    checkState(head.getTransform() instanceof Read.Bounded);
-    Read.Bounded read = (Read.Bounded) head.getTransform();
+    Graph.Step headStep = head.getStep();
+    checkState(headStep.getTransform() instanceof Read.Bounded);
+    Read.Bounded read = (Read.Bounded) headStep.getTransform();
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_BOUNDED_SOURCE,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(read.getSource())));
@@ -62,34 +65,52 @@ public class JobPrototype {
     // TODO: support more than one out going edge.
     Graph.Edge outEdge = Iterables.getOnlyElement(head.getOutgoing());
     Graph.NodePath outPath = Iterables.getOnlyElement(outEdge.getPaths());
-    List<DoFn> doFns = new ArrayList<>();
-    doFns.addAll(FluentIterable.from(outPath.transforms())
-        .filter(new Predicate<PTransform<?, ?>>() {
+    List<Graph.Step> parDos = new ArrayList<>();
+    parDos.addAll(FluentIterable.from(outPath.steps())
+        .filter(new Predicate<Graph.Step>() {
           @Override
-          public boolean apply(PTransform<?, ?> input) {
-            return !(input instanceof Read.Bounded);
-          }
-        })
-        .transform(new Function<PTransform<?, ?>, DoFn>() {
-          @Override
-          public DoFn apply(PTransform<?, ?> input) {
-            checkArgument(
-                input instanceof ParDo.SingleOutput, "Only support ParDo.SingleOutput.");
-            ParDo.SingleOutput parDo = (ParDo.SingleOutput) input;
-            return parDo.getFn();
+          public boolean apply(Graph.Step input) {
+            PTransform<?, ?> transform = input.getTransform();
+            return transform instanceof ParDo.SingleOutput
+                || transform instanceof ParDo.MultiOutput;
           }})
         .toList());
-    if (vertex.getTransform() instanceof ParDo.SingleOutput) {
-      doFns.add(((ParDo.SingleOutput) vertex.getTransform()).getFn());
-    } else if (vertex.getTransform() instanceof ParDo.MultiOutput) {
-      doFns.add(((ParDo.MultiOutput) vertex.getTransform()).getFn());
+    Graph.Step vertexStep = vertex.getStep();
+    if (vertexStep.getTransform() instanceof ParDo.SingleOutput
+        || vertexStep.getTransform() instanceof ParDo.MultiOutput) {
+      parDos.add(vertexStep);
+    }
+
+    ParDoOperation root = null;
+    ParDoOperation prev = null;
+    for (Graph.Step step : parDos) {
+      ParDoOperation current = new ParDoOperation(
+          getDoFn(step.getTransform()),
+          PipelineOptionsFactory.create(),
+          (TupleTag<Object>) step.getOutputs().iterator().next(),
+          ImmutableList.<TupleTag<?>>of(),
+          WindowingStrategy.globalDefault());
+      if (root == null) {
+        root = current;
+      } else {
+        // TODO: set a proper outputNum for ParDo.MultiOutput instead of zero.
+        current.attachInput(prev, 0);
+      }
+      prev = current;
     }
     conf.set(
-        BeamMapper.BEAM_SERIALIZED_DO_FN,
-        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
-            Iterables.getOnlyElement(doFns))));
+        BeamMapper.BEAM_SERIALIZED_PAR_DO_OPERATION,
+        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(root)));
     job.setMapperClass(BeamMapper.class);
     job.setOutputFormatClass(NullOutputFormat.class);
     return job;
+  }
+
+  private DoFn<Object, Object> getDoFn(PTransform<?, ?> transform) {
+    if (transform instanceof ParDo.SingleOutput) {
+      return ((ParDo.SingleOutput) transform).getFn();
+    } else {
+      return ((ParDo.MultiOutput) transform).getFn();
+    }
   }
 }

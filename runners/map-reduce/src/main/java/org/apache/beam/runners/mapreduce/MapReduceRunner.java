@@ -3,7 +3,6 @@ package org.apache.beam.runners.mapreduce;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
-import java.io.IOException;
 import org.apache.beam.runners.mapreduce.translation.Graph;
 import org.apache.beam.runners.mapreduce.translation.GraphConverter;
 import org.apache.beam.runners.mapreduce.translation.GraphPlanner;
@@ -48,10 +47,7 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
     GraphPlanner planner = new GraphPlanner();
     Graph fusedGraph = planner.plan(graph);
     for (Graph.Vertex vertex : fusedGraph.getAllVertices()) {
-      if (vertex.getTransform() instanceof GroupByKey
-          || vertex.getTransform() instanceof Read.Bounded) {
-        continue;
-      } else {
+      if (vertex.getStep().getTransform() instanceof GroupByKey) {
         JobPrototype jobPrototype = JobPrototype.create(1, vertex);
         try {
           Job job = jobPrototype.build(options.getJarClass(), new Configuration());

@@ -31,23 +31,24 @@ public class GraphPlanner {
         // drop if read is leaf vertex.
         return;
       }
-      Graph.Vertex v = fusedGraph.addVertex(read.getTransform());
-      workingPath.addFirst(read.getTransform());
+      Graph.Vertex v = fusedGraph.addVertex(read.getStep());
+      workingPath.addFirst(read.getStep());
       Graph.Edge edge = fusedGraph.addEdge(v, workingVertex);
       edge.addPath(workingPath);
     }
 
     @Override
     public void visitParDo(Graph.Vertex parDo) {
+      Graph.Step step = parDo.getStep();
       checkArgument(
-          parDo.getTransform().getAdditionalInputs().isEmpty(),
-          "Side inputs are not supported.");
+          step.getTransform().getAdditionalInputs().isEmpty(),
+          "Side inputs are not " + "supported.");
       if (workingVertex == null) {
         // Leaf vertex
-        workingVertex = fusedGraph.addVertex(parDo.getTransform());
+        workingVertex = fusedGraph.addVertex(step);
         workingPath = new Graph.NodePath();
       } else {
-        workingPath.addFirst(parDo.getTransform());
+        workingPath.addFirst(step);
       }
       checkArgument(
           parDo.getIncoming().size() == 1,
@@ -74,10 +75,11 @@ public class GraphPlanner {
       if (workingVertex == null) {
         return;
       }
-      Graph.Vertex v = fusedGraph.addVertex(groupByKey.getTransform());
-      workingPath.addFirst(groupByKey.getTransform());
-      Graph.Edge edge = fusedGraph.addEdge(v, workingVertex);
+      Graph.Step step = groupByKey.getStep();
+      Graph.Vertex addedGroupByKey = fusedGraph.addVertex(step);
+      Graph.Edge edge = fusedGraph.addEdge(addedGroupByKey, workingVertex);
       edge.addPath(workingPath);
+      workingVertex = addedGroupByKey;
       processParent(groupByKey.getIncoming().iterator().next().getHead());
     }
 
@@ -86,13 +88,14 @@ public class GraphPlanner {
     }
 
     private void processParent(Graph.Vertex parent) {
-      Graph.Vertex v = fusedGraph.getVertex(parent.getTransform());
+      Graph.Step step = parent.getStep();
+      Graph.Vertex v = fusedGraph.getVertex(step);
       if (v == null) {
         parent.accept(this);
       } else {
         // TODO: parent is consumed more than once.
         // It is duplicated in multiple outgoing path. Figure out the impact.
-        workingPath.addFirst(parent.getTransform());
+        workingPath.addFirst(step);
         fusedGraph.getEdge(v, workingVertex).addPath(workingPath);
       }
     }
