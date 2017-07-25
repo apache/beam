@@ -426,8 +426,16 @@ class PTransform(WithTypeHints, HasDisplayData):
   _known_urns = {}
 
   @classmethod
-  def register_urn(cls, urn, parameter_type, constructor):
-    cls._known_urns[urn] = parameter_type, constructor
+  def register_urn(cls, urn, parameter_type, constructor=None):
+    def register(constructor):
+      cls._known_urns[urn] = parameter_type, constructor
+      return staticmethod(constructor)
+    if constructor:
+      # Used as a statement.
+      register(constructor)
+    else:
+      # Used as a decorator.
+      return register
 
   def to_runner_api(self, context):
     from apache_beam.portability.api import beam_runner_api_pb2

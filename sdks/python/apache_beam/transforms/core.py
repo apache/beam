@@ -25,6 +25,7 @@ import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam import coders
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -311,7 +312,7 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
 
-class CombineFn(WithTypeHints, HasDisplayData):
+class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a Combine transform with custom processing.
 
   A CombineFn specifies how multiple values in all or part of a PCollection can
@@ -429,6 +430,11 @@ class CombineFn(WithTypeHints, HasDisplayData):
   @staticmethod
   def maybe_from_callable(fn):
     return fn if isinstance(fn, CombineFn) else CallableWrapperCombineFn(fn)
+
+  def get_accumulator_coder(self):
+    return coders.registry.get_coder(object)
+
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_COMBINE_FN)
 
 
 class CallableWrapperCombineFn(CombineFn):
@@ -816,6 +822,13 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   return pardo
 
 
+def _combine_payload(combine_fn, context):
+  return beam_runner_api_pb2.CombinePayload(
+      combine_fn=combine_fn.to_runner_api(context),
+      accumulator_coder_id=context.coders.get_id(
+          combine_fn.get_accumulator_coder()))
+
+
 class CombineGlobally(PTransform):
   """A CombineGlobally transform.
 
@@ -973,6 +986,17 @@ class CombinePerKey(PTransformWithSideInputs):
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
         self.fn, *args, **kwargs)
 
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.COMBINE_PER_KEY_TRANSFORM,
+        _combine_payload(self.fn, context))
+
+  @PTransform.register_urn(
+      urns.COMBINE_PER_KEY_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(combine_payload, context):
+    return CombinePerKey(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
@@ -994,6 +1018,17 @@ class CombineValues(PTransformWithSideInputs):
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
         *args, **kwargs)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.COMBINE_GROUPED_VALUES_TRANSFORM,
+        _combine_payload(self.fn, context))
+
+  @PTransform.register_urn(
+      urns.COMBINE_GROUPED_VALUES_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(combine_payload, context):
+    return CombineValues(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
 
 class CombineValuesDoFn(DoFn):
