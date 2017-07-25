@@ -180,6 +180,12 @@ public class Pipeline {
     return begin().apply(name, root);
   }
 
+  @Internal
+  public static Pipeline forTransformHierarchy(
+      TransformHierarchy transforms, PipelineOptions options) {
+    return new Pipeline(transforms, options);
+  }
+
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
@@ -476,14 +482,19 @@ public class Pipeline {
   /////////////////////////////////////////////////////////////////////////////
   // Below here are internal operations, never called by users.
 
-  private final TransformHierarchy transforms = new TransformHierarchy();
+  private final TransformHierarchy transforms;
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
   private final List<String> unstableNames = new ArrayList<>();
   private final PipelineOptions defaultOptions;
 
-  protected Pipeline(PipelineOptions options) {
+  private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+    this.transforms = transforms;
     this.defaultOptions = options;
+  }
+
+  protected Pipeline(PipelineOptions options) {
+    this(new TransformHierarchy(), options);
   }
 
   @Override

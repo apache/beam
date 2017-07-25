@@ -27,6 +27,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Collections;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -62,7 +63,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -547,7 +550,8 @@ public class PTransformMatchersTest implements Serializable {
     WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
             new FileBasedSink<Integer, Void>(
-                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(null)) {
+                StaticValueProvider.of(outputDirectory),
+                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
               @Override
               public WriteOperation<Integer, Void> createWriteOperation() {
                 return null;
@@ -579,5 +583,24 @@ public class PTransformMatchersTest implements Serializable {
         Collections.<TupleTag<?>, PValue>emptyMap(),
         write,
         p);
+  }
+
+  private static class FakeFilenamePolicy extends FilenamePolicy {
+    @Override
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        FileBasedSink.OutputFileHints outputFileHints) {
+      throw new UnsupportedOperationException("should not be called");
+    }
+
+    @Nullable
+    @Override
+    public ResourceId unwindowedFilename(
+        int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
+      throw new UnsupportedOperationException("should not be called");
+    }
   }
 }

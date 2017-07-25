@@ -24,43 +24,25 @@ import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Equivalence;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.hamcrest.Matchers;
-import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -76,95 +58,6 @@ public class SdkComponentsTest {
   public ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents components = SdkComponents.create();
-
-  @Test
-  public void translatePipeline() {
-    BigEndianLongCoder customCoder = BigEndianLongCoder.of();
-    PCollection<Long> elems = pipeline.apply(GenerateSequence.from(0L).to(207L));
-    PCollection<Long> counted = elems.apply(Count.<Long>globally()).setCoder(customCoder);
-    PCollection<Long> windowed =
-        counted.apply(
-            Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
-                .triggering(
-                    AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(AfterPane.elementCountAtLeast(19)))
-                .accumulatingFiredPanes()
-                .withAllowedLateness(Duration.standardMinutes(3L)));
-    final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
-    PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.<String, Long>of("foo"));
-    PCollection<KV<String, Iterable<Long>>> grouped =
-        keyed.apply(GroupByKey.<String, Long>create());
-
-    final RunnerApi.Pipeline pipelineProto = SdkComponents.translatePipeline(pipeline);
-    pipeline.traverseTopologically(
-        new PipelineVisitor.Defaults() {
-          Set<Node> transforms = new HashSet<>();
-          Set<PCollection<?>> pcollections = new HashSet<>();
-          Set<Equivalence.Wrapper<? extends Coder<?>>> coders = new HashSet<>();
-          Set<WindowingStrategy<?, ?>> windowingStrategies = new HashSet<>();
-
-          @Override
-          public void leaveCompositeTransform(Node node) {
-            if (node.isRootNode()) {
-              assertThat(
-                  "Unexpected number of PTransforms",
-                  pipelineProto.getComponents().getTransformsCount(),
-                  equalTo(transforms.size()));
-              assertThat(
-                  "Unexpected number of PCollections",
-                  pipelineProto.getComponents().getPcollectionsCount(),
-                  equalTo(pcollections.size()));
-              assertThat(
-                  "Unexpected number of Coders",
-                  pipelineProto.getComponents().getCodersCount(),
-                  equalTo(coders.size()));
-              assertThat(
-                  "Unexpected number of Windowing Strategies",
-                  pipelineProto.getComponents().getWindowingStrategiesCount(),
-                  equalTo(windowingStrategies.size()));
-            } else {
-              transforms.add(node);
-              if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
-                  PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
-                // Combine translation introduces a coder that is not assigned to any PCollection
-                // in the default expansion, and must be explicitly added here.
-                try {
-                  addCoders(
-                      CombineTranslation.getAccumulatorCoder(
-                          node.toAppliedPTransform(getPipeline())));
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            }
-          }
-
-          @Override
-          public void visitPrimitiveTransform(Node node) {
-            transforms.add(node);
-          }
-
-          @Override
-          public void visitValue(PValue value, Node producer) {
-            if (value instanceof PCollection) {
-              PCollection pc = (PCollection) value;
-              pcollections.add(pc);
-              addCoders(pc.getCoder());
-              windowingStrategies.add(pc.getWindowingStrategy());
-              addCoders(pc.getWindowingStrategy().getWindowFn().windowCoder());
-            }
-          }
-
-          private void addCoders(Coder<?> coder) {
-            coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
-            if (coder instanceof StructuredCoder) {
-              for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
-                addCoders(component);
-              }
-            }
-          }
-        });
-  }
 
   @Test
   public void registerCoder() throws IOException {

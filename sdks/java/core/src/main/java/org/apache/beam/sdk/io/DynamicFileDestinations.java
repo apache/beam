@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
@@ -34,7 +37,7 @@ public class DynamicFileDestinations {
     private final FilenamePolicy filenamePolicy;
 
     public ConstantFilenamePolicy(FilenamePolicy filenamePolicy) {
-      this.filenamePolicy = filenamePolicy;
+      this.filenamePolicy = checkNotNull(filenamePolicy);
     }
 
     @Override
@@ -59,6 +62,7 @@ public class DynamicFileDestinations {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      checkState(filenamePolicy != null);
       filenamePolicy.populateDisplayData(builder);
     }
   }

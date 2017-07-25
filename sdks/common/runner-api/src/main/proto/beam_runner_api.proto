@@ -92,7 +92,9 @@ message Pipeline {
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform
+  // (Required) The ids of all PTransforms that are not contained within another PTransform.
+  // These must be in shallow topological order, so that traversing them recursively
+  // in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,

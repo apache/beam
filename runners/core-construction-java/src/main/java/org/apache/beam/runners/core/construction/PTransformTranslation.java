@@ -33,6 +33,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -91,6 +92,7 @@ public class PTransformTranslation {
       List<AppliedPTransform<?, ?, ?>> subtransforms,
       SdkComponents components)
       throws IOException {
+    // TODO include DisplayData https://issues.apache.org/jira/browse/BEAM-2645
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
     for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
       checkArgument(
@@ -118,7 +120,8 @@ public class PTransformTranslation {
     }
 
     transformBuilder.setUniqueName(appliedPTransform.getFullName());
-    // TODO: Display Data
+    transformBuilder.setDisplayData(
+        DisplayDataTranslation.toProto(DisplayData.from(appliedPTransform.getTransform())));
 
     PTransform<?, ?> transform = appliedPTransform.getTransform();
     // A RawPTransform directly vends its payload. Because it will generally be
@@ -134,6 +137,7 @@ public class PTransformTranslation {
         }
         transformBuilder.setSpec(payload);
       }
+      rawPTransform.registerComponents(components);
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
@@ -223,6 +227,8 @@ public class PTransformTranslation {
     public Any getPayload() {
       return null;
     }
+
+    public void registerComponents(SdkComponents components) {}
   }
 
   /**
@@ -252,6 +258,10 @@ public class PTransformTranslation {
       if (payload != null) {
         transformSpec.setParameter(payload);
       }
+
+      // Transforms like Combine may have Coders that need to be added but do not
+      // occur in a black-box traversal
+      transform.getTransform().registerComponents(components);
 
       return transformSpec.build();
     }

@@ -64,6 +64,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -81,6 +82,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -102,6 +104,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -1293,7 +1297,25 @@ public class DataflowRunnerTest implements Serializable {
     TestSink(String tmpFolder) {
       super(
           StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
-          DynamicFileDestinations.constant(null));
+          DynamicFileDestinations.constant(
+              new FilenamePolicy() {
+                @Override
+                public ResourceId windowedFilename(
+                    int shardNumber,
+                    int numShards,
+                    BoundedWindow window,
+                    PaneInfo paneInfo,
+                    OutputFileHints outputFileHints) {
+                  throw new UnsupportedOperationException("should not be called");
+                }
+
+                @Nullable
+                @Override
+                public ResourceId unwindowedFilename(
+                    int shardNumber, int numShards, OutputFileHints outputFileHints) {
+                  throw new UnsupportedOperationException("should not be called");
+                }
+              }));
     }
 
     @Override
