@@ -25,7 +25,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
+import java.util.Set;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -35,11 +38,12 @@ import org.apache.beam.sdk.options.ValueProvider;
 /**
  * Implementation detail of {@link TextIO.Read}.
  *
- * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
+ * <p>A {@link FileBasedSource} which can decode records delimited by any specified delimiters.
  *
- * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
- * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
- * even if it is not delimited. Finally, no records are decoded if the stream is empty.
+ * <p>By default, this source splits the data into records using {@code UTF-8} {@code \n},
+ * {@code \r}, or {@code \r\n} as the delimiter. This source is not strict and supports decoding
+ * the last record even if it is not delimited. Finally, no records are decoded if the stream is
+ * empty.
  *
  * <p>This source supports reading from any arbitrary byte position within the stream. If the
  * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
@@ -47,12 +51,24 @@ import org.apache.beam.sdk.options.ValueProvider;
  */
 @VisibleForTesting
 class TextSource extends FileBasedSource<String> {
+  private Set<String> delimiters = TextIO.DEFAULT_DELIMITERS;
+
   TextSource(ValueProvider<String> fileSpec) {
     super(fileSpec, 1L);
   }
 
+  TextSource(ValueProvider<String> fileSpec, Set<String> delimiters) {
+    super(fileSpec, 1L);
+    this.delimiters = delimiters;
+  }
+
   private TextSource(MatchResult.Metadata metadata, long start, long end) {
     super(metadata, 1L, start, end);
+  }
+
+  private TextSource(MatchResult.Metadata metadata, long start, long end, Set<String> delimiters) {
+    super(metadata, 1L, start, end);
+    this.delimiters = delimiters;
   }
 
   @Override
@@ -60,12 +76,12 @@ class TextSource extends FileBasedSource<String> {
       MatchResult.Metadata metadata,
       long start,
       long end) {
-    return new TextSource(metadata, start, end);
+    return new TextSource(metadata, start, end, delimiters);
   }
 
   @Override
   protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this);
+    return new TextBasedReader(this, delimiters);
   }
 
   @Override
@@ -75,7 +91,7 @@ class TextSource extends FileBasedSource<String> {
 
   /**
    * A {@link FileBasedReader FileBasedReader}
-   * which can decode records delimited by newline characters.
+   * which can decode records delimited any strings.
    *
    * <p>See {@link TextSource} for further details.
    */
@@ -92,10 +108,18 @@ class TextSource extends FileBasedSource<String> {
     private volatile boolean elementIsPresent;
     private String currentValue;
     private ReadableByteChannel inChannel;
+    private char[][] delimiters;
 
-    private TextBasedReader(TextSource source) {
+    private TextBasedReader(TextSource source, Set<String> delimiters) {
       super(source);
       buffer = ByteString.EMPTY;
+      String[] array = delimiters.toArray(new String[delimiters.size()]);
+      Arrays.sort(array);
+      char[][] chars = new char[array.length][];
+      for (int i = 0; i < array.length; i++) {
+        chars[i] = array[i].toCharArray();
+      }
+      this.delimiters = chars;
     }
 
     @Override
@@ -163,22 +187,28 @@ class TextSource extends FileBasedSource<String> {
           break;
         }
 
-        byte currentByte = buffer.byteAt(bytePositionInBuffer);
-
-        if (currentByte == '\n') {
-          startOfSeparatorInBuffer = bytePositionInBuffer;
-          endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
-          break;
-        } else if (currentByte == '\r') {
-          startOfSeparatorInBuffer = bytePositionInBuffer;
-          endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
-
-          if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
-            currentByte = buffer.byteAt(bytePositionInBuffer + 1);
-            if (currentByte == '\n') {
-              endOfSeparatorInBuffer += 1;
+        // Identify the longest applicable separator, if any apply.
+        int tmpEndOfSeparatorInBuffer = bytePositionInBuffer;
+        for (char[] delimiter : delimiters) {
+          int dist = tmpEndOfSeparatorInBuffer - bytePositionInBuffer;
+          if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + delimiter.length)
+                  && dist < delimiter.length) {
+            boolean same = true;
+            for (int j = 0; j < delimiter.length; j++) {
+              if (delimiter[j] != buffer.byteAt(bytePositionInBuffer + j)) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              tmpEndOfSeparatorInBuffer = bytePositionInBuffer + delimiter.length;
             }
           }
+        }
+        // Apply the longest applicable separator, if any apply.
+        if (tmpEndOfSeparatorInBuffer - bytePositionInBuffer > 0) {
+          startOfSeparatorInBuffer = bytePositionInBuffer;
+          endOfSeparatorInBuffer = tmpEndOfSeparatorInBuffer;
           break;
         }
 
