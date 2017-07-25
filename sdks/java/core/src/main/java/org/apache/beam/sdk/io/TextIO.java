@@ -36,7 +36,6 @@ import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -78,6 +78,11 @@ import org.apache.beam.sdk.values.PDone;
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small
+ * number of files.
  *
  * <p>Example 2: reading a PCollection of filenames.
  *
@@ -154,7 +159,10 @@ public class TextIO {
    * {@link PCollection} containing one element for each line of the input files.
    */
   public static Read read() {
-    return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
+    return new AutoValue_TextIO_Read.Builder()
+        .setCompressionType(CompressionType.AUTO)
+        .setHintMatchesManyFiles(false)
+        .build();
   }
 
   /**
@@ -217,6 +225,7 @@ public class TextIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
     abstract CompressionType getCompressionType();
+    abstract boolean getHintMatchesManyFiles();
 
     abstract Builder toBuilder();
 
@@ -224,6 +233,7 @@ public class TextIO {
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Read build();
     }
@@ -237,6 +247,9 @@ public class TextIO {
      *
      * <p>Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html" >Java
      * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
+     *
+     * <p>If it is known that the filepattern will match a very large number of files (at least tens
+     * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
      */
     public Read from(String filepattern) {
       checkNotNull(filepattern, "Filepattern cannot be empty.");
@@ -259,17 +272,28 @@ public class TextIO {
       return toBuilder().setCompressionType(compressionType).build();
     }
 
+    /**
+     * Hints that the filepattern specified in {@link #from(String)} matches a very large number of
+     * files.
+     *
+     * <p>This hint may cause a runner to execute the transform differently, in a way that improves
+     * performance for this case, but it may worsen performance if the filepattern matches only
+     * a small number of files (e.g., in a runner that supports dynamic work rebalancing, it will
+     * happen less efficiently within individual files).
+     */
+    public Read withHintMatchesManyFiles() {
+      return toBuilder().setHintMatchesManyFiles(true).build();
+    }
+
     @Override
     public PCollection<String> expand(PBegin input) {
-      if (getFilepattern() == null) {
-        throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
-      }
-
-      final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
-      PCollection<String> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
+      return getHintMatchesManyFiles()
+          ? input
+              .apply(
+                  "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+              .apply(readAll().withCompressionType(getCompressionType()))
+          : input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     // Helper to create a source specific to the requested compression type.

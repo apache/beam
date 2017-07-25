@@ -31,7 +31,9 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -272,7 +274,7 @@ public class JdbcIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
-    @Nullable abstract String getQuery();
+    @Nullable abstract ValueProvider<String> getQuery();
     @Nullable abstract StatementPreparator getStatementPreparator();
     @Nullable abstract RowMapper<T> getRowMapper();
     @Nullable abstract Coder<T> getCoder();
@@ -282,7 +284,7 @@ public class JdbcIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-      abstract Builder<T> setQuery(String query);
+      abstract Builder<T> setQuery(ValueProvider<String> query);
       abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
       abstract Builder<T> setCoder(Coder<T> coder);
@@ -296,6 +298,11 @@ public class JdbcIO {
     }
 
     public Read<T> withQuery(String query) {
+      checkArgument(query != null, "JdbcIO.read().withQuery(query) called with null query");
+      return withQuery(ValueProvider.StaticValueProvider.of(query));
+    }
+
+    public Read<T> withQuery(ValueProvider<String> query) {
       checkArgument(query != null, "JdbcIO.read().withQuery(query) called with null query");
       return toBuilder().setQuery(query).build();
     }
@@ -321,7 +328,7 @@ public class JdbcIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       return input
-          .apply(Create.of(getQuery()))
+          .apply(Create.ofProvider(getQuery(), StringUtf8Coder.of()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
           .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
             private Random random;

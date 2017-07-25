@@ -28,7 +28,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 /**
  * Utilities for working with the {@link ValueProvider} interface.
  */
-class ValueProviders {
+public class ValueProviders {
   private ValueProviders() {}
 
   /**

@@ -328,6 +328,11 @@ public class TestPipeline extends Pipeline implements TestRule {
    * testing.
    */
   public PipelineResult run() {
+    return run(getOptions());
+  }
+
+  /** Like {@link #run} but with the given potentially modified options. */
+  public PipelineResult run(PipelineOptions options) {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
@@ -336,7 +341,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      pipelineResult = super.run();
+      pipelineResult = super.run(options);
       verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
