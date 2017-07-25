@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 
 /**
@@ -67,6 +68,11 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    */
   public BlockBasedSource(String fileOrPatternSpec, long minBundleSize) {
     super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
+  }
+
+  /** Like {@link #BlockBasedSource(String, long)}. */
+  public BlockBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
+    super(fileOrPatternSpec, minBundleSize);
   }
 
   /**
