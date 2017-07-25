@@ -315,15 +315,15 @@ class PipelineResult(object):
     """Waits until the pipeline finishes and returns the final status.
 
     Args:
-      duration (:class:`int`): The time to wait (in milliseconds) for job to
-        finish. If it is set to :data:`None`, it will wait indefinitely until
-        the job is finished.
+      duration (int): The time to wait (in milliseconds) for job to finish.
+        If it is set to :data:`None`, it will wait indefinitely until the job
+        is finished.
 
     Raises:
-      :class:`~exceptions.IOError`: If there is a persistent problem getting
-        job information.
-      :class:`~exceptions.NotImplementedError`: If the runner does not support
-        this operation.
+      ~exceptions.IOError: If there is a persistent problem getting job
+        information.
+      ~exceptions.NotImplementedError: If the runner does not support this
+        operation.
 
     Returns:
       The final state of the pipeline, or :data:`None` on timeout.
@@ -334,10 +334,10 @@ class PipelineResult(object):
     """Cancels the pipeline execution.
 
     Raises:
-      :class:`~exceptions.IOError`: If there is a persistent problem getting
-        job information.
-      :class:`~exceptions.NotImplementedError`: If the runner does not support
-        this operation.
+      ~exceptions.IOError: If there is a persistent problem getting job
+        information.
+      ~exceptions.NotImplementedError: If the runner does not support this
+        operation.
 
     Returns:
       The final state of the pipeline.
@@ -349,8 +349,8 @@ class PipelineResult(object):
     query metrics from the runner.
 
     Raises:
-      :class:`~exceptions.NotImplementedError`: If the runner does not support
-        this operation.
+      ~exceptions.NotImplementedError: If the runner does not support this
+        operation.
     """
     raise NotImplementedError
 

@@ -60,7 +60,7 @@ class HasDisplayData(object):
     static display data.
 
     Returns:
-      dict[:class:`str`, `Any`]: A dictionary containing ``key:value`` pairs.
+      Dict[str, Any]: A dictionary containing ``key:value`` pairs.
       The value might be an integer, float or string value; a
       :class:`DisplayDataItem` for values that have more data
       (e.g. short value, label, url); or a :class:`HasDisplayData` instance
@@ -116,17 +116,18 @@ class DisplayData(object):
 
   @classmethod
   def create_from_options(cls, pipeline_options):
-    """ Creates DisplayData from a PipelineOptions instance.
+    """ Creates :class:`DisplayData` from a
+    :class:`~apache_beam.options.pipeline_options.PipelineOptions` instance.
 
-    When creating DisplayData, this method will convert the value of any
-    item of a non-supported type to its string representation.
-    The normal DisplayData.create_from method rejects those items.
+    When creating :class:`DisplayData`, this method will convert the value of
+    any item of a non-supported type to its string representation.
+    The normal :meth:`.create_from()` method rejects those items.
 
     Returns:
-      A DisplayData instance with populated items.
+      DisplayData: A :class:`DisplayData` instance with populated items.
 
     Raises:
-      :class:`exceptions.ValueError`: If the **has_display_data** argument is
+      ~exceptions.ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     from apache_beam.options.pipeline_options import PipelineOptions
@@ -143,13 +144,13 @@ class DisplayData(object):
 
   @classmethod
   def create_from(cls, has_display_data):
-    """ Creates DisplayData from a HasDisplayData instance.
+    """ Creates :class:`DisplayData` from a :class:`HasDisplayData` instance.
 
     Returns:
-      A DisplayData instance with populated items.
+      DisplayData: A :class:`DisplayData` instance with populated items.
 
     Raises:
-      :class:`exceptions.ValueError`: If the **has_display_data** argument is
+      ~exceptions.ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     if not isinstance(has_display_data, HasDisplayData):
@@ -224,8 +225,8 @@ class DisplayDataItem(object):
     :data:`None`.
 
     Raises:
-      :class:`~exceptions.ValueError`: If the item does not have a key,
-        namespace, value or type.
+      ~exceptions.ValueError: If the item does not have a key, namespace,
+        value or type.
     """
     if self.key is None:
       raise ValueError('Invalid DisplayDataItem. Key must not be None')
@@ -258,11 +259,11 @@ class DisplayDataItem(object):
     :class:`DisplayDataItem`.
 
     Returns:
-      Dict[:class:`str`, `Any`]: A dictionary. The internal-API dictionary
-      representing the :class:`DisplayDataItem`.
+      Dict[str, Any]: A dictionary. The internal-API dictionary representing
+      the :class:`DisplayDataItem`.
 
     Raises:
-      :class:`~exceptions.ValueError`: if the item is not valid.
+      ~exceptions.ValueError: if the item is not valid.
     """
     self.is_valid()
     return self._get_dict()

@@ -311,17 +311,16 @@ class CompressedFile(object):
         ``EOF``.
 
     Args:
-      offset (:class:`int`): seek offset in the uncompressed content represented
-        as number
-      whence (:class:`int`): seek mode. Supported modes are :data:`os.SEEK_SET`
+      offset (int): seek offset in the uncompressed content represented as
+        number
+      whence (int): seek mode. Supported modes are :data:`os.SEEK_SET`
         (absolute seek), :data:`os.SEEK_CUR` (seek relative to the current
         position), and :data:`os.SEEK_END` (seek relative to the end, offset
         should be negative).
 
     Raises:
-      :class:`~exceptions.IOError`: When this buffer is closed.
-      :class:`~exceptions.ValueError`: When whence is invalid or the file is not
-        seekable
+      ~exceptions.IOError: When this buffer is closed.
+      ~exceptions.ValueError: When whence is invalid or the file is not seekable
     """
     if whence == os.SEEK_SET:
       absolute_offset = offset

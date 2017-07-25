@@ -92,22 +92,22 @@ class Pipeline(object):
     """Initialize a pipeline object.
 
     Args:
-      runner (:class:`~apache_beam.runners.runner.PipelineRunner`): An object of
+      runner (~apache_beam.runners.runner.PipelineRunner): An object of
         type :class:`~apache_beam.runners.runner.PipelineRunner` that will be
         used to execute the pipeline. For registered runners, the runner name
         can be specified, otherwise a runner object must be supplied.
-      options (:class:`~apache_beam.options.pipeline_options.PipelineOptions`):
+      options (~apache_beam.options.pipeline_options.PipelineOptions):
         A configured
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object
         containing arguments that should be used for running the Beam job.
-      argv (List[:class:`str`]): a list of arguments (such as :data:`sys.argv`)
+      argv (List[str]): a list of arguments (such as :data:`sys.argv`)
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
 
     Raises:
-      :class:`~exceptions.ValueError`: if either the runner or options argument
-        is not of the expected type.
+      ~exceptions.ValueError: if either the runner or options argument is not
+        of the expected type.
     """
     if options is not None:
       if isinstance(options, PipelineOptions):
@@ -308,7 +308,7 @@ class Pipeline(object):
     output types are different.
 
     Args:
-      replacements (List[:class:`PTransformOverride`]): a list of
+      replacements (List[PTransformOverride]): a list of
         :class:`PTransformOverride` objects.
     """
     for override in replacements:
@@ -352,15 +352,15 @@ class Pipeline(object):
     Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
-      visitor (:class:`PipelineVisitor`): :class:`PipelineVisitor` object whose
+      visitor (PipelineVisitor): :class:`PipelineVisitor` object whose
         callbacks will be called for each node visited. See
         :class:`PipelineVisitor` comments.
 
     Raises:
-      :class:`~exceptions.TypeError`: if node is specified and is not a
+      ~exceptions.TypeError: if node is specified and is not a
         :class:`~apache_beam.pvalue.PValue`.
-      :class:`~apache_beam.error.PipelineError`: if node is specified and does
-        not belong to this pipeline instance.
+      ~apache_beam.error.PipelineError: if node is specified and does not
+        belong to this pipeline instance.
     """
 
     visited = set()
@@ -370,21 +370,20 @@ class Pipeline(object):
     """Applies a custom transform using the pvalueish specified.
 
     Args:
-      transform (:class:`~apache_beam.transforms.ptransform.PTransform`): the
+      transform (~apache_beam.transforms.ptransform.PTransform): the
         :class:`~apache_beam.transforms.ptransform.PTransform` to apply.
-      pvalueish: the input for the
+      pvalueish (~apache_beam.pvalue.PCollection): the input for the
         :class:`~apache_beam.transforms.ptransform.PTransform` (typically a
         :class:`~apache_beam.pvalue.PCollection`).
-      label (:class:`str`): label of the
+      label (str): label of the
         :class:`~apache_beam.transforms.ptransform.PTransform`.
 
     Raises:
-      :class:`~exceptions.TypeError`: if the transform object extracted from the
+      ~exceptions.TypeError: if the transform object extracted from the
         argument list is not a
         :class:`~apache_beam.transforms.ptransform.PTransform`.
-      :class:`~exceptions.RuntimeError`: if the transform object was
-        already applied to this pipeline and needs to be cloned in order to
-        apply again.
+      ~exceptions.RuntimeError: if the transform object was already applied to
+        this pipeline and needs to be cloned in order to apply again.
     """
     if isinstance(transform, ptransform._NamedPTransform):
       return self.apply(transform.transform, pvalueish,

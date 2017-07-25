@@ -63,7 +63,6 @@ from apache_beam.utils import urns
 __all__ = [
     'PTransform',
     'ptransform_fn',
-    'PTransformWithSideInputs',
     'label_from_callable',
     ]
 
@@ -218,18 +217,18 @@ class PTransform(WithTypeHints, HasDisplayData):
     """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
-      input_type_hint: An instance of an allowed built-in type, a custom class,
-        or an instance of a
+      input_type_hint (type): An instance of an allowed built-in type, a custom
+        class, or an instance of a
         :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      :class:`~exceptions.TypeError`: If **input_type_hint** is not a valid
-        type-hint. See
-        :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
+      ~exceptions.TypeError: If **input_type_hint** is not a valid type-hint.
+        See
+        :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
 
     Returns:
-      :class:`PTransform`: A reference to the instance of this particular
+      PTransform: A reference to the instance of this particular
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
@@ -241,17 +240,16 @@ class PTransform(WithTypeHints, HasDisplayData):
     """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
-      type_hint: An instance of an allowed built-in type, a custom class, or a
-        :class:`~apache_beam.typehints.typehints.TypeConstraint`.
+      type_hint (type): An instance of an allowed built-in type, a custom class,
+        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      :class:`~exceptions.TypeError`: If **type_hint** is not a valid type-hint.
-        See
-        :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
+      ~exceptions.TypeError: If **type_hint** is not a valid type-hint. See
+        :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
         for further details.
 
     Returns:
-      :class:`PTransform`: A reference to the instance of this particular
+      PTransform: A reference to the instance of this particular
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """

@@ -440,29 +440,25 @@ class ReadFromText(PTransform):
     """Initialize the :class:`ReadFromText` transform.
 
     Args:
-      file_pattern (:class:`str`): The file path to read from as a local file
-        path or a GCS ``gs://`` path. The path can contain glob characters
+      file_pattern (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob characters
         (``*``, ``?``, and ``[...]`` sets).
-      min_bundle_size (:class:`int`): Minimum size of bundles that should be
-        generated when splitting this source into bundles. See
+      min_bundle_size (int): Minimum size of bundles that should be generated
+        when splitting this source into bundles. See
         :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more
         details.
-      compression_type
-        (:class:`~apache_beam.io.filesystem.CompressionTypes`): Used to
-        handle compressed input files. Typical value is
-        :attr:`CompressionTypes.AUTO
+      compression_type (str): Used to handle compressed input files.
+        Typical value is :attr:`CompressionTypes.AUTO
         <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
         underlying file_path's extension will be used to detect the compression.
-      strip_trailing_newlines (:class:`bool`): Indicates whether this source
-        should remove the newline char in each line it reads before decoding
-        that line.
-      validate (:class:`bool`): flag to verify that the files exist during the
-        pipeline creation time.
-      skip_header_lines (:class:`int`): Number of header lines to skip. Same
-        number is skipped from each source file. Must be 0 or higher. Large
-        number of skipped lines might impact performance.
-      coder (:class:`~apache_beam.coders.coders.Coder`): Coder used to decode
-        each line.
+      strip_trailing_newlines (bool): Indicates whether this source should
+        remove the newline char in each line it reads before decoding that line.
+      validate (bool): flag to verify that the files exist during the pipeline
+        creation time.
+      skip_header_lines (int): Number of header lines to skip. Same number is
+        skipped from each source file. Must be 0 or higher. Large number of
+        skipped lines might impact performance.
+      coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
     """
 
     super(ReadFromText, self).__init__(**kwargs)
@@ -476,7 +472,8 @@ class ReadFromText(PTransform):
 
 
 class WriteToText(PTransform):
-  """A PTransform for writing to text files."""
+  """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
+  text files."""
 
   def __init__(
       self,
@@ -488,42 +485,39 @@ class WriteToText(PTransform):
       coder=coders.ToStringCoder(),
       compression_type=CompressionTypes.AUTO,
       header=None):
-    r"""Initialize a WriteToText PTransform.
+    r"""Initialize a :class:`WriteToText` transform.
 
     Args:
-      file_path_prefix (:class:`str`): The file path to write to. The files
-        written will begin with this prefix, followed by a shard identifier (see
+      file_path_prefix (str): The file path to write to. The files written will
+        begin with this prefix, followed by a shard identifier (see
         **num_shards**), and end in a common extension, if given by
         **file_name_suffix**. In most cases, only this argument is specified and
         **num_shards**, **shard_name_template**, and **file_name_suffix** use
         default values.
-      file_name_suffix (:class:`str`): Suffix for the files written.
-      append_trailing_newlines (:class:`bool`): indicate whether this sink
-        should write an additional newline char after writing each element.
-      num_shards (:class:`int`): The number of files (shards) used for output.
+      file_name_suffix (str): Suffix for the files written.
+      append_trailing_newlines (bool): indicate whether this sink should write
+        an additional newline char after writing each element.
+      num_shards (int): The number of files (shards) used for output.
         If not set, the service will decide on the optimal number of shards.
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
-      shard_name_template (:class:`str`): A template string containing
-        placeholders for the shard number and shard count. Currently only ``''``
-        and ``'-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+      shard_name_template (str): A template string containing placeholders for
+        the shard number and shard count. Currently only ``''`` and
+        ``'-SSSSS-of-NNNNN'`` are patterns accepted by the service.
         When constructing a filename for a particular shard number, the
         upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
         shard number and shard count respectively.  This argument can be ``''``
         in which case it behaves as if num_shards was set to 1 and only one file
         will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'``.
-      coder (:class:`~apache_beam.coders.coders.Coder`): Coder used to encode
-        each line.
-      compression_type
-        (:class:`~apache_beam.io.filesystem.CompressionTypes`): Used to
-        handle compressed output files. Typical value is
-        :class:`CompressionTypes.AUTO
+      coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
+      compression_type (str): Used to handle compressed output files.
+        Typical value is :class:`CompressionTypes.AUTO
         <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
         final file path's extension (as determined by **file_path_prefix**,
         **file_name_suffix**, **num_shards** and **shard_name_template**) will
         be used to detect the compression.
-      header (:class:`str`): String to write at beginning of file as a header.
+      header (str): String to write at beginning of file as a header.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
     """

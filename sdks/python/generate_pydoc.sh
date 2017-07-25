@@ -41,7 +41,7 @@ show-inheritance
 excluded_internal_code=(
     apache_beam/coders/stream.py*
     apache_beam/examples/
-    apache_beam/internal/
+    apache_beam/internal/clients/
     apache_beam/io/gcp/internal/
     apache_beam/io/gcp/tests/
     apache_beam/runners/api/
@@ -49,11 +49,9 @@ excluded_internal_code=(
     apache_beam/runners/dataflow/internal/
     apache_beam/runners/portability/
     apache_beam/runners/worker/
-    apache_beam/testing/
     *_pb2.py
     *_test.py
     *_test_common.py
-    *_test_utils.py
 )
 
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
@@ -95,18 +93,51 @@ import sys
 
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
+  'hamcrest': ('https://pyhamcrest.readthedocs.io/en/latest/', None),
 }
 
-nitpicky = True
-nitpick_ignore = [
-  # Ignore internal private classes. If there's any reference to them within the
-  # documentation, it will report as a broken cross reference. This can happen
-  # if a class inherits from a private class.
-  ('py:class', 'apache_beam.coders.coders._PickleCoderBase'),
-  ('py:class', 'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate'),
-  ('py:class', 'apache_beam.runners.direct.executor.CallableTask'),
-  ('py:class', 'apache_beam.transforms.trigger._ParallelTriggerFn'),
+# Since private classes are skipped by sphinx, if there is any cross reference
+# to them, it will be broken. This can happen if a class inherits from a
+# private class.
+ignore_identifiers = [
+  # Ignore "custom" builtin types
+  '',
+  'Any',
+  'Dict',
+  'Iterable',
+  'List',
+  'Set',
+  'Tuple',
+
+  # Ignore private classes
+  'apache_beam.coders.coders._PickleCoderBase',
+  'apache_beam.coders.coders.FastCoder',
+  'apache_beam.io._AvroSource',
+  'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
+  'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate',
+  'apache_beam.io.gcp.internal.clients.bigquery.'
+      'bigquery_v2_messages.TableSchema',
+  'apache_beam.pvalue.DoOutputsTuple',
+  'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.transforms.core.CallableWrapperCombineFn',
+  'apache_beam.transforms.ptransform.PTransformWithSideInputs',
+  'apache_beam.transforms.trigger._ParallelTriggerFn',
+  'apache_beam.transforms.trigger.InMemoryUnmergedState',
+  'apache_beam.typehints.typehints.AnyTypeConstraint',
+  'apache_beam.typehints.typehints.CompositeTypeHint',
+  'apache_beam.typehints.typehints.TypeConstraint',
+  'apache_beam.typehints.typehints.validate_composite_type_param()',
+
+  # Private classes which are used within the same module
+  'WindowedTypeConstraint',  # apache_beam.typehints.typehints
 ]
+
+# When inferring a base class it will use ':py:class'; if inferring a function
+# argument type or return type, it will use ':py:obj'. We'll generate both.
+nitpicky = True
+nitpick_ignore = []
+nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
+nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
 EOF
 
 #=== index.rst ===#

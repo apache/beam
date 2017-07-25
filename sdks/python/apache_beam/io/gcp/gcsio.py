@@ -137,18 +137,16 @@ class GcsIO(object):
     """Open a GCS file path for reading or writing.
 
     Args:
-      filename (:class:`str`): GCS file path in the form
-        ``gs://<bucket>/<object>``.
-      mode (:class:`str`): ``'r'`` for reading or ``'w'`` for writing.
-      read_buffer_size (:class:`int`): Buffer size to use during read
-        operations.
-      mime_type (:class:`str`): Mime type to set for write operations.
+      filename (str): GCS file path in the form ``gs://<bucket>/<object>``.
+      mode (str): ``'r'`` for reading or ``'w'`` for writing.
+      read_buffer_size (int): Buffer size to use during read operations.
+      mime_type (str): Mime type to set for write operations.
 
     Returns:
       GCS file object.
 
     Raises:
-      :class:`~exceptions.ValueError`: Invalid open file mode.
+      ~exceptions.ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
       return GcsBufferedReader(self.client, filename, mode=mode,

@@ -49,24 +49,11 @@ except ImportError:
   import dill
 
 
-__all__ = [
-    'Coder',
-    'BytesCoder',
-    'DillCoder',
-    'FastCoder',
-    'FastPrimitivesCoder',
-    'FloatCoder',
-    'IterableCoder',
-    'PickleCoder',
-    'ProtoCoder',
-    'SingletonCoder',
-    'StrUtf8Coder',
-    'TimestampCoder',
-    'TupleCoder',
-    'TupleSequenceCoder',
-    'VarIntCoder',
-    'WindowedValueCoder',
-]
+__all__ = ['Coder',
+           'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
+           'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
+           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
 def serialize_coder(coder):

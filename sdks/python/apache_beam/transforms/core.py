@@ -616,9 +616,9 @@ class ParDo(PTransformWithSideInputs):
   use the ``yield`` keyword in the process method.
 
   Args:
-    pcoll (:class:`~apache_beam.pvalue.PCollection`):
+    pcoll (~apache_beam.pvalue.PCollection):
       a :class:`~apache_beam.pvalue.PCollection` to be processed.
-    fn (:class:`DoFn`): a :class:`DoFn` object to be applied to each element
+    fn (DoFn): a :class:`DoFn` object to be applied to each element
       of **pcoll** argument.
     *args: positional arguments passed to the :class:`DoFn` object.
     **kwargs:  keyword arguments passed to the :class:`DoFn` object.
@@ -685,18 +685,18 @@ class ParDo(PTransformWithSideInputs):
         it).
 
     Returns:
-      :class:`~apache_beam.pvalue.DoOutputsTuple`: An object of type
+      ~apache_beam.pvalue.DoOutputsTuple: An object of type
       :class:`~apache_beam.pvalue.DoOutputsTuple` that bundles together all
       the outputs of a :class:`ParDo` transform and allows accessing the
       individual :class:`~apache_beam.pvalue.PCollection` s for each output
       using an ``object.tag`` syntax.
 
     Raises:
-      :class:`~exceptions.TypeError`: if the **self** object is not a
+      ~exceptions.TypeError: if the **self** object is not a
         :class:`~apache_beam.pvalue.PCollection` that is the result of a
         :class:`ParDo` transform.
-      :class:`~exceptions.ValueError`: if **main_kw** contains any key other
-        than ``'main'``.
+      ~exceptions.ValueError: if **main_kw** contains any key other than
+        ``'main'``.
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
@@ -758,19 +758,19 @@ def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
   be flattened into the output :class:`~apache_beam.pvalue.PCollection`.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    :class:`~apache_beam.pvalue.PCollection`:
+    ~apache_beam.pvalue.PCollection:
     A :class:`~apache_beam.pvalue.PCollection` containing the
     :func:`FlatMap` outputs.
 
   Raises:
-    :class:`~exceptions.TypeError`: If the **fn** passed as argument is not a
-      callable. Typical error is to pass a :class:`DoFn` instance which is
-      supported only for :class:`ParDo`.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
   if not callable(fn):
@@ -788,19 +788,19 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   single element.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    :class:`~apache_beam.pvalue.PCollection`:
+    ~apache_beam.pvalue.PCollection:
     A :class:`~apache_beam.pvalue.PCollection` containing the
     :func:`Map` outputs.
 
   Raises:
-    :class:`~exceptions.TypeError`: If the **fn** passed as argument is not a
-      callable. Typical error is to pass a :class:`DoFn` instance which is
-      supported only for :class:`ParDo`.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   if not callable(fn):
     raise TypeError(
@@ -837,19 +837,19 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   elements.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    :class:`~apache_beam.pvalue.PCollection`:
+    ~apache_beam.pvalue.PCollection:
     A :class:`~apache_beam.pvalue.PCollection` containing the
     :func:`Filter` outputs.
 
   Raises:
-    :class:`~exceptions.TypeError`: If the **fn** passed as argument is not a
-      callable. Typical error is to pass a :class:`DoFn` instance which is
-      supported only for :class:`FlatMap`.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   if not callable(fn):
     raise TypeError(
@@ -898,22 +898,23 @@ class CombineGlobally(PTransform):
   on how :class:`CombineFn` s are applied.
 
   Args:
-    pcoll (:class:`~apache_beam.pvalue.PCollection`):
+    pcoll (~apache_beam.pvalue.PCollection):
       a :class:`~apache_beam.pvalue.PCollection` to be reduced into a single
       value.
-    fn: a :class:`CombineFn` object that will be called to progressively reduce
-      the :class:`~apache_beam.pvalue.PCollection` into single values, or a
-      callable suitable for wrapping by ``CallableWrapperCombineFn``.
+    fn (callable): a :class:`CombineFn` object that will be called to
+      progressively reduce the :class:`~apache_beam.pvalue.PCollection` into
+      single values, or a callable suitable for wrapping by
+      :class:`~apache_beam.transforms.core.CallableWrapperCombineFn`.
     *args: positional arguments passed to the :class:`CombineFn` object.
     **kwargs: keyword arguments passed to the :class:`CombineFn` object.
 
   Raises:
-    :class:`~exceptions.TypeError`: If the output type of the input
+    ~exceptions.TypeError: If the output type of the input
       :class:`~apache_beam.pvalue.PCollection` is not compatible
       with ``Iterable[A]``.
 
   Returns:
-    :class:`~apache_beam.pvalue.PCollection`: A single-element
+    ~apache_beam.pvalue.PCollection: A single-element
     :class:`~apache_beam.pvalue.PCollection` containing the main output of
     the :class:`CombineGlobally` transform.
 

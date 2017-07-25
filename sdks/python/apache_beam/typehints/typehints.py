@@ -82,11 +82,6 @@ __all__ = [
     'Generator',
     'WindowedValue',
     'TypeVariable',
-    'TypeConstraint',
-    'AnyTypeConstraint',
-    'WindowedTypeConstraint',
-    'CompositeTypeHint',
-    'validate_composite_type_param',
 ]
 
 
