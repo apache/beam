@@ -32,9 +32,12 @@ FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1"
 SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1"
 SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1"
 
+PICKLED_COMBINE_FN = "beam:combinefn:pickled_python:v0.1"
 PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
+COMBINE_PER_KEY_TRANSFORM = "beam:ptransform:combine_per_key:v0.1"
+COMBINE_GROUPED_VALUES_TRANSFORM = "beam:ptransform:combine_grouped_values:v0.1"
 FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
 READ_TRANSFORM = "beam:ptransform:read:v0.1"
 WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
@@ -53,7 +56,7 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  # TODO(robertwb): Figure out issue with dill + local classes + abc metaclass
+  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}
