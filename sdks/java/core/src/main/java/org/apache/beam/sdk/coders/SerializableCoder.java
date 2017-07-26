@@ -152,6 +152,10 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     throw new NonDeterministicException(this,
         "Java Serialization may be non-deterministic.");
   }
+  @Override
+  public boolean consistentWithEquals(){
+    return true;
+  }
 
   @Override
   public boolean equals(Object other) {
