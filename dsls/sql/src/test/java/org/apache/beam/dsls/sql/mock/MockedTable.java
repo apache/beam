@@ -20,9 +20,9 @@ package org.apache.beam.dsls.sql.mock;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.sdk.sd.BeamRow;
-import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 

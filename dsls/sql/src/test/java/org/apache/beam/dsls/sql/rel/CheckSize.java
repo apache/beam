@@ -18,8 +18,8 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.BeamRow;
 import org.junit.Assert;
 
 /**

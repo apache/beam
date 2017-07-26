@@ -20,8 +20,8 @@ package org.apache.beam.dsls.sql.transform;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
-import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.BeamRow;
 
 /**
  * {@code BeamSqlFilterFn} is the executor for a {@link BeamFilterRel} step.

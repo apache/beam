@@ -27,7 +27,7 @@ import org.apache.beam.dsls.sql.rel.BeamLogicalConvention;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.adapter.java.JavaTypeFactory;

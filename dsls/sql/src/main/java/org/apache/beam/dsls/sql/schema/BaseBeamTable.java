@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.sd.BeamRowType;
+import org.apache.beam.sdk.values.BeamRowType;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.

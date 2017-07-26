@@ -88,7 +88,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpressi
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
-import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;

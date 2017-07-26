@@ -21,7 +21,7 @@ import com.google.common.base.Joiner;
 import java.util.List;
 import org.apache.beam.dsls.sql.BeamSqlEnv;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;

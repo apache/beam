@@ -19,7 +19,7 @@ package org.apache.beam.dsls.sql.interpreter;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.values.BeamRow;
 
 /**
  * {@code BeamSqlExpressionExecutor} fills the gap between relational

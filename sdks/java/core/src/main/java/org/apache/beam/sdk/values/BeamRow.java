@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.sd;
+package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -32,8 +32,16 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.joda.time.Instant;
 
 /**
- * Represent a generic ROW record in Beam SQL.
+ * {@link org.apache.beam.sdk.values.BeamRow}, self-described with
+ * {@link org.apache.beam.sdk.values.BeamRowType}, and encoded/decoded with
+ * {@link org.apache.beam.sdk.coders.BeamRowCoder} is the foundation of structure data
+ * (aka sd) process in Beam.
  *
+ * <p>Similar as the <em>row</em> concept in database, {@link org.apache.beam.sdk.values.BeamRow}
+ * represents one row element in a {@link org.apache.beam.sdk.values.PCollection}.
+ * Limited SQL types are supported now, visit
+ * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
+ * for more details.
  */
 public class BeamRow implements Serializable {
   private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();

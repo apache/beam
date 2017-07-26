@@ -19,9 +19,9 @@ package org.apache.beam.dsls.sql;
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.sd.BeamRow;
-import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;

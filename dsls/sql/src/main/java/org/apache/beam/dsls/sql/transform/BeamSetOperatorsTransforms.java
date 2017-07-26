@@ -21,10 +21,10 @@ package org.apache.beam.dsls.sql.transform;
 import java.util.Iterator;
 
 import org.apache.beam.dsls.sql.rel.BeamSetOperatorRelBase;
-import org.apache.beam.sdk.sd.BeamRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 

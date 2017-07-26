@@ -21,11 +21,11 @@ import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSqlRow2CsvLine;
 import static org.apache.beam.dsls.sql.schema.BeamTableUtils.csvLine2BeamSqlRow;
 
 import java.util.List;
-import org.apache.beam.sdk.sd.BeamRow;
-import org.apache.beam.sdk.sd.BeamRowType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.sd;
+package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,17 +24,8 @@ import java.sql.Types;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.ByteCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 
 /**
  *  A {@link Coder} encodes {@link BeamRow}.

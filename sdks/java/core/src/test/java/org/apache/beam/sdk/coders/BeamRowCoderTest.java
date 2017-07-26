@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.sd;
+package org.apache.beam.sdk.coders;
 
 import java.math.BigDecimal;
 import java.sql.Types;
@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 import org.junit.Test;
 
 /**

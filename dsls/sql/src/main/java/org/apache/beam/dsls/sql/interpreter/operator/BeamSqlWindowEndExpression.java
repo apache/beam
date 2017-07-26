@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.util.Date;
-import org.apache.beam.sdk.sd.BeamRow;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
