@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -129,7 +129,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testSingleton() {
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         Arrays.asList(389),
         Arrays.asList(389, 389, 389, 389, 389));
@@ -137,7 +137,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testSimpleQuantiles() {
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         intRange(101),
         Arrays.asList(0, 25, 50, 75, 100));
@@ -145,7 +145,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testUnevenQuantiles() {
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(37),
         intRange(5000),
         quantileMatcher(5000, 37, 20 /* tolerance */));
@@ -153,7 +153,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testLargerQuantiles() {
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(50),
         intRange(10001),
         quantileMatcher(10001, 50, 20 /* tolerance */));
@@ -161,7 +161,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testTightEpsilon() {
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(10).withEpsilon(0.01),
         intRange(10001),
         quantileMatcher(10001, 10, 5 /* tolerance */));
@@ -174,7 +174,7 @@ public class ApproximateQuantilesTest {
     for (int i = 0; i < 10; i++) {
       all.addAll(intRange(size));
     }
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         all,
         Arrays.asList(0, 25, 50, 75, 100));
@@ -190,7 +190,7 @@ public class ApproximateQuantilesTest {
     for (int i = 300; i < 1000; i++) {
       all.add(3);
     }
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         all,
         Arrays.asList(1, 2, 3, 3, 3));
@@ -202,7 +202,7 @@ public class ApproximateQuantilesTest {
     for (int i = 1; i < 1000; i++) {
       all.add((int) Math.log(i));
     }
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         all,
         Arrays.asList(0, 5, 6, 6, 6));
@@ -214,7 +214,7 @@ public class ApproximateQuantilesTest {
     for (int i = 1; i < 1000; i++) {
       all.add(1000 / i);
     }
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<Integer>create(5),
         all,
         Arrays.asList(1, 1, 2, 4, 1000));
@@ -224,11 +224,11 @@ public class ApproximateQuantilesTest {
   public void testAlternateComparator() {
     List<String> inputs = Arrays.asList(
         "aa", "aaa", "aaaa", "b", "ccccc", "dddd", "zz");
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.<String>create(3),
         inputs,
         Arrays.asList("aa", "b", "zz"));
-    checkCombineFn(
+    testCombineFn(
         ApproximateQuantilesCombineFn.create(3, new OrderByLength()),
         inputs,
         Arrays.asList("b", "aaa", "ccccc"));

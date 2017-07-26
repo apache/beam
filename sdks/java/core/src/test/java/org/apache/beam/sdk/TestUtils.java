@@ -17,15 +17,9 @@
  */
 package org.apache.beam.sdk;
 
-import static org.junit.Assert.assertThat;
-
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.KV;
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -126,87 +120,5 @@ public class TestUtils {
           .appendText(", ").appendValue(valueMatcher)
           .appendText(")");
     }
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Utilities for testing CombineFns, ensuring they give correct results
-  // across various permutations and shardings of the input.
-
-  public static <InputT, AccumT, OutputT> void checkCombineFn(
-      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, final OutputT expected) {
-    checkCombineFn(fn, input, CoreMatchers.is(expected));
-  }
-
-  public static <InputT, AccumT, OutputT> void checkCombineFn(
-      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, Matcher<? super OutputT> matcher) {
-    checkCombineFnInternal(fn, input, matcher);
-    Collections.shuffle(input);
-    checkCombineFnInternal(fn, input, matcher);
-  }
-
-  private static <InputT, AccumT, OutputT> void checkCombineFnInternal(
-      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, Matcher<? super OutputT> matcher) {
-    int size = input.size();
-    checkCombineFnShards(fn, Collections.singletonList(input), matcher);
-    checkCombineFnShards(fn, shardEvenly(input, 2), matcher);
-    if (size > 4) {
-      checkCombineFnShards(fn, shardEvenly(input, size / 2), matcher);
-      checkCombineFnShards(
-          fn, shardEvenly(input, (int) (size / Math.sqrt(size))), matcher);
-    }
-    checkCombineFnShards(fn, shardExponentially(input, 1.4), matcher);
-    checkCombineFnShards(fn, shardExponentially(input, 2), matcher);
-    checkCombineFnShards(fn, shardExponentially(input, Math.E), matcher);
-  }
-
-  public static <InputT, AccumT, OutputT> void checkCombineFnShards(
-      CombineFn<InputT, AccumT, OutputT> fn,
-      List<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
-    checkCombineFnShardsInternal(fn, shards, matcher);
-    Collections.shuffle(shards);
-    checkCombineFnShardsInternal(fn, shards, matcher);
-  }
-
-  private static <InputT, AccumT, OutputT> void checkCombineFnShardsInternal(
-      CombineFn<InputT, AccumT, OutputT> fn,
-      Iterable<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
-    List<AccumT> accumulators = new ArrayList<>();
-    int maybeCompact = 0;
-    for (Iterable<InputT> shard : shards) {
-      AccumT accumulator = fn.createAccumulator();
-      for (InputT elem : shard) {
-        accumulator = fn.addInput(accumulator, elem);
-      }
-      if (maybeCompact++ % 2 == 0) {
-        accumulator = fn.compact(accumulator);
-      }
-      accumulators.add(accumulator);
-    }
-    AccumT merged = fn.mergeAccumulators(accumulators);
-    assertThat(fn.extractOutput(merged), matcher);
-  }
-
-  private static <T> List<List<T>> shardEvenly(List<T> input, int numShards) {
-    List<List<T>> shards = new ArrayList<>(numShards);
-    for (int i = 0; i < numShards; i++) {
-      shards.add(input.subList(i * input.size() / numShards,
-                               (i + 1) * input.size() / numShards));
-    }
-    return shards;
-  }
-
-  private static <T> List<List<T>> shardExponentially(
-      List<T> input, double base) {
-    assert base > 1.0;
-    List<List<T>> shards = new ArrayList<>();
-    int end = input.size();
-    while (end > 0) {
-      int start = (int) (end / base);
-      shards.add(input.subList(start, end));
-      end = start;
-    }
-    return shards;
   }
 }
