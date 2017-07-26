@@ -39,6 +39,7 @@ import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.FileBasedSource;
@@ -106,7 +107,7 @@ public class UnboundedReadFromBoundedSourceTest {
     long numElements = 100;
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSource, VarLongCoder.of());
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
@@ -161,7 +162,7 @@ public class UnboundedReadFromBoundedSourceTest {
       BoundedSource<T> boundedSource,
       List<T> expectedElements) throws Exception {
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSource, boundedSource.getDefaultOutputCoder());
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedToUnboundedSourceAdapter<T>.Reader reader =
@@ -214,7 +215,7 @@ public class UnboundedReadFromBoundedSourceTest {
       BoundedSource<T> boundedSource,
       List<T> expectedElements) throws Exception {
     BoundedToUnboundedSourceAdapter<T> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+        new BoundedToUnboundedSourceAdapter<>(boundedSource, boundedSource.getDefaultOutputCoder());
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedToUnboundedSourceAdapter<T>.Reader reader =
@@ -255,7 +256,7 @@ public class UnboundedReadFromBoundedSourceTest {
 
     BoundedSource<Long> countingSource = CountingSource.upTo(100);
     BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(countingSource);
+        new BoundedToUnboundedSourceAdapter<>(countingSource, VarLongCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
 
     unboundedSource.createReader(options, null).getCurrent();
@@ -267,7 +268,7 @@ public class UnboundedReadFromBoundedSourceTest {
 
     BoundedSource<Long> countingSource = CountingSource.upTo(100);
     BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(countingSource);
+        new BoundedToUnboundedSourceAdapter<>(countingSource, VarLongCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
 
     List<TimestampedValue<Long>> elements =

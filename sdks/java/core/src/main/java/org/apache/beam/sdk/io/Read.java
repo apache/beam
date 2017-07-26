@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -95,7 +96,7 @@ public class Read {
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 
@@ -103,9 +104,8 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
-          WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-          .setCoder(getDefaultOutputCoder());
+      return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+          WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
     }
 
     /**
@@ -150,7 +150,7 @@ public class Read {
      * records.
      */
     public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
-      return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, null);
+      return new BoundedReadFromUnboundedSource<T>(source, null, maxNumRecords, null);
     }
 
     /**
@@ -159,11 +159,11 @@ public class Read {
      * of time to read for.  Each split of the source will read for this much time.
      */
     public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
-      return new BoundedReadFromUnboundedSource<T>(source, Long.MAX_VALUE, maxReadTime);
+      return new BoundedReadFromUnboundedSource<T>(source, null, Long.MAX_VALUE, maxReadTime);
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder() {
+    protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
       return source.getDefaultOutputCoder();
     }
 

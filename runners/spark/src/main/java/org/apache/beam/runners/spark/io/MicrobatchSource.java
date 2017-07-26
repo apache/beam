@@ -54,6 +54,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   private static volatile Cache<MicrobatchSource<?, ?>, Source.Reader<?>> readerCache;
 
   private final UnboundedSource<T, CheckpointMarkT> source;
+  private final Coder<T> outputCoder;
   private final Duration maxReadTime;
   private final int numInitialSplits;
   private final long maxNumRecords;
@@ -66,6 +67,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   MicrobatchSource(
       final UnboundedSource<T, CheckpointMarkT> source,
+      final Coder<T> outputCoder,
       final Duration maxReadTime,
       final int numInitialSplits,
       final long maxNumRecords,
@@ -73,6 +75,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       final int sourceId,
       final double readerCacheInterval) {
     this.source = source;
+    this.outputCoder = outputCoder;
     this.maxReadTime = maxReadTime;
     this.numInitialSplits = numInitialSplits;
     this.maxNumRecords = maxNumRecords;
@@ -118,7 +121,14 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       // for example: Kafka should not add partitions if more then one topic is read.
       result.add(
           new MicrobatchSource<>(
-              splits.get(i), maxReadTime, 1, numRecords[i], i, sourceId, readerCacheInterval));
+              splits.get(i),
+              outputCoder,
+              maxReadTime,
+              1,
+              numRecords[i],
+              i,
+              sourceId,
+              readerCacheInterval));
     }
     return result;
   }
@@ -139,9 +149,13 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     source.validate();
   }
 
+  public Coder<T> getOutputCoder() {
+    return outputCoder;
+  }
+
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+    return getOutputCoder();
   }
 
   public Coder<CheckpointMarkT> getCheckpointMarkCoder() {

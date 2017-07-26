@@ -358,11 +358,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               // must precede it
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Bounded.class),
-                  new ReflectiveRootOverrideFactory(StreamingBoundedRead.class, this)))
+                  new StreamingBoundedReadOverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
-                  new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this)))
+                  new StreamingUnboundedReadOverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
@@ -1156,6 +1156,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class StreamingUnboundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Unbounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new StreamingUnboundedRead<T>(
+              transform.getTransform().getSource(),
+              ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()))
+                  .getCoder()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   /**
    * Specialized implementation for
    * {@link org.apache.beam.sdk.io.Read.Unbounded Read.Unbounded} for the
@@ -1166,16 +1186,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingUnboundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
+    private final Coder<T> outputCoder;
 
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingUnboundedRead(DataflowRunner runner, Read.Unbounded<T> transform) {
-      this.source = transform.getSource();
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+    public StreamingUnboundedRead(UnboundedSource<T, ?> source, Coder<T> outputCoder) {
+      this.source = source;
+      this.outputCoder = outputCoder;
     }
 
     @Override
@@ -1183,10 +1200,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       source.validate();
 
       if (source.requiresDeduping()) {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source, outputCoder))
             .apply(new Deduplicate<T>());
       } else {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source, outputCoder))
             .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
       }
     }
@@ -1198,9 +1215,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private static class ReadWithIds<T>
         extends PTransform<PInput, PCollection<ValueWithRecordId<T>>> {
       private final UnboundedSource<T, ?> source;
+      private final Coder<T> outputCoder;
 
-      private ReadWithIds(UnboundedSource<T, ?> source) {
+      private ReadWithIds(UnboundedSource<T, ?> source, Coder<T> outputCoder) {
         this.source = source;
+        this.outputCoder = outputCoder;
       }
 
       @Override
@@ -1211,7 +1230,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @Override
       protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
-        return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
+        return ValueWithRecordId.ValueWithRecordIdCoder.of(outputCoder);
       }
 
       @Override
@@ -1275,29 +1294,46 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class StreamingBoundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new StreamingBoundedRead<T>(
+              transform.getTransform().getSource(),
+              ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()))
+                  .getCoder()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   /**
    * Specialized implementation for {@link org.apache.beam.sdk.io.Read.Bounded Read.Bounded} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
+    private final Coder<T> outputCoder;
 
     /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingBoundedRead(DataflowRunner runner, Read.Bounded<T> transform) {
-      this.source = transform.getSource();
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+    public StreamingBoundedRead(BoundedSource<T> source, Coder<T> outputCoder) {
+      this.source = source;
+      this.outputCoder = outputCoder;
     }
 
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      return Pipeline.applyTransform(input, new UnboundedReadFromBoundedSource<>(source))
+      return Pipeline.applyTransform(
+              input, new UnboundedReadFromBoundedSource<>(source, outputCoder))
           .setIsBoundedInternal(IsBounded.BOUNDED);
     }
   }

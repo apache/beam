@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -58,6 +59,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
 
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
+  private final Coder<T> outputCoder;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
   // Reader cache interval to expire readers if they haven't been accessed in the last microbatch.
@@ -81,10 +83,12 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   SourceDStream(
       StreamingContext ssc,
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
+      Coder<T> outputCoder,
       SparkRuntimeContext runtimeContext,
       Long boundMaxRecords) {
     super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
     this.unboundedSource = unboundedSource;
+    this.outputCoder = outputCoder;
     this.runtimeContext = runtimeContext;
 
     SparkPipelineOptions options = runtimeContext.getPipelineOptions().as(
@@ -125,6 +129,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
   private MicrobatchSource<T, CheckpointMarkT> createMicrobatchSource() {
     return new MicrobatchSource<>(unboundedSource,
+                                  outputCoder,
                                   boundReadDuration,
                                   initialParallelism,
                                   computeReadMaxRecords(),

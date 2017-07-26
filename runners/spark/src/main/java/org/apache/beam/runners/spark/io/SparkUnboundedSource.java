@@ -31,6 +31,7 @@ import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -82,12 +83,13 @@ public class SparkUnboundedSource {
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
       UnboundedSource<T, CheckpointMarkT> source,
+      Coder<T> outputCoder,
       String stepName) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
     SourceDStream<T, CheckpointMarkT> sourceDStream =
-        new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
+        new SourceDStream<>(jssc.ssc(), source, outputCoder, rc, maxRecordsPerBatch);
 
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
         JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
@@ -114,10 +116,12 @@ public class SparkUnboundedSource {
         .register();
 
     // output the actual (deserialized) stream.
-    WindowedValue.FullWindowedValueCoder<T> coder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
-            GlobalWindow.Coder.INSTANCE);
+    WindowedValue.FullWindowedValueCoder<T> coder=
+
+     WindowedValue.FullWindowedValueCoder.of(
+          outputCoder,
+          GlobalWindow.Coder.INSTANCE);
+
     JavaDStream<WindowedValue<T>> readUnboundedStream =
         mapWithStateDStream
             .flatMap(new Tuple2byteFlatMapFunction())

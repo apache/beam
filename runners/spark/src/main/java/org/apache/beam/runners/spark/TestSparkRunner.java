@@ -40,6 +40,8 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -197,8 +199,16 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     @SuppressWarnings("unchecked")
     @Override
     public PCollection<T> expand(PBegin input) {
+      Coder<ValueWithRecordId<T>> coder;
+      try {
+        coder = source.getAdaptedSource().getDefaultOutputCoder();
+      } catch (CannotProvideCoderException e) {
+        // UnboundedToBoundedSourceAdapter.getDefaultOutputCoder doesn't throw.
+        throw new RuntimeException(e);
+      }
       PTransform<PBegin, ? extends PCollection<ValueWithRecordId<T>>> replacingTransform =
-          new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
+          new UnboundedReadFromBoundedSource<>(
+              source.getAdaptedSource(), coder);
       return (PCollection<T>) input.apply(replacingTransform)
           .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
     }
