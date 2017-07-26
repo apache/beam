@@ -155,6 +155,9 @@
     <!-- Custom set up for our Jenkins precommit tests that comment on GitHub -->
     <profile>
       <id>jenkins-precommit</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
       <properties>
         <skipITs>false</skipITs>
         <skipDefaultIT>true</skipDefaultIT>
@@ -173,6 +176,11 @@
           <groupId>com.esotericsoftware.kryo</groupId>
           <artifactId>kryo</artifactId>
           <version>${apex.kryo.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-gearpump</artifactId>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
