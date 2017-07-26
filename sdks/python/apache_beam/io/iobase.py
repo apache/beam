@@ -37,6 +37,7 @@ import uuid
 
 from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
@@ -44,6 +45,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
@@ -70,7 +72,13 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(HasDisplayData):
+class SourceBase(HasDisplayData, urns.RunnerApiFn):
+  """Base class for all sources that can be passed to beam.io.Read(...).
+  """
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
+
+
+class BoundedSource(SourceBase):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -188,6 +196,9 @@ class BoundedSource(HasDisplayData):
     more efficiently than pickling.
     """
     return coders.registry.get_coder(object)
+
+  def is_bounded(self):
+    return True
 
 
 class RangeTracker(object):
@@ -819,6 +830,24 @@ class Read(ptransform.PTransform):
     return {'source': DisplayDataItem(self.source.__class__,
                                       label='Read Source'),
             'source_dd': self.source}
+
+  def to_runner_api_parameter(self, context):
+    return (urns.READ_TRANSFORM,
+            beam_runner_api_pb2.ReadPayload(
+                source=self.source.to_runner_api(context),
+                is_bounded=beam_runner_api_pb2.BOUNDED
+                if self.source.is_bounded()
+                else beam_runner_api_pb2.UNBOUNDED))
+
+  @staticmethod
+  def from_runner_api_parameter(parameter, context):
+    return Read(SourceBase.from_runner_api(parameter.source, context))
+
+
+ptransform.PTransform.register_urn(
+    urns.READ_TRANSFORM,
+    beam_runner_api_pb2.ReadPayload,
+    Read.from_runner_api_parameter)
 
 
 class Write(ptransform.PTransform):

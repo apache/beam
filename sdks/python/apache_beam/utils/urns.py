@@ -36,7 +36,10 @@ PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
 FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
+READ_TRANSFORM = "beam:ptransform:read:v0.1"
 WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
+
+PICKLED_SOURCE = "beam:source:pickled_python:v0.1"
 
 
 class RunnerApiFn(object):
@@ -50,7 +53,8 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  __metaclass__ = abc.ABCMeta
+  # TODO(robertwb): Figure out issue with dill + local classes + abc metaclass
+  # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}
 
