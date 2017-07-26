@@ -183,6 +183,9 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
     raise NotImplementedError(
         'PubSubPayloadSource is not supported in local execution.')
 
+  def is_bounded(self):
+    return False
+
 
 class _PubSubPayloadSink(dataflow_io.NativeSink):
   """Sink for the payload of a message as bytes to a Cloud Pub/Sub topic."""
