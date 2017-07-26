@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -90,14 +91,24 @@ public class ForwardingPTransformTest {
   @Test
   public void getDefaultOutputCoderDelegates() throws Exception {
     @SuppressWarnings("unchecked")
-    PCollection<Integer> input = Mockito.mock(PCollection.class);
+    PCollection<Integer> input =
+        PCollection.createPrimitiveOutputInternal(
+            null /* pipeline */,
+            WindowingStrategy.globalDefault(),
+            PCollection.IsBounded.BOUNDED,
+            null /* coder */);
     @SuppressWarnings("unchecked")
-    PCollection<String> output = Mockito.mock(PCollection.class);
+    PCollection<String> output = PCollection.createPrimitiveOutputInternal(
+        null /* pipeline */,
+        WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.BOUNDED,
+        null /* coder */);
     @SuppressWarnings("unchecked")
     Coder<String> outputCoder = Mockito.mock(Coder.class);
 
+    Mockito.when(delegate.expand(input)).thenReturn(output);
     Mockito.when(delegate.getDefaultOutputCoder(input, output)).thenReturn(outputCoder);
-    assertThat(forwarding.getDefaultOutputCoder(input, output), equalTo(outputCoder));
+    assertThat(forwarding.expand(input).getCoder(), equalTo(outputCoder));
   }
 
   @Test

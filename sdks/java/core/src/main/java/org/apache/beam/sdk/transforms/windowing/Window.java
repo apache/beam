@@ -23,7 +23,6 @@ import com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -450,11 +449,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       builder.add(DisplayData.item("timestampCombiner", getTimestampCombiner().toString())
         .withLabel("Timestamp Combiner"));
     }
-  }
-
-  @Override
-  protected Coder<?> getDefaultOutputCoder(PCollection<T> input) {
-    return input.getCoder();
   }
 
   @Override

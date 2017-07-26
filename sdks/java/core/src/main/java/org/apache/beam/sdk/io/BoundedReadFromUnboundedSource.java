@@ -114,12 +114,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
             }
           }));
     }
-    return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
-  }
-
-  @Override
-  protected Coder<T> getDefaultOutputCoder() {
-    return source.getOutputCoder();
+    return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()))
+        .setCoder(source.getOutputCoder());
   }
 
   @Override

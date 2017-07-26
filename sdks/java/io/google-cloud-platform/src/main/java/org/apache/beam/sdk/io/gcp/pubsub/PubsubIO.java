@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -727,7 +726,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input.apply(source).apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn())).setCoder(getCoder());
     }
 
     @Override
@@ -742,11 +741,6 @@ public class PubsubIO {
         builder.add(DisplayData.item("subscription", subscriptionString)
             .withLabel("Pubsub Subscription"));
       }
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return getCoder();
     }
   }
 
@@ -868,11 +862,6 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
 
     /**

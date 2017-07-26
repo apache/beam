@@ -30,9 +30,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -336,11 +334,6 @@ public class TextIO {
             .withLabel("Compression Type"))
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
             .withLabel("File Pattern"));
-    }
-
-    @Override
-    protected Coder<String> getDefaultOutputCoder() {
-      return StringUtf8Coder.of();
     }
   }
 
@@ -812,11 +805,6 @@ public class TextIO {
               DisplayData.item(
                       "writableByteChannelFactory", getWritableByteChannelFactory().toString())
                   .withLabel("Compression/Transformation Type"));
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 

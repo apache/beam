@@ -606,11 +606,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       // Return a value unrelated to the input.
       return input.getPipeline().apply(Create.of(1, 2, 3, 4));
     }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VarIntCoder.of();
-    }
   }
 
   /**
@@ -625,11 +620,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       input.apply(Count.<Integer>perElement());
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 

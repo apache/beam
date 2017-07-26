@@ -315,29 +315,25 @@ public class Create<T> {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      Coder<T> coder;
       try {
-        Coder<T> coder = getDefaultOutputCoder(input);
-        try {
-          CreateSource<T> source = CreateSource.fromIterable(elems, coder);
-          return input.getPipeline().apply(Read.from(source));
-        } catch (IOException e) {
-          throw new RuntimeException(
-              String.format("Unable to apply Create %s using Coder %s.", this, coder), e);
-        }
+        CoderRegistry registry = input.getPipeline().getCoderRegistry();
+        coder =
+            this.coder.isPresent()
+                ? this.coder.get()
+                : typeDescriptor.isPresent()
+                    ? registry.getCoder(typeDescriptor.get())
+                    : getDefaultCreateCoder(registry, elems);
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
             + "Please set a coder by invoking Create.withCoder() explicitly.", e);
       }
-    }
-
-    @Override
-    public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
-      if (coder.isPresent()) {
-        return coder.get();
-      } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
-      } else {
-        return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), elems);
+      try {
+        CreateSource<T> source = CreateSource.fromIterable(elems, coder);
+        return input.getPipeline().apply(Read.from(source));
+      } catch (IOException e) {
+        throw new RuntimeException(
+            String.format("Unable to apply Create %s using Coder %s.", this, coder), e);
       }
     }
 
@@ -570,7 +566,23 @@ public class Create<T> {
     @Override
     public PCollection<T> expand(PBegin input) {
       try {
-        Coder<T> coder = getDefaultOutputCoder(input);
+        Coder<T> coder;
+        if (elementCoder.isPresent()) {
+          coder = elementCoder.get();
+        } else if (typeDescriptor.isPresent()) {
+          coder = input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
+        } else {
+          Iterable<T> rawElements =
+              Iterables.transform(
+                  timestampedElements,
+                  new Function<TimestampedValue<T>, T>() {
+                    @Override
+                    public T apply(TimestampedValue<T> timestampedValue) {
+                      return timestampedValue.getValue();
+                    }
+                  });
+          coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
+        }
 
         PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
             Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
@@ -608,26 +620,6 @@ public class Create<T> {
       @ProcessElement
       public void processElement(ProcessContext c) {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
-      }
-    }
-
-    @Override
-    public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
-      if (elementCoder.isPresent()) {
-        return elementCoder.get();
-      } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
-      } else {
-        Iterable<T> rawElements =
-            Iterables.transform(
-                timestampedElements,
-                new Function<TimestampedValue<T>, T>() {
-                  @Override
-                  public T apply(TimestampedValue<T> input) {
-                    return input.getValue();
-                  }
-                });
-        return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
       }
     }
   }

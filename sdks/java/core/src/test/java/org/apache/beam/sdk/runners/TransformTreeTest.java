@@ -27,9 +27,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -108,11 +106,6 @@ public class TransformTreeTest {
       input.apply(Count.<Integer>perElement());
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 

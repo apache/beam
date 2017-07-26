@@ -62,7 +62,6 @@ import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -314,28 +313,24 @@ public class CreateTest {
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingCoder() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
             TimestampedValue.of(new Record(), new Instant(0)),
             TimestampedValue.<Record>of(new Record2(), new Instant(0)))
             .withCoder(coder);
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
             TimestampedValue.of(new Record(), new Instant(0)),
             TimestampedValue.<Record>of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
@@ -417,31 +412,25 @@ public class CreateTest {
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
-    Create.Values<Record> values = Create.of(new Record(), new Record(), new Record());
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(
+        p.apply(Create.of(new Record(), new Record(), new Record())).getCoder(), equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingCoder() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    PBegin pBegin = PBegin.in(p);
-    Create.Values<Record> values =
-        Create.of(new Record(), new Record2()).withCoder(coder);
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(
+        p.apply(Create.of(new Record(), new Record2()).withCoder(coder)).getCoder(),
+        equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values =
         Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test

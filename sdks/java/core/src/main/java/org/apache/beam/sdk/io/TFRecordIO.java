@@ -35,8 +35,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -171,11 +169,7 @@ public class TFRecordIO {
         }
       }
 
-      final Bounded<byte[]> read = org.apache.beam.sdk.io.Read.from(getSource());
-      PCollection<byte[]> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -211,11 +205,6 @@ public class TFRecordIO {
               .withLabel("Validation Enabled"), true)
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
               .withLabel("File Pattern"));
-    }
-
-    @Override
-    protected Coder<byte[]> getDefaultOutputCoder() {
-      return ByteArrayCoder.of();
     }
   }
 
@@ -390,11 +379,6 @@ public class TFRecordIO {
               .withLabel("Maximum Output Shards"), 0)
           .add(DisplayData.item("compressionType", getCompressionType().toString())
               .withLabel("Compression Type"));
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 

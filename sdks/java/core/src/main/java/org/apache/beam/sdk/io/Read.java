@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.NameUtils;
@@ -157,11 +156,6 @@ public class Read {
      */
     public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
       return new BoundedReadFromUnboundedSource<T>(source, Long.MAX_VALUE, maxReadTime);
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getOutputCoder();
     }
 
     @Override
