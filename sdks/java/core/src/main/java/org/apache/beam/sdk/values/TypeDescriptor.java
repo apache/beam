@@ -328,28 +328,62 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns a new {@code TypeDescriptor} where type variables represented by
-   * {@code typeParameter} are substituted by {@code typeDescriptor}. For example, it can be used to
-   * construct {@code Map<K, V>} for any {@code K} and {@code V} type: <pre> {@code
-   *   static <K, V> TypeDescriptor<Map<K, V>> mapOf(
-   *       TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
-   *     return new TypeDescriptor<Map<K, V>>() {}
-   *         .where(new TypeParameter<K>() {}, keyType)
-   *         .where(new TypeParameter<V>() {}, valueType);
-   *   }}</pre>
+   * Returns a new {@code TypeDescriptor} where the type variable represented by {@code
+   * typeParameter} are substituted by {@code typeDescriptor}. For example, it can be used to
+   * construct {@code Map<K, V>} for any {@code K} and {@code V} type:
+   *
+   * <pre>{@code
+   * static <K, V> TypeDescriptor<Map<K, V>> mapOf(
+   *     TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
+   *   return new TypeDescriptor<Map<K, V>>() {}
+   *       .where(new TypeParameter<K>() {}, keyType)
+   *       .where(new TypeParameter<V>() {}, valueType);
+   * }
+   * }</pre>
    *
    * @param <X> The parameter type
    * @param typeParameter the parameter type variable
    * @param typeDescriptor the actual type to substitute
    */
   @SuppressWarnings("unchecked")
-  public <X> TypeDescriptor<T> where(TypeParameter<X> typeParameter,
-      TypeDescriptor<X> typeDescriptor) {
-    TypeResolver resolver =
-        new TypeResolver()
-            .where(
-                typeParameter.typeVariable, typeDescriptor.getType());
+  public <X> TypeDescriptor<T> where(
+      TypeParameter<X> typeParameter, TypeDescriptor<X> typeDescriptor) {
+    return where(typeParameter.typeVariable, typeDescriptor.getType());
+  }
+
+  /**
+   * A more general form of {@link #where(TypeParameter, TypeDescriptor)} that returns a new {@code
+   * TypeDescriptor} by matching {@code formal} against {@code actual} to resolve type variables in
+   * the current {@link TypeDescriptor}.
+   */
+  @SuppressWarnings("unchecked")
+  public TypeDescriptor<T> where(Type formal, Type actual) {
+    TypeResolver resolver = new TypeResolver().where(formal, actual);
     return (TypeDescriptor<T>) TypeDescriptor.of(resolver.resolveType(token.getType()));
+  }
+
+  /**
+   * Returns whether this {@link TypeDescriptor} has any unresolved type parameters, as opposed to
+   * being a concrete type.
+   *
+   * <p>For example:
+   * <pre>{@code
+   *   TypeDescriptor.of(new ArrayList<String>() {}.getClass()).hasUnresolvedTypeParameters()
+   *     => false, because the anonymous class is instantiated with a concrete type
+   *
+   *   class TestUtils {
+   *     <T> ArrayList<T> createTypeErasedList() {
+   *       return new ArrayList<T>() {};
+   *     }
+   *   }
+   *
+   *   TypeDescriptor.of(TestUtils.<String>createTypeErasedList().getClass())
+   *     => true, because the type variable T got type-erased and the anonymous ArrayList class
+   *     is instantiated with an unresolved type variable T.
+   * }</pre>
+   */
+  public boolean hasUnresolvedParameters() {
+    return hasUnresolvedParameters(getType());
   }
 
   @Override

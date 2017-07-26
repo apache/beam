@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.sets;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.List;
 import java.util.Set;
@@ -69,5 +70,53 @@ public class TypeDescriptorsTest {
     assertEquals(descriptor, new TypeDescriptor<List<List<String>>>() {});
     assertNotEquals(descriptor, new TypeDescriptor<List<String>>() {});
     assertNotEquals(descriptor, new TypeDescriptor<List<Boolean>>() {});
+  }
+
+  private interface Generic<FooT, BarT> {}
+
+  private static <ActualFooT> Generic<ActualFooT, String> typeErasedGeneric() {
+    return new Generic<ActualFooT, String>() {};
+  }
+
+  private static <ActualFooT, ActualBarT> TypeDescriptor<ActualFooT> extractFooT(
+      Generic<ActualFooT, ActualBarT> instance) {
+    return TypeDescriptors.extractFromTypeParameters(
+        instance,
+        Generic.class,
+        new TypeDescriptors.TypeVariableExtractor<
+            Generic<ActualFooT, ActualBarT>, ActualFooT>() {});
+  }
+
+  private static <ActualFooT, ActualBarT> TypeDescriptor<ActualBarT> extractBarT(
+      Generic<ActualFooT, ActualBarT> instance) {
+    return TypeDescriptors.extractFromTypeParameters(
+        instance,
+        Generic.class,
+        new TypeDescriptors.TypeVariableExtractor<
+            Generic<ActualFooT, ActualBarT>, ActualBarT>() {});
+  }
+
+  private static <ActualFooT, ActualBarT> TypeDescriptor<KV<ActualFooT, ActualBarT>> extractKV(
+      Generic<ActualFooT, ActualBarT> instance) {
+    return TypeDescriptors.extractFromTypeParameters(
+        instance,
+        Generic.class,
+        new TypeDescriptors.TypeVariableExtractor<
+            Generic<ActualFooT, ActualBarT>, KV<ActualFooT, ActualBarT>>() {});
+  }
+
+  @Test
+  public void testTypeDescriptorsTypeParameterOf() throws Exception {
+    assertEquals(strings(), extractFooT(new Generic<String, Integer>() {}));
+    assertEquals(integers(), extractBarT(new Generic<String, Integer>() {}));
+    assertEquals(kvs(strings(), integers()), extractKV(new Generic<String, Integer>() {}));
+  }
+
+  @Test
+  public void testTypeDescriptorsTypeParameterOfErased() throws Exception {
+    Generic<Integer, String> instance = TypeDescriptorsTest.typeErasedGeneric();
+    assertNull(extractFooT(instance));
+    assertEquals(strings(), extractBarT(instance));
+    assertNull(extractKV(instance));
   }
 }
