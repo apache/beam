@@ -23,8 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import java.io.IOException;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -37,23 +35,14 @@ import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
-import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -356,120 +345,50 @@ public class TextIO {
     @Override
     public PCollection<String> expand(PCollection<String> input) {
       return input
-          .apply("Expand glob", ParDo.of(new ExpandGlobFn()))
           .apply(
-              "Split into ranges",
-              ParDo.of(new SplitIntoRangesFn(getCompressionType(), getDesiredBundleSizeBytes())))
-          .apply("Reshuffle", new ReshuffleWithUniqueKey<KV<Metadata, OffsetRange>>())
-          .apply("Read", ParDo.of(new ReadTextFn(this)));
+              "Read all via FileBasedSource",
+              new ReadAllViaFileBasedSource<>(
+                  new IsSplittableFn(getCompressionType()),
+                  getDesiredBundleSizeBytes(),
+                  new CreateTextSourceFn(getCompressionType())))
+          .setCoder(StringUtf8Coder.of());
     }
 
-    private static class ReshuffleWithUniqueKey<T>
-        extends PTransform<PCollection<T>, PCollection<T>> {
-      @Override
-      public PCollection<T> expand(PCollection<T> input) {
-        return input
-            .apply("Unique key", ParDo.of(new AssignUniqueKeyFn<T>()))
-            .apply("Reshuffle", Reshuffle.<Integer, T>of())
-            .apply("Values", Values.<T>create());
-      }
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add(
+          DisplayData.item("compressionType", getCompressionType().toString())
+              .withLabel("Compression Type"));
     }
 
-    private static class AssignUniqueKeyFn<T> extends DoFn<T, KV<Integer, T>> {
-      private int index;
-
-      @Setup
-      public void setup() {
-        this.index = ThreadLocalRandom.current().nextInt();
-      }
-
-      @ProcessElement
-      public void process(ProcessContext c) {
-        c.output(KV.of(++index, c.element()));
-      }
-    }
-
-    private static class ExpandGlobFn extends DoFn<String, Metadata> {
-      @ProcessElement
-      public void process(ProcessContext c) throws Exception {
-        MatchResult match = FileSystems.match(c.element());
-        checkArgument(
-            match.status().equals(Status.OK),
-            "Failed to match filepattern %s: %s",
-            c.element(),
-            match.status());
-        for (Metadata metadata : match.metadata()) {
-          c.output(metadata);
-        }
-      }
-    }
-
-    private static class SplitIntoRangesFn extends DoFn<Metadata, KV<Metadata, OffsetRange>> {
+    private static class CreateTextSourceFn
+        implements SerializableFunction<String, FileBasedSource<String>> {
       private final CompressionType compressionType;
-      private final long desiredBundleSize;
 
-      private SplitIntoRangesFn(CompressionType compressionType, long desiredBundleSize) {
+      private CreateTextSourceFn(CompressionType compressionType) {
         this.compressionType = compressionType;
-        this.desiredBundleSize = desiredBundleSize;
       }
 
-      @ProcessElement
-      public void process(ProcessContext c) {
-        Metadata metadata = c.element();
-        final boolean isSplittable = isSplittable(metadata, compressionType);
-        if (!isSplittable) {
-          c.output(KV.of(metadata, new OffsetRange(0, metadata.sizeBytes())));
-          return;
-        }
-        for (OffsetRange range :
-            new OffsetRange(0, metadata.sizeBytes()).split(desiredBundleSize, 0)) {
-          c.output(KV.of(metadata, range));
-        }
-      }
-
-      static boolean isSplittable(Metadata metadata, CompressionType compressionType) {
-        if (!metadata.isReadSeekEfficient()) {
-          return false;
-        }
-        switch (compressionType) {
-          case AUTO:
-            return !CompressionMode.isCompressed(metadata.resourceId().toString());
-          case UNCOMPRESSED:
-            return true;
-          case GZIP:
-          case BZIP2:
-          case ZIP:
-          case DEFLATE:
-            return false;
-          default:
-            throw new UnsupportedOperationException("Unknown compression type: " + compressionType);
-        }
+      @Override
+      public FileBasedSource<String> apply(String input) {
+        return Read.wrapWithCompression(
+            new TextSource(StaticValueProvider.of(input)), compressionType);
       }
     }
 
-    private static class ReadTextFn extends DoFn<KV<Metadata, OffsetRange>, String> {
-      private final TextIO.ReadAll spec;
+    private static class IsSplittableFn implements SerializableFunction<String, Boolean> {
+      private final CompressionType compressionType;
 
-      private ReadTextFn(ReadAll spec) {
-        this.spec = spec;
+      private IsSplittableFn(CompressionType compressionType) {
+        this.compressionType = compressionType;
       }
 
-      @ProcessElement
-      public void process(ProcessContext c) throws IOException {
-        Metadata metadata = c.element().getKey();
-        OffsetRange range = c.element().getValue();
-        FileBasedSource<String> source =
-            TextIO.Read.wrapWithCompression(
-                new TextSource(StaticValueProvider.of(metadata.toString())),
-                spec.getCompressionType());
-        try (BoundedSource.BoundedReader<String> reader =
-            source
-                .createForSubrangeOfFile(metadata, range.getFrom(), range.getTo())
-                .createReader(c.getPipelineOptions())) {
-          for (boolean more = reader.start(); more; more = reader.advance()) {
-            c.output(reader.getCurrent());
-          }
-        }
+      @Override
+      public Boolean apply(String filename) {
+        return compressionType == CompressionType.UNCOMPRESSED
+            || (compressionType == CompressionType.AUTO && !CompressionMode.isCompressed(filename));
       }
     }
   }

@@ -30,6 +30,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import java.io.File;
@@ -152,10 +153,68 @@ public class AvroIOTest {
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     writePipeline.run().waitUntilFinish();
 
-    PCollection<GenericClass> input =
-        readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
+    // Test both read() and readAll()
+    PAssert.that(
+            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+        .containsInAnyOrder(values);
+    PAssert.that(
+            readPipeline
+                .apply(Create.of(outputFile.getAbsolutePath()))
+                .apply(AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(values);
 
-    PAssert.that(input).containsInAnyOrder(values);
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadMultipleFilepatterns() throws Throwable {
+    List<GenericClass> firstValues = Lists.newArrayList();
+    List<GenericClass> secondValues = Lists.newArrayList();
+    for (int i = 0; i < 10; ++i) {
+      firstValues.add(new GenericClass(i, "a" + i));
+      secondValues.add(new GenericClass(i, "b" + i));
+    }
+    writePipeline
+        .apply("Create first", Create.of(firstValues))
+        .apply(
+            "Write first",
+            AvroIO.write(GenericClass.class)
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/first")
+                .withNumShards(2));
+    writePipeline
+        .apply("Create second", Create.of(secondValues))
+        .apply(
+            "Write second",
+            AvroIO.write(GenericClass.class)
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/second")
+                .withNumShards(3));
+    writePipeline.run().waitUntilFinish();
+
+    // Test both read() and readAll()
+    PAssert.that(
+            readPipeline.apply(
+                "Read first",
+                AvroIO.read(GenericClass.class)
+                    .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")))
+        .containsInAnyOrder(firstValues);
+    PAssert.that(
+            readPipeline.apply(
+                "Read second",
+                AvroIO.read(GenericClass.class)
+                    .from(tmpFolder.getRoot().getAbsolutePath() + "/second*")))
+        .containsInAnyOrder(secondValues);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "Create paths",
+                    Create.of(
+                        tmpFolder.getRoot().getAbsolutePath() + "/first*",
+                        tmpFolder.getRoot().getAbsolutePath() + "/second*"))
+                .apply(
+                    "Read all", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+
     readPipeline.run();
   }
 
