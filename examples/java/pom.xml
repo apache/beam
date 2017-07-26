@@ -89,6 +89,18 @@
       </dependencies>
     </profile>
 
+    <!-- Include the Apache Gearpump (incubating) runner with -P gearpump-runner -->
+    <profile>
+      <id>gearpump-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-gearpump</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
     <!-- Include the Apache Flink runner with -P flink-runner -->
     <profile>
       <id>flink-runner</id>
@@ -324,6 +336,30 @@
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
                       "--runner=org.apache.beam.runners.apex.TestApexRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>gearpump-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>none</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.gearpump.TestGearpumpRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
