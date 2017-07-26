@@ -17,16 +17,20 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
- * A utility class containing the Java primitives for
- * {@link TypeDescriptor} equivalents. Also, has methods
- * for classes that wrap Java primitives like {@link KV},
- * {@link Set}, {@link List}, and {@link Iterable}.
+ * A utility class for creating {@link TypeDescriptor} objects for different types, such as Java
+ * primitive types, containers and {@link KV KVs} of other {@link TypeDescriptor} objects, and
+ * extracting type variables of parameterized types (e.g. extracting the {@code OutputT} type
+ * variable of a {@code DoFn<InputT, OutputT>}).
  */
 public class TypeDescriptors {
   /**
@@ -285,5 +289,111 @@ public class TypeDescriptors {
       .<T> where(new TypeParameter<T>() {}, iterable);
 
     return typeDescriptor;
+  }
+
+  /**
+   * A helper interface for use with {@link #extractFromTypeParameters(Object, Class,
+   * TypeVariableExtractor)}.
+   */
+  public interface TypeVariableExtractor<InputT, OutputT> {}
+
+  /**
+   * Extracts a type from the actual type parameters of a parameterized class, subject to Java type
+   * erasure. The type to extract is specified in a way that is safe w.r.t. changing the type
+   * signature of the parameterized class, as opposed to specifying the name or index of a type
+   * variable.
+   *
+   * <p>Example of use:
+   * <pre>{@code
+   *   class Foo<BarT> {
+   *     private SerializableFunction<BarT, String> fn;
+   *
+   *     TypeDescriptor<BarT> inferBarTypeDescriptorFromFn() {
+   *       return TypeDescriptors.extractFromTypeParameters(
+   *         fn,
+   *         SerializableFunction.class,
+   *         // The actual type of "fn" is matched against the input type of the extractor,
+   *         // and the obtained values of type variables of the superclass are substituted
+   *         // into the output type of the extractor.
+   *         new TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>() {});
+   *     }
+   *   }
+   * }</pre>
+   *
+   * @param instance The object being analyzed
+   * @param supertype Parameterized superclass of interest
+   * @param extractor A class for specifying the type to extract from the supertype
+   *
+   * @return A {@link TypeDescriptor} for the actual value of the result type of the extractor,
+   *   or {@code null} if the type was erased.
+   */
+  @SuppressWarnings("unchecked")
+  @Nullable
+  public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
+      T instance, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
+    return extractFromTypeParameters(
+        (TypeDescriptor<T>) TypeDescriptor.of(instance.getClass()), supertype, extractor);
+  }
+
+  /**
+   * Like {@link #extractFromTypeParameters(Object, Class, TypeVariableExtractor)}, but takes a
+   * {@link TypeDescriptor} of the instance being analyzed rather than the instance itself.
+   */
+  @SuppressWarnings("unchecked")
+  @Nullable
+  public static <T, V> TypeDescriptor<V> extractFromTypeParameters(
+      TypeDescriptor<T> type, Class<? super T> supertype, TypeVariableExtractor<T, V> extractor) {
+    // Get the type signature of the extractor, e.g.
+    // TypeVariableExtractor<SerializableFunction<BarT, String>, BarT>
+    TypeDescriptor<TypeVariableExtractor<T, V>> extractorSupertype =
+        (TypeDescriptor<TypeVariableExtractor<T, V>>)
+            TypeDescriptor.of(extractor.getClass()).getSupertype(TypeVariableExtractor.class);
+
+    // Get the actual type argument, e.g. SerializableFunction<BarT, String>
+    Type inputT = ((ParameterizedType) extractorSupertype.getType()).getActualTypeArguments()[0];
+
+    // Get the actual supertype of the type being analyzed, hopefully with all type parameters
+    // resolved, e.g. SerializableFunction<Integer, String>
+    TypeDescriptor supertypeDescriptor = type.getSupertype(supertype);
+
+    // Substitute actual supertype into the extractor, e.g.
+    // TypeVariableExtractor<SerializableFunction<Integer, String>, Integer>
+    TypeDescriptor<TypeVariableExtractor<T, V>> extractorT =
+        extractorSupertype.where(inputT, supertypeDescriptor.getType());
+
+    // Get output of the extractor.
+    Type outputT = ((ParameterizedType) extractorT.getType()).getActualTypeArguments()[1];
+    TypeDescriptor<?> res = TypeDescriptor.of(outputT);
+    if (res.hasUnresolvedParameters()) {
+      return null;
+    } else {
+      return (TypeDescriptor<V>) res;
+    }
+  }
+
+  /**
+   * Returns a type descriptor for the input of the given {@link SerializableFunction}, subject to
+   * Java type erasure: returns {@code null} if the type was erased.
+   */
+  @Nullable
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return extractFromTypeParameters(
+        fn,
+        SerializableFunction.class,
+        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, InputT>() {});
+  }
+
+  /**
+   * Returns a type descriptor for the output of the given {@link SerializableFunction}, subject to
+   * Java type erasure: returns {@code null} if the type was erased.
+   */
+  @Nullable
+  public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return extractFromTypeParameters(
+        fn,
+        SerializableFunction.class,
+        new TypeVariableExtractor<SerializableFunction<InputT, OutputT>, OutputT>() {});
   }
 }
