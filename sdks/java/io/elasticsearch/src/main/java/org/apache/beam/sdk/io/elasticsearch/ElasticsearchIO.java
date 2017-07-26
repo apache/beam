@@ -183,10 +183,8 @@ public class ElasticsearchIO {
      * @param index the index toward which the requests will be issued
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
-     * @throws IOException when it fails to connect to Elasticsearch
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type)
-        throws IOException {
+    public static ConnectionConfiguration create(String[] addresses, String index, String type){
       checkArgument(
           addresses != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null address");
