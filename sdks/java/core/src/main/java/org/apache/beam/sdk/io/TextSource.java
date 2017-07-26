@@ -69,7 +69,7 @@ class TextSource extends FileBasedSource<String> {
   }
 
   @Override
-  public Coder<String> getDefaultOutputCoder() {
+  public Coder<String> getOutputCoder() {
     return StringUtf8Coder.of();
   }
 

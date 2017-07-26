@@ -404,11 +404,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   }
 
   /**
-   * Returns the delegate source's default output coder.
+   * Returns the delegate source's output coder.
    */
   @Override
-  public final Coder<T> getDefaultOutputCoder() {
-    return sourceDelegate.getDefaultOutputCoder();
+  public final Coder<T> getOutputCoder() {
+    return sourceDelegate.getOutputCoder();
   }
 
   public final DecompressingChannelFactory getChannelFactory() {

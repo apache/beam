@@ -411,7 +411,7 @@ public class Create<T> {
       public void validate() {}
 
       @Override
-      public Coder<T> getDefaultOutputCoder() {
+      public Coder<T> getOutputCoder() {
         return coder;
       }
 

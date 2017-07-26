@@ -289,7 +289,7 @@ public class CassandraIO {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getOutputCoder() {
       return spec.coder();
     }
 

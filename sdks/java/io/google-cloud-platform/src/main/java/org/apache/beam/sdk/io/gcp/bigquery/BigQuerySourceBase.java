@@ -133,7 +133,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   @Override
-  public Coder<TableRow> getDefaultOutputCoder() {
+  public Coder<TableRow> getOutputCoder() {
     return TableRowJsonCoder.of();
   }
 
@@ -184,7 +184,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
     for (ResourceId file : files) {
       avroSources.add(
-          AvroSource.from(file.toString()).withParseFn(function, getDefaultOutputCoder()));
+          AvroSource.from(file.toString()).withParseFn(function, getOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
   }

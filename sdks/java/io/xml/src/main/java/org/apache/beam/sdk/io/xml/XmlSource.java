@@ -85,7 +85,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
+  public Coder<T> getOutputCoder() {
     return JAXBCoder.of(spec.getRecordClass());
   }
 

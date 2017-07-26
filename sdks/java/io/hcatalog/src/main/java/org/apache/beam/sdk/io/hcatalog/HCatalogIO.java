@@ -210,7 +210,7 @@ public class HCatalogIO {
 
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Coder<HCatRecord> getDefaultOutputCoder() {
+    public Coder<HCatRecord> getOutputCoder() {
       return (Coder) WritableCoder.of(DefaultHCatRecord.class);
     }
 

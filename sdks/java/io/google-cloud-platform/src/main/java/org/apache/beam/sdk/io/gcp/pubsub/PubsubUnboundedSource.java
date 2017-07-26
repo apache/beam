@@ -1164,7 +1164,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public Coder<PubsubMessage> getDefaultOutputCoder() {
+    public Coder<PubsubMessage> getOutputCoder() {
       return outer.getNeedsAttributes()
           ? PubsubMessageWithAttributesCoder.of()
           : PubsubMessagePayloadOnlyCoder.of();

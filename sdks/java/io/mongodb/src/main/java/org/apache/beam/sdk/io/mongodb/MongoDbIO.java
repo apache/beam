@@ -277,7 +277,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public Coder<Document> getDefaultOutputCoder() {
+    public Coder<Document> getOutputCoder() {
       return SerializableCoder.of(Document.class);
     }
 

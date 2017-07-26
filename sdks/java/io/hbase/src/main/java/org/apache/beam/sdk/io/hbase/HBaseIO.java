@@ -457,7 +457,7 @@ public class HBaseIO {
         }
 
         @Override
-        public Coder<Result> getDefaultOutputCoder() {
+        public Coder<Result> getOutputCoder() {
             return HBaseResultCoder.of();
         }
     }

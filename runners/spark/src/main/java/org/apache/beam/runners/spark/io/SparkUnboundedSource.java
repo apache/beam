@@ -116,7 +116,7 @@ public class SparkUnboundedSource {
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
         WindowedValue.FullWindowedValueCoder.of(
-            source.getDefaultOutputCoder(),
+            source.getOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
     JavaDStream<WindowedValue<T>> readUnboundedStream =
         mapWithStateDStream

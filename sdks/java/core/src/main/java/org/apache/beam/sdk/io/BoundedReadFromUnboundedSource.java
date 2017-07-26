@@ -119,7 +119,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   protected Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+    return source.getOutputCoder();
   }
 
   @Override
@@ -211,8 +211,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
-      return ValueWithRecordId.ValueWithRecordIdCoder.of(getSource().getDefaultOutputCoder());
+    public Coder<ValueWithRecordId<T>> getOutputCoder() {
+      return ValueWithRecordId.ValueWithRecordIdCoder.of(getSource().getOutputCoder());
     }
 
     @Override

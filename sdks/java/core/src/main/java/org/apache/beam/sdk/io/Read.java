@@ -96,7 +96,7 @@ public class Read {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+      return source.getOutputCoder();
     }
 
     @Override
@@ -164,7 +164,7 @@ public class Read {
 
     @Override
     protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
+      return source.getOutputCoder();
     }
 
     @Override

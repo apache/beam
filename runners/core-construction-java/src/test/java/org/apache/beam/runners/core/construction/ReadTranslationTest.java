@@ -112,7 +112,7 @@ public class ReadTranslationTest {
     public void validate() {}
 
     @Override
-    public Coder<String> getDefaultOutputCoder() {
+    public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -132,7 +132,7 @@ public class ReadTranslationTest {
     public void validate() {}
 
     @Override
-    public Coder<byte[]> getDefaultOutputCoder() {
+    public Coder<byte[]> getOutputCoder() {
       return ByteArrayCoder.of();
     }
 
