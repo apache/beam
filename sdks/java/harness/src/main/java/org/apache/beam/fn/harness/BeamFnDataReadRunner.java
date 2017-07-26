@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -35,8 +34,8 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.dataflow.util.CloudObject;
-import org.apache.beam.runners.dataflow.util.CloudObjects;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -91,8 +90,9 @@ public class BeamFnDataReadRunner<OutputT> {
           .setPrimitiveTransformReference(pTransformId)
           .setName(getOnlyElement(pTransform.getOutputsMap().keySet()))
           .build();
-      RunnerApi.Coder coderSpec = coders.get(pCollections.get(
-          getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
+      RunnerApi.Coder coderSpec =
+          coders.get(
+              pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
       Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers =
           (Collection) pCollectionIdsToConsumers.get(
               getOnlyElement(pTransform.getOutputsMap().values()));
@@ -102,6 +102,7 @@ public class BeamFnDataReadRunner<OutputT> {
           processBundleInstructionId,
           target,
           coderSpec,
+          coders,
           beamFnDataClient,
           consumers);
       addStartFunction.accept(runner::registerInputLocation);
@@ -124,6 +125,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
       RunnerApi.Coder coderSpec,
+      Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory,
       Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers)
           throws IOException {
@@ -137,17 +139,10 @@ public class BeamFnDataReadRunner<OutputT> {
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<OutputT>> coder =
         (Coder<WindowedValue<OutputT>>)
-            CloudObjects.coderFromCloudObject(
-                CloudObject.fromSpec(
-                    OBJECT_MAPPER.readValue(
-                        coderSpec
-                            .getSpec()
-                            .getSpec()
-                            .getParameter()
-                            .unpack(BytesValue.class)
-                            .getValue()
-                            .newInput(),
-                        Map.class)));
+            CoderTranslation.fromProto(
+                coderSpec,
+                RehydratedComponents.forComponents(
+                    RunnerApi.Components.newBuilder().putAllCoders(coders).build()));
     this.coder = coder;
   }
 
