@@ -36,6 +36,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -83,6 +85,11 @@ import org.apache.beam.sdk.values.PDone;
  *     p.apply(AvroIO.readGenericRecords(schema)
  *                .from("gs://my_bucket/path/to/records-*.avro"));
  * }</pre>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small
+ * number of files.
  *
  * <p>Reading from a {@link PCollection} of filepatterns:
  *
@@ -147,6 +154,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_Read.Builder<T>()
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
+        .setHintMatchesManyFiles(false)
         .build();
   }
 
@@ -167,6 +175,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_Read.Builder<GenericRecord>()
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
+        .setHintMatchesManyFiles(false)
         .build();
   }
 
@@ -240,6 +249,7 @@ public class AvroIO {
     @Nullable abstract ValueProvider<String> getFilepattern();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
+    abstract boolean getHintMatchesManyFiles();
 
     abstract Builder<T> toBuilder();
 
@@ -248,11 +258,17 @@ public class AvroIO {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
       abstract Builder<T> setSchema(Schema schema);
+      abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Read<T> build();
     }
 
-    /** Reads from the given filename or filepattern. */
+    /**
+     * Reads from the given filename or filepattern.
+     *
+     * <p>If it is known that the filepattern will match a very large number of files (at least tens
+     * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
+     */
     public Read<T> from(ValueProvider<String> filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
     }
@@ -262,16 +278,39 @@ public class AvroIO {
       return from(StaticValueProvider.of(filepattern));
     }
 
+    /**
+     * Hints that the filepattern specified in {@link #from(String)} matches a very large number of
+     * files.
+     *
+     * <p>This hint may cause a runner to execute the transform differently, in a way that improves
+     * performance for this case, but it may worsen performance if the filepattern matches only a
+     * small number of files (e.g., in a runner that supports dynamic work rebalancing, it will
+     * happen less efficiently within individual files).
+     */
+    public Read<T> withHintMatchesManyFiles() {
+      return toBuilder().setHintMatchesManyFiles(true).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       checkNotNull(getSchema(), "schema");
-      return input
-          .getPipeline()
-          .apply(
-              "Read",
-              org.apache.beam.sdk.io.Read.from(
-                  createSource(getFilepattern(), getRecordClass(), getSchema())));
+      if (getHintMatchesManyFiles()) {
+        ReadAll<T> readAll =
+            (getRecordClass() == GenericRecord.class)
+                ? (ReadAll<T>) readAllGenericRecords(getSchema())
+                : readAll(getRecordClass());
+        return input
+            .apply(Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+            .apply(readAll);
+      } else {
+        return input
+            .getPipeline()
+            .apply(
+                "Read",
+                org.apache.beam.sdk.io.Read.from(
+                    createSource(getFilepattern(), getRecordClass(), getSchema())));
+      }
     }
 
     @Override
