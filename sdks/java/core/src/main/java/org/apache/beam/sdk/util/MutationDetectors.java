@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 import com.google.common.io.BaseEncoding;
-import java.io.ByteArrayOutputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 
 /**
  * Static methods for creating and working with {@link MutationDetector}.
@@ -95,8 +95,9 @@ public class MutationDetectors {
      */
     public CodedValueMutationDetector(T value, Coder<T> coder) throws CoderException {
       this.coder = coder;
-      this.possiblyModifiedObject = value;
       this.originalStructuralValue = coder.structuralValue(value);
+      this.possiblyModifiedObject = value;
+
     }
 
     @Override
@@ -116,16 +117,16 @@ public class MutationDetectors {
       }
       illegalMutation(originalStructuralValue, newStructuralValue);
     }
-    private String encodeToBase64 (ByteArrayOutputStream stream) {
-        return BaseEncoding.base64Url().omitPadding().encode(stream.toByteArray());
+    private String encodeToBase64 (StructuralByteArray stream) {
+        return BaseEncoding.base64Url().omitPadding().encode(stream.getValue());
     }
     private void illegalMutation(Object previousStructuralValue,
                                    Object newStructuralValue) throws CoderException {
       String previousValue;
       String newValue;
-      if (previousStructuralValue instanceof ByteArrayOutputStream) {
-          previousValue = encodeToBase64((ByteArrayOutputStream) previousStructuralValue);
-          newValue = encodeToBase64((ByteArrayOutputStream) newStructuralValue);
+      if (previousStructuralValue instanceof StructuralByteArray) {
+          previousValue = encodeToBase64((StructuralByteArray) previousStructuralValue);
+          newValue = encodeToBase64((StructuralByteArray) newStructuralValue);
         } else {
           previousValue = CoderUtils.encodeToBase64(coder, (T) previousStructuralValue);
           newValue = CoderUtils.encodeToBase64(coder, (T) newStructuralValue);
