@@ -53,7 +53,7 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  # TODO(robertwb): Figure out issue with dill + local classes + abc metaclass
+  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}
