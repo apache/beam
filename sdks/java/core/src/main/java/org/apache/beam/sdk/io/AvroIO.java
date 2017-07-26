@@ -178,6 +178,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
+        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
         .build();
   }
 
