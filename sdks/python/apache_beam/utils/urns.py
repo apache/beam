@@ -32,10 +32,13 @@ FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1"
 SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1"
 SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1"
 
+PICKLED_DO_FN = "beam:dofn:pickled_python:v0.1"
+PICKLED_DO_FN_INFO = "beam:dofn:pickled_python_info:v0.1"
 PICKLED_COMBINE_FN = "beam:combinefn:pickled_python:v0.1"
 PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
+PARDO_TRANSFORM = "beam:ptransform:pardo:v0.1"
 COMBINE_PER_KEY_TRANSFORM = "beam:ptransform:combine_per_key:v0.1"
 COMBINE_GROUPED_VALUES_TRANSFORM = "beam:ptransform:combine_grouped_values:v0.1"
 FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
