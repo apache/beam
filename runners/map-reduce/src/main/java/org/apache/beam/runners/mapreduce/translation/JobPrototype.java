@@ -1,6 +1,5 @@
 package org.apache.beam.runners.mapreduce.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -16,13 +15,14 @@ import java.util.Set;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
@@ -49,10 +49,15 @@ public class JobPrototype {
     Job job = new Job(conf);
     conf = job.getConfiguration();
     job.setJarByClass(jarClass);
+    conf.set(
+        "io.serializations",
+        "org.apache.hadoop.io.serializer.WritableSerialization," +
+            "org.apache.hadoop.io.serializer.JavaSerialization");
 
     // Setup BoundedSources in BeamInputFormat.
-    // TODO: support more than one inputs
-    Graph.Vertex head = Iterables.getOnlyElement(vertex.getIncoming()).getHead();
+    // TODO: support more than one in-edge
+    Graph.Edge inEdge = Iterables.getOnlyElement(vertex.getIncoming());
+    Graph.Vertex head = inEdge.getHead();
     Graph.Step headStep = head.getStep();
     checkState(headStep.getTransform() instanceof Read.Bounded);
     Read.Bounded read = (Read.Bounded) headStep.getTransform();
@@ -62,11 +67,10 @@ public class JobPrototype {
     job.setInputFormatClass(BeamInputFormat.class);
 
     // Setup DoFns in BeamMapper.
-    // TODO: support more than one out going edge.
-    Graph.Edge outEdge = Iterables.getOnlyElement(head.getOutgoing());
-    Graph.NodePath outPath = Iterables.getOnlyElement(outEdge.getPaths());
+    // TODO: support more than one in-path.
+    Graph.NodePath inPath = Iterables.getOnlyElement(inEdge.getPaths());
     List<Graph.Step> parDos = new ArrayList<>();
-    parDos.addAll(FluentIterable.from(outPath.steps())
+    parDos.addAll(FluentIterable.from(inPath.steps())
         .filter(new Predicate<Graph.Step>() {
           @Override
           public boolean apply(Graph.Step input) {
@@ -84,12 +88,12 @@ public class JobPrototype {
     ParDoOperation root = null;
     ParDoOperation prev = null;
     for (Graph.Step step : parDos) {
-      ParDoOperation current = new ParDoOperation(
+      ParDoOperation current = new NormalParDoOperation(
           getDoFn(step.getTransform()),
           PipelineOptionsFactory.create(),
           (TupleTag<Object>) step.getOutputs().iterator().next(),
           ImmutableList.<TupleTag<?>>of(),
-          WindowingStrategy.globalDefault());
+          step.getWindowingStrategy());
       if (root == null) {
         root = current;
       } else {
@@ -98,10 +102,30 @@ public class JobPrototype {
       }
       prev = current;
     }
+    // TODO: get coders from pipeline.
+    WriteOperation writeOperation = new WriteOperation(inEdge.getCoder());
+    writeOperation.attachInput(prev, 0);
     conf.set(
-        BeamMapper.BEAM_SERIALIZED_PAR_DO_OPERATION,
+        BeamMapper.BEAM_PAR_DO_OPERATION_MAPPER,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(root)));
     job.setMapperClass(BeamMapper.class);
+
+    if (vertexStep.getTransform() instanceof GroupByKey) {
+      // Setup BeamReducer
+      ParDoOperation operation = new GroupAlsoByWindowsParDoOperation(
+          PipelineOptionsFactory.create(),
+          (TupleTag<Object>) vertexStep.getOutputs().iterator().next(),
+          ImmutableList.<TupleTag<?>>of(),
+          vertexStep.getWindowingStrategy(),
+          inEdge.getCoder());
+      // TODO: handle the map output key type.
+      job.setMapOutputKeyClass(BytesWritable.class);
+      job.setMapOutputValueClass(byte[].class);
+      conf.set(
+          BeamReducer.BEAM_PAR_DO_OPERATION_REDUCER,
+          Base64.encodeBase64String(SerializableUtils.serializeToByteArray(operation)));
+      job.setReducerClass(BeamReducer.class);
+    }
     job.setOutputFormatClass(NullOutputFormat.class);
     return job;
   }

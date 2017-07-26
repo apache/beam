@@ -17,37 +17,33 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
-import java.util.ArrayList;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.List;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
- * OutputReceiver that forwards each input it receives to each of a list of down stream
- * ParDoOperations.
+ * Created by peihe on 26/07/2017.
  */
-public class OutputReceiver implements Serializable {
-  private final List<Operation> receivingOperations = new ArrayList<>();
+public class NormalParDoOperation extends ParDoOperation {
 
-  /**
-   * Adds a new receiver that this OutputReceiver forwards to.
-   */
-  public void addOutput(Operation receiver) {
-    receivingOperations.add(receiver);
+  private final DoFn<Object, Object> doFn;
+
+  public NormalParDoOperation(
+      DoFn<Object, Object> doFn,
+      PipelineOptions options,
+      TupleTag<Object> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    super(options, mainOutputTag, sideOutputTags, windowingStrategy);
+    this.doFn = checkNotNull(doFn, "doFn");
   }
 
-  public List<Operation> getReceivingOperations() {
-    return ImmutableList.copyOf(receivingOperations);
-  }
-
-  /**
-   * Processes the element.
-   */
-  public void process(Object elem) {
-    for (Operation out : receivingOperations) {
-      if (out != null) {
-        out.process(elem);
-      }
-    }
+  @Override
+  DoFn<Object, Object> getDoFn() {
+    return doFn;
   }
 }

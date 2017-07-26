@@ -12,13 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 
@@ -45,10 +46,10 @@ public class Graph {
     return v;
   }
 
-  public Edge addEdge(Vertex head, Vertex tail) {
+  public Edge addEdge(Vertex head, Vertex tail, Coder<?> coder) {
     HeadTail headTail = HeadTail.of(head, tail);
     checkState(!edges.containsKey(headTail));
-    Edge e = new Edge(headTail);
+    Edge e = new Edge(headTail, coder);
     edges.put(headTail, e);
     head.addOutgoing(e);
     tail.addIncoming(e);
@@ -166,18 +167,16 @@ public class Graph {
 
   public static class Edge {
     private final HeadTail headTail;
+    private final Coder<?> coder;
     private final Set<NodePath> paths;
 
-    public static Edge of(Vertex head, Vertex tail) {
-      return of(HeadTail.of(head, tail));
+    public static Edge of(HeadTail headTail, Coder<?> coder) {
+      return new Edge(headTail, coder);
     }
 
-    public static Edge of(HeadTail headTail) {
-      return new Edge(headTail);
-    }
-
-    private Edge(HeadTail headTail) {
+    private Edge(HeadTail headTail, Coder<?> coder) {
       this.headTail = checkNotNull(headTail, "headTail");
+      this.coder = checkNotNull(coder, "coder");
       this.paths = Sets.newHashSet();
     }
 
@@ -187,6 +186,10 @@ public class Graph {
 
     public Vertex getTail() {
       return headTail.getTail();
+    }
+
+    public Coder<?> getCoder() {
+      return coder;
     }
 
     public Set<NodePath> getPaths() {
@@ -204,14 +207,15 @@ public class Graph {
       }
       if (obj instanceof Edge) {
         Edge other = (Edge) obj;
-        return headTail.equals(other.headTail) && paths.equals(paths);
+        return headTail.equals(other.headTail)
+            && paths.equals(other.paths) && coder.equals(other.coder);
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(headTail, paths);
+      return Objects.hash(headTail, paths, coder);
     }
 
     @Override
@@ -266,7 +270,9 @@ public class Graph {
       for (Step step : path) {
         sb.append(step.getFullName() + "|");
       }
-      sb.deleteCharAt(sb.length() - 1);
+      if (path.size() > 0) {
+        sb.deleteCharAt(sb.length() - 1);
+      }
       return sb.toString();
     }
   }
@@ -276,16 +282,18 @@ public class Graph {
     abstract String getFullName();
     // TODO: remove public
     public abstract PTransform<?, ?> getTransform();
+    abstract WindowingStrategy<?, ?> getWindowingStrategy();
     abstract List<TupleTag<?>> getInputs();
     abstract List<TupleTag<?>> getOutputs();
 
     public static Step of(
         String fullName,
         PTransform<?, ?> transform,
+        WindowingStrategy<?, ?> windowingStrategy,
         List<TupleTag<?>> inputs,
         List<TupleTag<?>> outputs) {
       return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graph_Step(
-          fullName, transform, inputs, outputs);
+          fullName, transform, windowingStrategy, inputs, outputs);
     }
   }
 

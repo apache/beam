@@ -19,7 +19,6 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -30,109 +29,83 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Operation for ParDo.
  */
-public class ParDoOperation implements Serializable {
+public abstract class ParDoOperation extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoOperation.class);
 
-  private final DoFn<Object, Object> doFn;
-  private final SerializedPipelineOptions options;
-  private final TupleTag<Object> mainOutputTag;
+  protected final SerializedPipelineOptions options;
+  protected final TupleTag<Object> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
-  private final WindowingStrategy<?, ?> windowingStrategy;
-  private final OutputReceiver[] receivers;
+  protected final WindowingStrategy<?, ?> windowingStrategy;
 
   private DoFnRunner<Object, Object> fnRunner;
 
   public ParDoOperation(
-      DoFn<Object, Object> doFn,
       PipelineOptions options,
       TupleTag<Object> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
-    this.doFn = checkNotNull(doFn, "doFn");
+    super(1 + sideOutputTags.size());
     this.options = new SerializedPipelineOptions(checkNotNull(options, "options"));
     this.mainOutputTag = checkNotNull(mainOutputTag, "mainOutputTag");
     this.sideOutputTags = checkNotNull(sideOutputTags, "sideOutputTags");
     this.windowingStrategy = checkNotNull(windowingStrategy, "windowingStrategy");
-    int numOutputs = 1 + sideOutputTags.size();
-    this.receivers = new OutputReceiver[numOutputs];
-    for (int i = 0; i < numOutputs; ++i) {
-      receivers[i] = new OutputReceiver();
-    }
   }
 
   /**
-   * Adds an input to this ParDoOperation, coming from the given output of the given source.
+   * Returns a {@link DoFn} for processing inputs.
    */
-  public void attachInput(ParDoOperation source, int outputNum) {
-    OutputReceiver fanOut = source.receivers[outputNum];
-    fanOut.addOutput(this);
-  }
+  abstract DoFn<Object, Object> getDoFn();
 
-  /**
-   * Starts this Operation's execution.
-   *
-   * <p>Called after all successors consuming operations have been started.
-   */
-  public void start() {
+  @Override
+  public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
     fnRunner = DoFnRunners.simpleRunner(
         options.getPipelineOptions(),
-        doFn,
+        getDoFn(),
         NullSideInputReader.empty(),
-        new ParDoOutputManager(),
+        createOutputManager(),
         mainOutputTag,
         sideOutputTags,
         null,
         windowingStrategy);
     fnRunner.startBundle();
-    for (OutputReceiver receiver : receivers) {
-      if (receiver == null) {
-        continue;
-      }
-      for (ParDoOperation parDo : receiver.getReceiverParDos()) {
-        parDo.start();
-      }
-    }
+    super.start(taskContext);
   }
 
   /**
    * Processes the element.
    */
+  @Override
   public void process(Object elem) {
     LOG.info("elem: {}.", elem);
     fnRunner.processElement((WindowedValue<Object>) elem);
   }
 
-  /**
-   * Finishes this Operation's execution.
-   *
-   * <p>Called after all predecessors producing operations have been finished.
-   */
+  @Override
   public void finish() {
-    for (OutputReceiver receiver : receivers) {
-      if (receiver == null) {
-        continue;
-      }
-      for (ParDoOperation parDo : receiver.getReceiverParDos()) {
-        parDo.finish();
-      }
-    }
+    super.finish();
     fnRunner.finishBundle();
+  }
+
+  protected DoFnRunners.OutputManager createOutputManager() {
+    return new ParDoOutputManager();
   }
 
   private class ParDoOutputManager implements DoFnRunners.OutputManager {
 
     @Nullable
     private OutputReceiver getReceiverOrNull(TupleTag<?> tag) {
+      List<OutputReceiver> receivers = getOutputReceivers();
       if (tag.equals(mainOutputTag)) {
-        return receivers[0];
+        return receivers.get(0);
       } else if (sideOutputTags.contains(tag)) {
-        return receivers[sideOutputTags.indexOf(tag) + 1];
+        return receivers.get(sideOutputTags.indexOf(tag) + 1);
       } else {
         return null;
       }

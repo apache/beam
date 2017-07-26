@@ -2,6 +2,8 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.sdk.coders.Coder;
+
 /**
  * Created by peihe on 06/07/2017.
  */
@@ -18,6 +20,7 @@ public class GraphPlanner {
     private Graph fusedGraph;
     private Graph.Vertex workingVertex;
     private Graph.NodePath workingPath;
+    private Coder<?> workingEdgeCoder;
 
     FusionVisitor() {
       fusedGraph = new Graph();
@@ -33,7 +36,7 @@ public class GraphPlanner {
       }
       Graph.Vertex v = fusedGraph.addVertex(read.getStep());
       workingPath.addFirst(read.getStep());
-      Graph.Edge edge = fusedGraph.addEdge(v, workingVertex);
+      Graph.Edge edge = fusedGraph.addEdge(v, workingVertex, workingEdgeCoder);
       edge.addPath(workingPath);
     }
 
@@ -43,17 +46,20 @@ public class GraphPlanner {
       checkArgument(
           step.getTransform().getAdditionalInputs().isEmpty(),
           "Side inputs are not " + "supported.");
+      checkArgument(
+          parDo.getIncoming().size() == 1,
+          "Side inputs are not supported.");
+      Graph.Edge inEdge = parDo.getIncoming().iterator().next();
+
       if (workingVertex == null) {
         // Leaf vertex
         workingVertex = fusedGraph.addVertex(step);
         workingPath = new Graph.NodePath();
+        workingEdgeCoder = inEdge.getCoder();
       } else {
         workingPath.addFirst(step);
       }
-      checkArgument(
-          parDo.getIncoming().size() == 1,
-          "Side inputs are not supported.");
-      processParent(parDo.getIncoming().iterator().next().getHead());
+      processParent(inEdge.getHead());
     }
 
     @Override
@@ -66,6 +72,7 @@ public class GraphPlanner {
       for (Graph.Edge e : flatten.getIncoming()) {
         workingPath = new Graph.NodePath(basePath);
         workingVertex = baseVertex;
+        workingEdgeCoder = e.getCoder();
         processParent(e.getHead());
       }
     }
@@ -77,10 +84,17 @@ public class GraphPlanner {
       }
       Graph.Step step = groupByKey.getStep();
       Graph.Vertex addedGroupByKey = fusedGraph.addVertex(step);
-      Graph.Edge edge = fusedGraph.addEdge(addedGroupByKey, workingVertex);
+
+      Graph.Edge edge = fusedGraph.addEdge(
+          addedGroupByKey,
+          workingVertex,
+          workingEdgeCoder);
       edge.addPath(workingPath);
+      Graph.Edge inEdge = groupByKey.getIncoming().iterator().next();
       workingVertex = addedGroupByKey;
-      processParent(groupByKey.getIncoming().iterator().next().getHead());
+      workingPath = new Graph.NodePath();
+      workingEdgeCoder = inEdge.getCoder();
+      processParent(inEdge.getHead());
     }
 
     public Graph getFusedGraph() {
