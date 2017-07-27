@@ -697,7 +697,8 @@ class ParDo(PTransformWithSideInputs):
     windowing = None
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
-  def to_runner_api_parameter(self, context):
+  def to_runner_api_parameterX(self, context):
+    assert self.__class__ is ParDo
     return (
         urns.PARDO_TRANSFORM,
         beam_runner_api_pb2.ParDoPayload(
@@ -1209,6 +1210,18 @@ class _GroupAlsoByWindow(ParDo):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.GROUP_ALSO_BY_WINDOW_TRANSFORM,
+        wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
+            self.windowing)))
+
+  @PTransform.register_urn(
+      urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
+  def from_runner_api_parameter(payload, context):
+    return _GroupAlsoByWindow(
+        context.windowing_strategies.get_by_id(payload.value))
 
 
 class _GroupAlsoByWindowDoFn(DoFn):
