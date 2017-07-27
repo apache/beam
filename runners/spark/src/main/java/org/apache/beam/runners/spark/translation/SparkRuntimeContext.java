@@ -21,11 +21,12 @@ package org.apache.beam.runners.spark.translation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -34,11 +35,16 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
  * data flow program is launched.
  */
 public class SparkRuntimeContext implements Serializable {
-  private final String serializedPipelineOptions;
+  private final Supplier<PipelineOptions> optionsSupplier;
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(Pipeline pipeline, PipelineOptions options) {
-    this.serializedPipelineOptions = serializePipelineOptions(options);
+  SparkRuntimeContext(PipelineOptions options) {
+    String serializedPipelineOptions = serializePipelineOptions(options);
+    this.optionsSupplier =
+        Suppliers.memoize(
+            Suppliers.compose(
+                new DeserializeOptions(),
+                Suppliers.ofInstance(serializedPipelineOptions)));
   }
 
   /**
@@ -59,16 +65,8 @@ public class SparkRuntimeContext implements Serializable {
     }
   }
 
-  private static PipelineOptions deserializePipelineOptions(String serializedPipelineOptions) {
-    try {
-      return createMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
-    }
-  }
-
   public PipelineOptions getPipelineOptions() {
-    return PipelineOptionsHolder.getOrInit(serializedPipelineOptions);
+    return optionsSupplier.get();
   }
 
   public CoderRegistry getCoderRegistry() {
@@ -78,21 +76,15 @@ public class SparkRuntimeContext implements Serializable {
     return coderRegistry;
   }
 
-  private static class PipelineOptionsHolder {
-    // on executors, this should deserialize once.
-    private static transient volatile PipelineOptions pipelineOptions = null;
-
-    static PipelineOptions getOrInit(String serializedPipelineOptions) {
-      if (pipelineOptions == null) {
-        synchronized (PipelineOptionsHolder.class) {
-          if (pipelineOptions == null) {
-            pipelineOptions = deserializePipelineOptions(serializedPipelineOptions);
-          }
-        }
-        // Register standard FileSystems.
-        FileSystems.setDefaultPipelineOptions(pipelineOptions);
+  private static class DeserializeOptions
+      implements Function<String, PipelineOptions>, Serializable {
+    @Override
+    public PipelineOptions apply(String options) {
+      try {
+        return createMapper().readValue(options, PipelineOptions.class);
+      } catch (IOException e) {
+        throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
       }
-      return pipelineOptions;
     }
   }
 }

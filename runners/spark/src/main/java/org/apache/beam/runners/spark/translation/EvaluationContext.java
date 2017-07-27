@@ -65,7 +65,7 @@ public class EvaluationContext {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.options = options;
-    this.runtime = new SparkRuntimeContext(pipeline, options);
+    this.runtime = new SparkRuntimeContext(options);
   }
 
   public EvaluationContext(
