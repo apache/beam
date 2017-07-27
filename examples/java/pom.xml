@@ -155,9 +155,6 @@
     <!-- Custom set up for our Jenkins precommit tests that comment on GitHub -->
     <profile>
       <id>jenkins-precommit</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
       <properties>
         <skipITs>false</skipITs>
         <skipDefaultIT>true</skipDefaultIT>
@@ -178,37 +175,10 @@
           <version>${apex.kryo.version}</version>
           <scope>runtime</scope>
         </dependency>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-gearpump</artifactId>
-          <scope>runtime</scope>
-        </dependency>
       </dependencies>
 
       <build>
         <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-enforcer-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>enforce</id>
-                <goals>
-                  <goal>enforce</goal>
-                </goals>
-                <configuration>
-                  <rules>
-                    <enforceBytecodeVersion>
-                      <maxJdkVersion>1.8</maxJdkVersion>
-                    </enforceBytecodeVersion>
-                    <requireJavaVersion>
-                      <version>[1.8,)</version>
-                    </requireJavaVersion>
-                  </rules>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-failsafe-plugin</artifactId>
