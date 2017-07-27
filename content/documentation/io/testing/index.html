@@ -248,6 +248,511 @@
 
 <p>If your I/O transform allows batching of reads/writes, you must force the batching to occur in your test. Having configurable batch size options on your I/O transform allows that to happen easily. These must be marked as test only.</p>
 
+<h2 id="i-o-transform-integration-tests">I/O Transform Integration Tests</h2>
+
+<blockquote>
+  <p>We do not currently have examples of Python I/O integration tests or integration tests for unbounded or eventually consistent data stores. We would welcome contributions in these areas - please contact the Beam dev@ mailing list for more information.</p>
+</blockquote>
+
+<h3 id="it-goals">Goals</h3>
+
+<ul>
+  <li>Allow end to end testing of interactions between data stores, I/O transforms, and runners, simulating real world conditions.</li>
+  <li>Allow both small scale and large scale testing.</li>
+  <li>Self contained: require the least possible initial setup or existing outside state, besides the existence of a data store that the test can modify.</li>
+  <li>Anyone can run the same set of I/O transform integration tests that Beam runs on its continuous integration servers.</li>
+</ul>
+
+<h3 id="integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</h3>
+
+<p>In order to test I/O transforms in real world conditions, you must connect to a data store instance.</p>
+
+<p>The Beam community hosts the data stores used for integration tests in Kubernetes. In order for an integration test to be run in Beam’s continuous integration environment, it must have Kubernetes scripts that set up an instance of the data store.</p>
+
+<p>However, when working locally, there is no requirement to use Kubernetes. All of the test infrastructure allows you to pass in connection info, so developers can use their preferred hosting infrastructure for local development.</p>
+
+<h3 id="running-integration-tests">Running integration tests</h3>
+
+<p>The high level steps for running an integration test are:</p>
+<ol>
+  <li>Set up the data store corresponding to the test being run</li>
+  <li>Run the test, passing it connection info from the just created data store</li>
+  <li>Clean up the data store</li>
+</ol>
+
+<p>Since setting up data stores and running the tests involves a number of steps, and we wish to time these tests when running performance benchmarks, we use PerfKit Benchmarker to manage the process end to end. With a single command, you can go from an empty Kubernetes cluster to a running integration test.</p>
+
+<p>However, <strong>PerfKit Benchmarker is not required for running integration tests</strong>. Therefore, we have listed the steps for both using PerfKit Benchmarker, and manually running the tests below.</p>
+
+<h4 id="using-perfkit-benchmarker">Using PerfKit Benchmarker</h4>
+
+<p>Prerequisites:</p>
+<ol>
+  <li><a href="https://github.com/GoogleCloudPlatform/PerfKitBenchmarker">Install PerfKit Benchmarker</a></li>
+  <li>Have a running Kubernetes cluster you can connect to locally using kubectl</li>
+</ol>
+
+<p>You won’t need to invoke PerfKit Benchmarker directly. Run mvn verify in the directory of the I/O module you’d like to test, with the parameter io-it-suite when running in jenkins CI or with a kubernetes cluster on the same network or io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network.</p>
+
+<p>Example run with the direct runner:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn verify -Dio-it-suite-local -pl sdks/java/io/jdbc,sdks/java/io/jdbc -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" -DforceDirectRunner -DintegrationTestPipelineOptions=["--myTestParam=val"]
+</code></pre>
+</div>
+
+<p>Example run with the Cloud Dataflow runner:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn verify -Dio-it-suite -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions=["--project=PROJECT","--gcpTempLocation=GSBUCKET"] -DintegrationTestRunner=dataflow -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" 
+</code></pre>
+</div>
+
+<p>Parameter descriptions:</p>
+
+<table class="table">
+  <thead>
+    <tr>
+     <td>
+      <strong>Option</strong>
+     </td>
+     <td>
+       <strong>Function</strong>
+     </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+     <td>-Dio-it-suite
+     </td>
+     <td>Invokes the call to PerfKit Benchmarker when running in apache beam's jenkins instance or with a kubernetes cluster on the same network.
+     </td>
+    </tr>
+    <tr>
+     <td>-Dio-it-suite-local
+     </td>
+     <td>io-it-suite-local when running on a local dev box accessing a kubernetes cluster on a remote network. May not be supported for all I/O transforms.
+     </td>
+    </tr>
+    <tr>
+     <td>-pl sdks/java/io/jdbc
+     </td>
+     <td>Specifies the maven project of the I/O to test.
+     </td>
+    </tr>
+    <tr>
+     <td>-Dkubectl="path-to-kubectl" -Dkubeconfig="path-to-kubeconfig"
+     </td>
+     <td>Options for specifying non-standard kubectl configurations. Optional. Defaults to "kubectl" and "~/.kube/config".
+     </td>
+    </tr>
+    <tr>
+     <td>integrationTestPipelineOptions
+     </td>
+     <td>Passes pipeline options directly to the test being run.
+     </td>
+    </tr>
+    <tr>
+     <td>-DforceDirectRunner
+     </td>
+     <td>Runs the test with the direct runner.
+     </td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="without-perfkit-benchmarker">Without PerfKit Benchmarker</h4>
+
+<p>If you’re using Kubernetes, make sure you can connect to your cluster locally using kubectl. Otherwise, skip to step 3 below.</p>
+
+<ol>
+  <li>Set up the data store corresponding to the test you wish to run. You can find Kubernetes scripts for all currently supported data stores in <a href="https://github.com/apache/beam/tree/master/.test-infra/kubernetes">.test-infra/kubernetes</a>.
+    <ol>
+      <li>In some cases, there is a setup script (*.sh). In other cases, you can just run <code class="highlighter-rouge">kubectl create -f [scriptname]</code> to create the data store.</li>
+      <li>Convention dictates there will be:
+        <ol>
+          <li>A core yml script for the data store itself, plus a <code class="highlighter-rouge">NodePort</code> service. The <code class="highlighter-rouge">NodePort</code> service opens a port to the data store for anyone who connects to the Kubernetes cluster’s machines.</li>
+          <li>A separate script, called for-local-dev, which sets up a LoadBalancer service.</li>
+        </ol>
+      </li>
+      <li>Examples:
+        <ol>
+          <li>For JDBC, you can set up Postgres: <code class="highlighter-rouge">kubectl create -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
+          <li>For Elasticsearch, you can run the setup script: <code class="highlighter-rouge">bash .test-infra/kubernetes/elasticsearch/setup.sh</code></li>
+        </ol>
+      </li>
+    </ol>
+  </li>
+  <li>Determine the IP address of the service:
+    <ol>
+      <li>NodePort service: <code class="highlighter-rouge">kubectl get pods -l 'component=elasticsearch' -o jsonpath={.items[0].status.podIP}</code></li>
+      <li>LoadBalancer service:<code class="highlighter-rouge"> kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}'</code></li>
+    </ol>
+  </li>
+  <li>Run the test using the instructions in the class (e.g. see the instructions in JdbcIOIT.java)</li>
+  <li>Tell Kubernetes to delete the resources specified in the Kubernetes scripts:
+    <ol>
+      <li>JDBC: <code class="highlighter-rouge">kubectl delete -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
+      <li>Elasticsearch: <code class="highlighter-rouge">bash .test-infra/kubernetes/elasticsearch/teardown.sh</code></li>
+    </ol>
+  </li>
+</ol>
+
+<h3 id="implementing-integration-tests">Implementing Integration Tests</h3>
+
+<p>There are three components necessary to implement an integration test:</p>
+<ul>
+  <li><strong>Test code</strong>: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.</li>
+  <li><strong>Kubernetes scripts</strong>: a Kubernetes script that sets up the data store that will be used by the test code.</li>
+  <li><strong>Integrate with PerfKit Benchmarker using io-it-suite</strong>: this allows users to easily invoke PerfKit Benchmarker, creating the Kubernetes resources and running the test code.</li>
+</ul>
+
+<p>These three pieces are discussed in detail below.</p>
+
+<h4 id="test-code">Test Code</h4>
+
+<p>These are the conventions used by integration testing code:</p>
+<ul>
+  <li><strong>Your test should use pipeline options to receive connection information.</strong>
+    <ul>
+      <li>For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for <code class="highlighter-rouge">Elasticsearch</code> and the <code class="highlighter-rouge">HadoopInputFormatIO</code> tests), those tests share the same pipeline options.</li>
+    </ul>
+  </li>
+  <li><strong>Generate test data programmatically and parameterize the amount of data used for testing.</strong>
+    <ul>
+      <li>For Java, <code class="highlighter-rouge">CountingInput</code> + <code class="highlighter-rouge">TestRow</code> can be combined to generate deterministic test data at any scale.</li>
+    </ul>
+  </li>
+  <li><strong>Use a write then read style for your tests.</strong>
+    <ul>
+      <li>In a single <code class="highlighter-rouge">Test</code>, run a pipeline to do a write using your I/O transform, then run another pipeline to do a read using your I/O transform.</li>
+      <li>The only verification of the data should be the result from the read. Don’t validate the data written to the database in any other way.</li>
+      <li>Validate the actual contents of all rows in an efficient manner. An easy way to do this is by taking a hash of the rows and combining them. <code class="highlighter-rouge">HashingFn</code> can help make this simple, and <code class="highlighter-rouge">TestRow</code> has pre-computed hashes.</li>
+      <li>For easy debugging, use <code class="highlighter-rouge">PAssert</code>’s <code class="highlighter-rouge">containsInAnyOrder</code> to validate the contents of a subset of all rows.</li>
+    </ul>
+  </li>
+  <li><strong>Tests should assume they may be run multiple times and/or simultaneously on the same database instance.</strong>
+    <ul>
+      <li>Clean up test data: do this in an <code class="highlighter-rouge">@AfterClass</code> to ensure it runs.</li>
+      <li>Use unique table names per run (timestamps are an easy way to do this) and per-method where appropriate.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>An end to end example of these principles can be found in <a href="https://github.com/ssisk/beam/blob/jdbc-it-perf/sdks/java/io/jdbc/src/test/java/org/apache/beam/sdk/io/jdbc/JdbcIOIT.java">JdbcIOIT</a>.</p>
+
+<h4 id="kubernetes-scripts">Kubernetes scripts</h4>
+
+<p>As discussed in <a href="#integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</a>, to have your tests run on Beam’s continuous integration server, you’ll need to implement a Kubernetes script that creates an instance of your data store.</p>
+
+<p>If you would like help with this or have other questions, contact the Beam dev@ mailing list and the community may be able to assist you.</p>
+
+<p>Guidelines for creating a Beam data store Kubernetes script:</p>
+<ol>
+  <li><strong>You must only provide access to the data store instance via a <code class="highlighter-rouge">NodePort</code> service.</strong>
+    <ul>
+      <li>This is a requirement for security, since it means that only the local network has access to the data store. This is particularly important since many data stores don’t have security on by default, and even if they do, their passwords will be checked in to our public Github repo.</li>
+    </ul>
+  </li>
+  <li><strong>You should define two Kubernetes scripts.</strong>
+    <ul>
+      <li>This is the best known way to implement item #1.</li>
+      <li>The first script will contain the main datastore instance script (<code class="highlighter-rouge">StatefulSet</code>) plus a <code class="highlighter-rouge">NodePort</code> service exposing the data store. This will be the script run by the Beam Jenkins continuous integration server.</li>
+      <li>The second script will define a <code class="highlighter-rouge">LoadBalancer</code> service, used for local development if the Kubernetes cluster is on another network. This file’s name is usually suffixed with ‘-for-local-dev’.</li>
+    </ul>
+  </li>
+  <li><strong>You must ensure that pods are recreated after crashes.</strong>
+    <ul>
+      <li>If you use a <code class="highlighter-rouge">pod</code> directly, it will not be recreated if the pod crashes or something causes the cluster to move the container for your pod.</li>
+      <li>In most cases, you’ll want to use <code class="highlighter-rouge">StatefulSet</code> as it supports persistent disks that last between restarts, and having a stable network identifier associated with the pod using a particular persistent disk. <code class="highlighter-rouge">Deployment</code> and <code class="highlighter-rouge">ReplicaSet</code> are also possibly useful, but likely in fewer scenarios since they do not have those features.</li>
+    </ul>
+  </li>
+  <li><strong>You should create separate scripts for small and large instances of your data store.</strong>
+    <ul>
+      <li>This seems to be the best way to support having both a small and large data store available for integration testing, as discussed in <a href="#small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</a>.</li>
+    </ul>
+  </li>
+  <li><strong>You must use a Docker image from a trusted source and pin the version of the Docker image.</strong>
+    <ul>
+      <li>You should prefer images in this order:
+        <ol>
+          <li>An image provided by the creator of the data source/sink (if they officially maintain it). For Apache projects, this would be the official Apache repository.</li>
+          <li>Official Docker images, because they have security fixes and guaranteed maintenance.</li>
+          <li>Non-official Docker images, or images from other providers that have good maintainers (e.g. <a href="http://quay.io/">quay.io</a>).</li>
+        </ol>
+      </li>
+    </ul>
+  </li>
+</ol>
+
+<h4 id="integrate-with-perfkit-benchmarker">Integrate with PerfKit Benchmarker</h4>
+
+<p>To allow developers to easily invoke your I/O integration test, you must perform these two steps. The follow sections describe each step in more detail.</p>
+<ol>
+  <li>Create a PerfKit Benchmarker benchmark configuration file for the data store. Each pipeline option needed by the integration test should have a configuration entry.</li>
+  <li>Modify the per-I/O Maven pom configuration so that PerfKit Benchmarker can be invoked from Maven.</li>
+</ol>
+
+<p>The goal is that a checked in config has defaults such that other developers can run the test without changing the configuration.</p>
+
+<h4 id="defining-the-benchmark-configuration-file">Defining the benchmark configuration file</h4>
+
+<p>The benchmark configuration file is a yaml file that defines the set of pipeline options for a specific data store. Some of these pipeline options are <strong>static</strong> - they are known ahead of time, before the data store is created (e.g. username/password). Others options are <strong>dynamic</strong> - they are only known once the data store is created (or after we query the Kubernetes cluster for current status).</p>
+
+<p>All known cases of dynamic pipeline options are for extracting the IP address that the test needs to connect to. For I/O integration tests, we must allow users to specify:</p>
+
+<ul>
+  <li>The type of the IP address to get (load balancer/node address)</li>
+  <li>The pipeline option to pass that IP address to</li>
+  <li>How to find the Kubernetes resource with that value (ie. what load balancer service name? what node selector?)</li>
+</ul>
+
+<p>The style of dynamic pipeline options used here should support a variety of other types of values derived from Kubernetes, but we do not have specific examples.</p>
+
+<p>The dynamic pipeline options are:</p>
+
+<table class="table">
+  <thead>
+    <tr>
+     <td>
+       <strong>Type name</strong>
+     </td>
+     <td>
+       <strong>Meaning</strong>
+     </td>
+     <td>
+       <strong>Selector field name</strong>
+     </td>
+     <td>
+       <strong>Selector field value</strong>
+     </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+     <td>NodePortIp
+     </td>
+     <td>We will be using the IP address of a k8s NodePort service, the value will be an IP address of a Pod
+     </td>
+     <td>podLabel
+     </td>
+     <td>A kubernetes label selector for a pod whose IP address can be used to connect to
+     </td>
+    </tr>
+    <tr>
+     <td>LoadBalancerIp
+     </td>
+     <td>We will be using the IP address of a k8s LoadBalancer, the value will be an IP address of the load balancer
+     </td>
+     <td>serviceName
+     </td>
+     <td>The name of the LoadBalancer kubernetes service.
+     </td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="benchmark-configuration-files-full-example-configuration-file">Benchmark configuration files: full example configuration file</h4>
+
+<p>A configuration file will look like this:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>static_pipeline_options:
+  -postgresUser: postgres
+  -postgresPassword: postgres
+dynamic_pipeline_options:
+  - paramName: PostgresIp
+    type: NodePortIp
+    podLabel: app=postgres
+</code></pre>
+</div>
+
+<p>and may contain the following elements:</p>
+
+<table class="table">
+  <thead>
+    <tr>
+     <td><strong>Configuration element</strong>
+     </td>
+     <td><strong>Description and how to change when adding a new test</strong>
+     </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+     <td>static_pipeline_options
+     </td>
+     <td>The set of preconfigured mvn pipeline options.
+     </td>
+    </tr>
+    <tr>
+     <td>dynamic_pipeline_options
+     </td>
+     <td>The set of mvn pipeline options that PerfKit Benchmarker will determine at runtime.
+     </td>
+    </tr>
+    <tr>
+     <td>dynamic_pipeline_options.name
+     </td>
+     <td>The name of the parameter to be passed to mvn's invocation of the I/O integration test.
+     </td>
+    </tr>
+    <tr>
+     <td>dynamic_pipeline_options.type
+     </td>
+     <td>The method of determining the value of the pipeline options.
+     </td>
+    </tr>
+    <tr>
+     <td>dynamic_pipeline_options - other attributes
+     </td>
+     <td>These vary depending on the type of the dynamic pipeline option - see the table of dynamic pipeline options for a description.
+     </td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="per-i-o-mvn-pom-configuration">Per-I/O mvn pom configuration</h4>
+
+<p>Each I/O is responsible for adding a section to its pom with a profile that invokes PerfKit Benchmarker with the proper parameters during the verify phase. Below are the set of PerfKit Benchmarker parameters and how to configure them.</p>
+
+<p>The <a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/pom.xml">JdbcIO pom</a> has an example of how to put these options together into a profile and invoke Python+PerfKit Benchmarker with them.</p>
+
+<table class="table">
+  <thead>
+    <tr>
+     <td><strong>PerfKit Benchmarker Parameter</strong>
+     </td>
+     <td><strong>Description</strong>
+     </td>
+     <td><strong>Example value</strong>
+     </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+     <td>benchmarks
+     </td>
+     <td>Defines the PerfKit Benchmarker benchmark to run. This is same for all I/O integration tests.
+     </td>
+     <td>beam_integration_benchmark
+     </td>
+    </tr>
+    <tr>
+     <td>beam_location
+     </td>
+     <td>The location where PerfKit Benchmarker can find the Beam repository.
+     </td>
+     <td>${beamRootProjectDir} - this is a variable you'll need to define for each maven pom. See example pom for an example.
+     </td>
+    </tr>
+    <tr>
+     <td>beam_prebuilt
+     </td>
+     <td>Whether or not to rebuild the Beam repository before invoking the I/O integration test command.
+     </td>
+     <td>true
+     </td>
+    </tr>
+    <tr>
+     <td>beam_sdk
+     </td>
+     <td>Whether PerfKit Benchmarker will run the Beam SDK for Java or Python.
+     </td>
+     <td>java
+     </td>
+    </tr>
+    <tr>
+     <td>beam_runner_profile
+     </td>
+     <td>Optional command line parameter used to override the runner, allowing us to use the direct runner.
+     </td>
+     <td>Always use the predefined variable instead of specifying this parameter ${pkbBeamRunnerProfile}
+     </td>
+    </tr>
+    <tr>
+     <td>beam_runner_option
+     </td>
+     <td>Optional command line parameter used to override the runner, allowing us to use the direct runner.
+     </td>
+     <td>Always use the predefined variable instead of specifying this parameter ${pkbBeamRunnerOption}
+     </td>
+    </tr>
+    <tr>
+     <td>beam_it_module
+     </td>
+     <td>The path to the pom that contains the test (needed for invoking the test with PerfKit Benchmarker).
+     </td>
+     <td>sdks/java/io/jdbc
+     </td>
+    </tr>
+    <tr>
+     <td>beam_it_class
+     </td>
+     <td>The test to run.
+     </td>
+     <td>org.apache.beam.sdk.io.jdbc.JdbcIOIT
+     </td>
+    </tr>
+    <tr>
+     <td>beam_it_options
+     </td>
+     <td>Pipeline options for the beam job - meant to be a way to pass pipeline options the user specifies on the commandline when invoking io-it-suite
+     </td>
+     <td>Always use ${integrationTestPipelineOptions}, which allows the user to pass in parameters.
+     </td>
+    </tr>
+    <tr>
+     <td>kubeconfig
+     </td>
+     <td>The standard PerfKit Benchmarker parameter `kubeconfig`, which specifies where the Kubernetes config file lives.
+     </td>
+     <td>Always use ${kubeconfig}
+     </td>
+    </tr>
+    <tr>
+     <td>kubectl
+     </td>
+     <td>The standard PerfKit Benchmarker parameter `kubectl`, which specifies where the kubectl binary lives.
+     </td>
+     <td>Always use ${kubectl}
+     </td>
+    </tr>
+    <tr>
+     <td>beam_kubernetes_scripts
+     </td>
+     <td>The Kubernetes script files to create and teardown via create/delete. Specify absolute path.
+     </td>
+     <td>${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config.yml
+     </td>
+    </tr>
+  </tbody>
+</table>
+
+<p>There is also a set of Maven properties which are useful when invoking PerfKit Benchmarker. These properties are configured in the I/O parent pom, and some are only available when the io-it-suite profile is active in Maven.</p>
+
+<h4 id="small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</h4>
+
+<p>Apache Beam expects that it can run integration tests in multiple configurations:</p>
+<ul>
+  <li>Small scale
+    <ul>
+      <li>Execute on a single worker on the runner (it should be <em>possible</em> but is not required).</li>
+      <li>The data store should be configured to use a single node.</li>
+      <li>The dataset can be very small (1000 rows).</li>
+    </ul>
+  </li>
+  <li>Large scale
+    <ul>
+      <li>Execute on multiple workers on the runner.</li>
+      <li>The datastore should be configured to use multiple nodes.</li>
+      <li>The data set used in this case is larger (10s of GBs).</li>
+    </ul>
+  </li>
+</ul>
+
+<p>You can do this by:</p>
+<ol>
+  <li>Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.</li>
+  <li>Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)</li>
+</ol>
+
+<p>An example of this is <a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop/input-format">HadoopInputFormatIO</a>’s tests.</p>
+
 <!--
 # Next steps
 
@@ -255,7 +760,6 @@ If you have a well tested I/O transform, why not contribute it to Apache Beam? R
 
 [Contributing I/O Transforms](/documentation/io/contributing/)
 -->
-
 
     </div>
     <footer class="footer">
