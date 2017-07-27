@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -197,6 +199,14 @@ public class Create<T> {
       kvs.add(KV.of(entry.getKey(), entry.getValue()));
     }
     return of(kvs);
+  }
+
+  /**
+   * Returns an {@link OfValueProvider} transform that produces a {@link PCollection}
+   * of a single element provided by the given {@link ValueProvider}.
+   */
+  public static <T> OfValueProvider<T> ofProvider(ValueProvider<T> provider, Coder<T> coder) {
+    return new OfValueProvider<>(provider, coder);
   }
 
   /**
@@ -480,6 +490,38 @@ public class Create<T> {
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
         return true;
       }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #ofProvider}. */
+  public static class OfValueProvider<T> extends PTransform<PBegin, PCollection<T>> {
+    private final ValueProvider<T> provider;
+    private final Coder<T> coder;
+
+    private OfValueProvider(ValueProvider<T> provider, Coder<T> coder) {
+      this.provider = checkNotNull(provider, "provider");
+      this.coder = checkNotNull(coder, "coder");
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      if (provider.isAccessible()) {
+        Values<T> values = Create.of(provider.get());
+        return input.apply(values.withCoder(coder));
+      }
+      return input
+          .apply(Create.of((Void) null))
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<Void, T>() {
+                    @Override
+                    public T apply(Void input) {
+                      return provider.get();
+                    }
+                  }))
+          .setCoder(coder);
     }
   }
 

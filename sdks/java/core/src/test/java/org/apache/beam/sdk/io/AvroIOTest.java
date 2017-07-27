@@ -153,11 +153,20 @@ public class AvroIOTest {
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     writePipeline.run().waitUntilFinish();
 
-    // Test both read() and readAll()
+    // Test the same data via read(), read().withHintMatchesManyFiles(), and readAll()
     PAssert.that(
-            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+            readPipeline.apply(
+                "Read", AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(values);
     PAssert.that(
+            readPipeline.apply(
+                "Read withHintMatchesManyFiles",
+                AvroIO.read(GenericClass.class)
+                    .from(outputFile.getAbsolutePath())
+                    .withHintMatchesManyFiles()))
+        .containsInAnyOrder(values);
+    PAssert.that(
+            "ReadAll",
             readPipeline
                 .apply(Create.of(outputFile.getAbsolutePath()))
                 .apply(AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
