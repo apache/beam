@@ -743,8 +743,6 @@ public class KafkaIOTest {
             .withEOS()
             .withSinkGroupId("test")
             .withNumShards(1)
-            .withKeyCoder(BigEndianIntegerCoder.of())
-            .withValueCoder(BigEndianLongCoder.of())
             .withConsumerFactoryFn(new ConsumerFactoryFn(
               Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
             .withProducerFactoryFn(new ProducerFactoryFn()));
