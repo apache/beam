@@ -185,13 +185,16 @@ import org.slf4j.LoggerFactory;
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.writeTableRows()
  *         .withSchema(schema)
- *         .to(new SerializableFunction<ValueInSingleWindow, String>() {
- *           public String apply(ValueInSingleWindow value) {
+ *         .to(new SerializableFunction<ValueInSingleWindow<TableRow>, TableDestination>() {
+ *           public TableDestination apply(ValueInSingleWindow<TableRow> value) {
  *             // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
  *             String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
  *                  .withZone(DateTimeZone.UTC)
  *                  .print(((IntervalWindow) value.getWindow()).start());
- *             return "my-project:output.output_table_" + dayString;
+ *             return new TableDestination(
+ *                 "my-project:output.output_table_" + dayString, // Table spec
+ *                 "Output for day " + dayString // Table description
+ *               );
  *           }
  *         }));
  * }</pre>
