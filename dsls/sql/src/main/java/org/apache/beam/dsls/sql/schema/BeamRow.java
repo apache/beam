@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values;
+package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -32,12 +32,13 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.joda.time.Instant;
 
 /**
- * {@link org.apache.beam.sdk.values.BeamRow}, self-described with
- * {@link org.apache.beam.sdk.values.BeamRowType}, and encoded/decoded with
- * {@link org.apache.beam.sdk.coders.BeamRowCoder} is the foundation of structure data
- * (aka sd) process in Beam.
+ * {@link org.apache.beam.dsls.sql.schema.BeamRow}, self-described with
+ * {@link org.apache.beam.dsls.sql.schema.BeamRowType}, and encoded/decoded with
+ * {@link org.apache.beam.dsls.sql.schema.BeamRowCoder} is the foundation data structure
+ * in Beam SQL.
  *
- * <p>Similar as the <em>row</em> concept in database, {@link org.apache.beam.sdk.values.BeamRow}
+ * <p>Similar as the <em>row</em> concept in database,
+ * {@link org.apache.beam.dsls.sql.schema.BeamRow}
  * represents one row element in a {@link org.apache.beam.sdk.values.PCollection}.
  * Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>

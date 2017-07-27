@@ -21,7 +21,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.List;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.format.DateTimeFormat;

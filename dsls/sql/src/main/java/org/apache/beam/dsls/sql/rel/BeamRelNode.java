@@ -18,7 +18,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import org.apache.beam.dsls.sql.BeamSqlEnv;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.rel.RelNode;

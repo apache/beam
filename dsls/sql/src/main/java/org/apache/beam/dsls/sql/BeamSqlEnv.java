@@ -21,10 +21,10 @@ import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
+import org.apache.beam.dsls.sql.schema.BeamRowType;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdaf;
 import org.apache.beam.dsls.sql.schema.BeamSqlUdf;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;

@@ -22,7 +22,7 @@ import java.io.Serializable;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
-import org.apache.beam.sdk.values.BeamRowType;
+import org.apache.beam.dsls.sql.schema.BeamRowType;
 
 /**
  * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).

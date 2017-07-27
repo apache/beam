@@ -21,9 +21,9 @@ package org.apache.beam.dsls.sql;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.dsls.sql.schema.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRowType;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
 
 /**
  * Test utilities.

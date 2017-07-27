@@ -18,11 +18,11 @@
 package org.apache.beam.dsls.sql;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptUtil;
 

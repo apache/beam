@@ -20,11 +20,11 @@ package org.apache.beam.dsls.sql.transform;
 import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
+import org.apache.beam.dsls.sql.schema.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRowType;
 import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
 
 /**
  *

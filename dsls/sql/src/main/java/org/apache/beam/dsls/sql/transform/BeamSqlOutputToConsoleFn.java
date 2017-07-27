@@ -17,8 +17,8 @@
  */
 package org.apache.beam.dsls.sql.transform;
 
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.BeamRow;
 
 /**
  * A test PTransform to display output in console.

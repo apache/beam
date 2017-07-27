@@ -20,8 +20,6 @@ package org.apache.beam.dsls.sql.schema;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 

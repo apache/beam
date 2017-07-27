@@ -24,9 +24,9 @@ import static org.junit.Assert.assertTrue;
 import java.util.Date;
 import java.util.Iterator;
 import org.apache.beam.dsls.sql.BeamSql;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 

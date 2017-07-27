@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.interpreter.operator;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**

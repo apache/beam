@@ -17,7 +17,7 @@
  */
 package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**

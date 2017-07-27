@@ -17,8 +17,8 @@
  */
 package org.apache.beam.dsls.sql;
 
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;

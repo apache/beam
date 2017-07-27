@@ -22,9 +22,9 @@ import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.dsls.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.coders.BeamRowCoder;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
+import org.apache.beam.dsls.sql.schema.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRowCoder;
+import org.apache.beam.dsls.sql.schema.BeamRowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 

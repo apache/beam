@@ -23,8 +23,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import org.apache.beam.dsls.sql.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;

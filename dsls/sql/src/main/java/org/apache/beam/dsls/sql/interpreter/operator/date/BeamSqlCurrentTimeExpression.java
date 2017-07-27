@@ -25,7 +25,7 @@ import java.util.TimeZone;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.dsls.sql.schema.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
