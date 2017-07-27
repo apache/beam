@@ -421,4 +421,11 @@
       exception in writeObject()
     -->
   </Match>
+
+  <Match>
+    <!--
+    Classes in this package is auto-generated, let's disable the findbugs for it.
+    -->
+    <Package name="org.apache.beam.dsls.sql.parser.impl"/>
+  </Match>
 </FindBugsFilter>
