@@ -39,7 +39,7 @@
       <!-- This profile adds execution of ValidatesRunner integration tests
            against a hadoop local cluster. -->
       <id>local-validates-runner-tests</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation><activeByDefault>true</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>

@@ -35,6 +35,7 @@
   <modules>
     <module>core-construction-java</module>
     <module>core-java</module>
+    <module>map-reduce</module>
     <module>direct-java</module>
     <module>flink</module>
     <module>google-cloud-dataflow-java</module>
