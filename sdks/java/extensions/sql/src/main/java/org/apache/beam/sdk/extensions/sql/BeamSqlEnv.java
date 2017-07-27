@@ -60,7 +60,6 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
-<<<<<<< HEAD
    * Register a UDAF function which can be used in GROUP-BY expression.
    * See {@link BeamSqlUdaf} on how to implement a UDAF.
    */
