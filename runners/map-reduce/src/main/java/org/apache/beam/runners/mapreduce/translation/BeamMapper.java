@@ -16,7 +16,7 @@ public class BeamMapper<ValueInT, ValueOutT>
 
   public static final String BEAM_PAR_DO_OPERATION_MAPPER = "beam-par-do-op-mapper";
 
-  private ParDoOperation parDoOperation;
+  private Operation operation;
 
   @Override
   protected void setup(
@@ -24,9 +24,9 @@ public class BeamMapper<ValueInT, ValueOutT>
     String serializedParDo = checkNotNull(
         context.getConfiguration().get(BEAM_PAR_DO_OPERATION_MAPPER),
         BEAM_PAR_DO_OPERATION_MAPPER);
-    parDoOperation = (ParDoOperation) SerializableUtils.deserializeFromByteArray(
-        Base64.decodeBase64(serializedParDo), "ParDoOperation");
-    parDoOperation.start((TaskInputOutputContext) context);
+    operation = (Operation) SerializableUtils.deserializeFromByteArray(
+        Base64.decodeBase64(serializedParDo), "Operation");
+    operation.start((TaskInputOutputContext) context);
   }
 
   @Override
@@ -34,12 +34,12 @@ public class BeamMapper<ValueInT, ValueOutT>
       Object key,
       WindowedValue<ValueInT> value,
       Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context) {
-    parDoOperation.process(value);
+    operation.process(value);
   }
 
   @Override
   protected void cleanup(
       Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context) {
-    parDoOperation.finish();
+    operation.finish();
   }
 }

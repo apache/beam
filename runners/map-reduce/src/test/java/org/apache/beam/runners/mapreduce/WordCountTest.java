@@ -7,10 +7,14 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.log4j.BasicConfigurator;
+import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,17 +68,18 @@ public class WordCountTest {
     String input = "/Users/peihe/github/beam/LICENSE";
     String output =  "./output";
     MapReducePipelineOptions options = PipelineOptionsFactory.as(MapReducePipelineOptions.class);
-    options.setJarClass(this.getClass());
+    //options.setJarClass(this.getClass());
     options.setRunner(MapReduceRunner.class);
     Pipeline p = Pipeline.create(options);
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
     p.apply("ReadLines", TextIO.read().from(input))
+        .apply(Window.<String>into(SlidingWindows.of(Duration.millis(100))))
         .apply(ParDo.of(new ExtractWordsFn()))
-        .apply(Count.<String>perElement());
-//        .apply(MapElements.via(new FormatAsTextFn()))
-//        .apply("WriteCounts", TextIO.write().to(output));
+        .apply(Count.<String>perElement())
+        .apply(MapElements.via(new FormatAsTextFn()));
+        //.apply("WriteCounts", TextIO.write().to(output));
 
     p.run();
   }

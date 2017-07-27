@@ -60,10 +60,10 @@ public abstract class Operation implements Serializable {
   }
 
   /**
-   * Adds an input to this ParDoOperation, coming from the given output of the given source.
+   * Adds an output to this Operation.
    */
-  public void attachInput(Operation source, int outputNum) {
-    OutputReceiver fanOut = source.receivers[outputNum];
-    fanOut.addOutput(this);
+  public void attachOutput(Operation output, int outputNum) {
+    OutputReceiver fanOut = receivers[outputNum];
+    fanOut.addOutput(output);
   }
 }

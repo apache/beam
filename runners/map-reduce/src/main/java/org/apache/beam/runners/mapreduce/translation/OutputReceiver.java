@@ -23,8 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OutputReceiver that forwards each input it receives to each of a list of down stream
- * ParDoOperations.
+ * OutputReceiver that forwards each input it receives to each of a list of down stream operations.
  */
 public class OutputReceiver implements Serializable {
   private final List<Operation> receivingOperations = new ArrayList<>();

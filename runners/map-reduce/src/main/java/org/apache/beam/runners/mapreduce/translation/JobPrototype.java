@@ -12,14 +12,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
@@ -69,72 +75,150 @@ public class JobPrototype {
     // Setup DoFns in BeamMapper.
     // TODO: support more than one in-path.
     Graph.NodePath inPath = Iterables.getOnlyElement(inEdge.getPaths());
-    List<Graph.Step> parDos = new ArrayList<>();
-    parDos.addAll(FluentIterable.from(inPath.steps())
-        .filter(new Predicate<Graph.Step>() {
-          @Override
-          public boolean apply(Graph.Step input) {
-            PTransform<?, ?> transform = input.getTransform();
-            return transform instanceof ParDo.SingleOutput
-                || transform instanceof ParDo.MultiOutput;
-          }})
-        .toList());
+
+    Operation mapperParDoRoot = chainParDosInPath(inPath);
+    Operation mapperParDoTail = getTailOperation(mapperParDoRoot);
     Graph.Step vertexStep = vertex.getStep();
     if (vertexStep.getTransform() instanceof ParDo.SingleOutput
-        || vertexStep.getTransform() instanceof ParDo.MultiOutput) {
-      parDos.add(vertexStep);
-    }
-
-    ParDoOperation root = null;
-    ParDoOperation prev = null;
-    for (Graph.Step step : parDos) {
-      ParDoOperation current = new NormalParDoOperation(
-          getDoFn(step.getTransform()),
+        || vertexStep.getTransform() instanceof ParDo.MultiOutput
+        || vertexStep.getTransform() instanceof Window.Assign) {
+      // TODO: add a TailVertex type to simplify the translation.
+      Operation vertexParDo = translateToOperation(vertexStep);
+      Operation mapperWrite = new WriteOperation(
+          getKeyCoder(inEdge.getCoder()),
+          getReifyValueCoder(inEdge.getCoder(), vertexStep.getWindowingStrategy()));
+      mapperParDoTail.attachOutput(vertexParDo, 0);
+      vertexParDo.attachOutput(mapperWrite, 0);
+    } else if (vertexStep.getTransform() instanceof GroupByKey) {
+      Operation reifyOperation = new ReifyTimestampAndWindowsParDoOperation(
           PipelineOptionsFactory.create(),
-          (TupleTag<Object>) step.getOutputs().iterator().next(),
+          new TupleTag<>(),
           ImmutableList.<TupleTag<?>>of(),
-          step.getWindowingStrategy());
-      if (root == null) {
-        root = current;
-      } else {
-        // TODO: set a proper outputNum for ParDo.MultiOutput instead of zero.
-        current.attachInput(prev, 0);
-      }
-      prev = current;
+          vertexStep.getWindowingStrategy());
+      Operation mapperWrite = new WriteOperation(
+          getKeyCoder(inEdge.getCoder()),
+          getReifyValueCoder(inEdge.getCoder(), vertexStep.getWindowingStrategy()));
+      mapperParDoTail.attachOutput(reifyOperation, 0);
+      reifyOperation.attachOutput(mapperWrite, 0);
+    } else {
+      throw new UnsupportedOperationException("Transform: " + vertexStep.getTransform());
     }
-    // TODO: get coders from pipeline.
-    WriteOperation writeOperation = new WriteOperation(inEdge.getCoder());
-    writeOperation.attachInput(prev, 0);
+    job.setMapOutputKeyClass(BytesWritable.class);
+    job.setMapOutputValueClass(byte[].class);
     conf.set(
         BeamMapper.BEAM_PAR_DO_OPERATION_MAPPER,
-        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(root)));
+        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(mapperParDoRoot)));
     job.setMapperClass(BeamMapper.class);
 
     if (vertexStep.getTransform() instanceof GroupByKey) {
       // Setup BeamReducer
-      ParDoOperation operation = new GroupAlsoByWindowsParDoOperation(
+      Operation gabwOperation = new GroupAlsoByWindowsParDoOperation(
           PipelineOptionsFactory.create(),
           (TupleTag<Object>) vertexStep.getOutputs().iterator().next(),
           ImmutableList.<TupleTag<?>>of(),
           vertexStep.getWindowingStrategy(),
           inEdge.getCoder());
-      // TODO: handle the map output key type.
-      job.setMapOutputKeyClass(BytesWritable.class);
-      job.setMapOutputValueClass(byte[].class);
+      Graph.Edge outEdge = Iterables.getOnlyElement(vertex.getOutgoing());
+      Graph.NodePath outPath = Iterables.getOnlyElement(outEdge.getPaths());
+      Operation reducerParDoRoot = chainParDosInPath(outPath);
+      Operation reducerParDoTail = getTailOperation(reducerParDoRoot);
+
+      Operation reducerTailParDo = translateToOperation(outEdge.getTail().getStep());
+      if (reducerParDoRoot == null) {
+        gabwOperation.attachOutput(reducerTailParDo, 0);
+      } else {
+        gabwOperation.attachOutput(reducerParDoRoot, 0);
+        reducerParDoTail.attachOutput(reducerTailParDo, 0);
+      }
+      conf.set(
+          BeamReducer.BEAM_REDUCER_KV_CODER,
+          Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
+              KvCoder.of(
+                  getKeyCoder(inEdge.getCoder()),
+                  getReifyValueCoder(inEdge.getCoder(), vertexStep.getWindowingStrategy())))));
       conf.set(
           BeamReducer.BEAM_PAR_DO_OPERATION_REDUCER,
-          Base64.encodeBase64String(SerializableUtils.serializeToByteArray(operation)));
+          Base64.encodeBase64String(SerializableUtils.serializeToByteArray(gabwOperation)));
       job.setReducerClass(BeamReducer.class);
     }
     job.setOutputFormatClass(NullOutputFormat.class);
     return job;
   }
 
-  private DoFn<Object, Object> getDoFn(PTransform<?, ?> transform) {
+  private Coder<Object> getKeyCoder(Coder<?> coder) {
+    KvCoder<Object, Object> kvCoder = (KvCoder<Object, Object>) checkNotNull(coder, "coder");
+    return kvCoder.getKeyCoder();
+  }
+
+  private Coder<Object> getReifyValueCoder(
+      Coder<?> coder, WindowingStrategy<?, ?> windowingStrategy) {
+    KvCoder<Object, Object> kvCoder = (KvCoder<Object, Object>) checkNotNull(coder, "coder");
+    return (Coder) WindowedValue.getFullCoder(
+        kvCoder.getValueCoder(), windowingStrategy.getWindowFn().windowCoder());
+  }
+
+  private Operation getTailOperation(@Nullable Operation operation) {
+    if (operation == null) {
+      return null;
+    }
+    if (operation.getOutputReceivers().isEmpty()) {
+      return operation;
+    }
+    OutputReceiver receiver = Iterables.getOnlyElement(operation.getOutputReceivers());
+    if (receiver.getReceivingOperations().isEmpty()) {
+      return operation;
+    }
+    return getTailOperation(Iterables.getOnlyElement(receiver.getReceivingOperations()));
+  }
+
+  private Operation chainParDosInPath(Graph.NodePath path) {
+    List<Graph.Step> parDos = new ArrayList<>();
+    // TODO: we should not need this filter.
+    parDos.addAll(FluentIterable.from(path.steps())
+        .filter(new Predicate<Graph.Step>() {
+          @Override
+          public boolean apply(Graph.Step input) {
+            PTransform<?, ?> transform = input.getTransform();
+            return !(transform instanceof Read.Bounded);
+          }})
+        .toList());
+
+    Operation root = null;
+    Operation prev = null;
+    for (Graph.Step step : parDos) {
+      Operation current = translateToOperation(step);
+      if (prev == null) {
+        root = current;
+      } else {
+        // TODO: set a proper outputNum for ParDo.MultiOutput instead of zero.
+        prev.attachOutput(current, 0);
+      }
+      prev = current;
+    }
+    return root;
+  }
+
+  private Operation translateToOperation(Graph.Step parDoStep) {
+    PTransform<?, ?> transform = parDoStep.getTransform();
+    DoFn<Object, Object> doFn;
     if (transform instanceof ParDo.SingleOutput) {
-      return ((ParDo.SingleOutput) transform).getFn();
+      return new NormalParDoOperation(
+          ((ParDo.SingleOutput) transform).getFn(),
+          PipelineOptionsFactory.create(),
+          (TupleTag<Object>) parDoStep.getOutputs().iterator().next(),
+          ImmutableList.<TupleTag<?>>of(),
+          parDoStep.getWindowingStrategy());
+    } else if (transform instanceof ParDo.MultiOutput) {
+      return new NormalParDoOperation(
+          ((ParDo.MultiOutput) transform).getFn(),
+          PipelineOptionsFactory.create(),
+          (TupleTag<Object>) parDoStep.getOutputs().iterator().next(),
+          ImmutableList.<TupleTag<?>>of(),
+          parDoStep.getWindowingStrategy());
+    } else if (transform instanceof Window.Assign) {
+      return new WindowAssignOperation<>(1, parDoStep.getWindowingStrategy().getWindowFn());
     } else {
-      return ((ParDo.MultiOutput) transform).getFn();
+      throw new UnsupportedOperationException("Transform: " + transform);
     }
   }
 }

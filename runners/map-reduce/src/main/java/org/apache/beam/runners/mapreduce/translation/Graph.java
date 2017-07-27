@@ -18,6 +18,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
@@ -127,7 +128,8 @@ public class Graph {
 
     public void accept(GraphVisitor visitor) {
       PTransform<?, ?> transform = step.getTransform();
-      if (transform instanceof ParDo.SingleOutput || transform instanceof ParDo.MultiOutput) {
+      if (transform instanceof ParDo.SingleOutput || transform instanceof ParDo.MultiOutput
+          || transform instanceof Window.Assign) {
         visitor.visitParDo(this);
       } else if (transform instanceof GroupByKey) {
         visitor.visitGroupByKey(this);
