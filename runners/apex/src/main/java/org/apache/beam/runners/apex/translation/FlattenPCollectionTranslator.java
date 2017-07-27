@@ -110,8 +110,12 @@ class FlattenPCollectionTranslator<T> implements
           }
 
           if (collections.size() > 2) {
-            PCollection<T> intermediateCollection = intermediateCollection(collection,
-                collection.getCoder());
+            PCollection<T> intermediateCollection =
+                PCollection.createPrimitiveOutputInternal(
+                    collection.getPipeline(),
+                    collection.getWindowingStrategy(),
+                    collection.isBounded(),
+                    collection.getCoder());
             context.addOperator(operator, operator.out, intermediateCollection);
             remainingCollections.add(intermediateCollection);
           } else {
@@ -133,13 +137,6 @@ class FlattenPCollectionTranslator<T> implements
         collections = Lists.newArrayList();
       }
     }
-  }
-
-  static <T> PCollection<T> intermediateCollection(PCollection<T> input, Coder<T> outputCoder) {
-    PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(),
-        input.getWindowingStrategy(), input.isBounded());
-    output.setCoder(outputCoder);
-    return output;
   }
 
 }

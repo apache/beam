@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -32,12 +31,7 @@ public final class StorageLevelPTransform extends PTransform<PCollection<?>, PCo
   public PCollection<String> expand(PCollection<?> input) {
     return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
         WindowingStrategy.globalDefault(),
-        PCollection.IsBounded.BOUNDED);
+        PCollection.IsBounded.BOUNDED,
+        StringUtf8Coder.of());
   }
-
-  @Override
-  public Coder getDefaultOutputCoder() {
-    return StringUtf8Coder.of();
-  }
-
 }

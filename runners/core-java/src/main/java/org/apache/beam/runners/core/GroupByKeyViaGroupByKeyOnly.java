@@ -111,12 +111,10 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     @Override
     public PCollection<KV<K, Iterable<WindowedValue<V>>>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
-    }
-
-    @Override
-    public Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
-      return GroupByKey.getOutputKvCoder(input.getCoder());
+          input.getPipeline(),
+          input.getWindowingStrategy(),
+          input.isBounded(),
+          (Coder) GroupByKey.getOutputKvCoder(input.getCoder()));
     }
   }
 
@@ -244,9 +242,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       Coder<Iterable<V>> outputValueCoder = IterableCoder.of(inputIterableElementValueCoder);
       Coder<KV<K, Iterable<V>>> outputKvCoder = KvCoder.of(keyCoder, outputValueCoder);
 
-      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          input.getPipeline(), windowingStrategy, input.isBounded())
-          .setCoder(outputKvCoder);
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), windowingStrategy, input.isBounded(), outputKvCoder);
     }
   }
 }

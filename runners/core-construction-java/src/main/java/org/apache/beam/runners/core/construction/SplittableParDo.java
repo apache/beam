@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -273,6 +274,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
               TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              // TODO
+              Collections.<TupleTag<?>, Coder<?>>emptyMap(),
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 

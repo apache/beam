@@ -52,10 +52,10 @@ public class PCollectionTranslation {
 
     Coder<?> coder = components.getCoder(pCollection.getCoderId());
     return PCollection.createPrimitiveOutputInternal(
-            pipeline,
-            components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
-            fromProto(pCollection.getIsBounded()))
-        .setCoder((Coder) coder);
+        pipeline,
+        components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
+        fromProto(pCollection.getIsBounded()),
+        (Coder) coder);
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {

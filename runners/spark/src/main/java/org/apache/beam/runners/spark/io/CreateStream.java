@@ -27,7 +27,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -203,11 +202,9 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   @Override
   public PCollection<T> expand(PBegin input) {
     return PCollection.createPrimitiveOutputInternal(
-        input.getPipeline(), WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);
-  }
-
-  @Override
-  protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
-    return coder;
+        input.getPipeline(),
+        WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.UNBOUNDED,
+        coder);
   }
 }

@@ -59,8 +59,8 @@ class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
         transform.getOutputStrategyInternal(input.getWindowingStrategy());
     if (transform.getWindowFn() != null) {
       // If the windowFn changed, we create a primitive, and run the AssignWindows operation here.
-      return PCollection.<T>createPrimitiveOutputInternal(
-                            input.getPipeline(), outputStrategy, input.isBounded());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), outputStrategy, input.isBounded(), input.getCoder());
     } else {
       // If the windowFn didn't change, we just run a pass-through transform and then set the
       // new windowing strategy.
