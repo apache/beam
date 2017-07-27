@@ -1184,6 +1184,13 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
+  def to_runner_api_parameter(self, unused_context):
+    return urns.GROUP_BY_KEY_TRANSFORM, None
+
+  @PTransform.register_urn(urns.GROUP_BY_KEY_TRANSFORM, None)
+  def from_runner_api_parameter(unused_payload, unused_context):
+    return GroupByKey()
+
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
@@ -1196,6 +1203,13 @@ class _GroupByKeyOnly(PTransform):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
+
+  def to_runner_api_parameter(self, unused_context):
+    return urns.GROUP_BY_KEY_ONLY_TRANSFORM, None
+
+  @PTransform.register_urn(urns.GROUP_BY_KEY_ONLY_TRANSFORM, None)
+  def from_runner_api_parameter(unused_payload, unused_context):
+    return _GroupByKeyOnly()
 
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
