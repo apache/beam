@@ -105,7 +105,7 @@ public class SparkRuntimeContextTest {
         .as(JacksonIncompatibleOptions.class);
     options.setRunner(CrashingRunner.class);
     Pipeline p = Pipeline.create(options);
-    SparkRuntimeContext context = new SparkRuntimeContext(p, options);
+    SparkRuntimeContext context = new SparkRuntimeContext(options);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try (ObjectOutputStream outputStream = new ObjectOutputStream(baos)) {
