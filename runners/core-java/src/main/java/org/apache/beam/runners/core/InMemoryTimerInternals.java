@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Table;
 import java.util.NavigableSet;
 import java.util.TreeSet;
@@ -63,6 +64,10 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Nullable
   public Instant currentOutputWatermarkTime() {
     return outputWatermarkTime;
+  }
+
+  public Iterable<TimerData> getTimers(TimeDomain domain) {
+    return ImmutableList.copyOf(timersForDomain(domain));
   }
 
   /**
