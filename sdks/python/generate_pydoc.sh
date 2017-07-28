@@ -118,6 +118,7 @@ ignore_identifiers = [
   'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate',
   'apache_beam.io.gcp.internal.clients.bigquery.'
       'bigquery_v2_messages.TableSchema',
+  'apache_beam.io.iobase.SourceBase',
   'apache_beam.io.source_test_utils.ExpectedSplitOutcome',
   'apache_beam.metrics.metric.MetricResults',
   'apache_beam.pipeline.PipelineVisitor',
