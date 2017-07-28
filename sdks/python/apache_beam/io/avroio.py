@@ -82,6 +82,9 @@ class ReadFromAvro(PTransform):
       with beam.Pipeline(argv=sys.argv) as p:
         records = p | 'Read' >> beam.io.ReadFromAvro('/mypath/myavrofiles*')
 
+    .. NOTE: We're not actually interested in this error; but if we get here,
+       it means that the way of calling this transform hasn't changed.
+
     .. testoutput::
       :hide:
 
@@ -124,7 +127,7 @@ class ReadFromAvro(PTransform):
       {u'name': u'Alyssa', u'favorite_number': 256, u'favorite_color': None}).
 
     Args:
-      file_pattern (str): the file glob to read a string
+      file_pattern (str): the file glob to read
       min_bundle_size (int): the minimum size in bytes, to be considered when
         splitting the input into bundles.
       validate (bool): flag to verify that the files exist during the pipeline

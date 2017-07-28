@@ -311,8 +311,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       message in the case of an exception.
 
   Raises:
-    :class:`~exceptions.TypeError`: If the passed **type_param** is not a valid
-      type parameter for a :class:`CompositeTypeHint`.
+    ~exceptions.TypeError: If the passed **type_param** is not a valid type
+      parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
   is_not_type_constraint = (

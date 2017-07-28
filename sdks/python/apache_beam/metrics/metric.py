@@ -30,7 +30,7 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import Counter, Distribution
 from apache_beam.metrics.metricbase import MetricName
 
-__all__ = ['Metrics', 'MetricsFilter', 'MetricResults']
+__all__ = ['Metrics', 'MetricsFilter']
 
 
 class Metrics(object):

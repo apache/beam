@@ -57,6 +57,7 @@ excluded_internal_code=(
 python $(type -p sphinx-apidoc) -fMeT -o target/docs/source apache_beam \
     "${excluded_internal_code[@]}"
 
+# Create the configuration and index files
 #=== conf.py ===#
 cat > target/docs/source/conf.py <<'EOF'
 import os
@@ -117,7 +118,13 @@ ignore_identifiers = [
   'apache_beam.io.gcp.datastore.v1.datastoreio._Mutate',
   'apache_beam.io.gcp.internal.clients.bigquery.'
       'bigquery_v2_messages.TableSchema',
+  'apache_beam.io.source_test_utils.ExpectedSplitOutcome',
+  'apache_beam.metrics.metric.MetricResults',
+  'apache_beam.pipeline.PipelineVisitor',
+  'apache_beam.pipeline.PTransformOverride',
+  'apache_beam.pvalue.AsSideInput',
   'apache_beam.pvalue.DoOutputsTuple',
+  'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
   'apache_beam.transforms.core.CallableWrapperCombineFn',
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',

@@ -70,7 +70,7 @@ from apache_beam.utils.annotations import deprecated
 from apache_beam.utils import urns
 
 
-__all__ = ['Pipeline', 'PipelineVisitor', 'PTransformOverride']
+__all__ = ['Pipeline']
 
 
 class Pipeline(object):
@@ -308,8 +308,8 @@ class Pipeline(object):
     output types are different.
 
     Args:
-      replacements (List[PTransformOverride]): a list of
-        :class:`PTransformOverride` objects.
+      replacements (List[~apache_beam.pipeline.PTransformOverride]): a list of
+        :class:`~apache_beam.pipeline.PTransformOverride` objects.
     """
     for override in replacements:
       assert isinstance(override, PTransformOverride)
@@ -352,9 +352,10 @@ class Pipeline(object):
     Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
-      visitor (PipelineVisitor): :class:`PipelineVisitor` object whose
-        callbacks will be called for each node visited. See
-        :class:`PipelineVisitor` comments.
+      visitor (~apache_beam.pipeline.PipelineVisitor):
+        :class:`~apache_beam.pipeline.PipelineVisitor` object whose callbacks
+        will be called for each node visited. See
+        :class:`~apache_beam.pipeline.PipelineVisitor` comments.
 
     Raises:
       ~exceptions.TypeError: if node is specified and is not a

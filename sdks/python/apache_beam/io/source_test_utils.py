@@ -52,10 +52,7 @@ import weakref
 from multiprocessing.pool import ThreadPool
 from apache_beam.io import iobase
 
-__all__ = ['ExpectedSplitOutcome',
-           'read_from_source',
-           'assert_sources_equal_reference_source',
-           'assert_reentrant_reads_succeed',
+__all__ = ['assert_reentrant_reads_succeed',
            'assert_split_at_fraction_behavior',
            'assert_split_at_fraction_binary',
            'assert_split_at_fraction_exhaustive',
@@ -248,7 +245,8 @@ def assert_split_at_fraction_behavior(source, num_items_to_read_before_split,
     num_items_to_read_before_split (int): number of items to read before
       splitting.
     split_fraction (float): fraction to split at.
-    expected_outcome (int): a value from :class:`ExpectedSplitOutcome`.
+    expected_outcome (int): a value from
+      :class:`~apache_beam.io.source_test_utils.ExpectedSplitOutcome`.
 
   Returns:
     Tuple[int, int]: a tuple that gives the number of items produced by reading

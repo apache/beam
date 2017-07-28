@@ -32,10 +32,8 @@ from apache_beam import typehints
 
 
 __all__ = [
-    'PValue',
     'PCollection',
     'TaggedOutput',
-    'AsSideInput',
     'AsSingleton',
     'AsIter',
     'AsList',
