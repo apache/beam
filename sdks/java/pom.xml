@@ -38,7 +38,7 @@
     <module>build-tools</module> -->
     <module>core</module>
     <module>io</module>
-		<!--<module>maven-archetypes</module>-->
+    <module>maven-archetypes</module>
     <module>extensions</module>
     <!-- javadoc runs directly from the root parent as the last module
          in the build to be able to capture runner-specific javadoc.
