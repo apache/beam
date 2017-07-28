@@ -173,6 +173,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       is.defaultReadObject();
       readerSchemaString = internSchemaString(readerSchemaString);
     }
+
+    public Coder<T> getOutputCoder() {
+      if (parseFn == null) {
+        return AvroCoder.of((Class<T>) type, internOrParseSchemaString(readerSchemaString));
+      } else {
+        return outputCoder;
+      }
+    }
   }
 
   private static Mode<GenericRecord> readGenericRecordsWithSchema(String schema) {
@@ -304,11 +312,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    if (mode.parseFn == null) {
-      return AvroCoder.of((Class<T>) mode.type, internOrParseSchemaString(mode.readerSchemaString));
-    } else {
-      return mode.outputCoder;
-    }
+    return mode.getOutputCoder();
   }
 
   @VisibleForTesting
@@ -469,8 +473,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   static class AvroBlock<T> extends Block<T> {
-    @Nullable
-    private final SerializableFunction<GenericRecord, T> parseFn;
+    private final Mode<T> mode;
 
     // The number of records in the block.
     private final long numRecords;
@@ -525,21 +528,19 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     AvroBlock(
         byte[] data,
         long numRecords,
-        Class<?> type,
-        @Nullable String readerSchemaString,
+        Mode<T> mode,
         String writerSchemaString,
-        String codec,
-        @Nullable SerializableFunction<GenericRecord, T> parseFn)
+        String codec)
         throws IOException {
-      this.parseFn = parseFn;
+      this.mode = mode;
       this.numRecords = numRecords;
       checkNotNull(writerSchemaString, "writerSchemaString");
       Schema writerSchema = internOrParseSchemaString(writerSchemaString);
       Schema readerSchema =
           internOrParseSchemaString(
-              MoreObjects.firstNonNull(readerSchemaString, writerSchemaString));
+              MoreObjects.firstNonNull(mode.readerSchemaString, writerSchemaString));
       this.reader =
-          (type == GenericRecord.class)
+          (mode.type == GenericRecord.class)
               ? new GenericDatumReader<T>(writerSchema, readerSchema)
               : new ReflectDatumReader<T>(writerSchema, readerSchema);
       this.decoder = DecoderFactory.get().binaryDecoder(decodeAsInputStream(data, codec), null);
@@ -556,7 +557,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         return false;
       }
       Object record = reader.read(null, decoder);
-      currentRecord = (parseFn == null) ? ((T) record) : parseFn.apply((GenericRecord) record);
+      currentRecord =
+          (mode.parseFn == null) ? ((T) record) : mode.parseFn.apply((GenericRecord) record);
       currentRecordIndex++;
       return true;
     }
@@ -658,11 +660,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           new AvroBlock<>(
               data,
               numRecords,
-              getCurrentSource().mode.type,
-              getCurrentSource().mode.readerSchemaString,
+              getCurrentSource().mode,
               metadata.getSchemaString(),
-              metadata.getCodec(),
-              getCurrentSource().mode.parseFn);
+              metadata.getCodec());
 
       // Read the end of this block, which MUST be a sync marker for correctness.
       byte[] syncMarker = metadata.getSyncMarker();
