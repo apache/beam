@@ -146,7 +146,7 @@ public final class TransformTranslator {
                 windowingStrategy,
                 new TranslationUtils.InMemoryStateInternalsFactory<K>(),
                 SystemReduceFn.<K, V, W>buffering(coder.getValueCoder()),
-                context.getRuntimeContext(),
+                context.getSerializableOptions(),
                 accum));
 
         context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
@@ -171,7 +171,7 @@ public final class TransformTranslator {
                   (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
                       CombineFnUtil.toFnWithContext(transform.getFn());
               final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
-                  new SparkKeyedCombineFn<>(combineFn, context.getRuntimeContext(),
+                  new SparkKeyedCombineFn<>(combineFn, context.getSerializableOptions(),
                       TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                           context.getInput(transform).getWindowingStrategy());
 
@@ -222,18 +222,18 @@ public final class TransformTranslator {
             final WindowedValue.FullWindowedValueCoder<OutputT> wvoCoder =
                 WindowedValue.FullWindowedValueCoder.of(oCoder,
                     windowingStrategy.getWindowFn().windowCoder());
-            final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
             final boolean hasDefault = transform.isInsertDefault();
 
             final SparkGlobalCombineFn<InputT, AccumT, OutputT> sparkCombineFn =
                 new SparkGlobalCombineFn<>(
                     combineFn,
-                    runtimeContext,
+                    context.getSerializableOptions(),
                     TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                     windowingStrategy);
             final Coder<AccumT> aCoder;
             try {
-              aCoder = combineFn.getAccumulatorCoder(runtimeContext.getCoderRegistry(), iCoder);
+              aCoder = combineFn.getAccumulatorCoder(
+                  context.getPipeline().getCoderRegistry(), iCoder);
             } catch (CannotProvideCoderException e) {
               throw new IllegalStateException("Could not determine coder for accumulator", e);
             }
@@ -295,16 +295,16 @@ public final class TransformTranslator {
             (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
                 CombineFnUtil.toFnWithContext(transform.getFn());
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final SparkKeyedCombineFn<K, InputT, AccumT, OutputT> sparkCombineFn =
-            new SparkKeyedCombineFn<>(combineFn, runtimeContext, sideInputs, windowingStrategy);
+            new SparkKeyedCombineFn<>(
+                combineFn, context.getSerializableOptions(), sideInputs, windowingStrategy);
         final Coder<AccumT> vaCoder;
         try {
           vaCoder =
               combineFn.getAccumulatorCoder(
-                  runtimeContext.getCoderRegistry(), inputCoder.getValueCoder());
+                  context.getPipeline().getCoderRegistry(), inputCoder.getValueCoder());
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException("Could not determine coder for accumulator", e);
         }
@@ -360,7 +360,6 @@ public final class TransformTranslator {
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
-        Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
         Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
 
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
@@ -370,11 +369,10 @@ public final class TransformTranslator {
             || signature.timerDeclarations().size() > 0;
 
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction = new MultiDoFnFunction<>(
-            aggAccum,
             metricsAccum,
             stepName,
             doFn,
-            context.getRuntimeContext(),
+            context.getSerializableOptions(),
             transform.getMainOutputTag(),
             transform.getAdditionalOutputTags().getAll(),
             TranslationUtils.getSideInputs(transform.getSideInputs(), context),
@@ -452,10 +450,11 @@ public final class TransformTranslator {
       public void evaluate(Read.Bounded<T> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         final JavaSparkContext jsc = context.getSparkContext();
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         // create an RDD from a BoundedSource.
-        JavaRDD<WindowedValue<T>> input = new SourceRDD.Bounded<>(
-            jsc.sc(), transform.getSource(), runtimeContext, stepName).toJavaRDD();
+        JavaRDD<WindowedValue<T>> input =
+            new SourceRDD.Bounded<>(
+                    jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
+                .toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
       }

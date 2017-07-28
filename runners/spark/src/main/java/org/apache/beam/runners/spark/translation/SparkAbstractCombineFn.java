@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -48,16 +49,16 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * {@link org.apache.beam.sdk.transforms.Combine.CombineFn}.
  */
 public class SparkAbstractCombineFn implements Serializable {
-  protected final SparkRuntimeContext runtimeContext;
+  protected final SerializablePipelineOptions options;
   protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   protected final WindowingStrategy<?, BoundedWindow> windowingStrategy;
 
 
   public SparkAbstractCombineFn(
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       Map<TupleTag<?>,  KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-    this.runtimeContext = runtimeContext;
+    this.options = options;
     this.sideInputs = sideInputs;
     this.windowingStrategy = (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
   }
@@ -71,7 +72,7 @@ public class SparkAbstractCombineFn implements Serializable {
   private transient SparkCombineContext combineContext;
   protected SparkCombineContext ctxtForInput(WindowedValue<?> input) {
     if (combineContext == null) {
-      combineContext = new SparkCombineContext(runtimeContext.getPipelineOptions(),
+      combineContext = new SparkCombineContext(options.get(),
           new SparkSideInputReader(sideInputs));
     }
     return combineContext.forInput(input);
