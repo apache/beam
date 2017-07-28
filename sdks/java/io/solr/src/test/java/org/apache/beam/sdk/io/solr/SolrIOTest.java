@@ -23,7 +23,10 @@ import static org.hamcrest.Matchers.greaterThan;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -40,6 +43,8 @@ import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.util.TimeOut;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -80,14 +85,26 @@ public class SolrIOTest extends SolrCloudTestCase{
         + "}";
     configureCluster(3)
         .addConfig("conf", getFile("cloud-minimal/conf").toPath())
-        .withSecurityJson(securityJson)
         .configure();
-
+    ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
+    zkStateReader.getZkClient()
+        .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
+    TimeOut timeOut = new TimeOut(60, TimeUnit.SECONDS);
+    while (!timeOut.hasTimedOut()) {
+      if (zkStateReader.getClusterState().getLiveNodes().size() == 3) {
+        break;
+      } else {
+        Thread.sleep(100);
+      }
+    }
+    if (timeOut.hasTimedOut()) {
+      fail("Timeout waiting for nodes come back");
+    }
     String zkAddress = cluster.getZkServer().getZkAddress();
     connectionConfiguration = SolrIO.ConnectionConfiguration.create(zkAddress, SOLR_COLLECTION)
         .withBasicCredentials("solr", "SolrRocks");
     solrClient = connectionConfiguration.createClient();
-    SolrIOTestUtils.createCollection(SOLR_COLLECTION, NUM_SHARDS, solrClient);
+    SolrIOTestUtils.createCollection(SOLR_COLLECTION, NUM_SHARDS, 1, solrClient);
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
   }
 

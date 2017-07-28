@@ -32,10 +32,13 @@ public class SolrIOTestUtils {
   public static final long AVERAGE_DOC_SIZE = 25L;
   public static final long MAX_DOC_SIZE = 35L;
 
-  static void createCollection(String collection, int numShards, AuthorizedCloudSolrClient client)
+  static void createCollection(String collection, int numShards, int replicationFactor,
+      AuthorizedCloudSolrClient client)
       throws Exception {
-    CollectionAdminRequest.Create create = CollectionAdminRequest
-        .createCollection(collection, numShards, 1)
+    CollectionAdminRequest.Create create = new CollectionAdminRequest.Create()
+        .setCollectionName(collection)
+        .setNumShards(numShards)
+        .setReplicationFactor(replicationFactor)
         .setMaxShardsPerNode(2);
     client.process(create);
   }
@@ -59,7 +62,8 @@ public class SolrIOTestUtils {
   static void deleteCollection(String collection, AuthorizedCloudSolrClient client)
       throws IOException {
     try {
-      CollectionAdminRequest.Delete delete = CollectionAdminRequest.deleteCollection(collection);
+      CollectionAdminRequest.Delete delete = new CollectionAdminRequest.Delete()
+          .setCollectionName(collection);
       client.process(delete);
     } catch (SolrServerException e) {
       throw new IOException(e);
@@ -122,8 +126,9 @@ public class SolrIOTestUtils {
     ArrayList<SolrInputDocument> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
       int index = i % scientists.length;
-      SolrInputDocument doc = new SolrInputDocument(
-          "scientist", scientists[index], "id", String.valueOf(i));
+      SolrInputDocument doc = new SolrInputDocument();
+      doc.setField("id", String.valueOf(i));
+      doc.setField("scientist", scientists[index]);
       data.add(doc);
     }
     return data;

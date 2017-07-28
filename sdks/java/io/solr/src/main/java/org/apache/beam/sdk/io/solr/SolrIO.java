@@ -69,6 +69,7 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -253,18 +254,13 @@ public class SolrIO {
     }
 
     AuthorizedCloudSolrClient createClient() throws MalformedURLException {
-      CloudSolrClient solrClient = new CloudSolrClient.Builder()
-          .withHttpClient(createHttpClient())
-          .withZkHost(getZkHost())
-          .build();
+      CloudSolrClient solrClient = new CloudSolrClient(getZkHost(), createHttpClient());
       solrClient.setDefaultCollection(getCollection());
       return new AuthorizedCloudSolrClient(solrClient, this);
     }
 
     AuthorizedSolrClient createClient(String shardUrl) {
-      HttpSolrClient solrClient = new HttpSolrClient.Builder(shardUrl)
-          .withHttpClient(createHttpClient())
-          .build();
+      HttpSolrClient solrClient = new HttpSolrClient(shardUrl, createHttpClient());
       return new AuthorizedSolrClient<>(solrClient, this);
     }
   }
@@ -355,8 +351,8 @@ public class SolrIO {
     public abstract String baseUrl();
 
     static ReplicaInfo create(Replica replica) {
-      return new AutoValue_SolrIO_ReplicaInfo(replica.getCoreName(),
-          replica.getCoreUrl(), replica.getBaseUrl());
+      return new AutoValue_SolrIO_ReplicaInfo(replica.getStr(ZkStateReader.CORE_NAME_PROP),
+          replica.getCoreUrl(), replica.getStr(ZkStateReader.BASE_URL_PROP));
     }
   }
 

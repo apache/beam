@@ -95,11 +95,7 @@ public class SolrIOIT {
           READ_COLLECTION);
     }
 
-    CollectionAdminRequest.Create create = CollectionAdminRequest
-        .createCollection(WRITE_COLLECTION, 2, 2)
-        .setMaxShardsPerNode(2);
-    solrClient.process(create);
-
+    SolrIOTestUtils.createCollection(WRITE_COLLECTION, 2, 2, solrClient);
   }
 
   @AfterClass
