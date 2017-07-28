@@ -157,7 +157,6 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
           && shardTemplate.equals(other.shardTemplate)
           && suffix.equals(other.suffix);
     }
-
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
