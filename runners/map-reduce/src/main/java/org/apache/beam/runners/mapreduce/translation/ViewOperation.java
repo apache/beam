@@ -23,23 +23,20 @@ import com.google.common.base.Throwables;
 import java.io.ByteArrayOutputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 /**
- * {@link Operation} that materializes input for group by key.
+ * {@link Operation} that materializes views.
  */
-public class WriteOperation<T> extends Operation<T> {
+public class ViewOperation<T> extends Operation<T> {
 
-  private final Coder<Object> keyCoder;
-  private final Coder<Object> valueCoder;
+  private final Coder<WindowedValue<T>> valueCoder;
 
   private transient TaskInputOutputContext<Object, Object, Object, Object> taskContext;
 
-  public WriteOperation(Coder<Object> keyCoder, Coder<Object> valueCoder) {
+  public ViewOperation(Coder<WindowedValue<T>> valueCoder) {
     super(0);
-    this.keyCoder = checkNotNull(keyCoder, "keyCoder");
     this.valueCoder = checkNotNull(valueCoder, "valueCoder");
   }
 
@@ -50,14 +47,10 @@ public class WriteOperation<T> extends Operation<T> {
 
   @Override
   public void process(WindowedValue<T> elem) {
-    KV<?, ?> kv = (KV<?, ?>) elem.getValue();
     try {
-      ByteArrayOutputStream keyStream = new ByteArrayOutputStream();
-      keyCoder.encode(kv.getKey(), keyStream);
-
       ByteArrayOutputStream valueStream = new ByteArrayOutputStream();
-      valueCoder.encode(kv.getValue(), valueStream);
-      taskContext.write(new BytesWritable(keyStream.toByteArray()), valueStream.toByteArray());
+      valueCoder.encode(elem, valueStream);
+      taskContext.write(new BytesWritable("view".getBytes()), valueStream.toByteArray());
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);

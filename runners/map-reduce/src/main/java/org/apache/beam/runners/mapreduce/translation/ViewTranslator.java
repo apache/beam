@@ -17,33 +17,26 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.List;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.View;
 
 /**
- * {@link Operation} that executes a {@link DoFn}.
+ * Translates a {@link View.CreatePCollectionView} to a {@link ViewOperation}.
  */
-public class NormalParDoOperation<InputT, OutputT> extends ParDoOperation<InputT, OutputT> {
-
-  private final DoFn<InputT, OutputT> doFn;
-
-  public NormalParDoOperation(
-      DoFn<InputT, OutputT> doFn,
-      PipelineOptions options,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, mainOutputTag, sideOutputTags, windowingStrategy);
-    this.doFn = checkNotNull(doFn, "doFn");
-  }
+public class ViewTranslator extends TransformTranslator.Default<View.CreatePCollectionView<?, ?>> {
 
   @Override
-  DoFn<InputT, OutputT> getDoFn() {
-    return doFn;
+  public void translateNode(
+      View.CreatePCollectionView<?, ?> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+
+    ViewOperation<?> operation =
+        new ViewOperation<>((Coder) transform.getView().getPCollection().getCoder());
+
+    context.addInitStep(Graphs.Step.of(
+        userGraphContext.getStepName(),
+        operation,
+        userGraphContext.getInputTags(),
+        userGraphContext.getOutputTags()));
   }
 }

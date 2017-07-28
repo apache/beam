@@ -1,117 +1,59 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.mapreduce.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import org.apache.beam.sdk.coders.Coder;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 /**
- * Created by peihe on 06/07/2017.
+ * Class that optimizes the initial graph to a fused graph.
  */
 public class GraphPlanner {
 
-  public Graph plan(Graph initGraph) {
-    FusionVisitor fusionVisitor = new FusionVisitor();
-    initGraph.accept(fusionVisitor);
-    return fusionVisitor.getFusedGraph();
+
+  public GraphPlanner() {
   }
 
-  private class FusionVisitor implements GraphVisitor {
+  public Graphs.FusedGraph plan(Graph<Graphs.Step, Graphs.Tag> initGraph) {
+    Graphs.FusedGraph fusedGraph = new Graphs.FusedGraph();
+    // Convert from the list of steps to Graphs.
+    for (Graphs.Step step : Lists.reverse(initGraph.getSteps())) {
+      Graphs.FusedStep fusedStep = new Graphs.FusedStep();
+      fusedStep.addStep(step);
+      fusedGraph.addFusedStep(fusedStep);
 
-    private Graph fusedGraph;
-    private Graph.Vertex workingVertex;
-    private Graph.NodePath workingPath;
-    private Coder<?> workingEdgeCoder;
-
-    FusionVisitor() {
-      fusedGraph = new Graph();
-      workingVertex = null;
-      workingPath = null;
+      tryFuse(fusedGraph, fusedStep);
     }
+    return fusedGraph;
+  }
 
-    @Override
-    public void visitRead(Graph.Vertex read) {
-      if (workingVertex == null) {
-        // drop if read is leaf vertex.
-        return;
-      }
-      Graph.Vertex v = fusedGraph.addVertex(read.getStep());
-      workingPath.addFirst(read.getStep());
-      Graph.Edge edge = fusedGraph.addEdge(v, workingVertex, workingEdgeCoder);
-      edge.addPath(workingPath);
+  private void tryFuse(Graphs.FusedGraph fusedGraph, Graphs.FusedStep fusedStep) {
+    if (fusedStep.getOutputTags().size() != 1) {
+      return;
     }
-
-    @Override
-    public void visitParDo(Graph.Vertex parDo) {
-      Graph.Step step = parDo.getStep();
-      checkArgument(
-          step.getTransform().getAdditionalInputs().isEmpty(),
-          "Side inputs are not " + "supported.");
-      checkArgument(
-          parDo.getIncoming().size() == 1,
-          "Side inputs are not supported.");
-      Graph.Edge inEdge = parDo.getIncoming().iterator().next();
-
-      if (workingVertex == null) {
-        // Leaf vertex
-        workingVertex = fusedGraph.addVertex(step);
-        workingPath = new Graph.NodePath();
-        workingEdgeCoder = inEdge.getCoder();
-      } else {
-        workingPath.addFirst(step);
-      }
-      processParent(inEdge.getHead());
+    Graphs.Tag outTag = Iterables.getOnlyElement(fusedStep.getOutputTags());
+    if (fusedGraph.getConsumers(outTag).size() != 1) {
+      return;
     }
-
-    @Override
-    public void visitFlatten(Graph.Vertex flatten) {
-      if (workingVertex == null) {
-        return;
-      }
-      Graph.NodePath basePath = workingPath;
-      Graph.Vertex baseVertex = workingVertex;
-      for (Graph.Edge e : flatten.getIncoming()) {
-        workingPath = new Graph.NodePath(basePath);
-        workingVertex = baseVertex;
-        workingEdgeCoder = e.getCoder();
-        processParent(e.getHead());
-      }
+    Graphs.FusedStep consumer = Iterables.getOnlyElement(fusedGraph.getConsumers(outTag));
+    if (fusedStep.containsGroupByKey() && consumer.containsGroupByKey()) {
+      return;
     }
-
-    @Override
-    public void visitGroupByKey(Graph.Vertex groupByKey) {
-      if (workingVertex == null) {
-        return;
-      }
-      Graph.Step step = groupByKey.getStep();
-      Graph.Vertex addedGroupByKey = fusedGraph.addVertex(step);
-
-      Graph.Edge edge = fusedGraph.addEdge(
-          addedGroupByKey,
-          workingVertex,
-          workingEdgeCoder);
-      edge.addPath(workingPath);
-      Graph.Edge inEdge = groupByKey.getIncoming().iterator().next();
-      workingVertex = addedGroupByKey;
-      workingPath = new Graph.NodePath();
-      workingEdgeCoder = inEdge.getCoder();
-      processParent(inEdge.getHead());
-    }
-
-    public Graph getFusedGraph() {
-      return fusedGraph;
-    }
-
-    private void processParent(Graph.Vertex parent) {
-      Graph.Step step = parent.getStep();
-      Graph.Vertex v = fusedGraph.getVertex(step);
-      if (v == null) {
-        parent.accept(this);
-      } else {
-        // TODO: parent is consumed more than once.
-        // It is duplicated in multiple outgoing path. Figure out the impact.
-        workingPath.addFirst(step);
-        fusedGraph.getEdge(v, workingVertex).addPath(workingPath);
-      }
-    }
+    fusedGraph.merge(fusedStep, consumer);
   }
 }

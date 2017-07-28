@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -12,28 +29,24 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * Created by peihe on 27/07/2017.
+ * {@link Operation} that executes for assigning windows to elements.
  */
-public class WindowAssignOperation<T, W extends BoundedWindow> extends Operation {
+public class WindowAssignOperation<T, W extends BoundedWindow> extends Operation<T> {
   private final WindowFn<T, W> windowFn;
 
-  public WindowAssignOperation(int numOutputs, WindowFn<T, W> windowFn) {
-    super(numOutputs);
+  public WindowAssignOperation(WindowFn<T, W> windowFn) {
+    super(1);
     this.windowFn = checkNotNull(windowFn, "windowFn");
   }
 
   @Override
-  public void process(Object elem) {
-    WindowedValue windowedValue = (WindowedValue) elem;
+  public void process(WindowedValue<T> elem) {
     try {
-      Collection<W> windows = windowFn.assignWindows(new AssignContextInternal<>(windowFn, windowedValue));
+      Collection<W> windows = windowFn.assignWindows(new AssignContextInternal<>(windowFn, elem));
       for (W window : windows) {
         OutputReceiver receiver = Iterables.getOnlyElement(getOutputReceivers());
         receiver.process(WindowedValue.of(
-            windowedValue.getValue(),
-            windowedValue.getTimestamp(),
-            window,
-            windowedValue.getPane()));
+            elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
       }
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);

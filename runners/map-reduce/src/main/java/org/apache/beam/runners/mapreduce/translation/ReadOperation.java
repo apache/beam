@@ -17,37 +17,29 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * OutputReceiver that forwards each input it receives to each of a list of down stream operations.
+ * A Read.Bounded place holder {@link Operation} during pipeline translation.
  */
-public class OutputReceiver implements Serializable {
-  private final List<Operation> receivingOperations = new ArrayList<>();
+class ReadOperation<T> extends Operation<T> {
+  private final BoundedSource<T> source;
 
-  /**
-   * Adds a new receiver that this OutputReceiver forwards to.
-   */
-  public void addOutput(Operation receiver) {
-    receivingOperations.add(receiver);
+  ReadOperation(BoundedSource<T> source) {
+    super(1);
+    this.source = checkNotNull(source, "source");
   }
 
-  public List<Operation> getReceivingOperations() {
-    return ImmutableList.copyOf(receivingOperations);
+  @Override
+  public void process(WindowedValue elem) {
+    throw new IllegalStateException(
+        String.format("%s should not in execution graph.", this.getClass().getSimpleName()));
   }
 
-  /**
-   * Processes the element.
-   */
-  public void process(WindowedValue<?> elem) {
-    for (Operation out : receivingOperations) {
-      if (out != null) {
-        out.process(elem);
-      }
-    }
+  BoundedSource<?> getSource() {
+    return source;
   }
 }

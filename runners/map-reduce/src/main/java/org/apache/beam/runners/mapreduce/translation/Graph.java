@@ -1,311 +1,185 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.mapreduce.translation;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
-import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import java.util.LinkedList;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
+import com.google.common.graph.ElementOrder;
+import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.commons.lang.builder.ReflectionToStringBuilder;
-import org.apache.commons.lang.builder.ToStringStyle;
 
 /**
- * Created by peihe on 06/07/2017.
+ * Graph that represents a Beam DAG.
  */
-public class Graph {
+public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.AbstractTag> {
 
-  private final Map<Step, Vertex> vertices;
-  private final Map<HeadTail, Edge> edges;
-  private final Set<Vertex> leafVertices;
+  private final MutableGraph<Vertex> graph;
 
   public Graph() {
-    this.vertices = Maps.newHashMap();
-    this.edges = Maps.newHashMap();
-    this.leafVertices = Sets.newHashSet();
+    this.graph = GraphBuilder.directed()
+        .allowsSelfLoops(false)
+        .nodeOrder(ElementOrder.insertion())
+        .build();
   }
 
-  public Vertex addVertex(Step step) {
-    checkState(!vertices.containsKey(step));
-    Vertex v = new Vertex(step);
-    vertices.put(step, v);
-    leafVertices.add(v);
-    return v;
-  }
-
-  public Edge addEdge(Vertex head, Vertex tail, Coder<?> coder) {
-    HeadTail headTail = HeadTail.of(head, tail);
-    checkState(!edges.containsKey(headTail));
-    Edge e = new Edge(headTail, coder);
-    edges.put(headTail, e);
-    head.addOutgoing(e);
-    tail.addIncoming(e);
-    leafVertices.remove(head);
-    return e;
-  }
-
-  public Vertex getVertex(Step step) {
-    return vertices.get(step);
-  }
-
-  public Edge getEdge(Vertex head, Vertex tail) {
-    return edges.get(HeadTail.of(head, tail));
-  }
-
-  public Iterable<Vertex> getAllVertices() {
-    return vertices.values();
-  }
-
-  public Iterable<Edge> getAllEdges() {
-    return edges.values();
-  }
-
-  public Iterable<Vertex> getLeafVertices() {
-    return ImmutableList.copyOf(leafVertices);
-  }
-
-  public void accept(GraphVisitor visitor) {
-    for (Vertex v : leafVertices) {
-      v.accept(visitor);
-    }
-  }
-
-  //TODO: add equals, hashCode, toString for following classses.
-
-  public static class Vertex {
-    private final Step step;
-    private final Set<Edge> incoming;
-    private final Set<Edge> outgoing;
-
-    public Vertex(Step step) {
-      this.step = checkNotNull(step, "step");
-      this.incoming = Sets.newHashSet();
-      this.outgoing = Sets.newHashSet();
-    }
-
-    public Step getStep() {
-      return step;
-    }
-
-    public Set<Edge> getIncoming() {
-      return incoming;
-    }
-
-    public Set<Edge> getOutgoing() {
-      return outgoing;
-    }
-
-    public boolean isSource() {
-      PTransform<?, ?> transform = step.getTransform();
-      return transform instanceof Read.Bounded || transform instanceof Read.Unbounded;
-    }
-
-    public boolean isGroupByKey() {
-      return step.getTransform() instanceof GroupByKey;
-    }
-
-    public void addIncoming(Edge edge) {
-      incoming.add(edge);
-    }
-
-    public void addOutgoing(Edge edge) {
-      outgoing.add(edge);
-    }
-
-    public void accept(GraphVisitor visitor) {
-      PTransform<?, ?> transform = step.getTransform();
-      if (transform instanceof ParDo.SingleOutput || transform instanceof ParDo.MultiOutput
-          || transform instanceof Window.Assign) {
-        visitor.visitParDo(this);
-      } else if (transform instanceof GroupByKey) {
-        visitor.visitGroupByKey(this);
-      } else if (transform instanceof Read.Bounded) {
-        visitor.visitRead(this);
-      } else if (transform instanceof Flatten.PCollections
-          || transform instanceof Flatten.Iterables) {
-        visitor.visitFlatten(this);
-      } else {
-        throw new RuntimeException("Unexpected transform type: " + transform.getClass());
+  /**
+   * Adds {@link StepT} to this {@link Graph}.
+   */
+  public void addStep(StepT step) {
+    graph.addNode(step);
+    Set<Vertex> nodes = graph.nodes();
+    for (TagT tag : step.getInputTags()) {
+      if (!nodes.contains(tag)) {
+        graph.addNode(tag);
       }
+      graph.putEdge(tag, step);
     }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == this) {
-        return true;
+    for (TagT tag : step.getOutputTags()) {
+      if (!nodes.contains(tag)) {
+        graph.addNode(tag);
       }
-      if (obj instanceof Vertex) {
-        Vertex other = (Vertex) obj;
-        return step.equals(other.step);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(this.getClass(), step);
-    }
-
-    @Override
-    public String toString() {
-      return new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-          .setExcludeFieldNames(new String[] { "outgoing", "incoming" }).toString();
+      graph.putEdge(step, tag);
     }
   }
 
-  public static class Edge {
-    private final HeadTail headTail;
-    private final Coder<?> coder;
-    private final Set<NodePath> paths;
-
-    public static Edge of(HeadTail headTail, Coder<?> coder) {
-      return new Edge(headTail, coder);
-    }
-
-    private Edge(HeadTail headTail, Coder<?> coder) {
-      this.headTail = checkNotNull(headTail, "headTail");
-      this.coder = checkNotNull(coder, "coder");
-      this.paths = Sets.newHashSet();
-    }
-
-    public Vertex getHead() {
-      return headTail.getHead();
-    }
-
-    public Vertex getTail() {
-      return headTail.getTail();
-    }
-
-    public Coder<?> getCoder() {
-      return coder;
-    }
-
-    public Set<NodePath> getPaths() {
-      return paths;
-    }
-
-    public void addPath(NodePath path) {
-      paths.add(checkNotNull(path, "path"));
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == this) {
-        return true;
-      }
-      if (obj instanceof Edge) {
-        Edge other = (Edge) obj;
-        return headTail.equals(other.headTail)
-            && paths.equals(other.paths) && coder.equals(other.coder);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(headTail, paths, coder);
-    }
-
-    @Override
-    public String toString() {
-      return ReflectionToStringBuilder.toString(this, ToStringStyle.SHORT_PREFIX_STYLE);
-    }
+  public void removeStep(StepT step) {
+    graph.removeNode(step);
   }
 
-  public static class NodePath {
-    private final LinkedList<Step> path;
-
-    public NodePath() {
-      this.path = new LinkedList<>();
-    }
-
-    public NodePath(NodePath nodePath) {
-      this.path = new LinkedList<>(nodePath.path);
-    }
-
-    public void addFirst(Step step) {
-      path.addFirst(step);
-    }
-
-    public void addLast(Step step) {
-      path.addLast(step);
-    }
-
-    public Iterable<Step> steps() {
-      return ImmutableList.copyOf(path);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == this) {
-        return true;
-      }
-      if (obj instanceof NodePath) {
-        NodePath other = (NodePath) obj;
-        return path.equals(other.path);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(this.getClass(), path.hashCode());
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder();
-      for (Step step : path) {
-        sb.append(step.getFullName() + "|");
-      }
-      if (path.size() > 0) {
-        sb.deleteCharAt(sb.length() - 1);
-      }
-      return sb.toString();
-    }
+  public void removeTag(TagT tag) {
+    graph.removeNode(tag);
   }
 
-  @AutoValue
-  public abstract static class Step {
-    abstract String getFullName();
-    // TODO: remove public
-    public abstract PTransform<?, ?> getTransform();
-    abstract WindowingStrategy<?, ?> getWindowingStrategy();
-    abstract List<TupleTag<?>> getInputs();
-    abstract List<TupleTag<?>> getOutputs();
-
-    public static Step of(
-        String fullName,
-        PTransform<?, ?> transform,
-        WindowingStrategy<?, ?> windowingStrategy,
-        List<TupleTag<?>> inputs,
-        List<TupleTag<?>> outputs) {
-      return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graph_Step(
-          fullName, transform, windowingStrategy, inputs, outputs);
-    }
+  public void addEdge(TagT inTag, StepT step) {
+    graph.putEdge(inTag, step);
   }
 
-  @AutoValue
-  public abstract static class HeadTail {
-    abstract Vertex getHead();
-    abstract Vertex getTail();
+  public void addEdge(StepT step, TagT outTag) {
+    graph.putEdge(step, outTag);
+  }
 
-    public static HeadTail of(Vertex head, Vertex tail) {
-      return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graph_HeadTail(head, tail);
+  public void removeEdge(TagT inTag, StepT step) {
+    graph.removeEdge(inTag, step);
+  }
+
+  public void removeEdge(StepT step, TagT outTag) {
+    graph.removeEdge(step, outTag);
+  }
+
+  public List<StepT> getSteps() {
+    return castToStepList(FluentIterable.from(graph.nodes())
+        .filter(new Predicate<Vertex>() {
+          @Override
+          public boolean apply(Vertex input) {
+            return input instanceof AbstractStep;
+          }}))
+        .toList();
+  }
+
+  public List<StepT> getStartSteps() {
+    return castToStepList(FluentIterable.from(graph.nodes())
+        .filter(new Predicate<Vertex>() {
+          @Override
+          public boolean apply(Vertex input) {
+            return input instanceof AbstractStep && graph.inDegree(input) == 0;
+          }}))
+        .toList();
+  }
+
+  public List<TagT> getInputTags() {
+    return castToTagList(FluentIterable.from(graph.nodes())
+        .filter(new Predicate<Vertex>() {
+          @Override
+          public boolean apply(Vertex input) {
+            return input instanceof AbstractTag && graph.inDegree(input) == 0;
+          }}))
+        .toList();
+  }
+
+  public List<TagT> getOutputTags() {
+    return castToTagList(FluentIterable.from(graph.nodes())
+        .filter(new Predicate<Vertex>() {
+          @Override
+          public boolean apply(Vertex input) {
+            return input instanceof AbstractTag && graph.outDegree(input) == 0;
+          }}))
+        .toList();
+  }
+
+  public StepT getProducer(TagT tag) {
+    return (StepT) Iterables.getOnlyElement(graph.predecessors(tag));
+  }
+
+  public List<StepT> getConsumers(TagT tag) {
+    return castToStepList(graph.successors(tag)).toList();
+  }
+
+  private FluentIterable<StepT> castToStepList(Iterable<Vertex> vertices) {
+    return FluentIterable.from(vertices)
+        .transform(new Function<Vertex, StepT>() {
+          @Override
+          public StepT apply(Vertex input) {
+            return (StepT) input;
+          }});
+  }
+
+  private FluentIterable<TagT> castToTagList(Iterable<Vertex> vertices) {
+    return FluentIterable.from(vertices)
+        .transform(new Function<Vertex, TagT>() {
+          @Override
+          public TagT apply(Vertex input) {
+            return (TagT) input;
+          }});
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == this) {
+      return true;
     }
+    if (obj instanceof Graph) {
+      Graph other = (Graph) obj;
+      return com.google.common.graph.Graphs.equivalent(this.graph, other.graph);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.getClass(), graph.nodes());
+  }
+
+  /**
+   * Vertex interface of this Graph.
+   */
+  interface Vertex {
+  }
+
+  public abstract static class AbstractStep<TagT extends AbstractTag> implements Vertex {
+    public abstract List<TagT> getInputTags();
+    public abstract List<TagT> getOutputTags();
+  }
+
+  public abstract static class AbstractTag implements Vertex {
   }
 }

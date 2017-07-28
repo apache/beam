@@ -17,33 +17,22 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.List;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.transforms.windowing.Window;
 
 /**
- * {@link Operation} that executes a {@link DoFn}.
+ * Translates a {@link Window.Assign} to a {@link WindowAssignOperation}.
  */
-public class NormalParDoOperation<InputT, OutputT> extends ParDoOperation<InputT, OutputT> {
-
-  private final DoFn<InputT, OutputT> doFn;
-
-  public NormalParDoOperation(
-      DoFn<InputT, OutputT> doFn,
-      PipelineOptions options,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, mainOutputTag, sideOutputTags, windowingStrategy);
-    this.doFn = checkNotNull(doFn, "doFn");
-  }
+public class WindowAssignTranslator<T> extends TransformTranslator.Default<Window.Assign<T>> {
 
   @Override
-  DoFn<InputT, OutputT> getDoFn() {
-    return doFn;
+  public void translateNode(Window.Assign<T> transform, TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+
+    WindowAssignOperation<T, ?> operation = new WindowAssignOperation<>(transform.getWindowFn());
+    context.addInitStep(Graphs.Step.of(
+        userGraphContext.getStepName(),
+        operation,
+        userGraphContext.getInputTags(),
+        userGraphContext.getOutputTags()));
   }
 }

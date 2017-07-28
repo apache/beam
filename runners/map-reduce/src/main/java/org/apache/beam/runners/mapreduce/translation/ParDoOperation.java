@@ -36,19 +36,19 @@ import org.slf4j.LoggerFactory;
 /**
  * Operation for ParDo.
  */
-public abstract class ParDoOperation extends Operation {
+public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoOperation.class);
 
   protected final SerializedPipelineOptions options;
-  protected final TupleTag<Object> mainOutputTag;
+  protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   protected final WindowingStrategy<?, ?> windowingStrategy;
 
-  private DoFnRunner<Object, Object> fnRunner;
+  private DoFnRunner<InputT, OutputT> fnRunner;
 
   public ParDoOperation(
       PipelineOptions options,
-      TupleTag<Object> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
     super(1 + sideOutputTags.size());
@@ -61,7 +61,7 @@ public abstract class ParDoOperation extends Operation {
   /**
    * Returns a {@link DoFn} for processing inputs.
    */
-  abstract DoFn<Object, Object> getDoFn();
+  abstract DoFn<InputT, OutputT> getDoFn();
 
   @Override
   public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
@@ -82,9 +82,9 @@ public abstract class ParDoOperation extends Operation {
    * Processes the element.
    */
   @Override
-  public void process(Object elem) {
+  public void process(WindowedValue<InputT> elem) {
     LOG.info("elem: {}.", elem);
-    fnRunner.processElement((WindowedValue<Object>) elem);
+    fnRunner.processElement(elem);
   }
 
   @Override

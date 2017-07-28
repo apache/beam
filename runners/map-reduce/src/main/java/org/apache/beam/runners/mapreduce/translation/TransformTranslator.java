@@ -17,37 +17,32 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * OutputReceiver that forwards each input it receives to each of a list of down stream operations.
+ * Interface for classes capable of tranforming Beam PTransforms into Storm primitives.
  */
-public class OutputReceiver implements Serializable {
-  private final List<Operation> receivingOperations = new ArrayList<>();
+interface TransformTranslator<T extends PTransform<?, ?>> {
+
+  void translateNode(T transform, TranslationContext context);
 
   /**
-   * Adds a new receiver that this OutputReceiver forwards to.
+   * Returns true if this translator can translate the given transform.
    */
-  public void addOutput(Operation receiver) {
-    receivingOperations.add(receiver);
-  }
-
-  public List<Operation> getReceivingOperations() {
-    return ImmutableList.copyOf(receivingOperations);
-  }
+  boolean canTranslate(T transform, TranslationContext context);
 
   /**
-   * Processes the element.
+   * Default translator.
    */
-  public void process(WindowedValue<?> elem) {
-    for (Operation out : receivingOperations) {
-      if (out != null) {
-        out.process(elem);
-      }
+  class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
+    @Override
+    public void translateNode(T1 transform, TranslationContext context) {
+
+    }
+
+    @Override
+    public boolean canTranslate(T1 transform, TranslationContext context) {
+      return true;
     }
   }
 }

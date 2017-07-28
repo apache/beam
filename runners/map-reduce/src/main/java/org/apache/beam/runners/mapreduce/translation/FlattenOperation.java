@@ -17,37 +17,21 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * OutputReceiver that forwards each input it receives to each of a list of down stream operations.
+ * Flatten operation.
  */
-public class OutputReceiver implements Serializable {
-  private final List<Operation> receivingOperations = new ArrayList<>();
+public class FlattenOperation<T> extends Operation<T> {
 
-  /**
-   * Adds a new receiver that this OutputReceiver forwards to.
-   */
-  public void addOutput(Operation receiver) {
-    receivingOperations.add(receiver);
+  public FlattenOperation() {
+    super(1);
   }
 
-  public List<Operation> getReceivingOperations() {
-    return ImmutableList.copyOf(receivingOperations);
-  }
-
-  /**
-   * Processes the element.
-   */
-  public void process(WindowedValue<?> elem) {
-    for (Operation out : receivingOperations) {
-      if (out != null) {
-        out.process(elem);
-      }
+  @Override
+  public void process(WindowedValue elem) {
+    for (OutputReceiver receiver : getOutputReceivers()) {
+      receiver.process(elem);
     }
   }
 }

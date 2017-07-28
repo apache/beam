@@ -1,23 +1,39 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.mapreduce;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
-import org.apache.beam.runners.mapreduce.translation.Graph;
+import org.apache.beam.runners.mapreduce.translation.Graphs;
 import org.apache.beam.runners.mapreduce.translation.GraphConverter;
 import org.apache.beam.runners.mapreduce.translation.GraphPlanner;
 import org.apache.beam.runners.mapreduce.translation.JobPrototype;
+import org.apache.beam.runners.mapreduce.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 
 /**
- * {@link PipelineRunner} for crunch.
+ * {@link PipelineRunner} for MapReduce.
  */
 public class MapReduceRunner extends PipelineRunner<PipelineResult> {
 
@@ -39,22 +55,20 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    GraphConverter graphConverter = new GraphConverter();
+    TranslationContext context = new TranslationContext(options);
+    GraphConverter graphConverter = new GraphConverter(context);
     pipeline.traverseTopologically(graphConverter);
 
-    Graph graph = graphConverter.getGraph();
-
     GraphPlanner planner = new GraphPlanner();
-    Graph fusedGraph = planner.plan(graph);
-    for (Graph.Vertex vertex : fusedGraph.getAllVertices()) {
-      if (vertex.getStep().getTransform() instanceof GroupByKey) {
-        JobPrototype jobPrototype = JobPrototype.create(1, vertex);
-        try {
-          Job job = jobPrototype.build(options.getJarClass(), new Configuration());
-          job.waitForCompletion(true);
-        } catch (Exception e) {
-          Throwables.throwIfUnchecked(e);
-        }
+    Graphs.FusedGraph fusedGraph = planner.plan(context.getInitGraph());
+    int stageId = 0;
+    for (Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
+      JobPrototype jobPrototype = JobPrototype.create(stageId++, fusedStep, options);
+      try {
+        Job job = jobPrototype.build(options.getJarClass(), new Configuration());
+        job.waitForCompletion(true);
+      } catch (Exception e) {
+        Throwables.throwIfUnchecked(e);
       }
     }
     return null;

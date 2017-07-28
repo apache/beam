@@ -19,31 +19,36 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.List;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
- * {@link Operation} that executes a {@link DoFn}.
+ * A GroupByKey place holder {@link Operation} during pipeline translation.
  */
-public class NormalParDoOperation<InputT, OutputT> extends ParDoOperation<InputT, OutputT> {
+public class GroupByKeyOperation<K, V> extends Operation<KV<K, V>> {
 
-  private final DoFn<InputT, OutputT> doFn;
+  private final WindowingStrategy<?, ?> windowingStrategy;
+  private final KvCoder<K, V> kvCoder;
 
-  public NormalParDoOperation(
-      DoFn<InputT, OutputT> doFn,
-      PipelineOptions options,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, mainOutputTag, sideOutputTags, windowingStrategy);
-    this.doFn = checkNotNull(doFn, "doFn");
+  public GroupByKeyOperation(WindowingStrategy<?, ?> windowingStrategy, KvCoder<K, V> kvCoder) {
+    super(1);
+    this.windowingStrategy = checkNotNull(windowingStrategy, "windowingStrategy");
+    this.kvCoder = checkNotNull(kvCoder, "kvCoder");
   }
 
   @Override
-  DoFn<InputT, OutputT> getDoFn() {
-    return doFn;
+  public void process(WindowedValue elem) {
+    throw new IllegalStateException(
+        String.format("%s should not in execution graph.", this.getClass().getSimpleName()));
+  }
+
+  public WindowingStrategy<?, ?> getWindowingStrategy() {
+    return windowingStrategy;
+  }
+
+  public KvCoder<K, V> getKvCoder() {
+    return kvCoder;
   }
 }
