@@ -19,9 +19,9 @@ package org.apache.beam.runners.flink.translation.wrappers;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -50,7 +50,7 @@ public class SourceInputFormat<T>
   private final BoundedSource<T> initialSource;
 
   private transient PipelineOptions options;
-  private final SerializedPipelineOptions serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
 
   private transient BoundedSource.BoundedReader<T> reader;
   private boolean inputAvailable = false;
@@ -61,12 +61,12 @@ public class SourceInputFormat<T>
       String stepName, BoundedSource<T> initialSource, PipelineOptions options) {
     this.stepName = stepName;
     this.initialSource = initialSource;
-    this.serializedOptions = new SerializedPipelineOptions(options);
+    this.serializedOptions = new SerializablePipelineOptions(options);
   }
 
   @Override
   public void configure(Configuration configuration) {
-    options = serializedOptions.getPipelineOptions();
+    options = serializedOptions.get();
   }
 
   @Override
@@ -76,7 +76,7 @@ public class SourceInputFormat<T>
     readerInvoker =
         new ReaderInvocationUtil<>(
             stepName,
-            serializedOptions.getPipelineOptions(),
+            serializedOptions.get(),
             metricContainer);
 
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);

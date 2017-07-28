@@ -19,11 +19,9 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Utilities for working with the {@link ValueProvider} interface.
@@ -37,11 +35,9 @@ public class ValueProviders {
    */
   public static String updateSerializedOptions(
       String serializedOptions, Map<String, String> runtimeValues) {
-    ObjectMapper mapper = new ObjectMapper().registerModules(
-        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
     ObjectNode root, options;
     try {
-      root = mapper.readValue(serializedOptions, ObjectNode.class);
+      root = PipelineOptionsFactory.MAPPER.readValue(serializedOptions, ObjectNode.class);
       options = (ObjectNode) root.get("options");
       checkNotNull(options, "Unable to locate 'options' in %s", serializedOptions);
     } catch (IOException e) {
@@ -53,7 +49,7 @@ public class ValueProviders {
       options.put(entry.getKey(), entry.getValue());
     }
     try {
-      return mapper.writeValueAsString(root);
+      return PipelineOptionsFactory.MAPPER.writeValueAsString(root);
     } catch (IOException e) {
       throw new RuntimeException("Unable to parse re-serialize options", e);
     }

@@ -28,9 +28,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -66,7 +66,7 @@ public class SourceRDD {
     private static final Logger LOG = LoggerFactory.getLogger(SourceRDD.Bounded.class);
 
     private final BoundedSource<T> source;
-    private final SparkRuntimeContext runtimeContext;
+    private final SerializablePipelineOptions options;
     private final int numPartitions;
     private final String stepName;
     private final Accumulator<MetricsContainerStepMap> metricsAccum;
@@ -79,11 +79,11 @@ public class SourceRDD {
     public Bounded(
         SparkContext sc,
         BoundedSource<T> source,
-        SparkRuntimeContext runtimeContext,
+        SerializablePipelineOptions options,
         String stepName) {
       super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
       this.source = source;
-      this.runtimeContext = runtimeContext;
+      this.options = options;
       // the input parallelism is determined by Spark's scheduler backend.
       // when running on YARN/SparkDeploy it's the result of max(totalCores, 2).
       // when running on Mesos it's 8.
@@ -103,14 +103,14 @@ public class SourceRDD {
       long desiredSizeBytes = DEFAULT_BUNDLE_SIZE;
       try {
         desiredSizeBytes = source.getEstimatedSizeBytes(
-            runtimeContext.getPipelineOptions()) / numPartitions;
+            options.get()) / numPartitions;
       } catch (Exception e) {
         LOG.warn("Failed to get estimated bundle size for source {}, using default bundle "
             + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
       }
       try {
         List<? extends Source<T>> partitionedSources = source.split(desiredSizeBytes,
-            runtimeContext.getPipelineOptions());
+            options.get());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));
@@ -125,7 +125,7 @@ public class SourceRDD {
     private BoundedSource.BoundedReader<T> createReader(SourcePartition<T> partition) {
       try {
         return ((BoundedSource<T>) partition.source).createReader(
-            runtimeContext.getPipelineOptions());
+            options.get());
       } catch (IOException e) {
         throw new RuntimeException("Failed to create reader from a BoundedSource.", e);
       }
@@ -293,7 +293,7 @@ public class SourceRDD {
         UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
 
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
-    private final SparkRuntimeContext runtimeContext;
+    private final SerializablePipelineOptions options;
     private final Partitioner partitioner;
 
     // to satisfy Scala API.
@@ -302,12 +302,12 @@ public class SourceRDD {
             .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(SparkContext sc,
-        SparkRuntimeContext runtimeContext,
+        SerializablePipelineOptions options,
         MicrobatchSource<T, CheckpointMarkT> microbatchSource,
         int initialNumPartitions) {
       super(sc, NIL,
           JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
-      this.runtimeContext = runtimeContext;
+      this.options = options;
       this.microbatchSource = microbatchSource;
       this.partitioner = new HashPartitioner(initialNumPartitions);
     }
@@ -316,7 +316,7 @@ public class SourceRDD {
     public Partition[] getPartitions() {
       try {
         final List<? extends Source<T>> partitionedSources =
-            microbatchSource.split(runtimeContext.getPipelineOptions());
+            microbatchSource.split(options.get());
         final Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] =
