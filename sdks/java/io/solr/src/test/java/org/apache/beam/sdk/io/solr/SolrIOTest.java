@@ -57,13 +57,13 @@ import org.slf4j.LoggerFactory;
  * A test of {@link SolrIO} on an independent Solr instance.
  */
 @ThreadLeakFilters(defaultFilters = true, filters = {
-        BeamThreadsFilter.class
+    BeamThreadsFilter.class
 })
 public class SolrIOTest extends SolrCloudTestCase{
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
   private static final String SOLR_COLLECTION = "beam";
-  public static final int NUM_SHARDS = 3;
+  private static final int NUM_SHARDS = 3;
   private static final long NUM_DOCS = 400L;
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
@@ -89,6 +89,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
     zkStateReader.getZkClient()
         .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
+    Thread.sleep(1000);
     TimeOut timeOut = new TimeOut(60, TimeUnit.SECONDS);
     while (!timeOut.hasTimedOut()) {
       if (zkStateReader.getClusterState().getLiveNodes().size() == 3) {

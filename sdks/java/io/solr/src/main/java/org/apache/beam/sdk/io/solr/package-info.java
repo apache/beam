@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Transforms for reading and writing from Solr. */
+/** Transforms for reading and writing from/to Solr. */
 package org.apache.beam.sdk.io.solr;

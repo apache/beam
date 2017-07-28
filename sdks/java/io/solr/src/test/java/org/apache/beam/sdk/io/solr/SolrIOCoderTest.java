@@ -15,33 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.solr;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.io.CountingInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.UnownedInputStream;
-import org.apache.beam.sdk.util.UnownedOutputStream;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.solr.common.SolrDocument;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Test case for {@link SolrIO.SolrCoder}.
+ * Test case for {@link SolrDocumentCoder}.
  */
 @RunWith(JUnit4.class)
 public class SolrIOCoderTest {
-
-  private static final Coder<SolrDocument> TEST_CODER = SolrIO.SolrCoder.of();
-
+  private static final Coder<SolrDocument> TEST_CODER = SolrDocumentCoder.of();
   private static final List<SolrDocument> TEST_VALUES = new ArrayList<>();
 
   static {
@@ -58,17 +57,28 @@ public class SolrIOCoderTest {
     TEST_VALUES.add(doc);
   }
 
-  @Test public void testDecodeEncodeEqual() throws Exception {
+  @Test
+  public void testDecodeEncodeEqual() throws Exception {
     for (SolrDocument value : TEST_VALUES) {
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
-      TEST_CODER.encode(value, new UnownedOutputStream(os));
-      byte[] bytes = os.toByteArray();
-      CountingInputStream cis = new CountingInputStream(new ByteArrayInputStream(bytes));
-      SolrDocument decoded = TEST_CODER.decode(new UnownedInputStream(cis));
-      assertThat("consumed bytes equal to encoded bytes", cis.getCount(),
-          equalTo((long) bytes.length));
-      assertThat(decoded.entrySet(), equalTo(value.entrySet()));
-      assertThat(decoded.getChildDocuments(), equalTo(value.getChildDocuments()));
+      CoderProperties.coderDecodeEncodeContentsInSameOrder(TEST_CODER, value);
+      CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void encodeNullThrowsCoderException() throws Exception {
+    thrown.expect(CoderException.class);
+    thrown.expectMessage("cannot encode a null SolrDocument");
+
+    CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    assertThat(TEST_CODER.getEncodedTypeDescriptor(),
+        equalTo(TypeDescriptor.of(SolrDocument.class)));
   }
 }

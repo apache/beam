@@ -24,17 +24,11 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -43,14 +37,12 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -73,7 +65,6 @@ import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.util.JavaBinCodec;
 import org.apache.solr.common.util.NamedList;
 
 /**
@@ -120,7 +111,7 @@ import org.apache.solr.common.util.NamedList;
  * <p>Optionally, you can provide {@code withBatchSize()}
  * to specify the size of the write batch in number of documents.
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
 
   /**
@@ -160,30 +151,21 @@ public class SolrIO {
   }
 
   /** A POJO describing a connection configuration to Solr. */
-  @AutoValue public abstract static class ConnectionConfiguration implements Serializable {
+  @AutoValue
+  public abstract static class ConnectionConfiguration implements Serializable {
 
     abstract String getZkHost();
-
-    @Nullable
-    abstract String getUsername();
-
-    @Nullable
-    abstract String getPassword();
-
     abstract String getCollection();
-
+    @Nullable abstract String getUsername();
+    @Nullable abstract String getPassword();
     abstract Builder builder();
 
-    @AutoValue.Builder abstract static class Builder {
-
+    @AutoValue.Builder
+    abstract static class Builder {
       abstract Builder setZkHost(String zkHost);
-
-      abstract Builder setUsername(String username);
-
-      abstract Builder setPassword(String password);
-
       abstract Builder setCollection(String collection);
-
+      abstract Builder setUsername(String username);
+      abstract Builder setPassword(String password);
       abstract ConnectionConfiguration build();
     }
 
@@ -203,12 +185,10 @@ public class SolrIO {
       checkArgument(collection != null,
           "ConnectionConfiguration.create(zkHost, collection) "
               + "called with null collectioin");
-      ConnectionConfiguration connectionConfig = new AutoValue_SolrIO_ConnectionConfiguration
-          .Builder()
+      return new AutoValue_SolrIO_ConnectionConfiguration.Builder()
           .setZkHost(zkHost)
           .setCollection(collection)
           .build();
-      return connectionConfig;
     }
 
     /**
@@ -266,27 +246,20 @@ public class SolrIO {
   }
 
   /** A {@link PTransform} reading data from Solr. */
-  @AutoValue public abstract static class Read
-      extends PTransform<PBegin, PCollection<SolrDocument>> {
-
+  @AutoValue
+  public abstract static class Read extends PTransform<PBegin, PCollection<SolrDocument>> {
     private static final long MAX_BATCH_SIZE = 10000L;
 
     abstract ConnectionConfiguration getConnectionConfiguration();
-
     abstract String getQuery();
-
     abstract long getBatchSize();
-
     abstract Builder builder();
 
-    @AutoValue.Builder abstract static class Builder {
-
+    @AutoValue.Builder
+    abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
-
       abstract Builder setQuery(String query);
-
       abstract Builder setBatchSize(long batchSize);
-
       abstract Read build();
     }
 
@@ -325,18 +298,21 @@ public class SolrIO {
       return builder().setBatchSize(batchSize).build();
     }
 
-    @Override public PCollection<SolrDocument> expand(PBegin input) {
+    @Override
+    public PCollection<SolrDocument> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read
           .from(new BoundedSolrSource(this, null)));
     }
 
-    @Override public void validate(PipelineOptions options) {
+    @Override
+    public void validate(PipelineOptions options) {
       checkState(getConnectionConfiguration() != null,
           "SolrIO.read() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
     }
 
-    @Override public void populateDisplayData(DisplayData.Builder builder) {
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
       getConnectionConfiguration().populateDisplayData(builder);
@@ -357,7 +333,8 @@ public class SolrIO {
   }
 
   /** A {@link BoundedSource} reading from Solr. */
-  @VisibleForTesting static class BoundedSolrSource extends BoundedSource<SolrDocument> {
+  @VisibleForTesting
+  static class BoundedSolrSource extends BoundedSource<SolrDocument> {
 
     private final SolrIO.Read spec;
     // replica is the info of the shard where the source will read the documents
@@ -368,7 +345,8 @@ public class SolrIO {
       this.replica = replica == null ? null : ReplicaInfo.create(replica);
     }
 
-    @Override public List<? extends BoundedSource<SolrDocument>> split(long desiredBundleSizeBytes,
+    @Override
+    public List<? extends BoundedSource<SolrDocument>> split(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
       List<BoundedSolrSource> sources = new ArrayList<>();
       int numShard;
@@ -384,7 +362,8 @@ public class SolrIO {
       return sources;
     }
 
-    @Override public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
       if (replica != null) {
         return getEstimatedSizeOfShard(replica);
       } else {
@@ -423,70 +402,28 @@ public class SolrIO {
       return sizeInBytes;
     }
 
-    @Override public void populateDisplayData(DisplayData.Builder builder) {
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
       spec.populateDisplayData(builder);
       if (replica != null) {
         builder.addIfNotNull(DisplayData.item("shardUrl", replica.coreUrl()));
       }
     }
 
-    @Override public BoundedReader<SolrDocument> createReader(PipelineOptions options)
+    @Override
+    public BoundedReader<SolrDocument> createReader(PipelineOptions options)
         throws IOException {
       return new BoundedSolrReader(this);
     }
 
-    @Override public void validate() {
+    @Override
+    public void validate() {
       spec.validate(null);
     }
 
-    @Override public Coder<SolrDocument> getDefaultOutputCoder() {
-      return SolrCoder.of();
-    }
-  }
-
-  /**
-   * A {@link Coder} that encodes {@link SolrDocument SolrDocument}.
-   */
-  public static class SolrCoder extends Coder<SolrDocument> {
-
-    private static final SolrCoder INSTANCE = new SolrCoder();
-
-    public static SolrCoder of() {
-      return INSTANCE;
-    }
-
-    @Override public void encode(SolrDocument value, OutputStream outStream)
-        throws CoderException, IOException {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-      JavaBinCodec codec = new JavaBinCodec();
-      codec.marshal(value, baos);
-
-      byte[] bytes = baos.toByteArray();
-      VarInt.encode(bytes.length, outStream);
-      outStream.write(bytes);
-    }
-
-    @Override public SolrDocument decode(InputStream inStream) throws CoderException, IOException {
-      DataInputStream in = new DataInputStream(inStream);
-
-      int len = VarInt.decodeInt(in);
-      if (len < 0) {
-        throw new CoderException("Invalid encoded SolrDocument length: " + len);
-      }
-      byte[] bytes = new byte[len];
-      in.readFully(bytes);
-
-      JavaBinCodec codec = new JavaBinCodec();
-      return (SolrDocument) codec.unmarshal(new ByteArrayInputStream(bytes));
-    }
-
-    @Override public List<? extends Coder<?>> getCoderArguments() {
-      return Collections.emptyList();
-    }
-
-    @Override public void verifyDeterministic() throws NonDeterministicException {
-
+    @Override
+    public Coder<SolrDocument> getDefaultOutputCoder() {
+      return SolrDocumentCoder.of();
     }
   }
 
@@ -505,7 +442,8 @@ public class SolrIO {
       this.cursorMark = CursorMarkParams.CURSOR_MARK_START;
     }
 
-    @Override public boolean start() throws IOException {
+    @Override
+    public boolean start() throws IOException {
       if (source.replica != null) {
         solrClient = source.spec.getConnectionConfiguration()
             .createClient(source.replica.coreUrl());
@@ -545,7 +483,8 @@ public class SolrIO {
       cursorMark = response.getNextCursorMark();
     }
 
-    @Override public boolean advance() throws IOException {
+    @Override
+    public boolean advance() throws IOException {
       if (batchIterator.hasNext()) {
         current = batchIterator.next();
         return true;
@@ -573,38 +512,37 @@ public class SolrIO {
       return true;
     }
 
-    @Override public SolrDocument getCurrent() throws NoSuchElementException {
+    @Override
+    public SolrDocument getCurrent() throws NoSuchElementException {
       if (current == null) {
         throw new NoSuchElementException();
       }
       return current;
     }
 
-    @Override public void close() throws IOException {
+    @Override
+    public void close() throws IOException {
       solrClient.close();
     }
 
-    @Override public BoundedSource<SolrDocument> getCurrentSource() {
+    @Override
+    public BoundedSource<SolrDocument> getCurrentSource() {
       return source;
     }
   }
 
   /** A {@link PTransform} writing data to Solr. */
-  @AutoValue public abstract static class Write
-      extends PTransform<PCollection<SolrInputDocument>, PDone> {
+  @AutoValue
+  public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
 
     abstract ConnectionConfiguration getConnectionConfiguration();
-
     abstract long getMaxBatchSize();
-
     abstract Builder builder();
 
-    @AutoValue.Builder abstract static class Builder {
-
+    @AutoValue.Builder
+    abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
-
       abstract Builder setMaxBatchSize(long maxBatchSize);
-
       abstract Write build();
     }
 
@@ -622,18 +560,21 @@ public class SolrIO {
       return builder().setMaxBatchSize(batchSize).build();
     }
 
-    @Override public void validate(PipelineOptions options) {
+    @Override
+    public void validate(PipelineOptions options) {
       checkState(getConnectionConfiguration() != null,
           "SolrIO.write() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
     }
 
-    @Override public PDone expand(PCollection<SolrInputDocument> input) {
+    @Override
+    public PDone expand(PCollection<SolrInputDocument> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
-    @VisibleForTesting static class WriteFn extends DoFn<SolrInputDocument, Void> {
+    @VisibleForTesting
+    static class WriteFn extends DoFn<SolrInputDocument, Void> {
 
       private final Write spec;
 
@@ -644,15 +585,18 @@ public class SolrIO {
         this.spec = spec;
       }
 
-      @Setup public void createClient() throws Exception {
+      @Setup
+      public void createClient() throws Exception {
         solrClient = spec.getConnectionConfiguration().createClient();
       }
 
-      @StartBundle public void startBundle(StartBundleContext context) throws Exception {
+      @StartBundle
+      public void startBundle(StartBundleContext context) throws Exception {
         batch = new ArrayList<>();
       }
 
-      @ProcessElement public void processElement(ProcessContext context) throws Exception {
+      @ProcessElement
+      public void processElement(ProcessContext context) throws Exception {
         SolrInputDocument document = context.element();
         batch.add(document);
         if (batch.size() >= spec.getMaxBatchSize()) {

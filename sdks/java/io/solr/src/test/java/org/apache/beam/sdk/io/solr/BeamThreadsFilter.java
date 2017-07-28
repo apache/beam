@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.solr;
 
 import com.carrotsearch.randomizedtesting.ThreadFilter;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Filter out Beam leak threads.
  */
+@VisibleForTesting
 public class BeamThreadsFilter implements ThreadFilter {
 
   @Override public boolean reject(Thread t) {

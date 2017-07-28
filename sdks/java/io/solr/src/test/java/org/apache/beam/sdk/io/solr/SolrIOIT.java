@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  *  mvn -e -Pio-it verify -pl sdks/java/io/solr -DintegrationTestPipelineOptions='[
- *  "--zookeeperSolrServer=127.0.0.1:9983"]'
+ *  "--solrZookeeperServer=127.0.0.1:9983"]'
  * </pre>
  */
 public class SolrIOIT {
@@ -77,7 +77,7 @@ public class SolrIOIT {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
     readConnectionConfiguration = SolrIO.ConnectionConfiguration
-        .create(options.getZookeeperSolrServer(), READ_COLLECTION);
+        .create(options.getSolrZookeeperServer(), READ_COLLECTION);
     solrClient = readConnectionConfiguration.createClient();
     CollectionAdminResponse listResponse = solrClient.process(new CollectionAdminRequest.List());
     List<String> collections = (List<String>) listResponse.getResponse().get("collections");
@@ -140,7 +140,7 @@ public class SolrIOIT {
   @Test
   public void testWriteVolume() throws Exception {
     SolrIO.ConnectionConfiguration writeConnectionConfiguration =
-        SolrIO.ConnectionConfiguration.create(options.getZookeeperSolrServer(), WRITE_COLLECTION);
+        SolrIO.ConnectionConfiguration.create(options.getSolrZookeeperServer(), WRITE_COLLECTION);
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
