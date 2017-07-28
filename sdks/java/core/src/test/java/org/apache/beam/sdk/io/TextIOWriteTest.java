@@ -275,10 +275,10 @@ public class TextIOWriteTest {
             new UserWriteType("caab", "sixth"));
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
-        TextIO.<UserWriteType>writeCustomType())
+        TextIO.<UserWriteType>writeCustomType()
             .to(new UserWriteDestination(baseDir), new DefaultFilenamePolicy.Params())
             .withFormatFunction(new SerializeUserWrite())
-            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true));
+            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
     p.run();
 
     String[] aElements =

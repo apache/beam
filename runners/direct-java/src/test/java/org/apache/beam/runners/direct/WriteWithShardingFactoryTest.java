@@ -144,7 +144,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Object, Void, Object>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(null)) {
+                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
               @Override
               public WriteOperation<Void, Object> createWriteOperation() {
                 throw new IllegalArgumentException("Should not be used");

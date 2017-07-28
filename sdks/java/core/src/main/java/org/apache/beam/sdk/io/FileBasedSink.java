@@ -313,7 +313,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               this,
               DynamicDestinations.class,
               new TypeVariableExtractor<
-                  DynamicDestinations<UserT, DestinationT>, DestinationT>() {});
+                  DynamicDestinations<UserT, DestinationT, OutputT>, DestinationT>() {});
       checkArgument(
           descriptor != null,
           "Unable to infer a coder for DestinationT, "

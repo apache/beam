@@ -141,7 +141,7 @@ public class WriteFilesTranslation {
               entry.getKey(),
               originalPCollection,
               transformProto,
-              sdkComponents.toComponents()));
+              RehydratedComponents.forComponents(sdkComponents.toComponents())));
     }
     return views;
   }

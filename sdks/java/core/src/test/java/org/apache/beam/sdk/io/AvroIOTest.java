@@ -31,6 +31,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -623,15 +625,16 @@ public class AvroIOTest {
       expectedElements.add(createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
     }
     PCollectionView<Map<String, String>> schemaView =
-        p.apply("createSchemaView", Create.of(schemaMap)).apply(View.<String, String>asMap());
+        writePipeline.apply("createSchemaView", Create.of(schemaMap))
+            .apply(View.<String, String>asMap());
 
     PCollection<String> input =
-        p.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
+        writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
     input.apply(AvroIO.<String>writeCustomTypeToGenericRecords()
         .to(new TestDynamicDestinations(baseDir, schemaView))
         .withoutSharding()
         .withTempDirectory(baseDir));
-    p.run();
+    writePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order.
 

@@ -1297,7 +1297,6 @@ public class DataflowRunnerTest implements Serializable {
     TestSink(String tmpFolder) {
       super(
           StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
-<<<<<<< HEAD
           DynamicFileDestinations.constant(
               new FilenamePolicy() {
                 @Override
@@ -1317,9 +1316,6 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
               }, SerializableFunctions.identity()));
-=======
-          DynamicFileDestinations.constant(null));
->>>>>>> Address comments.
     }
 
     @Override
