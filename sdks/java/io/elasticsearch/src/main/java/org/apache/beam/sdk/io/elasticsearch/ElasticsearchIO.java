@@ -392,6 +392,8 @@ public class ElasticsearchIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
+      builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
       getConnectionConfiguration().populateDisplayData(builder);
     }
   }
