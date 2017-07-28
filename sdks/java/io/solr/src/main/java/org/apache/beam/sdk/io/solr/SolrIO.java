@@ -54,22 +54,24 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.solr.client.solrj.SolrClient;
+import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
+import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CursorMarkParams;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.JavaBinCodec;
 import org.apache.solr.common.util.NamedList;
 
@@ -120,12 +122,37 @@ import org.apache.solr.common.util.NamedList;
 @Experimental
 public class SolrIO {
 
-  public static Read read() {
-    return new AutoValue_SolrIO_Read.Builder().setBatchSize(100L).build();
+  /**
+   * Create new SolrIO.Read based on provided Solr connection configuration object.
+   * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
+   * @return the {@link Read} with connection configuration set
+   */
+  public static Read read(ConnectionConfiguration connectionConfiguration) {
+    checkArgument(
+        connectionConfiguration != null,
+        "SolrIO.read(connectionConfiguration) "
+            + "called with null connectionConfiguration");
+    return new AutoValue_SolrIO_Read.Builder()
+        .setConnectionConfiguration(connectionConfiguration)
+        .setBatchSize(100L)
+        .setQuery("*:*")
+        .build();
   }
 
-  public static Write write() {
-    return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000L).build();
+  /**
+   * Create new SolrIO.Write based on provided Solr connection configuration object.
+   * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
+   * @return the {@link Write} with connection configuration set
+   */
+  public static Write write(ConnectionConfiguration connectionConfiguration) {
+    checkArgument(
+        connectionConfiguration != null,
+        "SolrIO.write(connectionConfiguration) "
+            + "called with null connectionConfiguration");
+    return new AutoValue_SolrIO_Write.Builder()
+        .setMaxBatchSize(1000L)
+        .setConnectionConfiguration(connectionConfiguration)
+        .build();
   }
 
   private SolrIO() {
@@ -134,8 +161,13 @@ public class SolrIO {
   /** A POJO describing a connection configuration to Solr. */
   @AutoValue public abstract static class ConnectionConfiguration implements Serializable {
 
-    //TODO add user name password
     abstract String getZkHost();
+
+    @Nullable
+    abstract String getUsername();
+
+    @Nullable
+    abstract String getPassword();
 
     abstract String getCollection();
 
@@ -144,6 +176,10 @@ public class SolrIO {
     @AutoValue.Builder abstract static class Builder {
 
       abstract Builder setZkHost(String zkHost);
+
+      abstract Builder setUsername(String username);
+
+      abstract Builder setPassword(String password);
 
       abstract Builder setCollection(String collection);
 
@@ -166,25 +202,70 @@ public class SolrIO {
       checkArgument(collection != null,
           "ConnectionConfiguration.create(zkHost, collection) "
               + "called with null collectioin");
-      ConnectionConfiguration connectionConfiguration = new AutoValue_SolrIO_ConnectionConfiguration
-          .Builder().setZkHost(zkHost).setCollection(collection).build();
-      return connectionConfiguration;
+      ConnectionConfiguration connectionConfig = new AutoValue_SolrIO_ConnectionConfiguration
+          .Builder()
+          .setZkHost(zkHost)
+          .setCollection(collection)
+          .build();
+      return connectionConfig;
+    }
+
+    /**
+     * If Solr basic authentication is enabled, provide the username and password.
+     *
+     * @param username the username used to authenticate to Solr
+     * @param password the password used to authenticate to Solr
+     * @return the {@link ConnectionConfiguration} object with basic credentials set
+     */
+    public ConnectionConfiguration withBasicCredentials(String username, String password) {
+      checkArgument(
+          username != null,
+          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
+              + "called with null username");
+      checkArgument(
+          !username.isEmpty(),
+          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
+              + "called with empty username");
+      checkArgument(
+          password != null,
+          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
+              + "called with null username");
+      checkArgument(
+          !password.isEmpty(),
+          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
+              + "called with empty username");
+      return builder().setUsername(username).setPassword(password).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("zkHost", getZkHost()));
       builder.add(DisplayData.item("collection", getCollection()));
+      builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    CloudSolrClient createClient() throws MalformedURLException {
-      CloudSolrClient solrClient = new CloudSolrClient.Builder().withZkHost(getZkHost()).build();
+    private HttpClient createHttpClient() {
+      // This is bug in Solr, if we don't create a customize HttpClient,
+      // UpdateRequest with commit flag will throw an authentication error.
+      ModifiableSolrParams params = new ModifiableSolrParams();
+      params.set(HttpClientUtil.PROP_BASIC_AUTH_USER, getUsername());
+      params.set(HttpClientUtil.PROP_BASIC_AUTH_PASS, getPassword());
+      return HttpClientUtil.createClient(params);
+    }
+
+    AuthorizedCloudSolrClient createClient() throws MalformedURLException {
+      CloudSolrClient solrClient = new CloudSolrClient.Builder()
+          .withHttpClient(createHttpClient())
+          .withZkHost(getZkHost())
+          .build();
       solrClient.setDefaultCollection(getCollection());
-      return solrClient;
+      return new AuthorizedCloudSolrClient(solrClient, this);
     }
 
-    HttpSolrClient createClient(String shardUrl) {
-      HttpSolrClient solrClient = new HttpSolrClient.Builder(shardUrl).build();
-      return solrClient;
+    AuthorizedSolrClient createClient(String shardUrl) {
+      HttpSolrClient solrClient = new HttpSolrClient.Builder(shardUrl)
+          .withHttpClient(createHttpClient())
+          .build();
+      return new AuthorizedSolrClient<>(solrClient, this);
     }
   }
 
@@ -196,7 +277,7 @@ public class SolrIO {
 
     abstract ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable abstract String getQuery();
+    abstract String getQuery();
 
     abstract long getBatchSize();
 
@@ -211,18 +292,6 @@ public class SolrIO {
       abstract Builder setBatchSize(long batchSize);
 
       abstract Read build();
-    }
-
-    /**
-     * Provide the Solr connection configuration object.
-     *
-     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-     * @return the {@link Read} with connection configuration set
-     */
-    public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "SolrIO.read()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
-      return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
     /**
@@ -307,12 +376,9 @@ public class SolrIO {
         PipelineOptions options) throws Exception {
       List<BoundedSolrSource> sources = new ArrayList<>();
       int numShard;
-      try (CloudSolrClient client = spec.getConnectionConfiguration().createClient()) {
-        // connect to zk cluster
-        client.connect();
-        ClusterState clusterState = client.getZkStateReader().getClusterState();
-        DocCollection docCollection = clusterState
-            .getCollection(spec.getConnectionConfiguration().getCollection());
+      try (AuthorizedCloudSolrClient client = spec.getConnectionConfiguration().createClient()) {
+        String collection = spec.getConnectionConfiguration().getCollection();
+        DocCollection docCollection = client.getDocCollection(collection);
         numShard = docCollection.getSlices().size();
         for (Slice slice : docCollection.getSlices()) {
           sources.add(new BoundedSolrSource(spec, slice.getLeader()));
@@ -331,14 +397,14 @@ public class SolrIO {
     }
 
     private long getEstimatedSizeOfShard(@Nonnull ReplicaInfo replica) throws IOException {
-      try (HttpSolrClient solrClient = spec.getConnectionConfiguration()
+      try (AuthorizedSolrClient solrClient = spec.getConnectionConfiguration()
           .createClient(replica.baseUrl())) {
         CoreAdminRequest req = new CoreAdminRequest();
         req.setAction(CoreAdminParams.CoreAdminAction.STATUS);
         req.setIndexInfoNeeded(true);
         CoreAdminResponse response;
         try {
-          response = req.process(solrClient);
+          response = (CoreAdminResponse) solrClient.process(req);
         } catch (SolrServerException e) {
           throw new IOException("Can not get core status from " + replica, e);
         }
@@ -351,10 +417,8 @@ public class SolrIO {
     private long getEstimatedSizeOfCollection() throws IOException {
       long sizeInBytes = 0;
       ConnectionConfiguration config = spec.getConnectionConfiguration();
-      try (CloudSolrClient solrClient = config.createClient()) {
-        solrClient.connect();
-        ClusterState clusterState = solrClient.getZkStateReader().getClusterState();
-        DocCollection docCollection = clusterState.getCollection(config.getCollection());
+      try (AuthorizedCloudSolrClient solrClient = config.createClient()) {
+        DocCollection docCollection = solrClient.getDocCollection(config.getCollection());
         for (Slice slice : docCollection.getSlices()) {
           Replica replica = slice.getLeader();
           sizeInBytes += getEstimatedSizeOfShard(ReplicaInfo.create(replica));
@@ -434,7 +498,7 @@ public class SolrIO {
 
     private final BoundedSolrSource source;
 
-    private SolrClient solrClient;
+    private AuthorizedSolrClient solrClient;
     private SolrDocument current;
     private String cursorMark;
     private Iterator<SolrDocument> batchIterator;
@@ -450,7 +514,8 @@ public class SolrIO {
         solrClient = source.spec.getConnectionConfiguration()
             .createClient(source.replica.coreUrl());
       } else {
-        solrClient = source.spec.getConnectionConfiguration().createClient();
+        solrClient = source.spec.getConnectionConfiguration()
+            .createClient();
       }
 
       SolrQuery solrParams = getQueryParams(source);
@@ -532,7 +597,7 @@ public class SolrIO {
   @AutoValue public abstract static class Write
       extends PTransform<PCollection<SolrInputDocument>, PDone> {
 
-    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract ConnectionConfiguration getConnectionConfiguration();
 
     abstract long getMaxBatchSize();
 
@@ -545,18 +610,6 @@ public class SolrIO {
       abstract Builder setMaxBatchSize(long maxBatchSize);
 
       abstract Write build();
-    }
-
-    /**
-     * Provide the Solr connection configuration object.
-     *
-     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-     * @return the {@link Write} with connection configuration set
-     */
-    public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "SolrIO.write()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
-      return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
     /**
@@ -588,7 +641,7 @@ public class SolrIO {
 
       private final Write spec;
 
-      private transient CloudSolrClient solrClient;
+      private transient AuthorizedSolrClient solrClient;
       private Collection<SolrInputDocument> batch;
 
       WriteFn(Write spec) {
@@ -597,7 +650,6 @@ public class SolrIO {
 
       @Setup public void createClient() throws Exception {
         solrClient = spec.getConnectionConfiguration().createClient();
-        solrClient.connect();
       }
 
       @StartBundle public void startBundle(StartBundleContext context) throws Exception {
@@ -622,7 +674,9 @@ public class SolrIO {
           return;
         }
         try {
-          solrClient.add(spec.getConnectionConfiguration().getCollection(), batch);
+          UpdateRequest updateRequest = new UpdateRequest();
+          updateRequest.add(batch);
+          solrClient.process(updateRequest);
         } catch (SolrServerException e) {
           throw new IOException("Error writing to Solr", e);
         } finally {

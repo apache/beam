@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.greaterThan;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,10 +35,10 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -62,7 +63,7 @@ public class SolrIOTest extends SolrCloudTestCase{
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
 
-  private static CloudSolrClient solrClient;
+  private static AuthorizedCloudSolrClient solrClient;
   private static SolrIO.ConnectionConfiguration connectionConfiguration;
 
   @Rule
@@ -70,17 +71,24 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    String securityJson = "{"
+        + "'authentication':{"
+        + "  'blockUnknown': true,"
+        + "  'class':'solr.BasicAuthPlugin',"
+        + "  'credentials':{'solr':'orwp2Ghgj39lmnrZOTm7Qtre1VqHFDfwAEzr0ApbN3Y="
+        + " Ju5osoAqOX8iafhWpPP01E5P+sg8tK8tHON7rCYZRRw='}}"
+        + "}";
     configureCluster(3)
         .addConfig("conf", getFile("cloud-minimal/conf").toPath())
+        .withSecurityJson(securityJson)
         .configure();
 
-
-    SolrIOTestUtils.createCollection(SOLR_COLLECTION, NUM_SHARDS, cluster.getSolrClient());
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, cluster.getSolrClient());
-
     String zkAddress = cluster.getZkServer().getZkAddress();
-    connectionConfiguration = SolrIO.ConnectionConfiguration.create(zkAddress, SOLR_COLLECTION);
+    connectionConfiguration = SolrIO.ConnectionConfiguration.create(zkAddress, SOLR_COLLECTION)
+        .withBasicCredentials("solr", "SolrRocks");
     solrClient = connectionConfiguration.createClient();
+    SolrIOTestUtils.createCollection(SOLR_COLLECTION, NUM_SHARDS, solrClient);
+    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
   }
 
   @AfterClass
@@ -93,12 +101,23 @@ public class SolrIOTest extends SolrCloudTestCase{
     SolrIOTestUtils.clearCollection(SOLR_COLLECTION, solrClient);
   }
 
+  @Test(expected = SolrException.class)
+  public void testBadCredentials() throws IOException {
+    String zkAddress = cluster.getZkServer().getZkAddress();
+    SolrIO.ConnectionConfiguration connectionConfiguration = SolrIO.ConnectionConfiguration
+        .create(zkAddress, SOLR_COLLECTION)
+        .withBasicCredentials("solr", "wrongpassword");
+    try (AuthorizedCloudSolrClient solrClient = connectionConfiguration.createClient()) {
+      SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    }
+  }
+
   @Test
   public void testSizes() throws Exception {
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
+    SolrIO.Read read = SolrIO.read(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
     // can't use equal assert as Solr collections never have same size
     // (due to internal Lucene implementation)
@@ -120,8 +139,7 @@ public class SolrIOTest extends SolrCloudTestCase{
 
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read()
-                .withConnectionConfiguration(connectionConfiguration)
+            SolrIO.read(connectionConfiguration)
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
@@ -134,8 +152,7 @@ public class SolrIOTest extends SolrCloudTestCase{
 
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read()
-                .withConnectionConfiguration(connectionConfiguration)
+            SolrIO.read(connectionConfiguration)
                 .withQuery("scientist:Einstein"));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
             .isEqualTo(NUM_DOCS / NUM_SCIENTISTS);
@@ -147,21 +164,20 @@ public class SolrIOTest extends SolrCloudTestCase{
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
-        .apply(SolrIO.write().withConnectionConfiguration(connectionConfiguration));
+        .apply(SolrIO.write(connectionConfiguration));
     pipeline.run();
 
     long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(SOLR_COLLECTION, solrClient);
     assertEquals(NUM_DOCS, currentNumDocs);
 
-    QueryResponse response = solrClient.query(new SolrQuery("scientist:Einstein"));
+    QueryResponse response = solrClient.query(SOLR_COLLECTION, new SolrQuery("scientist:Einstein"));
     assertEquals(NUM_DOCS / NUM_SCIENTISTS, response.getResults().getNumFound());
   }
 
   @Test
   public void testWriteWithMaxBatchSize() throws Exception {
     SolrIO.Write write =
-        SolrIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
+        SolrIO.write(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
@@ -204,7 +220,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
+    SolrIO.Read read = SolrIO.read(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
     //desiredBundleSize is ignored for now
     int desiredBundleSizeBytes = 0;

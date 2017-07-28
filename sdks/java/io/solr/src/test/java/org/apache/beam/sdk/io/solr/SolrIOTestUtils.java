@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io.solr;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.common.SolrInputDocument;
 
 
@@ -33,20 +32,23 @@ public class SolrIOTestUtils {
   public static final long AVERAGE_DOC_SIZE = 25L;
   public static final long MAX_DOC_SIZE = 35L;
 
-  static void createCollection(String collection, int numShards, SolrClient client)
+  static void createCollection(String collection, int numShards, AuthorizedCloudSolrClient client)
       throws Exception {
-    CollectionAdminRequest.createCollection(collection, numShards, 1)
-        .setMaxShardsPerNode(2)
-        .process(client);
+    CollectionAdminRequest.Create create = CollectionAdminRequest
+        .createCollection(collection, numShards, 1)
+        .setMaxShardsPerNode(2);
+    client.process(create);
   }
 
   /** Inserts the given number of test documents into Solr. */
-  static void insertTestDocuments(String collection, long numDocs, CloudSolrClient client)
+  static void insertTestDocuments(String collection, long numDocs, AuthorizedCloudSolrClient client)
       throws IOException {
     List<SolrInputDocument> data = createDocuments(numDocs);
     try {
-      client.add(collection, data);
-      client.commit(collection);
+      UpdateRequest updateRequest = new UpdateRequest();
+      updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
+      updateRequest.add(data);
+      client.process(collection, updateRequest);
     } catch (SolrServerException e) {
       throw new IOException("Failed to insert test documents in collection " + collection, e);
     }
@@ -54,10 +56,11 @@ public class SolrIOTestUtils {
 
 
   /** Delete given collection. */
-  static void deleteCollection(String collection, SolrClient client)
+  static void deleteCollection(String collection, AuthorizedCloudSolrClient client)
       throws IOException {
     try {
-      CollectionAdminRequest.deleteCollection(collection).process(client);
+      CollectionAdminRequest.Delete delete = CollectionAdminRequest.deleteCollection(collection);
+      client.process(delete);
     } catch (SolrServerException e) {
       throw new IOException(e);
     }
@@ -65,10 +68,13 @@ public class SolrIOTestUtils {
   }
 
   /** Clear given collection. */
-  static void clearCollection(String collection, SolrClient client) throws IOException {
+  static void clearCollection(String collection, AuthorizedCloudSolrClient client)
+      throws IOException {
     try {
-      client.deleteByQuery(collection, "*:*");
-      client.commit();
+      UpdateRequest updateRequest = new UpdateRequest();
+      updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
+      updateRequest.deleteByQuery("*:*");
+      client.process(collection, updateRequest);
     } catch (SolrServerException e) {
       throw new IOException(e);
     }
@@ -80,13 +86,16 @@ public class SolrIOTestUtils {
    *
    * @return The number of docs in the index
    */
-  static long commitAndGetCurrentNumDocs(String collection, SolrClient client)
+  static long commitAndGetCurrentNumDocs(String collection, AuthorizedCloudSolrClient client)
       throws IOException {
     SolrQuery solrQuery = new SolrQuery("*:*");
     solrQuery.setRows(0);
     try {
-      client.commit(collection);
-      return client.query(solrQuery).getResults().getNumFound();
+      UpdateRequest update = new UpdateRequest();
+      update.setAction(UpdateRequest.ACTION.COMMIT, true, true);
+      client.process(collection, update);
+
+      return client.query(new SolrQuery("*:*")).getResults().getNumFound();
     } catch (SolrServerException e) {
       throw new IOException(e);
     }

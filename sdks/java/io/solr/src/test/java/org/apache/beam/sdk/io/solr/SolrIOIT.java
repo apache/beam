@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
+
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -33,8 +34,8 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
@@ -66,7 +67,7 @@ public class SolrIOIT {
   public static final String WRITE_COLLECTION = "beam" + Instant.now().getMillis();
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOIT.class);
 
-  private static CloudSolrClient solrClient;
+  private static AuthorizedCloudSolrClient solrClient;
   private static IOTestPipelineOptions options;
   private static SolrIO.ConnectionConfiguration readConnectionConfiguration;
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -78,7 +79,8 @@ public class SolrIOIT {
     readConnectionConfiguration = SolrIO.ConnectionConfiguration
         .create(options.getZookeeperSolrServer(), READ_COLLECTION);
     solrClient = readConnectionConfiguration.createClient();
-    List<String> collections = CollectionAdminRequest.listCollections(solrClient);
+    CollectionAdminResponse listResponse = solrClient.process(new CollectionAdminRequest.List());
+    List<String> collections = (List<String>) listResponse.getResponse().get("collections");
     if (collections.contains(READ_COLLECTION)) {
       QueryResponse response = solrClient.query(
           READ_COLLECTION, new SolrQuery("*:*"));
@@ -93,8 +95,11 @@ public class SolrIOIT {
           READ_COLLECTION);
     }
 
-    CollectionAdminRequest.createCollection(WRITE_COLLECTION, 2, 2)
-        .setMaxShardsPerNode(2).process(solrClient);
+    CollectionAdminRequest.Create create = CollectionAdminRequest
+        .createCollection(WRITE_COLLECTION, 2, 2)
+        .setMaxShardsPerNode(2);
+    solrClient.process(create);
+
   }
 
   @AfterClass
@@ -106,7 +111,7 @@ public class SolrIOIT {
   @Test
   public void testSplitsVolume() throws Exception {
     SolrIO.Read read =
-            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
+            SolrIO.read(readConnectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     //desiredBundleSize is ignored now
@@ -130,7 +135,7 @@ public class SolrIOIT {
   public void testReadVolume() throws Exception {
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration));
+            SolrIO.read(readConnectionConfiguration));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -143,7 +148,7 @@ public class SolrIOIT {
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
-        .apply(SolrIO.write().withConnectionConfiguration(writeConnectionConfiguration));
+        .apply(SolrIO.write(writeConnectionConfiguration));
     pipeline.run();
 
     long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(
@@ -154,7 +159,7 @@ public class SolrIOIT {
   @Test
   public void testEstimatedSizesVolume() throws Exception {
     SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
+        SolrIO.read(readConnectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     // can't use equal assert as Solr collections never have same size
