@@ -229,7 +229,7 @@ public class View {
    * <pre>
    * {@code
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
-   * PCollectionView<Map<K, V>> output = input.apply(View.<K, V>asMultimap());
+   * PCollectionView<Map<K, Iterable<V>>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
    *
    * <p>Currently, the resulting map is required to fit into memory.
