@@ -59,6 +59,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
@@ -407,11 +408,6 @@ public class AvroSourceTest {
     source = AvroSource.from(filename).withSchema(schemaString);
     records = SourceTestUtils.readFromSource(source, null);
     assertEqualsWithGeneric(expected, records);
-
-    // Create a source with no schema
-    source = AvroSource.from(filename);
-    records = SourceTestUtils.readFromSource(source, null);
-    assertEqualsWithGeneric(expected, records);
   }
 
   @Test
@@ -447,6 +443,30 @@ public class AvroSourceTest {
     // Ensure that deserialization still goes through interning
     AvroSource<GenericRecord> sourceC = SerializableUtils.clone(sourceB);
     assertSame(sourceA.getReaderSchemaString(), sourceC.getReaderSchemaString());
+  }
+
+  @Test
+  public void testParseFn() throws Exception {
+    List<Bird> expected = createRandomRecords(100);
+    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_DEFAULT, 0,
+        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+
+    AvroSource<Bird> source =
+        AvroSource.from(filename)
+            .withParseFn(
+                new SerializableFunction<GenericRecord, Bird>() {
+                  @Override
+                  public Bird apply(GenericRecord input) {
+                    return new Bird(
+                        (long) input.get("number"),
+                        input.get("species").toString(),
+                        input.get("quality").toString(),
+                        (long) input.get("quantity"));
+                  }
+                },
+                AvroCoder.of(Bird.class));
+    List<Bird> actual = SourceTestUtils.readFromSource(source, null);
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {

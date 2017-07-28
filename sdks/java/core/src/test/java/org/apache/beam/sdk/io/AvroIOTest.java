@@ -67,6 +67,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -114,9 +115,9 @@ public class AvroIOTest {
 
     public GenericClass() {}
 
-    public GenericClass(int intValue, String stringValue) {
-      this.intField = intValue;
-      this.stringField = stringValue;
+    public GenericClass(int intField, String stringField) {
+      this.intField = intField;
+      this.stringField = stringField;
     }
 
     @Override
@@ -142,9 +143,18 @@ public class AvroIOTest {
     }
   }
 
+  private static class ParseGenericClass
+      implements SerializableFunction<GenericRecord, GenericClass> {
+    @Override
+    public GenericClass apply(GenericRecord input) {
+      return new GenericClass(
+          (int) input.get("intField"), input.get("stringField").toString());
+    }
+  }
+
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadASingleFile() throws Throwable {
+  public void testAvroIOWriteAndReadAndParseASingleFile() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -153,23 +163,45 @@ public class AvroIOTest {
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
     writePipeline.run().waitUntilFinish();
 
-    // Test the same data via read(), read().withHintMatchesManyFiles(), and readAll()
+    // Test the same data using all versions of read().
+    PCollection<String> path =
+        readPipeline.apply("Create path", Create.of(outputFile.getAbsolutePath()));
     PAssert.that(
-            readPipeline.apply(
-                "Read", AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+        readPipeline.apply(
+            "Read", AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(values);
     PAssert.that(
-            readPipeline.apply(
-                "Read withHintMatchesManyFiles",
-                AvroIO.read(GenericClass.class)
-                    .from(outputFile.getAbsolutePath())
-                    .withHintMatchesManyFiles()))
+        readPipeline.apply(
+            "Read withHintMatchesManyFiles",
+            AvroIO.read(GenericClass.class)
+                .from(outputFile.getAbsolutePath())
+                .withHintMatchesManyFiles()))
         .containsInAnyOrder(values);
     PAssert.that(
-            "ReadAll",
-            readPipeline
-                .apply(Create.of(outputFile.getAbsolutePath()))
-                .apply(AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+        path.apply(
+            "ReadAll", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(values);
+    PAssert.that(
+        readPipeline.apply(
+            "Parse",
+            AvroIO.parseGenericRecords(new ParseGenericClass())
+                .from(outputFile.getAbsolutePath())
+                .withCoder(AvroCoder.of(GenericClass.class))))
+        .containsInAnyOrder(values);
+    PAssert.that(
+        readPipeline.apply(
+            "Parse withHintMatchesManyFiles",
+            AvroIO.parseGenericRecords(new ParseGenericClass())
+                .from(outputFile.getAbsolutePath())
+                .withCoder(AvroCoder.of(GenericClass.class))
+                .withHintMatchesManyFiles()))
+        .containsInAnyOrder(values);
+    PAssert.that(
+        path.apply(
+            "ParseAll",
+            AvroIO.parseAllGenericRecords(new ParseGenericClass())
+                .withCoder(AvroCoder.of(GenericClass.class))
+                .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(values);
 
     readPipeline.run();
@@ -200,7 +232,7 @@ public class AvroIOTest {
                 .withNumShards(3));
     writePipeline.run().waitUntilFinish();
 
-    // Test both read() and readAll()
+    // Test read(), readAll(), and parseAllGenericRecords().
     PAssert.that(
             readPipeline.apply(
                 "Read first",
@@ -213,15 +245,22 @@ public class AvroIOTest {
                 AvroIO.read(GenericClass.class)
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/second*")))
         .containsInAnyOrder(secondValues);
+    PCollection<String> paths =
+        readPipeline.apply(
+            "Create paths",
+            Create.of(
+                tmpFolder.getRoot().getAbsolutePath() + "/first*",
+                tmpFolder.getRoot().getAbsolutePath() + "/second*"));
     PAssert.that(
-            readPipeline
-                .apply(
-                    "Create paths",
-                    Create.of(
-                        tmpFolder.getRoot().getAbsolutePath() + "/first*",
-                        tmpFolder.getRoot().getAbsolutePath() + "/second*"))
-                .apply(
-                    "Read all", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+            paths.apply(
+                "Read all", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+    PAssert.that(
+            paths.apply(
+                "Parse all",
+                AvroIO.parseAllGenericRecords(new ParseGenericClass())
+                    .withCoder(AvroCoder.of(GenericClass.class))
+                    .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
 
     readPipeline.run();

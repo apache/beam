@@ -183,8 +183,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
     for (ResourceId file : files) {
-      avroSources.add(new TransformingSource<>(
-          AvroSource.from(file.toString()), function, getDefaultOutputCoder()));
+      avroSources.add(
+          AvroSource.from(file.toString()).withParseFn(function, getDefaultOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
   }
