@@ -114,37 +114,12 @@ import org.apache.solr.common.util.NamedList;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
 
-  /**
-   * Create new SolrIO.Read based on provided Solr connection configuration object.
-   * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-   * @return the {@link Read} with connection configuration set
-   */
-  public static Read read(ConnectionConfiguration connectionConfiguration) {
-    checkArgument(
-        connectionConfiguration != null,
-        "SolrIO.read(connectionConfiguration) "
-            + "called with null connectionConfiguration");
-    return new AutoValue_SolrIO_Read.Builder()
-        .setConnectionConfiguration(connectionConfiguration)
-        .setBatchSize(100L)
-        .setQuery("*:*")
-        .build();
+  public static Read read() {
+    return new AutoValue_SolrIO_Read.Builder().setBatchSize(100L).setQuery("*:*").build();
   }
 
-  /**
-   * Create new SolrIO.Write based on provided Solr connection configuration object.
-   * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-   * @return the {@link Write} with connection configuration set
-   */
-  public static Write write(ConnectionConfiguration connectionConfiguration) {
-    checkArgument(
-        connectionConfiguration != null,
-        "SolrIO.write(connectionConfiguration) "
-            + "called with null connectionConfiguration");
-    return new AutoValue_SolrIO_Write.Builder()
-        .setMaxBatchSize(1000L)
-        .setConnectionConfiguration(connectionConfiguration)
-        .build();
+  public static Write write() {
+    return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000L).build();
   }
 
   private SolrIO() {
@@ -250,7 +225,7 @@ public class SolrIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<SolrDocument>> {
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
     abstract String getQuery();
     abstract long getBatchSize();
     abstract Builder builder();
@@ -261,6 +236,18 @@ public class SolrIO {
       abstract Builder setQuery(String query);
       abstract Builder setBatchSize(long batchSize);
       abstract Read build();
+    }
+
+    /**
+     * Provide the Solr connection configuration object.
+     *
+     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
+     * @return the {@link Read} with connection configuration set
+     */
+    public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
+      checkArgument(connectionConfiguration != null, "SolrIO.read()"
+          + ".withConnectionConfiguration(configuration) called with null configuration");
+      return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
     /**
@@ -535,7 +522,7 @@ public class SolrIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
 
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
     abstract long getMaxBatchSize();
     abstract Builder builder();
 
@@ -544,6 +531,18 @@ public class SolrIO {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
       abstract Builder setMaxBatchSize(long maxBatchSize);
       abstract Write build();
+    }
+
+    /**
+     * Provide the Solr connection configuration object.
+     *
+     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
+     * @return the {@link Write} with connection configuration set
+     */
+    public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
+      checkArgument(connectionConfiguration != null, "SolrIO.write()"
+          + ".withConnectionConfiguration(configuration) called with null configuration");
+      return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
     /**

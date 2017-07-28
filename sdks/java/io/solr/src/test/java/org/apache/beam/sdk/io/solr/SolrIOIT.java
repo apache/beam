@@ -107,7 +107,7 @@ public class SolrIOIT {
   @Test
   public void testSplitsVolume() throws Exception {
     SolrIO.Read read =
-            SolrIO.read(readConnectionConfiguration);
+            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     //desiredBundleSize is ignored now
@@ -131,7 +131,7 @@ public class SolrIOIT {
   public void testReadVolume() throws Exception {
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read(readConnectionConfiguration));
+            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -144,7 +144,7 @@ public class SolrIOIT {
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
-        .apply(SolrIO.write(writeConnectionConfiguration));
+        .apply(SolrIO.write().withConnectionConfiguration(writeConnectionConfiguration));
     pipeline.run();
 
     long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(
@@ -155,7 +155,7 @@ public class SolrIOIT {
   @Test
   public void testEstimatedSizesVolume() throws Exception {
     SolrIO.Read read =
-        SolrIO.read(readConnectionConfiguration);
+        SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     // can't use equal assert as Solr collections never have same size

@@ -135,7 +135,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read = SolrIO.read(connectionConfiguration);
+    SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
     // can't use equal assert as Solr collections never have same size
     // (due to internal Lucene implementation)
@@ -157,7 +157,8 @@ public class SolrIOTest extends SolrCloudTestCase{
 
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read(connectionConfiguration)
+            SolrIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
@@ -170,7 +171,8 @@ public class SolrIOTest extends SolrCloudTestCase{
 
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read(connectionConfiguration)
+            SolrIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
                 .withQuery("scientist:Einstein"));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
             .isEqualTo(NUM_DOCS / NUM_SCIENTISTS);
@@ -182,7 +184,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
-        .apply(SolrIO.write(connectionConfiguration));
+        .apply(SolrIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
     long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(SOLR_COLLECTION, solrClient);
@@ -195,7 +197,8 @@ public class SolrIOTest extends SolrCloudTestCase{
   @Test
   public void testWriteWithMaxBatchSize() throws Exception {
     SolrIO.Write write =
-        SolrIO.write(connectionConfiguration)
+        SolrIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
@@ -238,7 +241,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read = SolrIO.read(connectionConfiguration);
+    SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
     //desiredBundleSize is ignored for now
     int desiredBundleSizeBytes = 0;
