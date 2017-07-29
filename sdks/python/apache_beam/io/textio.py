@@ -19,19 +19,21 @@
 
 
 from __future__ import absolute_import
+from functools import partial
 import logging
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import filebasedsink
 from apache_beam.io import iobase
+from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'WriteToText']
+__all__ = ['ReadFromText', 'ReadAllFromText', 'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -342,8 +344,80 @@ class _TextSink(filebasedsink.FileBasedSink):
       file_handle.write('\n')
 
 
+def _create_text_source(
+    file_pattern=None, min_bundle_size=None, compression_type=None,
+    strip_trailing_newlines=None, coder=None, skip_header_lines=None):
+  return _TextSource(
+      file_pattern=file_pattern, min_bundle_size=min_bundle_size,
+      compression_type=compression_type,
+      strip_trailing_newlines=strip_trailing_newlines,
+      coder=coder, validate=False, skip_header_lines=skip_header_lines)
+
+
+class ReadAllFromText(PTransform):
+  """A ``PTransform`` for reading a ``PCollection`` of text files.
+
+   Reads a ``PCollection`` of text files or file patterns and and produces a
+   ``PCollection`` of strings.
+
+  Parses a text file as newline-delimited elements, by default assuming
+  UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
+
+  This implementation only supports reading text encoded using UTF-8 or ASCII.
+  This does not support other encodings such as UTF-16 or UTF-32.
+  """
+
+  DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
+
+  def __init__(
+      self,
+      min_bundle_size=0,
+      desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+      compression_type=CompressionTypes.AUTO,
+      strip_trailing_newlines=True,
+      coder=coders.StrUtf8Coder(),
+      skip_header_lines=0,
+      **kwargs):
+    """Initialize the ``ReadAllFromText`` transform.
+
+    Args:
+      min_bundle_size: Minimum size of bundles that should be generated when
+        splitting this source into bundles. See ``FileBasedSource`` for more
+        details.
+      desired_bundle_size: Desired size of bundles that should be generated when
+        splitting this source into bundles. See ``FileBasedSource`` for more
+        details.
+      compression_type: Used to handle compressed input files. Typical value
+        is ``CompressionTypes.AUTO``, in which case the underlying file_path's
+        extension will be used to detect the compression.
+      strip_trailing_newlines: Indicates whether this source should remove
+        the newline char in each line it reads before decoding that line.
+      validate: flag to verify that the files exist during the pipeline
+        creation time.
+      skip_header_lines: Number of header lines to skip. Same number is skipped
+        from each source file. Must be 0 or higher. Large number of skipped
+        lines might impact performance.
+      coder: Coder used to decode each line.
+    """
+    super(ReadAllFromText, self).__init__(**kwargs)
+    source_from_file = partial(
+        _create_text_source, min_bundle_size=min_bundle_size,
+        compression_type=compression_type,
+        strip_trailing_newlines=strip_trailing_newlines, coder=coder,
+        skip_header_lines=skip_header_lines)
+    self._desired_bundle_size = desired_bundle_size
+    self._min_bundle_size = min_bundle_size
+    self._compression_type = compression_type
+    self._read_all_files = ReadAllFiles(
+        True, compression_type, desired_bundle_size, min_bundle_size,
+        source_from_file)
+
+  def expand(self, pvalue):
+    return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
 class ReadFromText(PTransform):
-  """A PTransform for reading text files.
+  """A ``PTransform`` for reading text files.
 
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
@@ -361,7 +435,7 @@ class ReadFromText(PTransform):
       validate=True,
       skip_header_lines=0,
       **kwargs):
-    """Initialize the ReadFromText transform.
+    """Initialize the ``ReadFromText`` transform.
 
     Args:
       file_pattern: The file path to read from as a local file path or a GCS
@@ -371,7 +445,7 @@ class ReadFromText(PTransform):
         splitting this source into bundles. See ``FileBasedSource`` for more
         details.
       compression_type: Used to handle compressed input files. Typical value
-        is CompressionTypes.AUTO, in which case the underlying file_path's
+        is ``CompressionTypes.AUTO``, in which case the underlying file_path's
         extension will be used to detect the compression.
       strip_trailing_newlines: Indicates whether this source should remove
         the newline char in each line it reads before decoding that line.
