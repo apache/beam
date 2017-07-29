@@ -28,6 +28,25 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 
 
+class OffsetRange(object):
+
+  def __init__(self, start, stop):
+    self.start = start
+    self.stop = stop
+
+  def split(self, desired_num_offsets_per_split, min_num_offsets_per_split):
+    current_split_start = self.start
+    max_split_size = max(desired_num_offsets_per_split,
+                         min_num_offsets_per_split)
+    while current_split_start < self.stop:
+      current_split_stop = min(current_split_start + max_split_size, self.stop)
+      yield OffsetRange(current_split_start, current_split_stop)
+      current_split_start = current_split_stop
+
+  def new_tracker(self):
+    return OffsetRangeTracker(self.start, self.stop)
+
+
 class OffsetRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
 
