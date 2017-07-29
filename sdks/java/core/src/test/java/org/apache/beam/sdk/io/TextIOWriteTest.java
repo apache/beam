@@ -110,11 +110,17 @@ public class TextIOWriteTest {
         });
   }
 
-  static class TestDynamicDestinations extends FileBasedSink.DynamicDestinations<String, String> {
+  static class TestDynamicDestinations
+      extends FileBasedSink.DynamicDestinations<String, String, String> {
     ResourceId baseDir;
 
     TestDynamicDestinations(ResourceId baseDir) {
       this.baseDir = baseDir;
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return record;
     }
 
     @Override
@@ -169,10 +175,7 @@ public class TextIOWriteTest {
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(
-        TextIO.write()
-            .to(new TestDynamicDestinations(baseDir))
-            .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
+    input.apply(TextIO.write().to(new TestDynamicDestinations(baseDir)).withTempDirectory(baseDir));
     p.run();
 
     assertOutputFiles(
@@ -268,8 +271,14 @@ public class TextIOWriteTest {
             new UserWriteType("caab", "sixth"));
     PCollection<UserWriteType> input = p.apply(Create.of(elements));
     input.apply(
-        TextIO.writeCustomType(new SerializeUserWrite())
-            .to(new UserWriteDestination(baseDir), new DefaultFilenamePolicy.Params())
+        TextIO.<UserWriteType>writeCustomType()
+            .to(
+                new UserWriteDestination(baseDir),
+                new DefaultFilenamePolicy.Params()
+                    .withBaseFilename(
+                        baseDir.resolve(
+                            "empty", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)))
+            .withFormatFunction(new SerializeUserWrite())
             .withTempDirectory(FileSystems.matchNewResource(baseDir.toString(), true)));
     p.run();
 

@@ -92,6 +92,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -1501,10 +1502,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
 
       try {
+        List<PCollectionView<?>> sideInputs =
+            WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+        FileBasedSink sink = WriteFilesTranslation.getSink(transform);
         WriteFiles<UserT, DestinationT, OutputT> replacement =
-            WriteFiles.<UserT, DestinationT, OutputT>to(
-                WriteFilesTranslation.<UserT, DestinationT, OutputT>getSink(transform),
-                WriteFilesTranslation.<UserT, OutputT>getFormatFunction(transform));
+            WriteFiles.to(sink).withSideInputs(sideInputs);
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }

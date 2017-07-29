@@ -68,8 +68,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
@@ -178,11 +176,7 @@ public class WriteFilesTest {
             "Intimidating pigeon",
             "Pedantic gull",
             "Frisky finch");
-    runWrite(
-        inputs,
-        IDENTITY_MAP,
-        getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
+    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(makeSimpleSink()));
   }
 
   /** Test that WriteFiles with an empty input still produces one shard. */
@@ -193,7 +187,7 @@ public class WriteFilesTest {
         Collections.<String>emptyList(),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
+        WriteFiles.to(makeSimpleSink()));
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(), Optional.of(1));
   }
 
@@ -208,7 +202,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()).withNumShards(1));
+        WriteFiles.to(makeSimpleSink()));
   }
 
   private ResourceId getBaseOutputDirectory() {
@@ -241,9 +235,7 @@ public class WriteFilesTest {
     }
 
     SimpleSink<Void> sink = makeSimpleSink();
-    WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, SerializableFunctions.<String>identity())
-            .withSharding(new LargestInt());
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -264,8 +256,7 @@ public class WriteFilesTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity())
-            .withNumShards(20));
+        WriteFiles.to(makeSimpleSink()).withNumShards(20));
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -273,11 +264,7 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws IOException {
     List<String> inputs = new ArrayList<>();
-    runWrite(
-        inputs,
-        IDENTITY_MAP,
-        getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
+    runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename(), WriteFiles.to(makeSimpleSink()));
   }
 
   /** Test a WriteFiles with a windowed PCollection. */
@@ -295,7 +282,7 @@ public class WriteFilesTest {
         inputs,
         new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
+        WriteFiles.to(makeSimpleSink()));
   }
 
   /** Test a WriteFiles with sessions. */
@@ -314,7 +301,7 @@ public class WriteFilesTest {
         inputs,
         new WindowAndReshuffle<>(Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity()));
+        WriteFiles.to(makeSimpleSink()));
   }
 
   @Test
@@ -328,15 +315,12 @@ public class WriteFilesTest {
         inputs,
         Window.<String>into(FixedWindows.of(Duration.millis(2))),
         getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink(), SerializableFunctions.<String>identity())
-            .withMaxNumWritersPerBundle(2)
-            .withWindowedWrites());
+        WriteFiles.to(makeSimpleSink()).withMaxNumWritersPerBundle(2).withWindowedWrites());
   }
 
   public void testBuildWrite() {
     SimpleSink<Void> sink = makeSimpleSink();
-    WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, SerializableFunctions.<String>identity()).withNumShards(3);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink<Void>) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -358,7 +342,7 @@ public class WriteFilesTest {
 
   @Test
   public void testDisplayData() {
-    DynamicDestinations<String, Void> dynamicDestinations =
+    DynamicDestinations<String, Void, String> dynamicDestinations =
         DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
                 new Params()
@@ -374,8 +358,7 @@ public class WriteFilesTest {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
-    WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, SerializableFunctions.<String>identity());
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -391,9 +374,7 @@ public class WriteFilesTest {
         "Must use windowed writes when applying WriteFiles to an unbounded PCollection");
 
     SimpleSink<Void> sink = makeSimpleSink();
-    p.apply(Create.of("foo"))
-        .setIsBoundedInternal(IsBounded.UNBOUNDED)
-        .apply(WriteFiles.to(sink, SerializableFunctions.<String>identity()));
+    p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED).apply(WriteFiles.to(sink));
     p.run();
   }
 
@@ -408,17 +389,22 @@ public class WriteFilesTest {
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
         .setIsBoundedInternal(IsBounded.UNBOUNDED)
-        .apply(WriteFiles.to(sink, SerializableFunctions.<String>identity()).withWindowedWrites());
+        .apply(WriteFiles.to(sink).withWindowedWrites());
     p.run();
   }
 
   // Test DynamicDestinations class. Expects user values to be string-encoded integers.
   // Stores the integer mod 5 as the destination, and uses that in the file prefix.
-  static class TestDestinations extends DynamicDestinations<String, Integer> {
+  static class TestDestinations extends DynamicDestinations<String, Integer, String> {
     private ResourceId baseOutputDirectory;
 
     TestDestinations(ResourceId baseOutputDirectory) {
       this.baseOutputDirectory = baseOutputDirectory;
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return "record_" + record;
     }
 
     @Override
@@ -441,14 +427,6 @@ public class WriteFilesTest {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-    }
-  }
-
-  // Test format function. Prepend a string to each record before writing.
-  static class TestDynamicFormatFunction implements SerializableFunction<String, String> {
-    @Override
-    public String apply(String input) {
-      return "record_" + input;
     }
   }
 
@@ -495,8 +473,7 @@ public class WriteFilesTest {
     // If emptyShards==true make numShards larger than the number of elements per destination.
     // This will force every destination to generate some empty shards.
     int numShards = emptyShards ? 2 * numInputs / 5 : 2;
-    WriteFiles<String, Integer, String> writeFiles =
-        WriteFiles.to(sink, new TestDynamicFormatFunction()).withNumShards(numShards);
+    WriteFiles<String, Integer, String> writeFiles = WriteFiles.to(sink).withNumShards(numShards);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     if (!bounded) {
@@ -521,7 +498,7 @@ public class WriteFilesTest {
 
   @Test
   public void testShardedDisplayData() {
-    DynamicDestinations<String, Void> dynamicDestinations =
+    DynamicDestinations<String, Void, String> dynamicDestinations =
         DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
                 new Params()
@@ -537,8 +514,7 @@ public class WriteFilesTest {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
-    WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, SerializableFunctions.<String>identity()).withNumShards(1);
+    WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -547,7 +523,7 @@ public class WriteFilesTest {
 
   @Test
   public void testCustomShardStrategyDisplayData() {
-    DynamicDestinations<String, Void> dynamicDestinations =
+    DynamicDestinations<String, Void, String> dynamicDestinations =
         DynamicFileDestinations.constant(
             DefaultFilenamePolicy.fromParams(
                 new Params()
@@ -564,7 +540,7 @@ public class WriteFilesTest {
           }
         };
     WriteFiles<String, ?, String> write =
-        WriteFiles.to(sink, SerializableFunctions.<String>identity())
+        WriteFiles.to(sink)
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
                   @Override
