@@ -93,6 +93,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -764,6 +765,8 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
+        .setNumFileShards(0)
+        .setMethod(Write.Method.DEFAULT)
         .build();
   }
 
@@ -778,6 +781,39 @@ public class BigQueryIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
+    /**
+     * Determines the method used to insert data in BigQuery.
+     */
+    public enum Method {
+      /**
+       * The default behavior if no method is explicitly set. If the input is bounded, then file
+       * loads will be use. If the input is unbounded, then streaming inserts will be used.
+       */
+      DEFAULT,
+
+      /**
+       * Use BigQuery load jobs to insert data. Records will first be written to files, and these
+       * files will be loaded into BigQuery. This is the default method when the input is bounded.
+       * This method can be chosen for unbounded inputs as well, as long as a triggering frequency
+       * is also set using {@link #withTriggeringFrequency}. BigQuery has daily quotas on the number
+       * of load jobs allowed per day, so be careful not to set the triggering frequency too
+       * frequent.
+       */
+      FILE_LOADS,
+
+      /**
+       * Use the BigQuery streaming insert API to insert data. This provides the lowest-latency
+       * insert path into BigQuery, and therefore is the default method when the input is unbounded.
+       * BigQuery will make a strong effort to ensure no duplicates when using this path, however
+       * there are some scenarios in which BigQuery is unable to make this guarantee (see
+       * https://cloud.google.com/bigquery/streaming-data-into-bigquery). A query can be run over
+       * the output table to periodically clean these rare duplicates. Alternatively, using the
+       * {@link #FILE_LOADS} insert method does guarantee no duplicates, though the latency for the
+       * insert into BigQuery will be much higher.
+       */
+      STREAMING_INSERTS
+    }
+
     @Nullable abstract ValueProvider<String> getJsonTableRef();
     @Nullable abstract SerializableFunction<ValueInSingleWindow<T>, TableDestination>
       getTableFunction();
@@ -794,6 +830,9 @@ public class BigQueryIO {
     abstract BigQueryServices getBigQueryServices();
     @Nullable abstract Integer getMaxFilesPerBundle();
     @Nullable abstract Long getMaxFileSize();
+    abstract int getNumFileShards();
+    @Nullable abstract Duration getTriggeringFrequency();
+    abstract Method getMethod();
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
     abstract Builder<T> toBuilder();
@@ -814,6 +853,9 @@ public class BigQueryIO {
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
       abstract Builder<T> setMaxFilesPerBundle(Integer maxFilesPerBundle);
       abstract Builder<T> setMaxFileSize(Long maxFileSize);
+      abstract Builder<T> setNumFileShards(int numFileShards);
+      abstract Builder<T> setTriggeringFrequency(Duration triggeringFrequency);
+      abstract Builder<T> setMethod(Method method);
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
       abstract Write<T> build();
@@ -999,6 +1041,35 @@ public class BigQueryIO {
       return toBuilder().setValidate(false).build();
     }
 
+    /** Choose the method used to write data to BigQuery. See the Javadoc on {@link Method} for
+     * information and restrictions of the different methods.
+     */
+    public Write<T> withMethod(Method method) {
+      return toBuilder().setMethod(method).build();
+    }
+
+    /** Choose the frequency at which file writes are triggered.
+     *
+     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}.
+     * Every triggeringFrequency duration, a BigQuery load job will be generated for all
+     * the files written in the last pane. BigQuery has limits on how many load jobs can be
+     * triggered per day, so be careful not to set this duration too low, or you may exceed daily
+     * quota. Often this is set to 5 or 10 minutes to ensure that the project stays well under the
+     * BigQuery quota. See https://cloud.google.com/bigquery/quota-policy for more information about
+     * BigQuery quotas.
+     */
+    public Write<T> withTriggeringFrequency(Duration triggeringFrequency) {
+      return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
+    }
+
+    /**
+     * Control how many file shards are written when using BigQuery load jobs. Currently this is
+     * required when also setting {@link #withTriggeringFrequency}.
+     */
+    public Write<T> withNumFileShards(int numFileShards) {
+      return toBuilder().setNumFileShards(numFileShards).build();
+    }
+
     @VisibleForTesting
     Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
@@ -1055,6 +1126,7 @@ public class BigQueryIO {
               || getSchemaFromView() != null,
           "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
+
       List<?> allToArgs = Lists.newArrayList(getJsonTableRef(), getTableFunction(),
           getDynamicDestinations());
       checkArgument(1
@@ -1068,6 +1140,16 @@ public class BigQueryIO {
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
               + "be set");
 
+      if (getTriggeringFrequency() != null) {
+        checkArgument(getMethod() == Method.FILE_LOADS);
+        checkArgument(getNumFileShards() > 0,
+            "Triggered file writes currently require numFileShards to be set.");
+      }
+      if (getMethod() == Method.FILE_LOADS && input.isBounded() == IsBounded.UNBOUNDED) {
+        checkArgument(getTriggeringFrequency() != null,
+            "When writing an unbounded PCollection to BigQuery using file loads"
+        + " a triggering frequency must be set.");
+      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
@@ -1107,9 +1189,14 @@ public class BigQueryIO {
               .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
               .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
 
-      // When writing an Unbounded PCollection, we use StreamingInserts and BigQuery's streaming
-      // import API.
-      if (input.isBounded() == IsBounded.UNBOUNDED) {
+      Method method = getMethod();
+      if (method == Method.DEFAULT) {
+        // By default, when writing an Unbounded PCollection, we use StreamingInserts and
+        // BigQuery's streaming import API.
+        method = (input.isBounded() == IsBounded.UNBOUNDED)
+            ? Method.STREAMING_INSERTS : Method.FILE_LOADS;
+      }
+      if (method == Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
@@ -1136,6 +1223,8 @@ public class BigQueryIO {
         if (getMaxFileSize() != null) {
           batchLoads.setMaxFileSize(getMaxFileSize());
         }
+        batchLoads.setTriggeringFrequency(getTriggeringFrequency());
+        batchLoads.setNumFileShards(getNumFileShards());
         return rowsWithDestination.apply(batchLoads);
       }
     }

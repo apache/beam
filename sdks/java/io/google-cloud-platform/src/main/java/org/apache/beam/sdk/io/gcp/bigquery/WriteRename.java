@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,14 +43,15 @@ import org.slf4j.LoggerFactory;
 /**
  * Copies temporary tables to destination table.
  */
-class WriteRename extends DoFn<Void, Void> {
+class WriteRename extends DoFn<KV<TableDestination, Iterable<String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
-  private final WriteDisposition writeDisposition;
-  private final CreateDisposition createDisposition;
+  private final WriteDisposition firstPaneWriteDisposition;
+  private final CreateDisposition firstPaneCreateDisposition;
   // Map from final destination to a list of temporary tables that need to be copied into it.
+  @Nullable
   private final PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView;
 
 
@@ -58,51 +60,65 @@ class WriteRename extends DoFn<Void, Void> {
       PCollectionView<String> jobIdToken,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
+      @Nullable
       PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
-    this.writeDisposition = writeDisposition;
-    this.createDisposition = createDisposition;
+    this.firstPaneWriteDisposition = writeDisposition;
+    this.firstPaneCreateDisposition = createDisposition;
     this.tempTablesView = tempTablesView;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    Map<TableDestination, Iterable<String>> tempTablesMap =
-        Maps.newHashMap(c.sideInput(tempTablesView));
+    if (tempTablesView != null) {
+      Map<TableDestination, Iterable<String>> tempTablesMap =
+          Maps.newHashMap(c.sideInput(tempTablesView));
 
-    // Process each destination table.
-    for (Map.Entry<TableDestination, Iterable<String>> entry : tempTablesMap.entrySet()) {
-      TableDestination finalTableDestination = entry.getKey();
-      List<String> tempTablesJson = Lists.newArrayList(entry.getValue());
-      // Do not copy if no temp tables are provided
-      if (tempTablesJson.size() == 0) {
-        return;
+      // Process each destination table.
+      for (Map.Entry<TableDestination, Iterable<String>> entry : tempTablesMap.entrySet()) {
+        writeRename(entry.getKey(), entry.getValue(), c);
       }
-
-      List<TableReference> tempTables = Lists.newArrayList();
-      for (String table : tempTablesJson) {
-        tempTables.add(BigQueryHelpers.fromJsonString(table, TableReference.class));
-      }
-
-      // Make sure each destination table gets a unique job id.
-      String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(jobIdToken), finalTableDestination, -1);
-
-      copy(
-          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          jobIdPrefix,
-          finalTableDestination.getTableReference(),
-          tempTables,
-          writeDisposition,
-          createDisposition,
-          finalTableDestination.getTableDescription());
-
-      DatasetService tableService =
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
-      removeTemporaryTables(tableService, tempTables);
+    } else {
+      writeRename(c.element().getKey(), c.element().getValue(), c);
     }
+  }
+
+  private void writeRename(TableDestination finalTableDestination,
+                           Iterable<String> tempTableNames,
+                           ProcessContext c) throws Exception {
+    WriteDisposition writeDisposition =
+        (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
+    CreateDisposition createDisposition =
+        (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
+    List<String> tempTablesJson = Lists.newArrayList(tempTableNames);
+    // Do not copy if no temp tables are provided
+    if (tempTablesJson.size() == 0) {
+      return;
+    }
+
+    List<TableReference> tempTables = Lists.newArrayList();
+    for (String table : tempTablesJson) {
+      tempTables.add(BigQueryHelpers.fromJsonString(table, TableReference.class));
+    }
+
+    // Make sure each destination table gets a unique job id.
+    String jobIdPrefix = BigQueryHelpers.createJobId(
+        c.sideInput(jobIdToken), finalTableDestination, -1);
+
+    copy(
+        bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+        jobIdPrefix,
+        finalTableDestination.getTableReference(),
+        tempTables,
+        writeDisposition,
+        createDisposition,
+        finalTableDestination.getTableDescription());
+
+    DatasetService tableService =
+        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+    removeTemporaryTables(tableService, tempTables);
   }
 
   private void copy(
@@ -174,9 +190,9 @@ class WriteRename extends DoFn<Void, Void> {
     super.populateDisplayData(builder);
 
     builder
-        .add(DisplayData.item("writeDisposition", writeDisposition.toString())
+        .add(DisplayData.item("firstPaneWriteDisposition", firstPaneWriteDisposition.toString())
             .withLabel("Write Disposition"))
-        .add(DisplayData.item("createDisposition", createDisposition.toString())
+        .add(DisplayData.item("firstPaneCreateDisposition", firstPaneCreateDisposition.toString())
             .withLabel("Create Disposition"));
   }
 }

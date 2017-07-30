@@ -91,6 +91,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
@@ -105,6 +106,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -138,12 +142,14 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -623,6 +629,53 @@ public class BigQueryIOTest implements Serializable {
       assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
     }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void testTriggeredFileLoads() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(datasetService);
+
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(elements.get(0),
+                Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(elements.get(10),
+                Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(elements.get(20),
+                Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    p.apply(testStream)
+        .apply(BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withSchema(new TableSchema().setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withTriggeringFrequency(Duration.standardSeconds(30))
+            .withNumFileShards(2)
+            .withMethod(Method.FILE_LOADS)
+            .withoutValidation());
+    p.run();
+
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
   @Test
@@ -1810,7 +1863,9 @@ public class BigQueryIOTest implements Serializable {
         new WritePartition<>(isSingleton, dynamicDestinations, tempFilePrefixView,
             resultsView, multiPartitionsTag, singlePartitionTag);
 
-    DoFnTester<Void, KV<ShardedKey<TableDestination>, List<String>>> tester =
+    DoFnTester<Iterable<WriteBundlesToFiles.Result<TableDestination>>,
+        KV<ShardedKey<TableDestination>,
+        List<String>>> tester =
         DoFnTester.of(writePartition);
     tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
     tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
@@ -1864,7 +1919,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination) {
-      throw new UnsupportedOperationException("getSchema not expected in this test.");
+      return null;
     }
   }
 
@@ -1926,16 +1981,11 @@ public class BigQueryIOTest implements Serializable {
         .apply("CreateJobId", Create.of("jobId"))
         .apply(View.<String>asSingleton());
 
-    PCollectionView<Map<String, String>> schemaMapView =
-        p.apply("CreateEmptySchema",
-            Create.empty(new TypeDescriptor<KV<String, String>>() {}))
-            .apply(View.<String, String>asMap());
     WriteTables<String> writeTables =
         new WriteTables<>(
             false,
             fakeBqServices,
             jobIdTokenView,
-            schemaMapView,
             WriteDisposition.WRITE_EMPTY,
             CreateDisposition.CREATE_IF_NEEDED,
             new IdentityDynamicTables());
@@ -1943,7 +1993,6 @@ public class BigQueryIOTest implements Serializable {
     DoFnTester<KV<ShardedKey<String>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.setSideInput(schemaMapView, GlobalWindow.INSTANCE, ImmutableMap.<String, String>of());
     tester.getPipelineOptions().setTempLocation("tempLocation");
     for (KV<ShardedKey<String>, List<String>> partition : partitions) {
       tester.processElement(partition);
@@ -2064,7 +2113,7 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
 
-    DoFnTester<Void, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<KV<TableDestination, Iterable<String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.processElement(null);
