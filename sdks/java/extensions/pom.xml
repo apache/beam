@@ -37,6 +37,7 @@
     <module>join-library</module>
     <module>protobuf</module>
     <module>sorter</module>
+    <module>sql</module>
   </modules>
 
 </project>
