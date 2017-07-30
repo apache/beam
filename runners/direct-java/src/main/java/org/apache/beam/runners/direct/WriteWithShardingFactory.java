@@ -84,16 +84,16 @@ class WriteWithShardingFactory<InputT>
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
       Map<TupleTag<?>, PValue> outputs, WriteFilesResult newOutput) {
+    // We must connect the new output from WriteFilesResult to the outputs provided by the original
+    // transform.
     Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
     Map.Entry<TupleTag<?>, PValue> replacement =
         Iterables.getOnlyElement(newOutput.expand().entrySet());
-    return Collections.<PValue, ReplacementOutput>singletonMap(
-        newOutput,
+    return Collections.singletonMap(
+        Iterables.getOnlyElement(newOutput.expand().values()),
         ReplacementOutput.of(
             TaggedPValue.of(original.getKey(), original.getValue()),
             TaggedPValue.of(replacement.getKey(), replacement.getValue())));
-
-    return Collections.emptyMap();
   }
 
   private static class LogElementShardsWithDrift<T>

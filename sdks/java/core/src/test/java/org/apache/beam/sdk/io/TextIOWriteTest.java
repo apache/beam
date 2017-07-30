@@ -390,7 +390,7 @@ public class TextIOWriteTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
-    
+
     PCollection<String> outputFilenames = input.apply(write).getOutputFilenames();
     PAssert.that(outputFilenames).satisfies(new MatchesFilesystem(baseFilename));
     p.run();
