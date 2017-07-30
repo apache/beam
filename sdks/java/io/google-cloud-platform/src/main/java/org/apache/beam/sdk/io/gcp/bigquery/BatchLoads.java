@@ -54,11 +54,14 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -103,6 +106,10 @@ class BatchLoads<DestinationT>
   static final long DEFAULT_MAX_FILE_SIZE = 4 * (1L << 40);
 
   static final int DEFAULT_NUM_FILE_SHARDS = 0;
+
+  // If user triggering is supplied, we will trigger the file write after this many records are
+  // written.
+  static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
 
   // The maximum number of retries to poll the status of a job.
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
@@ -228,19 +235,15 @@ class BatchLoads<DestinationT>
                     }))
             .apply("TempFilePrefixView", View.<String>asSingleton());
 
-    Trigger trigger = (triggeringFrequency == null) ? DefaultTrigger.of()
-        : Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-        .plusDelayOf(triggeringFrequency));
-    PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
-        input.apply(
-            "rewindowIntoGlobal",
-            Window.<KV<DestinationT, TableRow>>into(new GlobalWindows())
-                .triggering(trigger)
-                .discardingFiredPanes());
-
     // PCollection of filename, file byte size, and table destination.
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results;
     if (numFileShards == 0) {
+      PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
+          input.apply(
+              "rewindowIntoGlobal",
+              Window.<KV<DestinationT, TableRow>>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .discardingFiredPanes());
       TupleTag<WriteBundlesToFiles.Result<DestinationT>> writtenFilesTag =
           new TupleTag<WriteBundlesToFiles.Result<DestinationT>>("writtenFiles") {
           };
@@ -276,13 +279,25 @@ class BatchLoads<DestinationT>
       results = PCollectionList.of(writtenFiles).and(writtenFilesGrouped)
           .apply("FlattenFiles", Flatten.<Result<DestinationT>>pCollections());
     } else {
-      // TODO: Consider using different triggering for file writes.
       // The user-supplied triggeringDuration is often chosen to to control how many BigQuery load
       // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
       // is set to a large value, currently we have to buffer all the data unti the trigger fires.
-      // However we could give these file writes a more-frequent (or count-based) trigger,
-      // and use the user-supplied trigger on the actual BigQuery load. This allows us to offload
-      // the data to the filesystem.
+      // Instead we ensure that the files are written if a threshold number of records are ready.
+      // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
+      // offload the data to the filesystem.
+      Trigger trigger = DefaultTrigger.of();
+      if (triggeringFrequency != null) {
+        trigger = Repeatedly.forever(AfterFirst.of(
+            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(triggeringFrequency),
+            AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT)));
+      }
+      PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
+          input.apply(
+              "rewindowIntoGlobal",
+              Window.<KV<DestinationT, TableRow>>into(new GlobalWindows())
+                  .triggering(trigger)
+                  .discardingFiredPanes());
+
       results = inputInGlobalWindow
           .apply("AddShard", ParDo.of(new DoFn<KV<DestinationT, TableRow>,
               KV<ShardedKey<DestinationT>, TableRow>>() {
@@ -340,6 +355,16 @@ class BatchLoads<DestinationT>
                   .withSideInputs(tempFilePrefix, resultsView)
                   .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     } else {
+      // Apply the user's trigger to ensure we don't generate too many BigQuery load jobs.
+      results  =
+          results.apply(
+              "applyUserTrigger",
+              Window.< WriteBundlesToFiles.Result<DestinationT>>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(
+                      AfterProcessingTime.pastFirstElementInPane()
+                          .plusDelayOf(triggeringFrequency)))
+                  .discardingFiredPanes());
+
       // If we have non-default triggered output, the above side-input path is incorrect. Instead
       // make the result list a main input. Apply a GroupByKey first for determinism.
       partitions = results
