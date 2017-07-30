@@ -23,15 +23,23 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -58,6 +66,7 @@ import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
@@ -150,10 +159,8 @@ public class SolrIO {
      * @param zkHost host of zookeeper
      * @param collection the collection toward which the requests will be issued
      * @return the connection configuration object
-     * @throws IOException when it fails to connect to Solr
      */
-    public static ConnectionConfiguration create(String zkHost, String collection)
-        throws IOException {
+    public static ConnectionConfiguration create(String zkHost, String collection) {
       checkArgument(zkHost != null,
           "ConnectionConfiguration.create(zkHost, collection) "
               + "called with null address");
@@ -168,10 +175,6 @@ public class SolrIO {
 
     /**
      * If Solr basic authentication is enabled, provide the username and password.
-     *
-     * @param username the username used to authenticate to Solr
-     * @param password the password used to authenticate to Solr
-     * @return the {@link ConnectionConfiguration} object with basic credentials set
      */
     public ConnectionConfiguration withBasicCredentials(String username, String password) {
       checkArgument(
@@ -208,13 +211,13 @@ public class SolrIO {
       return HttpClientUtil.createClient(params);
     }
 
-    AuthorizedCloudSolrClient createClient() throws MalformedURLException {
+    AuthorizedSolrClient<CloudSolrClient> createClient() throws MalformedURLException {
       CloudSolrClient solrClient = new CloudSolrClient(getZkHost(), createHttpClient());
       solrClient.setDefaultCollection(getCollection());
-      return new AuthorizedCloudSolrClient(solrClient, this);
+      return new AuthorizedSolrClient<>(solrClient, this);
     }
 
-    AuthorizedSolrClient createClient(String shardUrl) {
+    AuthorizedSolrClient<HttpSolrClient> createClient(String shardUrl) {
       HttpSolrClient solrClient = new HttpSolrClient(shardUrl, createHttpClient());
       return new AuthorizedSolrClient<>(solrClient, this);
     }
@@ -242,7 +245,6 @@ public class SolrIO {
      * Provide the Solr connection configuration object.
      *
      * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-     * @return the {@link Read} with connection configuration set
      */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "SolrIO.read()"
@@ -257,7 +259,6 @@ public class SolrIO {
      *     href="https://cwiki.apache.org/confluence/display/solr/The+Standard+Query+Parser">
      *              Solr Query
      *     </a>
-     * @return the {@link Read} object with query set
      */
     public Read withQuery(String query) {
       checkArgument(!Strings.isNullOrEmpty(query),
@@ -273,7 +274,6 @@ public class SolrIO {
      * batchSize
      *
      * @param batchSize number of documents read in each scroll read
-     * @return the {@link Read} with batch size set
      */
     public Read withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "SolrIO.read().withBatchSize(batchSize) "
@@ -335,17 +335,31 @@ public class SolrIO {
     @Override
     public List<? extends BoundedSource<SolrDocument>> split(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
+      ConnectionConfiguration connectionConfig = spec.getConnectionConfiguration();
       List<BoundedSolrSource> sources = new ArrayList<>();
-      int numShard;
-      try (AuthorizedCloudSolrClient client = spec.getConnectionConfiguration().createClient()) {
-        String collection = spec.getConnectionConfiguration().getCollection();
-        DocCollection docCollection = client.getDocCollection(collection);
-        numShard = docCollection.getSlices().size();
+      try (AuthorizedSolrClient<CloudSolrClient> client = connectionConfig.createClient()) {
+        String collection = connectionConfig.getCollection();
+        final ClusterState clusterState = AuthorizedSolrClient.getClusterState(client);
+        DocCollection docCollection = clusterState.getCollection(collection);
         for (Slice slice : docCollection.getSlices()) {
-          sources.add(new BoundedSolrSource(spec, slice.getLeader()));
+          ArrayList<Replica> replicas = new ArrayList<>(slice.getReplicas());
+          Collections.shuffle(replicas);
+          // Load balancing by randomly picking an active replica
+          Replica randomActiveReplica = null;
+          for (Replica replica : replicas) {
+            // We need to check both state of the replica and live nodes
+            // to make sure that the replica is alive
+            if (replica.getState() == Replica.State.ACTIVE
+                && clusterState.getLiveNodes().contains(replica.getNodeName())) {
+              randomActiveReplica = replica;
+              break;
+            }
+          }
+          checkState(randomActiveReplica != null,
+              "Can not found an active replica for slice %s", slice.getName());
+          sources.add(new BoundedSolrSource(spec, randomActiveReplica));
         }
       }
-      checkArgument(sources.size() == numShard, "Not enough leaders were found");
       return sources;
     }
 
@@ -379,14 +393,52 @@ public class SolrIO {
     private long getEstimatedSizeOfCollection() throws IOException {
       long sizeInBytes = 0;
       ConnectionConfiguration config = spec.getConnectionConfiguration();
-      try (AuthorizedCloudSolrClient solrClient = config.createClient()) {
-        DocCollection docCollection = solrClient.getDocCollection(config.getCollection());
-        for (Slice slice : docCollection.getSlices()) {
-          Replica replica = slice.getLeader();
-          sizeInBytes += getEstimatedSizeOfShard(ReplicaInfo.create(replica));
+      try (AuthorizedSolrClient<CloudSolrClient> solrClient = config.createClient()) {
+        DocCollection docCollection = AuthorizedSolrClient.getClusterState(solrClient)
+            .getCollection(config.getCollection());
+        if (docCollection.getSlices().isEmpty()) {
+          return 0;
         }
+
+        ArrayList<Slice> slices = new ArrayList<>(docCollection.getSlices());
+        Collections.shuffle(slices);
+        ExecutorService executor = Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder()
+                .setThreadFactory(MoreExecutors.platformThreadFactory())
+                .setDaemon(true)
+                .setNameFormat("solrio-size-of-collection-estimation")
+                .build());
+        try {
+          ArrayList<Future<Long>> futures = new ArrayList<>();
+          for (int i = 0; i < 100 && i < slices.size(); i++) {
+            Slice slice = slices.get(i);
+            final Replica replica = slice.getLeader();
+            Future<Long> future = executor.submit(new Callable<Long>() {
+              @Override public Long call() throws Exception {
+                return getEstimatedSizeOfShard(ReplicaInfo.create(replica));
+              }
+            });
+            futures.add(future);
+          }
+          for (Future<Long> future : futures) {
+            try {
+              sizeInBytes += future.get();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new IOException(e);
+            } catch (ExecutionException e) {
+              throw new IOException("Can not estimate size of shard", e.getCause());
+            }
+          }
+        } finally {
+          executor.shutdownNow();
+        }
+
+        if (slices.size() <= 100) {
+          return sizeInBytes;
+        }
+        return (sizeInBytes / 100) * slices.size();
       }
-      return sizeInBytes;
     }
 
     @Override
@@ -488,7 +540,7 @@ public class SolrIO {
     }
 
     private boolean readNextBatchAndReturnFirstDocument(QueryResponse response) {
-      if (response.getResults().isEmpty() || done) {
+      if (done) {
         current = null;
         batchIterator = null;
         return false;
@@ -537,7 +589,6 @@ public class SolrIO {
      * Provide the Solr connection configuration object.
      *
      * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
-     * @return the {@link Write} with connection configuration set
      */
     public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "SolrIO.write()"
@@ -551,7 +602,6 @@ public class SolrIO {
      * need to have smaller batch.
      *
      * @param batchSize maximum batch size in number of documents
-     * @return the {@link Write} with connection batch size set
      */
     public Write withMaxBatchSize(long batchSize) {
       checkArgument(batchSize > 0,

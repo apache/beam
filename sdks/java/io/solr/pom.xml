@@ -57,6 +57,11 @@
             <artifactId>joda-time</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+        </dependency>
+
         <!-- compile dependencies -->
         <dependency>
             <groupId>com.google.auto.value</groupId>

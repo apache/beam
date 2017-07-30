@@ -39,7 +39,7 @@ import org.junit.runners.JUnit4;
  * Test case for {@link SolrDocumentCoder}.
  */
 @RunWith(JUnit4.class)
-public class SolrIOCoderTest {
+public class SolrDocumentCoderTest {
   private static final Coder<SolrDocument> TEST_CODER = SolrDocumentCoder.of();
   private static final List<SolrDocument> TEST_VALUES = new ArrayList<>();
 

@@ -20,12 +20,12 @@ package org.apache.beam.sdk.io.solr;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
 
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.google.common.io.BaseEncoding;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,28 +37,30 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.ZkStateReader;
-import org.apache.solr.util.TimeOut;
+import org.apache.solr.security.Sha256AuthenticationProvider;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A test of {@link SolrIO} on an independent Solr instance.
  */
-@ThreadLeakFilters(defaultFilters = true, filters = {
-    BeamThreadsFilter.class
-})
+@ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
+@SolrTestCaseJ4.SuppressSSL
 public class SolrIOTest extends SolrCloudTestCase{
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
@@ -68,7 +70,7 @@ public class SolrIOTest extends SolrCloudTestCase{
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
 
-  private static AuthorizedCloudSolrClient solrClient;
+  private static AuthorizedSolrClient<CloudSolrClient> solrClient;
   private static SolrIO.ConnectionConfiguration connectionConfiguration;
 
   @Rule
@@ -76,37 +78,30 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    //setup credential for solr user
+    String password = "SolrRocks";
+    byte[] salt = new byte[32];
+    String base64Salt = BaseEncoding.base64().encode(salt);
+    String sha56 = Sha256AuthenticationProvider.sha256(password, base64Salt);
+    String credential = sha56 + " " + base64Salt;
     String securityJson = "{"
         + "'authentication':{"
         + "  'blockUnknown': true,"
         + "  'class':'solr.BasicAuthPlugin',"
-        + "  'credentials':{'solr':'orwp2Ghgj39lmnrZOTm7Qtre1VqHFDfwAEzr0ApbN3Y="
-        + " Ju5osoAqOX8iafhWpPP01E5P+sg8tK8tHON7rCYZRRw='}}"
+        + "  'credentials':{'solr':'" + credential + "'}}"
         + "}";
+
     configureCluster(3)
         .addConfig("conf", getFile("cloud-minimal/conf").toPath())
         .configure();
     ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
     zkStateReader.getZkClient()
         .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
-    Thread.sleep(1000);
-    TimeOut timeOut = new TimeOut(60, TimeUnit.SECONDS);
-    while (!timeOut.hasTimedOut()) {
-      if (zkStateReader.getClusterState().getLiveNodes().size() == 3) {
-        break;
-      } else {
-        Thread.sleep(100);
-      }
-    }
-    if (timeOut.hasTimedOut()) {
-      fail("Timeout waiting for nodes come back");
-    }
     String zkAddress = cluster.getZkServer().getZkAddress();
     connectionConfiguration = SolrIO.ConnectionConfiguration.create(zkAddress, SOLR_COLLECTION)
-        .withBasicCredentials("solr", "SolrRocks");
+        .withBasicCredentials("solr", password);
     solrClient = connectionConfiguration.createClient();
     SolrIOTestUtils.createCollection(SOLR_COLLECTION, NUM_SHARDS, 1, solrClient);
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
   }
 
   @AfterClass
@@ -116,23 +111,27 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @Before
   public void before() throws Exception {
-    SolrIOTestUtils.clearCollection(SOLR_COLLECTION, solrClient);
+    SolrIOTestUtils.clearCollection(solrClient);
   }
 
-  @Test(expected = SolrException.class)
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   public void testBadCredentials() throws IOException {
+    thrown.expect(SolrException.class);
+
     String zkAddress = cluster.getZkServer().getZkAddress();
     SolrIO.ConnectionConfiguration connectionConfiguration = SolrIO.ConnectionConfiguration
         .create(zkAddress, SOLR_COLLECTION)
         .withBasicCredentials("solr", "wrongpassword");
-    try (AuthorizedCloudSolrClient solrClient = connectionConfiguration.createClient()) {
-      SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    try (AuthorizedSolrClient solrClient = connectionConfiguration.createClient()) {
+      SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
     }
   }
 
   @Test
   public void testSizes() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -144,7 +143,7 @@ public class SolrIOTest extends SolrCloudTestCase{
     assertThat(
         "Wrong estimated size bellow minimum",
         estimatedSize,
-        greaterThan(SolrIOTestUtils.AVERAGE_DOC_SIZE * NUM_DOCS));
+        greaterThan(SolrIOTestUtils.MIN_DOC_SIZE * NUM_DOCS));
     assertThat(
         "Wrong estimated size beyond maximum",
         estimatedSize,
@@ -153,13 +152,13 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @Test
   public void testRead() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
 
     PCollection<SolrDocument> output =
         pipeline.apply(
             SolrIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withBatchSize(100L));
+                .withBatchSize(101L));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -167,13 +166,13 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @Test
   public void testReadWithQuery() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
 
     PCollection<SolrDocument> output =
         pipeline.apply(
             SolrIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withQuery("scientist:Einstein"));
+                .withQuery("scientist:Franklin"));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
             .isEqualTo(NUM_DOCS / NUM_SCIENTISTS);
     pipeline.run();
@@ -187,10 +186,10 @@ public class SolrIOTest extends SolrCloudTestCase{
         .apply(SolrIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
-    long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(SOLR_COLLECTION, solrClient);
+    long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(solrClient);
     assertEquals(NUM_DOCS, currentNumDocs);
 
-    QueryResponse response = solrClient.query(SOLR_COLLECTION, new SolrQuery("scientist:Einstein"));
+    QueryResponse response = solrClient.query(new SolrQuery("scientist:Lovelace"));
     assertEquals(NUM_DOCS / NUM_SCIENTISTS, response.getResults().getNumFound());
   }
 
@@ -214,7 +213,7 @@ public class SolrIOTest extends SolrCloudTestCase{
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
         long currentNumDocs = SolrIOTestUtils
-                .commitAndGetCurrentNumDocs(SOLR_COLLECTION, solrClient);
+                .commitAndGetCurrentNumDocs(solrClient);
         if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
           assertEquals(
@@ -238,7 +237,7 @@ public class SolrIOTest extends SolrCloudTestCase{
 
   @Test
   public void testSplit() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+    SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     SolrIO.Read read = SolrIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -257,6 +256,8 @@ public class SolrIOTest extends SolrCloudTestCase{
         nonEmptySplits += 1;
       }
     }
+    // docs are hashed by id to shards, in this test, NUM_DOCS >> NUM_SHARDS
+    // therefore, can not exist an empty shard.
     assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
   }
 }

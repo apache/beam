@@ -67,7 +67,7 @@ public class SolrIOIT {
   public static final String WRITE_COLLECTION = "beam" + Instant.now().getMillis();
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOIT.class);
 
-  private static AuthorizedCloudSolrClient solrClient;
+  private static AuthorizedSolrClient solrClient;
   private static IOTestPipelineOptions options;
   private static SolrIO.ConnectionConfiguration readConnectionConfiguration;
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -79,16 +79,17 @@ public class SolrIOIT {
     readConnectionConfiguration = SolrIO.ConnectionConfiguration
         .create(options.getSolrZookeeperServer(), READ_COLLECTION);
     solrClient = readConnectionConfiguration.createClient();
-    CollectionAdminResponse listResponse = solrClient.process(new CollectionAdminRequest.List());
+
+    CollectionAdminResponse listResponse =
+        (CollectionAdminResponse) solrClient.process(new CollectionAdminRequest.List());
     List<String> collections = (List<String>) listResponse.getResponse().get("collections");
     if (collections.contains(READ_COLLECTION)) {
-      QueryResponse response = solrClient.query(
-          READ_COLLECTION, new SolrQuery("*:*"));
+      QueryResponse response = solrClient.query(new SolrQuery("*:*"));
       if (response.getResults().getNumFound() != NUM_DOCS) {
         LOG.info("Collection {} is exist but the number of documents is not match, repopulate",
             READ_COLLECTION);
-        SolrIOTestUtils.clearCollection(READ_COLLECTION, solrClient);
-        SolrIOTestUtils.insertTestDocuments(READ_COLLECTION, NUM_DOCS, solrClient);
+        SolrIOTestUtils.clearCollection(solrClient);
+        SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
       }
     } else {
       LOG.info("Create and populate collection {}",
@@ -124,6 +125,8 @@ public class SolrIOIT {
         nonEmptySplits += 1;
       }
     }
+    // docs are hashed by id to shards, in this test, NUM_DOCS >> NUM_SHARDS
+    // therefore, can not exist an empty shard.
     assertEquals(expectedNumSplits, nonEmptySplits);
   }
 
@@ -147,9 +150,10 @@ public class SolrIOIT {
         .apply(SolrIO.write().withConnectionConfiguration(writeConnectionConfiguration));
     pipeline.run();
 
-    long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(
-        WRITE_COLLECTION, solrClient);
-    assertEquals(NUM_DOCS, currentNumDocs);
+    try (AuthorizedSolrClient solrClient = writeConnectionConfiguration.createClient()) {
+      long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(solrClient);
+      assertEquals(NUM_DOCS, currentNumDocs);
+    }
   }
 
   @Test
@@ -165,7 +169,7 @@ public class SolrIOIT {
     assertThat(
         "Wrong estimated size bellow minimum",
         estimatedSize,
-        greaterThan(SolrIOTestUtils.AVERAGE_DOC_SIZE * NUM_DOCS));
+        greaterThan(SolrIOTestUtils.MIN_DOC_SIZE * NUM_DOCS));
     assertThat(
         "Wrong estimated size beyond maximum",
         estimatedSize,

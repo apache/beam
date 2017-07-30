@@ -75,7 +75,7 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   @Description("Address of Zookeeper server for Solr")
   @Default.String("zookeeper-server")
   String getSolrZookeeperServer();
-  void getSolrZookeeperServer(String value);
+  void setSolrZookeeperServer(String value);
 
   /* Cassandra */
   @Description("Host for Cassandra server (host name/ip address)")

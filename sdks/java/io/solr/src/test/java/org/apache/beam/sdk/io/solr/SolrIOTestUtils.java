@@ -29,11 +29,11 @@ import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
 public class SolrIOTestUtils {
-  public static final long AVERAGE_DOC_SIZE = 25L;
+  public static final long MIN_DOC_SIZE = 25L;
   public static final long MAX_DOC_SIZE = 35L;
 
   static void createCollection(String collection, int numShards, int replicationFactor,
-      AuthorizedCloudSolrClient client)
+      AuthorizedSolrClient client)
       throws Exception {
     CollectionAdminRequest.Create create = new CollectionAdminRequest.Create()
         .setCollectionName(collection)
@@ -44,22 +44,22 @@ public class SolrIOTestUtils {
   }
 
   /** Inserts the given number of test documents into Solr. */
-  static void insertTestDocuments(String collection, long numDocs, AuthorizedCloudSolrClient client)
+  static void insertTestDocuments(long numDocs, AuthorizedSolrClient client)
       throws IOException {
     List<SolrInputDocument> data = createDocuments(numDocs);
     try {
       UpdateRequest updateRequest = new UpdateRequest();
       updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
       updateRequest.add(data);
-      client.process(collection, updateRequest);
+      client.process(updateRequest);
     } catch (SolrServerException e) {
-      throw new IOException("Failed to insert test documents in collection " + collection, e);
+      throw new IOException("Failed to insert test documents to collection", e);
     }
   }
 
 
   /** Delete given collection. */
-  static void deleteCollection(String collection, AuthorizedCloudSolrClient client)
+  static void deleteCollection(String collection, AuthorizedSolrClient client)
       throws IOException {
     try {
       CollectionAdminRequest.Delete delete = new CollectionAdminRequest.Delete()
@@ -72,13 +72,13 @@ public class SolrIOTestUtils {
   }
 
   /** Clear given collection. */
-  static void clearCollection(String collection, AuthorizedCloudSolrClient client)
+  static void clearCollection(AuthorizedSolrClient client)
       throws IOException {
     try {
       UpdateRequest updateRequest = new UpdateRequest();
       updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
       updateRequest.deleteByQuery("*:*");
-      client.process(collection, updateRequest);
+      client.process(updateRequest);
     } catch (SolrServerException e) {
       throw new IOException(e);
     }
@@ -90,14 +90,14 @@ public class SolrIOTestUtils {
    *
    * @return The number of docs in the index
    */
-  static long commitAndGetCurrentNumDocs(String collection, AuthorizedCloudSolrClient client)
+  static long commitAndGetCurrentNumDocs(AuthorizedSolrClient client)
       throws IOException {
     SolrQuery solrQuery = new SolrQuery("*:*");
     solrQuery.setRows(0);
     try {
       UpdateRequest update = new UpdateRequest();
       update.setAction(UpdateRequest.ACTION.COMMIT, true, true);
-      client.process(collection, update);
+      client.process(update);
 
       return client.query(new SolrQuery("*:*")).getResults().getNumFound();
     } catch (SolrServerException e) {
@@ -112,10 +112,10 @@ public class SolrIOTestUtils {
    */
   static List<SolrInputDocument> createDocuments(long numDocs) {
     String[] scientists = {
-        "Einstein",
-        "Darwin",
-        "Copernicus",
-        "Pasteur",
+        "Lovelace",
+        "Franklin",
+        "Meitner",
+        "Hopper",
         "Curie",
         "Faraday",
         "Newton",

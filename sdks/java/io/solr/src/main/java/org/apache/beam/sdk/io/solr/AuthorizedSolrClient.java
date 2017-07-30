@@ -27,18 +27,21 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.params.SolrParams;
 
 /**
- * Client for interact with a replica in Solr.
+ * Client for interact with Solr.
+ * The target replica/collection is pre-selected
  * @param <T> type of SolrClient
  */
 class AuthorizedSolrClient<T extends SolrClient> implements Closeable {
-  protected T solrClient;
-  protected String username;
-  protected String password;
+  private final T solrClient;
+  private final String username;
+  private final String password;
 
   AuthorizedSolrClient(T solrClient, ConnectionConfiguration configuration) {
     checkArgument(
@@ -60,10 +63,16 @@ class AuthorizedSolrClient<T extends SolrClient> implements Closeable {
     return process(query);
   }
 
-  <T extends SolrResponse> T process(SolrRequest<T> request)
+  <T2 extends SolrResponse> T2 process(SolrRequest<T2> request)
       throws IOException, SolrServerException {
     request.setBasicAuthCredentials(username, password);
     return request.process(solrClient);
+  }
+
+  static ClusterState getClusterState(
+      AuthorizedSolrClient<CloudSolrClient> authorizedSolrClient) {
+    authorizedSolrClient.solrClient.connect();
+    return authorizedSolrClient.solrClient.getZkStateReader().getClusterState();
   }
 
   @Override public void close() throws IOException {

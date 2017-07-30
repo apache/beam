@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.solr;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.commons.compress.utils.BoundedInputStream;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.util.JavaBinCodec;
 
@@ -42,8 +42,9 @@ class SolrDocumentCoder extends AtomicCoder<SolrDocument> {
     return INSTANCE;
   }
 
-  @Override public void encode(SolrDocument value, OutputStream outStream)
-      throws CoderException, IOException {
+  @Override
+  public void encode(SolrDocument value, OutputStream outStream)
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null SolrDocument");
     }
@@ -57,17 +58,16 @@ class SolrDocumentCoder extends AtomicCoder<SolrDocument> {
     outStream.write(bytes);
   }
 
-  @Override public SolrDocument decode(InputStream inStream) throws CoderException, IOException {
+  @Override
+  public SolrDocument decode(InputStream inStream) throws IOException {
     DataInputStream in = new DataInputStream(inStream);
 
     int len = VarInt.decodeInt(in);
     if (len < 0) {
       throw new CoderException("Invalid encoded SolrDocument length: " + len);
     }
-    byte[] bytes = new byte[len];
-    in.readFully(bytes);
 
     JavaBinCodec codec = new JavaBinCodec();
-    return (SolrDocument) codec.unmarshal(new ByteArrayInputStream(bytes));
+    return (SolrDocument) codec.unmarshal(new BoundedInputStream(in, len));
   }
 }
