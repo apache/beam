@@ -32,32 +32,33 @@ job('beam_PerformanceTests_JDBC'){
         'commits@beam.apache.org',
         false)
 
-    def pipelineArgs = [
-        tempRoot: 'gs://temp-storage-for-end-to-end-tests',
-        project: 'apache-beam-testing',
-        postgresServerName: '10.36.0.11',
-        postgresUsername: 'postgres',
-        postgresDatabaseName: 'postgres',
-        postgresPassword: 'uuinkks',
-        postgresSsl: 'false'
-    ]
-    def pipelineArgList = []
-    pipelineArgs.each({
-        key, value -> pipelineArgList.add("--$key=$value")
-    })
-    def pipelineArgsJoined = pipelineArgList.join(',')
+    common_job_properties.buildPerfKit(delegate)
 
-    def argMap = [
-      benchmarks: 'beam_integration_benchmark',
-      beam_it_module: 'sdks/java/io/jdbc',
-      beam_it_args: pipelineArgsJoined,
-      beam_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
-      // Profile is located in $BEAM_ROOT/sdks/java/io/pom.xml.
-      beam_it_profile: 'io-it'
+    clean_install_command = [
+            '/home/jenkins/tools/maven/latest/bin/mvn',
+            '-B',
+            '-e',
+            "-Pdataflow-runner",
+            'clean',
+            'install',
+            "-pl runners/google-cloud-dataflow-java",
+            '-DskipTests'
     ]
 
-    common_job_properties.buildPerformanceTest(delegate, argMap)
+    io_it_suite_command = [
+            '/home/jenkins/tools/maven/latest/bin/mvn',
+            '-B',
+            '-e',
+            'verify',
+            '-pl sdks/java/io/jdbc',
+            '-Dio-it-suite',
+            '-DpkbLocation="$WORKSPACE/PerfKitBenchmarker/pkb.py"',
+            '-DmvnBinary=/home/jenkins/tools/maven/latest/bin/mvn',
+            '-DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests" ]\''
+    ]
 
-    // [BEAM-2141] Perf tests do not pass.
-    disabled()
+    steps {
+        shell(clean_install_command.join(' '))
+        shell(io_it_suite_command.join(' '))
+    }
 }
