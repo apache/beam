@@ -18,42 +18,40 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/** A coder for {@link TableDestination} objects. */
-public class TableDestinationCoder extends AtomicCoder<TableDestination> {
-  private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
-  private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
-  private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
+/**
+ * A {@link Coder} for {@link TableDestination} that includes time partitioning information. This
+ * is a new coder (instead of extending the old {@link TableDestinationCoder}) for compatibility
+ * reasons. The old coder is kept around for the same compatibility reasons.
+ */
+public class TableDestinationCoderV2 extends AtomicCoder<TableDestination> {
+  private static final TableDestinationCoderV2 INSTANCE = new TableDestinationCoderV2();
+  private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());
 
-  private TableDestinationCoder() {}
-
-  public static TableDestinationCoder of() {
+  public static TableDestinationCoderV2 of() {
     return INSTANCE;
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream)
-      throws IOException {
-    if (value == null) {
-      throw new CoderException("cannot encode a null value");
-    }
-    tableSpecCoder.encode(value.getTableSpec(), outStream);
-    tableDescriptionCoder.encode(value.getTableDescription(), outStream);
+  public void encode(TableDestination value, OutputStream outStream) throws IOException {
+    TableDestinationCoder.of().encode(value, outStream);
+    timePartitioningCoder.encode(value.getJsonTimePartitioning(), outStream);
   }
 
   @Override
   public TableDestination decode(InputStream inStream) throws IOException {
-    String tableSpec = tableSpecCoder.decode(inStream);
-    String tableDescription = tableDescriptionCoder.decode(inStream);
-    return new TableDestination(tableSpec, tableDescription);
+    TableDestination destination = TableDestinationCoder.of().decode(inStream);
+    String jsonTimePartitioning = timePartitioningCoder.decode(inStream);
+    return new TableDestination(
+        destination.getTableSpec(), destination.getTableDescription(), jsonTimePartitioning);
   }
 
   @Override

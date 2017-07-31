@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -135,6 +136,7 @@ class WriteTables<DestinationT>
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
         jobIdPrefix,
         tableReference,
+        tableDestination.getTimePartitioning(),
         tableSchema,
         partitionFiles,
         writeDisposition,
@@ -150,6 +152,7 @@ class WriteTables<DestinationT>
       DatasetService datasetService,
       String jobIdPrefix,
       TableReference ref,
+      TimePartitioning timePartitioning,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
@@ -164,7 +167,9 @@ class WriteTables<DestinationT>
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
-
+    if (timePartitioning != null) {
+      loadConfig.setTimePartitioning(timePartitioning);
+    }
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
