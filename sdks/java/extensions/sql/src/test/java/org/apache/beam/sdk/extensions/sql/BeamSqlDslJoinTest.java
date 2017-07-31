@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS1;
-import static org.apache.beam.sdk.extensions.sql.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS2;
+import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS1;
+import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS2;
 
 import java.sql.Types;
 import java.util.Arrays;
