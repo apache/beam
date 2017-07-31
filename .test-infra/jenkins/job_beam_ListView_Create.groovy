@@ -35,6 +35,7 @@ listView('Beam') {
         lastSuccess()
         lastFailure()
         lastDuration()
+        lastBuildConsole()
         buildButton()
     }
 }
