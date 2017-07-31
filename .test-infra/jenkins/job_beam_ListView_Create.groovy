@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// This creates a standard List View for Beam. It filters out executors not associated with Beam
+// and pulls in all jobs which start with 'beam_'.
 listView('Beam') {
     description('Jenkins builds for the Beam project.')
     filterBuildQueue()
