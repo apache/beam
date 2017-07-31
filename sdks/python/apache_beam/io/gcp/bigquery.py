@@ -133,7 +133,6 @@ except ImportError:
 
 
 __all__ = [
-    'RowAsDictJsonCoder',
     'TableRowJsonCoder',
     'BigQueryDisposition',
     'BigQuerySource',
@@ -356,10 +355,10 @@ class BigQuerySource(dataflow_io.NativeSource):
         execution by a previous step.
       coder (~apache_beam.coders.coders.Coder): The coder for the table
         rows if serialized to disk. If :data:`None`, then the default coder is
-        :class:`RowAsDictJsonCoder`, which will interpret every line in a file
-        as a JSON serialized dictionary. This argument needs a value only in
-        special cases when returning table rows as dictionaries is not
-        desirable.
+        :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        which will interpret every line in a file as a JSON serialized
+        dictionary. This argument needs a value only in special cases when
+        returning table rows as dictionaries is not desirable.
       use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
         dialect for this query. The default value is :data:`False`.
         If set to :data:`True`, the query will use BigQuery's updated SQL
@@ -488,10 +487,11 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         during pipeline execution by a previous step.
       coder (~apache_beam.coders.coders.Coder): The coder for the
         table rows if serialized to disk. If :data:`None`, then the default
-        coder is :class:`RowAsDictJsonCoder`, which will interpret every element
-        written to the sink as a dictionary that will be JSON serialized
-        as a line in a file. This argument needs a value only in special cases
-        when writing table rows as dictionaries is not desirable.
+        coder is :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        which will interpret every element written to the sink as a dictionary
+        that will be JSON serialized as a line in a file. This argument needs a
+        value only in special cases when writing table rows as dictionaries is
+        not desirable.
 
     Raises:
       ~exceptions.TypeError: if the schema argument is not a :class:`str` or a
@@ -1396,8 +1396,8 @@ bigquery_v2_messages.TableSchema):
         This can either be a dict or string or in the TableSchema format.
 
     Returns:
-      Dict[str, object]: The schema to be used if the BigQuery table to write
-      has to be created but in the dictionary format.
+      Dict[str, Any]: The schema to be used if the BigQuery table to write has
+      to be created but in the dictionary format.
     """
     if isinstance(schema, dict):
       return schema
