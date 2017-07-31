@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -31,17 +32,31 @@ public class TableDestination implements Serializable {
   private final String tableSpec;
   @Nullable
   private final String tableDescription;
+  @Nullable
+  private final String jsonTimePartitioning;
 
 
   public TableDestination(String tableSpec, @Nullable String tableDescription) {
-    this.tableSpec = tableSpec;
-    this.tableDescription = tableDescription;
+    this(tableSpec, tableDescription, (String) null);
   }
 
   public TableDestination(TableReference tableReference, @Nullable String tableDescription) {
-    this.tableSpec = BigQueryHelpers.toTableSpec(tableReference);
-    this.tableDescription = tableDescription;
+    this(BigQueryHelpers.toTableSpec(tableReference), tableDescription, (String) null);
   }
+
+  public TableDestination(String tableSpec, @Nullable String tableDescription,
+      TimePartitioning timePartitioning) {
+    this(tableSpec, tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
+  }
+
+  public TableDestination(String tableSpec, @Nullable String tableDescription,
+      String jsonTimePartitioning) {
+    this.tableSpec = tableSpec;
+    this.tableDescription = tableDescription;
+    this.jsonTimePartitioning = jsonTimePartitioning;
+  }
+
 
   public String getTableSpec() {
     return tableSpec;
@@ -49,6 +64,18 @@ public class TableDestination implements Serializable {
 
   public TableReference getTableReference() {
     return BigQueryHelpers.parseTableSpec(tableSpec);
+  }
+
+  public String getJsonTimePartitioning() {
+    return jsonTimePartitioning;
+  }
+
+  public TimePartitioning getTimePartitioning() {
+    if (jsonTimePartitioning == null) {
+      return null;
+    } else {
+      return BigQueryHelpers.fromJsonString(jsonTimePartitioning, TimePartitioning.class);
+    }
   }
 
   @Nullable

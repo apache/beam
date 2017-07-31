@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,6 +33,7 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
   private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
   private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<String> timePartitioningCoder = NullableCoder.of(StringUtf8Coder.of());
 
   public static TableDestinationCoder of() {
     return INSTANCE;
@@ -45,13 +47,15 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
     }
     tableSpecCoder.encode(value.getTableSpec(), outStream);
     tableDescriptionCoder.encode(value.getTableDescription(), outStream);
+    timePartitioningCoder.encode(value.getJsonTimePartitioning(), outStream);
   }
 
   @Override
   public TableDestination decode(InputStream inStream) throws IOException {
     String tableSpec = tableSpecCoder.decode(inStream);
     String tableDescription = tableDescriptionCoder.decode(inStream);
-    return new TableDestination(tableSpec, tableDescription);
+    String jsonTimePartitioning = timePartitioningCoder.decode(inStream);
+    return new TableDestination(tableSpec, tableDescription, jsonTimePartitioning);
   }
 
   @Override

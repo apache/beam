@@ -164,6 +164,26 @@ class DynamicDestinationsHelpers {
     }
   }
 
+  static class ConstantTimePartitioninDestinations<T>
+      extends DelegatingDynamicDestinations<T, TableDestination> {
+
+    @Nullable
+    private final ValueProvider<String> jsonTimePartitioning;
+
+    ConstantTimePartitioninDestinations(DynamicDestinations<T, TableDestination> inner,
+        ValueProvider<String> jsonTimePartitioning) {
+      super(inner);
+      this.jsonTimePartitioning = jsonTimePartitioning;
+    }
+
+    @Override
+    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+      TableDestination destination = super.getDestination(element);
+      return new TableDestination(destination.getTableSpec(), destination.getTableDescription(),
+          jsonTimePartitioning.get());
+    }
+  }
+
   /**
    * Takes in a side input mapping tablespec to json table schema, and always returns the
    * matching schema from the side input.

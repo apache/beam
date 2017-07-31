@@ -31,6 +31,7 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
@@ -60,9 +61,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRe
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioninDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -824,6 +827,7 @@ public class BigQueryIO {
     @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
     @Nullable abstract PCollectionView<Map<String, String>> getSchemaFromView();
     @Nullable abstract ValueProvider<String> getJsonSchema();
+    @Nullable abstract ValueProvider<String> getJsonTimePartitioning();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
@@ -854,6 +858,7 @@ public class BigQueryIO {
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
       abstract Builder<T> setSchemaFromView(PCollectionView<Map<String, String>> view);
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
       abstract Builder<T> setTableDescription(String tableDescription);
@@ -1022,6 +1027,32 @@ public class BigQueryIO {
       return toBuilder().setSchemaFromView(view).build();
     }
 
+    /**
+     * Allows newly created tables to include a {@link TimePartitioning} class. Can only be used
+     * when writing to a single table. If {@link #to(SerializableFunction)} or
+     * @link #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be
+     * directly in the returned {@link TableDestination}.
+     */
+    public Write<T> withTimePartitioning(TimePartitioning partitioning) {
+      return withTimePartitioning(StaticValueProvider.of(partitioning));
+    }
+
+    /**
+     * Like {@link #withTimePartitioning(TimePartitioning)} but using a deferred
+     * {@link ValueProvider}.
+     */
+    public Write<T> withTimePartitioning(ValueProvider<TimePartitioning> partition) {
+      return withJsonTimePartitioning(NestedValueProvider.of(
+          partition, new TimePartitioningToJson()));
+    }
+
+    /**
+     * The same as {@link #withTimePartitioning}, but takes a JSON-serialized object.
+     */
+    public Write<T> withJsonTimePartitioning(ValueProvider<String> partition) {
+      return toBuilder().setJsonTimePartitioning(partition).build();
+    }
+
     /** Specifies whether the table should be created if it does not exist. */
     public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
@@ -1183,6 +1214,15 @@ public class BigQueryIO {
             input.isBounded(),
             method);
       }
+      if (getJsonTimePartitioning() != null) {
+        checkArgument(getDynamicDestinations() == null,
+            "The supplied DynamicDestinations object can directly set TimePartitiong."
+                + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
+        checkArgument(getTableFunction() == null,
+            "The supplied getTableFunction object can directly set TimePartitiong."
+                + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
+      }
+
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
         if (getJsonTableRef() != null) {
@@ -1204,6 +1244,12 @@ public class BigQueryIO {
               new SchemaFromViewDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getSchemaFromView());
+        }
+
+        // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
+        if (getJsonTimePartitioning() != null) {
+          dynamicDestinations = new ConstantTimePartitioninDestinations(
+              dynamicDestinations, getJsonTimePartitioning());
         }
       }
       return expandTyped(input, dynamicDestinations);
