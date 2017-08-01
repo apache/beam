@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -162,7 +161,7 @@ public class SparkFlowTranslator {
                 // FIXME blocking op
                 unwrapped.saveAsNewAPIHadoopDataset(conf);
               } catch (IOException e) {
-                throw new RuntimeException();
+                throw new RuntimeException(e);
               }
             });
 
