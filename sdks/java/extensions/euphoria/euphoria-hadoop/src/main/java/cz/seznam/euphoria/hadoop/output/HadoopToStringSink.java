@@ -16,17 +16,13 @@
 package cz.seznam.euphoria.hadoop.output;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
-import cz.seznam.euphoria.core.client.io.DataSinkFactory;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.hadoop.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Objects;
 
 /**
@@ -35,18 +31,6 @@ import java.util.Objects;
  * {@link Object#toString()} implementation as text.
  */
 public class HadoopToStringSink<T> implements DataSink<T> {
-
-  /**
-   * A standard URI based factory for instance of {@link HadoopToStringSink}.
-   */
-  public static final class Factory implements DataSinkFactory {
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> DataSink<T> get(URI uri, Settings settings) {
-      return (DataSink<T>) new HadoopToStringSink(
-          uri.toString(), HadoopUtils.createConfiguration(settings));
-    }
-  }
 
   private final HadoopTextFileSink<String, NullWritable> impl;
 

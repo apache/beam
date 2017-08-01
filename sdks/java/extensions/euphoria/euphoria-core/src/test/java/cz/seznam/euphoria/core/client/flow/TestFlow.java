@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.flow;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.MockStreamDataSourceFactory;
+import cz.seznam.euphoria.core.client.io.MockStreamDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Union;
@@ -36,21 +36,16 @@ import org.junit.Test;
  */
 public class TestFlow {
   
-  Settings settings;
-  Flow flow;
+  private Flow flow;
   
   @Before
   public void before() {
-    settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.mock",
-        MockStreamDataSourceFactory.class);
-
-    flow = Flow.create("TestFlow", settings);
+    flow = Flow.create("TestFlow");
   }
 
   @Test
   public void testDatasetConsumers() throws Exception {
-    Dataset<Object> input = flow.createInput(URI.create("mock:///"));
+    Dataset<Object> input = flow.createInput(new MockStreamDataSource<>());
     Dataset<Object> transformed = MapElements.of(input).using(e -> e).output();
     Dataset<Object> transformed2 = Filter.of(transformed).by(e -> false).output();
     Dataset<Object> union = Union.of(transformed, transformed2).output();
@@ -74,5 +69,4 @@ public class TestFlow {
   private static <X> Set<X> toSet(Stream<X> s) {
     return s.collect(Collectors.toSet());
   }
-
 }
