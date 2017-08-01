@@ -498,7 +498,7 @@ UnionConstraint = UnionHint.UnionConstraint
 class OptionalHint(UnionHint):
   """An Option type-hint. Optional[X] accepts instances of X or None.
 
-  The Optional[X] factory function proxies to Union[X, None]
+  The Optional[X] factory function proxies to Union[X, type(None)]
   """
 
   def __getitem__(self, py_type):
@@ -507,7 +507,7 @@ class OptionalHint(UnionHint):
       raise TypeError('An Option type-hint only accepts a single type '
                       'parameter.')
 
-    return Union[py_type, None]
+    return Union[py_type, type(None)]
 
 
 class TupleHint(CompositeTypeHint):
