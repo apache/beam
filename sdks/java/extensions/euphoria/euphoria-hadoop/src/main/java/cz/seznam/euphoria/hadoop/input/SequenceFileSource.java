@@ -50,13 +50,18 @@ public class SequenceFileSource<K extends Writable, V extends Writable>
    * @param key class to deserialize keys with
    * @param value class to deserialize values with
    * @param path the path to read data from
-   * @param hadoopConfig the hadoop configuration to build on top of
+   * @param conf the hadoop configuration to build on top of
    *
    * @throws NullPointerException if any of the parameters is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public SequenceFileSource(Class<K> key, Class<V> value, String path, Configuration hadoopConfig) {
-    super(key, value, (Class) SequenceFileInputFormat.class, hadoopConfig);
-    hadoopConfig.set(FileInputFormat.INPUT_DIR, path);
+  public SequenceFileSource(Class<K> key, Class<V> value, String path, Configuration conf) {
+    super(key, value, (Class) SequenceFileInputFormat.class, wrap(conf, path));
+  }
+
+  private static Configuration wrap(Configuration conf, String path) {
+    final Configuration wrap = new Configuration(conf);
+    wrap.set(FileInputFormat.INPUT_DIR, path);
+    return wrap;
   }
 }
