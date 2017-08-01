@@ -15,11 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -27,12 +25,12 @@ import java.util.Set;
 /**
  * A mock factory creating a stream datasource.
  */
-public class MockStreamDataSourceFactory implements DataSourceFactory {
+public class MockStreamDataSource<T> implements DataSource<T> {
 
-  @Override
-  public <T> DataSource<T> get(URI uri, Settings settings) {
-    
-    int p = Runtime.getRuntime().availableProcessors();
+  private final List<Partition<T>> partitions;
+
+  public MockStreamDataSource() {
+    final int p = Runtime.getRuntime().availableProcessors();
     final List<Partition<T>> partitions = new ArrayList<>(p);
     for (int i = 0; i < p; i++) {
       partitions.add(new Partition<T>() {
@@ -48,20 +46,16 @@ public class MockStreamDataSourceFactory implements DataSourceFactory {
         }
       });
     }
-    return new DataSource<T>() {
-
-      @Override
-      public List<Partition<T>> getPartitions() {
-        return partitions;
-      }
-
-      @Override
-      public boolean isBounded()
-      {
-        return false;
-      }
-
-    };
+    this.partitions = partitions;
   }
 
+  @Override
+  public List<Partition<T>> getPartitions() {
+    return partitions;
+  }
+
+  @Override
+  public boolean isBounded() {
+    return false;
+  }
 }
