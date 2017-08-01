@@ -16,18 +16,14 @@
 package cz.seznam.euphoria.hadoop.input;
 
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.hadoop.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -89,18 +85,6 @@ public class SimpleHadoopTextFileSource implements DataSource<String> {
     @Override
     public Reader<String> openReader() throws IOException {
       return new WrapReader(this.wrap.openReader());
-    }
-  }
-
-  /**
-   * A standard URI based factory for instances of {@link SimpleHadoopTextFileSource}.
-   */
-  public static final class Factory implements DataSourceFactory {
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> DataSource<T> get(URI uri, Settings settings) {
-      return (DataSource<T>) new SimpleHadoopTextFileSource(
-          uri.toString(), HadoopUtils.createConfiguration(settings));
     }
   }
 

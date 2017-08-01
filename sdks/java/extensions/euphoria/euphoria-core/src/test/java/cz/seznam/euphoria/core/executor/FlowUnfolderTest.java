@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
-import cz.seznam.euphoria.core.client.io.MockStreamDataSourceFactory;
+import cz.seznam.euphoria.core.client.io.MockStreamDataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Join;
@@ -33,12 +33,10 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
-import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -53,21 +51,13 @@ import static org.junit.Assert.*;
  */
 public class FlowUnfolderTest {
 
-  Settings settings;
-  Flow flow;
-  Dataset<Object> input;
+  private Flow flow;
+  private Dataset<Object> input;
 
   @Before
   public void before() throws Exception {
-    settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.mock",
-        MockStreamDataSourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.stdout",
-        StdoutSink.Factory.class);
-
-
-    flow = Flow.create(getClass().getSimpleName(), settings);
-    input = flow.createInput(URI.create("mock:///"));
+    flow = Flow.create(getClass().getSimpleName());
+    input = flow.createInput(new MockStreamDataSource<>());
 
     Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
     Dataset<Pair<Object, Long>> reduced = ReduceByKey
@@ -82,8 +72,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    output.persist(URI.create("stdout:///"));
-
+    output.persist(new StdoutSink<>());
   }
 
   @Test
@@ -149,8 +138,8 @@ public class FlowUnfolderTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testMultipleOutputsToSameSink() throws Exception {
-    flow = Flow.create(getClass().getSimpleName(), settings);
-    input = flow.createInput(URI.create("mock:///"));
+    flow = Flow.create(getClass().getSimpleName());
+    input = flow.createInput(new MockStreamDataSource<>());
 
     Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
     Dataset<Pair<Object, Long>> reduced = ReduceByKey

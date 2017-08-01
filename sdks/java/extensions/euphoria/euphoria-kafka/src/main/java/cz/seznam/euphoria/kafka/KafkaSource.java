@@ -16,17 +16,14 @@
 package cz.seznam.euphoria.kafka;
 
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.core.util.URIParams;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
@@ -36,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -219,28 +215,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     }
   }
 
-  public static final class Factory implements DataSourceFactory {
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> DataSource<T> get(URI uri, Settings settings) {
-      String brokers = uri.getAuthority();
-      String topic = uri.getPath().substring(1);
-
-      String cname = URIParams.of(uri).getStringParam("cfg", null);
-      Settings cconfig = cname == null ? null : settings.nested(cname);
-      final String groupId;
-      if (cconfig == null
-          || cconfig.getString(ConsumerConfig.GROUP_ID_CONFIG, null) == null) {
-        groupId = "euphoria.group-id-" + UUID.randomUUID().toString();
-        LOG.warn("Autogenerating name of consumer's {} to {}",
-            ConsumerConfig.GROUP_ID_CONFIG, groupId);
-      } else {
-        groupId = cconfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
-      }
-      return (DataSource<T>) new KafkaSource(brokers, topic, groupId, cconfig);
-    }
-  }
-
   // ~ -----------------------------------------------------------------------------
 
   private final String brokerList;
@@ -249,7 +223,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   @Nullable
   private final Settings config;
 
-  KafkaSource(
+  public KafkaSource(
       String brokerList,
       String topicId,
       String groupId,
