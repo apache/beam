@@ -41,6 +41,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="{{site.baseurl}}/documentation/io/built-in/hadoop/">Apache Hadoop InputFormat</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hcatalog">Apache Hive (HCatalog)</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/solr">Apache Solr</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch">Elasticsearch (v2.x)</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
@@ -84,10 +85,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
   <tr>
     <td>Apache Parquet</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-214">BEAM-214</a></td>
-  </tr>
-  <tr>
-    <td>Apache Solr</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1236">BEAM-1236</a></td>
   </tr>
   <tr>
     <td>Apache Sqoop</td><td>Java</td>
