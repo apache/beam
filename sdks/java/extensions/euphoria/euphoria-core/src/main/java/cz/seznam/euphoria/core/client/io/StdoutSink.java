@@ -15,12 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.core.util.URIParams;
-
 import java.io.IOException;
 import java.io.PrintStream;
-import java.net.URI;
 
 /**
  * A sink to write to a specified print stream (typically
@@ -30,27 +26,6 @@ import java.net.URI;
 public class StdoutSink<T> implements DataSink<T> {
 
   static final long START_SYSTEM_NANO_TIME = System.nanoTime();
-
-  public static class Factory implements DataSinkFactory {
-    @Override
-    public <T> DataSink<T> get(URI uri, Settings settings) {
-      settings = settings.nested(URIParams.of(uri).getStringParam("cfg", null));
-
-      String discrim = uri.getPath();
-      if (discrim != null) {
-        if (discrim.startsWith("/")) {
-          discrim = discrim.substring(1);
-        }
-        discrim = discrim.trim();
-        if (discrim.isEmpty()) {
-          discrim = null;
-        }
-      }
-
-      boolean debug = settings.getBoolean("debug", false);
-      return new StdoutSink<>(debug, discrim);
-    }
-  }
 
   static abstract class AbstractWriter<T> implements Writer<T> {
     final PrintStream out;

@@ -17,9 +17,7 @@ package cz.seznam.euphoria.core.client.flow;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
-import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.IORegistry;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -32,7 +30,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -302,26 +299,6 @@ public class Flow implements Serializable {
   }
 
   /**
-   * Creates a new input/source data set based on the specified URI.
-   *
-   * @param <T> the type of elements extracted form the source; this is not
-   *          type-safe. if the caller mixes up the source and the expected type
-   *          from such a source the result may be {@link ClassCastException}s at
-   *          later points in time
-   *
-   * @param uri the URI describing the source of the dataset
-   *
-   * @return a dataset representing the specified source
-   *
-   * @throws Exception if setting up the source fails for some reason
-   *
-   * @see IORegistry
-   */
-  public <T> Dataset<T> createInput(URI uri) throws Exception {
-    return createInput(getSourceFromURI(uri));
-  }
-
-  /**
    * Creates new input dataset.
    *
    * @param <T> the type of elements of the created input data set
@@ -352,36 +329,6 @@ public class Flow implements Serializable {
   public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
     Dataset<T> input = createInput(source);
     return AssignEventTime.of(input).using(Objects.requireNonNull(evtTimeFn)).output();
-  }
-
-  /**
-   * Creates a new output/sink data set based on the specified URI.
-   *
-   * @param <T> the type of elements being written to the sink; this is
-   *         not type-safe. if the caller mixes up the sink and the expected
-   *         type of a such a sink the result may be {@link ClassCastException}s
-   *         at later points in time
-   *
-   * @param uri the URI describing the sink of the data set
-   *
-   * @return a data sink based on the specified URI
-   *
-   * @throws Exception if setting up the sink fails for some reason
-   *
-   * @see IORegistry
-   */
-  public <T> DataSink<T> createOutput(URI uri) throws Exception {
-    return getSinkFromURI(uri);
-  }
-
-  private <T> DataSource<T> getSourceFromURI(URI uri) throws Exception {
-    IORegistry registry = IORegistry.get(settings);
-    return registry.openSource(uri, settings);
-  }
-
-  private <T> DataSink<T> getSinkFromURI(URI uri) throws Exception {
-    IORegistry registry = IORegistry.get(settings);
-    return registry.openSink(uri, settings);
   }
 
   private Settings cloneSettings(Settings settings) {
