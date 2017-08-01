@@ -61,6 +61,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+      <scope>provided</scope>
       <exclusions>
         <!-- Fix build on JDK-9 -->
         <exclusion>
@@ -89,6 +90,7 @@
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-exec</artifactId>
       <version>${hive.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -101,6 +103,7 @@
       <groupId>org.apache.hive.hcatalog</groupId>
       <artifactId>hive-hcatalog-core</artifactId>
       <version>${hive.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hive</groupId>
