@@ -66,6 +66,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils import urns
 
 
 __all__ = ['Pipeline']
@@ -752,6 +753,10 @@ class AppliedPTransform(object):
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag, id in proto.outputs.items()}
+    # This annotation is expected by some runners.
+    if proto.spec.urn == urns.PARDO_TRANSFORM:
+      result.transform.output_tags = set(proto.outputs.keys()).difference(
+          {'None'})
     if not result.parts:
       for tag, pc in result.outputs.items():
         if pc not in result.inputs:
