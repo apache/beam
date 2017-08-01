@@ -697,7 +697,7 @@ class ParDo(PTransformWithSideInputs):
     windowing = None
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
-  def to_runner_api_parameterX(self, context):
+  def to_runner_api_parameter(self, context):
     assert self.__class__ is ParDo
     return (
         urns.PARDO_TRANSFORM,
