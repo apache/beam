@@ -180,6 +180,7 @@
   <modules>
     <!-- sdks/java/build-tools has project-wide configuration. To make these available
       in all modules, link it directly to the parent pom.xml. -->
+    <module>.test-infra/maven/enforcer-rules</module>
     <module>sdks/java/build-tools</module>
     <module>sdks</module>
     <module>runners</module>
@@ -1758,6 +1759,86 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>1.4.1</version>
+          <executions>
+            <execution>
+              <id>enforce</id>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <enforceBytecodeVersion>
+                    <maxJdkVersion>1.7</maxJdkVersion>
+                    <excludes>
+                      <!--
+                        Supplied by the user JDK and compiled with matching
+                        version. Is not shaded, so safe to ignore.
+                      -->
+                      <exclude>jdk.tools:jdk.tools</exclude>
+                    </excludes>
+                  </enforceBytecodeVersion>
+                  <requireJavaVersion>
+                    <version>[1.7,)</version>
+                  </requireJavaVersion>
+                  <requireMavenVersion>
+                    <!-- Keep aligned with preqrequisite section below. -->
+                    <version>[3.2,)</version>
+                  </requireMavenVersion>
+                </rules>
+              </configuration>
+            </execution>
+            <execution>
+              <id>enforce-banned-dependencies</id>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <bannedDependencies>
+                    <excludes>
+                      <exclude>com.google.guava:guava-jdk5</exclude>
+                      <exclude>com.google.protobuf:protobuf-lite</exclude>
+                    </excludes>
+                  </bannedDependencies>
+                </rules>
+                <fail>true</fail>
+              </configuration>
+            </execution>
+            <execution>
+              <id>enforce-banned-classes</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>enforce</goal>
+              </goals>
+              <configuration>
+                <rules>
+                  <bannedClasses implementation="org.apache.beam.maven.enforcer.rules.BannedClasses">
+                    <excludes>
+                      <exclude>com/google/**</exclude>
+                      <exclude>org/apache/maven/**</exclude>
+                    </excludes>
+                  </bannedClasses>
+                </rules>
+              </configuration>
+            </execution>
+          </executions>
+          <dependencies>
+            <dependency>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>extra-enforcer-rules</artifactId>
+              <version>1.0-beta-6</version>
+            </dependency>
+            <dependency>
+              <groupId>org.apache.beam</groupId>
+              <artifactId>beam-maven-enforcer-rules</artifactId>
+              <version>${project.version}</version>
+            </dependency>
+          </dependencies>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1780,60 +1861,25 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4.1</version>
+        <!-- Do no execute this plugin in the parent pom as this leads to cirular dependecy issue
+         with custom rules.
+         -->
         <executions>
           <execution>
             <id>enforce</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <enforceBytecodeVersion>
-                  <maxJdkVersion>1.7</maxJdkVersion>
-                  <excludes>
-                    <!--
-                      Supplied by the user JDK and compiled with matching
-                      version. Is not shaded, so safe to ignore.
-                    -->
-                    <exclude>jdk.tools:jdk.tools</exclude>
-                  </excludes>
-                </enforceBytecodeVersion>
-                <requireJavaVersion>
-                  <version>[1.7,)</version>
-                </requireJavaVersion>
-                <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
-                  <version>[3.2,)</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
+            <phase>none</phase>
           </execution>
           <execution>
             <id>enforce-banned-dependencies</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <bannedDependencies>
-                  <excludes>
-                    <exclude>com.google.guava:guava-jdk5</exclude>
-                    <exclude>com.google.protobuf:protobuf-lite</exclude>
-                  </excludes>
-                </bannedDependencies>
-              </rules>
-              <fail>true</fail>
-            </configuration>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <id>enforce-banned-classes</id>
+            <phase>none</phase>
           </execution>
         </executions>
-        <dependencies>
-          <dependency>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>extra-enforcer-rules</artifactId>
-            <version>1.0-beta-6</version>
-          </dependency>
-        </dependencies>
+        <!-- Child poms should not inherit this as this disables the plugin. -->
+        <inherited>false</inherited>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
