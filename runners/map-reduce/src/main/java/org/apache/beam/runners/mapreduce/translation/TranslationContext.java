@@ -105,8 +105,9 @@ public class TranslationContext {
               checkState(
                   pValueToTupleTag.containsKey(pValue),
                   String.format("Failed to find TupleTag for pValue: %s.", pValue));
+              PCollection<?> pc = (PCollection<?>) pValue;
               return Graphs.Tag.of(
-                  pValueToTupleTag.get(pValue), ((PCollection<?>) pValue).getCoder());
+                  pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
             }})
           .toList();
     }
@@ -116,7 +117,8 @@ public class TranslationContext {
           .transform(new Function<Map.Entry<TupleTag<?>, PValue>, Graphs.Tag>() {
             @Override
             public Graphs.Tag apply(Map.Entry<TupleTag<?>, PValue> entry) {
-              return Graphs.Tag.of(entry.getKey(), ((PCollection<?>) entry.getValue()).getCoder());
+              PCollection<?> pc = (PCollection<?>) entry.getValue();
+              return Graphs.Tag.of(pc.getName(), entry.getKey(), pc.getCoder());
             }})
           .toList();
     }

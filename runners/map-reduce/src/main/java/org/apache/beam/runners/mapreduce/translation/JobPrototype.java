@@ -89,10 +89,12 @@ public class JobPrototype {
       WindowingStrategy<?, ?> windowingStrategy = operation.getWindowingStrategy();
       KvCoder<?, ?> kvCoder = operation.getKvCoder();
 
+      String reifyStepName = groupByKey.getFullName() + "-Reify";
       Coder<?> reifyValueCoder = getReifyValueCoder(kvCoder.getValueCoder(), windowingStrategy);
-      Graphs.Tag reifyOutputTag = Graphs.Tag.of(new TupleTag<Object>(), reifyValueCoder);
+      Graphs.Tag reifyOutputTag = Graphs.Tag.of(
+          reifyStepName + ".out", new TupleTag<Object>(), reifyValueCoder);
       Graphs.Step reifyStep = Graphs.Step.of(
-          groupByKey.getFullName() + "-Reify",
+          reifyStepName,
           new ReifyTimestampAndWindowsParDoOperation(options, operation.getWindowingStrategy()),
           groupByKey.getInputTags(),
           ImmutableList.of(reifyOutputTag));

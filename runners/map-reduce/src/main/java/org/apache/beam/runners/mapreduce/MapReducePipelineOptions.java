@@ -38,7 +38,6 @@ public interface MapReducePipelineOptions extends PipelineOptions {
       PipelineOptionsFactory.Builder.class.getName(),
       "org.apache.beam.sdk.options.ProxyInvocationHandler");
 
-
   @Description("The jar class of the user Beam program.")
   @Default.InstanceFactory(JarClassInstanceFactory.class)
   Class<?> getJarClass();

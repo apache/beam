@@ -153,10 +153,6 @@ public class Graphs {
       }
       return sb.toString();
     }
-
-    public String getFullName() {
-      return toString();
-    }
   }
 
   @AutoValue
@@ -173,16 +169,27 @@ public class Graphs {
       return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graphs_Step(
           inputTags, outputTags, fullName, operation);
     }
+
+    @Override
+    public String toString() {
+      return getFullName();
+    }
   }
 
   @AutoValue
   public abstract static class Tag extends Graph.AbstractTag {
+    abstract String getName();
     abstract TupleTag<?> getTupleTag();
     abstract Coder<?> getCoder();
 
-    public static Tag of(TupleTag<?> tupleTag, Coder<?> coder) {
+    @Override
+    public String toString() {
+      return getName();
+    }
+
+    public static Tag of(String name, TupleTag<?> tupleTag, Coder<?> coder) {
       return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graphs_Tag(
-          tupleTag, coder);
+          name, tupleTag, coder);
     }
   }
 }
