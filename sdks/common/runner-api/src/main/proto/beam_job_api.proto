@@ -25,8 +25,8 @@ syntax = "proto3";
 
 package org.apache.beam.runner_api.v1;
 
-option java_package = "org.apache.beam.common.job";
-option java_outer_classname = "JobServiceApi";
+option java_package = "org.apache.beam.sdk.common.runner.v1";
+option java_outer_classname = "JobApi";
 
 import "beam_runner_api.proto";
 import "google/protobuf/struct.proto";
@@ -43,7 +43,7 @@ service JobService {
   // Cancel the job
   rpc cancel (CancelJobRequest) returns (CancelJobResponse) {}
 
-  // Subscribe to a stream of state changes of the job
+  // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
   rpc getStateStream (GetJobStateRequest) returns (stream GetJobStateResponse) {}
 
   // Subscribe to a stream of state changes and messages from the job
@@ -52,9 +52,9 @@ service JobService {
 
 
 // Submit is a synchronus request that returns a jobId back
-// GRPC will throw a GRPC_STATUS_UNAVAILABLE if server is down
-// We'll throw an error with code ALREADY_EXISTS if the jobName is reused
-// We'll throw an error UNKNOWN for all other messages
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error ALREADY_EXISTS if the jobName is reused as runners are permitted to deduplicate based on the name of the job.
+// Throws error UNKNOWN for all other issues
 message SubmitJobRequest {
   org.apache.beam.runner_api.v1.Pipeline pipeline = 1; // (required)
   google.protobuf.Struct pipelineOptions = 2; // (required)
@@ -62,27 +62,28 @@ message SubmitJobRequest {
 }
 
 message SubmitJobResponse {
+  // JobId is used as an identifier for the job in all future calls.
   string jobId = 1; // (required)
 }
 
 
-
 // Cancel is a synchronus request that returns a jobState back
-// GRPC will throw a GRPC_STATUS_UNAVAILABLE if server is down
-// We'll throw an error with code NOT_FOUND if the jobId is not found
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
 message CancelJobRequest {
   string jobId = 1; // (required)
 
 }
 
+// Valid responses include any terminal state or CANCELLING
 message CancelJobResponse {
   JobState.JobStateType state = 1; // (required)
 }
 
 
 // GetState is a synchronus request that returns a jobState back
-// GRPC will throw a GRPC_STATUS_UNAVAILABLE if server is down
-// We'll throw an error with code NOT_FOUND if the jobId is not found
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
 message GetJobStateRequest {
   string jobId = 1; // (required)
 
