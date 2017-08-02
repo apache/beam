@@ -115,7 +115,7 @@ public class SplittableDoFnOperator<
     ((ProcessFn) doFn).setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             doFn,
-            serializedOptions.getPipelineOptions(),
+            serializedOptions.get(),
             new OutputWindowedValue<OutputT>() {
               @Override
               public void outputWindowedValue(

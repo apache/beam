@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -38,7 +39,6 @@ import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -108,11 +108,11 @@ public class SparkGroupAlsoByWindowViaWindowSet {
           final Coder<K> keyCoder,
           final Coder<WindowedValue<InputT>> wvCoder,
           final WindowingStrategy<?, W> windowingStrategy,
-          final SparkRuntimeContext runtimeContext,
+          final SerializablePipelineOptions options,
           final List<Integer> sourceIds) {
 
     final long batchDurationMillis =
-        runtimeContext.getPipelineOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis();
+        options.get().as(SparkPipelineOptions.class).getBatchIntervalMillis();
     final IterableCoder<WindowedValue<InputT>> itrWvCoder = IterableCoder.of(wvCoder);
     final Coder<InputT> iCoder = ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder();
     final Coder<? extends BoundedWindow> wCoder =
@@ -123,7 +123,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
 
     long checkpointDurationMillis =
-        runtimeContext.getPipelineOptions().as(SparkPipelineOptions.class)
+        options.get().as(SparkPipelineOptions.class)
             .getCheckpointDurationMillis();
 
     // we have to switch to Scala API to avoid Optional in the Java API, see: SPARK-4819.
@@ -268,7 +268,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                               outputHolder,
                               new UnsupportedSideInputReader("GroupAlsoByWindow"),
                               reduceFn,
-                              runtimeContext.getPipelineOptions());
+                              options.get());
 
                       outputHolder.clear(); // clear before potential use.
                       if (!seq.isEmpty()) {
