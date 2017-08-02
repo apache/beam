@@ -1,0 +1,143 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Job API, api for communicating with a runner
+ * for job submission over GRPC.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.runner_api.v1;
+
+option java_package = "org.apache.beam.sdk.common.runner.v1";
+option java_outer_classname = "JobApi";
+
+import "beam_runner_api.proto";
+import "google/protobuf/struct.proto";
+
+
+// Job Service for running RunnerAPI pipelines
+service JobService {
+  // Submit the job for execution
+  rpc run (SubmitJobRequest) returns (SubmitJobResponse) {}
+
+  // Get the current state of the job
+  rpc getState (GetJobStateRequest) returns (GetJobStateResponse) {}
+
+  // Cancel the job
+  rpc cancel (CancelJobRequest) returns (CancelJobResponse) {}
+
+  // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
+  rpc getStateStream (GetJobStateRequest) returns (stream GetJobStateResponse) {}
+
+  // Subscribe to a stream of state changes and messages from the job
+  rpc getMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse) {}
+}
+
+
+// Submit is a synchronus request that returns a jobId back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error ALREADY_EXISTS if the jobName is reused as runners are permitted to deduplicate based on the name of the job.
+// Throws error UNKNOWN for all other issues
+message SubmitJobRequest {
+  org.apache.beam.runner_api.v1.Pipeline pipeline = 1; // (required)
+  google.protobuf.Struct pipelineOptions = 2; // (required)
+  string jobName = 3;  // (required)
+}
+
+message SubmitJobResponse {
+  // JobId is used as an identifier for the job in all future calls.
+  string jobId = 1; // (required)
+}
+
+
+// Cancel is a synchronus request that returns a jobState back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message CancelJobRequest {
+  string jobId = 1; // (required)
+
+}
+
+// Valid responses include any terminal state or CANCELLING
+message CancelJobResponse {
+  JobState.JobStateType state = 1; // (required)
+}
+
+
+// GetState is a synchronus request that returns a jobState back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobStateRequest {
+  string jobId = 1; // (required)
+
+}
+
+message GetJobStateResponse {
+  JobState.JobStateType state = 1; // (required)
+}
+
+
+// GetJobMessages is a streaming api for streaming job messages from the service
+// One request will connect you to the job and you'll get a stream of job state
+// and job messages back; one is used for logging and the other for detecting
+// the job ended.
+message JobMessagesRequest {
+  string jobId = 1; // (required)
+
+}
+
+message JobMessage {
+  string messageId = 1;
+  string time = 2;
+  MessageImportance importance = 3;
+  string messageText = 4;
+
+  enum MessageImportance {
+    JOB_MESSAGE_DEBUG = 0;
+    JOB_MESSAGE_DETAILED = 1;
+    JOB_MESSAGE_BASIC = 2;
+    JOB_MESSAGE_WARNING = 3;
+    JOB_MESSAGE_ERROR = 4;
+  }
+}
+
+message JobMessagesResponse {
+  oneof response {
+    JobMessage messageResponse = 1;
+    GetJobStateResponse stateResponse = 2;
+  }
+}
+
+message JobState {
+  // Enumeration of all JobStates
+  enum JobStateType {
+    UNKNOWN = 0;
+    STOPPED = 1;
+    RUNNING = 2;
+    DONE = 3;
+    FAILED = 4;
+    CANCELLED = 5;
+    UPDATED = 6;
+    DRAINING = 7;
+    DRAINED = 8;
+    STARTING = 9;
+    CANCELLING = 10;
+  }
+}
