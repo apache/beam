@@ -43,18 +43,18 @@ class _PipelineContextMap(object):
     self._id_to_proto = proto_map if proto_map else {}
     self._counter = 0
 
-  def _unique_ref(self, obj=None):
+  def _unique_ref(self, obj=None, label=None):
     self._counter += 1
     return "ref_%s_%s_%s" % (
-        self._obj_type.__name__, type(obj).__name__, self._counter)
+        self._obj_type.__name__, label or type(obj).__name__, self._counter)
 
   def populate_map(self, proto_map):
     for id, proto in self._id_to_proto.items():
       proto_map[id].CopyFrom(proto)
 
-  def get_id(self, obj):
+  def get_id(self, obj, label=None):
     if obj not in self._obj_to_id:
-      id = self._unique_ref(obj)
+      id = self._unique_ref(obj, label)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
