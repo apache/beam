@@ -145,7 +145,7 @@ public class DoFnOperator<InputT, OutputT>
 
   private final Coder<?> keyCoder;
 
-  private final TimerInternals.TimerDataCoder timerCoder;
+  protected final TimerInternals.TimerDataCoder timerCoder;
 
   protected transient HeapInternalTimerService<?, TimerInternals.TimerData> timerService;
 
@@ -329,6 +329,9 @@ public class DoFnOperator<InputT, OutputT>
       }
     }
     doFnInvoker.invokeTeardown();
+
+    // signal to downstream that there won't be any more data in the future
+    output.emitWatermark(new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
   }
 
   protected final long getPushbackWatermarkHold() {
@@ -362,7 +365,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void processElement(
+  public void processElement(
       StreamRecord<WindowedValue<InputT>> streamRecord) throws Exception {
     doFnRunner.startBundle();
     doFnRunner.processElement(streamRecord.getValue());
