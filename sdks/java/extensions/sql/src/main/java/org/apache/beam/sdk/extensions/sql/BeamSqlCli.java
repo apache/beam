@@ -56,8 +56,8 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline
-      , BeamSqlEnv sqlEnv) throws Exception{
+  public static PCollection<BeamSqlRow> compilePipeline(String sqlStatement, Pipeline basePipeline,
+      BeamSqlEnv sqlEnv) throws Exception{
     PCollection<BeamSqlRow> resultStream =
         sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
