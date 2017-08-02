@@ -26,6 +26,7 @@ from nose.plugins.attrib import attr
 
 from apache_beam.examples.cookbook import bigquery_tornadoes
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
+from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -44,16 +45,23 @@ class BigqueryTornadoesIT(unittest.TestCase):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # Set extra options to the pipeline for test purpose
-    output_table = ('BigQueryTornadoesIT'
-                    '.monthly_tornadoes_%s' % int(round(time.time() * 1000)))
+    project = test_pipeline.get_option('project')
+
+    dataset = 'BigQueryTornadoesIT'
+    table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
+    output_table = '.'.join([dataset, table])
     query = 'SELECT month, tornado_count FROM [%s]' % output_table
+
     pipeline_verifiers = [PipelineStateMatcher(),
                           BigqueryMatcher(
-                              project=test_pipeline.get_option('project'),
+                              project=project,
                               query=query,
                               checksum=self.DEFAULT_CHECKSUM)]
     extra_opts = {'output': output_table,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
+
+    # Register cleanup before pipeline execution.
+    self.addCleanup(utils.delete_bq_table, project, dataset, table)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
