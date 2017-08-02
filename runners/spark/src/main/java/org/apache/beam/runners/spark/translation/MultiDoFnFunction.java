@@ -34,8 +34,8 @@ import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -59,11 +59,10 @@ import scala.Tuple2;
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
 
-  private final Accumulator<NamedAggregators> aggAccum;
   private final Accumulator<MetricsContainerStepMap> metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
-  private final SparkRuntimeContext runtimeContext;
+  private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> additionalOutputTags;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
@@ -71,10 +70,9 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final boolean stateful;
 
   /**
-   * @param aggAccum       The Spark {@link Accumulator} that backs the Beam Aggregators.
    * @param metricsAccum       The Spark {@link Accumulator} that backs the Beam metrics.
    * @param doFn              The {@link DoFn} to be wrapped.
-   * @param runtimeContext    The {@link SparkRuntimeContext}.
+   * @param options    The {@link SerializablePipelineOptions}.
    * @param mainOutputTag     The main output {@link TupleTag}.
    * @param additionalOutputTags Additional {@link TupleTag output tags}.
    * @param sideInputs        Side inputs used in this {@link DoFn}.
@@ -82,21 +80,19 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param stateful          Stateful {@link DoFn}.
    */
   public MultiDoFnFunction(
-      Accumulator<NamedAggregators> aggAccum,
       Accumulator<MetricsContainerStepMap> metricsAccum,
       String stepName,
       DoFn<InputT, OutputT> doFn,
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy,
       boolean stateful) {
-    this.aggAccum = aggAccum;
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = doFn;
-    this.runtimeContext = runtimeContext;
+    this.options = options;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputs = sideInputs;
@@ -140,7 +136,7 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
-            runtimeContext.getPipelineOptions(),
+            options.get(),
             doFn,
             new SparkSideInputReader(sideInputs),
             outputManager,
