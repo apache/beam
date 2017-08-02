@@ -22,13 +22,17 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.mapreduce.MapReducePipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -82,6 +86,11 @@ public class TranslationContext {
       this.currentNode = node;
       for (Map.Entry<TupleTag<?>, PValue> entry : currentNode.getOutputs().entrySet()) {
         pValueToTupleTag.put(entry.getValue(), entry.getKey());
+        // TODO: this is a hack to get around that ViewAsXXX.expand() return wrong output PValue.
+        if (node.getTransform() instanceof View.CreatePCollectionView) {
+          View.CreatePCollectionView view = (View.CreatePCollectionView) node.getTransform();
+          pValueToTupleTag.put(view.getView(), view.getView().getTagInternal());
+        }
       }
     }
 
@@ -98,29 +107,50 @@ public class TranslationContext {
     }
 
     public List<Graphs.Tag> getInputTags() {
-      return FluentIterable.from(currentNode.getInputs().values())
+      Iterable<PValue> inputs;
+      if (currentNode.getTransform() instanceof ParDo.MultiOutput) {
+        ParDo.MultiOutput parDo = (ParDo.MultiOutput) currentNode.getTransform();
+        inputs = ImmutableList.<PValue>builder()
+            .add(getInput()).addAll(parDo.getSideInputs()).build();
+      } else {
+        inputs = currentNode.getInputs().values();
+      }
+      return FluentIterable.from(inputs)
           .transform(new Function<PValue, Graphs.Tag>() {
             @Override
             public Graphs.Tag apply(PValue pValue) {
               checkState(
                   pValueToTupleTag.containsKey(pValue),
                   String.format("Failed to find TupleTag for pValue: %s.", pValue));
-              PCollection<?> pc = (PCollection<?>) pValue;
-              return Graphs.Tag.of(
-                  pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
+              if (pValue instanceof PCollection) {
+                PCollection<?> pc = (PCollection<?>) pValue;
+                return Graphs.Tag.of(
+                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
+              } else {
+                return Graphs.Tag.of(
+                    pValue.getName(),
+                    pValueToTupleTag.get(pValue),
+                    ((PCollectionView) pValue).getCoderInternal());
+              }
             }})
           .toList();
     }
 
     public List<Graphs.Tag> getOutputTags() {
-      return FluentIterable.from(currentNode.getOutputs().entrySet())
-          .transform(new Function<Map.Entry<TupleTag<?>, PValue>, Graphs.Tag>() {
-            @Override
-            public Graphs.Tag apply(Map.Entry<TupleTag<?>, PValue> entry) {
-              PCollection<?> pc = (PCollection<?>) entry.getValue();
-              return Graphs.Tag.of(pc.getName(), entry.getKey(), pc.getCoder());
-            }})
-          .toList();
+      if (currentNode.getTransform() instanceof View.CreatePCollectionView) {
+        PCollectionView view = ((View.CreatePCollectionView) currentNode.getTransform()).getView();
+        return ImmutableList.of(
+            Graphs.Tag.of(view.getName(), view.getTagInternal(), view.getCoderInternal()));
+      } else {
+        return FluentIterable.from(currentNode.getOutputs().entrySet())
+            .transform(new Function<Map.Entry<TupleTag<?>, PValue>, Graphs.Tag>() {
+              @Override
+              public Graphs.Tag apply(Map.Entry<TupleTag<?>, PValue> entry) {
+                PCollection<?> pc = (PCollection<?>) entry.getValue();
+                return Graphs.Tag.of(pc.getName(), entry.getKey(), pc.getCoder());
+              }})
+            .toList();
+      }
     }
 
     public TupleTag<?> getOnlyOutputTag() {
