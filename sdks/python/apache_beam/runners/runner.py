@@ -41,7 +41,10 @@ _DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
 _DATAFLOW_RUNNER_PATH = (
     'apache_beam.runners.dataflow.dataflow_runner.')
 _TEST_RUNNER_PATH = 'apache_beam.runners.test.'
+_PYTHON_RPC_DIRECT_RUNNER = (
+    'apache_beam.runners.experimental.python_rpc_direct.client.')
 
+_KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
@@ -51,6 +54,8 @@ _RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
                                    _DIRECT_RUNNER_PATH))
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_DATAFLOW_RUNNERS,
                                    _DATAFLOW_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_PYTHON_RPC_DIRECT_RUNNER,
+                                   _PYTHON_RPC_DIRECT_RUNNER))
 _RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
                                    _TEST_RUNNER_PATH))
 
