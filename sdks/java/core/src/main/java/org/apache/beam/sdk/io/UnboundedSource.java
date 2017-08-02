@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
@@ -78,7 +79,9 @@ public abstract class UnboundedSource<
   /**
    * Returns a {@link Coder} for encoding and decoding the checkpoints for this source.
    */
-  public abstract Coder<CheckpointMarkT> getCheckpointMarkCoder();
+  public Coder<CheckpointMarkT> getCheckpointMarkCoder() throws CannotProvideCoderException {
+    throw new CannotProvideCoderException("UnboundedSource.getCheckpointMarkCoder called.");
+  }
 
   /**
    * Returns whether this source requires explicit deduping.

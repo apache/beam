@@ -31,6 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -117,7 +118,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public void processElement(
-        WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
+        WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element)
+        throws IOException, CannotProvideCoderException {
       UncommittedBundle<OutputT> output =
           evaluationContext.createBundle(
               (PCollection<OutputT>) getOnlyElement(transform.getOutputs().values()));
@@ -183,7 +185,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     private UnboundedReader<OutputT> getReader(UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
-        throws IOException {
+        throws IOException, CannotProvideCoderException {
       UnboundedReader<OutputT> existing = shard.getExistingReader();
       if (existing == null) {
         CheckpointMarkT checkpoint = shard.getCheckpoint();

@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -140,11 +141,11 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
+  public Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
     return source.getDefaultOutputCoder();
   }
 
-  public Coder<CheckpointMarkT> getCheckpointMarkCoder() {
+  public Coder<CheckpointMarkT> getCheckpointMarkCoder() throws CannotProvideCoderException {
     return source.getCheckpointMarkCoder();
   }
 
