@@ -426,6 +426,6 @@
     <!--
     Classes in this package is auto-generated, let's disable the findbugs for it.
     -->
-    <Package name="org.apache.beam.dsls.sql.parser.impl"/>
+    <Package name="org.apache.beam.sdk.extensions.sql.impl.parser.impl"/>
   </Match>
 </FindBugsFilter>

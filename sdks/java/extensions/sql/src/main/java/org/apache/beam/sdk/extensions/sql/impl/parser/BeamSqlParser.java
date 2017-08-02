@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.parser;
+package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.StringReader;
-import org.apache.beam.sdk.extensions.sql.parser.impl.BeamSqlParserImpl;
+import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.calcite.config.Lex;
 
 /**

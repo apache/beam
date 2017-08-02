@@ -16,27 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.parser;
-
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 /**
- * Column constraint such as primary key.
+ * Created by xumingmingv on 16/06/2017.
  */
-public class ColumnConstraint extends SqlLiteral {
-  private ColumnConstraint(
-      Object value, SqlTypeName typeName, SqlParserPos pos) {
-    super(value, typeName, pos);
-  }
-
-  /**
-   * A primary key constraint.
-   */
-  public static class PrimaryKey extends ColumnConstraint {
-    public PrimaryKey(SqlParserPos pos) {
-      super(SqlDDLKeywords.PRIMARY, SqlTypeName.SYMBOL, pos);
-    }
-  }
-}
+package org.apache.beam.sdk.extensions.sql.impl.parser;
