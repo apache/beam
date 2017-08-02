@@ -22,12 +22,16 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.ReleaseInfo;
 
 /**
  * Abstract {@link DoFn} that manages {@link Spanner} lifecycle. Use {@link
  * AbstractSpannerFn#databaseClient} to access the Cloud Spanner database client.
  */
 abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+  // A common user agent token that indicates that this request was originated from Apache Beam.
+  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+
   private transient Spanner spanner;
   private transient DatabaseClient databaseClient;
 
@@ -36,7 +40,16 @@ abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> 
   @Setup
   public void setup() throws Exception {
     SpannerConfig spannerConfig = getSpannerConfig();
-    SpannerOptions options = spannerConfig.buildSpannerOptions();
+    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+    if (spannerConfig.getProjectId() != null) {
+      builder.setProjectId(spannerConfig.getProjectId().get());
+    }
+    if (spannerConfig.getServiceFactory() != null) {
+      builder.setServiceFactory(spannerConfig.getServiceFactory());
+    }
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
+    SpannerOptions options = builder.build();
     spanner = options.getService();
     databaseClient = spanner.getDatabaseClient(DatabaseId
         .of(options.getProjectId(), spannerConfig.getInstanceId().get(),
