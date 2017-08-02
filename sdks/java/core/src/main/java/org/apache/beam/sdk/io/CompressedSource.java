@@ -146,7 +146,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
           throws IOException {
         return Channels.newChannel(
-            new BZip2CompressorInputStream(Channels.newInputStream(channel)));
+            new BZip2CompressorInputStream(Channels.newInputStream(channel), true));
       }
     },
 
