@@ -24,17 +24,17 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.values.BeamRecordTypeProvider;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
- * Type provider for {@link BeamSqlRow} with SQL types.
+ * Type provider for {@link BeamRecord} with SQL types.
  *
  * <p>Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
  * for more details.
  *
  */
-public class BeamSqlRowType extends BeamRecordTypeProvider {
+public class BeamSqlRecordType extends BeamRecordType {
   private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();
   static {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.TINYINT, Byte.class);
@@ -58,18 +58,18 @@ public class BeamSqlRowType extends BeamRecordTypeProvider {
 
   public List<Integer> fieldsType;
 
-  protected BeamSqlRowType(List<String> fieldsName) {
+  protected BeamSqlRecordType(List<String> fieldsName) {
     super(fieldsName);
   }
 
-  public BeamSqlRowType(List<String> fieldsName, List<Integer> fieldsType) {
+  public BeamSqlRecordType(List<String> fieldsName, List<Integer> fieldsType) {
     super(fieldsName);
     this.fieldsType = fieldsType;
   }
 
-  public static BeamSqlRowType create(List<String> fieldNames,
+  public static BeamSqlRecordType create(List<String> fieldNames,
       List<Integer> fieldTypes) {
-    return new BeamSqlRowType(fieldNames, fieldTypes);
+    return new BeamSqlRecordType(fieldNames, fieldTypes);
   }
 
   @Override
@@ -94,8 +94,8 @@ public class BeamSqlRowType extends BeamRecordTypeProvider {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj != null && obj instanceof BeamSqlRowType) {
-      BeamSqlRowType ins = (BeamSqlRowType) obj;
+    if (obj != null && obj instanceof BeamSqlRecordType) {
+      BeamSqlRecordType ins = (BeamSqlRecordType) obj;
       return fieldsType.equals(ins.getFieldsType()) && getFieldsName().equals(ins.getFieldsName());
     } else {
       return false;

@@ -22,13 +22,13 @@ import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * The default type provider used in {@link BeamRecord}.
+ * The default type provider used in {@link BeamRecord2}.
  */
 @Experimental
-public class BeamRecordTypeProvider implements Serializable{
+public class BeamRecordType implements Serializable{
   private List<String> fieldsName;
 
-  public BeamRecordTypeProvider(List<String> fieldsName) {
+  public BeamRecordType(List<String> fieldsName) {
     this.fieldsName = fieldsName;
   }
 
