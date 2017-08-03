@@ -205,7 +205,7 @@ class CompressedFile(object):
             self._read_buffer.write(decompressed)
             continue
         else:
-          # Gzip and bzip2 formats do not require flusing remaining data in the
+          # Gzip and bzip2 formats do not require flushing remaining data in the
           # decompressor into the read buffer when fully decompressing files.
           self._read_buffer.write(self._decompressor.flush())
 

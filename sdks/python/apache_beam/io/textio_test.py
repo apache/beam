@@ -493,7 +493,6 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
       pipeline.run()
 
   def test_read_gzip_concat(self):
-    # gzip_file_name1 = temp_path_1 + '.gz'
     gzip_file_name1 = self._create_temp_file()
     lines = ['a', 'b', 'c']
     with gzip.open(gzip_file_name1, 'wb') as dst:
