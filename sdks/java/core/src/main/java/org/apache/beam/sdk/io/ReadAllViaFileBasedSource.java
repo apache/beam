@@ -21,7 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,10 +34,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Reads each filepattern in the input {@link PCollection} using given parameters for splitting
- * files into offset ranges and for creating a {@link FileBasedSource} for a file.
+ * Reads each file in the input {@link PCollection} of {@link Metadata} using given parameters for
+ * splitting files into offset ranges and for creating a {@link FileBasedSource} for a file. The
+ * input {@link PCollection} must not contain {@link ResourceId#isDirectory directories}.
+ *
+ * <p>To obtain the collection of {@link Metadata} from a filepattern, use {@link
+ * Match#filepatterns()}.
  */
-class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PCollection<T>> {
+class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<Metadata>, PCollection<T>> {
   private final SerializableFunction<String, Boolean> isSplittable;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, FileBasedSource<T>> createSource;
@@ -51,13 +56,12 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PColl
   }
 
   @Override
-  public PCollection<T> expand(PCollection<String> input) {
+  public PCollection<T> expand(PCollection<Metadata> input) {
     return input
-        .apply("Expand glob", ParDo.of(new ExpandGlobFn()))
         .apply(
             "Split into ranges",
             ParDo.of(new SplitIntoRangesFn(isSplittable, desiredBundleSizeBytes)))
-        .apply("Reshuffle", new ReshuffleWithUniqueKey<KV<MatchResult.Metadata, OffsetRange>>())
+        .apply("Reshuffle", new ReshuffleWithUniqueKey<KV<Metadata, OffsetRange>>())
         .apply("Read ranges", ParDo.of(new ReadFileRangesFn<T>(createSource)));
   }
 
@@ -86,23 +90,7 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PColl
     }
   }
 
-  private static class ExpandGlobFn extends DoFn<String, MatchResult.Metadata> {
-    @ProcessElement
-    public void process(ProcessContext c) throws Exception {
-      MatchResult match = FileSystems.match(c.element());
-      checkArgument(
-          match.status().equals(MatchResult.Status.OK),
-          "Failed to match filepattern %s: %s",
-          c.element(),
-          match.status());
-      for (MatchResult.Metadata metadata : match.metadata()) {
-        c.output(metadata);
-      }
-    }
-  }
-
-  private static class SplitIntoRangesFn
-      extends DoFn<MatchResult.Metadata, KV<MatchResult.Metadata, OffsetRange>> {
+  private static class SplitIntoRangesFn extends DoFn<Metadata, KV<Metadata, OffsetRange>> {
     private final SerializableFunction<String, Boolean> isSplittable;
     private final long desiredBundleSizeBytes;
 
@@ -114,7 +102,11 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PColl
 
     @ProcessElement
     public void process(ProcessContext c) {
-      MatchResult.Metadata metadata = c.element();
+      Metadata metadata = c.element();
+      checkArgument(
+          !metadata.resourceId().isDirectory(),
+          "Resource %s is a directory",
+          metadata.resourceId());
       if (!metadata.isReadSeekEfficient()
           || !isSplittable.apply(metadata.resourceId().toString())) {
         c.output(KV.of(metadata, new OffsetRange(0, metadata.sizeBytes())));
@@ -127,7 +119,7 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PColl
     }
   }
 
-  private static class ReadFileRangesFn<T> extends DoFn<KV<MatchResult.Metadata, OffsetRange>, T> {
+  private static class ReadFileRangesFn<T> extends DoFn<KV<Metadata, OffsetRange>, T> {
     private final SerializableFunction<String, FileBasedSource<T>> createSource;
 
     private ReadFileRangesFn(SerializableFunction<String, FileBasedSource<T>> createSource) {
@@ -136,7 +128,7 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<String>, PColl
 
     @ProcessElement
     public void process(ProcessContext c) throws IOException {
-      MatchResult.Metadata metadata = c.element().getKey();
+      Metadata metadata = c.element().getKey();
       OffsetRange range = c.element().getValue();
       FileBasedSource<T> source = createSource.apply(metadata.toString());
       try (BoundedSource.BoundedReader<T> reader =

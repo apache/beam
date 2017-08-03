@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -44,10 +45,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Duration;
 
 /**
  * {@link PTransform}s for reading and writing text files.
@@ -57,9 +60,16 @@ import org.apache.beam.sdk.values.PDone;
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
  * PCollection}, apply {@link TextIO#readAll()}.
  *
- * <p>{@link TextIO.Read} returns a {@link PCollection} of {@link String Strings}, each
- * corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n', '\r',
- * or '\r\n').
+ * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
+ * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n').
+ *
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} and {@link
+ * ReadAll#watchForNewFiles} allow streaming of new files matching the filepattern(s).
+ *
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
+ * allows them in case the filepattern contains a glob wildcard character. Use {@link
+ * TextIO.Read#withEmptyMatchTreatment} and {@link TextIO.ReadAll#withEmptyMatchTreatment} to
+ * configure this behavior.
  *
  * <p>Example 1: reading a file or filepattern.
  *
@@ -86,6 +96,20 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // Read all files in the collection.
  * PCollection<String> lines = filenames.apply(TextIO.readAll());
+ * }</pre>
+ *
+ * <p>Example 3: streaming new files matching a filepattern.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<String> lines = p.apply(TextIO.read()
+ *     .from("/local/path/to/files/*")
+ *     .watchForNewFiles(
+ *       // Check for new files every minute
+ *       Duration.standardMinutes(1),
+ *       // Stop watching the filepattern if no new files appear within an hour
+ *       afterTimeSinceNewOutput(Duration.standardHours(1))));
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
@@ -153,6 +177,7 @@ public class TextIO {
     return new AutoValue_TextIO_Read.Builder()
         .setCompressionType(CompressionType.AUTO)
         .setHintMatchesManyFiles(false)
+        .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
         .build();
   }
 
@@ -173,6 +198,7 @@ public class TextIO {
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)
         .build();
   }
 
@@ -219,7 +245,15 @@ public class TextIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
     abstract CompressionType getCompressionType();
+
+    @Nullable
+    abstract Duration getWatchForNewFilesInterval();
+
+    @Nullable
+    abstract TerminationCondition getWatchForNewFilesTerminationCondition();
+
     abstract boolean getHintMatchesManyFiles();
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
     abstract Builder toBuilder();
 
@@ -227,7 +261,10 @@ public class TextIO {
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder setWatchForNewFilesTerminationCondition(TerminationCondition condition);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
+      abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
 
       abstract Read build();
     }
@@ -257,13 +294,29 @@ public class TextIO {
     }
 
     /**
-     * Returns a new transform for reading from text files that's like this one but
-     * reads from input sources using the specified compression type.
+     * Reads from input sources using the specified compression type.
      *
      * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
      */
     public Read withCompressionType(TextIO.CompressionType compressionType) {
       return toBuilder().setCompressionType(compressionType).build();
+    }
+
+    /**
+     * Continuously watches for new files matching the filepattern, polling it at the given
+     * interval, until the given termination condition is reached. The returned {@link PCollection}
+     * is unbounded.
+     *
+     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     *
+     * @see TerminationCondition
+     */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public Read watchForNewFiles(Duration pollInterval, TerminationCondition terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
     }
 
     /**
@@ -279,20 +332,40 @@ public class TextIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    /**
+     * Configures whether or not a filepattern matching no files is allowed. When using {@link
+     * #watchForNewFiles}, it is always allowed and this parameter is ignored.
+     */
+    public Read withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
     @Override
     public PCollection<String> expand(PBegin input) {
       checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
-      return getHintMatchesManyFiles()
-          ? input
-              .apply(
-                  "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-              .apply(readAll().withCompressionType(getCompressionType()))
-          : input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+      if (getWatchForNewFilesInterval() == null && !getHintMatchesManyFiles()) {
+        return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+      }
+      // All other cases go through ReadAll.
+      ReadAll readAll =
+          readAll()
+              .withCompressionType(getCompressionType())
+              .withEmptyMatchTreatment(getEmptyMatchTreatment());
+      if (getWatchForNewFilesInterval() != null) {
+        readAll =
+            readAll.watchForNewFiles(
+                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
+      }
+      return input
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Via ReadAll", readAll);
     }
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return wrapWithCompression(new TextSource(getFilepattern()), getCompressionType());
+      return wrapWithCompression(
+          new TextSource(getFilepattern(), getEmptyMatchTreatment()),
+          getCompressionType());
     }
 
     private static FileBasedSource<String> wrapWithCompression(
@@ -330,10 +403,17 @@ public class TextIO {
       String filepatternDisplay = getFilepattern().isAccessible()
         ? getFilepattern().get() : getFilepattern().toString();
       builder
-          .add(DisplayData.item("compressionType", getCompressionType().toString())
-            .withLabel("Compression Type"))
-          .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
-            .withLabel("File Pattern"));
+          .add(
+              DisplayData.item("compressionType", getCompressionType().toString())
+                  .withLabel("Compression Type"))
+          .addIfNotNull(
+              DisplayData.item("filePattern", filepatternDisplay).withLabel("File Pattern"))
+          .add(
+              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+                  .withLabel("Treatment of filepatterns that match no files"))
+          .addIfNotNull(
+              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
+                  .withLabel("Interval to watch for new files"));
     }
   }
 
@@ -344,6 +424,14 @@ public class TextIO {
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
     abstract CompressionType getCompressionType();
+
+    @Nullable
+    abstract Duration getWatchForNewFilesInterval();
+
+    @Nullable
+    abstract TerminationCondition<String, ?> getWatchForNewFilesTerminationCondition();
+
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder toBuilder();
@@ -351,6 +439,10 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder setWatchForNewFilesTerminationCondition(
+          TerminationCondition<String, ?> condition);
+      abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ReadAll build();
@@ -361,6 +453,21 @@ public class TextIO {
       return toBuilder().setCompressionType(compressionType).build();
     }
 
+    /** Same as {@link Read#withEmptyMatchTreatment}. */
+    public ReadAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
+    /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public ReadAll watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
+    }
+
     @VisibleForTesting
     ReadAll withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
@@ -368,13 +475,21 @@ public class TextIO {
 
     @Override
     public PCollection<String> expand(PCollection<String> input) {
+      Match.Filepatterns matchFilepatterns =
+          Match.filepatterns().withEmptyMatchTreatment(getEmptyMatchTreatment());
+      if (getWatchForNewFilesInterval() != null) {
+        matchFilepatterns =
+            matchFilepatterns.continuously(
+                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
+      }
       return input
+          .apply(matchFilepatterns)
           .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
                   new IsSplittableFn(getCompressionType()),
                   getDesiredBundleSizeBytes(),
-                  new CreateTextSourceFn(getCompressionType())))
+                  new CreateTextSourceFn(getCompressionType(), getEmptyMatchTreatment())))
           .setCoder(StringUtf8Coder.of());
     }
 
@@ -390,15 +505,18 @@ public class TextIO {
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
       private final CompressionType compressionType;
+      private final EmptyMatchTreatment emptyMatchTreatment;
 
-      private CreateTextSourceFn(CompressionType compressionType) {
+      private CreateTextSourceFn(
+          CompressionType compressionType, EmptyMatchTreatment emptyMatchTreatment) {
         this.compressionType = compressionType;
+        this.emptyMatchTreatment = emptyMatchTreatment;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
         return Read.wrapWithCompression(
-            new TextSource(StaticValueProvider.of(input)), compressionType);
+            new TextSource(StaticValueProvider.of(input), emptyMatchTreatment), compressionType);
       }
     }
 

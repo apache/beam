@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -64,6 +63,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -554,14 +555,13 @@ public class Watch {
       if (outputCoder == null) {
         // If a coder was not specified explicitly, infer it from the OutputT type parameter
         // of the PollFn.
-        TypeDescriptor<?> superDescriptor =
-            TypeDescriptor.of(getPollFn().getClass()).getSupertype(PollFn.class);
-        TypeVariable typeVariable = superDescriptor.getTypeParameter("OutputT");
-        @SuppressWarnings("unchecked")
-        TypeDescriptor<OutputT> descriptor =
-            (TypeDescriptor<OutputT>) superDescriptor.resolveType(typeVariable);
+        TypeDescriptor<OutputT> outputT =
+            TypeDescriptors.extractFromTypeParameters(
+                getPollFn(),
+                PollFn.class,
+                new TypeVariableExtractor<PollFn<InputT, OutputT>, OutputT>() {});
         try {
-          outputCoder = input.getPipeline().getCoderRegistry().getCoder(descriptor);
+          outputCoder = input.getPipeline().getCoderRegistry().getCoder(outputT);
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException(
               "Unable to infer coder for OutputT. Specify it explicitly using withOutputCoder().");
