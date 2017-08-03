@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DoubleCoder
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.FloatCoder;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.ShortCoder;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.TimeCoder;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
