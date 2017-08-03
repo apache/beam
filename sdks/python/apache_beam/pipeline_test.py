@@ -498,6 +498,32 @@ class RunnerApiTest(unittest.TestCase):
     p.to_runner_api()
     self.assertEqual(MyPTransform.pickle_count[0], 20)
 
+class DirectRunnerRetryTests(unittest.TestCase):
+
+  def test_retry_fork_graph(self):
+    p = beam.Pipeline('DirectRunner')
+    global count_b, count_c
+    count_b, count_c = 0, 0
+
+    def f_b(x):
+      global count_b
+      count_b += 1
+      raise Exception('exception in f_b')
+
+    def f_c(x):
+      global count_c
+      count_c += 1
+      raise Exception('exception in f_c')
+
+    names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
+
+    fork_b = names | 'SendToB' >> beam.Map(f_b)
+    fork_c = names | 'SendToC' >> beam.Map(f_c)
+
+    try:
+      p.run().wait_until_finish()
+    except Exception as e:  # pylint: disable=broad-except
+      assert count_b == count_c == 4
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

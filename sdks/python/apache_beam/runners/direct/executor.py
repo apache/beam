@@ -25,6 +25,7 @@ import logging
 import Queue
 import sys
 import threading
+from retrying import retry
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
@@ -271,6 +272,8 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._side_input_values = {}
     self.blocked = False
     self._call_count = 0
+    self._retry_count = 0
+    self._MAX_RETRY_PER_BUNDLE = 4
 
   def call(self):
     self._call_count += 1
@@ -291,44 +294,57 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
     side_input_values = [self._side_input_values[side_input]
                          for side_input in self._applied_ptransform.side_inputs]
-
     try:
-      evaluator = self._transform_evaluator_registry.get_evaluator(
-          self._applied_ptransform, self._input_bundle,
-          side_input_values, scoped_metrics_container)
+      self.attempt_call(metrics_container,
+                        scoped_metrics_container,
+                        side_input_values)
+    except Exception as e:
+      if self._retry_count == self._MAX_RETRY_PER_BUNDLE:
+        logging.error('Giving up after %s attempts.',
+                      self._MAX_RETRY_PER_BUNDLE)
+        self._completion_callback.handle_exception(self, e)
 
-      if self._fired_timers:
-        for timer_firing in self._fired_timers:
-          evaluator.process_timer_wrapper(timer_firing)
-
-      if self._input_bundle:
-        for value in self._input_bundle.get_elements_iterable():
-          evaluator.process_element(value)
-
-      with scoped_metrics_container:
-        result = evaluator.finish_bundle()
-        result.logical_metric_updates = metrics_container.get_cumulative()
-
-      if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.uncommitted_output_bundles:
-          self._evaluation_context.append_to_cache(
-              self._applied_ptransform, uncommitted_bundle.tag,
-              uncommitted_bundle.get_elements_iterable())
-        undeclared_tag_values = result.undeclared_tag_values
-        if undeclared_tag_values:
-          for tag, value in undeclared_tag_values.iteritems():
-            self._evaluation_context.append_to_cache(
-                self._applied_ptransform, tag, value)
-
-      self._completion_callback.handle_result(self, self._input_bundle, result)
-      return result
-    except Exception as e:  # pylint: disable=broad-except
-      self._completion_callback.handle_exception(self, e)
     finally:
       self._evaluation_context.metrics().commit_physical(
           self._input_bundle,
           metrics_container.get_cumulative())
       self._transform_evaluation_state.complete(self)
+
+  @retry(stop_max_attempt_number=4)
+  def attempt_call(self, metrics_container,
+                   scoped_metrics_container,
+                   side_input_values):
+    self._retry_count += 1
+
+    evaluator = self._transform_evaluator_registry.get_evaluator(
+        self._applied_ptransform, self._input_bundle,
+        side_input_values, scoped_metrics_container)
+
+    if self._fired_timers:
+      for timer_firing in self._fired_timers:
+        evaluator.process_timer_wrapper(timer_firing)
+
+    if self._input_bundle:
+      for value in self._input_bundle.get_elements_iterable():
+        evaluator.process_element(value)
+
+    with scoped_metrics_container:
+      result = evaluator.finish_bundle()
+      result.logical_metric_updates = metrics_container.get_cumulative()
+
+    if self._evaluation_context.has_cache:
+      for uncommitted_bundle in result.uncommitted_output_bundles:
+        self._evaluation_context.append_to_cache(
+            self._applied_ptransform, uncommitted_bundle.tag,
+            uncommitted_bundle.get_elements_iterable())
+      undeclared_tag_values = result.undeclared_tag_values
+      if undeclared_tag_values:
+        for tag, value in undeclared_tag_values.iteritems():
+          self._evaluation_context.append_to_cache(
+              self._applied_ptransform, tag, value)
+
+    self._completion_callback.handle_result(self, self._input_bundle, result)
+    return result
 
 
 class Executor(object):
@@ -460,6 +476,13 @@ class _ExecutorServiceParallelExecutor(object):
       if self.exc_info[1] is not exception:
         # Not the right exception.
         self.exc_info = (exception, None, None)
+
+    def __repr__(self):
+      return "%s(%s, %s, %s)" % (self.__class__.__name__,
+                                 'has commmitte_bundle' if self.committed_bundle else 'x',
+                                 'has unprocessed_bundle' if self.unprocessed_bundle else 'x',
+                                 self.exception)
+
 
   class _VisibleExecutorUpdate(object):
     """An update of interest to the user.
