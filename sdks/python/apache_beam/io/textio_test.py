@@ -401,6 +401,64 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
+  def test_read_corrupted_bzip2_fails(self):
+    _, lines = write_data(15)
+    file_name = self._create_temp_file()
+    with bz2.BZ2File(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    with open(file_name, 'wb') as f:
+      f.write('corrupt')
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        compression_type=CompressionTypes.BZIP2)
+    assert_that(pcoll, equal_to(lines))
+    with self.assertRaises(Exception):
+      pipeline.run()
+
+  def test_read_bzip2_concat(self):
+    bzip2_file_name1 = self._create_temp_file()
+    lines = ['a', 'b', 'c']
+    with bz2.BZ2File(bzip2_file_name1, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    bzip2_file_name2 = self._create_temp_file()
+    lines = ['p', 'q', 'r']
+    with bz2.BZ2File(bzip2_file_name2, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    bzip2_file_name3 = self._create_temp_file()
+    lines = ['x', 'y', 'z']
+    with bz2.BZ2File(bzip2_file_name3, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    final_bzip2_file = self._create_temp_file()
+    with open(bzip2_file_name1, 'rb') as src, open(
+        final_bzip2_file, 'wb') as dst:
+      dst.writelines(src.readlines())
+
+    with open(bzip2_file_name2, 'rb') as src, open(
+        final_bzip2_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    with open(bzip2_file_name3, 'rb') as src, open(
+        final_bzip2_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    pipeline = TestPipeline()
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        final_bzip2_file,
+        compression_type=beam.io.filesystem.CompressionTypes.BZIP2)
+
+    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+    assert_that(lines, equal_to(expected))
+    pipeline.run()
+
   def test_read_gzip(self):
     _, lines = write_data(15)
     file_name = self._create_temp_file()
@@ -413,6 +471,63 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_corrupted_gzip_fails(self):
+    _, lines = write_data(15)
+    file_name = self._create_temp_file()
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    with open(file_name, 'wb') as f:
+      f.write('corrupt')
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to(lines))
+
+    with self.assertRaises(Exception):
+      pipeline.run()
+
+  def test_read_gzip_concat(self):
+    gzip_file_name1 = self._create_temp_file()
+    lines = ['a', 'b', 'c']
+    with gzip.open(gzip_file_name1, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    gzip_file_name2 = self._create_temp_file()
+    lines = ['p', 'q', 'r']
+    with gzip.open(gzip_file_name2, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    gzip_file_name3 = self._create_temp_file()
+    lines = ['x', 'y', 'z']
+    with gzip.open(gzip_file_name3, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    final_gzip_file = self._create_temp_file()
+    with open(gzip_file_name1, 'rb') as src, open(final_gzip_file, 'wb') as dst:
+      dst.writelines(src.readlines())
+
+    with open(gzip_file_name2, 'rb') as src, open(final_gzip_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    with open(gzip_file_name3, 'rb') as src, open(final_gzip_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    pipeline = TestPipeline()
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        final_gzip_file,
+        compression_type=beam.io.filesystem.CompressionTypes.GZIP)
+
+    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+    assert_that(lines, equal_to(expected))
     pipeline.run()
 
   def test_read_gzip_large(self):
