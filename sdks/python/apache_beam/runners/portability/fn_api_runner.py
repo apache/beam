@@ -40,6 +40,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
@@ -47,8 +48,6 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-
-from apache_beam.runners.runner import PipelineState
 
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -158,8 +157,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     return str(self._last_uid)
 
   def run(self, pipeline):
+    MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
     if pipeline._verify_runner_api_compatible():
-      MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
       return self.run_via_runner_api(pipeline.to_runner_api())
     else:
       return super(FnApiRunner, self).run(pipeline)
@@ -180,7 +179,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       else:
         return frozenset.union(a, b)
 
-    class MapTask(object):
+    class Stage(object):
+      """A set of Transforms that can be sent to the worker for processing."""
       def __init__(self, name, transforms,
                    downstream_side_inputs=None, must_follow=frozenset()):
         self.name = name
@@ -205,7 +205,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             and no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
       def fuse(self, other):
-        return MapTask(
+        return Stage(
             "(%s)+(%s)" % (self.name, other.name),
             self.transforms + other.transforms,
             union(self.downstream_side_inputs, other.downstream_side_inputs),
@@ -260,7 +260,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           param = proto_utils.pack_Any(
               wrappers_pb2.BytesValue(
                   value=str("group:%s" % stage.name)))
-          gbk_write = MapTask(
+          gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Write',
@@ -272,7 +272,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               must_follow=stage.must_follow)
           yield gbk_write
 
-          yield MapTask(
+          yield Stage(
               transform.unique_name + '/Read',
               [beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Read',
@@ -313,7 +313,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               pcollections[pcoll_in].coder_id = output_coder_id
               transcoded_pcollection = (
                   transform.unique_name + '/Transcode/' + local_in + '/out')
-              yield MapTask(
+              yield Stage(
                   transform.unique_name + '/Transcode/' + local_in,
                   [beam_runner_api_pb2.PTransform(
                       unique_name=
@@ -330,7 +330,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             else:
               transcoded_pcollection = pcoll_in
 
-            flatten_write = MapTask(
+            flatten_write = Stage(
                 transform.unique_name + '/Write/' + local_in,
                 [beam_runner_api_pb2.PTransform(
                     unique_name=transform.unique_name + '/Write/' + local_in,
@@ -343,7 +343,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             flatten_writes.append(flatten_write)
             yield flatten_write
 
-          yield MapTask(
+          yield Stage(
               transform.unique_name + '/Read',
               [beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Read',
@@ -454,7 +454,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           else:
             # If we can't fuse, do a read + write.
             if write_pcoll is None:
-              write_pcoll = MapTask(
+              write_pcoll = Stage(
                   pcoll + '/Write',
                   [beam_runner_api_pb2.PTransform(
                       unique_name=pcoll + '/Write',
@@ -464,7 +464,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                           parameter=pcoll_as_param))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
-              read_pcoll = MapTask(
+              read_pcoll = Stage(
                   pcoll + '/Read',
                   [beam_runner_api_pb2.PTransform(
                       unique_name=pcoll + '/Read',
@@ -476,12 +476,13 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               fuse(read_pcoll, consumer)
 
       # Everything that was originally a stage or a replacement, but wasn't
-      # replaced.
+      # replaced, should be in the final graph.
       final_stages = frozenset(stages).union(replacements.values()).difference(
           replacements.keys())
 
       for stage in final_stages:
-        # Update all references to final values before throwing the data away.
+        # Update all references to their final values before throwing
+        # the replacement data away.
         stage.must_follow = frozenset(replacement(s) for s in stage.must_follow)
         # Two reads of the same stage may have been fused.  This is unneeded.
         stage.deduplicate_read()
@@ -523,7 +524,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     # Initial set of stages are singleton transforms.
     stages = [
-        MapTask(name, [transform])
+        Stage(name, [transform])
         for name, transform in pipeline_proto.components.transforms.items()
         if not transform.subtransforms]
 
@@ -557,7 +558,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
   def run_stage(self, controller, pipeline_components, stage, pcoll_buffers):
 
     coders = pipeline_context.PipelineContext(pipeline_components).coders
-
     data_operation_spec = controller.data_operation_spec()
 
     def extract_endpoints(stage):
@@ -813,14 +813,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       data_operation_spec):
     registration, sinks, input_data = self._map_task_registration(
         map_task, state_handler, data_operation_spec)
-    self._run_registered_map_task(
-        registration, sinks, input_data,
-        control_handler, state_handler, data_plane_handler, data_operation_spec)
-
-  def _run_registered_map_task(
-      self, registration, sinks, input_data,
-      control_handler, state_handler, data_plane_handler,
-      data_operation_spec):
     control_handler.push(registration)
     process_bundle = beam_fn_api_pb2.InstructionRequest(
         instruction_id=self._next_uid(),
