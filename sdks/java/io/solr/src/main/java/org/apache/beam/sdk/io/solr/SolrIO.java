@@ -365,6 +365,8 @@ public class SolrIO {
               break;
             }
           }
+          // TODO in case of this replica goes inactive while the pipeline runs.
+          // We should pick another active replica of this shard.
           checkState(randomActiveReplica != null,
               "Can not found an active replica for slice %s", slice.getName());
           sources.add(new BoundedSolrSource(spec, randomActiveReplica));
