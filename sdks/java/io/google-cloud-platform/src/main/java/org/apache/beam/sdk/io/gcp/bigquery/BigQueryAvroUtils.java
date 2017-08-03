@@ -256,8 +256,8 @@ class BigQueryAvroUtils {
     }
     return Schema.createRecord(
         schemaName,
-        "org.apache.beam.sdk.io.gcp.bigquery",
         "Translated Avro Schema for " + schemaName,
+        "org.apache.beam.sdk.io.gcp.bigquery",      
         false,
         avroFields);
   }
