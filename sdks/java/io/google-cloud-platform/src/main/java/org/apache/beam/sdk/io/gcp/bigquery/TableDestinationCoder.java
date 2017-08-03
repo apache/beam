@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
