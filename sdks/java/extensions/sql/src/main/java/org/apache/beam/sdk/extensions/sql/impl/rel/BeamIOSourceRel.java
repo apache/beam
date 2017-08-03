@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import com.google.common.base.Joiner;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlTable;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -54,7 +54,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
       return sourceStream;
     } else {
       //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-      BaseBeamTable sourceTable = sqlEnv.findTable(sourceName);
+      BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
       return sourceTable.buildIOReader(inputPCollections.getPipeline())
           .setCoder(new BeamSqlRowCoder(CalciteUtils.toBeamRowType(getRowType())));
     }

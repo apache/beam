@@ -26,8 +26,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlTable;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -66,13 +66,15 @@ import org.slf4j.LoggerFactory;
 public class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
+  private SchemaPlus schema;
   protected final Planner planner;
-  private Map<String, BaseBeamTable> sourceTables = new HashMap<>();
+  private Map<String, BeamSqlTable> sourceTables = new HashMap<>();
 
   public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
       RelDataTypeSystem.DEFAULT);
 
   public BeamQueryPlanner(SchemaPlus schema) {
+    this.schema = schema;
     final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
@@ -89,10 +91,6 @@ public class BeamQueryPlanner {
         .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
         .build();
     this.planner = Frameworks.getPlanner(config);
-
-    for (String t : schema.getTableNames()) {
-      sourceTables.put(t, (BaseBeamTable) schema.getTable(t));
-    }
   }
 
   /**
@@ -156,8 +154,15 @@ public class BeamQueryPlanner {
     return planner.validate(sqlNode);
   }
 
-  public Map<String, BaseBeamTable> getSourceTables() {
+  public Map<String, BeamSqlTable> getSourceTables() {
     return sourceTables;
+  }
+
+  /**
+   * TODO refactor to use this method in many other places.
+   */
+  public void addTable(String name, BeamSqlTable table) {
+    sourceTables.put(name, table);
   }
 
   public Planner getPlanner() {

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema.kafka;
+package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -43,7 +43,6 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
  *
  */
 public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {
-
   private String bootstrapServers;
   private List<String> topics;
   private Map<String, Object> configUpdates;
@@ -106,4 +105,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     };
   }
 
+  public String getBootstrapServers() {
+    return bootstrapServers;
+  }
+
+  public List<String> getTopics() {
+    return topics;
+  }
 }

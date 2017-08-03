@@ -41,6 +41,9 @@ public class BeamSqlApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam",
             "org.joda.time",
+            "com.alibaba.fastjson",
+            // exposed through fastjson
+            "sun.reflect",
             "org.apache.commons.csv");
 
     ApiSurface surface = ApiSurface
@@ -48,6 +51,8 @@ public class BeamSqlApiSurfaceTest {
         .includingClass(BeamSql.class)
         .includingClass(BeamSqlEnv.class)
         .includingPackage("org.apache.beam.sdk.extensions.sql.schema",
+            getClass().getClassLoader())
+        .includingPackage("org.apache.beam.sdk.extensions.sql.meta",
             getClass().getClassLoader())
         .pruningPrefix("java")
         .pruningPattern("org[.]apache[.]beam[.]sdk[.]extensions[.]sql[.].*Test")
