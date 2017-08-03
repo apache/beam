@@ -365,20 +365,7 @@
   </profiles>
 
   <build>
-
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <beamUseDummyRunner />
-            <beamTestPipelineOptions>
-            </beamTestPipelineOptions>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -518,7 +505,6 @@
     </dependency>
 
     <!-- Test dependencies -->
-
     <!--
       For testing the example itself, use the direct runner. This is separate from
       the use of ValidatesRunner tests for testing a particular runner.
