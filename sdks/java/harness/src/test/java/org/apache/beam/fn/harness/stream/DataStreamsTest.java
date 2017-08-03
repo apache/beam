@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
-import org.apache.beam.fn.harness.stream.DataStreams.BlockingIterator;
+import org.apache.beam.fn.harness.stream.DataStreams.BlockingQueueIterator;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,8 +53,9 @@ public class DataStreamsTest {
   }
 
   @Test(timeout = 10_000)
-  public void testBlockingIteratorWithoutBlocking() throws Exception {
-    BlockingIterator<String> iterator = new BlockingIterator<>(new ArrayBlockingQueue<>(3));
+  public void testBlockingQueueIteratorWithoutBlocking() throws Exception {
+    BlockingQueueIterator<String> iterator =
+        new BlockingQueueIterator<>(new ArrayBlockingQueue<>(3));
 
     iterator.accept("A");
     iterator.accept("B");
@@ -65,10 +66,11 @@ public class DataStreamsTest {
   }
 
   @Test(timeout = 10_000)
-  public void testBlockingIteratorWithBlocking() throws Exception {
+  public void testBlockingQueueIteratorWithBlocking() throws Exception {
     // The synchronous queue only allows for one element to transfer at a time and blocks
     // the sending/receiving parties until both parties are there.
-    final BlockingIterator<String> iterator = new BlockingIterator<>(new SynchronousQueue<>());
+    final BlockingQueueIterator<String> iterator =
+        new BlockingQueueIterator<>(new SynchronousQueue<>());
     final CompletableFuture<List<String>> valuesFuture = new CompletableFuture<>();
     Thread appender = new Thread() {
       @Override

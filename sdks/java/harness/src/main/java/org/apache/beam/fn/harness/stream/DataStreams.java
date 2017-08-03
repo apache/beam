@@ -110,7 +110,7 @@ public class DataStreams {
    * <p>The order or values which are appended to this iterator is nondeterministic when multiple
    * threads call {@link #accept(Object)}.
    */
-  public static class BlockingIterator<T> implements
+  public static class BlockingQueueIterator<T> implements
       CloseableThrowingConsumer<T>, Iterator<T> {
     private static final Object POISION_PILL = new Object();
     private final BlockingQueue<T> queue;
@@ -118,7 +118,7 @@ public class DataStreams {
     /** Only accessed by {@link Iterator#hasNext()} and {@link Iterator#next()} methods. */
     private T currentElement;
 
-    public BlockingIterator(BlockingQueue<T> queue) {
+    public BlockingQueueIterator(BlockingQueue<T> queue) {
       this.queue = queue;
     }
 
