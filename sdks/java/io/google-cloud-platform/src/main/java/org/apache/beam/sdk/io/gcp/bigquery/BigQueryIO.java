@@ -65,7 +65,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJso
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
-import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioninDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1216,10 +1216,10 @@ public class BigQueryIO {
       }
       if (getJsonTimePartitioning() != null) {
         checkArgument(getDynamicDestinations() == null,
-            "The supplied DynamicDestinations object can directly set TimePartitiong."
+            "The supplied DynamicDestinations object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
         checkArgument(getTableFunction() == null,
-            "The supplied getTableFunction object can directly set TimePartitiong."
+            "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
 
@@ -1248,7 +1248,7 @@ public class BigQueryIO {
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
         if (getJsonTimePartitioning() != null) {
-          dynamicDestinations = new ConstantTimePartitioninDestinations(
+          dynamicDestinations = new ConstantTimePartitioningDestinations(
               dynamicDestinations, getJsonTimePartitioning());
         }
       }
