@@ -24,7 +24,7 @@ import java.util.BitSet;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordTypeProvider;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
  *  A {@link Coder} for {@link BeamRecord}. It wraps the {@link Coder} for each element directly.
@@ -34,19 +34,23 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
   private static final InstantCoder instantCoder = InstantCoder.of();
 
-  private BeamRecordTypeProvider recordType;
+  private BeamRecordType recordType;
   private List<Coder> coderArray;
 
-  private BeamRecordCoder(BeamRecordTypeProvider recordType, List<Coder> coderArray) {
+  private BeamRecordCoder(BeamRecordType recordType, List<Coder> coderArray) {
     this.recordType = recordType;
     this.coderArray = coderArray;
   }
 
-  public static BeamRecordCoder of(BeamRecordTypeProvider recordType, List<Coder> coderArray){
+  public static BeamRecordCoder of(BeamRecordType recordType, List<Coder> coderArray){
     if (recordType.size() != coderArray.size()) {
       throw new IllegalArgumentException("Coder size doesn't match with field size");
     }
     return new BeamRecordCoder(recordType, coderArray);
+  }
+
+  public BeamRecordType getRecordType() {
+    return recordType;
   }
 
   @Override
@@ -54,11 +58,11 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       throws CoderException, IOException {
     nullListCoder.encode(value.getNullFields(), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
-      if (value.getNullFields().get(idx)) {
+      if (value.isNull(idx)) {
         continue;
       }
 
-      coderArray.get(idx).encode(value.getInteger(idx), outStream);
+      coderArray.get(idx).encode(value.getFieldValue(idx), outStream);
     }
 
     instantCoder.encode(value.getWindowStart(), outStream);
@@ -70,7 +74,6 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
     BitSet nullFields = nullListCoder.decode(inStream);
 
     BeamRecord record = new BeamRecord(recordType);
-    record.setNullFields(nullFields);
     for (int idx = 0; idx < recordType.size(); ++idx) {
       if (nullFields.get(idx)) {
         continue;
@@ -88,5 +91,8 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    for (Coder c : coderArray) {
+      c.verifyDeterministic();
+    }
   }
 }

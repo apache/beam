@@ -20,24 +20,24 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.BeamRecord;
 
 /**
  *
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
  *
  */
-public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
+public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamSqlRowType outputRowType;
+  private BeamSqlRecordType outputRowType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamSqlRowType outputRowType) {
+      BeamSqlRecordType outputRowType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -51,10 +51,10 @@ public class BeamSqlProjectFn extends DoFn<BeamSqlRow, BeamSqlRow> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamSqlRow inputRow = c.element();
+    BeamRecord inputRow = c.element();
     List<Object> results = executor.execute(inputRow);
 
-    BeamSqlRow outRow = new BeamSqlRow(outputRowType);
+    BeamRecord outRow = new BeamRecord(outputRowType);
     outRow.updateWindowRange(inputRow, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {

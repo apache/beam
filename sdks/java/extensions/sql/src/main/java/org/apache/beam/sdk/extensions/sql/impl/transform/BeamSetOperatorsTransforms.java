@@ -20,10 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperatorRelBase;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -35,8 +35,8 @@ public abstract class BeamSetOperatorsTransforms {
    * Transform a {@code BeamSqlRow} to a {@code KV<BeamSqlRow, BeamSqlRow>}.
    */
   public static class BeamSqlRow2KvFn extends
-      SimpleFunction<BeamSqlRow, KV<BeamSqlRow, BeamSqlRow>> {
-    @Override public KV<BeamSqlRow, BeamSqlRow> apply(BeamSqlRow input) {
+      SimpleFunction<BeamRecord, KV<BeamRecord, BeamRecord>> {
+    @Override public KV<BeamRecord, BeamRecord> apply(BeamRecord input) {
       return KV.of(input, input);
     }
   }
@@ -45,14 +45,14 @@ public abstract class BeamSetOperatorsTransforms {
    * Filter function used for Set operators.
    */
   public static class SetOperatorFilteringDoFn extends
-      DoFn<KV<BeamSqlRow, CoGbkResult>, BeamSqlRow> {
-    private TupleTag<BeamSqlRow> leftTag;
-    private TupleTag<BeamSqlRow> rightTag;
+      DoFn<KV<BeamRecord, CoGbkResult>, BeamRecord> {
+    private TupleTag<BeamRecord> leftTag;
+    private TupleTag<BeamRecord> rightTag;
     private BeamSetOperatorRelBase.OpType opType;
     // ALL?
     private boolean all;
 
-    public SetOperatorFilteringDoFn(TupleTag<BeamSqlRow> leftTag, TupleTag<BeamSqlRow> rightTag,
+    public SetOperatorFilteringDoFn(TupleTag<BeamRecord> leftTag, TupleTag<BeamRecord> rightTag,
         BeamSetOperatorRelBase.OpType opType, boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
@@ -62,13 +62,13 @@ public abstract class BeamSetOperatorsTransforms {
 
     @ProcessElement public void processElement(ProcessContext ctx) {
       CoGbkResult coGbkResult = ctx.element().getValue();
-      Iterable<BeamSqlRow> leftRows = coGbkResult.getAll(leftTag);
-      Iterable<BeamSqlRow> rightRows = coGbkResult.getAll(rightTag);
+      Iterable<BeamRecord> leftRows = coGbkResult.getAll(leftTag);
+      Iterable<BeamRecord> rightRows = coGbkResult.getAll(rightTag);
       switch (opType) {
         case UNION:
           if (all) {
             // output both left & right
-            Iterator<BeamSqlRow> iter = leftRows.iterator();
+            Iterator<BeamRecord> iter = leftRows.iterator();
             while (iter.hasNext()) {
               ctx.output(iter.next());
             }
@@ -84,7 +84,7 @@ public abstract class BeamSetOperatorsTransforms {
         case INTERSECT:
           if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
             if (all) {
-              for (BeamSqlRow leftRow : leftRows) {
+              for (BeamRecord leftRow : leftRows) {
                 ctx.output(leftRow);
               }
             } else {
@@ -94,7 +94,7 @@ public abstract class BeamSetOperatorsTransforms {
           break;
         case MINUS:
           if (leftRows.iterator().hasNext() && !rightRows.iterator().hasNext()) {
-            Iterator<BeamSqlRow> iter = leftRows.iterator();
+            Iterator<BeamRecord> iter = leftRows.iterator();
             if (all) {
               // output all
               while (iter.hasNext()) {

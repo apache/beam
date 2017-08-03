@@ -23,11 +23,11 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBo
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -41,8 +41,8 @@ public class BeamSqlDslJoinTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final BeamSqlRowType SOURCE_RECORD_TYPE =
-      BeamSqlRowType.create(
+  private static final BeamSqlRecordType SOURCE_RECORD_TYPE =
+      BeamSqlRecordType.create(
           Arrays.asList(
               "order_id", "site_id", "price"
           ),
@@ -51,11 +51,10 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamSqlRowCoder SOURCE_CODER =
-      new BeamSqlRowCoder(SOURCE_RECORD_TYPE);
+  private static final BeamRecordCoder SOURCE_CODER = SOURCE_RECORD_TYPE.getRecordCoder();
 
-  private static final BeamSqlRowType RESULT_RECORD_TYPE =
-      BeamSqlRowType.create(
+  private static final BeamSqlRecordType RESULT_RECORD_TYPE =
+      BeamSqlRecordType.create(
           Arrays.asList(
           "order_id", "site_id", "price", "order_id0", "site_id0", "price0"
           ),
@@ -65,8 +64,7 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamSqlRowCoder RESULT_CODER =
-      new BeamSqlRowCoder(RESULT_RECORD_TYPE);
+  private static final BeamRecordCoder RESULT_CODER = RESULT_RECORD_TYPE.getRecordCoder();
 
   @Test
   public void testInnerJoin() throws Exception {
@@ -178,13 +176,13 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  private PCollection<BeamSqlRow> queryFromOrderTables(String sql) {
+  private PCollection<BeamRecord> queryFromOrderTables(String sql) {
     return PCollectionTuple
         .of(
-            new TupleTag<BeamSqlRow>("ORDER_DETAILS1"),
+            new TupleTag<BeamRecord>("ORDER_DETAILS1"),
             ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER)
         )
-        .and(new TupleTag<BeamSqlRow>("ORDER_DETAILS2"),
+        .and(new TupleTag<BeamRecord>("ORDER_DETAILS2"),
             ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER)
         ).apply("join", BeamSql.query(sql)).setCoder(RESULT_CODER);
   }
