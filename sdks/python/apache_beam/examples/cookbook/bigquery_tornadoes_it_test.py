@@ -60,13 +60,13 @@ class BigqueryTornadoesIT(unittest.TestCase):
     extra_opts = {'output': output_table,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
+    # Register cleanup before pipeline execution.
+    self.addCleanup(utils.delete_bq_table, project, dataset, table)
+
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     bigquery_tornadoes.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
-
-    # Clean up
-    self.addCleanup(utils.delete_bq_table, project, dataset, table)
 
 
 if __name__ == '__main__':

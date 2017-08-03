@@ -29,8 +29,9 @@ except ImportError:
   bigquery = None
 
 
-class GcpIOError(retry.PermanentException):
-  """Basic GCP IO error that should not be retried."""
+class GcpTestIOError(retry.PermanentException):
+  """Basic GCP IO error for testing. Function that raises this error should
+  not be retried."""
   pass
 
 
@@ -49,12 +50,13 @@ def delete_bq_table(project, dataset, table):
                'table: %s.', project, dataset, table)
   bq_dataset = bigquery.Client(project=project).dataset(dataset)
   if not bq_dataset.exists():
-    raise GcpIOError('Failed to cleanup. Bigquery dataset %s doesn\'t exist '
-                     'in project %s.' % dataset, project)
+    raise GcpTestIOError('Failed to cleanup. Bigquery dataset %s doesn\'t'
+                         'exist in project %s.' % dataset, project)
   bq_table = bq_dataset.table(table)
   if not bq_table.exists():
-    raise GcpIOError('Failed to cleanup. Biqeury table %s doesn\'t exist '
-                     'in project %s, dataset %s.' % table, project, dataset)
+    raise GcpTestIOError('Failed to cleanup. Biqeury table %s doesn\'t '
+                         'exist in project %s, dataset %s.' %
+                         table, project, dataset)
   bq_table.delete()
   if bq_table.exists():
     raise RuntimeError('Failed to cleanup. Bigquery table %s still exists '
