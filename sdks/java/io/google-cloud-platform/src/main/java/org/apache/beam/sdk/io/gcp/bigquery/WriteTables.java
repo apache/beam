@@ -23,11 +23,13 @@ import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,7 @@ class WriteTables<DestinationT>
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private Map<DestinationT, TableSchema> schemas = Maps.newConcurrentMap();
+  private Map<DestinationT, String> jsonSchemas = Maps.newConcurrentMap();
 
   public WriteTables(
       boolean singlePartition,
@@ -90,18 +92,21 @@ class WriteTables<DestinationT>
   public void startBundle(StartBundleContext c) {
     // Clear the map on each bundle so we can notice side-input updates.
     // (alternative is to use a cache with a TTL).
-    schemas.clear();
+    jsonSchemas.clear();
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     dynamicDestinations.setSideInputAccessorFromProcessContext(c);
     DestinationT destination = c.element().getKey().getKey();
-    TableSchema tableSchema = schemas.get(destination);
-    if (tableSchema == null) {
+    TableSchema tableSchema;
+    String jsonSchema = jsonSchemas.get(destination);
+    if (jsonSchema != null) {
+      tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+    } else {
       tableSchema = dynamicDestinations.getSchema(destination);
       if (tableSchema != null) {
-        schemas.put(destination, tableSchema);
+        jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
     }
 
