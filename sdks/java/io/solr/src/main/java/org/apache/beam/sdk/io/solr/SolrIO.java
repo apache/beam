@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -163,9 +162,7 @@ public class SolrIO {
      * @return the connection configuration object
      */
     public static ConnectionConfiguration create(String zkHost) {
-      checkArgument(zkHost != null,
-          "ConnectionConfiguration.create(zkHost, collection) "
-              + "called with null address");
+      checkArgument(zkHost != null, "zkHost can not be null");
       return new AutoValue_SolrIO_ConnectionConfiguration.Builder()
           .setZkHost(zkHost)
           .build();
@@ -175,22 +172,10 @@ public class SolrIO {
      * If Solr basic authentication is enabled, provide the username and password.
      */
     public ConnectionConfiguration withBasicCredentials(String username, String password) {
-      checkArgument(
-          username != null,
-          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
-              + "called with null username");
-      checkArgument(
-          !username.isEmpty(),
-          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
-              + "called with empty username");
-      checkArgument(
-          password != null,
-          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
-              + "called with null username");
-      checkArgument(
-          !password.isEmpty(),
-          "ConnectionConfiguration.create().withBasicCredentials(username, password) "
-              + "called with empty username");
+      checkArgument(username != null, "username can not be null");
+      checkArgument(!username.isEmpty(), "username can not be empty");
+      checkArgument(password != null, "password can not be null");
+      checkArgument(!password.isEmpty(), "password can not be empty");
       return builder().setUsername(username).setPassword(password).build();
     }
 
@@ -243,8 +228,8 @@ public class SolrIO {
      * Provide the Solr connection configuration object.
      */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "SolrIO.read()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(connectionConfiguration != null,
+          "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
@@ -267,8 +252,8 @@ public class SolrIO {
      *     </a>
      */
     public Read withQuery(String query) {
-      checkArgument(!Strings.isNullOrEmpty(query),
-          "SolrIO.read().withQuery(query) called" + " with null or empty query");
+      checkArgument(query != null, "query can not be null");
+      checkArgument(!query.isEmpty(), "query can not be empty");
       return builder().setQuery(query).build();
     }
 
@@ -283,11 +268,10 @@ public class SolrIO {
      */
     @VisibleForTesting
     Read withBatchSize(int batchSize) {
-      checkArgument(batchSize > 0, "SolrIO.read().withBatchSize(batchSize) "
-          + "called with a negative or equal to 0 value: %s", batchSize);
-      checkArgument(batchSize <= MAX_BATCH_SIZE,
-          "SolrIO.read().withBatchSize(batchSize) "
-              + "called with a too large value (over %s): %s",
+      // TODO remove this configuration, we can figure out the best number
+      // by tuning batchSize when pipelines run.
+      checkArgument(batchSize > 0 && batchSize < MAX_BATCH_SIZE,
+          "Valid values for batchSize are 1 (inclusize) to %s (exclusive), but was: %s ",
           MAX_BATCH_SIZE, batchSize);
       return builder().setBatchSize(batchSize).build();
     }
@@ -611,8 +595,7 @@ public class SolrIO {
      * Provide the Solr connection configuration object.
      */
     public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "SolrIO.write()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
@@ -635,8 +618,10 @@ public class SolrIO {
      */
     @VisibleForTesting
     Write withMaxBatchSize(int batchSize) {
+      // TODO remove this configuration, we can figure out the best number
+      // by tuning batchSize when pipelines run.
       checkArgument(batchSize > 0,
-          "SolrIO.write()" + ".withMaxBatchSize(batchSize) called with incorrect <= 0 value");
+          "batchSize must be larger than 0, but was: %s", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
     }
 
