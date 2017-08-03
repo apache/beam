@@ -21,19 +21,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.sql.Types;
+import java.util.BitSet;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.BitSetCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   private BeamSqlRowType sqlRecordType;
 
-  private static final ListCoder<Integer> listCoder = ListCoder.of(BigEndianIntegerCoder.of());
+  private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final BigEndianIntegerCoder intCoder = BigEndianIntegerCoder.of();
@@ -59,9 +59,9 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
   @Override
   public void encode(BeamSqlRow value, OutputStream outStream)
       throws CoderException, IOException {
-    listCoder.encode(value.getNullFields(), outStream);
+    nullListCoder.encode(value.getNullFields(), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
-      if (value.getNullFields().contains(idx)) {
+      if (value.getNullFields().get(idx)) {
         continue;
       }
 
@@ -114,12 +114,12 @@ public class BeamSqlRowCoder extends CustomCoder<BeamSqlRow> {
 
   @Override
   public BeamSqlRow decode(InputStream inStream) throws CoderException, IOException {
-    List<Integer> nullFields = listCoder.decode(inStream);
+    BitSet nullFields = nullListCoder.decode(inStream);
 
     BeamSqlRow record = new BeamSqlRow(sqlRecordType);
     record.setNullFields(nullFields);
     for (int idx = 0; idx < sqlRecordType.size(); ++idx) {
-      if (nullFields.contains(idx)) {
+      if (nullFields.get(idx)) {
         continue;
       }
 

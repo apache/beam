@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.BitSet;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -30,15 +31,22 @@ import org.apache.beam.sdk.values.BeamRecordTypeProvider;
  */
 @Experimental
 public class BeamRecordCoder extends CustomCoder<BeamRecord> {
-  private static final ListCoder<Integer> nullListCoder = ListCoder.of(BigEndianIntegerCoder.of());
+  private static final BitSetCoder nullListCoder = BitSetCoder.of();
   private static final InstantCoder instantCoder = InstantCoder.of();
 
   private BeamRecordTypeProvider recordType;
   private List<Coder> coderArray;
 
-  public BeamRecordCoder(BeamRecordTypeProvider recordType, List<Coder> coderArray) {
+  private BeamRecordCoder(BeamRecordTypeProvider recordType, List<Coder> coderArray) {
     this.recordType = recordType;
     this.coderArray = coderArray;
+  }
+
+  public static BeamRecordCoder of(BeamRecordTypeProvider recordType, List<Coder> coderArray){
+    if (recordType.size() != coderArray.size()) {
+      throw new IllegalArgumentException("Coder size doesn't match with field size");
+    }
+    return new BeamRecordCoder(recordType, coderArray);
   }
 
   @Override
@@ -46,7 +54,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       throws CoderException, IOException {
     nullListCoder.encode(value.getNullFields(), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
-      if (value.getNullFields().contains(idx)) {
+      if (value.getNullFields().get(idx)) {
         continue;
       }
 
@@ -59,12 +67,12 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
 
   @Override
   public BeamRecord decode(InputStream inStream) throws CoderException, IOException {
-    List<Integer> nullFields = nullListCoder.decode(inStream);
+    BitSet nullFields = nullListCoder.decode(inStream);
 
     BeamRecord record = new BeamRecord(recordType);
     record.setNullFields(nullFields);
     for (int idx = 0; idx < recordType.size(); ++idx) {
-      if (nullFields.contains(idx)) {
+      if (nullFields.get(idx)) {
         continue;
       }
 
