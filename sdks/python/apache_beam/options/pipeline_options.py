@@ -314,6 +314,13 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_retry',
+        action='store_true',
+        default=False,
+        help=
+        ('Whether to allow bundle retries. If True the maximum'
+         'number of attempts to process a bundle is 4. '))
 
 
 class GoogleCloudOptions(PipelineOptions):
