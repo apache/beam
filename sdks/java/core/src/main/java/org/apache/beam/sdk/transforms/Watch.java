@@ -47,6 +47,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DurationCoder;
@@ -958,7 +959,7 @@ public class Watch {
       return new GrowthStateCoder<>(outputCoder, terminationStateCoder);
     }
 
-    private static final Coder<Integer> INT_CODER = VarIntCoder.of();
+    private static final Coder<Boolean> BOOLEAN_CODER = BooleanCoder.of();
     private static final Coder<Instant> INSTANT_CODER = NullableCoder.of(InstantCoder.of());
     private static final Coder<HashCode> HASH_CODE_CODER = HashCode128Coder.of();
 
@@ -980,7 +981,7 @@ public class Watch {
         throws IOException {
       completedCoder.encode(value.completed, os);
       pendingCoder.encode(value.pending, os);
-      INT_CODER.encode(value.isOutputComplete ? 1 : 0, os);
+      BOOLEAN_CODER.encode(value.isOutputComplete, os);
       terminationStateCoder.encode(value.terminationState, os);
       INSTANT_CODER.encode(value.pollWatermark, os);
     }
@@ -989,7 +990,7 @@ public class Watch {
     public GrowthState<OutputT, TerminationStateT> decode(InputStream is) throws IOException {
       Map<HashCode, Instant> completed = completedCoder.decode(is);
       List<TimestampedValue<OutputT>> pending = pendingCoder.decode(is);
-      boolean isOutputComplete = (INT_CODER.decode(is) == 1);
+      boolean isOutputComplete = BOOLEAN_CODER.decode(is);
       TerminationStateT terminationState = terminationStateCoder.decode(is);
       Instant pollWatermark = INSTANT_CODER.decode(is);
       return new GrowthState<>(
