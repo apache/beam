@@ -28,45 +28,55 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.params.SolrParams;
 
 /**
  * Client for interact with Solr.
- * The target replica/collection is pre-selected
- * @param <T> type of SolrClient
+ * @param <ClientT> type of SolrClient
  */
-class AuthorizedSolrClient<T extends SolrClient> implements Closeable {
-  private final T solrClient;
+class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
+  private final ClientT solrClient;
   private final String username;
   private final String password;
 
-  AuthorizedSolrClient(T solrClient, ConnectionConfiguration configuration) {
+  AuthorizedSolrClient(ClientT solrClient, ConnectionConfiguration configuration) {
     checkArgument(
         solrClient != null,
-        "AuthorizedSolrClient(solrClient, configuration) "
-            + "called with null solrClient");
+        "solrClient can not be null");
     checkArgument(
         configuration != null,
-        "AuthorizedSolrClient(solrClient, configuration) "
-            + "called with null configuration");
+        "configuration can not be null");
     this.solrClient = solrClient;
     this.username = configuration.getUsername();
     this.password = configuration.getPassword();
   }
 
-  QueryResponse query(SolrParams solrParams)
+  QueryResponse query(String collection, SolrParams solrParams)
       throws IOException, SolrServerException {
     QueryRequest query = new QueryRequest(solrParams);
-    return process(query);
+    return process(collection, query);
   }
 
-  <T2 extends SolrResponse> T2 process(SolrRequest<T2> request)
-      throws IOException, SolrServerException {
+  <ResponseT extends SolrResponse> ResponseT process(String collection,
+      SolrRequest<ResponseT> request) throws IOException, SolrServerException {
     request.setBasicAuthCredentials(username, password);
-    return request.process(solrClient);
+    return request.process(solrClient, collection);
+  }
+
+  CoreAdminResponse process(CoreAdminRequest request)
+      throws IOException, SolrServerException {
+    return process(null, request);
+  }
+
+  SolrResponse process(CollectionAdminRequest request)
+      throws IOException, SolrServerException {
+    return process(null, request);
   }
 
   static ClusterState getClusterState(

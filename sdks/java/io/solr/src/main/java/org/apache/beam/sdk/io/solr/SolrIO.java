@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -62,8 +61,10 @@ import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.UpdateRequest;
+import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.ClusterState;
@@ -117,18 +118,22 @@ import org.apache.solr.common.util.NamedList;
  *
  * }</pre>
  *
- * <p>Optionally, you can provide {@code withBatchSize()}
- * to specify the size of the write batch in number of documents.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
 
   public static Read read() {
-    return new AutoValue_SolrIO_Read.Builder().setBatchSize(100L).setQuery("*:*").build();
+    // 1000 for batch size is good enough in many cases,
+    // ex: if document size is large, around 10KB, the response's size will be around 10MB
+    // if document seize is small, around 1KB, the response's size will be around 1MB
+    return new AutoValue_SolrIO_Read.Builder().setBatchSize(1000).setQuery("*:*").build();
   }
 
   public static Write write() {
-    return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000L).build();
+    // 1000 for batch size is good enough in many cases,
+    // ex: if document size is large, around 10KB, the request's size will be around 10MB
+    // if document seize is small, around 1KB, the request's size will be around 1MB
+    return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000).build();
   }
 
   private SolrIO() {
@@ -139,7 +144,6 @@ public class SolrIO {
   public abstract static class ConnectionConfiguration implements Serializable {
 
     abstract String getZkHost();
-    abstract String getCollection();
     @Nullable abstract String getUsername();
     @Nullable abstract String getPassword();
     abstract Builder builder();
@@ -147,7 +151,6 @@ public class SolrIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setZkHost(String zkHost);
-      abstract Builder setCollection(String collection);
       abstract Builder setUsername(String username);
       abstract Builder setPassword(String password);
       abstract ConnectionConfiguration build();
@@ -157,19 +160,14 @@ public class SolrIO {
      * Creates a new Solr connection configuration.
      *
      * @param zkHost host of zookeeper
-     * @param collection the collection toward which the requests will be issued
      * @return the connection configuration object
      */
-    public static ConnectionConfiguration create(String zkHost, String collection) {
+    public static ConnectionConfiguration create(String zkHost) {
       checkArgument(zkHost != null,
           "ConnectionConfiguration.create(zkHost, collection) "
               + "called with null address");
-      checkArgument(collection != null,
-          "ConnectionConfiguration.create(zkHost, collection) "
-              + "called with null collectioin");
       return new AutoValue_SolrIO_ConnectionConfiguration.Builder()
           .setZkHost(zkHost)
-          .setCollection(collection)
           .build();
     }
 
@@ -198,7 +196,6 @@ public class SolrIO {
 
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("zkHost", getZkHost()));
-      builder.add(DisplayData.item("collection", getCollection()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
@@ -213,7 +210,6 @@ public class SolrIO {
 
     AuthorizedSolrClient<CloudSolrClient> createClient() throws MalformedURLException {
       CloudSolrClient solrClient = new CloudSolrClient(getZkHost(), createHttpClient());
-      solrClient.setDefaultCollection(getCollection());
       return new AuthorizedSolrClient<>(solrClient, this);
     }
 
@@ -229,27 +225,37 @@ public class SolrIO {
     private static final long MAX_BATCH_SIZE = 10000L;
 
     @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
+    @Nullable abstract String getCollection();
     abstract String getQuery();
-    abstract long getBatchSize();
+    abstract int getBatchSize();
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
       abstract Builder setQuery(String query);
-      abstract Builder setBatchSize(long batchSize);
+      abstract Builder setBatchSize(int batchSize);
+      abstract Builder setCollection(String collection);
       abstract Read build();
     }
 
     /**
      * Provide the Solr connection configuration object.
-     *
-     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
      */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "SolrIO.read()"
           + ".withConnectionConfiguration(configuration) called with null configuration");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
+    }
+
+    /**
+     * Provide name of collection while reading from Solr.
+     *
+     * @param collection the collection toward which the requests will be issued
+     */
+    public Read withCollection(String collection) {
+      checkArgument(collection != null, "collection can not be null");
+      return builder().setCollection(collection).build();
     }
 
     /**
@@ -275,7 +281,8 @@ public class SolrIO {
      *
      * @param batchSize number of documents read in each scroll read
      */
-    public Read withBatchSize(long batchSize) {
+    @VisibleForTesting
+    Read withBatchSize(int batchSize) {
       checkArgument(batchSize > 0, "SolrIO.read().withBatchSize(batchSize) "
           + "called with a negative or equal to 0 value: %s", batchSize);
       checkArgument(batchSize <= MAX_BATCH_SIZE,
@@ -296,6 +303,9 @@ public class SolrIO {
       checkState(getConnectionConfiguration() != null,
           "SolrIO.read() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
+      checkState(getCollection() != null,
+          "SolrIO.read() requires a collection name"
+              + " to be set via withCollection(collection)");
     }
 
     @Override
@@ -338,7 +348,7 @@ public class SolrIO {
       ConnectionConfiguration connectionConfig = spec.getConnectionConfiguration();
       List<BoundedSolrSource> sources = new ArrayList<>();
       try (AuthorizedSolrClient<CloudSolrClient> client = connectionConfig.createClient()) {
-        String collection = connectionConfig.getCollection();
+        String collection = spec.getCollection();
         final ClusterState clusterState = AuthorizedSolrClient.getClusterState(client);
         DocCollection docCollection = clusterState.getCollection(collection);
         for (Slice slice : docCollection.getSlices()) {
@@ -372,7 +382,7 @@ public class SolrIO {
       }
     }
 
-    private long getEstimatedSizeOfShard(@Nonnull ReplicaInfo replica) throws IOException {
+    private long getEstimatedSizeOfShard(ReplicaInfo replica) throws IOException {
       try (AuthorizedSolrClient solrClient = spec.getConnectionConfiguration()
           .createClient(replica.baseUrl())) {
         CoreAdminRequest req = new CoreAdminRequest();
@@ -380,7 +390,7 @@ public class SolrIO {
         req.setIndexInfoNeeded(true);
         CoreAdminResponse response;
         try {
-          response = (CoreAdminResponse) solrClient.process(req);
+          response = solrClient.process(req);
         } catch (SolrServerException e) {
           throw new IOException("Can not get core status from " + replica, e);
         }
@@ -395,7 +405,7 @@ public class SolrIO {
       ConnectionConfiguration config = spec.getConnectionConfiguration();
       try (AuthorizedSolrClient<CloudSolrClient> solrClient = config.createClient()) {
         DocCollection docCollection = AuthorizedSolrClient.getClusterState(solrClient)
-            .getCollection(config.getCollection());
+            .getCollection(spec.getCollection());
         if (docCollection.getSlices().isEmpty()) {
           return 0;
         }
@@ -475,6 +485,7 @@ public class SolrIO {
     private String cursorMark;
     private Iterator<SolrDocument> batchIterator;
     private boolean done;
+    private String uniqueKey;
 
     private BoundedSolrReader(BoundedSolrSource source) {
       this.source = source;
@@ -485,20 +496,21 @@ public class SolrIO {
     public boolean start() throws IOException {
       if (source.replica != null) {
         solrClient = source.spec.getConnectionConfiguration()
-            .createClient(source.replica.coreUrl());
+            .createClient(source.replica.baseUrl());
       } else {
         solrClient = source.spec.getConnectionConfiguration()
             .createClient();
       }
-
-      SolrQuery solrParams = getQueryParams(source);
+      SchemaRequest.UniqueKey uniqueKeyRequest = new SchemaRequest.UniqueKey();
       try {
-        QueryResponse response = solrClient.query(solrParams);
-        updateCursorMark(response);
-        return readNextBatchAndReturnFirstDocument(response);
+        String collection = source.spec.getCollection();
+        SchemaResponse.UniqueKeyResponse uniqueKeyResponse =
+            (SchemaResponse.UniqueKeyResponse) solrClient.process(collection, uniqueKeyRequest);
+        uniqueKey = uniqueKeyResponse.getUniqueKey();
       } catch (SolrServerException e) {
-        throw new IOException(e);
+        throw new IOException("Can not get unique key from solr", e);
       }
+      return advance();
     }
 
     private SolrQuery getQueryParams(BoundedSolrSource source) {
@@ -508,7 +520,8 @@ public class SolrIO {
       }
       SolrQuery solrQuery = new SolrQuery(query);
       solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
-      solrQuery.addSort("id", SolrQuery.ORDER.asc);
+      solrQuery.setRows(source.spec.getBatchSize());
+      solrQuery.addSort(uniqueKey, SolrQuery.ORDER.asc);
       if (source.replica != null) {
         solrQuery.setDistrib(false);
       }
@@ -524,13 +537,18 @@ public class SolrIO {
 
     @Override
     public boolean advance() throws IOException {
-      if (batchIterator.hasNext()) {
+      if (batchIterator != null && batchIterator.hasNext()) {
         current = batchIterator.next();
         return true;
       } else {
         SolrQuery solrQuery = getQueryParams(source);
         try {
-          QueryResponse response = solrClient.query(solrQuery);
+          QueryResponse response;
+          if (source.replica != null) {
+            response = solrClient.query(source.replica.coreName(), solrQuery);
+          } else {
+            response = solrClient.query(source.spec.getCollection(), solrQuery);
+          }
           updateCursorMark(response);
           return readNextBatchAndReturnFirstDocument(response);
         } catch (SolrServerException e) {
@@ -575,25 +593,35 @@ public class SolrIO {
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
 
     @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
-    abstract long getMaxBatchSize();
+    @Nullable abstract String getCollection();
+    abstract int getMaxBatchSize();
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
-      abstract Builder setMaxBatchSize(long maxBatchSize);
+      abstract Builder setCollection(String collection);
+      abstract Builder setMaxBatchSize(int maxBatchSize);
       abstract Write build();
     }
 
     /**
      * Provide the Solr connection configuration object.
-     *
-     * @param connectionConfiguration the Solr {@link ConnectionConfiguration} object
      */
     public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "SolrIO.write()"
           + ".withConnectionConfiguration(configuration) called with null configuration");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
+    }
+
+    /**
+     * Provide name of collection while reading from Solr.
+     *
+     * @param collection the collection toward which the requests will be issued
+     */
+    public Write withCollection(String collection) {
+      checkArgument(collection != null, "collection can not be null");
+      return builder().setCollection(collection).build();
     }
 
     /**
@@ -603,7 +631,8 @@ public class SolrIO {
      *
      * @param batchSize maximum batch size in number of documents
      */
-    public Write withMaxBatchSize(long batchSize) {
+    @VisibleForTesting
+    Write withMaxBatchSize(int batchSize) {
       checkArgument(batchSize > 0,
           "SolrIO.write()" + ".withMaxBatchSize(batchSize) called with incorrect <= 0 value");
       return builder().setMaxBatchSize(batchSize).build();
@@ -614,6 +643,9 @@ public class SolrIO {
       checkState(getConnectionConfiguration() != null,
           "SolrIO.write() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
+      checkState(getCollection() != null,
+          "SolrIO.write() requires a collection name"
+              + " to be set via withCollection(collection)");
     }
 
     @Override
@@ -665,7 +697,7 @@ public class SolrIO {
         try {
           UpdateRequest updateRequest = new UpdateRequest();
           updateRequest.add(batch);
-          solrClient.process(updateRequest);
+          solrClient.process(spec.getCollection(), updateRequest);
         } catch (SolrServerException e) {
           throw new IOException("Error writing to Solr", e);
         } finally {

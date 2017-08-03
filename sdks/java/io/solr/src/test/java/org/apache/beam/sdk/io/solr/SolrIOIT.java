@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solr;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
@@ -69,31 +70,32 @@ public class SolrIOIT {
 
   private static AuthorizedSolrClient solrClient;
   private static IOTestPipelineOptions options;
-  private static SolrIO.ConnectionConfiguration readConnectionConfiguration;
+  private static SolrIO.ConnectionConfiguration connectionConfiguration;
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
-    readConnectionConfiguration = SolrIO.ConnectionConfiguration
-        .create(options.getSolrZookeeperServer(), READ_COLLECTION);
-    solrClient = readConnectionConfiguration.createClient();
+    connectionConfiguration = SolrIO.ConnectionConfiguration
+        .create(options.getSolrZookeeperServer());
+    solrClient = connectionConfiguration.createClient();
 
     CollectionAdminResponse listResponse =
         (CollectionAdminResponse) solrClient.process(new CollectionAdminRequest.List());
     List<String> collections = (List<String>) listResponse.getResponse().get("collections");
     if (collections.contains(READ_COLLECTION)) {
-      QueryResponse response = solrClient.query(new SolrQuery("*:*"));
+      QueryResponse response = solrClient.query(READ_COLLECTION, new SolrQuery("*:*"));
       if (response.getResults().getNumFound() != NUM_DOCS) {
         LOG.info("Collection {} is exist but the number of documents is not match, repopulate",
             READ_COLLECTION);
-        SolrIOTestUtils.clearCollection(solrClient);
-        SolrIOTestUtils.insertTestDocuments(NUM_DOCS, solrClient);
+        SolrIOTestUtils.clearCollection(READ_COLLECTION, solrClient);
+        SolrIOTestUtils.insertTestDocuments(READ_COLLECTION, NUM_DOCS, solrClient);
       }
     } else {
       LOG.info("Create and populate collection {}",
           READ_COLLECTION);
+      SolrIOTestUtils.createCollection(READ_COLLECTION, NUM_SHARDS, 1, solrClient);
     }
 
     SolrIOTestUtils.createCollection(WRITE_COLLECTION, 2, 2, solrClient);
@@ -108,7 +110,7 @@ public class SolrIOIT {
   @Test
   public void testSplitsVolume() throws Exception {
     SolrIO.Read read =
-            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
+            SolrIO.read().withConnectionConfiguration(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     //desiredBundleSize is ignored now
@@ -134,7 +136,7 @@ public class SolrIOIT {
   public void testReadVolume() throws Exception {
     PCollection<SolrDocument> output =
         pipeline.apply(
-            SolrIO.read().withConnectionConfiguration(readConnectionConfiguration));
+            SolrIO.read().withConnectionConfiguration(connectionConfiguration));
     PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
         .isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -142,24 +144,24 @@ public class SolrIOIT {
 
   @Test
   public void testWriteVolume() throws Exception {
-    SolrIO.ConnectionConfiguration writeConnectionConfiguration =
-        SolrIO.ConnectionConfiguration.create(options.getSolrZookeeperServer(), WRITE_COLLECTION);
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);
     pipeline
         .apply(Create.of(data))
-        .apply(SolrIO.write().withConnectionConfiguration(writeConnectionConfiguration));
+        .apply(SolrIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withCollection(WRITE_COLLECTION)
+        );
     pipeline.run();
 
-    try (AuthorizedSolrClient solrClient = writeConnectionConfiguration.createClient()) {
-      long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(solrClient);
-      assertEquals(NUM_DOCS, currentNumDocs);
-    }
+    long currentNumDocs = SolrIOTestUtils.commitAndGetCurrentNumDocs(WRITE_COLLECTION, solrClient);
+    assertEquals(NUM_DOCS, currentNumDocs);
+
   }
 
   @Test
   public void testEstimatedSizesVolume() throws Exception {
     SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(readConnectionConfiguration);
+        SolrIO.read().withConnectionConfiguration(connectionConfiguration);
     SolrIO.BoundedSolrSource initialSource =
         new SolrIO.BoundedSolrSource(read, null);
     // can't use equal assert as Solr collections never have same size
@@ -173,6 +175,6 @@ public class SolrIOIT {
     assertThat(
         "Wrong estimated size beyond maximum",
         estimatedSize,
-        greaterThan(SolrIOTestUtils.MAX_DOC_SIZE * NUM_DOCS));
+        lessThan(SolrIOTestUtils.MAX_DOC_SIZE * NUM_DOCS));
   }
 }

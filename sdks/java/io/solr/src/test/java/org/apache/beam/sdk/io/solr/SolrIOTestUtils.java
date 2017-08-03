@@ -29,8 +29,8 @@ import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
 public class SolrIOTestUtils {
-  public static final long MIN_DOC_SIZE = 25L;
-  public static final long MAX_DOC_SIZE = 35L;
+  public static final long MIN_DOC_SIZE = 40L;
+  public static final long MAX_DOC_SIZE = 90L;
 
   static void createCollection(String collection, int numShards, int replicationFactor,
       AuthorizedSolrClient client)
@@ -44,14 +44,14 @@ public class SolrIOTestUtils {
   }
 
   /** Inserts the given number of test documents into Solr. */
-  static void insertTestDocuments(long numDocs, AuthorizedSolrClient client)
+  static void insertTestDocuments(String collection, long numDocs, AuthorizedSolrClient client)
       throws IOException {
     List<SolrInputDocument> data = createDocuments(numDocs);
     try {
       UpdateRequest updateRequest = new UpdateRequest();
       updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
       updateRequest.add(data);
-      client.process(updateRequest);
+      client.process(collection, updateRequest);
     } catch (SolrServerException e) {
       throw new IOException("Failed to insert test documents to collection", e);
     }
@@ -72,13 +72,13 @@ public class SolrIOTestUtils {
   }
 
   /** Clear given collection. */
-  static void clearCollection(AuthorizedSolrClient client)
+  static void clearCollection(String collection, AuthorizedSolrClient client)
       throws IOException {
     try {
       UpdateRequest updateRequest = new UpdateRequest();
       updateRequest.setAction(UpdateRequest.ACTION.COMMIT, true, true);
       updateRequest.deleteByQuery("*:*");
-      client.process(updateRequest);
+      client.process(collection, updateRequest);
     } catch (SolrServerException e) {
       throw new IOException(e);
     }
@@ -90,16 +90,16 @@ public class SolrIOTestUtils {
    *
    * @return The number of docs in the index
    */
-  static long commitAndGetCurrentNumDocs(AuthorizedSolrClient client)
+  static long commitAndGetCurrentNumDocs(String collection, AuthorizedSolrClient client)
       throws IOException {
     SolrQuery solrQuery = new SolrQuery("*:*");
     solrQuery.setRows(0);
     try {
       UpdateRequest update = new UpdateRequest();
       update.setAction(UpdateRequest.ACTION.COMMIT, true, true);
-      client.process(update);
+      client.process(collection, update);
 
-      return client.query(new SolrQuery("*:*")).getResults().getNumFound();
+      return client.query(collection, new SolrQuery("*:*")).getResults().getNumFound();
     } catch (SolrServerException e) {
       throw new IOException(e);
     }
