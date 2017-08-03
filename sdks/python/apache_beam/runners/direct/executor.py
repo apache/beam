@@ -26,6 +26,9 @@ import Queue
 import sys
 import threading
 from weakref import WeakValueDictionary
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -272,6 +275,40 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
 
+  @retry(stop=stop_after_attempt(3))
+  def attempt_call(self, metrics_container,
+                   scoped_metrics_container,
+                   side_input_values):
+    evaluator = self._transform_evaluator_registry.get_evaluator(
+        self._applied_ptransform, self._input_bundle,
+        side_input_values, scoped_metrics_container)
+
+    if self._fired_timers:
+      for timer_firing in self._fired_timers:
+        evaluator.process_timer_wrapper(timer_firing)
+
+    if self._input_bundle:
+      for value in self._input_bundle.get_elements_iterable():
+        evaluator.process_element(value)
+
+    with scoped_metrics_container:
+      result = evaluator.finish_bundle()
+      result.logical_metric_updates = metrics_container.get_cumulative()
+
+    if self._evaluation_context.has_cache:
+      for uncommitted_bundle in result.uncommitted_output_bundles:
+        self._evaluation_context.append_to_cache(
+            self._applied_ptransform, uncommitted_bundle.tag,
+            uncommitted_bundle.get_elements_iterable())
+      undeclared_tag_values = result.undeclared_tag_values
+      if undeclared_tag_values:
+        for tag, value in undeclared_tag_values.iteritems():
+          self._evaluation_context.append_to_cache(
+              self._applied_ptransform, tag, value)
+
+    self._completion_callback.handle_result(self, self._input_bundle, result)
+    return result
+
   def call(self):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_ptransform.side_inputs))
@@ -293,35 +330,10 @@ class TransformExecutor(_ExecutorService.CallableTask):
                          for side_input in self._applied_ptransform.side_inputs]
 
     try:
-      evaluator = self._transform_evaluator_registry.get_evaluator(
-          self._applied_ptransform, self._input_bundle,
-          side_input_values, scoped_metrics_container)
-
-      if self._fired_timers:
-        for timer_firing in self._fired_timers:
-          evaluator.process_timer_wrapper(timer_firing)
-
-      if self._input_bundle:
-        for value in self._input_bundle.get_elements_iterable():
-          evaluator.process_element(value)
-
-      with scoped_metrics_container:
-        result = evaluator.finish_bundle()
-        result.logical_metric_updates = metrics_container.get_cumulative()
-
-      if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.uncommitted_output_bundles:
-          self._evaluation_context.append_to_cache(
-              self._applied_ptransform, uncommitted_bundle.tag,
-              uncommitted_bundle.get_elements_iterable())
-        undeclared_tag_values = result.undeclared_tag_values
-        if undeclared_tag_values:
-          for tag, value in undeclared_tag_values.iteritems():
-            self._evaluation_context.append_to_cache(
-                self._applied_ptransform, tag, value)
-
-      self._completion_callback.handle_result(self, self._input_bundle, result)
-      return result
+      return self.attempt_call(
+          metrics_container,
+          scoped_metrics_container,
+          side_input_values)
     except Exception as e:  # pylint: disable=broad-except
       self._completion_callback.handle_exception(self, e)
     finally:

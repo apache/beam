@@ -289,7 +289,7 @@ class PipelineTest(unittest.TestCase):
   def test_pipeline_as_context(self):
     def raise_exception(exn):
       raise exn
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
