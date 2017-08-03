@@ -69,13 +69,13 @@ import org.apache.beam.sdk.values.KV;
 @Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
-  public static final String DEFAULT_SCHEME = "default";
+  public static final String DEFAULT_SCHEME = "file";
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
-          ImmutableMap.<String, FileSystem>of("file", new LocalFileSystem()));
+          ImmutableMap.<String, FileSystem>of(DEFAULT_SCHEME, new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/
 
@@ -98,6 +98,9 @@ public class FileSystems {
    * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
    * component of {@link ResourceId}. This allows SDK libraries to construct file system agnostic
    * spec. {@link FileSystem FileSystems} can support additional patterns for user-provided specs.
+   *
+   * <p>In case the spec schemes don't match any known {@link FileSystem} implementations,
+   * FileSystems will attempt to use {@link LocalFileSystem} to resolve a path.
    *
    * @return {@code List<MatchResult>} in the same order of the input specs.
    *
@@ -176,7 +179,7 @@ public class FileSystems {
         .transform(new Function<ResourceId, String>() {
           @Override
           public String apply(@Nonnull ResourceId resourceId) {
-          return resourceId.toString();
+            return resourceId.toString();
           }})
         .toList());
   }
@@ -423,7 +426,7 @@ public class FileSystems {
     Matcher matcher = FILE_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return "file";
+      return DEFAULT_SCHEME;
     } else {
       return matcher.group("scheme").toLowerCase();
     }
@@ -440,11 +443,7 @@ public class FileSystems {
     if (rval != null) {
       return rval;
     }
-    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
-    if (rval != null) {
-      return rval;
-    }
-    throw new IllegalStateException("Unable to find registrar for " + scheme);
+    return schemeToFileSystem.get(DEFAULT_SCHEME);
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
