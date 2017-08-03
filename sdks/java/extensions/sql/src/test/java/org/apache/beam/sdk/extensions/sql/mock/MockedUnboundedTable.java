@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.schema.BeamIOType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -94,8 +93,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   @Override public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
-    TestStream.Builder<BeamRecord> values = TestStream.create(
-        BeamSqlRecordHelper.getSqlRecordCoder(beamSqlRowType));
+    TestStream.Builder<BeamRecord> values = TestStream.create(beamSqlRowType.getRecordCoder());
 
     for (Pair<Duration, List<BeamRecord>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

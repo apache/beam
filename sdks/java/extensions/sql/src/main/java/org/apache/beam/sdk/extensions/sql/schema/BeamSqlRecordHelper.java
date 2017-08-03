@@ -22,22 +22,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.sql.Types;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.BeamRecord;
 
 /**
@@ -48,54 +41,6 @@ public class BeamSqlRecordHelper {
 
   public static BeamSqlRecordType getSqlRecordType(BeamRecord record) {
     return (BeamSqlRecordType) record.getDataType();
-  }
-
-  public static BeamRecordCoder getSqlRecordCoder(BeamSqlRecordType recordType) {
-    List<Coder> fieldCoders = new ArrayList<>();
-    for (int idx = 0; idx < recordType.size(); ++idx) {
-      switch (recordType.getFieldsType().get(idx)) {
-      case Types.INTEGER:
-        fieldCoders.add(BigEndianIntegerCoder.of());
-        break;
-      case Types.SMALLINT:
-        fieldCoders.add(ShortCoder.of());
-        break;
-      case Types.TINYINT:
-        fieldCoders.add(ByteCoder.of());
-        break;
-      case Types.DOUBLE:
-        fieldCoders.add(DoubleCoder.of());
-        break;
-      case Types.FLOAT:
-        fieldCoders.add(FloatCoder.of());
-        break;
-      case Types.DECIMAL:
-        fieldCoders.add(BigDecimalCoder.of());
-        break;
-      case Types.BIGINT:
-        fieldCoders.add(BigEndianLongCoder.of());
-        break;
-      case Types.VARCHAR:
-      case Types.CHAR:
-        fieldCoders.add(StringUtf8Coder.of());
-        break;
-      case Types.TIME:
-        fieldCoders.add(TimeCoder.of());
-        break;
-      case Types.DATE:
-      case Types.TIMESTAMP:
-        fieldCoders.add(DateCoder.of());
-        break;
-      case Types.BOOLEAN:
-        fieldCoders.add(BooleanCoder.of());
-        break;
-
-      default:
-        throw new UnsupportedOperationException(
-            "Data type: " + recordType.getFieldsType().get(idx) + " not supported yet!");
-      }
-    }
-    return BeamRecordCoder.of(recordType, fieldCoders);
   }
 
   /**
@@ -126,10 +71,11 @@ public class BeamSqlRecordHelper {
     }
   }
   /**
-   * {@link Coder} for Java type {@link Float}.
+   * {@link Coder} for Java type {@link Float}, it's stored as {@link BigDecimal}.
    */
   public static class FloatCoder extends CustomCoder<Float> {
     private static final FloatCoder INSTANCE = new FloatCoder();
+    private static final BigDecimalCoder CODER = BigDecimalCoder.of();
 
     public static FloatCoder of() {
       return INSTANCE;
@@ -140,12 +86,40 @@ public class BeamSqlRecordHelper {
 
     @Override
     public void encode(Float value, OutputStream outStream) throws CoderException, IOException {
-      new DataOutputStream(outStream).writeFloat(value);
+      CODER.encode(new BigDecimal(value), outStream);
     }
 
     @Override
     public Float decode(InputStream inStream) throws CoderException, IOException {
-      return new DataInputStream(inStream).readFloat();
+      return CODER.decode(inStream).floatValue();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+    }
+  }
+  /**
+   * {@link Coder} for Java type {@link Double}, it's stored as {@link BigDecimal}.
+   */
+  public static class DoubleCoder extends CustomCoder<Double> {
+    private static final DoubleCoder INSTANCE = new DoubleCoder();
+    private static final BigDecimalCoder CODER = BigDecimalCoder.of();
+
+    public static DoubleCoder of() {
+      return INSTANCE;
+    }
+
+    private DoubleCoder() {
+    }
+
+    @Override
+    public void encode(Double value, OutputStream outStream) throws CoderException, IOException {
+      CODER.encode(new BigDecimal(value), outStream);
+    }
+
+    @Override
+    public Double decode(InputStream inStream) throws CoderException, IOException {
+      return CODER.decode(inStream).doubleValue();
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExec
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlProjectFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -73,8 +72,7 @@ public class BeamProjectRel extends Project implements BeamRelNode {
     PCollection<BeamRecord> projectStream = upstream.apply(stageName, ParDo
         .of(new BeamSqlProjectFn(getRelTypeName(), executor,
             CalciteUtils.toBeamRowType(rowType))));
-    projectStream.setCoder(
-        BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+    projectStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return projectStream;
   }

@@ -20,16 +20,20 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.Coder;
 
 /**
- * The default type provider used in {@link BeamRecord2}.
+ * The default type provider used in {@link BeamRecord}.
  */
 @Experimental
 public class BeamRecordType implements Serializable{
   private List<String> fieldsName;
+  private List<Coder> fieldsCoder;
 
-  public BeamRecordType(List<String> fieldsName) {
+  public BeamRecordType(List<String> fieldsName, List<Coder> fieldsCoder) {
     this.fieldsName = fieldsName;
+    this.fieldsCoder = fieldsCoder;
   }
 
   /**
@@ -39,6 +43,13 @@ public class BeamRecordType implements Serializable{
    public void validateValueType(int index, Object fieldValue)
       throws IllegalArgumentException{
      //do nothing by default.
+   }
+
+   /**
+    * Get the coder for {@link BeamRecordCoder}.
+    */
+   public BeamRecordCoder getRecordCoder(){
+     return BeamRecordCoder.of(this, fieldsCoder);
    }
 
    public List<String> getFieldsName(){

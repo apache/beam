@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBo
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,8 +51,7 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamRecordCoder SOURCE_CODER =
-      BeamSqlRecordHelper.getSqlRecordCoder(SOURCE_RECORD_TYPE);
+  private static final BeamRecordCoder SOURCE_CODER = SOURCE_RECORD_TYPE.getRecordCoder();
 
   private static final BeamSqlRecordType RESULT_RECORD_TYPE =
       BeamSqlRecordType.create(
@@ -66,8 +64,7 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamRecordCoder RESULT_CODER =
-      BeamSqlRecordHelper.getSqlRecordCoder(RESULT_RECORD_TYPE);
+  private static final BeamRecordCoder RESULT_CODER = RESULT_RECORD_TYPE.getRecordCoder();
 
   @Test
   public void testInnerJoin() throws Exception {

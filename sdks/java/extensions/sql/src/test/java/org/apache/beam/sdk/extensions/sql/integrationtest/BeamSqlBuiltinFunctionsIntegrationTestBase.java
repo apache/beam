@@ -32,7 +32,6 @@ import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -89,7 +88,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               9223372036854775807L
           )
           .buildIOReader(pipeline)
-          .setCoder(BeamSqlRecordHelper.getSqlRecordCoder(type));
+          .setCoder(type.getRecordCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

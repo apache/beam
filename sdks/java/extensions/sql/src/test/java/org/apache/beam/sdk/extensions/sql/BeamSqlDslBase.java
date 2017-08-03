@@ -25,7 +25,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -78,12 +77,10 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections(){
     boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
-        Create.of(recordsInTableA).withCoder(
-            BeamSqlRecordHelper.getSqlRecordCoder(rowTypeInTableA)));
+        Create.of(recordsInTableA).withCoder(rowTypeInTableA.getRecordCoder()));
 
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
-        Create.of(recordsInTableA.get(0)).withCoder(
-            BeamSqlRecordHelper.getSqlRecordCoder(rowTypeInTableA)));
+        Create.of(recordsInTableA.get(0)).withCoder(rowTypeInTableA.getRecordCoder()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
@@ -91,7 +88,7 @@ public class BeamSqlDslBase {
 
   private PCollection<BeamRecord> prepareUnboundedPCollection1() {
     TestStream.Builder<BeamRecord> values = TestStream
-        .create(BeamSqlRecordHelper.getSqlRecordCoder(rowTypeInTableA));
+        .create(rowTypeInTableA.getRecordCoder());
 
     for (BeamRecord row : recordsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
@@ -103,7 +100,7 @@ public class BeamSqlDslBase {
 
   private PCollection<BeamRecord> prepareUnboundedPCollection2() {
     TestStream.Builder<BeamRecord> values = TestStream
-        .create(BeamSqlRecordHelper.getSqlRecordCoder(rowTypeInTableA));
+        .create(rowTypeInTableA.getRecordCoder());
 
     BeamRecord row = recordsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));

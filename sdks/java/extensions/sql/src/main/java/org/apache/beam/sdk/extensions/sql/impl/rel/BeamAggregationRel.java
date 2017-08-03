@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -91,8 +90,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
-    BeamRecordCoder keyCoder = BeamSqlRecordHelper.getSqlRecordCoder(
-        exKeyFieldsSchema(input.getRowType()));
+    BeamRecordCoder keyCoder = exKeyFieldsSchema(input.getRowType()).getRecordCoder();
     PCollection<KV<BeamRecord, BeamRecord>> exCombineByStream = windowStream.apply(
         stageName + "exCombineBy",
         WithKeys
@@ -101,7 +99,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
 
-    BeamRecordCoder aggCoder = BeamSqlRecordHelper.getSqlRecordCoder(exAggFieldsSchema());
+    BeamRecordCoder aggCoder = exAggFieldsSchema().getRecordCoder();
 
     PCollection<KV<BeamRecord, BeamRecord>> aggregatedStream = exCombineByStream.apply(
         stageName + "combineBy",
@@ -113,8 +111,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     PCollection<BeamRecord> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
             CalciteUtils.toBeamRowType(getRowType()), getAggCallList(), windowFieldIdx)));
-    mergedStream.setCoder(
-        BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+    mergedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return mergedStream;
   }

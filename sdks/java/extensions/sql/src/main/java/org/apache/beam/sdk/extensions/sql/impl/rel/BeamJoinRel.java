@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -121,7 +120,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     }
     BeamSqlRecordType extractKeyRowType = BeamSqlRecordType.create(names, types);
 
-    Coder extractKeyRowCoder = BeamSqlRecordHelper.getSqlRecordCoder(extractKeyRowType);
+    Coder extractKeyRowCoder = extractKeyRowType.getRecordCoder();
 
     // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
     PCollection<KV<BeamRecord, BeamRecord>> extractedLeftRows = leftRows
@@ -213,8 +212,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamRecord> ret = joinedRows
         .apply(stageName + "_JoinParts2WholeRow",
             MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-        .setCoder(
-            BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+        .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
     return ret;
   }
 
@@ -250,8 +248,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<BeamRecord> ret = leftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             joinType, rightNullRow, rowsView, swapped)).withSideInputs(rowsView))
-        .setCoder(
-            BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+        .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return ret;
   }

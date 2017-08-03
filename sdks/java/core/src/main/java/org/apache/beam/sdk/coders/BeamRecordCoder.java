@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
- *  A {@link Coder} for {@link BeamRecord2}. It wraps the {@link Coder} for each element directly.
+ *  A {@link Coder} for {@link BeamRecord}. It wraps the {@link Coder} for each element directly.
  */
 @Experimental
 public class BeamRecordCoder extends CustomCoder<BeamRecord> {
@@ -58,7 +58,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       throws CoderException, IOException {
     nullListCoder.encode(value.getNullFields(), outStream);
     for (int idx = 0; idx < value.size(); ++idx) {
-      if (value.getNullFields().get(idx)) {
+      if (value.isNull(idx)) {
         continue;
       }
 
@@ -74,7 +74,6 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
     BitSet nullFields = nullListCoder.decode(inStream);
 
     BeamRecord record = new BeamRecord(recordType);
-    record.setNullFields(nullFields);
     for (int idx = 0; idx < recordType.size(); ++idx) {
       if (nullFields.get(idx)) {
         continue;
@@ -92,5 +91,8 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    for (Coder c : coderArray) {
+      c.verifyDeterministic();
+    }
   }
 }

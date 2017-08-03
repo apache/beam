@@ -22,7 +22,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExec
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlFilterFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,8 +61,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
     PCollection<BeamRecord> filterStream = upstream.apply(stageName,
         ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
-    filterStream.setCoder(
-        BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+    filterStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return filterStream;
   }

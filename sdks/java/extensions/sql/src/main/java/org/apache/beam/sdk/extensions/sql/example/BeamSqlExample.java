@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -62,7 +61,7 @@ class BeamSqlExample {
 
     //create a source PCollection with Create.of();
     PCollection<BeamRecord> inputTable = PBegin.in(p).apply(Create.of(row)
-        .withCoder(BeamSqlRecordHelper.getSqlRecordCoder(type)));
+        .withCoder(type.getRecordCoder()));
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<BeamRecord> outputStream = inputTable.apply(

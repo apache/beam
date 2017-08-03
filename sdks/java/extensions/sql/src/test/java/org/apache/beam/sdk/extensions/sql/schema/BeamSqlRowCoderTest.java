@@ -78,7 +78,7 @@ public class BeamSqlRowCoderTest {
     row.addField("col_boolean", true);
 
 
-    BeamRecordCoder coder = BeamSqlRecordHelper.getSqlRecordCoder(beamSQLRowType);
+    BeamRecordCoder coder = beamSQLRowType.getRecordCoder();
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

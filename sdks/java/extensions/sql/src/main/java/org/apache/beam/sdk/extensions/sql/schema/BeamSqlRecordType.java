@@ -19,11 +19,24 @@ package org.apache.beam.sdk.extensions.sql.schema;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.BigDecimalCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.BooleanCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DateCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DoubleCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.FloatCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.ShortCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.TimeCoder;
 import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
@@ -58,18 +71,63 @@ public class BeamSqlRecordType extends BeamRecordType {
 
   public List<Integer> fieldsType;
 
-  protected BeamSqlRecordType(List<String> fieldsName) {
-    super(fieldsName);
+  protected BeamSqlRecordType(List<String> fieldsName, List<Coder> fieldsCoder) {
+    super(fieldsName, fieldsCoder);
   }
 
-  public BeamSqlRecordType(List<String> fieldsName, List<Integer> fieldsType) {
-    super(fieldsName);
+  private BeamSqlRecordType(List<String> fieldsName, List<Integer> fieldsType
+      , List<Coder> fieldsCoder) {
+    super(fieldsName, fieldsCoder);
     this.fieldsType = fieldsType;
   }
 
   public static BeamSqlRecordType create(List<String> fieldNames,
       List<Integer> fieldTypes) {
-    return new BeamSqlRecordType(fieldNames, fieldTypes);
+    List<Coder> fieldCoders = new ArrayList<>();
+    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
+      switch (fieldTypes.get(idx)) {
+      case Types.INTEGER:
+        fieldCoders.add(BigEndianIntegerCoder.of());
+        break;
+      case Types.SMALLINT:
+        fieldCoders.add(ShortCoder.of());
+        break;
+      case Types.TINYINT:
+        fieldCoders.add(ByteCoder.of());
+        break;
+      case Types.DOUBLE:
+        fieldCoders.add(DoubleCoder.of());
+        break;
+      case Types.FLOAT:
+        fieldCoders.add(FloatCoder.of());
+        break;
+      case Types.DECIMAL:
+        fieldCoders.add(BigDecimalCoder.of());
+        break;
+      case Types.BIGINT:
+        fieldCoders.add(BigEndianLongCoder.of());
+        break;
+      case Types.VARCHAR:
+      case Types.CHAR:
+        fieldCoders.add(StringUtf8Coder.of());
+        break;
+      case Types.TIME:
+        fieldCoders.add(TimeCoder.of());
+        break;
+      case Types.DATE:
+      case Types.TIMESTAMP:
+        fieldCoders.add(DateCoder.of());
+        break;
+      case Types.BOOLEAN:
+        fieldCoders.add(BooleanCoder.of());
+        break;
+
+      default:
+        throw new UnsupportedOperationException(
+            "Data type: " + fieldTypes.get(idx) + " not supported yet!");
+      }
+    }
+    return new BeamSqlRecordType(fieldNames, fieldTypes, fieldCoders);
   }
 
   @Override

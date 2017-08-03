@@ -149,8 +149,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
     PCollection<BeamRecord> orderedStream = rawStream.apply(
         "flatten", Flatten.<BeamRecord>iterables());
-    orderedStream.setCoder(
-        BeamSqlRecordHelper.getSqlRecordCoder(CalciteUtils.toBeamRowType(getRowType())));
+    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return orderedStream;
   }
@@ -205,28 +204,16 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         } else {
           switch (fieldType) {
             case TINYINT:
-              fieldRet = numberCompare(row1.getByte(fieldIndex), row2.getByte(fieldIndex));
-              break;
             case SMALLINT:
-              fieldRet = numberCompare(row1.getShort(fieldIndex), row2.getShort(fieldIndex));
-              break;
             case INTEGER:
-              fieldRet = numberCompare(row1.getInteger(fieldIndex), row2.getInteger(fieldIndex));
-              break;
             case BIGINT:
-              fieldRet = numberCompare(row1.getLong(fieldIndex), row2.getLong(fieldIndex));
-              break;
             case FLOAT:
-              fieldRet = numberCompare(row1.getFloat(fieldIndex), row2.getFloat(fieldIndex));
-              break;
             case DOUBLE:
-              fieldRet = numberCompare(row1.getDouble(fieldIndex), row2.getDouble(fieldIndex));
-              break;
             case VARCHAR:
-              fieldRet = row1.getString(fieldIndex).compareTo(row2.getString(fieldIndex));
-              break;
             case DATE:
-              fieldRet = row1.getDate(fieldIndex).compareTo(row2.getDate(fieldIndex));
+              Comparable v1 = (Comparable) row1.getFieldValue(fieldIndex);
+              Comparable v2 = (Comparable) row2.getFieldValue(fieldIndex);
+              fieldRet = v1.compareTo(v2);
               break;
             default:
               throw new UnsupportedOperationException(
@@ -243,7 +230,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  public static <T extends Number & Comparable> int numberCompare(T a, T b) {
+  public static <T extends Comparable> int compare(T a, T b) {
     return a.compareTo(b);
   }
 }

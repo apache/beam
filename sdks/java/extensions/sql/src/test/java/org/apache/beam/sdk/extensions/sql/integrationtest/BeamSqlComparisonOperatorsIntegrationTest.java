@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -322,7 +321,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               false, true
           )
           .buildIOReader(pipeline)
-          .setCoder(BeamSqlRecordHelper.getSqlRecordCoder(type));
+          .setCoder(type.getRecordCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

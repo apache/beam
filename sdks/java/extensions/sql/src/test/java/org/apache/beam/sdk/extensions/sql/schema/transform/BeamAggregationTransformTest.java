@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -333,10 +332,10 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
    * Coders used in aggregation steps.
    */
   private void prepareTypeAndCoder() {
-    inRecordCoder = BeamSqlRecordHelper.getSqlRecordCoder(inputRowType);
+    inRecordCoder = inputRowType.getRecordCoder();
 
     keyType = initTypeOfSqlRow(Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER)));
-    keyCoder = BeamSqlRecordHelper.getSqlRecordCoder(keyType);
+    keyCoder = keyType.getRecordCoder();
 
     aggPartType = initTypeOfSqlRow(
         Arrays.asList(KV.of("count", SqlTypeName.BIGINT),
@@ -361,10 +360,10 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
             KV.of("sum8", SqlTypeName.INTEGER), KV.of("avg8", SqlTypeName.INTEGER),
             KV.of("max8", SqlTypeName.INTEGER), KV.of("min8", SqlTypeName.INTEGER)
             ));
-    aggCoder = BeamSqlRecordHelper.getSqlRecordCoder(aggPartType);
+    aggCoder = aggPartType.getRecordCoder();
 
     outputType = prepareFinalRowType();
-    outRecordCoder = BeamSqlRecordHelper.getSqlRecordCoder(outputType);
+    outRecordCoder = outputType.getRecordCoder();
   }
 
   /**

@@ -137,10 +137,6 @@ public class BeamRecord implements Serializable {
   }
 
   public Object getFieldValue(int fieldIdx) {
-    if (nullFields.get(fieldIdx)) {
-      return null;
-    }
-
     return dataValues.get(fieldIdx);
   }
 
@@ -204,16 +200,8 @@ public class BeamRecord implements Serializable {
     return dataType;
   }
 
-  public void setDataType(BeamRecordType dataType) {
-    this.dataType = dataType;
-  }
-
   public BitSet getNullFields() {
     return nullFields;
-  }
-
-  public void setNullFields(BitSet nullFields) {
-    this.nullFields = nullFields;
   }
 
   /**

@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.Create;
@@ -74,6 +73,6 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     }
 
     return inputPCollections.getPipeline().apply(stageName, Create.of(rows))
-        .setCoder(BeamSqlRecordHelper.getSqlRecordCoder(beamSQLRowType));
+        .setCoder(beamSQLRowType.getRecordCoder());
   }
 }
