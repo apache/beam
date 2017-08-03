@@ -261,7 +261,7 @@ public class DoFnOperatorTest {
         inputCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<String>(),
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
