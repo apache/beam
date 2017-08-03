@@ -19,22 +19,36 @@ package org.apache.beam.sdk.extensions.sql.schema;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.values.BeamRecordTypeProvider;
+import org.apache.beam.sdk.coders.BigDecimalCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.BooleanCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DateCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DoubleCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.FloatCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.ShortCoder;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.TimeCoder;
+import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
- * Type provider for {@link BeamSqlRow} with SQL types.
+ * Type provider for {@link BeamRecord} with SQL types.
  *
  * <p>Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
  * for more details.
  *
  */
-public class BeamSqlRowType extends BeamRecordTypeProvider {
+public class BeamSqlRecordType extends BeamRecordType {
   private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();
   static {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.TINYINT, Byte.class);
@@ -58,18 +72,63 @@ public class BeamSqlRowType extends BeamRecordTypeProvider {
 
   public List<Integer> fieldsType;
 
-  protected BeamSqlRowType(List<String> fieldsName) {
-    super(fieldsName);
+  protected BeamSqlRecordType(List<String> fieldsName, List<Coder> fieldsCoder) {
+    super(fieldsName, fieldsCoder);
   }
 
-  public BeamSqlRowType(List<String> fieldsName, List<Integer> fieldsType) {
-    super(fieldsName);
+  private BeamSqlRecordType(List<String> fieldsName, List<Integer> fieldsType
+      , List<Coder> fieldsCoder) {
+    super(fieldsName, fieldsCoder);
     this.fieldsType = fieldsType;
   }
 
-  public static BeamSqlRowType create(List<String> fieldNames,
+  public static BeamSqlRecordType create(List<String> fieldNames,
       List<Integer> fieldTypes) {
-    return new BeamSqlRowType(fieldNames, fieldTypes);
+    List<Coder> fieldCoders = new ArrayList<>();
+    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
+      switch (fieldTypes.get(idx)) {
+      case Types.INTEGER:
+        fieldCoders.add(BigEndianIntegerCoder.of());
+        break;
+      case Types.SMALLINT:
+        fieldCoders.add(ShortCoder.of());
+        break;
+      case Types.TINYINT:
+        fieldCoders.add(ByteCoder.of());
+        break;
+      case Types.DOUBLE:
+        fieldCoders.add(DoubleCoder.of());
+        break;
+      case Types.FLOAT:
+        fieldCoders.add(FloatCoder.of());
+        break;
+      case Types.DECIMAL:
+        fieldCoders.add(BigDecimalCoder.of());
+        break;
+      case Types.BIGINT:
+        fieldCoders.add(BigEndianLongCoder.of());
+        break;
+      case Types.VARCHAR:
+      case Types.CHAR:
+        fieldCoders.add(StringUtf8Coder.of());
+        break;
+      case Types.TIME:
+        fieldCoders.add(TimeCoder.of());
+        break;
+      case Types.DATE:
+      case Types.TIMESTAMP:
+        fieldCoders.add(DateCoder.of());
+        break;
+      case Types.BOOLEAN:
+        fieldCoders.add(BooleanCoder.of());
+        break;
+
+      default:
+        throw new UnsupportedOperationException(
+            "Data type: " + fieldTypes.get(idx) + " not supported yet!");
+      }
+    }
+    return new BeamSqlRecordType(fieldNames, fieldTypes, fieldCoders);
   }
 
   @Override
@@ -94,8 +153,8 @@ public class BeamSqlRowType extends BeamRecordTypeProvider {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj != null && obj instanceof BeamSqlRowType) {
-      BeamSqlRowType ins = (BeamSqlRowType) obj;
+    if (obj != null && obj instanceof BeamSqlRecordType) {
+      BeamSqlRecordType ins = (BeamSqlRecordType) obj;
       return fieldsType.equals(ins.getFieldsType()) && getFieldsName().equals(ins.getFieldsName());
     } else {
       return false;

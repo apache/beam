@@ -24,9 +24,9 @@ import static org.junit.Assert.assertTrue;
 import java.util.Date;
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 
@@ -63,17 +63,17 @@ public class BeamSqlDateFunctionsIntegrationTest
         + "CURRENT_TIMESTAMP as c3"
         + " FROM PCOLLECTION"
         ;
-    PCollection<BeamSqlRow> rows = getTestPCollection().apply(
+    PCollection<BeamRecord> rows = getTestPCollection().apply(
         BeamSql.simpleQuery(sql));
     PAssert.that(rows).satisfies(new Checker());
     pipeline.run();
   }
 
-  private static class Checker implements SerializableFunction<Iterable<BeamSqlRow>, Void> {
-    @Override public Void apply(Iterable<BeamSqlRow> input) {
-      Iterator<BeamSqlRow> iter = input.iterator();
+  private static class Checker implements SerializableFunction<Iterable<BeamRecord>, Void> {
+    @Override public Void apply(Iterable<BeamRecord> input) {
+      Iterator<BeamRecord> iter = input.iterator();
       assertTrue(iter.hasNext());
-      BeamSqlRow row = iter.next();
+      BeamRecord row = iter.next();
         // LOCALTIME
       Date date = new Date();
       assertTrue(date.getTime() - row.getGregorianCalendar(0).getTime().getTime() < 1000);
