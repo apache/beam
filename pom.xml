@@ -1401,7 +1401,7 @@
           <version>2.10.4</version>
           <configuration>
             <!-- exclude this auto-generated packages from javadoc -->
-            <excludePackageNames>org.apache.beam.dsls.sql.parser.impl</excludePackageNames>
+            <excludePackageNames>org.apache.beam.sdk.extensions.sql.impl.parser.impl</excludePackageNames>
             <additionalparam>${beam.javadoc_opts}</additionalparam>
             <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
