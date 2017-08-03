@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.format.DateTimeFormat;
@@ -71,7 +71,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamSqlRow inputRow) {
+  public BeamSqlPrimitive evaluate(BeamRecord inputRow) {
     SqlTypeName castOutputType = getOutputType();
     switch (castOutputType) {
       case INTEGER:

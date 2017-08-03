@@ -32,7 +32,7 @@ import org.joda.time.Instant;
 
 /**
  * {@link org.apache.beam.sdk.values.BeamRecord}, self-described with
- * {@link BeamRecordTypeProvider}, represents one element in a
+ * {@link BeamRecordType}, represents one element in a
  * {@link org.apache.beam.sdk.values.PCollection}.
  */
 @Experimental
@@ -40,12 +40,12 @@ public class BeamRecord implements Serializable {
   private List<Object> dataValues;
   //null values are indexed here, to handle properly in Coder.
   private BitSet nullFields;
-  private BeamRecordTypeProvider dataType;
+  private BeamRecordType dataType;
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
   private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
-  public BeamRecord(BeamRecordTypeProvider dataType) {
+  public BeamRecord(BeamRecordType dataType) {
     this.dataType = dataType;
     this.nullFields = new BitSet(dataType.size());
     this.dataValues = new ArrayList<>();
@@ -55,7 +55,7 @@ public class BeamRecord implements Serializable {
     }
   }
 
-  public BeamRecord(BeamRecordTypeProvider dataType, List<Object> dataValues) {
+  public BeamRecord(BeamRecordType dataType, List<Object> dataValues) {
     this(dataType);
     for (int idx = 0; idx < dataValues.size(); ++idx) {
       addField(idx, dataValues.get(idx));
@@ -137,10 +137,6 @@ public class BeamRecord implements Serializable {
   }
 
   public Object getFieldValue(int fieldIdx) {
-    if (nullFields.get(fieldIdx)) {
-      return null;
-    }
-
     return dataValues.get(fieldIdx);
   }
 
@@ -200,20 +196,12 @@ public class BeamRecord implements Serializable {
     this.dataValues = dataValues;
   }
 
-  public BeamRecordTypeProvider getDataType() {
+  public BeamRecordType getDataType() {
     return dataType;
-  }
-
-  public void setDataType(BeamRecordTypeProvider dataType) {
-    this.dataType = dataType;
   }
 
   public BitSet getNullFields() {
     return nullFields;
-  }
-
-  public void setNullFields(BitSet nullFields) {
-    this.nullFields = nullFields;
   }
 
   /**

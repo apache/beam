@@ -24,8 +24,8 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -57,8 +57,8 @@ public class BeamSqlFnExecutorTestBase {
       RelDataTypeSystem.DEFAULT);
   public static RelDataType relDataType;
 
-  public static BeamSqlRowType beamRowType;
-  public static BeamSqlRow record;
+  public static BeamSqlRecordType beamRowType;
+  public static BeamRecord record;
 
   public static RelBuilder relBuilder;
 
@@ -71,7 +71,7 @@ public class BeamSqlFnExecutorTestBase {
         .add("order_time", SqlTypeName.BIGINT).build();
 
     beamRowType = CalciteUtils.toBeamRowType(relDataType);
-    record = new BeamSqlRow(beamRowType);
+    record = new BeamRecord(beamRowType);
 
     record.addField(0, 1234567L);
     record.addField(1, 0);
