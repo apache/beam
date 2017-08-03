@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -36,9 +37,9 @@ import org.joda.time.Instant;
  */
 @Experimental
 public class BeamRecord implements Serializable {
-  //null values are indexed here, to handle properly in Coder.
-  private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
+  //null values are indexed here, to handle properly in Coder.
+  private BitSet nullFields;
   private BeamRecordTypeProvider dataType;
 
   private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
@@ -46,10 +47,11 @@ public class BeamRecord implements Serializable {
 
   public BeamRecord(BeamRecordTypeProvider dataType) {
     this.dataType = dataType;
+    this.nullFields = new BitSet(dataType.size());
     this.dataValues = new ArrayList<>();
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);
-      nullFields.add(idx);
+      nullFields.set(idx);
     }
   }
 
@@ -79,9 +81,7 @@ public class BeamRecord implements Serializable {
     if (fieldValue == null) {
       return;
     } else {
-      if (nullFields.contains(index)) {
-        nullFields.remove(nullFields.indexOf(index));
-      }
+      nullFields.clear(index);
     }
 
     dataType.validateValueType(index, fieldValue);
@@ -137,7 +137,7 @@ public class BeamRecord implements Serializable {
   }
 
   public Object getFieldValue(int fieldIdx) {
-    if (nullFields.contains(fieldIdx)) {
+    if (nullFields.get(fieldIdx)) {
       return null;
     }
 
@@ -208,19 +208,19 @@ public class BeamRecord implements Serializable {
     this.dataType = dataType;
   }
 
-  public void setNullFields(List<Integer> nullFields) {
-    this.nullFields = nullFields;
+  public BitSet getNullFields() {
+    return nullFields;
   }
 
-  public List<Integer> getNullFields() {
-    return nullFields;
+  public void setNullFields(BitSet nullFields) {
+    this.nullFields = nullFields;
   }
 
   /**
    * is the specified field NULL?
    */
   public boolean isNull(int idx) {
-    return nullFields.contains(idx);
+    return nullFields.get(idx);
   }
 
   public Instant getWindowStart() {
