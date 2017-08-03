@@ -51,7 +51,7 @@ public class TableDestination implements Serializable {
   }
 
   public TableDestination(String tableSpec, @Nullable String tableDescription,
-      String jsonTimePartitioning) {
+      @Nullable String jsonTimePartitioning) {
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;

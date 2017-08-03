@@ -54,7 +54,12 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   public TableDestination decode(InputStream inStream) throws IOException {
     String tableSpec = tableSpecCoder.decode(inStream);
     String tableDescription = tableDescriptionCoder.decode(inStream);
-    String jsonTimePartitioning = timePartitioningCoder.decode(inStream);
+    String jsonTimePartitioning = null;
+    try {
+      jsonTimePartitioning = timePartitioningCoder.decode(inStream);
+    } catch (IOException e) {
+      // This implies we're decoding old state that did not contain TimePartitioning. Continue.
+    }
     return new TableDestination(tableSpec, tableDescription, jsonTimePartitioning);
   }
 
