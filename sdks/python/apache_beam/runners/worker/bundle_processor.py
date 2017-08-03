@@ -377,7 +377,8 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
-@BeamTransformFactory.register_urn(urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
+@BeamTransformFactory.register_urn(
+    urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
   source = iobase.SourceBase.from_runner_api(parameter.source, factory.context)
@@ -403,13 +404,17 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   else:
     # No side input data.
     serialized_fn, side_input_data = parameter.value, []
-  return _create_pardo_operation(factory, transform_id, transform_proto, consumers, serialized_fn, side_input_data)
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
 
 
-@BeamTransformFactory.register_urn(urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+@BeamTransformFactory.register_urn(
+    urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
-  serialized_fn = proto_utils.unpack_Any(parameter.do_fn.spec.parameter, wrappers_pb2.BytesValue).value
+  serialized_fn = proto_utils.unpack_Any(
+      parameter.do_fn.spec.parameter, wrappers_pb2.BytesValue).value
   dofn_data = pickler.loads(serialized_fn)
   if len(dofn_data) == 2:
     # Has side input data.
@@ -417,10 +422,14 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   else:
     # No side input data.
     side_input_data = []
-  return _create_pardo_operation(factory, transform_id, transform_proto, consumers, serialized_fn, side_input_data)
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
 
 
-def _create_pardo_operation(factory, transform_id, transform_proto, consumers, serialized_fn, side_input_data):
+def _create_pardo_operation(
+    factory, transform_id, transform_proto, consumers,
+    serialized_fn, side_input_data):
   def create_side_input(tag, coder):
     # TODO(robertwb): Extract windows (and keys) out of element data.
     # TODO(robertwb): Extract state key from ParDoPayload.
@@ -432,6 +441,7 @@ def _create_pardo_operation(factory, transform_id, transform_proto, consumers, s
                 key=side_input_tag(transform_id, tag)),
             coder=coder))
   output_tags = list(transform_proto.outputs.keys())
+
   # Hack to match out prefix injected by dataflow runner.
   def mutate_tag(tag):
     if 'None' in output_tags:
@@ -443,11 +453,11 @@ def _create_pardo_operation(factory, transform_id, transform_proto, consumers, s
       return tag
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
-      # Windowing not set.
-      pcoll_id, = transform_proto.inputs.values()
-      windowing = factory.context.windowing_strategies.get_by_id(
-          factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
-      serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
+    # Windowing not set.
+    pcoll_id, = transform_proto.inputs.values()
+    windowing = factory.context.windowing_strategies.get_by_id(
+        factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
+    serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
@@ -467,13 +477,17 @@ def _create_pardo_operation(factory, transform_id, transform_proto, consumers, s
       output_tags)
 
 
-def _create_simple_pardo_operation(factory, transform_id, transform_proto, consumers, dofn):
+def _create_simple_pardo_operation(
+    factory, transform_id, transform_proto, consumers, dofn):
   serialized_fn = pickler.dumps((dofn, (), {}, [], None))
   side_input_data = []
-  return _create_pardo_operation(factory, transform_id, transform_proto, consumers, serialized_fn, side_input_data)
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
 
 
-@BeamTransformFactory.register_urn(urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
+@BeamTransformFactory.register_urn(
+    urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # Perhaps this hack can go away once all apply overloads are gone.
   from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
@@ -483,11 +497,13 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
           factory.context.windowing_strategies.get_by_id(parameter.value)))
 
 
-@BeamTransformFactory.register_urn(urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
+@BeamTransformFactory.register_urn(
+    urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
       self.windowing = windowing
+
     def process(self, element, timestamp=beam.DoFn.TimestampParam):
       new_windows = self.windowing.windowfn.assign(
           WindowFn.AssignContext(timestamp, element=element))
@@ -496,7 +512,8 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   from apache_beam.transforms.window import WindowFn, WindowedValue
   windowing = Windowing.from_runner_api(parameter, factory.context)
   return _create_simple_pardo_operation(
-      factory, transform_id, transform_proto, consumers,WindowIntoDoFn(windowing))
+      factory, transform_id, transform_proto, consumers,
+      WindowIntoDoFn(windowing))
 
 
 @BeamTransformFactory.register_urn(IDENTITY_DOFN_URN, None)

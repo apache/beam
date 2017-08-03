@@ -1500,7 +1500,6 @@ class Flatten(PTransform):
 
   def expand(self, pcolls):
     for pcoll in pcolls:
-      element_type = pcoll.element_type
       self._check_pcollection(pcoll)
     result = pvalue.PCollection(self.pipeline)
     result.element_type = typehints.Union[

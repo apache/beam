@@ -47,7 +47,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
-from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
 
 
@@ -129,11 +128,11 @@ class _GroupingBuffer(object):
     self._table = collections.defaultdict(list)
 
   def append(self, elements_data):
-      input_stream = create_InputStream(elements_data)
-      while input_stream.size() > 0:
-        key, value = self._pre_grouped_coder.get_impl().decode_from_stream(
-            input_stream, True).value
-        self._table[self._key_coder.encode(key)].append(value)
+    input_stream = create_InputStream(elements_data)
+    while input_stream.size() > 0:
+      key, value = self._pre_grouped_coder.get_impl().decode_from_stream(
+          input_stream, True).value
+      self._table[self._key_coder.encode(key)].append(value)
 
   def __iter__(self):
     output_stream = create_OutputStream()
@@ -316,7 +315,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   transform.unique_name + '/Transcode/' + local_in,
                   [beam_runner_api_pb2.PTransform(
                       unique_name=
-                          transform.unique_name + '/Transcode/' + local_in,
+                      transform.unique_name + '/Transcode/' + local_in,
                       inputs={local_in: pcoll_in},
                       outputs={'out': transcoded_pcollection},
                       spec=beam_runner_api_pb2.FunctionSpec(
@@ -382,6 +381,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       all_side_inputs = frozenset(all_side_inputs)
 
       downstream_side_inputs_by_stage = {}
+
       def compute_downstream_side_inputs(stage):
         if stage not in downstream_side_inputs_by_stage:
           downstream_side_inputs = frozenset()
@@ -409,6 +409,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       # Used to always reference the correct stage as the producer and
       # consumer maps are not updated when stages are fused away.
       replacements = {}
+
       def replacement(s):
         old_ss = []
         while s in replacements:
@@ -469,14 +470,13 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
                           parameter=pcoll_as_param))],
-                  must_follow = {write_pcoll})
+                  must_follow={write_pcoll})
               fuse(read_pcoll, consumer)
 
       # Everything that was originally a stage or a replacement, but wasn't
       # replaced.
       final_stages = frozenset(stages).union(replacements.values()).difference(
           replacements.keys())
-
 
       for stage in final_stages:
         # Update all references to final values before throwing the data away.
@@ -490,6 +490,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       """
       seen = set()
       ordered = []
+
       def process(stage):
         if stage not in seen:
           seen.add(stage)
@@ -549,13 +550,14 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     finally:
       controller.close()
 
-    return maptask_executor_runner.WorkerRunnerResult(PipelineState.UNKNOWN)
+    return maptask_executor_runner.WorkerRunnerResult(PipelineState.DONE)
 
   def run_stage(self, controller, pipeline_components, stage, pcoll_buffers):
 
     coders = pipeline_context.PipelineContext(pipeline_components).coders
 
     data_operation_spec = controller.data_operation_spec()
+
     def extract_endpoints(stage):
       # Returns maps of transform names to PCollection identifiers.
       # Also mutates IO stages to point to the data data_operation_spec.
@@ -584,6 +586,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     logging.info('Running %s', stage.name)
     logging.debug('       %s', stage)
     data_input, data_side_input, data_output = extract_endpoints(stage)
+    if data_side_input:
+      raise NotImplementedError('Side inputs.')
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
@@ -660,7 +664,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           # These should be the only two identifiers we produce for now,
           # but special side input writes may go here.
           raise NotImplementedError(pcoll_id)
-
 
   # This is the "old" way of executing pipelines.
   # TODO(robertwb): Remove once runner API supports side inputs.
@@ -881,7 +884,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     for element in elements:
       element_coder.get_impl().encode_to_stream(element, output_stream, True)
     return output_stream.get()
-
 
   # These classes are used to interact with the worker.
 
