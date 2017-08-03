@@ -28,6 +28,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -48,7 +49,11 @@ import org.apache.beam.sdk.options.ValueProvider;
 @VisibleForTesting
 class TextSource extends FileBasedSource<String> {
   TextSource(ValueProvider<String> fileSpec) {
-    super(fileSpec, 1L);
+    this(fileSpec, EmptyMatchTreatment.DISALLOW);
+  }
+
+  TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment) {
+    super(fileSpec, emptyMatchTreatment, 1L);
   }
 
   private TextSource(MatchResult.Metadata metadata, long start, long end) {

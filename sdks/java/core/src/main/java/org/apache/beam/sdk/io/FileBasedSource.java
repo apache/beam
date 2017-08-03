@@ -23,19 +23,17 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -68,6 +66,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
 
   private final ValueProvider<String> fileOrPatternSpec;
+  private final EmptyMatchTreatment emptyMatchTreatment;
   @Nullable private MatchResult.Metadata singleFileMetadata;
   private final Mode mode;
 
@@ -80,12 +79,25 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   }
 
   /**
-   * Create a {@code FileBaseSource} based on a file or a file pattern specification.
+   * Create a {@code FileBaseSource} based on a file or a file pattern specification, with the given
+   * strategy for treating filepatterns that do not match any files.
+   */
+  protected FileBasedSource(
+      ValueProvider<String> fileOrPatternSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      long minBundleSize) {
+    super(0, Long.MAX_VALUE, minBundleSize);
+    this.mode = Mode.FILEPATTERN;
+    this.emptyMatchTreatment = emptyMatchTreatment;
+    this.fileOrPatternSpec = fileOrPatternSpec;
+  }
+
+  /**
+   * Like {@link #FileBasedSource(ValueProvider, EmptyMatchTreatment, long)}, but uses the default
+   * value of {@link EmptyMatchTreatment#DISALLOW}.
    */
   protected FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
-    super(0, Long.MAX_VALUE, minBundleSize);
-    mode = Mode.FILEPATTERN;
-    this.fileOrPatternSpec = fileOrPatternSpec;
+    this(fileOrPatternSpec, EmptyMatchTreatment.DISALLOW, minBundleSize);
   }
 
   /**
@@ -110,6 +122,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
     this.singleFileMetadata = checkNotNull(fileMetadata, "fileMetadata");
     this.fileOrPatternSpec = StaticValueProvider.of(fileMetadata.resourceId().toString());
+
+    // This field will be unused in this mode.
+    this.emptyMatchTreatment = null;
   }
 
   /**
@@ -204,14 +219,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     if (mode == Mode.FILEPATTERN) {
       long totalSize = 0;
-      List<MatchResult> inputs = FileSystems.match(Collections.singletonList(fileOrPattern));
-      MatchResult result = Iterables.getOnlyElement(inputs);
-      checkArgument(
-          result.status() == Status.OK,
-          "Error matching the pattern or glob %s: status %s",
-          fileOrPattern,
-          result.status());
-      List<Metadata> allMatches = result.metadata();
+      List<Metadata> allMatches = FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
       for (Metadata metadata : allMatches) {
         totalSize += metadata.sizeBytes();
       }
@@ -254,9 +262,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      List<Metadata> expandedFiles = FileBasedSource.expandFilePattern(fileOrPattern);
-      checkArgument(!expandedFiles.isEmpty(),
-          "Unable to find any files matching %s", fileOrPattern);
+      List<Metadata> expandedFiles =
+          FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
       List<FileBasedSource<T>> splitResults = new ArrayList<>(expandedFiles.size());
       for (Metadata metadata : expandedFiles) {
         FileBasedSource<T> split = createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
@@ -327,7 +334,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      List<Metadata> fileMetadata = FileBasedSource.expandFilePattern(fileOrPattern);
+      List<Metadata> fileMetadata =
+          FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
+      LOG.info("Matched {} files for pattern {}", fileMetadata.size(), fileOrPattern);
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (Metadata metadata : fileMetadata) {
         long endOffset = metadata.sizeBytes();
@@ -387,13 +396,6 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
             mode != Mode.FILEPATTERN, "Cannot determine the exact end offset of a file pattern");
     Metadata metadata = getSingleFileMetadata();
     return metadata.sizeBytes();
-  }
-
-  private static List<Metadata> expandFilePattern(String fileOrPatternSpec) throws IOException {
-    MatchResult matches =
-        Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(fileOrPatternSpec)));
-    LOG.info("Matched {} files for pattern {}", matches.metadata().size(), fileOrPatternSpec);
-    return ImmutableList.copyOf(matches.metadata());
   }
 
   /**
