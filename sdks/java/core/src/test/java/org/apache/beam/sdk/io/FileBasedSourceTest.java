@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.Source.Reader;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -90,6 +91,15 @@ public class FileBasedSourceTest {
 
     public TestFileBasedSource(String fileOrPattern, long minBundleSize, String splitHeader) {
       super(StaticValueProvider.of(fileOrPattern), minBundleSize);
+      this.splitHeader = splitHeader;
+    }
+
+    public TestFileBasedSource(
+        String fileOrPattern,
+        EmptyMatchTreatment emptyMatchTreatment,
+        long minBundleSize,
+        String splitHeader) {
+      super(StaticValueProvider.of(fileOrPattern), emptyMatchTreatment, minBundleSize);
       this.splitHeader = splitHeader;
     }
 
@@ -368,6 +378,47 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
     assertThat(expectedResults, containsInAnyOrder(readFromSource(source, options).toArray()));
+  }
+
+  @Test
+  public void testEmptyFilepatternTreatmentDefaultDisallow() throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    TestFileBasedSource source =
+        new TestFileBasedSource(new File(tempFolder.getRoot(), "doesNotExist").getPath(), 64, null);
+    thrown.expect(FileNotFoundException.class);
+    readFromSource(source, options);
+  }
+
+  @Test
+  public void testEmptyFilepatternTreatmentAllow() throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    TestFileBasedSource source =
+        new TestFileBasedSource(
+            new File(tempFolder.getRoot(), "doesNotExist").getPath(),
+            EmptyMatchTreatment.ALLOW,
+            64,
+            null);
+    TestFileBasedSource sourceWithWildcard =
+        new TestFileBasedSource(
+            new File(tempFolder.getRoot(), "doesNotExist*").getPath(),
+            EmptyMatchTreatment.ALLOW_IF_WILDCARD,
+            64,
+            null);
+    assertEquals(0, readFromSource(source, options).size());
+    assertEquals(0, readFromSource(sourceWithWildcard, options).size());
+  }
+
+  @Test
+  public void testEmptyFilepatternTreatmentAllowIfWildcard() throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    TestFileBasedSource source =
+        new TestFileBasedSource(
+            new File(tempFolder.getRoot(), "doesNotExist").getPath(),
+            EmptyMatchTreatment.ALLOW_IF_WILDCARD,
+            64,
+            null);
+    thrown.expect(FileNotFoundException.class);
+    readFromSource(source, options);
   }
 
   @Test
