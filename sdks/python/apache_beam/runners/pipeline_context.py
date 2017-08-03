@@ -66,9 +66,6 @@ class _PipelineContextMap(object):
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
 
-  def proto_map(self):
-    return self._id_to_proto
-
   def __getitem__(self, id):
     return self.get_by_id(id)
 

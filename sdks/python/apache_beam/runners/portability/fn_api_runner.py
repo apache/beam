@@ -35,6 +35,7 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
@@ -158,6 +159,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   def run(self, pipeline):
     if pipeline._verify_runner_api_compatible():
+      MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
       return self.run_via_runner_api(pipeline.to_runner_api())
     else:
       return super(FnApiRunner, self).run(pipeline)
