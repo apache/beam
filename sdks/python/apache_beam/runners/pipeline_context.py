@@ -40,7 +40,7 @@ class _PipelineContextMap(object):
     self._obj_type = obj_type
     self._obj_to_id = {}
     self._id_to_obj = {}
-    self._id_to_proto = proto_map if proto_map else {}
+    self._id_to_proto = dict(proto_map) if proto_map else {}
     self._counter = 0
 
   def _unique_ref(self, obj=None, label=None):
@@ -65,6 +65,15 @@ class _PipelineContextMap(object):
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
+
+  def proto_map(self):
+    return self._id_to_proto
+
+  def __getitem__(self, id):
+    return self.get_by_id(id)
+
+  def __contains__(self, id):
+    return id in self._id_to_proto
 
 
 class PipelineContext(object):
