@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -50,7 +50,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSqlRow inputRow) {
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamRecord inputRow) {
     BigDecimal left = BigDecimal.valueOf(
         Double.valueOf(opValueEvaluated(0, inputRow).toString()));
     BigDecimal right = BigDecimal.valueOf(

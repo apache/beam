@@ -33,10 +33,10 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -69,7 +69,7 @@ public class BeamTextCSVTableTest {
   private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
-  private static List<BeamSqlRow> testDataRows = new ArrayList<BeamSqlRow>() {{
+  private static List<BeamRecord> testDataRows = new ArrayList<BeamRecord>() {{
     for (Object[] data : testData) {
       add(buildRow(data));
     }
@@ -80,7 +80,7 @@ public class BeamTextCSVTableTest {
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
+    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
@@ -93,7 +93,7 @@ public class BeamTextCSVTableTest {
             .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamSqlRow> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
+    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
         writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
 
     // confirm the two reads match
@@ -166,11 +166,11 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamSqlRowType buildBeamSqlRowType() {
+  private static BeamSqlRecordType buildBeamSqlRowType() {
     return CalciteUtils.toBeamRowType(buildRelDataType());
   }
 
-  private static BeamSqlRow buildRow(Object[] data) {
-    return new BeamSqlRow(buildBeamSqlRowType(), Arrays.asList(data));
+  private static BeamRecord buildRow(Object[] data) {
+    return new BeamRecord(buildBeamSqlRowType(), Arrays.asList(data));
   }
 }

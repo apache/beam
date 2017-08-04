@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRowType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -47,10 +47,10 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     runSelectAll(unboundedInput2);
   }
 
-  private void runSelectAll(PCollection<BeamSqlRow> input) throws Exception {
+  private void runSelectAll(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION";
 
-    PCollection<BeamSqlRow> result =
+    PCollection<BeamRecord> result =
         input.apply("testSelectAll", BeamSql.simpleQuery(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
@@ -74,17 +74,17 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     runPartialFields(unboundedInput2);
   }
 
-  private void runPartialFields(PCollection<BeamSqlRow> input) throws Exception {
+  private void runPartialFields(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
-    PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFields", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamSqlRow record = new BeamSqlRow(resultType);
+    BeamRecord record = new BeamRecord(resultType);
     record.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
     record.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
 
@@ -109,29 +109,29 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     runPartialFieldsInMultipleRow(unboundedInput1);
   }
 
-  private void runPartialFieldsInMultipleRow(PCollection<BeamSqlRow> input) throws Exception {
+  private void runPartialFieldsInMultipleRow(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
-    PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamSqlRow record1 = new BeamSqlRow(resultType);
+    BeamRecord record1 = new BeamRecord(resultType);
     record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
     record1.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
 
-    BeamSqlRow record2 = new BeamSqlRow(resultType);
+    BeamRecord record2 = new BeamRecord(resultType);
     record2.addField("f_int", recordsInTableA.get(1).getFieldValue(0));
     record2.addField("f_long", recordsInTableA.get(1).getFieldValue(1));
 
-    BeamSqlRow record3 = new BeamSqlRow(resultType);
+    BeamRecord record3 = new BeamRecord(resultType);
     record3.addField("f_int", recordsInTableA.get(2).getFieldValue(0));
     record3.addField("f_long", recordsInTableA.get(2).getFieldValue(1));
 
-    BeamSqlRow record4 = new BeamSqlRow(resultType);
+    BeamRecord record4 = new BeamRecord(resultType);
     record4.addField("f_int", recordsInTableA.get(3).getFieldValue(0));
     record4.addField("f_long", recordsInTableA.get(3).getFieldValue(1));
 
@@ -156,29 +156,29 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     runPartialFieldsInRows(unboundedInput1);
   }
 
-  private void runPartialFieldsInRows(PCollection<BeamSqlRow> input) throws Exception {
+  private void runPartialFieldsInRows(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int, f_long FROM TABLE_A";
 
-    PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("f_int", "f_long"),
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamSqlRow record1 = new BeamSqlRow(resultType);
+    BeamRecord record1 = new BeamRecord(resultType);
     record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
     record1.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
 
-    BeamSqlRow record2 = new BeamSqlRow(resultType);
+    BeamRecord record2 = new BeamRecord(resultType);
     record2.addField("f_int", recordsInTableA.get(1).getFieldValue(0));
     record2.addField("f_long", recordsInTableA.get(1).getFieldValue(1));
 
-    BeamSqlRow record3 = new BeamSqlRow(resultType);
+    BeamRecord record3 = new BeamRecord(resultType);
     record3.addField("f_int", recordsInTableA.get(2).getFieldValue(0));
     record3.addField("f_long", recordsInTableA.get(2).getFieldValue(1));
 
-    BeamSqlRow record4 = new BeamSqlRow(resultType);
+    BeamRecord record4 = new BeamRecord(resultType);
     record4.addField("f_int", recordsInTableA.get(3).getFieldValue(0));
     record4.addField("f_long", recordsInTableA.get(3).getFieldValue(1));
 
@@ -203,17 +203,17 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     runLiteralField(unboundedInput2);
   }
 
-  public void runLiteralField(PCollection<BeamSqlRow> input) throws Exception {
+  public void runLiteralField(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT 1 as literal_field FROM TABLE_A";
 
-    PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), input)
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testLiteralField", BeamSql.query(sql));
 
-    BeamSqlRowType resultType = BeamSqlRowType.create(Arrays.asList("literal_field"),
+    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
 
-    BeamSqlRow record = new BeamSqlRow(resultType);
+    BeamRecord record = new BeamRecord(resultType);
     record.addField("literal_field", 1);
 
     PAssert.that(result).containsInAnyOrder(record);
@@ -229,8 +229,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     String sql = "SELECT f_int_na FROM TABLE_A";
 
-    PCollection<BeamSqlRow> result =
-        PCollectionTuple.of(new TupleTag<BeamSqlRow>("TABLE_A"), boundedInput1)
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
         .apply("testProjectUnknownField", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();

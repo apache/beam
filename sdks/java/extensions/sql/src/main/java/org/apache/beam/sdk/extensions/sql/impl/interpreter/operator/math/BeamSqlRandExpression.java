@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRow;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -42,7 +42,7 @@ public class BeamSqlRandExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamSqlRow inputRecord) {
+  public BeamSqlPrimitive evaluate(BeamRecord inputRecord) {
     if (operands.size() == 1) {
       int rowSeed = opValueEvaluated(0, inputRecord);
       if (seed == null || seed != rowSeed) {
