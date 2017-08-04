@@ -22,16 +22,23 @@ var genFnType = reflect.TypeOf((*func([]byte) func([]reflect.Value) []reflect.Va
 // representation of the multiedge, capturing input and ouput type information.
 func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	ret := &v1.MultiEdge{}
+	ret.Opcode = string(edge.Op)
 
 	if edge.DoFn != nil {
 		ref, err := encodeFn((*graph.Fn)(edge.DoFn))
 		if err != nil {
 			return nil, fmt.Errorf("encode: bad userfn: %v", err)
 		}
-		ret.Dofn = ref
+		ret.Fn = ref
 	}
 
-	// TODO(herohde) 5/30/2017: de/serialize CombineFn when Fn API supports it.
+	if edge.CombineFn != nil {
+		ref, err := encodeFn((*graph.Fn)(edge.CombineFn))
+		if err != nil {
+			return nil, fmt.Errorf("encode: bad combinefn: %v", err)
+		}
+		ret.Fn = ref
+	}
 
 	for _, in := range edge.Input {
 		kind := encodeInputKind(in.Kind)
@@ -54,40 +61,40 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 // DecodeMultiEdge converts the wire representation into the preprocessed
 // components representing that edge. We deserialize to components to avoid
 // inserting the edge into a graph or creating a detached edge.
-func DecodeMultiEdge(edge *v1.MultiEdge) (*graph.DoFn, []*graph.Inbound, []*graph.Outbound, error) {
-	var u *graph.DoFn
+func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, []*graph.Inbound, []*graph.Outbound, error) {
+	var u *graph.Fn
 	var inbound []*graph.Inbound
 	var outbound []*graph.Outbound
 
-	if edge.Dofn != nil {
-		ref, err := decodeFn(edge.Dofn)
+	opcode := graph.Opcode(edge.Opcode)
+
+	if edge.Fn != nil {
+		var err error
+		u, err = decodeFn(edge.Fn)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
-		}
-		u, err = graph.AsDoFn(ref)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("decode: bad dofn: %v", err)
+			return "", nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
 		}
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
+			return "", nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
 		}
 		t, err := decodeFullType(in.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
+			return "", nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
 		t, err := decodeFullType(out.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
+			return "", nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
-	return u, inbound, outbound, nil
+
+	return opcode, u, inbound, outbound, nil
 }
 
 func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
