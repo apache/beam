@@ -41,11 +41,11 @@ import org.slf4j.LoggerFactory;
  * {@code PCollection} of {@code KV}s.
  *
  * <p>This class uses the Count-min Sketch structure. The papers and other useful information
- * about it is available on this website : https://sites.google.com/site/countminsketch/
+ * about it is available on this website : <a>https://sites.google.com/site/countminsketch/</a>
  * <br>The implementation comes from Apache Spark :
- * https://github.com/apache/spark/tree/master/common/sketch
+ * <a>https://github.com/apache/spark/tree/master/common/sketch</a>
  */
-class SketchFrequencies {
+public class SketchFrequencies {
 
   private static final Logger LOG = LoggerFactory.getLogger(SketchFrequencies.class);
 
@@ -72,11 +72,11 @@ class SketchFrequencies {
    * <br>Also see {@link CountMinSketchFn} for more details about the algorithm's principle.
    *
    * <p>Example of use:
-   * <pre> {@code
+   * <pre>{@code
    * PCollection<String> pc = ...;
    * PCollection<CountMinSketch> countMinSketch =
    *     pc.apply(SketchFrequencies.<String>globally(1234));
-   * } </pre>
+   * }</pre>
    *
    * <p>Also see {@link CountMinSketchFn} for more details about the algorithm's principle.
    *
@@ -107,11 +107,11 @@ class SketchFrequencies {
    * <br>Also see {@link CountMinSketchFn} for more details about the algorithm's principle.
    *
    * <p>Example of use:
-   * <pre> {@code
+   * <pre>{@code
    * PCollection<KV<Integer, String>> pc = ...;
    * PCollection<KV<Integer, CountMinSketch>> countMinSketch =
    *     pc.apply(SketchFrequencies.<Integer, String>perKey(1234));
-   * } </pre>
+   * }</pre>
    *
    * @param seed        the seed used for generating different hash functions
    * @param <K>         the type of the keys in the input and output {@code PCollection}s
@@ -129,7 +129,7 @@ class SketchFrequencies {
    * <p>When an element is added to the Count-min sketch, it is mapped to one column in each
    * row using different hash functions, and a counter is updated in each column.
    * <br>Collisions will happen as far as the number of distinct elements in the stream is greater
-   * than the width of the sketch. Each counter might be associated to many items, so the frequency
+   * than the width of the sketch. Each counter might be associated to many items so the frequency
    * of an element is always overestimated. On average the relative error on a counter is bounded,
    * but some counters can be very inaccurate.
    * <br>That's why different hash functions are used to map the same element to different
@@ -144,8 +144,11 @@ class SketchFrequencies {
    */
   static class CountMinSketchFn
           extends Combine.CombineFn<String, CountMinSketch, CountMinSketch> {
+
     private final int depth;
+
     private final int width;
+
     private final int seed;
 
     private CountMinSketchFn(double eps, double confidence, int seed) {
@@ -166,22 +169,22 @@ class SketchFrequencies {
      * the resulting dimensions are 2000 x 7. It will stay constant during all the aggregation.
      *
      * <p>the {@code seed} parameters is used to generate different hash functions of the form :
-     * <pre>a * i + b % p % width , </pre>
+     * <pre>a * i + b % p % width ,</pre>
      * where a, b are chosen randomly and p is a prime number larger than the maximum i value.
      *
      * <p>Example of use:
      * <br>1) Globally :
-     * <pre> {@code
+     * <pre>{@code
      * PCollection<String> pc = ...;
      * PCollection<CountMinSketch> countMinSketch =
      *     pc.apply(Combine.globally(CountMinSketchFn.<String>create(1234));
-     * } </pre>
+     * }</pre>
      * <br>2) Per key :
-     * <pre> {@code
+     * <pre>{@code
      * PCollection<KV<Integer, String>> pc = ...;
      * PCollection<KV<Integer, CountMinSketch>> countMinSketch =
      *     pc.apply(Combine.perKey(CountMinSketchFn.<String>create(1234));
-     * } </pre>
+     * }</pre>
      *
      * @param seed        the seed used for generating different hash functions
      */
@@ -241,19 +244,19 @@ class SketchFrequencies {
      *
      * <p>Example of use:
      * <br>1) Globally :
-     * <pre> {@code
+     * <pre>{@code
      * PCollection<String> pc = ...;
      * PCollection<CountMinSketch> countMinSketch =
      *     pc.apply(Combine.globally(CountMinSketchFn.<String>create(1234)
      *                  withDimensions(0.001, 0.99));
-     * } </pre>
+     * }</pre>
      * <br>2) Per key :
-     * <pre> {@code
+     * <pre>{@code
      * PCollection<KV<Integer, String>> pc = ...;
      * PCollection<KV<Integer, CountMinSketch>> countMinSketch =
      *     pc.apply(Combine.perKey(CountMinSketchFn.<String>create(1234)
      *                  withAccuracy(0.001, 0.99)););
-     * } </pre>
+     * }</pre>
      *
      *
      * @param epsilon the relative error of the result
@@ -275,7 +278,7 @@ class SketchFrequencies {
     @Override public CountMinSketch mergeAccumulators(Iterable<CountMinSketch> accumulators) {
       Iterator<CountMinSketch> it = accumulators.iterator();
       if (!it.hasNext()) {
-          return new CountMinSketch(seed, width, depth);
+        return new CountMinSketch(seed, width, depth);
       }
       CountMinSketch merged = it.next();
       try {
@@ -314,7 +317,7 @@ class SketchFrequencies {
 
     @Override public void encode(CountMinSketch value, OutputStream outStream) throws IOException {
         if (value == null) {
-            throw new CoderException("cannot encode a null Count-min Sketch");
+          throw new CoderException("cannot encode a null Count-min Sketch");
         }
         BYTE_ARRAY_CODER.encode(CountMinSketch.serialize(value), outStream);
     }

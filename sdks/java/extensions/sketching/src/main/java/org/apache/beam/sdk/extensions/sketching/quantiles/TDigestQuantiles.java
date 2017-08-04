@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -40,16 +39,16 @@ import org.apache.beam.sdk.transforms.Combine;
  *
  * <p>This class uses the T-Digest structure, an improvement of Q-Digest made by Ted Dunning.
  * The paper and implementation are available on his Github profile :
- * https://github.com/tdunning/t-digest
+ * <a>https://github.com/tdunning/t-digest</a>
  *
  * <p><b>For Your Information :</b>
  * <br>The current release of t-digest (3.1) has non-serializable implementations. This problem
  * has been issued and corrected on the master. The new release should be available soon.
  * <br>Until then a wrapper is used, see {@link SerializableTDigest}.
  */
-class TDigestQuantiles {
+public class TDigestQuantiles {
 
-    // do not instantiate
+  // do not instantiate
   private TDigestQuantiles() {
   }
 
@@ -58,15 +57,15 @@ class TDigestQuantiles {
    * {@code PCollection<SerializableTDigest>} whose contents is a TDigest sketch for querying
    * the quantiles of the set of input {@code PCollection}'s elements.
    *
-   * <p>The compression factor controls the accuracy of the queries. For a compression equal to C,
+   * <p>The compression factor controls the accuracy of the queries. For a compression equal to C
    * the relative error will be at most 3/C.
    *
    * <p>Example of use :
    * <pre>{@code PCollection<Double> input = ...
    * PCollection<SerializableTDigest> sketch = input.apply(TDigestQuantiles.globally(1000));
-   * } </pre>
+   * }</pre>
    *
-   * @param compression     the compression factor guarantee a relative error of at most
+   * @param compression     the compression factor guarantees a relative error of at most
    *                        {@code 3 / compression} on quantiles.
    */
   public static Combine.Globally<Double, SerializableTDigest> globally(int compression) {
@@ -79,18 +78,18 @@ class TDigestQuantiles {
    * {@code PCollection} to the TDigest sketch for querying the quantiles of the set of
    * elements associated with that key in the input {@code PCollection}.
    *
-   * <p>The compression factor controls the accuracy of the queries. For a compression equal to C,
+   * <p>The compression factor controls the accuracy of the queries. For a compression equal to C
    * the relative error will be at most 3/C.
    *
    * <p>Example of use :
    * <pre>{@code PCollection<KV<Integer, Double>> input = ...
    * PCollection<KV<Integer, SerializableTDigest>> sketch = input
    *                .apply(TDigestQuantiles.perKey(1000));
-   * } </pre>
+   * }</pre>
    *
-   * @param compression     the compression factor guarantee a relative error of at most
+   * @param compression     the compression factor guarantees a relative error of at most
    *                        {@code 3 / compression} on quantiles.
-   * @param <K> the type of the keys
+   * @param <K>             the type of the keys
    */
   public static <K> Combine.PerKey<K, Double, SerializableTDigest> perKey(int compression) {
     return Combine.<K, Double, SerializableTDigest>perKey(new QuantileFn(compression));
@@ -100,7 +99,6 @@ class TDigestQuantiles {
    * A {@code Combine.CombineFn} that computes the {@link SerializableTDigest} structure
    * of an {@code Iterable} of Doubles, useful as an argument to {@link Combine#globally} or
    * {@link Combine#perKey}.
-   *
    */
   static class QuantileFn
       extends Combine.CombineFn<Double, SerializableTDigest, SerializableTDigest> {
@@ -147,13 +145,13 @@ class TDigestQuantiles {
   /**
    * This class is a wrapper for MergingDigest class because it is not serializable.
    * The problem has been issued and corrected on 3.2 version of Ted Dunning's implementation :
-   * https://github.com/tdunning/t-digest.
+   * <a>https://github.com/tdunning/t-digest</a>
    * However, this version has not been released yet so the issue is still up-to-date.
    */
-  @Experimental
   public static class SerializableTDigest implements Serializable {
 
     private transient MergingDigest sketch;
+
     public SerializableTDigest(int compression) {
       sketch = new MergingDigest(compression);
     }
@@ -163,7 +161,7 @@ class TDigestQuantiles {
     }
 
     public void add(Double input) {
-        this.sketch.add(input, 1);
+      this.sketch.add(input, 1);
     }
 
     public void encode(OutputStream out) throws IOException {
@@ -180,13 +178,13 @@ class TDigestQuantiles {
     public static SerializableTDigest merge(Iterable<SerializableTDigest> list) {
       Iterator<SerializableTDigest> it = list.iterator();
       if (!it.hasNext()) {
-          return null;
+        return null;
       }
       SerializableTDigest mergedDigest = it.next();
       while (it.hasNext()) {
         SerializableTDigest next = it.next();
         if (next.getSketch().centroids().size() > 1) {
-            mergedDigest.sketch.add(next.sketch);
+          mergedDigest.sketch.add(next.sketch);
         }
       }
       return mergedDigest;
@@ -206,7 +204,7 @@ class TDigestQuantiles {
     }
 
     @Override public void encode(SerializableTDigest value, OutputStream outStream)
-        throws IOException {
+          throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null T-Digest sketch");
       }
@@ -222,7 +220,7 @@ class TDigestQuantiles {
     }
 
     @Override protected long getEncodedElementByteSize(SerializableTDigest value)
-            throws IOException {
+          throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null T-Digest sketch");
       }
