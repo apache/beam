@@ -43,6 +43,10 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MetadataCoder;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -89,6 +93,8 @@ public class CoderRegistry {
 
     private CommonTypes() {
       ImmutableMap.Builder<Class<?>, CoderProvider> builder = ImmutableMap.builder();
+      builder.put(Boolean.class,
+          CoderProviders.fromStaticMethods(Boolean.class, BooleanCoder.class));
       builder.put(Byte.class,
           CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
@@ -109,6 +115,10 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Long.class, VarLongCoder.class));
       builder.put(Map.class,
           CoderProviders.fromStaticMethods(Map.class, MapCoder.class));
+      builder.put(Metadata.class,
+          CoderProviders.fromStaticMethods(Metadata.class, MetadataCoder.class));
+      builder.put(ResourceId.class,
+          CoderProviders.fromStaticMethods(ResourceId.class, ResourceIdCoder.class));
       builder.put(Set.class,
           CoderProviders.fromStaticMethods(Set.class, SetCoder.class));
       builder.put(String.class,
