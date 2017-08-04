@@ -319,7 +319,7 @@ def with_input_types(*positional_hints, **keyword_hints):
 
     from apache_beam.typehints import with_input_types
 
-    @with_input_types(s=str)  # just @with_input_types(str) will work too.
+    @with_input_types(str)
     def upper(s):
       return s.upper()
 
@@ -412,7 +412,6 @@ def with_output_types(*return_type_hint, **kwargs):
 
     @with_output_types(Set[Coordinate])
     def parse_ints(ints):
-      # ....
       return {Coordinate(i, i) for i in ints}
 
   Or with a simple type-hint:

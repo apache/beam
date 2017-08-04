@@ -89,7 +89,6 @@ autodoc_member_order = 'bysource'
 
 doctest_global_setup = '''
 import apache_beam as beam
-import sys
 '''
 
 intersphinx_mapping = {

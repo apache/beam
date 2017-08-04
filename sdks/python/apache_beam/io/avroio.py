@@ -79,7 +79,7 @@ class ReadFromAvro(PTransform):
 
     .. testcode::
 
-      with beam.Pipeline(argv=sys.argv) as p:
+      with beam.Pipeline() as p:
         records = p | 'Read' >> beam.io.ReadFromAvro('/mypath/myavrofiles*')
 
     .. NOTE: We're not actually interested in this error; but if we get here,
