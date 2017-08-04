@@ -43,6 +43,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import check_accessible
+from apache_beam.transforms.trigger import DefaultTrigger
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -137,7 +138,7 @@ class FileBasedSource(iobase.BoundedSource):
         # We determine splittability of this specific file.
         splittable = (
             self.splittable and
-            _determine_spelittability_from_compression_type(
+            _determine_splittability_from_compression_type(
                 file_name, self._compression_type))
 
         single_file_source = _SingleFileSource(
@@ -211,7 +212,7 @@ class FileBasedSource(iobase.BoundedSource):
     return self._splittable
 
 
-def _determine_spelittability_from_compression_type(
+def _determine_splittability_from_compression_type(
     file_path, compression_type):
   if compression_type == CompressionTypes.AUTO:
     compression_type = CompressionTypes.detect_compression_type(file_path)
@@ -329,25 +330,34 @@ class _ExpandIntoRanges(DoFn):
     for metadata in match_results[0].metadata_list:
       splittable = (
           self._splittable and
-          _determine_spelittability_from_compression_type(
+          _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
 
-      if not splittable:
-        yield (metadata, OffsetRange(
-            0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
-      else:
+      if splittable:
         for split in OffsetRange(
             0, metadata.size_in_bytes).split(
                 self._desired_bundle_size, self._min_bundle_size):
           yield (metadata, split)
+      else:
+        yield (metadata, OffsetRange(
+            0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
 
 
+# Replace following with a generic reshard transform once
+# https://issues.apache.org/jira/browse/BEAM-2731 is implemented.
 class _Reshard(PTransform):
 
   def expand(self, pvalue):
-    return (pvalue
-            | 'AssignKey' >> Map(lambda x: (uuid.uuid4(), x))
-            | 'GroupByKey' >> GroupByKey()
+    keyed_pc = (pvalue
+                | 'AssignKey' >> Map(lambda x: (uuid.uuid4(), x)))
+    if keyed_pc.windowing.windowfn.is_merging():
+      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
+                       'of merging windows')
+    if not isinstance(keyed_pc.windowing.triggerfn, DefaultTrigger):
+      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
+                       'of non-trivial triggers')
+
+    return (keyed_pc | 'GroupByKey' >> GroupByKey()
             # Using FlatMap below due to the possibility of key collisions.
             | 'DropKey' >> FlatMap(lambda (k, values): values))
 
@@ -362,8 +372,9 @@ class _ReadRange(DoFn):
     source = self._source_from_file(metadata.path)
     # Following split() operation has to be performed to create a proper
     # _SingleFileSource. Otherwise what we have is a ConcatSource that contains
-    # a single _SingleFileSource.
-    source = list(source.split(float(float('inf'))))[0].source
+    # a single _SingleFileSource. ConcatSource.read() expects a RangeTraker for
+    # sub-source range and reads full sub-sources (not byte ranges).
+    source = list(source.split(float('inf')))[0].source
     for record in source.read(range.new_tracker()):
       yield record
 

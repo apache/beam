@@ -31,15 +31,34 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
 class OffsetRange(object):
 
   def __init__(self, start, stop):
+    if stop < start:
+      raise ValueError(
+          'Stop offset must not be smaller than the start offset. '
+          'Received %d and %d respectively.', start, stop)
     self.start = start
     self.stop = stop
 
-  def split(self, desired_num_offsets_per_split, min_num_offsets_per_split):
+  def __eq__(self, other):
+    assert isinstance(other, OffsetRange)
+    return self.start == other.start and self.stop == other.stop
+
+  def __ne__(self, other):
+    assert isinstance(other, OffsetRange)
+    return not (self.start == other.start and self.stop == other.stop)
+
+  def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
     max_split_size = max(desired_num_offsets_per_split,
                          min_num_offsets_per_split)
     while current_split_start < self.stop:
       current_split_stop = min(current_split_start + max_split_size, self.stop)
+      remaining = self.stop - current_split_stop
+
+      # Avoiding a small split at the end.
+      if (remaining < desired_num_offsets_per_split / 4 or
+          remaining < min_num_offsets_per_split):
+        current_split_stop = self.stop
+
       yield OffsetRange(current_split_start, current_split_stop)
       current_split_start = current_split_stop
 
