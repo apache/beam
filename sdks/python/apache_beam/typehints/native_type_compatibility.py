@@ -17,16 +17,8 @@
 
 """Module to convert Python's native typing types to Beam types."""
 
-try:
-  import typing
-except ImportError:
-  # If the typing module is not importable, then the only types we should
-  # see in the typehints are Beam types, so no conversion is required.
-  def convert_to_beam_types(args):
-    return args
-
-
 import collections
+import typing
 from apache_beam.typehints import typehints
 
 # Describes an entry in the type map in convert_to_beam_type.
@@ -59,8 +51,8 @@ def _safe_issubclass(derived, parent):
   e.g. typing.Union isn't actually a class.
 
   Args:
-    derived: As in issubclass
-    parent: As in issubclass
+    derived: As in issubclass.
+    parent: As in issubclass.
 
   Returns:
     issubclass(derived, parent), or False if a TypeError was raised.
@@ -93,7 +85,7 @@ def convert_to_beam_type(typ):
     typ: typing type.
 
   Returns:
-    The given type converted to a Beam type as far as we can do the converion.
+    The given type converted to a Beam type as far as we can do the conversion.
 
   Raises:
     ValueError: The type was malformed.
