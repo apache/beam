@@ -256,6 +256,28 @@ class DataflowRunnerTest(unittest.TestCase):
     for _ in range(num_inputs):
       self.assertEqual(inputs[0].element_type, output_type)
 
+  def test_gbk_then_flatten_input_visitor(self):
+    p = TestPipeline(
+        runner=DataflowRunner(),
+        options=PipelineOptions(self.default_properties))
+    none_str_pc = p | 'c1' >> beam.Create({None: 'a'})
+    none_int_pc = p | 'c2' >> beam.Create({None: 3})
+    flat = (none_str_pc, none_int_pc) | beam.Flatten()
+    _ = flat | beam.GroupByKey()
+
+    # This may change if type inference changes, but we assert it here
+    # to make sure the check below is not vacuous.
+    self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
+
+    p.visit(DataflowRunner.group_by_key_input_visitor())
+    p.visit(DataflowRunner.flatten_input_visitor())
+
+    # The dataflow runner requires gbk input to be tuples *and* flatten
+    # inputs to be equal to their outputs. Assert both hold.
+    self.assertIsInstance(flat.element_type, typehints.TupleConstraint)
+    self.assertEqual(flat.element_type, none_str_pc.element_type)
+    self.assertEqual(flat.element_type, none_int_pc.element_type)
+
   def test_serialize_windowing_strategy(self):
     # This just tests the basic path; more complete tests
     # are in window_test.py.
