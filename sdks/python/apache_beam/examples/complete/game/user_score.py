@@ -37,8 +37,6 @@ To specify a different runner:
 
 NOTE: When specifying a different runner, additional runner-specific options
       may have to be passed in as well
-NOTE: With DataflowRunner, the --setup_file flag must be specified to handle the
-      'util' module
 
 EXAMPLES
 --------
@@ -51,7 +49,6 @@ python user_score.py \
 python user_score.py \
     --output gs://$BUCKET/user_score/output \
     --runner DataflowRunner \
-    --setup_file ./setup.py \
     --project $PROJECT_ID \
     --staging_location gs://$BUCKET/user_score/staging \
     --temp_location gs://$BUCKET/user_score/temp
@@ -60,20 +57,65 @@ python user_score.py \
 from __future__ import absolute_import
 
 import argparse
+import csv
 import logging
 
 import apache_beam as beam
+from apache_beam.metrics.metric import Metrics
 
-from apache_beam.examples.complete.game.util import util
+
+class ParseGameEventFn(beam.DoFn):
+  """Parses the raw game event info into a Python dictionary.
+
+  Each event line has the following format:
+    username,teamname,score,timestamp_in_ms,readable_time
+
+  e.g.:
+    user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
+
+  The human-readable time string is not used here.
+  """
+  def __init__(self):
+    super(ParseGameEventFn, self).__init__()
+    self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
+
+  def process(self, elem):
+    try:
+      row = list(csv.reader([elem]))[0]
+      yield {
+          'user': row[0],
+          'team': row[1],
+          'score': int(row[2]),
+          'timestamp': int(row[3]) / 1000.0,
+      }
+    except:  # pylint: disable=bare-except
+      # Log and count parse errors
+      self.num_parse_errors.inc()
+      logging.error('Parse error on "%s"', elem)
+
+
+class ExtractAndSumScore(beam.PTransform):
+  """A transform to extract key/score information and sum the scores.
+  The constructor argument `field` determines whether 'team' or 'user' info is
+  extracted.
+  """
+  def __init__(self, field):
+    super(ExtractAndSumScore, self).__init__()
+    self.field = field
+
+  def expand(self, pcoll):
+    return (pcoll
+            | beam.Map(lambda elem: (elem[self.field], elem['score']))
+            | beam.CombinePerKey(sum))
 
 
 class UserScore(beam.PTransform):
   def expand(self, pcoll):
     return (
         pcoll
-        | 'ParseGameEventFn' >> beam.ParDo(util.ParseGameEventFn())
+        | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         # Extract and sum username/score pairs from the event data.
-        | 'ExtractAndSumScore' >> util.ExtractAndSumScore('user')
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('user')
     )
 
 
