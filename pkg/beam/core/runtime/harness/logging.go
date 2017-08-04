@@ -120,7 +120,6 @@ func (w *remoteWriter) Write(p []byte) (n int, err error) {
 		} // else ignore: cannot parse timestamp
 	}
 
-	fmt.Fprintf(os.Stderr, "LOG: %v\n", string(raw))
 	entry.Message = string(raw)
 
 	w.buffer <- entry
