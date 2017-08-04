@@ -36,6 +36,7 @@
     <module>core-construction-java</module>
     <module>core-java</module>
     <module>local-artifact-service-java</module>
+    <module>reference</module>
     <module>direct-java</module>
     <module>flink</module>
     <module>google-cloud-dataflow-java</module>
