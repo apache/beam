@@ -105,10 +105,6 @@ def convert_to_beam_type(typ):
           arity=1,
           beam_type=typehints.List),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Optional),
-          arity=1,
-          beam_type=typehints.Optional),
-      _TypeMapEntry(
           match=_match_issubclass(typing.Set),
           arity=1,
           beam_type=typehints.Set),
@@ -145,7 +141,7 @@ def convert_to_beam_type(typ):
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.
     return matched_entry.beam_type
   elif arity == 1:
-    # Unary types (e.g. Optional) don't accept 1-tuples as arguments
+    # Unary types (e.g. Set) don't accept 1-tuples as arguments
     return matched_entry.beam_type[typs[0]]
   else:
     return matched_entry.beam_type[tuple(typs)]

@@ -50,10 +50,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('simple dict', typing.Dict[bytes, int],
          typehints.Dict[bytes, int]),
         ('simple list', typing.List[int], typehints.List[int]),
-        # Bug in Beam: None and NoneType should be interchangeable
-        # (see PEP484, "Using None")
-        # ('simple optional', typing.Optional[int],
-        #  typehints.Optional[int]),
+        ('simple optional', typing.Optional[int], typehints.Optional[int]),
         ('simple set', typing.Set[float], typehints.Set[float]),
         ('simple unary tuple', typing.Tuple[bytes],
          typehints.Tuple[bytes]),
