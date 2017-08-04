@@ -573,8 +573,8 @@ public class DirectRunnerTest implements Serializable {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
-      return underlying.getDefaultOutputCoder();
+    public Coder<T> getOutputCoder() {
+      return underlying.getOutputCoder();
     }
   }
 }

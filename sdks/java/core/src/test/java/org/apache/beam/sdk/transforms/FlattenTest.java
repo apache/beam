@@ -228,7 +228,7 @@ public class FlattenTest implements Serializable {
   public void testFlattenNoListsNoCoder() {
     // not ValidatesRunner because it should fail at pipeline construction time anyhow.
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("cannot provide a Coder for empty");
+    thrown.expectMessage("Unable to return a default Coder");
 
     PCollectionList.<ClassWithoutCoder>empty(p)
         .apply(Flatten.<ClassWithoutCoder>pCollections());

@@ -140,8 +140,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
+  public Coder<T> getOutputCoder() {
+    return source.getOutputCoder();
   }
 
   public Coder<CheckpointMarkT> getCheckpointMarkCoder() {

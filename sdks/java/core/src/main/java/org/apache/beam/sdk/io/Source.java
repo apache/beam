@@ -61,10 +61,16 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    */
   public abstract void validate();
 
-  /**
-   * Returns the default {@code Coder} to use for the data read from this source.
-   */
-  public abstract Coder<T> getDefaultOutputCoder();
+  /** @deprecated Override {@link #getOutputCoder()} instead. */
+  @Deprecated
+  public Coder<T> getDefaultOutputCoder() {
+    throw new UnsupportedOperationException("Source needs to override getOutputCoder()");
+  }
+
+  /** Returns the {@code Coder} to use for the data read from this source. */
+  public Coder<T> getOutputCoder() {
+    return getDefaultOutputCoder();
+  }
 
   /**
    * {@inheritDoc}

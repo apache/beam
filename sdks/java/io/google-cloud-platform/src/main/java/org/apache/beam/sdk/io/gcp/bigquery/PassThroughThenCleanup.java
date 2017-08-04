@@ -74,7 +74,7 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
                     })
                 .withSideInputs(jobIdSideInput, cleanupSignalView));
 
-    return outputs.get(mainOutput);
+    return outputs.get(mainOutput).setCoder(input.getCoder());
   }
 
   private static class IdentityFn<T> extends DoFn<T, T> {

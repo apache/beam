@@ -241,8 +241,11 @@ class ParDoTranslator<InputT, OutputT>
     }
 
     PCollection<Object> resultCollection =
-        FlattenPCollectionTranslator.intermediateCollection(
-            firstSideInput, firstSideInput.getCoder());
+        PCollection.createPrimitiveOutputInternal(
+            firstSideInput.getPipeline(),
+            firstSideInput.getWindowingStrategy(),
+            firstSideInput.isBounded(),
+            firstSideInput.getCoder());
     FlattenPCollectionTranslator.flattenCollections(
         sourceCollections, unionTags, resultCollection, context);
     return resultCollection;

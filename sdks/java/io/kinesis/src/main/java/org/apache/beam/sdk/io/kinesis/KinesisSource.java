@@ -107,7 +107,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   }
 
   @Override
-  public Coder<KinesisRecord> getDefaultOutputCoder() {
+  public Coder<KinesisRecord> getOutputCoder() {
     return KinesisRecordCoder.of();
   }
 }

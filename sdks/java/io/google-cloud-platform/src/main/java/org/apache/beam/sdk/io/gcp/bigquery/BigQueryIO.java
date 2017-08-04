@@ -50,7 +50,6 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
@@ -543,9 +542,7 @@ public class BigQueryIO {
             p.apply("TriggerIdCreation", Create.of(staticJobUuid))
                 .apply("ViewId", View.<String>asSingleton());
         // Apply the traditional Source model.
-        rows =
-            p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid)))
-                .setCoder(getDefaultOutputCoder());
+        rows = p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid)));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -625,7 +622,8 @@ public class BigQueryIO {
                                 }
                               }
                             })
-                        .withSideInputs(schemaView, jobIdTokenView));
+                        .withSideInputs(schemaView, jobIdTokenView))
+                        .setCoder(TableRowJsonCoder.of());
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -655,11 +653,6 @@ public class BigQueryIO {
             }
           };
       return rows.apply(new PassThroughThenCleanup<TableRow>(cleanupOperation, jobIdTokenView));
-    }
-
-    @Override
-    protected Coder<TableRow> getDefaultOutputCoder() {
-      return TableRowJsonCoder.of();
     }
 
     @Override
@@ -1138,11 +1131,6 @@ public class BigQueryIO {
         }
         return rowsWithDestination.apply(batchLoads);
       }
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
 
     @Override

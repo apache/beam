@@ -315,7 +315,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
+  public Coder<T> getOutputCoder() {
     return mode.getOutputCoder();
   }
 

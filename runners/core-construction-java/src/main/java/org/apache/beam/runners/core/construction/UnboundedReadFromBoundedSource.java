@@ -91,11 +91,6 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   }
 
   @Override
-  protected Coder<T> getDefaultOutputCoder() {
-    return source.getDefaultOutputCoder();
-  }
-
-  @Override
   public String getKindString() {
     return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
   }
@@ -166,14 +161,14 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
-      return boundedSource.getDefaultOutputCoder();
+    public Coder<T> getOutputCoder() {
+      return boundedSource.getOutputCoder();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
-      return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
+      return new CheckpointCoder<>(boundedSource.getOutputCoder());
     }
 
     @VisibleForTesting

@@ -395,7 +395,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getOutputCoder() {
       return coder;
     }
   }

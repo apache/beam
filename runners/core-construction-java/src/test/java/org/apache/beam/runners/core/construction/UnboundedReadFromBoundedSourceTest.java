@@ -320,7 +320,7 @@ public class UnboundedReadFromBoundedSourceTest {
     }
 
     @Override
-    public Coder<Byte> getDefaultOutputCoder() {
+    public Coder<Byte> getOutputCoder() {
       return SerializableCoder.of(Byte.class);
     }
 
