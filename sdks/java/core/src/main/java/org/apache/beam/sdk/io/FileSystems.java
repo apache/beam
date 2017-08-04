@@ -54,6 +54,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
@@ -72,12 +73,19 @@ public class FileSystems {
   public static final String DEFAULT_SCHEME = "file";
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
+  private static final Pattern GLOB_PATTERN =
+      Pattern.compile("[*?{}]");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
           ImmutableMap.<String, FileSystem>of(DEFAULT_SCHEME, new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/
+
+  /** Checks whether the given spec contains a glob wildcard character. */
+  public static boolean hasGlobWildcard(String spec) {
+    return GLOB_PATTERN.matcher(spec).find();
+  }
 
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceId ResourceIds}.
@@ -102,6 +110,9 @@ public class FileSystems {
    * <p>In case the spec schemes don't match any known {@link FileSystem} implementations,
    * FileSystems will attempt to use {@link LocalFileSystem} to resolve a path.
    *
+   * <p>Specs that do not match any resources are treated according to
+   * {@link EmptyMatchTreatment#DISALLOW}.
+   *
    * @return {@code List<MatchResult>} in the same order of the input specs.
    *
    * @throws IllegalArgumentException if specs are invalid -- empty or have different schemes.
@@ -112,6 +123,17 @@ public class FileSystems {
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+  }
+
+  /** Like {@link #match(List)}, but with a configurable {@link EmptyMatchTreatment}. */
+  public static List<MatchResult> match(List<String> specs, EmptyMatchTreatment emptyMatchTreatment)
+      throws IOException {
+    List<MatchResult> matches = getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+    List<MatchResult> res = Lists.newArrayListWithExpectedSize(matches.size());
+    for (int i = 0; i < matches.size(); i++) {
+      res.add(maybeAdjustEmptyMatchResult(specs.get(i), matches.get(i), emptyMatchTreatment));
+    }
+    return res;
   }
 
 
@@ -130,6 +152,30 @@ public class FileSystems {
         matches);
     return matches.get(0);
   }
+
+  /** Like {@link #match(String)}, but with a configurable {@link EmptyMatchTreatment}. */
+  public static MatchResult match(String spec, EmptyMatchTreatment emptyMatchTreatment)
+      throws IOException {
+    MatchResult res = match(spec);
+    return maybeAdjustEmptyMatchResult(spec, res, emptyMatchTreatment);
+  }
+
+  private static MatchResult maybeAdjustEmptyMatchResult(
+      String spec, MatchResult res, EmptyMatchTreatment emptyMatchTreatment)
+      throws IOException {
+    if (res.status() != Status.NOT_FOUND) {
+      return res;
+    }
+    boolean notFoundAllowed =
+        emptyMatchTreatment == EmptyMatchTreatment.ALLOW
+            || (FileSystems.hasGlobWildcard(spec)
+                && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
+    if (notFoundAllowed) {
+      return MatchResult.create(Status.OK, Collections.<Metadata>emptyList());
+    }
+    return res;
+  }
+
   /**
    * Returns the {@link Metadata} for a single file resource. Expects a resource specification
    * {@code spec} that matches a single result.

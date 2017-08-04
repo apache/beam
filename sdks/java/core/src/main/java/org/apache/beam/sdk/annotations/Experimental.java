@@ -72,8 +72,9 @@ public @interface Experimental {
     OUTPUT_TIME,
 
     /**
-     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
-     * Do not use: API is unstable and runner support is incomplete.
+     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>. See <a
+     * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>
+     * for runner support.
      */
     SPLITTABLE_DO_FN,
 
