@@ -194,14 +194,10 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			return "", properties{}, err
 		}
 
-		// TODO(herohde) 5/30/2017: we need the accumulator coder here instead.
-		c, err := graphx.EncodeCoderRef(edge.Input[0].From.Coder)
-		if err != nil {
-			return "", properties{}, err
-		}
-		return "CombineValues", properties{
+		// TODO(flaviocf) 8/08/2017: When combiners are supported, change "ParallelDo" to
+		// "CombineValues", encode accumulator coder and pass it as a property "Encoding".
+		return "ParallelDo", properties{
 			UserName:     buildName(edge.Scope(), edge.CombineFn.Name()),
-			Encoding:     c,
 			SerializedFn: fn,
 		}, nil
 

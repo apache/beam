@@ -136,9 +136,13 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 				return nil, err
 			}
 
+			var fn *graph.Fn
 			edge := g.NewEdge(g.Root())
-			edge.Op = graph.Source
-			edge.DoFn, edge.Input, edge.Output, err = graphx.DecodeMultiEdge(&me)
+			edge.Op, fn, edge.Input, edge.Output, err = graphx.DecodeMultiEdge(&me)
+			if err != nil {
+				return nil, err
+			}
+			edge.DoFn, err = graph.AsDoFn(fn)
 			if err != nil {
 				return nil, err
 			}
@@ -152,11 +156,25 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 				return nil, err
 			}
 
+			var fn *graph.Fn
 			edge := g.NewEdge(g.Root())
-			edge.Op = graph.ParDo
-			edge.DoFn, edge.Input, edge.Output, err = graphx.DecodeMultiEdge(&me)
+			edge.Op, fn, edge.Input, edge.Output, err = graphx.DecodeMultiEdge(&me)
 			if err != nil {
 				return nil, err
+			}
+			switch edge.Op {
+			case graph.ParDo:
+				edge.DoFn, err = graph.AsDoFn(fn)
+				if err != nil {
+					return nil, err
+				}
+			case graph.Combine:
+				edge.CombineFn, err = graph.AsCombineFn(fn)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", edge.Op))
 			}
 			if err := link(g, nodes, coders, transform, id, edge, colls); err != nil {
 				return nil, err

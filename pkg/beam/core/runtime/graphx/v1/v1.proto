@@ -171,8 +171,8 @@ message CustomCoder {
 // MultiEdge represents a partly-serialized MultiEdge. It does not include
 // node information, because runners manipulate the graph structure.
 message MultiEdge {
-    Fn dofn = 1;
-    // TODO: maybe opcode, maybe scope?
+    Fn fn = 1;
+    string opcode = 4;
 
     message Inbound {
         enum InputKind {
