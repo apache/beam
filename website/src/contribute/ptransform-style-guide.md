@@ -452,39 +452,76 @@ public static class FooV2 {
 
 #### Validation
 
-* Validate individual parameters in `.withBlah()` methods. Error messages should mention the method being called, the actual value and the range of valid values.
-* Validate inter-parameter invariants in the `PTransform`'s `.validate()` method.
+* Validate individual parameters in `.withBlah()` methods using `checkArgument()`. Error messages should mention the name of the parameter, the actual value, and the range of valid values.
+* Validate parameter combinations and missing required parameters in the `PTransform`'s `.expand()` method.
+* Validate parameters that the `PTransform` takes from `PipelineOptions` in the `PTransform`'s `.validate(PipelineOptions)` method.
+  These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular `PipelineOptions`.
+  Most `PTransform`s do not use `PipelineOptions` and thus don't need a `validate()` method - instead, they should perform their validation via the two other methods above.
 
 ```java
 @AutoValue
 public abstract class TwiddleThumbs
     extends PTransform<PCollection<Foo>, PCollection<Bar>> {
   abstract int getMoo();
-  abstract int getBoo();
+  abstract String getBoo();
 
   ...
   // Validating individual parameters
   public TwiddleThumbs withMoo(int moo) {
-    checkArgument(moo >= 0 && moo < 100,
-      "TwiddleThumbs.withMoo() called with an invalid moo of %s. "
-              + "Valid values are 0 (exclusive) to 100 (exclusive)",
-              moo);
-        return toBuilder().setMoo(moo).build();
+    checkArgument(
+        moo >= 0 && moo < 100,
+        "Moo must be between 0 (inclusive) and 100 (exclusive), but was: %s",
+        moo);
+    return toBuilder().setMoo(moo).build();
   }
 
-  // Validating cross-parameter invariants
-  public void validate(PCollection<Foo> input) {
-    checkArgument(getMoo() == 0 || getBoo() == 0,
-      "TwiddleThumbs created with both .withMoo(%s) and .withBoo(%s). "
-      + "Only one of these must be specified.",
-      getMoo(), getBoo());
+  public TwiddleThumbs withBoo(String boo) {
+    checkArgument(boo != null, "Boo can not be null");
+    checkArgument(!boo.isEmpty(), "Boo can not be empty");
+    return toBuilder().setBoo(boo).build();
+  }
+
+  @Override
+  public void validate(PipelineOptions options) {
+    int woo = options.as(TwiddleThumbsOptions.class).getWoo();
+    checkArgument(
+       woo > getMoo(),
+      "Woo (%s) must be smaller than moo (%s)",
+      woo, getMoo());
+  }
+
+  @Override
+  public PCollection<Bar> expand(PCollection<Foo> input) {
+    // Validating that a required parameter is present
+    checkArgument(getBoo() != null, "Must specify boo");
+
+    // Validating a combination of parameters
+    checkArgument(
+        getMoo() == 0 || getBoo() == null,
+        "Must specify at most one of moo or boo, but was: moo = %s, boo = %s",
+        getMoo(), getBoo());
+
+    ...
   }
 }
 ```
 
 #### Coders
 
-* Use `Coder`s only for setting the coder on a `PCollection` or a mutable state cell.
-* When available, use a specific most efficient coder for the datatype (e.g. `StringUtf8Coder.of()` for strings, `ByteArrayCoder.of()` for byte arrays, etc.), rather than using a generic coder like `SerializableCoder`. Develop efficient coders for types that can be elements of `PCollection`s.
-* Do not use coders as a general serialization or parsing mechanism for arbitrary raw byte data. (anti-examples that should be fixed: `TextIO`, `KafkaIO`).
-* In general, any transform that outputs a user-controlled type (that is not its input type) needs to accept a coder in the transform configuration (example: the `Create.of()` transform). This gives the user the ability to control the coder no matter how the transform is structured: e.g., purely letting the user specify the coder on the output `PCollection` of the transform is insufficient in case the transform internally uses intermediate `PCollection`s of this type.
+`Coder`s are a way for a Beam runner to materialize intermediate data or transmit it between workers when necessary. `Coder` should not be used as a general-purpose API for parsing or writing binary formats because the particular binary encoding of a `Coder` is intended to be its private implementation detail.
+
+##### Providing default coders for types
+
+Provide default `Coder`s for all new data types. Use `@DefaultCoder` annotations or `CoderProviderRegistrar` classes annotated with `@AutoService`: see usages of these classes in the SDK for examples. If performance is not important, you can use `SerializableCoder` or `AvroCoder`. Otherwise, develop an efficient custom coder (subclass `AtomicCoder` for concrete types, `StructuredCoder` for generic types).
+
+##### Setting coders on output collections
+
+All `PCollection`s created by your `PTransform` (both output and intermediate collections) must have a `Coder` set on them: a user should never need to call `.setCoder()` to "fix up" a coder on a `PCollection` produced by your `PTransform` (in fact, Beam intends to eventually deprecate `setCoder`). In some cases, coder inference will be sufficient to achieve this; in other cases, your transform will need to explicitly call `setCoder` on its collections.
+
+If the collection is of a concrete type, that type usually has a corresponding coder. Use a specific most efficient coder (e.g. `StringUtf8Coder.of()` for strings, `ByteArrayCoder.of()` for byte arrays, etc.), rather than a general-purpose coder like `SerializableCoder`.
+
+If the type of the collection involves generic type variables, the situation is more complex:
+* If it coincides with the transform's input type or is a simple wrapper over it, you can reuse the coder of the input `PCollection`, available via `input.getCoder()`.
+* Attempt to infer the coder via `input.getPipeline().getCoderRegistry().getCoder(TypeDescriptor)`. Use utilities in `TypeDescriptors` to obtain the `TypeDescriptor` for the generic type. For an example of this approach, see the implementation of `AvroIO.parseGenericRecords()`. However, coder inference for generic types is best-effort and in some cases it may fail due to Java type erasure.
+* Always make it possible for the user to explicitly specify a `Coder` for the relevant type variable(s) as a configuration parameter of your `PTransform`. (e.g. `AvroIO.<T>parseGenericRecords().withCoder(Coder<T>)`). Fall back to inference if the coder was not explicitly specified.
+
