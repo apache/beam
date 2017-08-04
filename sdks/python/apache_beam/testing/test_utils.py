@@ -75,13 +75,13 @@ def patch_retry(testcase, module):
 
 
 @retry.with_exponential_backoff(
-  num_retries=3,
-  retry_filter=retry.retry_on_beam_io_error_filter)
+    num_retries=3,
+    retry_filter=retry.retry_on_beam_io_error_filter)
 def delete_files(file_paths):
   """A function to clean up files or directories using ``FileSystems``.
-  
+
   Glob is supported in file path and directories will be deleted recursively.
-  
+
   Args:
     file_paths: A list of strings contains file paths or directories.
   """
