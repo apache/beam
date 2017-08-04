@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.Date;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -35,9 +37,13 @@ public class BeamSqlWindowStartExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamRecord inputRow) {
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        new Date(inputRow.getWindowStart().getMillis()));
+  public BeamSqlPrimitive<Date> evaluate(BeamRecord inputRow, BoundedWindow window) {
+    if (window instanceof IntervalWindow) {
+      return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, ((IntervalWindow) window).start().toDate());
+    } else {
+      throw new UnsupportedOperationException(
+          "Cannot run HOP_START|TUMBLE_START|SESSION_START on GlobalWindow.");
+    }
   }
 
 }

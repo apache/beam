@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -54,9 +55,9 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow) {
-    String str = opValueEvaluated(0, inputRow);
-    int idx = opValueEvaluated(1, inputRow);
+  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+    String str = opValueEvaluated(0, inputRow, window);
+    int idx = opValueEvaluated(1, inputRow, window);
     int startIdx = idx;
     if (startIdx > 0) {
       // NOTE: SQL substring is 1 based(rather than 0 based)
@@ -69,7 +70,7 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     }
 
     if (operands.size() == 3) {
-      int length = opValueEvaluated(2, inputRow);
+      int length = opValueEvaluated(2, inputRow, window);
       if (length < 0) {
         length = 0;
       }

@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -54,15 +55,15 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow) {
-    String str = opValueEvaluated(0, inputRow);
-    String replaceStr = opValueEvaluated(1, inputRow);
-    int idx = opValueEvaluated(2, inputRow);
+  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+    String str = opValueEvaluated(0, inputRow, window);
+    String replaceStr = opValueEvaluated(1, inputRow, window);
+    int idx = opValueEvaluated(2, inputRow, window);
     // the index is 1 based.
     idx -= 1;
     int length = replaceStr.length();
     if (operands.size() == 4) {
-      length = opValueEvaluated(3, inputRow);
+      length = opValueEvaluated(3, inputRow, window);
     }
 
     StringBuilder result = new StringBuilder(

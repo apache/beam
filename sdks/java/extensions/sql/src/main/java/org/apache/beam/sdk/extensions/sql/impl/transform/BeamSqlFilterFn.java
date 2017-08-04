@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 
 /**
@@ -44,10 +45,10 @@ public class BeamSqlFilterFn extends DoFn<BeamRecord, BeamRecord> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) {
+  public void processElement(ProcessContext c, BoundedWindow window) {
     BeamRecord in = c.element();
 
-    List<Object> result = executor.execute(in);
+    List<Object> result = executor.execute(in, window);
 
     if ((Boolean) result.get(0)) {
       c.output(in);

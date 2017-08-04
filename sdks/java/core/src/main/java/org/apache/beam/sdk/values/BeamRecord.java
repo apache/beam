@@ -24,11 +24,7 @@ import java.util.BitSet;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.joda.time.Instant;
 
 /**
  * {@link org.apache.beam.sdk.values.BeamRecord}, self-described with
@@ -41,9 +37,6 @@ public class BeamRecord implements Serializable {
   //null values are indexed here, to handle properly in Coder.
   private BitSet nullFields;
   private BeamRecordType dataType;
-
-  private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
-  private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
   public BeamRecord(BeamRecordType dataType) {
     this.dataType = dataType;
@@ -59,17 +52,6 @@ public class BeamRecord implements Serializable {
     this(dataType);
     for (int idx = 0; idx < dataValues.size(); ++idx) {
       addField(idx, dataValues.get(idx));
-    }
-  }
-
-  public void updateWindowRange(BeamRecord upstreamRecord, BoundedWindow window){
-    windowStart = upstreamRecord.windowStart;
-    windowEnd = upstreamRecord.windowEnd;
-
-    if (window instanceof IntervalWindow) {
-      IntervalWindow iWindow = (IntervalWindow) window;
-      windowStart = iWindow.start();
-      windowEnd = iWindow.end();
     }
   }
 
@@ -211,26 +193,10 @@ public class BeamRecord implements Serializable {
     return nullFields.get(idx);
   }
 
-  public Instant getWindowStart() {
-    return windowStart;
-  }
-
-  public Instant getWindowEnd() {
-    return windowEnd;
-  }
-
-  public void setWindowStart(Instant windowStart) {
-    this.windowStart = windowStart;
-  }
-
-  public void setWindowEnd(Instant windowEnd) {
-    this.windowEnd = windowEnd;
-  }
-
   @Override
   public String toString() {
     return "BeamSqlRow [nullFields=" + nullFields + ", dataValues=" + dataValues + ", dataType="
-        + dataType + ", windowStart=" + windowStart + ", windowEnd=" + windowEnd + "]";
+        + dataType + "]";
   }
 
   /**
