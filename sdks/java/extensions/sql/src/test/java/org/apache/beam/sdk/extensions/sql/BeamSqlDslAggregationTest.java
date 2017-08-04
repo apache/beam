@@ -25,7 +25,6 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
@@ -224,15 +223,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
     record1.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
-    record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:00:00").getTime()));
-    record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
 
     BeamRecord record2 = new BeamRecord(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 1L);
     record2.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
-    record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
-    record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 03:00:00").getTime()));
 
     PAssert.that(result).containsInAnyOrder(record1, record2);
 
@@ -271,29 +266,21 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
     record1.addField("window_start", FORMAT.parse("2017-01-01 00:30:00"));
-    record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 00:30:00").getTime()));
-    record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 01:30:00").getTime()));
 
     BeamRecord record2 = new BeamRecord(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 3L);
     record2.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
-    record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:00:00").getTime()));
-    record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
 
     BeamRecord record3 = new BeamRecord(resultType);
     record3.addField("f_int2", 0);
     record3.addField("size", 1L);
     record3.addField("window_start", FORMAT.parse("2017-01-01 01:30:00"));
-    record3.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:30:00").getTime()));
-    record3.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:30:00").getTime()));
 
     BeamRecord record4 = new BeamRecord(resultType);
     record4.addField("f_int2", 0);
     record4.addField("size", 1L);
     record4.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
-    record4.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:00:00").getTime()));
-    record4.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 03:00:00").getTime()));
 
     PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
 
@@ -333,15 +320,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     record1.addField("f_int2", 0);
     record1.addField("size", 3L);
     record1.addField("window_start", FORMAT.parse("2017-01-01 01:01:03"));
-    record1.setWindowStart(new Instant(FORMAT.parse("2017-01-01 01:01:03").getTime()));
-    record1.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 01:11:03").getTime()));
 
     BeamRecord record2 = new BeamRecord(resultType);
     record2.addField("f_int2", 0);
     record2.addField("size", 1L);
     record2.addField("window_start", FORMAT.parse("2017-01-01 02:04:03"));
-    record2.setWindowStart(new Instant(FORMAT.parse("2017-01-01 02:04:03").getTime()));
-    record2.setWindowEnd(new Instant(FORMAT.parse("2017-01-01 02:09:03").getTime()));
 
     PAssert.that(result).containsInAnyOrder(record1, record2);
 

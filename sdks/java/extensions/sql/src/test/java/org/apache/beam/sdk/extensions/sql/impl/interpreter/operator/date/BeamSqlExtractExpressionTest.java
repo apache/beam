@@ -43,7 +43,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2017L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // MONTH
     operands.clear();
@@ -52,7 +52,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(5L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // DAY
     operands.clear();
@@ -61,7 +61,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(22L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // DAY_OF_WEEK
     operands.clear();
@@ -70,7 +70,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // DAY_OF_YEAR
     operands.clear();
@@ -79,7 +79,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(142L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // WEEK
     operands.clear();
@@ -88,7 +88,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(21L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
     // QUARTER
     operands.clear();
@@ -97,7 +97,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.record).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.record, null).getValue());
 
   }
 }
