@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.Date;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -34,9 +36,13 @@ public class BeamSqlWindowEndExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamRecord inputRow) {
-    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
-        new Date(inputRow.getWindowEnd().getMillis()));
+  public BeamSqlPrimitive<Date> evaluate(BeamRecord inputRow, BoundedWindow window) {
+    if (window instanceof IntervalWindow) {
+      return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, ((IntervalWindow) window).end().toDate());
+    } else {
+      throw new UnsupportedOperationException(
+          "Cannot run HOP_END|TUMBLE_END|SESSION_END on GlobalWindow.");
+    }
   }
 
 }

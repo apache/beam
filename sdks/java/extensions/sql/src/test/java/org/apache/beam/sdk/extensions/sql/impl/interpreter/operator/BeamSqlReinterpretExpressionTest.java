@@ -69,7 +69,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
     d.setTime(1000);
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE, d));
     assertEquals(1000L, new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT)
-        .evaluate(record).getValue());
+        .evaluate(record, null).getValue());
   }
 
 }

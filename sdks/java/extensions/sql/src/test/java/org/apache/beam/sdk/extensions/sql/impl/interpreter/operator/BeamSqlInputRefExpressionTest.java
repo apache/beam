@@ -30,28 +30,28 @@ public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testRefInRange() {
     BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
-    Assert.assertEquals(record.getLong(0), ref0.evaluate(record).getValue());
+    Assert.assertEquals(record.getLong(0), ref0.evaluate(record, null).getValue());
 
     BeamSqlInputRefExpression ref1 = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1);
-    Assert.assertEquals(record.getInteger(1), ref1.evaluate(record).getValue());
+    Assert.assertEquals(record.getInteger(1), ref1.evaluate(record, null).getValue());
 
     BeamSqlInputRefExpression ref2 = new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2);
-    Assert.assertEquals(record.getDouble(2), ref2.evaluate(record).getValue());
+    Assert.assertEquals(record.getDouble(2), ref2.evaluate(record, null).getValue());
 
     BeamSqlInputRefExpression ref3 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3);
-    Assert.assertEquals(record.getLong(3), ref3.evaluate(record).getValue());
+    Assert.assertEquals(record.getLong(3), ref3.evaluate(record, null).getValue());
   }
 
 
   @Test(expected = IndexOutOfBoundsException.class)
   public void testRefOutOfRange(){
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 4);
-    ref.evaluate(record).getValue();
+    ref.evaluate(record, null).getValue();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testTypeUnMatch(){
     BeamSqlInputRefExpression ref = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 0);
-    ref.evaluate(record).getValue();
+    ref.evaluate(record, null).getValue();
   }
 }

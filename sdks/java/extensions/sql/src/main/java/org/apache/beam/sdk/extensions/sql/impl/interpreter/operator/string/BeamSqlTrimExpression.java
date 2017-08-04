@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -58,14 +59,14 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow) {
+  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
     if (operands.size() == 1) {
       return BeamSqlPrimitive.of(SqlTypeName.VARCHAR,
-          opValueEvaluated(0, inputRow).toString().trim());
+          opValueEvaluated(0, inputRow, window).toString().trim());
     } else {
-      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow);
-      String targetStr = opValueEvaluated(1, inputRow);
-      String containingStr = opValueEvaluated(2, inputRow);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window);
+      String targetStr = opValueEvaluated(1, inputRow, window);
+      String containingStr = opValueEvaluated(2, inputRow, window);
 
       switch (type) {
         case LEADING:

@@ -32,7 +32,6 @@ import org.apache.beam.sdk.values.BeamRecordType;
 @Experimental
 public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
-  private static final InstantCoder instantCoder = InstantCoder.of();
 
   private BeamRecordType recordType;
   private List<Coder> coderArray;
@@ -64,9 +63,6 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
 
       coderArray.get(idx).encode(value.getFieldValue(idx), outStream);
     }
-
-    instantCoder.encode(value.getWindowStart(), outStream);
-    instantCoder.encode(value.getWindowEnd(), outStream);
   }
 
   @Override
@@ -81,9 +77,6 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
 
       record.addField(idx, coderArray.get(idx).decode(inStream));
     }
-
-    record.setWindowStart(instantCoder.decode(inStream));
-    record.setWindowEnd(instantCoder.decode(inStream));
 
     return record;
   }
