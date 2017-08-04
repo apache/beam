@@ -184,6 +184,7 @@ public class SplittableParDoViaKeyedWorkItems {
           original.getFn(),
           original.getMainOutputTag(),
           original.getAdditionalOutputTags(),
+          original.getOutputTagsToCoders(),
           original.getInputWindowingStrategy());
     }
   }
