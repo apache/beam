@@ -23,13 +23,11 @@ import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -71,7 +69,7 @@ class WriteTables<DestinationT>
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private Map<DestinationT, String> jsonSchemas = Maps.newConcurrentMap();
+  private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
   public WriteTables(
       boolean singlePartition,

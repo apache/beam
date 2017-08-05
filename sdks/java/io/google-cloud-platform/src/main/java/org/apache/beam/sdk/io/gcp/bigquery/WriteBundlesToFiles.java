@@ -179,7 +179,7 @@ class WriteBundlesToFiles<DestinationT>
         // into the output. It will be grouped and written to a file in a subsequent stage.
         c.output(unwrittenRecordsTag,
             KV.of(ShardedKey.of(destination,
-                (spilledShardNumber + 1) % SPILLED_RECORD_SHARDING_FACTOR),
+                (++spilledShardNumber) % SPILLED_RECORD_SHARDING_FACTOR),
                 c.element().getValue()));
         return;
       }

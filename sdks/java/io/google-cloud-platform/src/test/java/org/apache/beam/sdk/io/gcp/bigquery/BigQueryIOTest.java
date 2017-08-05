@@ -47,12 +47,14 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -80,7 +82,6 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -134,11 +135,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -1848,27 +1847,20 @@ public class BigQueryIOTest implements Serializable {
     TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
         new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
 
-    PCollectionView<Iterable<WriteBundlesToFiles.Result<TableDestination>>> resultsView =
-        p.apply(
-                Create.of(files)
-                    .withCoder(WriteBundlesToFiles.ResultCoder.of(TableDestinationCoder.of())))
-            .apply(View.<WriteBundlesToFiles.Result<TableDestination>>asIterable());
-
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
         p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
 
     WritePartition<TableDestination> writePartition =
         new WritePartition<>(isSingleton, dynamicDestinations, tempFilePrefixView,
-            resultsView, multiPartitionsTag, singlePartitionTag);
+            multiPartitionsTag, singlePartitionTag);
 
     DoFnTester<Iterable<WriteBundlesToFiles.Result<TableDestination>>,
         KV<ShardedKey<TableDestination>,
         List<String>>> tester =
         DoFnTester.of(writePartition);
-    tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
     tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
-    tester.processElement(null);
+    tester.processElement(files);
 
     List<KV<ShardedKey<TableDestination>, List<String>>> partitions;
     if (expectedNumPartitionsPerTable > 1) {
@@ -2047,21 +2039,14 @@ public class BigQueryIOTest implements Serializable {
     final int numTempTablesPerFinalTable = 3;
     final int numRecordsPerTempTable = 10;
 
-    Map<TableDestination, List<TableRow>> expectedRowsPerTable = Maps.newHashMap();
+    Multimap<TableDestination, TableRow> expectedRowsPerTable = ArrayListMultimap.create();
     String jobIdToken = "jobIdToken";
-    Map<TableDestination, Iterable<String>> tempTables = Maps.newHashMap();
+    Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
+    List<KV<TableDestination, String>> tempTablesElement = Lists.newArrayList();
     for (int i = 0; i < numFinalTables; ++i) {
       String tableName = "project-id:dataset-id.table_" + i;
       TableDestination tableDestination = new TableDestination(
           tableName, "table_" + i + "_desc");
-      List<String> tables = Lists.newArrayList();
-      tempTables.put(tableDestination, tables);
-
-      List<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
-      if (expectedRows == null) {
-        expectedRows = Lists.newArrayList();
-        expectedRowsPerTable.put(tableDestination, expectedRows);
-      }
       for (int j = 0; i < numTempTablesPerFinalTable; ++i) {
         TableReference tempTable = new TableReference()
             .setProjectId("project-id")
@@ -2074,32 +2059,13 @@ public class BigQueryIOTest implements Serializable {
           rows.add(new TableRow().set("number", j * numTempTablesPerFinalTable + k));
         }
         datasetService.insertAll(tempTable, rows, null);
-        expectedRows.addAll(rows);
-        tables.add(BigQueryHelpers.toJsonString(tempTable));
+        expectedRowsPerTable.putAll(tableDestination, rows);
+        String tableJson = BigQueryHelpers.toJsonString(tempTable);
+        tempTables.put(tableDestination, tableJson);
+        tempTablesElement.add(KV.of(tableDestination, tableJson));
       }
     }
 
-    PCollection<KV<TableDestination, String>> tempTablesPCollection =
-        p.apply(Create.of(tempTables)
-            .withCoder(KvCoder.of(TableDestinationCoder.of(),
-                IterableCoder.of(StringUtf8Coder.of()))))
-            .apply(ParDo.of(new DoFn<KV<TableDestination, Iterable<String>>,
-                KV<TableDestination, String>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                TableDestination tableDestination = c.element().getKey();
-                for (String tempTable : c.element().getValue()) {
-                  c.output(KV.of(tableDestination, tempTable));
-                }
-              }
-            }));
-
-    PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView =
-        PCollectionViews.multimapView(
-            tempTablesPCollection,
-        WindowingStrategy.globalDefault(),
-        KvCoder.of(TableDestinationCoder.of(),
-            StringUtf8Coder.of()));
 
     PCollectionView<String> jobIdTokenView = p
         .apply("CreateJobId", Create.of("jobId"))
@@ -2109,21 +2075,19 @@ public class BigQueryIOTest implements Serializable {
         fakeBqServices,
         jobIdTokenView,
         WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED,
-        tempTablesView);
+        CreateDisposition.CREATE_IF_NEEDED);
 
-    DoFnTester<KV<TableDestination, Iterable<String>>, Void> tester = DoFnTester.of(writeRename);
-    tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
+    DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.processElement(null);
+    tester.processElement(tempTablesElement);
 
-    for (Map.Entry<TableDestination, Iterable<String>> entry : tempTables.entrySet()) {
+    for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
       TableReference tableReference = tableDestination.getTableReference();
       Table table = checkNotNull(datasetService.getTable(tableReference));
       assertEquals(tableReference.getTableId() + "_desc", tableDestination.getTableDescription());
 
-      List<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
+      Collection<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
       assertThat(datasetService.getAllRows(tableReference.getProjectId(),
           tableReference.getDatasetId(), tableReference.getTableId()),
           containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));

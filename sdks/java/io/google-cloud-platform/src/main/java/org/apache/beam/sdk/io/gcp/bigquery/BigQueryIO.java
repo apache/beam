@@ -229,6 +229,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
  * </a> for security and permission related information specific to BigQuery.
+ *
+ * <h3>Insertion Method</h3>
+ * {@link BigQueryIO.Write} supports two methods of inserting data into BigQuery specified using
+ * {@link BigQueryIO.Write#withMethod}. If no method is supplied, then a default method will be
+ * chosen based on the input PCollection. See {@link BigQueryIO.Write.Method} for more information
+ * about the methods. The different insertion methods provide different tradeoffs of cost, quota,
+ * and data consistency; please see BigQuery documentation for more information about these
+ * tradeoffs.
  */
 public class BigQueryIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
@@ -787,7 +795,7 @@ public class BigQueryIO {
     public enum Method {
       /**
        * The default behavior if no method is explicitly set. If the input is bounded, then file
-       * loads will be use. If the input is unbounded, then streaming inserts will be used.
+       * loads will be used. If the input is unbounded, then streaming inserts will be used.
        */
       DEFAULT,
 
@@ -797,7 +805,8 @@ public class BigQueryIO {
        * This method can be chosen for unbounded inputs as well, as long as a triggering frequency
        * is also set using {@link #withTriggeringFrequency}. BigQuery has daily quotas on the number
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
-       * frequent.
+       * frequent. For more information, see
+       * https://cloud.google.com/bigquery/docs/loading-data-cloud-storage
        */
       FILE_LOADS,
 
@@ -809,7 +818,8 @@ public class BigQueryIO {
        * https://cloud.google.com/bigquery/streaming-data-into-bigquery). A query can be run over
        * the output table to periodically clean these rare duplicates. Alternatively, using the
        * {@link #FILE_LOADS} insert method does guarantee no duplicates, though the latency for the
-       * insert into BigQuery will be much higher.
+       * insert into BigQuery will be much higher. For more information, see
+       * https://cloud.google.com/bigquery/streaming-data-into-bigquery
        */
       STREAMING_INSERTS
     }
@@ -1052,7 +1062,7 @@ public class BigQueryIO {
      *
      * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}.
      * Every triggeringFrequency duration, a BigQuery load job will be generated for all
-     * the files written in the last pane. BigQuery has limits on how many load jobs can be
+     * the data written since the last load job. BigQuery has limits on how many load jobs can be
      * triggered per day, so be careful not to set this duration too low, or you may exceed daily
      * quota. Often this is set to 5 or 10 minutes to ensure that the project stays well under the
      * BigQuery quota. See https://cloud.google.com/bigquery/quota-policy for more information about

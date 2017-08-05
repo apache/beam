@@ -22,9 +22,11 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -41,46 +43,41 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Copies temporary tables to destination table.
+ * Copies temporary tables to destination table. The input element is an {@link Iterable}
+ * that provides the list of all temporary tables created for a given {@link TableDestination}.
  */
-class WriteRename extends DoFn<KV<TableDestination, Iterable<String>>, Void> {
+class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
+
+  // In the triggered scenario, the user-supplied create and write dispositions only apply to the
+  // first trigger pane, as that's when when the table is created. Subsequent loads should always
+  // append to the table, and so use CREATE_NEVER and WRITE_APPEND dispositions respectively.
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
-  // Map from final destination to a list of temporary tables that need to be copied into it.
-  @Nullable
-  private final PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView;
-
 
   public WriteRename(
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      @Nullable
-      PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView) {
+      CreateDisposition createDisposition) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
-    this.tempTablesView = tempTablesView;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    if (tempTablesView != null) {
-      Map<TableDestination, Iterable<String>> tempTablesMap =
-          Maps.newHashMap(c.sideInput(tempTablesView));
-
+    Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
+    for (KV<TableDestination, String> entry : c.element()) {
+      tempTables.put(entry.getKey(), entry.getValue());
+    }
+    for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       // Process each destination table.
-      for (Map.Entry<TableDestination, Iterable<String>> entry : tempTablesMap.entrySet()) {
-        writeRename(entry.getKey(), entry.getValue(), c);
-      }
-    } else {
-      writeRename(c.element().getKey(), c.element().getValue(), c);
+      writeRename(entry.getKey(), entry.getValue(), c);
     }
   }
 

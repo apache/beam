@@ -41,7 +41,6 @@ class WritePartition<DestinationT>
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
   @Nullable
-  private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
@@ -107,12 +106,10 @@ class WritePartition<DestinationT>
       boolean singletonTable,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       PCollectionView<String> tempFilePrefix,
-      @Nullable PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
-    this.resultsView = resultsView;
     this.tempFilePrefix = tempFilePrefix;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
@@ -120,8 +117,7 @@ class WritePartition<DestinationT>
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<WriteBundlesToFiles.Result<DestinationT>> results =
-        Lists.newArrayList((resultsView != null) ? c.sideInput(this.resultsView) : c.element());
+    List<WriteBundlesToFiles.Result<DestinationT>> results = Lists.newArrayList(c.element());
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
