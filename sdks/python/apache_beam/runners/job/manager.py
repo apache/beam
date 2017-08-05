@@ -18,6 +18,7 @@
 """A object to control to the Job API Co-Process
 """
 
+import logging
 import subprocess
 import time
 
@@ -47,5 +48,5 @@ class DockerRPCManager(object):
   def __del__(self):
     """Terminate the co-process when the manager is GC'ed
     """
-    print "Shutting the co-process"
+    logging.info('Shutting the co-process')
     self.process.terminate()

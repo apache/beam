@@ -15,4 +15,8 @@
 # limitations under the License.
 #
 
+"""This is the experimental direct runner for testing the job api that
+sends a runner API proto over the API and then runs it on the other side.
+"""
+
 from apache_beam.runners.experimental.python_rpc_direct.client import PythonRPCDirectRunner

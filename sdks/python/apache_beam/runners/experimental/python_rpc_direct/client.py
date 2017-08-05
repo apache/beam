@@ -75,7 +75,7 @@ class PythonRPCDirectRunner(PipelineRunner):
       result = PythonRPCDirectPipelineResult(response.jobId, manager)
       return result
     except grpc.RpcError:
-      logging.error('Failed to run the job with name %s', jobName)
+      logging.error('Failed to run the job with name: %s', jobName)
       raise
 
 
