@@ -114,7 +114,15 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   @Override
   public void verifyDeterministic() {}
 
-
+  /**
+   * {@inheritDoc}
+   *
+   * @return objects that are equal if the two arrays contain the same bytes.
+   */
+  @Override
+  public Object structuralValue(byte[] value) {
+    return new StructuralByteArray(value);
+  }
 
   /**
    * {@inheritDoc}

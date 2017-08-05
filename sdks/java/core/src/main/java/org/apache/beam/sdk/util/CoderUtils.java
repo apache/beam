@@ -153,7 +153,7 @@ public final class CoderUtils {
    * {@link Coder}.
    */
   public static <T> T clone(Coder<T> coder, T value) throws CoderException {
-    return decodeFromByteArray(coder, encodeToByteArray(coder, value, Coder.Context.OUTER));
+    return decodeFromByteArray(coder, encodeToByteArray(coder, value));
   }
 
   /**
