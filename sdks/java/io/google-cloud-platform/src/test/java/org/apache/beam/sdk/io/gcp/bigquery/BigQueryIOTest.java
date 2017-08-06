@@ -490,15 +490,20 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsBatch() throws Exception {
-    writeDynamicDestinations(false);
+    writeDynamicDestinations(false, 0);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsBatchNumShards() throws Exception {
+    writeDynamicDestinations(false, 10);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
-    writeDynamicDestinations(true);
+    writeDynamicDestinations(true, 0);
   }
 
-  public void writeDynamicDestinations(boolean streaming) throws Exception {
+  public void writeDynamicDestinations(boolean streaming, int numFileShards) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
@@ -548,6 +553,7 @@ public class BigQueryIOTest implements Serializable {
             .withTestServices(fakeBqServices)
             .withMaxFilesPerBundle(5)
             .withMaxFileSize(10)
+            .withNumFileShards(numFileShards)
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withFormatFunction(new SerializableFunction<String, TableRow>() {
               @Override

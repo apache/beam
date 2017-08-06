@@ -212,9 +212,8 @@ class BatchLoads<DestinationT>
                     AfterProcessingTime.pastFirstElementInPane().plusDelayOf(triggeringFrequency),
                     AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT))))
                 .discardingFiredPanes());
-    PCollection<WriteBundlesToFiles.Result<DestinationT>> results = (numFileShards == 0)
-        ? writeDynamicallyShardedFiles(inputInGlobalWindow, tempFilePrefixView) :
-        writeShardedFiles(inputInGlobalWindow, tempFilePrefixView);
+    PCollection<WriteBundlesToFiles.Result<DestinationT>> results = writeShardedFiles(
+        inputInGlobalWindow, tempFilePrefixView);
 
     // Apply the user's trigger before we start generating BigQuery load jobs.
     results  =
