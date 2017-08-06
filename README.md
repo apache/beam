@@ -53,7 +53,7 @@ Beam supports multiple language specific SDKs for writing pipelines against the 
 
 Currently, this repository contains SDKs for both Java and Python.
 
-Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
+Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/) or [issues] here.
 
 ### Runners
 
