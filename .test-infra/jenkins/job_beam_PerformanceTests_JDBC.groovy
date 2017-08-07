@@ -37,6 +37,7 @@ job('beam_PerformanceTests_JDBC'){
     // Allows triggering this build against pull requests.
     common_job_properties.enablePhraseTriggeringFromPullRequest(
             delegate,
+            'JDBC Performance Test',
             'Run JDBC Performance Test')
 
     clean_install_command = [
