@@ -28,7 +28,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
  * Abstract {@link DoFn} that manages {@link Spanner} lifecycle. Use {@link
  * AbstractSpannerFn#databaseClient} to access the Cloud Spanner database client.
  */
-abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+public abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
   // A common user agent token that indicates that this request was originated from Apache Beam.
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
