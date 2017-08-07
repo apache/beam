@@ -133,6 +133,10 @@ public class BeamSqlRecordType extends BeamRecordType {
 
   @Override
   public void validateValueType(int index, Object fieldValue) throws IllegalArgumentException {
+    if (null == fieldValue) {// no need to do type check for NULL value
+      return;
+    }
+
     int fieldType = fieldsType.get(index);
     Class javaClazz = SQL_TYPE_TO_JAVA_CLASS.get(fieldType);
     if (javaClazz == null) {
