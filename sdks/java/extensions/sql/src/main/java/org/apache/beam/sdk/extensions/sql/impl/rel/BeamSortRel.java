@@ -229,8 +229,4 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       return 0;
     }
   }
-
-  public static <T extends Comparable> int compare(T a, T b) {
-    return a.compareTo(b);
-  }
 }
