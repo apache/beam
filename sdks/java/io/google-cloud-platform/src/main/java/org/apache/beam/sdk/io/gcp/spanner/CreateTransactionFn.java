@@ -45,7 +45,7 @@ class CreateTransactionFn extends AbstractSpannerFn<Object, Transaction> {
   }
 
   @Override
-  SpannerConfig getSpannerConfig() {
+  protected SpannerConfig getSpannerConfig() {
     return config.getSpannerConfig();
   }
 }

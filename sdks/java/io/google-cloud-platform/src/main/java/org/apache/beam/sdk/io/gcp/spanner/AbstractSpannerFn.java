@@ -35,7 +35,7 @@ public abstract class AbstractSpannerFn<InputT, OutputT> extends DoFn<InputT, Ou
   private transient Spanner spanner;
   private transient DatabaseClient databaseClient;
 
-  abstract SpannerConfig getSpannerConfig();
+  protected abstract SpannerConfig getSpannerConfig();
 
   @Setup
   public void setup() throws Exception {

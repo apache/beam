@@ -52,7 +52,8 @@ import org.slf4j.LoggerFactory;
     this.spec = spec;
   }
 
-  @Override SpannerConfig getSpannerConfig() {
+  @Override
+  protected SpannerConfig getSpannerConfig() {
     return spec.getSpannerConfig();
   }
 

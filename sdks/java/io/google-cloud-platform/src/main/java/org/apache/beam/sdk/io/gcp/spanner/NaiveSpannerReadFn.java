@@ -40,7 +40,7 @@ class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
     this(config, null);
   }
 
-  SpannerConfig getSpannerConfig() {
+  protected SpannerConfig getSpannerConfig() {
     return config;
   }
 
