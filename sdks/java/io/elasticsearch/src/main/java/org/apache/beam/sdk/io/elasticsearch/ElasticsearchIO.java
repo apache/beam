@@ -62,6 +62,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
@@ -258,7 +259,7 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If Elasticsearch uses SSL with mutual authentication (via shield),
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
      * provide the keystore containing the client key.
      *
      * @param keystorePath the location of the keystore containing the client key.
@@ -267,15 +268,17 @@ public class ElasticsearchIO {
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
       checkArgument(keystorePath != null, "ConnectionConfiguration.create()"
           + ".withKeystorePath(keystorePath) called with null keystorePath");
+      checkArgument(!keystorePath.isEmpty(), "ConnectionConfiguration.create()"
+          + ".withKeystorePath(keystorePath) called with empty keystorePath");
       return builder().setKeystorePath(keystorePath).build();
     }
 
     /**
-     * If Elasticsearch uses SSL with mutual authentication (via shield),
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
      * provide the password to open the client keystore.
      *
      * @param keystorePassword the password of the client keystore.
-     * @return the {@link ConnectionConfiguration} object with keystore password set.
+     * @return the {@link ConnectionConfiguration} object with keystore passwo:rd set.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
         checkArgument(keystorePassword != null, "ConnectionConfiguration.create()"
@@ -288,6 +291,7 @@ public class ElasticsearchIO {
       builder.add(DisplayData.item("index", getIndex()));
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
+      builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
     }
 
     RestClient createClient() throws IOException {
@@ -311,14 +315,14 @@ public class ElasticsearchIO {
               }
             });
       }
-      if (getKeystorePath() != null) {
+      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
           KeyStore keyStore = KeyStore.getInstance("jks");
           try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
             keyStore.load(is, getKeystorePassword().toCharArray());
           }
           final SSLContext sslContext = SSLContexts.custom()
-              .loadTrustMaterial(keyStore, null).build();
+              .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
               new RestClientBuilder.HttpClientConfigCallback() {
