@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -75,7 +76,6 @@ public class BeamAggregationTransforms implements Serializable{
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
       BeamRecord outRecord = new BeamRecord(outRowType);
-      outRecord.updateWindowRange(c.element().getKey(), window);
 
       KV<BeamRecord, BeamRecord> kvRecord = c.element();
       for (String f : kvRecord.getKey().getDataType().getFieldsName()) {
@@ -85,7 +85,7 @@ public class BeamAggregationTransforms implements Serializable{
         outRecord.addField(aggFieldNames.get(idx), kvRecord.getValue().getFieldValue(idx));
       }
       if (windowStartFieldIdx != -1) {
-        outRecord.addField(windowStartFieldIdx, outRecord.getWindowStart().toDate());
+        outRecord.addField(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
       }
 
       c.output(outRecord);
@@ -112,7 +112,6 @@ public class BeamAggregationTransforms implements Serializable{
     public BeamRecord apply(BeamRecord input) {
       BeamSqlRecordType typeOfKey = exTypeOfKeyRecord(BeamSqlRecordHelper.getSqlRecordType(input));
       BeamRecord keyOfRecord = new BeamRecord(typeOfKey);
-      keyOfRecord.updateWindowRange(input, null);
 
       for (int idx = 0; idx < groupByKeys.size(); ++idx) {
         keyOfRecord.addField(idx, input.getFieldValue(groupByKeys.get(idx)));
@@ -223,7 +222,7 @@ public class BeamAggregationTransforms implements Serializable{
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         deltaAcc.accumulatorElements.add(
             aggregators.get(idx).add(accumulator.accumulatorElements.get(idx),
-            sourceFieldExps.get(idx).evaluate(input).getValue()));
+            sourceFieldExps.get(idx).evaluate(input, null).getValue()));
       }
       return deltaAcc;
     }

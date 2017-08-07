@@ -52,10 +52,9 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
     BeamRecord inputRow = c.element();
-    List<Object> results = executor.execute(inputRow);
+    List<Object> results = executor.execute(inputRow, window);
 
     BeamRecord outRow = new BeamRecord(outputRowType);
-    outRow.updateWindowRange(inputRow, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {
       BeamTableUtils.addFieldWithAutoTypeCasting(outRow, idx, results.get(idx));

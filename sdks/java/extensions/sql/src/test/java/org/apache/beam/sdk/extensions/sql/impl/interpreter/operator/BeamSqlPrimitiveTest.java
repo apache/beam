@@ -31,28 +31,28 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testPrimitiveInt(){
     BeamSqlPrimitive<Integer> expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100);
-    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
+    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record, null).getValue());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch1(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100L);
-    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
+    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record, null).getValue());
   }
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch2(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DECIMAL, 100L);
-    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
+    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record, null).getValue());
   }
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch3(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.FLOAT, 100L);
-    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
+    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record, null).getValue());
   }
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch4(){
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 100L);
-    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record).getValue());
+    Assert.assertEquals(expInt.getValue(), expInt.evaluate(record, null).getValue());
   }
 
 
