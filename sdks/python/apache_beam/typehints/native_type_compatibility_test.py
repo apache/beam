@@ -17,13 +17,7 @@
 
 """Test for Beam type compatibility library."""
 
-import sys
-
-try:
-  import typing
-except ImportError:
-  sys.exit(1)
-
+import typing
 import unittest
 
 from apache_beam.typehints import typehints
