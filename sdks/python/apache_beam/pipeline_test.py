@@ -502,6 +502,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
   def test_retry_fork_graph(self):
     p = beam.Pipeline('DirectRunner')
+    # TODO(mariagh): Remove the use of globals from the test.
     global count_b, count_c
     count_b, count_c = 0, 0
 
