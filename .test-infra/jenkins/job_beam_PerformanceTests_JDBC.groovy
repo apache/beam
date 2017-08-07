@@ -34,6 +34,11 @@ job('beam_PerformanceTests_JDBC'){
 
     common_job_properties.buildPerfKit(delegate)
 
+    // Allows triggering this build against pull requests.
+    common_job_properties.enablePhraseTriggeringFromPullRequest(
+            delegate,
+            'Run JDBC Performance Test')
+
     clean_install_command = [
             '/home/jenkins/tools/maven/latest/bin/mvn',
             '-B',
