@@ -57,9 +57,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int2", "size"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamRecord record = new BeamRecord(resultType);
-    record.addField("f_int2", 0);
-    record.addField("size", 4L);
+    BeamRecord record = new BeamRecord(resultType, 0, 4L);
 
     PAssert.that(result).containsInAnyOrder(record);
 
@@ -107,37 +105,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
             Types.TIMESTAMP, Types.TIMESTAMP));
 
-    BeamRecord record = new BeamRecord(resultType);
-    record.addField("f_int2", 0);
-    record.addField("size", 4L);
-
-    record.addField("sum1", 10000L);
-    record.addField("avg1", 2500L);
-    record.addField("max1", 4000L);
-    record.addField("min1", 1000L);
-
-    record.addField("sum2", (short) 10);
-    record.addField("avg2", (short) 2);
-    record.addField("max2", (short) 4);
-    record.addField("min2", (short) 1);
-
-    record.addField("sum3", (byte) 10);
-    record.addField("avg3", (byte) 2);
-    record.addField("max3", (byte) 4);
-    record.addField("min3", (byte) 1);
-
-    record.addField("sum4", 10.0F);
-    record.addField("avg4", 2.5F);
-    record.addField("max4", 4.0F);
-    record.addField("min4", 1.0F);
-
-    record.addField("sum5", 10.0);
-    record.addField("avg5", 2.5);
-    record.addField("max5", 4.0);
-    record.addField("min5", 1.0);
-
-    record.addField("max6", FORMAT.parse("2017-01-01 02:04:03"));
-    record.addField("min6", FORMAT.parse("2017-01-01 01:01:03"));
+    BeamRecord record = new BeamRecord(resultType
+        , 0, 4L
+        , 10000L, 2500L, 4000L, 1000L
+        , (short) 10, (short) 2, (short) 4, (short) 1
+        , (byte) 10, (byte) 2, (byte) 4, (byte) 1
+        , 10.0F, 2.5F, 4.0F, 1.0F
+        , 10.0, 2.5, 4.0, 1.0
+        , FORMAT.parse("2017-01-01 02:04:03"), FORMAT.parse("2017-01-01 01:01:03"));
 
     PAssert.that(result).containsInAnyOrder(record);
 
@@ -169,21 +144,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int", 1);
-    record1.addField("f_long", 1000L);
-
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int", 2);
-    record2.addField("f_long", 2000L);
-
-    BeamRecord record3 = new BeamRecord(resultType);
-    record3.addField("f_int", 3);
-    record3.addField("f_long", 3000L);
-
-    BeamRecord record4 = new BeamRecord(resultType);
-    record4.addField("f_int", 4);
-    record4.addField("f_long", 4000L);
+    BeamRecord record1 = new BeamRecord(resultType, 1, 1000L);
+    BeamRecord record2 = new BeamRecord(resultType, 2, 2000L);
+    BeamRecord record3 = new BeamRecord(resultType, 3, 3000L);
+    BeamRecord record4 = new BeamRecord(resultType, 4, 4000L);
 
     PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
 
@@ -219,15 +183,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Arrays.asList("f_int2", "size", "window_start"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int2", 0);
-    record1.addField("size", 3L);
-    record1.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
-
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int2", 0);
-    record2.addField("size", 1L);
-    record2.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
+    BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
+    BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:00:00"));
 
     PAssert.that(result).containsInAnyOrder(record1, record2);
 
@@ -262,25 +219,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Arrays.asList("f_int2", "size", "window_start"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int2", 0);
-    record1.addField("size", 3L);
-    record1.addField("window_start", FORMAT.parse("2017-01-01 00:30:00"));
-
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int2", 0);
-    record2.addField("size", 3L);
-    record2.addField("window_start", FORMAT.parse("2017-01-01 01:00:00"));
-
-    BeamRecord record3 = new BeamRecord(resultType);
-    record3.addField("f_int2", 0);
-    record3.addField("size", 1L);
-    record3.addField("window_start", FORMAT.parse("2017-01-01 01:30:00"));
-
-    BeamRecord record4 = new BeamRecord(resultType);
-    record4.addField("f_int2", 0);
-    record4.addField("size", 1L);
-    record4.addField("window_start", FORMAT.parse("2017-01-01 02:00:00"));
+    BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 00:30:00"));
+    BeamRecord record2 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
+    BeamRecord record3 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 01:30:00"));
+    BeamRecord record4 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:00:00"));
 
     PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
 
@@ -316,15 +258,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Arrays.asList("f_int2", "size", "window_start"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int2", 0);
-    record1.addField("size", 3L);
-    record1.addField("window_start", FORMAT.parse("2017-01-01 01:01:03"));
-
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int2", 0);
-    record2.addField("size", 1L);
-    record2.addField("window_start", FORMAT.parse("2017-01-01 02:04:03"));
+    BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:01:03"));
+    BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:04:03"));
 
     PAssert.that(result).containsInAnyOrder(record1, record2);
 

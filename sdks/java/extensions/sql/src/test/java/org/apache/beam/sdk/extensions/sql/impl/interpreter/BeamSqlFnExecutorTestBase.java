@@ -71,12 +71,8 @@ public class BeamSqlFnExecutorTestBase {
         .add("order_time", SqlTypeName.BIGINT).build();
 
     beamRowType = CalciteUtils.toBeamRowType(relDataType);
-    record = new BeamRecord(beamRowType);
-
-    record.addField(0, 1234567L);
-    record.addField(1, 0);
-    record.addField(2, 8.9);
-    record.addField(3, 1234567L);
+    record = new BeamRecord(beamRowType
+        , 1234567L, 0, 8.9, 1234567L);
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
     final List<RelTraitDef> traitDefs = new ArrayList<>();

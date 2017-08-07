@@ -45,18 +45,14 @@ import org.junit.Test;
 public class BeamKafkaCSVTableTest {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
-  public static BeamRecord row1 = new BeamRecord(genRowType());
-  public static BeamRecord row2 = new BeamRecord(genRowType());
+  public static BeamRecord row1;
+  public static BeamRecord row2;
 
   @BeforeClass
   public static void setUp() {
-    row1.addField(0, 1L);
-    row1.addField(1, 1);
-    row1.addField(2, 1.0);
+    row1 = new BeamRecord(genRowType(), 1L, 1, 1.0);
 
-    row2.addField(0, 2L);
-    row2.addField(1, 2);
-    row2.addField(2, 2.0);
+    row2 = new BeamRecord(genRowType(), 2L, 2, 2.0);
   }
 
   @Test public void testCsvRecorderDecoder() throws Exception {

@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -255,11 +256,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   private BeamRecord buildNullRow(BeamRelNode relNode) {
     BeamSqlRecordType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
-    BeamRecord nullRow = new BeamRecord(leftType);
-    for (int i = 0; i < leftType.size(); i++) {
-      nullRow.addField(i, null);
-    }
-    return nullRow;
+    return new BeamRecord(leftType, Collections.nCopies(leftType.size(), null));
   }
 
   private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {

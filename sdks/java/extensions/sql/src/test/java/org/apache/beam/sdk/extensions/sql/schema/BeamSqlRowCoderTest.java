@@ -62,20 +62,12 @@ public class BeamSqlRowCoderTest {
     BeamSqlRecordType beamSQLRowType = CalciteUtils.toBeamRowType(
         protoRowType.apply(new JavaTypeFactoryImpl(
             RelDataTypeSystem.DEFAULT)));
-    BeamRecord row = new BeamRecord(beamSQLRowType);
-    row.addField("col_tinyint", Byte.valueOf("1"));
-    row.addField("col_smallint", Short.valueOf("1"));
-    row.addField("col_integer", 1);
-    row.addField("col_bigint", 1L);
-    row.addField("col_float", 1.1F);
-    row.addField("col_double", 1.1);
-    row.addField("col_decimal", BigDecimal.ZERO);
-    row.addField("col_string_varchar", "hello");
+
     GregorianCalendar calendar = new GregorianCalendar();
     calendar.setTime(new Date());
-    row.addField("col_time", calendar);
-    row.addField("col_timestamp", new Date());
-    row.addField("col_boolean", true);
+    BeamRecord row = new BeamRecord(beamSQLRowType
+        , Byte.valueOf("1"), Short.valueOf("1"), 1, 1L, 1.1F, 1.1
+        , BigDecimal.ZERO, "hello", calendar, new Date(), true);
 
 
     BeamRecordCoder coder = beamSQLRowType.getRecordCoder();
