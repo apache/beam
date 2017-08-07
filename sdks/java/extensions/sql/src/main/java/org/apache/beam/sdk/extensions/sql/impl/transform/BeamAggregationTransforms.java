@@ -75,19 +75,15 @@ public class BeamAggregationTransforms implements Serializable{
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      BeamRecord outRecord = new BeamRecord(outRowType);
-
+      List<Object> fieldValues = new ArrayList<>();
       KV<BeamRecord, BeamRecord> kvRecord = c.element();
-      for (String f : kvRecord.getKey().getDataType().getFieldsName()) {
-        outRecord.addField(f, kvRecord.getKey().getFieldValue(f));
-      }
-      for (int idx = 0; idx < aggFieldNames.size(); ++idx) {
-        outRecord.addField(aggFieldNames.get(idx), kvRecord.getValue().getFieldValue(idx));
-      }
+      fieldValues.addAll(kvRecord.getKey().getDataValues());
+      fieldValues.addAll(kvRecord.getValue().getDataValues());
       if (windowStartFieldIdx != -1) {
-        outRecord.addField(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
+        fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
       }
 
+      BeamRecord outRecord = new BeamRecord(outRowType, fieldValues);
       c.output(outRecord);
     }
   }
@@ -111,11 +107,13 @@ public class BeamAggregationTransforms implements Serializable{
     @Override
     public BeamRecord apply(BeamRecord input) {
       BeamSqlRecordType typeOfKey = exTypeOfKeyRecord(BeamSqlRecordHelper.getSqlRecordType(input));
-      BeamRecord keyOfRecord = new BeamRecord(typeOfKey);
 
+      List<Object> fieldValues = new ArrayList<>();
       for (int idx = 0; idx < groupByKeys.size(); ++idx) {
-        keyOfRecord.addField(idx, input.getFieldValue(groupByKeys.get(idx)));
+        fieldValues.add(input.getFieldValue(groupByKeys.get(idx)));
       }
+
+      BeamRecord keyOfRecord = new BeamRecord(typeOfKey, fieldValues);
       return keyOfRecord;
     }
 
@@ -241,11 +239,11 @@ public class BeamAggregationTransforms implements Serializable{
     }
     @Override
     public BeamRecord extractOutput(AggregationAccumulator accumulator) {
-      BeamRecord result = new BeamRecord(finalRowType);
+      List<Object> fieldValues = new ArrayList<>();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        result.addField(idx, aggregators.get(idx).result(accumulator.accumulatorElements.get(idx)));
+        fieldValues.add(aggregators.get(idx).result(accumulator.accumulatorElements.get(idx)));
       }
-      return result;
+      return new BeamRecord(finalRowType, fieldValues);
     }
     @Override
     public Coder<AggregationAccumulator> getAccumulatorCoder(

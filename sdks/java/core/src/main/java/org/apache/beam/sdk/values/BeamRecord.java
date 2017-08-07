@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -32,29 +33,28 @@ import org.apache.beam.sdk.annotations.Experimental;
  */
 @Experimental
 public class BeamRecord implements Serializable {
+  //immutable list of field values.
   private List<Object> dataValues;
   private BeamRecordType dataType;
 
-  public BeamRecord(BeamRecordType dataType) {
+  public BeamRecord(BeamRecordType dataType, List<Object> rawdataValues) {
     this.dataType = dataType;
     this.dataValues = new ArrayList<>();
+
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);
     }
-  }
 
-  public BeamRecord(BeamRecordType dataType, List<Object> dataValues) {
-    this(dataType);
-    for (int idx = 0; idx < dataValues.size(); ++idx) {
-      addField(idx, dataValues.get(idx));
+    for (int idx = 0; idx < dataType.size(); ++idx) {
+      addField(idx, rawdataValues.get(idx));
     }
   }
 
-  public void addField(String fieldName, Object fieldValue) {
-    addField(dataType.getFieldsName().indexOf(fieldName), fieldValue);
+  public BeamRecord(BeamRecordType dataType, Object... rawdataValues) {
+    this(dataType, Arrays.asList(rawdataValues));
   }
 
-  public void addField(int index, Object fieldValue) {
+  private void addField(int index, Object fieldValue) {
     dataType.validateValueType(index, fieldValue);
     dataValues.set(index, fieldValue);
   }
@@ -161,10 +161,6 @@ public class BeamRecord implements Serializable {
 
   public List<Object> getDataValues() {
     return dataValues;
-  }
-
-  public void setDataValues(List<Object> dataValues) {
-    this.dataValues = dataValues;
   }
 
   public BeamRecordType getDataType() {

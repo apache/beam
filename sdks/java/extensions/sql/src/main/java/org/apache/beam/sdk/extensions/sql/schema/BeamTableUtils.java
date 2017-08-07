@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -39,7 +41,7 @@ public final class BeamTableUtils {
       CSVFormat csvFormat,
       String line,
       BeamSqlRecordType beamSqlRowType) {
-    BeamRecord row = new BeamRecord(beamSqlRowType);
+    List<Object> fieldsValue = new ArrayList<>();
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
@@ -52,13 +54,13 @@ public final class BeamTableUtils {
       } else {
         for (int idx = 0; idx < beamSqlRowType.size(); idx++) {
           String raw = rawRecord.get(idx);
-          addFieldWithAutoTypeCasting(row, idx, raw);
+          fieldsValue.add(autoCastField(beamSqlRowType.getFieldsType().get(idx), raw));
         }
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
     }
-    return row;
+    return new BeamRecord(beamSqlRowType, fieldsValue);
   }
 
   public static String beamSqlRow2CsvLine(BeamRecord row, CSVFormat csvFormat) {
@@ -74,37 +76,29 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static void addFieldWithAutoTypeCasting(BeamRecord row, int idx, Object rawObj) {
+  public static Object autoCastField(int fieldType, Object rawObj) {
     if (rawObj == null) {
-      row.addField(idx, null);
-      return;
+      return null;
     }
 
-    SqlTypeName columnType = CalciteUtils.getFieldType(BeamSqlRecordHelper.getSqlRecordType(row)
-        , idx);
+    SqlTypeName columnType = CalciteUtils.toCalciteType(fieldType);
     // auto-casting for numberics
     if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
         || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {
       String raw = rawObj.toString();
       switch (columnType) {
         case TINYINT:
-          row.addField(idx, Byte.valueOf(raw));
-          break;
+          return Byte.valueOf(raw);
         case SMALLINT:
-          row.addField(idx, Short.valueOf(raw));
-          break;
+          return Short.valueOf(raw);
         case INTEGER:
-          row.addField(idx, Integer.valueOf(raw));
-          break;
+          return Integer.valueOf(raw);
         case BIGINT:
-          row.addField(idx, Long.valueOf(raw));
-          break;
+          return Long.valueOf(raw);
         case FLOAT:
-          row.addField(idx, Float.valueOf(raw));
-          break;
+          return Float.valueOf(raw);
         case DOUBLE:
-          row.addField(idx, Double.valueOf(raw));
-          break;
+          return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", columnType));
@@ -112,13 +106,12 @@ public final class BeamTableUtils {
     } else if (SqlTypeName.CHAR_TYPES.contains(columnType)) {
       // convert NlsString to String
       if (rawObj instanceof NlsString) {
-        row.addField(idx, ((NlsString) rawObj).getValue());
+        return ((NlsString) rawObj).getValue();
       } else {
-        row.addField(idx, rawObj);
+        return rawObj;
       }
     } else {
-      // keep the origin
-      row.addField(idx, rawObj);
+      return rawObj;
     }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -69,14 +70,15 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   public BeamRecord decode(InputStream inStream) throws CoderException, IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
-    BeamRecord record = new BeamRecord(recordType);
+    List<Object> fieldValues = new ArrayList<>();
     for (int idx = 0; idx < recordType.size(); ++idx) {
       if (nullFields.get(idx)) {
-        continue;
+        fieldValues.add(null);
+      } else {
+        fieldValues.add(coderArray.get(idx).decode(inStream));
       }
-
-      record.addField(idx, coderArray.get(idx).decode(inStream));
     }
+    BeamRecord record = new BeamRecord(recordType, fieldValues);
 
     return record;
   }

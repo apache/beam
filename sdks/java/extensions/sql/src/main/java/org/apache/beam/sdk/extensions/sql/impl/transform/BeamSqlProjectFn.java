@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
@@ -53,12 +54,12 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
   public void processElement(ProcessContext c, BoundedWindow window) {
     BeamRecord inputRow = c.element();
     List<Object> results = executor.execute(inputRow, window);
-
-    BeamRecord outRow = new BeamRecord(outputRowType);
-
+    List<Object> fieldsValue = new ArrayList<>();
     for (int idx = 0; idx < results.size(); ++idx) {
-      BeamTableUtils.addFieldWithAutoTypeCasting(outRow, idx, results.get(idx));
+      fieldsValue.add(
+          BeamTableUtils.autoCastField(outputRowType.getFieldsType().get(idx), results.get(idx)));
     }
+    BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
 
     c.output(outRow);
   }
