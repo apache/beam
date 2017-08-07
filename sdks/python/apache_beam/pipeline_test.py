@@ -520,10 +520,9 @@ class DirectRunnerRetryTests(unittest.TestCase):
     fork_b = names | 'SendToB' >> beam.Map(f_b)
     fork_c = names | 'SendToC' >> beam.Map(f_c)
 
-    try:
+    with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    except Exception as e:  # pylint: disable=broad-except
-      assert count_b == count_c == 4
+    assert count_b == count_c == 4
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
