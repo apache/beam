@@ -112,56 +112,24 @@ public class BeamSqlDslBase {
   private static List<BeamRecord> prepareInputRowsInTableA() throws ParseException{
     List<BeamRecord> rows = new ArrayList<>();
 
-    BeamRecord row1 = new BeamRecord(rowTypeInTableA);
-    row1.addField(0, 1);
-    row1.addField(1, 1000L);
-    row1.addField(2, Short.valueOf("1"));
-    row1.addField(3, Byte.valueOf("1"));
-    row1.addField(4, 1.0f);
-    row1.addField(5, 1.0);
-    row1.addField(6, "string_row1");
-    row1.addField(7, FORMAT.parse("2017-01-01 01:01:03"));
-    row1.addField(8, 0);
-    row1.addField(9, new BigDecimal(1));
+    BeamRecord row1 = new BeamRecord(rowTypeInTableA
+        , 1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0f, 1.0, "string_row1"
+        , FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1));
     rows.add(row1);
 
-    BeamRecord row2 = new BeamRecord(rowTypeInTableA);
-    row2.addField(0, 2);
-    row2.addField(1, 2000L);
-    row2.addField(2, Short.valueOf("2"));
-    row2.addField(3, Byte.valueOf("2"));
-    row2.addField(4, 2.0f);
-    row2.addField(5, 2.0);
-    row2.addField(6, "string_row2");
-    row2.addField(7, FORMAT.parse("2017-01-01 01:02:03"));
-    row2.addField(8, 0);
-    row2.addField(9, new BigDecimal(2));
+    BeamRecord row2 = new BeamRecord(rowTypeInTableA
+        , 2, 2000L, Short.valueOf("2"), Byte.valueOf("2"), 2.0f, 2.0, "string_row2"
+        , FORMAT.parse("2017-01-01 01:02:03"), 0, new BigDecimal(2));
     rows.add(row2);
 
-    BeamRecord row3 = new BeamRecord(rowTypeInTableA);
-    row3.addField(0, 3);
-    row3.addField(1, 3000L);
-    row3.addField(2, Short.valueOf("3"));
-    row3.addField(3, Byte.valueOf("3"));
-    row3.addField(4, 3.0f);
-    row3.addField(5, 3.0);
-    row3.addField(6, "string_row3");
-    row3.addField(7, FORMAT.parse("2017-01-01 01:06:03"));
-    row3.addField(8, 0);
-    row3.addField(9, new BigDecimal(3));
+    BeamRecord row3 = new BeamRecord(rowTypeInTableA
+        , 3, 3000L, Short.valueOf("3"), Byte.valueOf("3"), 3.0f, 3.0, "string_row3"
+        , FORMAT.parse("2017-01-01 01:06:03"), 0, new BigDecimal(3));
     rows.add(row3);
 
-    BeamRecord row4 = new BeamRecord(rowTypeInTableA);
-    row4.addField(0, 4);
-    row4.addField(1, 4000L);
-    row4.addField(2, Short.valueOf("4"));
-    row4.addField(3, Byte.valueOf("4"));
-    row4.addField(4, 4.0f);
-    row4.addField(5, 4.0);
-    row4.addField(6, "string_row4");
-    row4.addField(7, FORMAT.parse("2017-01-01 02:04:03"));
-    row4.addField(8, 0);
-    row4.addField(9, new BigDecimal(4));
+    BeamRecord row4 = new BeamRecord(rowTypeInTableA
+        , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "string_row4"
+        , FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4));
     rows.add(row4);
 
     return rows;

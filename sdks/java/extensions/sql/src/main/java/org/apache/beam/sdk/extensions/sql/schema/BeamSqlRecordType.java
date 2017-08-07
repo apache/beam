@@ -84,7 +84,10 @@ public class BeamSqlRecordType extends BeamRecordType {
 
   public static BeamSqlRecordType create(List<String> fieldNames,
       List<Integer> fieldTypes) {
-    List<Coder> fieldCoders = new ArrayList<>();
+    if (fieldNames.size() != fieldTypes.size()) {
+      throw new IllegalStateException("the sizes of 'dataType' and 'fieldTypes' must match.");
+    }
+    List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
     for (int idx = 0; idx < fieldTypes.size(); ++idx) {
       switch (fieldTypes.get(idx)) {
       case Types.INTEGER:
