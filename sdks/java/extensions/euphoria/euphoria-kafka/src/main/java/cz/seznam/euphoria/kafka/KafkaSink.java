@@ -16,11 +16,9 @@
 package cz.seznam.euphoria.kafka;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
-import cz.seznam.euphoria.core.client.io.DataSinkFactory;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.core.util.URIParams;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
@@ -28,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,18 +38,6 @@ import java.util.concurrent.TimeoutException;
 public class KafkaSink implements DataSink<Pair<byte[], byte[]>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
-
-  public static class Factory implements DataSinkFactory {
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T> DataSink<T> get(URI uri, Settings settings) {
-      String brokers = uri.getAuthority();
-      String topic = uri.getPath().substring(1);
-      String cname = URIParams.of(uri).getStringParam("cfg", null);
-      Settings cconfig = cname == null ? null : settings.nested(cname);
-      return (DataSink<T>) new KafkaSink(brokers, topic, cconfig);
-    }
-  }
 
   private static class ProducerWriter implements Writer<Pair<byte[], byte[]>> {
     private final String topicId;
