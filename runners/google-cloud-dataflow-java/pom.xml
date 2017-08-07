@@ -245,6 +245,7 @@
               -->
               <excludedGroups>
                 org.apache.beam.sdk.testing.LargeKeys$Above10MB,
+                org.apache.beam.sdk.testing.UsesAttemptedMetrics,
                 org.apache.beam.sdk.testing.UsesDistributionMetrics,
                 org.apache.beam.sdk.testing.UsesGaugeMetrics,
                 org.apache.beam.sdk.testing.UsesSetState,
