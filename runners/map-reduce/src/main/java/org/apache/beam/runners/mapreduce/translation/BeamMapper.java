@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
@@ -57,7 +58,7 @@ public class BeamMapper<ValueInT, ValueOutT>
       Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context)
       throws IOException, InterruptedException {
     LOG.info("key: {} value: {}.", key, value);
-    operation.process(value);
+    operation.process(WindowedValue.valueInGlobalWindow(KV.of(key, value)));
   }
 
   @Override

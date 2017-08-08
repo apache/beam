@@ -27,7 +27,8 @@ class ReadBoundedTranslator<T> extends TransformTranslator.Default<Read.Bounded<
   public void translateNode(Read.Bounded transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-    SourceOperation operation = new SourceOperation(transform.getSource());
+    SourceOperation operation =
+        new SourceOperation(transform.getSource(), userGraphContext.getOnlyOutputTag());
     context.addInitStep(
         Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),

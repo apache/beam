@@ -20,8 +20,6 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -30,7 +28,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -81,23 +78,14 @@ public class JobPrototype {
         String.format("/tmp/mapreduce/stage-%d", fusedStep.getStageId()));
 
     // Setup BoundedSources in BeamInputFormat.
-    // TODO: support more than one read steps by introducing a composed BeamInputFormat
-    // and a partition operation.
-    List<Graphs.Step> readSteps = fusedStep.getStartSteps();
-    ArrayList<BoundedSource<?>> sources = new ArrayList<>();
-    sources.addAll(
-        FluentIterable.from(readSteps)
-            .transform(new Function<Graphs.Step, BoundedSource<?>>() {
-              @Override
-              public BoundedSource<?> apply(Graphs.Step step) {
-                checkState(step.getOperation() instanceof SourceOperation);
-                return ((SourceOperation) step.getOperation()).getSource();
-              }})
-            .toList());
+    Graphs.Step startStep = Iterables.getOnlyElement(fusedStep.getStartSteps());
+    checkState(startStep.getOperation() instanceof PartitionOperation);
+    PartitionOperation partitionOperation = (PartitionOperation) startStep.getOperation();
 
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_BOUNDED_SOURCE,
-        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(sources)));
+        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
+            new ArrayList<>(partitionOperation.getTaggedSources()))));
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_PIPELINE_OPTIONS,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
@@ -151,16 +139,14 @@ public class JobPrototype {
     }
 
     // Setup DoFns in BeamMapper.
-    Graphs.Tag readOutputTag = Iterables.getOnlyElement(fusedStep.getOutputTags(readSteps.get(0)));
-    Graphs.Step mapperStartStep = Iterables.getOnlyElement(fusedStep.getConsumers(readOutputTag));
-    chainOperations(mapperStartStep, fusedStep);
+    chainOperations(startStep, fusedStep);
 
     job.setMapOutputKeyClass(BytesWritable.class);
     job.setMapOutputValueClass(byte[].class);
     conf.set(
         BeamMapper.BEAM_PAR_DO_OPERATION_MAPPER,
         Base64.encodeBase64String(
-            SerializableUtils.serializeToByteArray(mapperStartStep.getOperation())));
+            SerializableUtils.serializeToByteArray(startStep.getOperation())));
     job.setMapperClass(BeamMapper.class);
     job.setOutputFormatClass(TextOutputFormat.class);
 

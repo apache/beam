@@ -17,9 +17,20 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Class that optimizes the initial graph to a fused graph.
@@ -39,21 +50,26 @@ public class GraphPlanner {
           continue;
         }
         Graphs.Step producer = fusedStep.getProducer(tag);
-        if (producer.getOperation() instanceof ViewOperation) {
+        if (producer.getOperation() instanceof FileWriteOperation) {
           continue;
         }
         String tagName = tag.getName();
         String fileName = tagName.replaceAll("[^A-Za-z0-9]", "0");
+
+        // TODO: should not hard-code windows coder.
+        WindowedValue.WindowedValueCoder<?> writeValueCoder = WindowedValue.getFullCoder(
+            tag.getCoder(), WindowingStrategy.globalDefault().getWindowFn().windowCoder());
+
         fusedStep.addStep(
             Graphs.Step.of(
                 tagName + "/Write",
-                new FileWriteOperation(fileName, tag.getCoder())),
+                new FileWriteOperation(fileName, writeValueCoder)),
             ImmutableList.of(tag),
             ImmutableList.<Graphs.Tag>of());
 
         String readStepName = tagName + "/Read";
         Graphs.Tag readOutput = Graphs.Tag.of(
-            readStepName + ".out", new TupleTag<>(), tag.getCoder());
+            readStepName + ".out", tag.getTupleTag(), tag.getCoder());
         for (Graphs.FusedStep consumer : consumers) {
           // Re-direct tag to readOutput.
           List<Graphs.Step> receivers = consumer.getConsumers(tag);
@@ -64,13 +80,40 @@ public class GraphPlanner {
           consumer.addStep(
               Graphs.Step.of(
                   readStepName,
-                  new FileReadOperation(fusedStep.getStageId(), fileName, tag.getCoder())),
+                  new FileReadOperation(
+                      fusedStep.getStageId(), fileName, tag.getCoder(), tag.getTupleTag())),
               ImmutableList.<Graphs.Tag>of(),
               ImmutableList.of(readOutput));
         }
       }
     }
 
+    // Insert PartitionOperation
+    for (final Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
+      List<Graphs.Step> readSteps = fusedStep.getStartSteps();
+
+      List<SourceOperation.TaggedSource> sources = new ArrayList<>();
+      List<Graphs.Tag> readOutTags = new ArrayList<>();
+      List<TupleTag<?>> readOutTupleTags = new ArrayList<>();
+      StringBuilder partitionStepName = new StringBuilder();
+      for (Graphs.Step step : readSteps) {
+        checkState(step.getOperation() instanceof SourceOperation);
+        sources.add(((SourceOperation) step.getOperation()).getTaggedSource());
+        Graphs.Tag tag = Iterables.getOnlyElement(fusedStep.getOutputTags(step));
+        readOutTags.add(tag);
+        readOutTupleTags.add(tag.getTupleTag());
+        partitionStepName.append(step.getFullName());
+
+        fusedStep.removeStep(step);
+      }
+      if (partitionStepName.length() > 0) {
+        partitionStepName.deleteCharAt(partitionStepName.length() - 1);
+      }
+
+      Graphs.Step partitionStep =
+          Graphs.Step.of(partitionStepName.toString(), new PartitionOperation(sources));
+      fusedStep.addStep(partitionStep, ImmutableList.<Graphs.Tag>of(), readOutTags);
+    }
     return fusedGraph;
   }
 }

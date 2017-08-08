@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -52,7 +53,7 @@ public class BeamInputFormat<T> extends InputFormat {
 
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES = 5 * 1000 * 1000;
 
-  private List<BoundedSource<T>> sources;
+  private List<SourceOperation.TaggedSource> sources;
   private SerializedPipelineOptions options;
 
   public BeamInputFormat() {
@@ -67,30 +68,37 @@ public class BeamInputFormat<T> extends InputFormat {
         || Strings.isNullOrEmpty(serializedPipelineOptions)) {
       return ImmutableList.of();
     }
-    sources = (List<BoundedSource<T>>) SerializableUtils.deserializeFromByteArray(
-        Base64.decodeBase64(serializedBoundedSource), "BoundedSource");
+    sources = (List<SourceOperation.TaggedSource>) SerializableUtils.deserializeFromByteArray(
+        Base64.decodeBase64(serializedBoundedSource), "TaggedSources");
     options = ((SerializedPipelineOptions) SerializableUtils.deserializeFromByteArray(
         Base64.decodeBase64(serializedPipelineOptions), "SerializedPipelineOptions"));
 
     try {
 
       return FluentIterable.from(sources)
-          .transformAndConcat(new Function<BoundedSource<T>, Iterable<BoundedSource<T>>>() {
+          .transformAndConcat(
+              new Function<SourceOperation.TaggedSource, Iterable<SourceOperation.TaggedSource>>() {
+                @Override
+                public Iterable<SourceOperation.TaggedSource> apply(
+                    final SourceOperation.TaggedSource taggedSource) {
+                  try {
+                    return FluentIterable.from(taggedSource.getSource().split(
+                        DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options.getPipelineOptions()))
+                        .transform(new Function<BoundedSource<?>, SourceOperation.TaggedSource>() {
+                          @Override
+                          public SourceOperation.TaggedSource apply(BoundedSource<?> input) {
+                            return SourceOperation.TaggedSource.of(input, taggedSource.getTag());
+                          }});
+                  } catch (Exception e) {
+                    Throwables.throwIfUnchecked(e);
+                    throw new RuntimeException(e);
+                  }
+                }
+              })
+          .transform(new Function<SourceOperation.TaggedSource, InputSplit>() {
             @Override
-            public Iterable<BoundedSource<T>> apply(BoundedSource<T> input) {
-              try {
-                return (Iterable<BoundedSource<T>>) input.split(
-                    DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options.getPipelineOptions());
-              } catch (Exception e) {
-                Throwables.throwIfUnchecked(e);
-                throw new RuntimeException(e);
-              }
-            }
-          })
-          .transform(new Function<BoundedSource<T>, InputSplit>() {
-            @Override
-            public InputSplit apply(BoundedSource<T> source) {
-              return new BeamInputSplit(source, options);
+            public InputSplit apply(SourceOperation.TaggedSource taggedSource) {
+              return new BeamInputSplit(taggedSource.getSource(), options, taggedSource.getTag());
             }})
           .toList();
     } catch (Exception e) {
@@ -107,17 +115,23 @@ public class BeamInputFormat<T> extends InputFormat {
   public static class BeamInputSplit<T> extends InputSplit implements Writable {
     private BoundedSource<T> boundedSource;
     private SerializedPipelineOptions options;
+    private TupleTag<?> tupleTag;
 
     public BeamInputSplit() {
     }
 
-    public BeamInputSplit(BoundedSource<T> boundedSource, SerializedPipelineOptions options) {
+    public BeamInputSplit(
+        BoundedSource<T> boundedSource,
+        SerializedPipelineOptions options,
+        TupleTag<?> tupleTag) {
       this.boundedSource = checkNotNull(boundedSource, "boundedSources");
       this.options = checkNotNull(options, "options");
+      this.tupleTag = checkNotNull(tupleTag, "tupleTag");
     }
 
     public BeamRecordReader<T> createReader() throws IOException {
-      return new BeamRecordReader<>(boundedSource.createReader(options.getPipelineOptions()));
+      return new BeamRecordReader<>(
+          boundedSource.createReader(options.getPipelineOptions()), tupleTag);
     }
 
     @Override
@@ -142,6 +156,7 @@ public class BeamInputFormat<T> extends InputFormat {
       ByteArrayOutputStream stream = new ByteArrayOutputStream();
       SerializableCoder.of(BoundedSource.class).encode(boundedSource, stream);
       SerializableCoder.of(SerializedPipelineOptions.class).encode(options, stream);
+      SerializableCoder.of(TupleTag.class).encode(tupleTag, stream);
 
       byte[] bytes = stream.toByteArray();
       out.writeInt(bytes.length);
@@ -157,16 +172,19 @@ public class BeamInputFormat<T> extends InputFormat {
       ByteArrayInputStream inStream = new ByteArrayInputStream(bytes);
       boundedSource = SerializableCoder.of(BoundedSource.class).decode(inStream);
       options = SerializableCoder.of(SerializedPipelineOptions.class).decode(inStream);
+      tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
     }
   }
 
   private static class BeamRecordReader<T> extends RecordReader {
 
     private final BoundedSource.BoundedReader<T> reader;
+    private TupleTag<?> tupleTag;
     private boolean started;
 
-    public BeamRecordReader(BoundedSource.BoundedReader<T> reader) {
+    public BeamRecordReader(BoundedSource.BoundedReader<T> reader, TupleTag<?> tupleTag) {
       this.reader = checkNotNull(reader, "reader");
+      this.tupleTag = checkNotNull(tupleTag, "tupleTag");
       this.started = false;
     }
 
@@ -187,13 +205,19 @@ public class BeamInputFormat<T> extends InputFormat {
 
     @Override
     public Object getCurrentKey() throws IOException, InterruptedException {
-      return "global";
+      return tupleTag;
     }
 
     @Override
     public Object getCurrentValue() throws IOException, InterruptedException {
-      return WindowedValue.timestampedValueInGlobalWindow(
-          reader.getCurrent(), reader.getCurrentTimestamp());
+      // TODO: this is a hack to handle that reads from materialized PCollections
+      // already return WindowedValue.
+      if (reader.getCurrent() instanceof WindowedValue) {
+        return reader.getCurrent();
+      } else {
+        return WindowedValue.timestampedValueInGlobalWindow(
+            reader.getCurrent(), reader.getCurrentTimestamp());
+      }
     }
 
     @Override

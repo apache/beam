@@ -81,7 +81,7 @@ public class Graphs {
         Graphs.Step step,
         List<Graphs.Tag> inTags,
         List<Graphs.Tag> outTags) {
-      if (step.getOperation() instanceof ViewOperation) {
+      if (step.getOperation() instanceof FileWriteOperation) {
         return false;
       }
       if (outTags.size() != 1) {

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import org.apache.beam.sdk.coders.Coder;
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
- * Translates a {@link View.CreatePCollectionView} to a {@link ViewOperation}.
+ * Translates a {@link View.CreatePCollectionView} to a {@link FileWriteOperation}.
  */
 public class ViewTranslator extends TransformTranslator.Default<View.CreatePCollectionView<?, ?>> {
 
@@ -30,8 +33,16 @@ public class ViewTranslator extends TransformTranslator.Default<View.CreatePColl
       View.CreatePCollectionView<?, ?> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-    ViewOperation<?> operation =
-        new ViewOperation<>((Coder) transform.getView().getPCollection().getCoder());
+    PCollection<?> inPCollection = transform.getView().getPCollection();
+    WindowingStrategy<?, ?> windowingStrategy = inPCollection.getWindowingStrategy();
+
+    Graphs.Tag outTag = Iterables.getOnlyElement(userGraphContext.getOutputTags());
+    String fileName = outTag.getName().replaceAll("[^A-Za-z0-9]", "0");
+
+    FileWriteOperation<?> operation = new FileWriteOperation<>(
+        fileName,
+        WindowedValue.getFullCoder(
+            inPCollection.getCoder(), windowingStrategy.getWindowFn().windowCoder()));
     context.addInitStep(
         Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),

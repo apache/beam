@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -45,8 +46,12 @@ import org.apache.hadoop.io.SequenceFile;
  */
 public class FileReadOperation<T> extends SourceOperation<WindowedValue<T>> {
 
-  public FileReadOperation(int producerStageId, String fileName, Coder<T> coder) {
-    super(new FileBoundedSource<>(producerStageId, fileName, coder));
+  public FileReadOperation(
+      int producerStageId,
+      String fileName,
+      Coder<T> coder,
+      TupleTag<?> tupleTag) {
+    super(new FileBoundedSource<>(producerStageId, fileName, coder), tupleTag);
   }
 
   private static class FileBoundedSource<T> extends BoundedSource<WindowedValue<T>> {

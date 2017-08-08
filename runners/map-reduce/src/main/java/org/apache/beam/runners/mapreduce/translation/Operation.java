@@ -76,6 +76,7 @@ public abstract class Operation<T> implements Serializable {
   }
 
   public List<OutputReceiver> getOutputReceivers() {
+    // TODO: avoid allocating objects for each output emit.
     return ImmutableList.copyOf(receivers);
   }
 

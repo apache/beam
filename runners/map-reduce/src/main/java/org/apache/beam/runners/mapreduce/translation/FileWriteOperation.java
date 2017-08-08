@@ -24,7 +24,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
@@ -39,13 +38,10 @@ public class FileWriteOperation<T> extends Operation<T> {
   private final Coder<WindowedValue<T>> coder;
   private transient MultipleOutputs mos;
 
-  public FileWriteOperation(String fileName, Coder<T> coder) {
+  public FileWriteOperation(String fileName, Coder<WindowedValue<T>> coder) {
     super(0);
     this.fileName = checkNotNull(fileName, "fileName");
-    checkNotNull(coder, "coder");
-    // TODO: should not hard-code windows coder.
-    this.coder = WindowedValue.getFullCoder(
-        coder, WindowingStrategy.globalDefault().getWindowFn().windowCoder());
+    this.coder = checkNotNull(coder, "coder");
   }
 
   @Override
