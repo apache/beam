@@ -164,4 +164,10 @@ members:
     organization: PayPal
     roles: committer, PMC
     time_zone: "+2"
+  - name: James Xu
+    apache_id: xumingming
+    email: xumingming [at] apache [dot] org
+    organization: Alipay
+    roles: committer
+    time_zone: "+8"
 ---
