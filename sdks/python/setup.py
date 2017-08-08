@@ -105,7 +105,6 @@ REQUIRED_PACKAGES = [
     'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0',
-    'retrying==1.3.3',
     ]
 
 REQUIRED_SETUP_PACKAGES = [

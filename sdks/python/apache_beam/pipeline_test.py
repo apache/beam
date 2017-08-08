@@ -27,6 +27,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pipeline import PipelineOptions
@@ -501,7 +502,9 @@ class RunnerApiTest(unittest.TestCase):
 class DirectRunnerRetryTests(unittest.TestCase):
 
   def test_retry_fork_graph(self):
-    p = beam.Pipeline('DirectRunner')
+    pipeline_options = PipelineOptions(['--direct_runner_bundle_retry'])
+    p = beam.Pipeline(options=pipeline_options)
+
     # TODO(mariagh): Remove the use of globals from the test.
     global count_b, count_c
     count_b, count_c = 0, 0
@@ -524,6 +527,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
     assert count_b == count_c == 4
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

@@ -30,6 +30,7 @@ from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.pipeline_options import DirectOptions
 
 
 class _ExecutorService(object):
@@ -258,7 +259,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
   evaluating it on some bundle of input, and registering the result using the
   completion callback.
   """
-  _MAX_RETRY_PER_BUNDLE = 4
 
   def __init__(self, transform_evaluator_registry, evaluation_context,
                input_bundle, fired_timers, applied_ptransform,
@@ -274,6 +274,8 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
+    # TODO(mariagh): make it a constant once retry is no longer experimental
+    self._max_retry_per_bundle = 4
 
   def call(self):
     self._call_count += 1
@@ -294,22 +296,28 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
     side_input_values = [self._side_input_values[side_input]
                          for side_input in self._applied_ptransform.side_inputs]
-    _unprocessed = True
-    while (_unprocessed and
-           self._retry_count < TransformExecutor._MAX_RETRY_PER_BUNDLE):
+
+    # Switch to turn on/off the retry of bundles.
+    pipeline_options = self._evaluation_context.pipeline_options
+    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
+      self._max_retry_per_bundle = 1
+    else:
+      self._max_retry_per_bundle = 4
+
+    while self._retry_count < self._max_retry_per_bundle:
       try:
         self.attempt_call(metrics_container,
                           scoped_metrics_container,
                           side_input_values)
-        _unprocessed = False
+        break
       except Exception as e:
         self._retry_count += 1
         logging.info(
             'Exception at bundle %r, due to an exception: %s',
             self._input_bundle, traceback.format_exc())
-        if self._retry_count == TransformExecutor._MAX_RETRY_PER_BUNDLE:
+        if self._retry_count == self._max_retry_per_bundle:
           logging.error('Giving up after %s attempts.',
-                        TransformExecutor._MAX_RETRY_PER_BUNDLE)
+                        self._max_retry_per_bundle)
           self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
@@ -348,7 +356,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
               self._applied_ptransform, tag, value)
 
     self._completion_callback.handle_result(self, self._input_bundle, result)
-    print '--> result:', result
     return result
 
 
@@ -481,13 +488,6 @@ class _ExecutorServiceParallelExecutor(object):
       if self.exc_info[1] is not exception:
         # Not the right exception.
         self.exc_info = (exception, None, None)
-
-    def __repr__(self):
-      return "%s(%s, %s, %s)" % (
-          self.__class__.__name__,
-          'has commmitte_bundle' if self.committed_bundle else 'x',
-          'has unprocessed_bundle' if self.unprocessed_bundle else 'x',
-          self.exception)
 
 
   class _VisibleExecutorUpdate(object):
