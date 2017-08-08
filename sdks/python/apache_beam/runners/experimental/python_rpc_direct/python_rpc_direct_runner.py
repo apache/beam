@@ -109,15 +109,3 @@ class PythonRPCDirectPipelineResult(PipelineResult):
 
   def metrics(self):
     raise NotImplementedError
-
-  def __str__(self):
-    return '<%s %s %s>' % (
-        self.__class__.__name__,
-        self.job_id,
-        self.state)
-
-  def __repr__(self):
-    return '<%s %s at %s>' % (
-        self.__class__.__name__,
-        self.job_id,
-        hex(id(self)))

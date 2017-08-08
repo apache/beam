@@ -19,4 +19,4 @@
 sends a runner API proto over the API and then runs it on the other side.
 """
 
-from apache_beam.runners.experimental.python_rpc_direct.client import PythonRPCDirectRunner
+from apache_beam.runners.experimental.python_rpc_direct.python_rpc_direct_runner import PythonRPCDirectRunner
