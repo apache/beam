@@ -195,11 +195,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             BeamSqlRecordHelper.getSqlRecordType(row1), fieldIndex);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
-        if (row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {
+        boolean isValue1Null = (row1.getFieldValue(fieldIndex) == null);
+        boolean isValue2Null = (row2.getFieldValue(fieldIndex) == null);
+        if (isValue1Null && isValue2Null) {
           continue;
-        } else if (row1.isNull(fieldIndex) && !row2.isNull(fieldIndex)) {
+        } else if (isValue1Null && !isValue2Null) {
           fieldRet = -1 * (nullsFirst.get(i) ? -1 : 1);
-        } else if (!row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {
+        } else if (!isValue1Null && isValue2Null) {
           fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
         } else {
           switch (fieldType) {
