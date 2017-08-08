@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -81,7 +81,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFields", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamRecord record = new BeamRecord(resultType
@@ -115,7 +115,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamRecord record1 = new BeamRecord(resultType
@@ -158,7 +158,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
     BeamRecord record1 = new BeamRecord(resultType
@@ -201,7 +201,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testLiteralField", BeamSql.query(sql));
 
-    BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("literal_field"),
+    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
 
     BeamRecord record = new BeamRecord(resultType, 1);

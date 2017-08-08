@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.schema.kafka;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,12 +34,12 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class BeamKafkaCSVTable extends BeamKafkaTable {
   private CSVFormat csvFormat;
-  public BeamKafkaCSVTable(BeamSqlRecordType beamSqlRowType, String bootstrapServers,
+  public BeamKafkaCSVTable(BeamRecordSqlType beamSqlRowType, String bootstrapServers,
       List<String> topics) {
     this(beamSqlRowType, bootstrapServers, topics, CSVFormat.DEFAULT);
   }
 
-  public BeamKafkaCSVTable(BeamSqlRecordType beamSqlRowType, String bootstrapServers,
+  public BeamKafkaCSVTable(BeamRecordSqlType beamSqlRowType, String bootstrapServers,
       List<String> topics, CSVFormat format) {
     super(beamSqlRowType, bootstrapServers, topics);
     this.csvFormat = format;
@@ -63,9 +63,9 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
    */
   public static class CsvRecorderDecoder
       extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamRecord>> {
-    private BeamSqlRecordType rowType;
+    private BeamRecordSqlType rowType;
     private CSVFormat format;
-    public CsvRecorderDecoder(BeamSqlRecordType rowType, CSVFormat format) {
+    public CsvRecorderDecoder(BeamRecordSqlType rowType, CSVFormat format) {
       this.rowType = rowType;
       this.format = format;
     }
@@ -88,9 +88,9 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
    */
   public static class CsvRecorderEncoder
       extends PTransform<PCollection<BeamRecord>, PCollection<KV<byte[], byte[]>>> {
-    private BeamSqlRecordType rowType;
+    private BeamRecordSqlType rowType;
     private CSVFormat format;
-    public CsvRecorderEncoder(BeamSqlRecordType rowType, CSVFormat format) {
+    public CsvRecorderEncoder(BeamRecordSqlType rowType, CSVFormat format) {
       this.rowType = rowType;
       this.format = format;
     }

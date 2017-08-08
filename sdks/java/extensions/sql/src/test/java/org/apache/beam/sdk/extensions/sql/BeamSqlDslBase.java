@@ -25,7 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -52,7 +52,7 @@ public class BeamSqlDslBase {
   @Rule
   public ExpectedException exceptions = ExpectedException.none();
 
-  public static BeamSqlRecordType rowTypeInTableA;
+  public static BeamRecordSqlType rowTypeInTableA;
   public static List<BeamRecord> recordsInTableA;
 
   //bounded PCollections
@@ -65,7 +65,7 @@ public class BeamSqlDslBase {
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    rowTypeInTableA = BeamSqlRecordType.create(
+    rowTypeInTableA = BeamRecordSqlType.create(
         Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
             "f_timestamp", "f_int2", "f_decimal"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,

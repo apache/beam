@@ -27,7 +27,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -63,9 +63,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
 
   private List<AggregateCall> aggCalls;
 
-  private BeamSqlRecordType keyType;
-  private BeamSqlRecordType aggPartType;
-  private BeamSqlRecordType outputType;
+  private BeamRecordSqlType keyType;
+  private BeamRecordSqlType aggPartType;
+  private BeamRecordSqlType outputType;
 
   private BeamRecordCoder inRecordCoder;
   private BeamRecordCoder keyCoder;
@@ -404,7 +404,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Row type of final output row.
    */
-  private BeamSqlRecordType prepareFinalRowType() {
+  private BeamRecordSqlType prepareFinalRowType() {
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     List<KV<String, SqlTypeName>> columnMetadata =
         Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER), KV.of("count", SqlTypeName.BIGINT),

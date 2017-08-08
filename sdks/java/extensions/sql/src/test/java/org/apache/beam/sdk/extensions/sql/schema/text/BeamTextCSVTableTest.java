@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -166,7 +166,7 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamSqlRecordType buildBeamSqlRowType() {
+  private static BeamRecordSqlType buildBeamSqlRowType() {
     return CalciteUtils.toBeamRowType(buildRelDataType());
   }
 
