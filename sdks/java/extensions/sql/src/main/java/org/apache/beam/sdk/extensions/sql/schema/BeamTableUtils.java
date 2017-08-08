@@ -41,15 +41,15 @@ public final class BeamTableUtils {
       CSVFormat csvFormat,
       String line,
       BeamRecordSqlType beamRecordSqlType) {
-    List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.size());
+    List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.getFieldCount());
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != beamRecordSqlType.size()) {
+      if (rawRecord.size() != beamRecordSqlType.getFieldCount()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamRecordSqlType.size(), rawRecord.size()
+            beamRecordSqlType.size(), rawRecord.getFieldCount()
         ));
       } else {
         for (int idx = 0; idx < beamRecordSqlType.size(); idx++) {
@@ -66,7 +66,7 @@ public final class BeamTableUtils {
   public static String beamSqlRow2CsvLine(BeamRecord row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
-      for (int i = 0; i < row.size(); i++) {
+      for (int i = 0; i < row.getFieldCount(); i++) {
         printer.print(row.getFieldValue(i).toString());
       }
       printer.println();

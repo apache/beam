@@ -49,13 +49,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private void runAggregationWithoutWindow(PCollection<BeamRecord> input) throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount` FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
         input.apply("testAggregationWithoutWindow", BeamSql.simpleQuery(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int2", "size"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
+
 
     BeamRecord record = new BeamRecord(resultType, 0, 4L);
 
@@ -81,7 +82,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private void runAggregationFunctions(PCollection<BeamRecord> input) throws Exception{
-    String sql = "select f_int2, count(*) as size, "
+    String sql = "select f_int2, count(*) as getFieldCount, "
         + "sum(f_long) as sum1, avg(f_long) as avg1, max(f_long) as max1, min(f_long) as min1,"
         + "sum(f_short) as sum2, avg(f_short) as avg2, max(f_short) as max2, min(f_short) as min2,"
         + "sum(f_byte) as sum3, avg(f_byte) as avg3, max(f_byte) as max3, min(f_byte) as min3,"
@@ -171,7 +172,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private void runTumbleWindow(PCollection<BeamRecord> input) throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
         + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
         + " FROM TABLE_A"
         + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
@@ -208,7 +209,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private void runHopWindow(PCollection<BeamRecord> input) throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
         + " HOP_START(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE) AS `window_start`"
         + " FROM PCOLLECTION"
         + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
@@ -246,7 +247,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private void runSessionWindow(PCollection<BeamRecord> input) throws Exception {
-    String sql = "SELECT f_int2, COUNT(*) AS `size`,"
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
         + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`"
         + " FROM TABLE_A"
         + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
@@ -273,7 +274,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         "Cannot apply 'TUMBLE' to arguments of type 'TUMBLE(<BIGINT>, <INTERVAL HOUR>)'");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM TABLE_A "
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount` FROM TABLE_A "
         + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
@@ -288,7 +289,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     exceptions.expectMessage("Encountered \"*\"");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `getFieldCount` FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
         boundedInput1.apply("testUnsupportedDistinct", BeamSql.simpleQuery(sql));
