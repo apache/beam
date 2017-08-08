@@ -28,7 +28,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -97,7 +97,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamSqlEnv sqlEnv)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamSqlRecordType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
+    BeamRecordSqlType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
     PCollection<BeamRecord> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
@@ -117,9 +117,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     List<Integer> types = new ArrayList<>(pairs.size());
     for (int i = 0; i < pairs.size(); i++) {
       names.add("c" + i);
-      types.add(leftRowType.getFieldsType().get(pairs.get(i).getKey()));
+      types.add(leftRowType.getFieldTypeByIndex(pairs.get(i).getKey()));
     }
-    BeamSqlRecordType extractKeyRowType = BeamSqlRecordType.create(names, types);
+    BeamRecordSqlType extractKeyRowType = BeamRecordSqlType.create(names, types);
 
     Coder extractKeyRowCoder = extractKeyRowType.getRecordCoder();
 
@@ -255,7 +255,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   private BeamRecord buildNullRow(BeamRelNode relNode) {
-    BeamSqlRecordType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
+    BeamRecordSqlType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
     return new BeamRecord(leftType, Collections.nCopies(leftType.size(), null));
   }
 

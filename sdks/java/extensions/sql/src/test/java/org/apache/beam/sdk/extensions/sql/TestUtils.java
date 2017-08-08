@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.BeamRecord;
 
@@ -69,7 +69,7 @@ public class TestUtils {
    * {@code}
    */
   public static class RowsBuilder {
-    private BeamSqlRecordType type;
+    private BeamRecordSqlType type;
     private List<BeamRecord> rows = new ArrayList<>();
 
     /**
@@ -86,7 +86,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      BeamSqlRecordType beamSQLRowType = buildBeamSqlRowType(args);
+      BeamRecordSqlType beamSQLRowType = buildBeamSqlRowType(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -103,7 +103,7 @@ public class TestUtils {
      * )}</pre>
      * @beamSQLRowType the record type.
      */
-    public static RowsBuilder of(final BeamSqlRecordType beamSQLRowType) {
+    public static RowsBuilder of(final BeamRecordSqlType beamSQLRowType) {
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -153,7 +153,7 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static BeamSqlRecordType buildBeamSqlRowType(Object... args) {
+  public static BeamRecordSqlType buildBeamSqlRowType(Object... args) {
     List<Integer> types = new ArrayList<>();
     List<String> names = new ArrayList<>();
 
@@ -162,7 +162,7 @@ public class TestUtils {
       names.add((String) args[i + 1]);
     }
 
-    return BeamSqlRecordType.create(names, types);
+    return BeamRecordSqlType.create(names, types);
   }
 
   /**
@@ -179,7 +179,7 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static List<BeamRecord> buildRows(BeamSqlRecordType type, List args) {
+  public static List<BeamRecord> buildRows(BeamRecordSqlType type, List args) {
     List<BeamRecord> rows = new ArrayList<>();
     int fieldCount = type.size();
 

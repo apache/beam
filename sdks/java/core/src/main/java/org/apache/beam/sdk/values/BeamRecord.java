@@ -37,7 +37,20 @@ public class BeamRecord implements Serializable {
   private List<Object> dataValues;
   private BeamRecordType dataType;
 
-  public BeamRecord(BeamRecordType dataType, List<Object> rawdataValues) {
+  /**
+   * Creates a BeamRecord.
+   * @param dataType type of the record
+   * @param rawDataValues values of the record, record's size must match size of
+   *                      the {@code BeamRecordType}, or can be null, if it is null
+   *                      then every field is null.
+   */
+  public BeamRecord(BeamRecordType dataType, List<Object> rawDataValues) {
+    if (dataType.getFieldNames().size() != rawDataValues.size()) {
+      throw new IllegalArgumentException(
+          "Field count in BeamRecordType(" + dataType.getFieldNames().size()
+              + ") and rawDataValues(" + rawDataValues.size() + ") must match!");
+    }
+
     this.dataType = dataType;
     this.dataValues = new ArrayList<>(dataType.size());
 
@@ -46,7 +59,7 @@ public class BeamRecord implements Serializable {
     }
 
     for (int idx = 0; idx < dataType.size(); ++idx) {
-      addField(idx, rawdataValues.get(idx));
+      addField(idx, rawDataValues.get(idx));
     }
   }
 
@@ -60,7 +73,7 @@ public class BeamRecord implements Serializable {
   }
 
   public Object getFieldValue(String fieldName) {
-    return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
+    return getFieldValue(dataType.getFieldNames().indexOf(fieldName));
   }
 
   public Byte getByte(String fieldName) {
@@ -179,7 +192,7 @@ public class BeamRecord implements Serializable {
     StringBuilder sb = new StringBuilder();
     for (int idx = 0; idx < size(); ++idx) {
       sb.append(
-          String.format(",%s=%s", getDataType().getFieldsName().get(idx), getFieldValue(idx)));
+          String.format(",%s=%s", getDataType().getFieldNames().get(idx), getFieldValue(idx)));
     }
     return sb.substring(1);
   }

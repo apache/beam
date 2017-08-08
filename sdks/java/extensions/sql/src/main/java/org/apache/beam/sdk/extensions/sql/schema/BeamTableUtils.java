@@ -40,27 +40,27 @@ public final class BeamTableUtils {
   public static BeamRecord csvLine2BeamSqlRow(
       CSVFormat csvFormat,
       String line,
-      BeamSqlRecordType beamSqlRowType) {
-    List<Object> fieldsValue = new ArrayList<>(beamSqlRowType.size());
+      BeamRecordSqlType beamRecordSqlType) {
+    List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.size());
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != beamSqlRowType.size()) {
+      if (rawRecord.size() != beamRecordSqlType.size()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamSqlRowType.size(), rawRecord.size()
+            beamRecordSqlType.size(), rawRecord.size()
         ));
       } else {
-        for (int idx = 0; idx < beamSqlRowType.size(); idx++) {
+        for (int idx = 0; idx < beamRecordSqlType.size(); idx++) {
           String raw = rawRecord.get(idx);
-          fieldsValue.add(autoCastField(beamSqlRowType.getFieldsType().get(idx), raw));
+          fieldsValue.add(autoCastField(beamRecordSqlType.getFieldTypeByIndex(idx), raw));
         }
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
     }
-    return new BeamRecord(beamSqlRowType, fieldsValue);
+    return new BeamRecord(beamRecordSqlType, fieldsValue);
   }
 
   public static String beamSqlRow2CsvLine(BeamRecord row, CSVFormat csvFormat) {

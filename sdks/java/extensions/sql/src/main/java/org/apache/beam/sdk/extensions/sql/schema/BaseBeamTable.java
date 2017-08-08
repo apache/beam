@@ -23,12 +23,12 @@ import java.io.Serializable;
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
 public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamSqlRecordType beamSqlRowType;
-  public BaseBeamTable(BeamSqlRecordType beamSqlRowType) {
+  protected BeamRecordSqlType beamSqlRowType;
+  public BaseBeamTable(BeamRecordSqlType beamSqlRowType) {
     this.beamSqlRowType = beamSqlRowType;
   }
 
-  @Override public BeamSqlRecordType getRowType() {
+  @Override public BeamRecordSqlType getRowType() {
     return beamSqlRowType;
   }
 }
