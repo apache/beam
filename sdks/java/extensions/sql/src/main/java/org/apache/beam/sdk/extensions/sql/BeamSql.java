@@ -71,6 +71,7 @@ outputTableB.apply(...).apply(TextIO.write().to("/my/output/path"));
 p.run().waitUntilFinish();
  * }
  * </pre>
+ *
  */
 @Experimental
 public class BeamSql {
@@ -82,8 +83,14 @@ public class BeamSql {
    * table. The {@link PCollectionTuple} contains the mapping from {@code table names} to
    * {@code PCollection<BeamSqlRow>}, each representing an input table.
    *
-   * <p>It is an error to apply a {@link PCollectionTuple} missing any {@code table names}
-   * referenced within the query.
+   * <ul>
+   * <li>If the sql query only uses a subset of tables from the upstream {@link PCollectionTuple},
+   *     this is valid;</li>
+   * <li>If the sql query references a table not included in the upstream {@link PCollectionTuple},
+   *     an {@code IllegalStateException} is thrown during query validation;</li>
+   * <li>Always, tables from the upstream {@link PCollectionTuple} are only valid in the scope
+   *     of the current query call.</li>
+   * </ul>
    */
   public static QueryTransform query(String sqlQuery) {
     return QueryTransform.builder()
@@ -100,7 +107,7 @@ public class BeamSql {
    *
    * <p>Make sure to query it from a static table name <em>PCOLLECTION</em>.
    */
-  public static SimpleQueryTransform simpleQuery(String sqlQuery) throws Exception {
+  public static SimpleQueryTransform simpleQuery(String sqlQuery) {
     return SimpleQueryTransform.builder()
         .setSqlEnv(new BeamSqlEnv())
         .setSqlQuery(sqlQuery)
@@ -109,6 +116,9 @@ public class BeamSql {
 
   /**
    * A {@link PTransform} representing an execution plan for a SQL query.
+   *
+   * <p>The table names in the input {@code PCollectionTuple} are only valid during the current
+   * query.
    */
   @AutoValue
   public abstract static class QueryTransform extends
