@@ -54,7 +54,7 @@ public class GraphPlannerTest {
     GraphConverter graphConverter = new GraphConverter(context);
     p.traverseTopologically(graphConverter);
 
-    GraphPlanner planner = new GraphPlanner();
+    GraphPlanner planner = new GraphPlanner(options);
     Graphs.FusedGraph fusedGraph = new Graphs.FusedGraph(context.getInitGraph());
     fusedGraph = planner.plan(fusedGraph);
 

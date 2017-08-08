@@ -19,43 +19,24 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.hadoop.conf.Configuration;
 
 /**
- * A Read.Bounded place holder {@link Operation} during pipeline translation.
+ * Operation that reads from {@link BoundedSource}.
  */
-class SourceOperation<T> extends Operation<T> {
+public class SourceReadOperation extends ReadOperation {
   private final TaggedSource source;
 
-  SourceOperation(BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
-    super(1);
+  SourceReadOperation(BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
     checkNotNull(boundedSource, "boundedSource");
     checkNotNull(tupleTag, "tupleTag");
     this.source = TaggedSource.of(boundedSource, tupleTag);
   }
 
   @Override
-  public void process(WindowedValue elem) {
-    throw new IllegalStateException(
-        String.format("%s should not in execution graph.", this.getClass().getSimpleName()));
-  }
-
-  TaggedSource getTaggedSource() {
+  TaggedSource getTaggedSource(Configuration conf) {
     return source;
-  }
-
-  @AutoValue
-  abstract static class TaggedSource implements Serializable {
-    abstract BoundedSource<?> getSource();
-    abstract TupleTag<?> getTag();
-
-    static TaggedSource of(BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
-      return new org.apache.beam.runners.mapreduce.translation
-          .AutoValue_SourceOperation_TaggedSource(boundedSource, tupleTag);
-    }
   }
 }

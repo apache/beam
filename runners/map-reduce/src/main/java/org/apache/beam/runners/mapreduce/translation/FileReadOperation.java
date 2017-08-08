@@ -44,29 +44,41 @@ import org.apache.hadoop.io.SequenceFile;
 /**
  * Operation that reads from files.
  */
-public class FileReadOperation<T> extends SourceOperation<WindowedValue<T>> {
+public class FileReadOperation<T> extends ReadOperation<WindowedValue<T>> {
+
+  private final String fileName;
+  private final Coder<?> coder;
+  private final TupleTag<?> tupleTag;
 
   public FileReadOperation(
-      int producerStageId,
       String fileName,
       Coder<T> coder,
       TupleTag<?> tupleTag) {
-    super(new FileBoundedSource<>(producerStageId, fileName, coder), tupleTag);
+    super();
+    this.fileName = checkNotNull(fileName, "fileName");
+    this.coder = checkNotNull(coder, "coder");
+    this.tupleTag = checkNotNull(tupleTag, "tupleTag");
+  }
+
+  @Override
+  TaggedSource getTaggedSource(Configuration conf) {
+    return TaggedSource.of(
+        new FileBoundedSource<>(fileName, coder, new SerializableConfiguration(conf)),
+        tupleTag);
   }
 
   private static class FileBoundedSource<T> extends BoundedSource<WindowedValue<T>> {
 
-    private final int producerStageId;
     private final String fileName;
     private final Coder<WindowedValue<T>> coder;
+    private final SerializableConfiguration conf;
 
-    FileBoundedSource(int producerStageId, String fileName, Coder<T> coder) {
-      this.producerStageId = producerStageId;
+    FileBoundedSource(String fileName, Coder<T> coder, SerializableConfiguration conf) {
       this.fileName = checkNotNull(fileName, "fileName");
       checkNotNull(coder, "coder");
       this.coder = WindowedValue.getFullCoder(
           coder, WindowingStrategy.globalDefault().getWindowFn().windowCoder());
-
+      this.conf = checkNotNull(conf, "conf");
     }
 
     @Override
@@ -84,18 +96,15 @@ public class FileReadOperation<T> extends SourceOperation<WindowedValue<T>> {
     @Override
     public BoundedReader<WindowedValue<T>> createReader(PipelineOptions options)
         throws IOException {
-      Path pattern = new Path(String.format("/tmp/mapreduce/stage-2/%s*", fileName));
-      // TODO: use config from the job.
-      Configuration conf = new Configuration();
-      conf.set(
-          "io.serializations",
-          "org.apache.hadoop.io.serializer.WritableSerialization,"
-              + "org.apache.hadoop.io.serializer.JavaSerialization");
-      FileSystem fs = pattern.getFileSystem(conf);
+      Path pattern = new Path(
+          ConfigurationUtils.getResourceIdForOutput(fileName, conf.getConf()) + "*");
+
+      FileSystem fs = pattern.getFileSystem(conf.getConf());
       FileStatus[] files = fs.globStatus(pattern);
+
       Queue<SequenceFile.Reader> readers = new LinkedList<>();
       for (FileStatus f : files) {
-        readers.add(new SequenceFile.Reader(fs, f.getPath(), conf));
+        readers.add(new SequenceFile.Reader(fs, f.getPath(), conf.getConf()));
       }
       return new Reader<>(this, readers, coder);
     }

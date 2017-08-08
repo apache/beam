@@ -20,10 +20,14 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Maps;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -40,8 +44,10 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
   protected final SerializedPipelineOptions options;
   protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
-  private final List<Graphs.Tag> sideInputTags;
   protected final WindowingStrategy<?, ?> windowingStrategy;
+  private final List<Graphs.Tag> sideInputTags;
+  private Map<TupleTag<?>, String> tupleTagToFilePath;
+
 
   protected DoFnInvoker<InputT, OutputT> doFnInvoker;
   private DoFnRunner<InputT, OutputT> fnRunner;
@@ -56,8 +62,8 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     this.options = new SerializedPipelineOptions(checkNotNull(options, "options"));
     this.mainOutputTag = checkNotNull(mainOutputTag, "mainOutputTag");
     this.sideOutputTags = checkNotNull(sideOutputTags, "sideOutputTags");
-    this.sideInputTags = checkNotNull(sideInputTags, "sideInputTags");
     this.windowingStrategy = checkNotNull(windowingStrategy, "windowingStrategy");
+    this.sideInputTags = checkNotNull(sideInputTags, "sideInputTags");
   }
 
   /**
@@ -73,10 +79,16 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
 
+    Map<TupleTag<?>, Coder<?>> tupleTagToCoder = Maps.newHashMap();
+    for (Graphs.Tag tag : sideInputTags) {
+      tupleTagToCoder.put(tag.getTupleTag(), tag.getCoder());
+    }
     fnRunner = DoFnRunners.simpleRunner(
         options.getPipelineOptions(),
         getDoFn(),
-        new FileSideInputReader(sideInputTags),
+        sideInputTags.isEmpty()
+            ? NullSideInputReader.empty() :
+            new FileSideInputReader(tupleTagToFilePath, tupleTagToCoder, getConf().getConf()),
         createOutputManager(),
         mainOutputTag,
         sideOutputTags,
@@ -98,6 +110,14 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     fnRunner.finishBundle();
     doFnInvoker.invokeTeardown();
     super.finish();
+  }
+
+  public void setupSideInput(Map<TupleTag<?>, String> tupleTagToFilePath) {
+    this.tupleTagToFilePath = checkNotNull(tupleTagToFilePath, "tupleTagToFilePath");
+  }
+
+  public List<Graphs.Tag> getSideInputTags() {
+    return sideInputTags;
   }
 
   @Override

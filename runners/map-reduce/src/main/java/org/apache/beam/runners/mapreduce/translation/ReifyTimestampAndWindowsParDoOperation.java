@@ -18,8 +18,6 @@
 package org.apache.beam.runners.mapreduce.translation;
 
 import com.google.common.collect.ImmutableList;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

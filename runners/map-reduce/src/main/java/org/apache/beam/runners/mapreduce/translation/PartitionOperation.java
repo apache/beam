@@ -33,23 +33,17 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class PartitionOperation extends Operation<KV<TupleTag<?>, Object>> {
 
-  private final List<SourceOperation.TaggedSource> sources;
+  private final List<ReadOperation> readOperations;
   private final List<TupleTag<?>> tupleTags;
 
-  public PartitionOperation(List<SourceOperation.TaggedSource> sources) {
-    super(sources.size());
-    this.sources = checkNotNull(sources, "sources");
-    this.tupleTags = FluentIterable.from(sources)
-        .transform(new Function<SourceOperation.TaggedSource, TupleTag<?>>() {
-          @Override
-          public TupleTag<?> apply(SourceOperation.TaggedSource input) {
-            return input.getTag();
-          }})
-        .toList();
+  public PartitionOperation(List<ReadOperation> readOperations, List<TupleTag<?>> tupleTags) {
+    super(readOperations.size());
+    this.readOperations = checkNotNull(readOperations, "readOperations");
+    this.tupleTags = checkNotNull(tupleTags, "tupleTags");
   }
 
-  public List<SourceOperation.TaggedSource> getTaggedSources() {
-    return sources;
+  public List<ReadOperation> getReadOperations() {
+    return readOperations;
   }
 
   @Override

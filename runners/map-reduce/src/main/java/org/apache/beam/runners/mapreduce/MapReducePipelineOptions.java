@@ -43,9 +43,10 @@ public interface MapReducePipelineOptions extends PipelineOptions {
   Class<?> getJarClass();
   void setJarClass(Class<?> jarClass);
 
-  @Description("The jar class of the user Beam program.")
-  String getTmpDir();
-  void setTmpDir(String tmpDir);
+  @Description("The directory for files output.")
+  @Default.String("/tmp/mapreduce/")
+  String getFileOutputDir();
+  void setFileOutputDir(String fileOutputDir);
 
   class JarClassInstanceFactory implements DefaultValueFactory<Class<?>> {
     @Override

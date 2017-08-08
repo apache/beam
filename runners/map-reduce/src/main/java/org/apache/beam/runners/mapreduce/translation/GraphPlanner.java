@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.Coder;
+import java.util.Map;
+import org.apache.beam.runners.mapreduce.MapReducePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -37,8 +36,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 public class GraphPlanner {
 
+  private final MapReducePipelineOptions options;
 
-  public GraphPlanner() {
+  public GraphPlanner(MapReducePipelineOptions options) {
+    this.options = checkNotNull(options, "options");
   }
 
   public Graphs.FusedGraph plan(Graphs.FusedGraph fusedGraph) {
@@ -54,7 +55,7 @@ public class GraphPlanner {
           continue;
         }
         String tagName = tag.getName();
-        String fileName = tagName.replaceAll("[^A-Za-z0-9]", "0");
+        String fileName = ConfigurationUtils.toFileName(tagName);
 
         // TODO: should not hard-code windows coder.
         WindowedValue.WindowedValueCoder<?> writeValueCoder = WindowedValue.getFullCoder(
@@ -77,11 +78,13 @@ public class GraphPlanner {
             consumer.addEdge(readOutput, step);
           }
           consumer.removeTag(tag);
+
+          String filePath = ConfigurationUtils.getFileOutputPath(
+              options.getFileOutputDir(), fusedStep.getStageId(), fileName);
           consumer.addStep(
               Graphs.Step.of(
                   readStepName,
-                  new FileReadOperation(
-                      fusedStep.getStageId(), fileName, tag.getCoder(), tag.getTupleTag())),
+                  new FileReadOperation(filePath, tag.getCoder(), tag.getTupleTag())),
               ImmutableList.<Graphs.Tag>of(),
               ImmutableList.of(readOutput));
         }
@@ -92,13 +95,13 @@ public class GraphPlanner {
     for (final Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
       List<Graphs.Step> readSteps = fusedStep.getStartSteps();
 
-      List<SourceOperation.TaggedSource> sources = new ArrayList<>();
+      List<ReadOperation> readOperations = new ArrayList<>();
       List<Graphs.Tag> readOutTags = new ArrayList<>();
       List<TupleTag<?>> readOutTupleTags = new ArrayList<>();
       StringBuilder partitionStepName = new StringBuilder();
       for (Graphs.Step step : readSteps) {
-        checkState(step.getOperation() instanceof SourceOperation);
-        sources.add(((SourceOperation) step.getOperation()).getTaggedSource());
+        checkState(step.getOperation() instanceof ReadOperation);
+        readOperations.add(((ReadOperation) step.getOperation()));
         Graphs.Tag tag = Iterables.getOnlyElement(fusedStep.getOutputTags(step));
         readOutTags.add(tag);
         readOutTupleTags.add(tag.getTupleTag());
@@ -110,9 +113,33 @@ public class GraphPlanner {
         partitionStepName.deleteCharAt(partitionStepName.length() - 1);
       }
 
-      Graphs.Step partitionStep =
-          Graphs.Step.of(partitionStepName.toString(), new PartitionOperation(sources));
+      Graphs.Step partitionStep = Graphs.Step.of(
+          partitionStepName.toString(), new PartitionOperation(readOperations, readOutTupleTags));
       fusedStep.addStep(partitionStep, ImmutableList.<Graphs.Tag>of(), readOutTags);
+    }
+
+    // Setup side inputs
+    for (final Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
+      for (Graphs.Step step : fusedStep.getSteps()) {
+        if (!(step.getOperation() instanceof ParDoOperation)) {
+          continue;
+        }
+        ParDoOperation parDo = (ParDoOperation) step.getOperation();
+        List<Graphs.Tag> sideInputTags = parDo.getSideInputTags();
+        if (sideInputTags.size() == 0) {
+          continue;
+        }
+        Map<TupleTag<?>, String> tupleTagToFilePath = Maps.newHashMap();
+        for (Graphs.Tag sideInTag : sideInputTags) {
+          tupleTagToFilePath.put(
+              sideInTag.getTupleTag(),
+              ConfigurationUtils.getFileOutputPath(
+                  options.getFileOutputDir(),
+                  fusedGraph.getProducer(sideInTag).getStageId(),
+                  ConfigurationUtils.toFileName(sideInTag.getName())));
+        }
+        parDo.setupSideInput(tupleTagToFilePath);
+      }
     }
     return fusedGraph;
   }

@@ -37,7 +37,7 @@ public class ViewTranslator extends TransformTranslator.Default<View.CreatePColl
     WindowingStrategy<?, ?> windowingStrategy = inPCollection.getWindowingStrategy();
 
     Graphs.Tag outTag = Iterables.getOnlyElement(userGraphContext.getOutputTags());
-    String fileName = outTag.getName().replaceAll("[^A-Za-z0-9]", "0");
+    String fileName = ConfigurationUtils.toFileName(outTag.getName());
 
     FileWriteOperation<?> operation = new FileWriteOperation<>(
         fileName,

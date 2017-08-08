@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,22 +48,23 @@ import org.apache.hadoop.io.SequenceFile;
  */
 public class FileSideInputReader implements SideInputReader {
 
-  private final Map<TupleTag<?>, String> tupleTagToFileName;
+  private final Map<TupleTag<?>, String> tupleTagToFilePath;
   private final Map<TupleTag<?>, Coder<?>> tupleTagToCoder;
+  private final Configuration conf;
 
-  public FileSideInputReader(List<Graphs.Tag> sideInputTags) {
-    this.tupleTagToFileName = Maps.newHashMap();
-    this.tupleTagToCoder = Maps.newHashMap();
-    for (Graphs.Tag tag : sideInputTags) {
-      tupleTagToFileName.put(tag.getTupleTag(), toFileName(tag.getName()));
-      tupleTagToCoder.put(tag.getTupleTag(), tag.getCoder());
-    }
+  public FileSideInputReader(
+      Map<TupleTag<?>, String> tupleTagToFilePath,
+      Map<TupleTag<?>, Coder<?>> tupleTagToCoder,
+      Configuration conf) {
+    this.tupleTagToFilePath = checkNotNull(tupleTagToFilePath, "tupleTagToFilePath");
+    this.tupleTagToCoder = checkNotNull(tupleTagToCoder, "tupleTagToCoder");
+    this.conf = checkNotNull(conf, "conf");
   }
 
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
-    String fileName = tupleTagToFileName.get(view.getTagInternal());
+    String filePath = tupleTagToFilePath.get(view.getTagInternal());
     IterableCoder<WindowedValue<?>> coder =
         (IterableCoder<WindowedValue<?>>) tupleTagToCoder.get(view.getTagInternal());
     Coder<WindowedValue<?>> elemCoder = coder.getElemCoder();
@@ -70,16 +72,11 @@ public class FileSideInputReader implements SideInputReader {
     final BoundedWindow sideInputWindow =
         view.getWindowMappingFn().getSideInputWindow(window);
 
-    Path pattern = new Path(String.format("/tmp/mapreduce/stage-1/%s*", fileName));
-    Configuration conf = new Configuration();
-    conf.set(
-        "io.serializations",
-        "org.apache.hadoop.io.serializer.WritableSerialization,"
-            + "org.apache.hadoop.io.serializer.JavaSerialization");
+    Path pattern = new Path(filePath + "*");
     try {
-      FileSystem fs;
-      fs = pattern.getFileSystem(conf);
+      FileSystem fs = pattern.getFileSystem(conf);
       FileStatus[] files = fs.globStatus(pattern);
+      // TODO: handle empty views which may result in no files case.
       SequenceFile.Reader reader = new SequenceFile.Reader(fs, files[0].getPath(), conf);
 
       List<WindowedValue<?>> availableSideInputs = new ArrayList<>();
@@ -114,15 +111,11 @@ public class FileSideInputReader implements SideInputReader {
 
   @Override
   public <T> boolean contains(PCollectionView<T> view) {
-    return tupleTagToFileName.containsKey(view.getTagInternal());
+    return tupleTagToFilePath.containsKey(view.getTagInternal());
   }
 
   @Override
   public boolean isEmpty() {
-    return tupleTagToFileName.isEmpty();
-  }
-
-  private String toFileName(String tagName) {
-    return tagName.replaceAll("[^A-Za-z0-9]", "0");
+    return tupleTagToFilePath.isEmpty();
   }
 }

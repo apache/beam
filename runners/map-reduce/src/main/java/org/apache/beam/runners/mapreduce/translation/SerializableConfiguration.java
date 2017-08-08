@@ -17,21 +17,36 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import org.apache.beam.sdk.io.Read;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import org.apache.hadoop.conf.Configuration;
 
 /**
- * Translates a {@link Read.Bounded} to a {@link ReadOperation}.
+ * A {@link Serializable} {@link Configuration}.
  */
-class ReadBoundedTranslator<T> extends TransformTranslator.Default<Read.Bounded<T>> {
-  @Override
-  public void translateNode(Read.Bounded transform, TranslationContext context) {
-    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+class SerializableConfiguration implements Serializable {
 
-    ReadOperation operation =
-        new SourceReadOperation(transform.getSource(), userGraphContext.getOnlyOutputTag());
-    context.addInitStep(
-        Graphs.Step.of(userGraphContext.getStepName(), operation),
-        userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags());
+  private transient Configuration conf;
+
+  SerializableConfiguration(Configuration conf) {
+    this.conf = checkNotNull(conf, "conf");
+  }
+
+  Configuration getConf() {
+    return conf;
+  }
+
+  private void writeObject(ObjectOutputStream out) throws IOException {
+    out.defaultWriteObject();
+    conf.write(out);
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException {
+    conf = new Configuration();
+    conf.readFields(in);
   }
 }

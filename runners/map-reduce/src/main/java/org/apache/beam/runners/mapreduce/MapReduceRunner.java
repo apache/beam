@@ -69,18 +69,18 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
     Graphs.FusedGraph fusedGraph = new Graphs.FusedGraph(context.getInitGraph());
     LOG.info(DotfileWriter.toDotfile(fusedGraph));
 
-    GraphPlanner planner = new GraphPlanner();
+    GraphPlanner planner = new GraphPlanner(options);
     fusedGraph = planner.plan(fusedGraph);
 
     LOG.info(DotfileWriter.toDotfile(fusedGraph));
-
-    Configuration config = new Configuration();
-    config.set("keep.failed.task.files", "true");
 
     fusedGraph.getFusedSteps();
 
     int stageId = 0;
     for (Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
+      Configuration config = new Configuration();
+      config.set("keep.failed.task.files", "true");
+
       JobPrototype jobPrototype = JobPrototype.create(stageId++, fusedStep, options);
       LOG.info("Running job-{}.", stageId);
       LOG.info(DotfileWriter.toDotfile(fusedStep));

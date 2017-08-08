@@ -20,15 +20,17 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.runners.mapreduce.MapReducePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -49,23 +51,23 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 public class JobPrototype {
 
   public static JobPrototype create(
-      int stageId, Graphs.FusedStep fusedStep, PipelineOptions options) {
+      int stageId, Graphs.FusedStep fusedStep, MapReducePipelineOptions options) {
     return new JobPrototype(stageId, fusedStep, options);
   }
 
   private final int stageId;
   private final Graphs.FusedStep fusedStep;
-  private final PipelineOptions options;
+  private final MapReducePipelineOptions options;
 
-  private JobPrototype(int stageId, Graphs.FusedStep fusedStep, PipelineOptions options) {
+  private JobPrototype(int stageId, Graphs.FusedStep fusedStep, MapReducePipelineOptions options) {
     this.stageId = stageId;
     this.fusedStep = checkNotNull(fusedStep, "fusedStep");
     this.options = checkNotNull(options, "options");
   }
 
-  public Job build(Class<?> jarClass, Configuration conf) throws IOException {
-    Job job = new Job(conf);
-    conf = job.getConfiguration();
+  public Job build(Class<?> jarClass, Configuration initConf) throws IOException {
+    Job job = new Job(initConf);
+    final Configuration conf = job.getConfiguration();
     job.setJarByClass(jarClass);
     conf.set(
         "io.serializations",
@@ -75,17 +77,26 @@ public class JobPrototype {
     //TODO: config out dir with PipelineOptions.
     conf.set(
         FileOutputFormat.OUTDIR,
-        String.format("/tmp/mapreduce/stage-%d", fusedStep.getStageId()));
+        ConfigurationUtils.getFileOutputDir(options.getFileOutputDir(), fusedStep.getStageId()));
 
     // Setup BoundedSources in BeamInputFormat.
     Graphs.Step startStep = Iterables.getOnlyElement(fusedStep.getStartSteps());
     checkState(startStep.getOperation() instanceof PartitionOperation);
     PartitionOperation partitionOperation = (PartitionOperation) startStep.getOperation();
 
+    ArrayList<ReadOperation.TaggedSource> taggedSources = new ArrayList<>();
+    taggedSources.addAll(FluentIterable.from(partitionOperation
+        .getReadOperations())
+        .transform(new Function<ReadOperation, ReadOperation.TaggedSource>() {
+          @Override
+          public ReadOperation.TaggedSource apply(ReadOperation operation) {
+            return operation.getTaggedSource(conf);
+          }})
+        .toList());
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_BOUNDED_SOURCE,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
-            new ArrayList<>(partitionOperation.getTaggedSources()))));
+            taggedSources)));
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_PIPELINE_OPTIONS,
         Base64.encodeBase64String(SerializableUtils.serializeToByteArray(

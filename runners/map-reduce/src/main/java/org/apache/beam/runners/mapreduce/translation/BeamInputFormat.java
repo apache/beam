@@ -53,7 +53,7 @@ public class BeamInputFormat<T> extends InputFormat {
 
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES = 5 * 1000 * 1000;
 
-  private List<SourceOperation.TaggedSource> sources;
+  private List<ReadOperation.TaggedSource> sources;
   private SerializedPipelineOptions options;
 
   public BeamInputFormat() {
@@ -68,7 +68,7 @@ public class BeamInputFormat<T> extends InputFormat {
         || Strings.isNullOrEmpty(serializedPipelineOptions)) {
       return ImmutableList.of();
     }
-    sources = (List<SourceOperation.TaggedSource>) SerializableUtils.deserializeFromByteArray(
+    sources = (List<ReadOperation.TaggedSource>) SerializableUtils.deserializeFromByteArray(
         Base64.decodeBase64(serializedBoundedSource), "TaggedSources");
     options = ((SerializedPipelineOptions) SerializableUtils.deserializeFromByteArray(
         Base64.decodeBase64(serializedPipelineOptions), "SerializedPipelineOptions"));
@@ -77,17 +77,17 @@ public class BeamInputFormat<T> extends InputFormat {
 
       return FluentIterable.from(sources)
           .transformAndConcat(
-              new Function<SourceOperation.TaggedSource, Iterable<SourceOperation.TaggedSource>>() {
+              new Function<ReadOperation.TaggedSource, Iterable<ReadOperation.TaggedSource>>() {
                 @Override
-                public Iterable<SourceOperation.TaggedSource> apply(
-                    final SourceOperation.TaggedSource taggedSource) {
+                public Iterable<ReadOperation.TaggedSource> apply(
+                    final ReadOperation.TaggedSource taggedSource) {
                   try {
                     return FluentIterable.from(taggedSource.getSource().split(
                         DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options.getPipelineOptions()))
-                        .transform(new Function<BoundedSource<?>, SourceOperation.TaggedSource>() {
+                        .transform(new Function<BoundedSource<?>, ReadOperation.TaggedSource>() {
                           @Override
-                          public SourceOperation.TaggedSource apply(BoundedSource<?> input) {
-                            return SourceOperation.TaggedSource.of(input, taggedSource.getTag());
+                          public ReadOperation.TaggedSource apply(BoundedSource<?> input) {
+                            return ReadOperation.TaggedSource.of(input, taggedSource.getTag());
                           }});
                   } catch (Exception e) {
                     Throwables.throwIfUnchecked(e);
@@ -95,9 +95,9 @@ public class BeamInputFormat<T> extends InputFormat {
                   }
                 }
               })
-          .transform(new Function<SourceOperation.TaggedSource, InputSplit>() {
+          .transform(new Function<ReadOperation.TaggedSource, InputSplit>() {
             @Override
-            public InputSplit apply(SourceOperation.TaggedSource taggedSource) {
+            public InputSplit apply(ReadOperation.TaggedSource taggedSource) {
               return new BeamInputSplit(taggedSource.getSource(), options, taggedSource.getTag());
             }})
           .toList();

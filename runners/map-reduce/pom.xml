@@ -113,6 +113,11 @@
       <artifactId>beam-runners-core-construction-java</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
+    </dependency>
+
     <!-- Module dependencies -->    
     <dependency>
         <groupId>com.google.auto.service</groupId>
