@@ -27,7 +27,7 @@ import org.slf4j.Logger;
  * Static utility methods for wrapping a Flink job result as a
  * {@link org.apache.beam.sdk.PipelineResult}.
  */
-public class FlinkRunnerResultUtil {
+class FlinkRunnerResultUtil {
 
   static PipelineResult wrapFlinkRunnerResult(Logger log, JobExecutionResult jobResult) {
     if (jobResult instanceof DetachedEnvironment.DetachedJobExecutionResult) {
@@ -38,7 +38,7 @@ public class FlinkRunnerResultUtil {
       Map<String, Object> accumulators = jobResult.getAllAccumulatorResults();
       if (accumulators != null && !accumulators.isEmpty()) {
         log.info("Final accumulator values:");
-        for (Map.Entry<String, Object> entry : jobResult.getAllAccumulatorResults().entrySet()) {
+        for (Map.Entry<String, Object> entry : accumulators.entrySet()) {
           log.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }

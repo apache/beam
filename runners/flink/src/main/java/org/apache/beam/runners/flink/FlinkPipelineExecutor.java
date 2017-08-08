@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 
