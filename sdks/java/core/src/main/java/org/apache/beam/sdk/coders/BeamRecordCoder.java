@@ -70,7 +70,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   public BeamRecord decode(InputStream inStream) throws CoderException, IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
-    List<Object> fieldValues = new ArrayList<>();
+    List<Object> fieldValues = new ArrayList<>(recordType.size());
     for (int idx = 0; idx < recordType.size(); ++idx) {
       if (nullFields.get(idx)) {
         fieldValues.add(null);

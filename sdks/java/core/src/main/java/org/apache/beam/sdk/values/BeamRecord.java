@@ -39,7 +39,7 @@ public class BeamRecord implements Serializable {
 
   public BeamRecord(BeamRecordType dataType, List<Object> rawdataValues) {
     this.dataType = dataType;
-    this.dataValues = new ArrayList<>();
+    this.dataValues = new ArrayList<>(dataType.size());
 
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);

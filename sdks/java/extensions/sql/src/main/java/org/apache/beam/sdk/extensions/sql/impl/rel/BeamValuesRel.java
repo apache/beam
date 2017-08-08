@@ -65,7 +65,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
     BeamSqlRecordType beamSQLRowType = CalciteUtils.toBeamRowType(this.getRowType());
     for (ImmutableList<RexLiteral> tuple : tuples) {
-      List<Object> fieldsValue = new ArrayList<>();
+      List<Object> fieldsValue = new ArrayList<>(beamSQLRowType.size());
       for (int i = 0; i < tuple.size(); i++) {
         fieldsValue.add(BeamTableUtils.autoCastField(
             beamSQLRowType.getFieldsType().get(i), tuple.get(i).getValue()));
