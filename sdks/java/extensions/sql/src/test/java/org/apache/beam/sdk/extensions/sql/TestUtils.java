@@ -184,11 +184,7 @@ public class TestUtils {
     int fieldCount = type.size();
 
     for (int i = 0; i < args.size(); i += fieldCount) {
-      BeamRecord row = new BeamRecord(type);
-      for (int j = 0; j < fieldCount; j++) {
-        row.addField(j, args.get(i + j));
-      }
-      rows.add(row);
+      rows.add(new BeamRecord(type, args.subList(i, i + fieldCount)));
     }
     return rows;
   }

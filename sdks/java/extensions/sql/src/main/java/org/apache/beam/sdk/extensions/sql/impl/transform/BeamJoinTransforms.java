@@ -66,12 +66,12 @@ public class BeamJoinTransforms {
       BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
 
       // build the row
-      BeamRecord row = new BeamRecord(type);
+      List<Object> fieldValues = new ArrayList<>();
       for (int i = 0; i < joinColumns.size(); i++) {
-        row.addField(i, input
+        fieldValues.add(input
             .getFieldValue(isLeft ? joinColumns.get(i).getKey() : joinColumns.get(i).getValue()));
       }
-      return KV.of(row, input);
+      return KV.of(new BeamRecord(type, fieldValues), input);
     }
   }
 
@@ -154,16 +154,8 @@ public class BeamJoinTransforms {
     types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldsType());
     BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
 
-    BeamRecord row = new BeamRecord(type);
-    // build the row
-    for (int i = 0; i < leftRow.size(); i++) {
-      row.addField(i, leftRow.getFieldValue(i));
-    }
-
-    for (int i = 0; i < rightRow.size(); i++) {
-      row.addField(i + leftRow.size(), rightRow.getFieldValue(i));
-    }
-
-    return row;
+    List<Object> fieldValues = new ArrayList<>(leftRow.getDataValues());
+    fieldValues.addAll(rightRow.getDataValues());
+    return new BeamRecord(type, fieldValues);
   }
 }
