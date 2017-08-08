@@ -58,7 +58,7 @@ class WordCountIT(unittest.TestCase):
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
     # Register clean up before pipeline execution
-    self.addCleanup(delete_files, output + '*')
+    self.addCleanup(delete_files, [output + '*'])
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
