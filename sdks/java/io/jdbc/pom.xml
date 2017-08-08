@@ -126,7 +126,7 @@
                 <argument>-beam_it_profile=io-it</argument>
                 <argument>-beam_location=${beamRootProjectDir}</argument>
                 <argument>-beam_prebuilt=true</argument>
-                <argument>maven_binary=${mvnBinary}</argument>
+                <argument>-maven_binary=${mvnBinary}</argument>
                 <argument>-beam_sdk=java</argument>
                 <argument>-kubeconfig=${kubeconfig}</argument>
                 <argument>-kubectl=${kubectl}</argument>
