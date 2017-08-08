@@ -95,7 +95,7 @@ public class FileReadOperation<T> extends SourceOperation<WindowedValue<T>> {
       FileStatus[] files = fs.globStatus(pattern);
       Queue<SequenceFile.Reader> readers = new LinkedList<>();
       for (FileStatus f : files) {
-        readers.add(new SequenceFile.Reader(fs, files[0].getPath(), conf));
+        readers.add(new SequenceFile.Reader(fs, f.getPath(), conf));
       }
       return new Reader<>(this, readers, coder);
     }

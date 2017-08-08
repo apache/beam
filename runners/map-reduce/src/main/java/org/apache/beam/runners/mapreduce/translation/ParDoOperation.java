@@ -24,7 +24,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -41,6 +40,7 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
   protected final SerializedPipelineOptions options;
   protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
+  private final List<Graphs.Tag> sideInputTags;
   protected final WindowingStrategy<?, ?> windowingStrategy;
 
   protected DoFnInvoker<InputT, OutputT> doFnInvoker;
@@ -50,11 +50,13 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
+      List<Graphs.Tag> sideInputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
     super(1 + sideOutputTags.size());
     this.options = new SerializedPipelineOptions(checkNotNull(options, "options"));
     this.mainOutputTag = checkNotNull(mainOutputTag, "mainOutputTag");
     this.sideOutputTags = checkNotNull(sideOutputTags, "sideOutputTags");
+    this.sideInputTags = checkNotNull(sideInputTags, "sideInputTags");
     this.windowingStrategy = checkNotNull(windowingStrategy, "windowingStrategy");
   }
 
@@ -74,7 +76,7 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     fnRunner = DoFnRunners.simpleRunner(
         options.getPipelineOptions(),
         getDoFn(),
-        NullSideInputReader.empty(),
+        new FileSideInputReader(sideInputTags),
         createOutputManager(),
         mainOutputTag,
         sideOutputTags,

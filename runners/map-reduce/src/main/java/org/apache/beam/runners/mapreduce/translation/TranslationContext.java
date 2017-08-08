@@ -136,6 +136,31 @@ public class TranslationContext {
           .toList();
     }
 
+    public List<Graphs.Tag> getSideInputTags() {
+      if (!(currentNode.getTransform() instanceof ParDo.MultiOutput)) {
+        return ImmutableList.of();
+      }
+      return FluentIterable.from(((ParDo.MultiOutput) currentNode.getTransform()).getSideInputs())
+          .transform(new Function<PValue, Graphs.Tag>() {
+            @Override
+            public Graphs.Tag apply(PValue pValue) {
+              checkState(
+                  pValueToTupleTag.containsKey(pValue),
+                  String.format("Failed to find TupleTag for pValue: %s.", pValue));
+              if (pValue instanceof PCollection) {
+                PCollection<?> pc = (PCollection<?>) pValue;
+                return Graphs.Tag.of(
+                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
+              } else {
+                return Graphs.Tag.of(
+                    pValue.getName(),
+                    pValueToTupleTag.get(pValue),
+                    ((PCollectionView) pValue).getCoderInternal());
+              }
+            }})
+          .toList();
+    }
+
     public List<Graphs.Tag> getOutputTags() {
       if (currentNode.getTransform() instanceof View.CreatePCollectionView) {
         PCollectionView view = ((View.CreatePCollectionView) currentNode.getTransform()).getView();

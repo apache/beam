@@ -20,6 +20,7 @@ package org.apache.beam.runners.mapreduce.translation;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -229,7 +230,7 @@ public class Graphs {
   }
 
   @AutoValue
-  public abstract static class Tag extends Graph.AbstractTag {
+  public abstract static class Tag extends Graph.AbstractTag implements Serializable {
     abstract String getName();
     abstract TupleTag<?> getTupleTag();
     abstract Coder<?> getCoder();

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.mapreduce.translation;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -36,7 +37,8 @@ public class ReifyTimestampAndWindowsParDoOperation extends ParDoOperation {
       PipelineOptions options,
       WindowingStrategy<?, ?> windowingStrategy,
       Graphs.Tag outTag) {
-    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(), windowingStrategy);
+    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(),
+        ImmutableList.<Graphs.Tag>of(), windowingStrategy);
   }
 
   @Override

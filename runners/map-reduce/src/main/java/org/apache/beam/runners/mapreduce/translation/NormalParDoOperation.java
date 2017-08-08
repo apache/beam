@@ -37,8 +37,9 @@ public class NormalParDoOperation<InputT, OutputT> extends ParDoOperation<InputT
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
+      List<Graphs.Tag> sideInputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, mainOutputTag, sideOutputTags, windowingStrategy);
+    super(options, mainOutputTag, sideOutputTags, sideInputTags, windowingStrategy);
     this.doFn = checkNotNull(doFn, "doFn");
   }
 
