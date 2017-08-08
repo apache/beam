@@ -36,11 +36,9 @@ class ParDoTranslator<InputT, OutputT>
         transform.getMainOutputTag(),
         transform.getAdditionalOutputTags().getAll(),
         ((PCollection) userGraphContext.getInput()).getWindowingStrategy());
-
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        operation,
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

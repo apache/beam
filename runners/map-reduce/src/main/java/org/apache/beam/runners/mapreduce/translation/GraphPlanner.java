@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Class that optimizes the initial graph to a fused graph.
@@ -29,31 +30,47 @@ public class GraphPlanner {
   public GraphPlanner() {
   }
 
-  public Graphs.FusedGraph plan(Graph<Graphs.Step, Graphs.Tag> initGraph) {
-    Graphs.FusedGraph fusedGraph = new Graphs.FusedGraph();
-    // Convert from the list of steps to Graphs.
-    for (Graphs.Step step : Lists.reverse(initGraph.getSteps())) {
-      Graphs.FusedStep fusedStep = new Graphs.FusedStep();
-      fusedStep.addStep(step);
-      fusedGraph.addFusedStep(fusedStep);
+  public Graphs.FusedGraph plan(Graphs.FusedGraph fusedGraph) {
+    // Attach writes/reads on fusion boundaries.
+    for (Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
+      for (Graphs.Tag tag : fusedGraph.getOutputTags(fusedStep)) {
+        List<Graphs.FusedStep> consumers = fusedGraph.getConsumers(tag);
+        if (consumers.isEmpty()) {
+          continue;
+        }
+        Graphs.Step producer = fusedStep.getProducer(tag);
+        if (producer.getOperation() instanceof ViewOperation) {
+          continue;
+        }
+        String tagName = tag.getName();
+        String fileName = tagName.replaceAll("[^A-Za-z0-9]", "0");
+        fusedStep.addStep(
+            Graphs.Step.of(
+                tagName + "/Write",
+                new FileWriteOperation(fileName, tag.getCoder())),
+            ImmutableList.of(tag),
+            ImmutableList.<Graphs.Tag>of());
 
-      tryFuse(fusedGraph, fusedStep);
+        String readStepName = tagName + "/Read";
+        Graphs.Tag readOutput = Graphs.Tag.of(
+            readStepName + ".out", new TupleTag<>(), tag.getCoder());
+        for (Graphs.FusedStep consumer : consumers) {
+          // Re-direct tag to readOutput.
+          List<Graphs.Step> receivers = consumer.getConsumers(tag);
+          for (Graphs.Step step : receivers) {
+            consumer.addEdge(readOutput, step);
+          }
+          consumer.removeTag(tag);
+          consumer.addStep(
+              Graphs.Step.of(
+                  readStepName,
+                  new FileReadOperation(fusedStep.getStageId(), fileName, tag.getCoder())),
+              ImmutableList.<Graphs.Tag>of(),
+              ImmutableList.of(readOutput));
+        }
+      }
     }
+
     return fusedGraph;
-  }
-
-  private void tryFuse(Graphs.FusedGraph fusedGraph, Graphs.FusedStep fusedStep) {
-    if (fusedStep.getOutputTags().size() != 1) {
-      return;
-    }
-    Graphs.Tag outTag = Iterables.getOnlyElement(fusedStep.getOutputTags());
-    if (fusedGraph.getConsumers(outTag).size() != 1) {
-      return;
-    }
-    Graphs.FusedStep consumer = Iterables.getOnlyElement(fusedGraph.getConsumers(outTag));
-    if (fusedStep.containsGroupByKey() && consumer.containsGroupByKey()) {
-      return;
-    }
-    fusedGraph.merge(fusedStep, consumer);
   }
 }

@@ -21,46 +21,57 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 
 /**
- * {@link Operation} that materializes input for group by key.
+ * Operation that writes to files.
  */
-public class WriteOperation<T> extends Operation<T> {
+public class FileWriteOperation<T> extends Operation<T> {
 
-  private final Coder<Object> keyCoder;
-  private final Coder<Object> valueCoder;
+  private final String fileName;
+  private final Coder<WindowedValue<T>> coder;
+  private transient MultipleOutputs mos;
 
-  private transient TaskInputOutputContext<Object, Object, Object, Object> taskContext;
-
-  public WriteOperation(Coder<Object> keyCoder, Coder<Object> valueCoder) {
+  public FileWriteOperation(String fileName, Coder<T> coder) {
     super(0);
-    this.keyCoder = checkNotNull(keyCoder, "keyCoder");
-    this.valueCoder = checkNotNull(valueCoder, "valueCoder");
+    this.fileName = checkNotNull(fileName, "fileName");
+    checkNotNull(coder, "coder");
+    // TODO: should not hard-code windows coder.
+    this.coder = WindowedValue.getFullCoder(
+        coder, WindowingStrategy.globalDefault().getWindowFn().windowCoder());
   }
 
   @Override
   public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
-    this.taskContext = checkNotNull(taskContext, "taskContext");
+    this.mos = new MultipleOutputs(taskContext);
   }
 
   @Override
-  public void process(WindowedValue<T> elem) {
-    KV<?, ?> kv = (KV<?, ?>) elem.getValue();
-    try {
-      ByteArrayOutputStream keyStream = new ByteArrayOutputStream();
-      keyCoder.encode(kv.getKey(), keyStream);
+  public void process(WindowedValue<T> elem) throws IOException, InterruptedException {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    coder.encode(elem, stream);
 
-      ByteArrayOutputStream valueStream = new ByteArrayOutputStream();
-      valueCoder.encode(kv.getValue(), valueStream);
-      taskContext.write(new BytesWritable(keyStream.toByteArray()), valueStream.toByteArray());
+    mos.write(fileName, NullWritable.get(), new BytesWritable(stream.toByteArray()));
+  }
+
+  @Override
+  public void finish() {
+    try {
+      mos.close();
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);
     }
+  }
+
+  public String getFileName() {
+    return fileName;
   }
 }

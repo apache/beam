@@ -34,8 +34,9 @@ public class ReifyTimestampAndWindowsParDoOperation extends ParDoOperation {
 
   public ReifyTimestampAndWindowsParDoOperation(
       PipelineOptions options,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, new TupleTag<>(), ImmutableList.<TupleTag<?>>of(), windowingStrategy);
+      WindowingStrategy<?, ?> windowingStrategy,
+      Graphs.Tag outTag) {
+    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(), windowingStrategy);
   }
 
   @Override

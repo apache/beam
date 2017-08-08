@@ -18,6 +18,7 @@
 package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.List;
 import javax.annotation.Nullable;
@@ -26,24 +27,23 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Operation for ParDo.
  */
 public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> {
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoOperation.class);
-
   protected final SerializedPipelineOptions options;
   protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   protected final WindowingStrategy<?, ?> windowingStrategy;
 
+  protected DoFnInvoker<InputT, OutputT> doFnInvoker;
   private DoFnRunner<InputT, OutputT> fnRunner;
 
   public ParDoOperation(
@@ -65,6 +65,12 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
 
   @Override
   public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
+    super.start(taskContext);
+    DoFn<InputT, OutputT> doFn = getDoFn();
+    // Process user's setup
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    doFnInvoker.invokeSetup();
+
     fnRunner = DoFnRunners.simpleRunner(
         options.getPipelineOptions(),
         getDoFn(),
@@ -75,7 +81,6 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
         null,
         windowingStrategy);
     fnRunner.startBundle();
-    super.start(taskContext);
   }
 
   /**
@@ -83,14 +88,27 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
    */
   @Override
   public void process(WindowedValue<InputT> elem) {
-    LOG.info("elem: {}.", elem);
     fnRunner.processElement(elem);
   }
 
   @Override
   public void finish() {
-    super.finish();
     fnRunner.finishBundle();
+    doFnInvoker.invokeTeardown();
+    super.finish();
+  }
+
+  @Override
+  protected int getOutputIndex(TupleTag<?> tupleTag) {
+    if (tupleTag == mainOutputTag) {
+      return 0;
+    } else {
+      int sideIndex = sideOutputTags.indexOf(tupleTag);
+      checkState(
+          sideIndex >= 0,
+          String.format("Cannot find index for tuple tag: %s.", tupleTag));
+      return sideIndex + 1;
+    }
   }
 
   protected DoFnRunners.OutputManager createOutputManager() {
@@ -100,15 +118,10 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
   private class ParDoOutputManager implements DoFnRunners.OutputManager {
 
     @Nullable
-    private OutputReceiver getReceiverOrNull(TupleTag<?> tag) {
+    private OutputReceiver getReceiverOrNull(TupleTag<?> tupleTag) {
       List<OutputReceiver> receivers = getOutputReceivers();
-      if (tag.equals(mainOutputTag)) {
-        return receivers.get(0);
-      } else if (sideOutputTags.contains(tag)) {
-        return receivers.get(sideOutputTags.indexOf(tag) + 1);
-      } else {
-        return null;
-      }
+      int outputIndex = getOutputIndex(tupleTag);
+      return receivers.get(outputIndex);
     }
 
     @Override

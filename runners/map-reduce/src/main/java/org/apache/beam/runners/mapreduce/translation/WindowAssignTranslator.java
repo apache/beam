@@ -29,10 +29,9 @@ public class WindowAssignTranslator<T> extends TransformTranslator.Default<Windo
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
     WindowAssignOperation<T, ?> operation = new WindowAssignOperation<>(transform.getWindowFn());
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        operation,
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

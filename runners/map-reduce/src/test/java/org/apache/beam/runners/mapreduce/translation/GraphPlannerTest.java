@@ -55,7 +55,8 @@ public class GraphPlannerTest {
     p.traverseTopologically(graphConverter);
 
     GraphPlanner planner = new GraphPlanner();
-    Graphs.FusedGraph fusedGraph = planner.plan(context.getInitGraph());
+    Graphs.FusedGraph fusedGraph = new Graphs.FusedGraph(context.getInitGraph());
+    fusedGraph = planner.plan(fusedGraph);
 
     assertEquals(1, Iterables.size(fusedGraph.getFusedSteps()));
     assertEquals(3, Iterables.getOnlyElement(fusedGraph.getFusedSteps()).getSteps().size());

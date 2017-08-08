@@ -25,10 +25,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * A Read.Bounded place holder {@link Operation} during pipeline translation.
  */
-class ReadOperation<T> extends Operation<T> {
+class SourceOperation<T> extends Operation<T> {
   private final BoundedSource<T> source;
 
-  ReadOperation(BoundedSource<T> source) {
+  SourceOperation(BoundedSource<T> source) {
     super(1);
     this.source = checkNotNull(source, "source");
   }

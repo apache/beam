@@ -20,13 +20,14 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -38,8 +39,12 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 /**
  * Class that translates a {@link Graphs.FusedStep} to a MapReduce job.
@@ -53,13 +58,11 @@ public class JobPrototype {
 
   private final int stageId;
   private final Graphs.FusedStep fusedStep;
-  private final Set<JobPrototype> dependencies;
   private final PipelineOptions options;
 
   private JobPrototype(int stageId, Graphs.FusedStep fusedStep, PipelineOptions options) {
     this.stageId = stageId;
     this.fusedStep = checkNotNull(fusedStep, "fusedStep");
-    this.dependencies = Sets.newHashSet();
     this.options = checkNotNull(options, "options");
   }
 
@@ -72,19 +75,38 @@ public class JobPrototype {
         "org.apache.hadoop.io.serializer.WritableSerialization,"
             + "org.apache.hadoop.io.serializer.JavaSerialization");
 
+    //TODO: config out dir with PipelineOptions.
+    conf.set(
+        FileOutputFormat.OUTDIR,
+        String.format("/tmp/mapreduce/stage-%d", fusedStep.getStageId()));
+
     // Setup BoundedSources in BeamInputFormat.
     // TODO: support more than one read steps by introducing a composed BeamInputFormat
     // and a partition operation.
-    Graphs.Step readStep = Iterables.getOnlyElement(fusedStep.getStartSteps());
-    checkState(readStep.getOperation() instanceof ReadOperation);
-    BoundedSource source = ((ReadOperation) readStep.getOperation()).getSource();
+    List<Graphs.Step> readSteps = fusedStep.getStartSteps();
+    ArrayList<BoundedSource<?>> sources = new ArrayList<>();
+    sources.addAll(
+        FluentIterable.from(readSteps)
+            .transform(new Function<Graphs.Step, BoundedSource<?>>() {
+              @Override
+              public BoundedSource<?> apply(Graphs.Step step) {
+                checkState(step.getOperation() instanceof SourceOperation);
+                return ((SourceOperation) step.getOperation()).getSource();
+              }})
+            .toList());
+
     conf.set(
         BeamInputFormat.BEAM_SERIALIZED_BOUNDED_SOURCE,
-        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(source)));
+        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(sources)));
+    conf.set(
+        BeamInputFormat.BEAM_SERIALIZED_PIPELINE_OPTIONS,
+        Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
+            new SerializedPipelineOptions(options))));
     job.setInputFormatClass(BeamInputFormat.class);
 
     if (fusedStep.containsGroupByKey()) {
       Graphs.Step groupByKey = fusedStep.getGroupByKeyStep();
+      Graphs.Tag gbkOutTag = Iterables.getOnlyElement(fusedStep.getOutputTags(groupByKey));
       GroupByKeyOperation operation = (GroupByKeyOperation) groupByKey.getOperation();
       WindowingStrategy<?, ?> windowingStrategy = operation.getWindowingStrategy();
       KvCoder<?, ?> kvCoder = operation.getKvCoder();
@@ -92,28 +114,26 @@ public class JobPrototype {
       String reifyStepName = groupByKey.getFullName() + "-Reify";
       Coder<?> reifyValueCoder = getReifyValueCoder(kvCoder.getValueCoder(), windowingStrategy);
       Graphs.Tag reifyOutputTag = Graphs.Tag.of(
-          reifyStepName + ".out", new TupleTag<Object>(), reifyValueCoder);
+          reifyStepName + ".out", new TupleTag<>(), reifyValueCoder);
       Graphs.Step reifyStep = Graphs.Step.of(
           reifyStepName,
-          new ReifyTimestampAndWindowsParDoOperation(options, operation.getWindowingStrategy()),
-          groupByKey.getInputTags(),
-          ImmutableList.of(reifyOutputTag));
+          new ReifyTimestampAndWindowsParDoOperation(
+              options, operation.getWindowingStrategy(), reifyOutputTag));
 
       Graphs.Step writeStep = Graphs.Step.of(
           groupByKey.getFullName() + "-Write",
-          new WriteOperation(kvCoder.getKeyCoder(), reifyValueCoder),
-          ImmutableList.of(reifyOutputTag),
-          Collections.<Graphs.Tag>emptyList());
+          new ShuffleWriteOperation(kvCoder.getKeyCoder(), reifyValueCoder));
 
       Graphs.Step gabwStep = Graphs.Step.of(
           groupByKey.getFullName() + "-GroupAlsoByWindows",
-          new GroupAlsoByWindowsParDoOperation(options, windowingStrategy, kvCoder),
-          Collections.<Graphs.Tag>emptyList(),
-          groupByKey.getOutputTags());
+          new GroupAlsoByWindowsParDoOperation(options, windowingStrategy, kvCoder, gbkOutTag));
 
-      fusedStep.addStep(reifyStep);
-      fusedStep.addStep(writeStep);
-      fusedStep.addStep(gabwStep);
+      fusedStep.addStep(
+          reifyStep, fusedStep.getInputTags(groupByKey), ImmutableList.of(reifyOutputTag));
+      fusedStep.addStep(
+          writeStep, ImmutableList.of(reifyOutputTag), Collections.<Graphs.Tag>emptyList());
+      fusedStep.addStep(
+          gabwStep, Collections.<Graphs.Tag>emptyList(), ImmutableList.of(gbkOutTag));
       fusedStep.removeStep(groupByKey);
 
       // Setup BeamReducer
@@ -129,8 +149,9 @@ public class JobPrototype {
               SerializableUtils.serializeToByteArray(reducerStartStep.getOperation())));
       job.setReducerClass(BeamReducer.class);
     }
+
     // Setup DoFns in BeamMapper.
-    Graphs.Tag readOutputTag = Iterables.getOnlyElement(readStep.getOutputTags());
+    Graphs.Tag readOutputTag = Iterables.getOnlyElement(fusedStep.getOutputTags(readSteps.get(0)));
     Graphs.Step mapperStartStep = Iterables.getOnlyElement(fusedStep.getConsumers(readOutputTag));
     chainOperations(mapperStartStep, fusedStep);
 
@@ -141,18 +162,28 @@ public class JobPrototype {
         Base64.encodeBase64String(
             SerializableUtils.serializeToByteArray(mapperStartStep.getOperation())));
     job.setMapperClass(BeamMapper.class);
+    job.setOutputFormatClass(TextOutputFormat.class);
 
-    job.setOutputFormatClass(NullOutputFormat.class);
-
+    for (Graphs.Step step : fusedStep.getSteps()) {
+      if (step.getOperation() instanceof FileWriteOperation) {
+        FileWriteOperation writeOperation = (FileWriteOperation) step.getOperation();
+        //SequenceFileOutputFormat.setOutputPath(job, new Path("/tmp/mapreduce/"));
+        MultipleOutputs.addNamedOutput(
+            job,
+            writeOperation.getFileName(),
+            SequenceFileOutputFormat.class,
+            NullWritable.class, BytesWritable.class);
+      }
+    }
     return job;
   }
 
   private void chainOperations(Graphs.Step current, Graphs.FusedStep fusedStep) {
     Operation<?> operation = current.getOperation();
-    List<Graphs.Tag> outputTags = current.getOutputTags();
-    for (int index = 0; index < outputTags.size(); ++index) {
-      for (Graphs.Step consumer : fusedStep.getConsumers(outputTags.get(index))) {
-        operation.attachConsumer(index, consumer.getOperation());
+    List<Graphs.Tag> outputTags = fusedStep.getOutputTags(current);
+    for (Graphs.Tag outTag : outputTags) {
+      for (Graphs.Step consumer : fusedStep.getConsumers(outTag)) {
+        operation.attachConsumer(outTag.getTupleTag(), consumer.getOperation());
       }
     }
     for (Graphs.Tag outTag : outputTags) {

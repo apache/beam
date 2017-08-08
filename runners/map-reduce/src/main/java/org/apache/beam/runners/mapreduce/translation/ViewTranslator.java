@@ -32,11 +32,9 @@ public class ViewTranslator extends TransformTranslator.Default<View.CreatePColl
 
     ViewOperation<?> operation =
         new ViewOperation<>((Coder) transform.getView().getPCollection().getCoder());
-
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        operation,
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

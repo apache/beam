@@ -20,18 +20,17 @@ package org.apache.beam.runners.mapreduce.translation;
 import org.apache.beam.sdk.io.Read;
 
 /**
- * Translates a {@link Read.Bounded} to a {@link ReadOperation}.
+ * Translates a {@link Read.Bounded} to a {@link SourceOperation}.
  */
 class ReadBoundedTranslator<T> extends TransformTranslator.Default<Read.Bounded<T>> {
   @Override
   public void translateNode(Read.Bounded transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-    ReadOperation operation = new ReadOperation(transform.getSource());
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        operation,
+    SourceOperation operation = new SourceOperation(transform.getSource());
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

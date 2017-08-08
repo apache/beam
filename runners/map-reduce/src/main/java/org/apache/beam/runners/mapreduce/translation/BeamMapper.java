@@ -19,17 +19,21 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Adapter for executing Beam transforms in {@link Mapper}.
  */
 public class BeamMapper<ValueInT, ValueOutT>
     extends Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>> {
+  private static final Logger LOG = LoggerFactory.getLogger(Mapper.class);
 
   public static final String BEAM_PAR_DO_OPERATION_MAPPER = "beam-par-do-op-mapper";
 
@@ -50,7 +54,9 @@ public class BeamMapper<ValueInT, ValueOutT>
   protected void map(
       Object key,
       WindowedValue<ValueInT> value,
-      Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context) {
+      Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context)
+      throws IOException, InterruptedException {
+    LOG.info("key: {} value: {}.", key, value);
     operation.process(value);
   }
 

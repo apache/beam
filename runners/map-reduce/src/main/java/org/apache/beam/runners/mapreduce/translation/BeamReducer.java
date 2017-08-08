@@ -33,8 +33,11 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -42,6 +45,7 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
  */
 public class BeamReducer<ValueInT, ValueOutT>
     extends Reducer<BytesWritable, byte[], Object, WindowedValue<ValueOutT>> {
+  private static final Logger LOG = LoggerFactory.getLogger(Reducer.class);
 
   public static final String BEAM_REDUCER_KV_CODER = "beam-reducer-kv-coder";
   public static final String BEAM_PAR_DO_OPERATION_REDUCER = "beam-par-do-op-reducer";
@@ -72,7 +76,8 @@ public class BeamReducer<ValueInT, ValueOutT>
   protected void reduce(
       BytesWritable key,
       Iterable<byte[]> values,
-      Reducer<BytesWritable, byte[], Object, WindowedValue<ValueOutT>>.Context context) {
+      Reducer<BytesWritable, byte[], Object, WindowedValue<ValueOutT>>.Context context)
+      throws InterruptedException, IOException {
     List<Object> decodedValues = Lists.newArrayList(FluentIterable.from(values)
         .transform(new Function<byte[], Object>() {
           @Override
@@ -85,15 +90,10 @@ public class BeamReducer<ValueInT, ValueOutT>
               throw new RuntimeException(e);
             }
           }}));
-
-    try {
-      operation.process(
-          WindowedValue.valueInGlobalWindow(
-              KV.of(keyCoder.decode(new ByteArrayInputStream(key.getBytes())), decodedValues)));
-    } catch (IOException e) {
-      Throwables.throwIfUnchecked(e);
-      throw new RuntimeException(e);
-    }
+    Object decodedKey = keyCoder.decode(new ByteArrayInputStream(key.getBytes()));
+    LOG.info("key: {} value: {}.", decodedKey, decodedValues);
+    operation.process(
+        WindowedValue.valueInGlobalWindow(KV.of(decodedKey, decodedValues)));
   }
 
   @Override

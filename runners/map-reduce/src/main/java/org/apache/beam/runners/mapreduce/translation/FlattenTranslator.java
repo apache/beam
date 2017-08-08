@@ -28,10 +28,9 @@ public class FlattenTranslator<T> extends TransformTranslator.Default<Flatten.PC
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
     Operation<?> operation = new FlattenOperation();
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        operation,
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), operation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

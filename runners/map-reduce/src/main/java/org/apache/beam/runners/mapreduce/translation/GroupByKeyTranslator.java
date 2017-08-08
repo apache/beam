@@ -37,10 +37,9 @@ class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<
 
     GroupByKeyOperation<K, V> groupByKeyOperation =
         new GroupByKeyOperation<>(windowingStrategy, (KvCoder<K, V>) inCoder);
-    context.addInitStep(Graphs.Step.of(
-        userGraphContext.getStepName(),
-        groupByKeyOperation,
+    context.addInitStep(
+        Graphs.Step.of(userGraphContext.getStepName(), groupByKeyOperation),
         userGraphContext.getInputTags(),
-        userGraphContext.getOutputTags()));
+        userGraphContext.getOutputTags());
   }
 }

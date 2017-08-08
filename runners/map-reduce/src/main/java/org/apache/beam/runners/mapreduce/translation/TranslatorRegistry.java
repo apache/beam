@@ -26,16 +26,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Lookup table mapping PTransform types to associated TransformTranslator implementations.
  */
 public class TranslatorRegistry {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TranslatorRegistry.class);
-
   private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSLATORS =
       new HashMap<>();
 
@@ -49,10 +44,6 @@ public class TranslatorRegistry {
   }
 
   public static TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
-    TransformTranslator<?> translator = TRANSLATORS.get(transform.getClass());
-    if (translator == null) {
-      LOG.warn("Unsupported operator={}", transform.getClass().getName());
-    }
-    return translator;
+    return TRANSLATORS.get(transform.getClass());
   }
 }

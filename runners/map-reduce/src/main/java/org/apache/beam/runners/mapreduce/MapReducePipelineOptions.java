@@ -43,6 +43,10 @@ public interface MapReducePipelineOptions extends PipelineOptions {
   Class<?> getJarClass();
   void setJarClass(Class<?> jarClass);
 
+  @Description("The jar class of the user Beam program.")
+  String getTmpDir();
+  void setTmpDir(String tmpDir);
+
   class JarClassInstanceFactory implements DefaultValueFactory<Class<?>> {
     @Override
     public Class<?> create(PipelineOptions options) {

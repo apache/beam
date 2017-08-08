@@ -21,19 +21,23 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.graph.ElementOrder;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  * Graph that represents a Beam DAG.
  */
-public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.AbstractTag> {
+public class Graph<StepT extends Graph.AbstractStep, TagT extends Graph.AbstractTag> {
 
-  private final MutableGraph<Vertex> graph;
+  public final MutableGraph<Vertex> graph;
 
   public Graph() {
     this.graph = GraphBuilder.directed()
@@ -45,16 +49,16 @@ public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.Ab
   /**
    * Adds {@link StepT} to this {@link Graph}.
    */
-  public void addStep(StepT step) {
+  public void addStep(StepT step, List<TagT> inTags, List<TagT> outTags) {
     graph.addNode(step);
     Set<Vertex> nodes = graph.nodes();
-    for (TagT tag : step.getInputTags()) {
+    for (TagT tag : inTags) {
       if (!nodes.contains(tag)) {
         graph.addNode(tag);
       }
       graph.putEdge(tag, step);
     }
-    for (TagT tag : step.getOutputTags()) {
+    for (TagT tag : outTags) {
       if (!nodes.contains(tag)) {
         graph.addNode(tag);
       }
@@ -93,7 +97,18 @@ public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.Ab
           public boolean apply(Vertex input) {
             return input instanceof AbstractStep;
           }}))
-        .toList();
+        .toSortedList(new Comparator<StepT>() {
+          @Override
+          public int compare(StepT left, StepT right) {
+            if (left.equals(right)) {
+              return 0;
+            } else if (com.google.common.graph.Graphs.reachableNodes(graph, left).contains(right)) {
+              return -1;
+            } else {
+              return 1;
+            }
+          }
+        });
   }
 
   public List<StepT> getStartSteps() {
@@ -106,32 +121,40 @@ public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.Ab
         .toList();
   }
 
-  public List<TagT> getInputTags() {
-    return castToTagList(FluentIterable.from(graph.nodes())
-        .filter(new Predicate<Vertex>() {
-          @Override
-          public boolean apply(Vertex input) {
-            return input instanceof AbstractTag && graph.inDegree(input) == 0;
-          }}))
-        .toList();
-  }
-
-  public List<TagT> getOutputTags() {
-    return castToTagList(FluentIterable.from(graph.nodes())
-        .filter(new Predicate<Vertex>() {
-          @Override
-          public boolean apply(Vertex input) {
-            return input instanceof AbstractTag && graph.outDegree(input) == 0;
-          }}))
-        .toList();
-  }
-
   public StepT getProducer(TagT tag) {
-    return (StepT) Iterables.getOnlyElement(graph.predecessors(tag));
+    if (contains(tag)) {
+      return (StepT) Iterables.getOnlyElement(graph.predecessors(tag));
+    } else {
+      return null;
+    }
   }
 
   public List<StepT> getConsumers(TagT tag) {
-    return castToStepList(graph.successors(tag)).toList();
+    if (contains(tag)) {
+      return castToStepList(graph.successors(tag)).toList();
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
+  public List<TagT> getInputTags(StepT step) {
+    if (contains(step)) {
+      return castToTagList(graph.predecessors(step)).toList();
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
+  public List<TagT> getOutputTags(StepT step) {
+    if (contains(step)) {
+      return castToTagList(graph.successors(step)).toList();
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
+  private boolean contains(Vertex node) {
+    return graph.nodes().contains(node);
   }
 
   private FluentIterable<StepT> castToStepList(Iterable<Vertex> vertices) {
@@ -175,9 +198,7 @@ public class Graph<StepT extends Graph.AbstractStep<TagT>, TagT extends Graph.Ab
   interface Vertex {
   }
 
-  public abstract static class AbstractStep<TagT extends AbstractTag> implements Vertex {
-    public abstract List<TagT> getInputTags();
-    public abstract List<TagT> getOutputTags();
+  public abstract static class AbstractStep implements Vertex {
   }
 
   public abstract static class AbstractTag implements Vertex {

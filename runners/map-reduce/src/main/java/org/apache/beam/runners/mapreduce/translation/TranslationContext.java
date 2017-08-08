@@ -53,8 +53,8 @@ public class TranslationContext {
     return userGraphContext;
   }
 
-  public void addInitStep(Graphs.Step step) {
-    initGraph.addStep(step);
+  public void addInitStep(Graphs.Step step, List<Graphs.Tag> inTags, List<Graphs.Tag> outTags) {
+    initGraph.addStep(step, inTags, outTags);
   }
 
   /**

@@ -38,8 +38,9 @@ public class GroupAlsoByWindowsParDoOperation extends ParDoOperation {
   public GroupAlsoByWindowsParDoOperation(
       PipelineOptions options,
       WindowingStrategy<?, ?> windowingStrategy,
-      Coder<?> inputCoder) {
-    super(options, new TupleTag<>(), ImmutableList.<TupleTag<?>>of(), windowingStrategy);
+      Coder<?> inputCoder,
+      Graphs.Tag outTag) {
+    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(), windowingStrategy);
     this.inputCoder = checkNotNull(inputCoder, "inputCoder");
   }
 

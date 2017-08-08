@@ -18,9 +18,11 @@
 package org.apache.beam.runners.mapreduce.translation;
 
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 /**
@@ -55,7 +57,7 @@ public abstract class Operation<T> implements Serializable {
   /**
    * Processes the element.
    */
-  public abstract void process(WindowedValue<T> elem);
+  public abstract void process(WindowedValue<T> elem) throws IOException, InterruptedException;
 
   /**
    * Finishes this Operation's execution.
@@ -80,8 +82,13 @@ public abstract class Operation<T> implements Serializable {
   /**
    * Adds an output to this Operation.
    */
-  public void attachConsumer(int outputIndex, Operation consumer) {
+  public void attachConsumer(TupleTag<?> tupleTag, Operation consumer) {
+    int outputIndex = getOutputIndex(tupleTag);
     OutputReceiver fanOut = receivers[outputIndex];
     fanOut.addOutput(consumer);
+  }
+
+  protected int getOutputIndex(TupleTag<?> tupleTag) {
+    return 0;
   }
 }

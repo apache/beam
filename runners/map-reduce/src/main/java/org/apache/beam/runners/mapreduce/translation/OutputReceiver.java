@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +48,12 @@ public class OutputReceiver implements Serializable {
   public void process(WindowedValue<?> elem) {
     for (Operation out : receivingOperations) {
       if (out != null) {
-        out.process(elem);
+        try {
+          out.process(elem);
+        } catch (IOException | InterruptedException e) {
+          Throwables.throwIfUnchecked(e);
+          throw new RuntimeException(e);
+        }
       }
     }
   }
