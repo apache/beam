@@ -26,7 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamIOType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -48,11 +48,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(BeamSqlRecordType beamSqlRowType) {
+  protected BeamKafkaTable(BeamRecordSqlType beamSqlRowType) {
     super(beamSqlRowType);
   }
 
-  public BeamKafkaTable(BeamSqlRecordType beamSqlRowType, String bootstrapServers,
+  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType, String bootstrapServers,
       List<String> topics) {
     super(beamSqlRowType);
     this.bootstrapServers = bootstrapServers;

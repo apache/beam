@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -28,12 +29,12 @@ import org.apache.beam.sdk.coders.Coder;
  */
 @Experimental
 public class BeamRecordType implements Serializable{
-  private List<String> fieldsName;
-  private List<Coder> fieldsCoder;
+  private List<String> fieldNames;
+  private List<Coder> fieldCoders;
 
-  public BeamRecordType(List<String> fieldsName, List<Coder> fieldsCoder) {
-    this.fieldsName = fieldsName;
-    this.fieldsCoder = fieldsCoder;
+  public BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
+    this.fieldNames = fieldNames;
+    this.fieldCoders = fieldCoders;
   }
 
   /**
@@ -49,22 +50,22 @@ public class BeamRecordType implements Serializable{
     * Get the coder for {@link BeamRecordCoder}.
     */
    public BeamRecordCoder getRecordCoder(){
-     return BeamRecordCoder.of(this, fieldsCoder);
+     return BeamRecordCoder.of(this, fieldCoders);
    }
 
-   public List<String> getFieldsName(){
-     return fieldsName;
+   public List<String> getFieldNames(){
+     return ImmutableList.copyOf(fieldNames);
    }
 
-   public String getFieldByIndex(int index){
-     return fieldsName.get(index);
+   public String getFieldNameByIndex(int index){
+     return fieldNames.get(index);
    }
 
    public int findIndexOfField(String fieldName){
-     return fieldsName.indexOf(fieldName);
+     return fieldNames.indexOf(fieldName);
    }
 
   public int size(){
-    return fieldsName.size();
+    return fieldNames.size();
   }
 }
