@@ -35,7 +35,7 @@ public class TestUtils {
   public static class BeamSqlRow2StringDoFn extends DoFn<BeamRecord, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      ctx.output(ctx.element().valueInString());
+      ctx.output(ctx.element().toString());
     }
   }
 
@@ -45,7 +45,7 @@ public class TestUtils {
   public static List<String> beamSqlRows2Strings(List<BeamRecord> rows) {
     List<String> strs = new ArrayList<>();
     for (BeamRecord row : rows) {
-      strs.add(row.valueInString());
+      strs.add(row.toString());
     }
 
     return strs;

@@ -289,7 +289,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     exceptions.expectMessage("Encountered \"*\"");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `getFieldCount` FROM PCOLLECTION GROUP BY f_int2";
+    String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` "
+        + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
         boundedInput1.apply("testUnsupportedDistinct", BeamSql.simpleQuery(sql));
