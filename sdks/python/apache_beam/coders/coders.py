@@ -206,22 +206,21 @@ class Coder(object):
     """For internal use only; no backwards-compatibility guarantees.
     """
     # TODO(BEAM-115): Use specialized URNs and components.
+    serialized_coder = serialize_coder(self)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urns.PICKLED_CODER,
-                parameter=proto_utils.pack_Any(
+                any_param=proto_utils.pack_Any(
                     google.protobuf.wrappers_pb2.BytesValue(
-                        value=serialize_coder(self))))))
+                        value=serialized_coder)),
+                payload=serialized_coder)))
 
   @staticmethod
   def from_runner_api(proto, context):
     """For internal use only; no backwards-compatibility guarantees.
     """
-    any_proto = proto.spec.spec.parameter
-    bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
-    any_proto.Unpack(bytes_proto)
-    return deserialize_coder(bytes_proto.value)
+    return deserialize_coder(proto.spec.spec.payload)
 
 
 class StrUtf8Coder(Coder):

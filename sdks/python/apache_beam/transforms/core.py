@@ -699,24 +699,24 @@ class ParDo(PTransformWithSideInputs):
 
   def to_runner_api_parameter(self, context):
     assert self.__class__ is ParDo
+    picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     return (
         urns.PARDO_TRANSFORM,
         beam_runner_api_pb2.ParDoPayload(
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=urns.PICKLED_DO_FN_INFO,
-                    parameter=proto_utils.pack_Any(
+                    any_param=proto_utils.pack_Any(
                         wrappers_pb2.BytesValue(
-                            value=pickler.dumps(
-                                self._pardo_fn_data())))))))
+                            value=picked_pardo_fn_data)),
+                    payload=picked_pardo_fn_data))))
 
   @PTransform.register_urn(
       urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
     assert pardo_payload.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        proto_utils.unpack_Any(
-            pardo_payload.do_fn.spec.parameter, wrappers_pb2.BytesValue).value)
+        pardo_payload.do_fn.spec.payload)
     if si_tags_and_types:
       raise NotImplementedError('deferred side inputs')
     elif windowing:

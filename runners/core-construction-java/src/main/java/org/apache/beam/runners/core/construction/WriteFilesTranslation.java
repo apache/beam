@@ -25,9 +25,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -83,13 +81,9 @@ public class WriteFilesTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(urn)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(serializable)))
-                            .build())))
+                .setPayload(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(serializable)))
+                .build())
         .build();
   }
 
@@ -102,8 +96,7 @@ public class WriteFilesTranslation {
         FunctionSpec.class.getSimpleName(),
         sinkProto.getSpec().getUrn());
 
-    byte[] serializedSink =
-        sinkProto.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+    byte[] serializedSink = sinkProto.getSpec().getPayload().toByteArray();
 
     return (FileBasedSink<?, ?, ?>)
         SerializableUtils.deserializeFromByteArray(
@@ -163,11 +156,13 @@ public class WriteFilesTranslation {
       AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
           transform)
       throws IOException {
-    return PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
-        .getSpec()
-        .getParameter()
-        .unpack(WriteFilesPayload.class);
+    return WriteFilesPayload.parseFrom(
+        PTransformTranslation.toProto(
+                transform,
+                Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+                SdkComponents.create())
+            .getSpec()
+            .getPayload());
   }
 
   static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
@@ -181,7 +176,7 @@ public class WriteFilesTranslation {
         AppliedPTransform<?, ?, WriteFiles<?, ?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(toProto(transform.getTransform())))
+          .setPayload(toProto(transform.getTransform()).toByteString())
           .build();
     }
   }

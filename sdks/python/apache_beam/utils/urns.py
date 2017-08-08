@@ -120,7 +120,9 @@ class RunnerApiFn(object):
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            any_param=proto_utils.pack_Any(typed_param),
+            payload=typed_param.SerializeToString()
+            if typed_param is not None else None))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -130,5 +132,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
         context)
