@@ -78,7 +78,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.1.0-20170626'
+BEAM_CONTAINER_VERSION = 'beam-2.2.0-20170807'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 # This should be in the beam-[version]-[date] format, date is optional.
