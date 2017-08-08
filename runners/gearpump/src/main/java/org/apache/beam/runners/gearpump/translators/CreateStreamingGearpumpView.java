@@ -124,8 +124,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
     @Override
     public PCollection<List<ElemT>> expand(PCollection<List<ElemT>> input) {
       return PCollection.<List<ElemT>>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
 
     public PCollectionView<ViewT> getView() {
