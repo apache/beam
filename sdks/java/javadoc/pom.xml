@@ -172,6 +172,11 @@
       <artifactId>beam-sdks-java-io-mqtt</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-solr</artifactId>
+    </dependency>
+
     <!-- provided and optional dependencies.-->
     <dependency>
       <groupId>com.google.auto.service</groupId>
