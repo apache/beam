@@ -39,8 +39,8 @@ import org.apache.beam.sdk.values.BeamRecord;
 @Experimental
 public class BeamSqlRecordHelper {
 
-  public static BeamSqlRecordType getSqlRecordType(BeamRecord record) {
-    return (BeamSqlRecordType) record.getDataType();
+  public static BeamRecordSqlType getSqlRecordType(BeamRecord record) {
+    return (BeamRecordSqlType) record.getDataType();
   }
 
   /**

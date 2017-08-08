@@ -22,7 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.schema.BeamPCollectionTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -179,7 +179,7 @@ public class BeamSql {
 
         getSqlEnv().registerTable(sourceTag.getId(),
             new BeamPCollectionTable(sourceStream,
-                (BeamSqlRecordType) sourceCoder.getRecordType()));
+                (BeamRecordSqlType) sourceCoder.getRecordType()));
       }
     }
   }

@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.BeamRecordType;
  * for more details.
  *
  */
-public class BeamSqlRecordType extends BeamRecordType {
+public class BeamRecordSqlType extends BeamRecordType {
   private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();
   static {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.TINYINT, Byte.class);
@@ -70,19 +70,19 @@ public class BeamSqlRecordType extends BeamRecordType {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.TIMESTAMP, Date.class);
   }
 
-  public List<Integer> fieldsType;
+  public List<Integer> fieldTypes;
 
-  protected BeamSqlRecordType(List<String> fieldsName, List<Coder> fieldsCoder) {
+  protected BeamRecordSqlType(List<String> fieldsName, List<Coder> fieldsCoder) {
     super(fieldsName, fieldsCoder);
   }
 
-  private BeamSqlRecordType(List<String> fieldsName, List<Integer> fieldsType
+  private BeamRecordSqlType(List<String> fieldsName, List<Integer> fieldTypes
       , List<Coder> fieldsCoder) {
     super(fieldsName, fieldsCoder);
-    this.fieldsType = fieldsType;
+    this.fieldTypes = fieldTypes;
   }
 
-  public static BeamSqlRecordType create(List<String> fieldNames,
+  public static BeamRecordSqlType create(List<String> fieldNames,
       List<Integer> fieldTypes) {
     if (fieldNames.size() != fieldTypes.size()) {
       throw new IllegalStateException("the sizes of 'dataType' and 'fieldTypes' must match.");
@@ -131,7 +131,7 @@ public class BeamSqlRecordType extends BeamRecordType {
             "Data type: " + fieldTypes.get(idx) + " not supported yet!");
       }
     }
-    return new BeamSqlRecordType(fieldNames, fieldTypes, fieldCoders);
+    return new BeamRecordSqlType(fieldNames, fieldTypes, fieldCoders);
   }
 
   @Override
@@ -140,7 +140,7 @@ public class BeamSqlRecordType extends BeamRecordType {
       return;
     }
 
-    int fieldType = fieldsType.get(index);
+    int fieldType = fieldTypes.get(index);
     Class javaClazz = SQL_TYPE_TO_JAVA_CLASS.get(fieldType);
     if (javaClazz == null) {
       throw new IllegalArgumentException("Data type: " + fieldType + " not supported yet!");
@@ -154,15 +154,19 @@ public class BeamSqlRecordType extends BeamRecordType {
     }
   }
 
-  public List<Integer> getFieldsType() {
-    return fieldsType;
+  public List<Integer> getFieldTypes() {
+    return fieldTypes;
+  }
+
+  public Integer getFieldTypeByIndex(int index){
+    return fieldTypes.get(index);
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (obj != null && obj instanceof BeamSqlRecordType) {
-      BeamSqlRecordType ins = (BeamSqlRecordType) obj;
-      return fieldsType.equals(ins.getFieldsType()) && getFieldsName().equals(ins.getFieldsName());
+    if (obj != null && obj instanceof BeamRecordSqlType) {
+      BeamRecordSqlType ins = (BeamRecordSqlType) obj;
+      return fieldTypes.equals(ins.getFieldTypes()) && getFieldNames().equals(ins.getFieldNames());
     } else {
       return false;
     }
@@ -170,6 +174,6 @@ public class BeamSqlRecordType extends BeamRecordType {
 
   @Override
   public int hashCode() {
-    return 31 * getFieldsName().hashCode() + getFieldsType().hashCode();
+    return 31 * getFieldNames().hashCode() + getFieldTypes().hashCode();
   }
 }

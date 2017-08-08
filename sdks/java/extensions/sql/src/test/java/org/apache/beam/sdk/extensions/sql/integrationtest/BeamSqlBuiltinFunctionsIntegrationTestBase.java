@@ -32,7 +32,7 @@ import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -62,7 +62,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<BeamRecord> getTestPCollection() {
-    BeamSqlRecordType type = BeamSqlRecordType.create(
+    BeamRecordSqlType type = BeamRecordSqlType.create(
         Arrays.asList("ts", "c_tinyint", "c_smallint",
             "c_integer", "c_bigint", "c_float", "c_double", "c_decimal",
             "c_tinyint_max", "c_smallint_max", "c_integer_max", "c_bigint_max"),
@@ -155,7 +155,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.simpleQuery(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(BeamSqlRecordType.create(names, types))
+                .of(BeamRecordSqlType.create(names, types))
                 .addRows(values)
                 .getRows()
         );

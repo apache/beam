@@ -35,8 +35,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -59,11 +59,11 @@ public class BeamAggregationTransforms implements Serializable{
    * Merge KV to single record.
    */
   public static class MergeAggregationRecord extends DoFn<KV<BeamRecord, BeamRecord>, BeamRecord> {
-    private BeamSqlRecordType outRowType;
+    private BeamRecordSqlType outRowType;
     private List<String> aggFieldNames;
     private int windowStartFieldIdx;
 
-    public MergeAggregationRecord(BeamSqlRecordType outRowType, List<AggregateCall> aggList
+    public MergeAggregationRecord(BeamRecordSqlType outRowType, List<AggregateCall> aggList
         , int windowStartFieldIdx) {
       this.outRowType = outRowType;
       this.aggFieldNames = new ArrayList<>();
@@ -77,8 +77,6 @@ public class BeamAggregationTransforms implements Serializable{
     public void processElement(ProcessContext c, BoundedWindow window) {
       List<Object> fieldValues = new ArrayList<>();
       KV<BeamRecord, BeamRecord> kvRecord = c.element();
-      fieldValues.addAll(kvRecord.getKey().getDataValues());
-      fieldValues.addAll(kvRecord.getValue().getDataValues());
       if (windowStartFieldIdx != -1) {
         fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
       }
@@ -106,7 +104,7 @@ public class BeamAggregationTransforms implements Serializable{
 
     @Override
     public BeamRecord apply(BeamRecord input) {
-      BeamSqlRecordType typeOfKey = exTypeOfKeyRecord(BeamSqlRecordHelper.getSqlRecordType(input));
+      BeamRecordSqlType typeOfKey = exTypeOfKeyRecord(BeamSqlRecordHelper.getSqlRecordType(input));
 
       List<Object> fieldValues = new ArrayList<>(groupByKeys.size());
       for (int idx = 0; idx < groupByKeys.size(); ++idx) {
@@ -117,14 +115,14 @@ public class BeamAggregationTransforms implements Serializable{
       return keyOfRecord;
     }
 
-    private BeamSqlRecordType exTypeOfKeyRecord(BeamSqlRecordType dataType) {
+    private BeamRecordSqlType exTypeOfKeyRecord(BeamRecordSqlType dataType) {
       List<String> fieldNames = new ArrayList<>();
       List<Integer> fieldTypes = new ArrayList<>();
       for (int idx : groupByKeys) {
-        fieldNames.add(dataType.getFieldsName().get(idx));
-        fieldTypes.add(dataType.getFieldsType().get(idx));
+        fieldNames.add(dataType.getFieldByIndex(idx));
+        fieldTypes.add(dataType.getFieldTypeByIndex(idx));
       }
-      return BeamSqlRecordType.create(fieldNames, fieldTypes);
+      return BeamRecordSqlType.create(fieldNames, fieldTypes);
     }
   }
 
@@ -152,10 +150,10 @@ public class BeamAggregationTransforms implements Serializable{
     extends CombineFn<BeamRecord, AggregationAccumulator, BeamRecord> {
     private List<BeamSqlUdaf> aggregators;
     private List<BeamSqlExpression> sourceFieldExps;
-    private BeamSqlRecordType finalRowType;
+    private BeamRecordSqlType finalRowType;
 
     public AggregationAdaptor(List<AggregateCall> aggregationCalls,
-        BeamSqlRecordType sourceRowType) {
+        BeamRecordSqlType sourceRowType) {
       aggregators = new ArrayList<>();
       sourceFieldExps = new ArrayList<>();
       List<String> outFieldsName = new ArrayList<>();
@@ -204,7 +202,7 @@ public class BeamAggregationTransforms implements Serializable{
           break;
         }
       }
-      finalRowType = BeamSqlRecordType.create(outFieldsName, outFieldsType);
+      finalRowType = BeamRecordSqlType.create(outFieldsName, outFieldsType);
     }
     @Override
     public AggregationAccumulator createAccumulator() {

@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -78,33 +78,33 @@ public class CalciteUtils {
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
-  public static SqlTypeName getFieldType(BeamSqlRecordType schema, int index) {
-    return toCalciteType(schema.getFieldsType().get(index));
+  public static SqlTypeName getFieldType(BeamRecordSqlType schema, int index) {
+    return toCalciteType(schema.getFieldTypeByIndex(index));
   }
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
    */
-  public static BeamSqlRecordType toBeamRowType(RelDataType tableInfo) {
+  public static BeamRecordSqlType toBeamRowType(RelDataType tableInfo) {
     List<String> fieldNames = new ArrayList<>();
     List<Integer> fieldTypes = new ArrayList<>();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
       fieldNames.add(f.getName());
       fieldTypes.add(toJavaType(f.getType().getSqlTypeName()));
     }
-    return BeamSqlRecordType.create(fieldNames, fieldTypes);
+    return BeamRecordSqlType.create(fieldNames, fieldTypes);
   }
 
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRowType(final BeamSqlRecordType that) {
+  public static RelProtoDataType toCalciteRowType(final BeamRecordSqlType that) {
     return new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a) {
         RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
-        for (int idx = 0; idx < that.getFieldsName().size(); ++idx) {
-          builder.add(that.getFieldsName().get(idx), toCalciteType(that.getFieldsType().get(idx)));
+        for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {
+          builder.add(that.getFieldNames().get(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
         }
         return builder.build();
       }
