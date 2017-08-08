@@ -63,27 +63,27 @@ public class BeamRecord implements Serializable {
     return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
   }
 
-  public byte getByte(String fieldName) {
+  public Byte getByte(String fieldName) {
     return (Byte) getFieldValue(fieldName);
   }
 
-  public short getShort(String fieldName) {
+  public Short getShort(String fieldName) {
     return (Short) getFieldValue(fieldName);
   }
 
-  public int getInteger(String fieldName) {
+  public Integer getInteger(String fieldName) {
     return (Integer) getFieldValue(fieldName);
   }
 
-  public float getFloat(String fieldName) {
+  public Float getFloat(String fieldName) {
     return (Float) getFieldValue(fieldName);
   }
 
-  public double getDouble(String fieldName) {
+  public Double getDouble(String fieldName) {
     return (Double) getFieldValue(fieldName);
   }
 
-  public long getLong(String fieldName) {
+  public Long getLong(String fieldName) {
     return (Long) getFieldValue(fieldName);
   }
 
@@ -103,35 +103,35 @@ public class BeamRecord implements Serializable {
     return (BigDecimal) getFieldValue(fieldName);
   }
 
-  public boolean getBoolean(String fieldName) {
-    return (boolean) getFieldValue(fieldName);
+  public Boolean getBoolean(String fieldName) {
+    return (Boolean) getFieldValue(fieldName);
   }
 
   public Object getFieldValue(int fieldIdx) {
     return dataValues.get(fieldIdx);
   }
 
-  public byte getByte(int idx) {
+  public Byte getByte(int idx) {
     return (Byte) getFieldValue(idx);
   }
 
-  public short getShort(int idx) {
+  public Short getShort(int idx) {
     return (Short) getFieldValue(idx);
   }
 
-  public int getInteger(int idx) {
+  public Integer getInteger(int idx) {
     return (Integer) getFieldValue(idx);
   }
 
-  public float getFloat(int idx) {
+  public Float getFloat(int idx) {
     return (Float) getFieldValue(idx);
   }
 
-  public double getDouble(int idx) {
+  public Double getDouble(int idx) {
     return (Double) getFieldValue(idx);
   }
 
-  public long getLong(int idx) {
+  public Long getLong(int idx) {
     return (Long) getFieldValue(idx);
   }
 
@@ -151,7 +151,7 @@ public class BeamRecord implements Serializable {
     return (BigDecimal) getFieldValue(idx);
   }
 
-  public boolean getBoolean(int idx) {
+  public Boolean getBoolean(int idx) {
     return (boolean) getFieldValue(idx);
   }
 
@@ -169,13 +169,6 @@ public class BeamRecord implements Serializable {
 
   public BeamRecordType getDataType() {
     return dataType;
-  }
-
-  /**
-   * is the specified field NULL?
-   */
-  public boolean isNull(int idx) {
-    return null ==  getFieldValue(idx);
   }
 
   @Override
