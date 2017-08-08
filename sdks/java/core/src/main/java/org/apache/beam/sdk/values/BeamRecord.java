@@ -152,7 +152,7 @@ public class BeamRecord implements Serializable {
   }
 
   public Boolean getBoolean(int idx) {
-    return (boolean) getFieldValue(idx);
+    return (Boolean) getFieldValue(idx);
   }
 
   public int size() {
