@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import com.google.common.base.Joiner;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -65,7 +65,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
-    BaseBeamTable targetTable = sqlEnv.findTable(sourceName);
+    BeamSqlTable targetTable = sqlEnv.findTable(sourceName);
 
     upstream.apply(stageName, targetTable.buildIOWriter());
 
