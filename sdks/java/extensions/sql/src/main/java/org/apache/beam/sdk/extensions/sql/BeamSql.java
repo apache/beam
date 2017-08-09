@@ -126,6 +126,8 @@ public class BeamSql {
 
     /**
      * register a UDF function used in this query.
+     *
+     * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
      */
      public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
        beamSqlEnv.registerUdf(functionName, clazz);
@@ -197,27 +199,30 @@ public class BeamSql {
 
     /**
      * register a UDF function used in this query.
+     *
+     * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDAF in BeamSql.
      */
-     public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
-       beamSqlEnv.registerUdf(functionName, clazz);
-       return this;
-     }
-     /**
-      * register {@link SerializableFunction} as a UDF function used in this query.
-      * Note, {@link SerializableFunction} must have a constructor without arguments.
-      */
-      public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
-        beamSqlEnv.registerUdf(functionName, sfn);
-        return this;
-      }
+    public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
+      beamSqlEnv.registerUdf(functionName, clazz);
+      return this;
+    }
 
-      /**
-       * register a {@link CombineFn} as UDAF function used in this query.
-       */
-      public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
-        beamSqlEnv.registerUdaf(functionName, combineFn);
-        return this;
-      }
+    /**
+     * register {@link SerializableFunction} as a UDF function used in this query.
+     * Note, {@link SerializableFunction} must have a constructor without arguments.
+     */
+    public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
+      beamSqlEnv.registerUdf(functionName, sfn);
+      return this;
+    }
+
+    /**
+     * register a {@link CombineFn} as UDAF function used in this query.
+     */
+    public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
+      beamSqlEnv.registerUdaf(functionName, combineFn);
+      return this;
+    }
 
     private void validateQuery() {
       SqlNode sqlNode;

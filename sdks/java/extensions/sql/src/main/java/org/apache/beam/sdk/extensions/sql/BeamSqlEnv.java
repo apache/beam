@@ -26,6 +26,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
+ *
+ * <p>This class mainly provides methods to register {@code UDF} and {@code UDAF}, which can be
+ * used
  */
 public class BeamSqlEnv implements Serializable {
   private Map<String, Class<? extends BeamSqlUdf>> udfs = new HashMap<>();
