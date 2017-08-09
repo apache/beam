@@ -27,6 +27,8 @@ Current branches include:
 | Apache Gearpump Runner | [gearpump-runner](https://github.com/apache/beam/tree/gearpump-runner) | [runner-gearpump](https://issues.apache.org/jira/browse/BEAM/component/12330829) | [runner homepage]({{ site.baseurl }}/documentation/runners/gearpump/) |
 | Apache Spark 2.0 Runner | [runners-spark2](https://github.com/apache/beam/tree/runners-spark2) | - | [thread](https://lists.apache.org/thread.html/e38ac4e4914a6cb1b865b1f32a6ca06c2be28ea4aa0f6b18393de66f@%3Cdev.beam.apache.org%3E) |
 | JStorm Runner | [jstorm-runner](https://github.com/apache/beam/tree/jstorm-runner) | [runner-jstorm](https://issues.apache.org/jira/browse/BEAM/component/12332477) | [BEAM-1899](https://issues.apache.org/jira/browse/BEAM-1899) |
+| MapReduce Runner | [mr-runner](https://github.com/apache/beam/tree/mr-runner) | [runner-mapreduce](https://issues.apache.org/jira/browse/BEAM/component/12333013) | [BEAM-165](https://issues.apache.org/jira/browse/BEAM-165) |
+| Tez Runner | [tez-runner](https://github.com/apache/beam/tree/tez-runner) | [runner-tez](https://issues.apache.org/jira/browse/BEAM/component/12333014) | [BEAM-2709](https://issues.apache.org/jira/browse/BEAM-2709) |
 | Beam SQL DSL | [DSL_SQL](https://github.com/apache/beam/tree/DSL_SQL) | [dsl-sql](https://issues.apache.org/jira/browse/BEAM/component/12332480) | [BEAM-301](https://issues.apache.org/jira/browse/BEAM-301) |
 {:.table}
 
