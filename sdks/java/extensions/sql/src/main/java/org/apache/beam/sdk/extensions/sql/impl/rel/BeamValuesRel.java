@@ -68,7 +68,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       List<Object> fieldsValue = new ArrayList<>(beamSQLRowType.size());
       for (int i = 0; i < tuple.size(); i++) {
         fieldsValue.add(BeamTableUtils.autoCastField(
-            beamSQLRowType.getFieldsType().get(i), tuple.get(i).getValue()));
+            beamSQLRowType.getFieldTypeByIndex(i), tuple.get(i).getValue()));
       }
       rows.add(new BeamRecord(beamSQLRowType, fieldsValue));
     }

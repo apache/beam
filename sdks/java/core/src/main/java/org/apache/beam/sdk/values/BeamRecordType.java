@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -53,10 +54,10 @@ public class BeamRecordType implements Serializable{
    }
 
    public List<String> getFieldNames(){
-     return fieldNames;
+     return ImmutableList.copyOf(fieldNames);
    }
 
-   public String getFieldByIndex(int index){
+   public String getFieldNameByIndex(int index){
      return fieldNames.get(index);
    }
 

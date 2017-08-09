@@ -119,7 +119,7 @@ public class BeamAggregationTransforms implements Serializable{
       List<String> fieldNames = new ArrayList<>();
       List<Integer> fieldTypes = new ArrayList<>();
       for (int idx : groupByKeys) {
-        fieldNames.add(dataType.getFieldByIndex(idx));
+        fieldNames.add(dataType.getFieldNameByIndex(idx));
         fieldTypes.add(dataType.getFieldTypeByIndex(idx));
       }
       return BeamRecordSqlType.create(fieldNames, fieldTypes);

@@ -125,7 +125,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     List<Integer> fieldTypes = new ArrayList<>();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
-        fieldNames.add(inputRowType.getFieldByIndex(i));
+        fieldNames.add(inputRowType.getFieldNameByIndex(i));
         fieldTypes.add(inputRowType.getFieldTypeByIndex(i));
       }
     }

@@ -57,7 +57,7 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
     List<Object> fieldsValue = new ArrayList<>(results.size());
     for (int idx = 0; idx < results.size(); ++idx) {
       fieldsValue.add(
-          BeamTableUtils.autoCastField(outputRowType.getFieldsType().get(idx), results.get(idx)));
+          BeamTableUtils.autoCastField(outputRowType.getFieldTypeByIndex(idx), results.get(idx)));
     }
     BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
 
