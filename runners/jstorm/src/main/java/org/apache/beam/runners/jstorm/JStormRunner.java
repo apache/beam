@@ -26,22 +26,25 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.alibaba.jstorm.cache.KvStoreIterable;
+import com.alibaba.jstorm.client.ConfigExtension;
 import com.alibaba.jstorm.cluster.StormConfig;
 import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.jstorm.serialization.CollectionsSerializer;
-import org.apache.beam.runners.jstorm.serialization.ImmutableListSerializer;
-import org.apache.beam.runners.jstorm.serialization.ImmutableMapSerializer;
-import org.apache.beam.runners.jstorm.serialization.ImmutableSetSerializer;
-import org.apache.beam.runners.jstorm.serialization.KvStoreIterableSerializer;
-import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuListSerializer;
-import org.apache.beam.runners.jstorm.serialization.SdkRepackImmuSetSerializer;
-import org.apache.beam.runners.jstorm.serialization.SdkRepackImmutableMapSerializer;
-import org.apache.beam.runners.jstorm.serialization.UnmodifiableCollectionsSerializer;
+
+import org.apache.beam.runners.jstorm.serialization.BeamSdkRepackUtilsSerializer;
+import org.apache.beam.runners.jstorm.serialization.BeamUtilsSerializer;
+import org.apache.beam.runners.jstorm.serialization.GuavaUtilsSerializer;
+import org.apache.beam.runners.jstorm.serialization.JStormUtilsSerializer;
+import org.apache.beam.runners.jstorm.serialization.JavaUtilsSerializer;
 import org.apache.beam.runners.jstorm.translation.AbstractComponent;
 import org.apache.beam.runners.jstorm.translation.CommonInstance;
+import org.apache.beam.runners.jstorm.translation.Executor;
 import org.apache.beam.runners.jstorm.translation.ExecutorsBolt;
 import org.apache.beam.runners.jstorm.translation.JStormPipelineTranslator;
 import org.apache.beam.runners.jstorm.translation.Stream;
@@ -53,6 +56,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,17 +105,12 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     config.put("worker.external", "beam");
     config.put("topology.acker.executors", 0);
 
-    UnmodifiableCollectionsSerializer.registerSerializers(config);
-    // register classes of guava utils, ImmutableList, ImmutableSet, ImmutableMap
-    ImmutableListSerializer.registerSerializers(config);
-    SdkRepackImmuListSerializer.registerSerializers(config);
-    ImmutableSetSerializer.registerSerializers(config);
-    SdkRepackImmuSetSerializer.registerSerializers(config);
-    ImmutableMapSerializer.registerSerializers(config);
-    SdkRepackImmutableMapSerializer.registerSerializers(config);
-    CollectionsSerializer.registerSerializers(config);
-
-    config.registerDefaultSerailizer(KvStoreIterable.class, KvStoreIterableSerializer.class);
+    // Register serializers of Kryo
+    GuavaUtilsSerializer.registerSerializers(config);
+    BeamUtilsSerializer.registerSerializers(config);
+    BeamSdkRepackUtilsSerializer.registerSerializers(config);
+    JStormUtilsSerializer.registerSerializers(config);
+    JavaUtilsSerializer.registerSerializers(config);
     return config;
   }
 
@@ -128,11 +130,136 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
 
     String topologyName = options.getJobName();
     Config config = convertPipelineOptionsToConfig(options);
+    ConfigExtension.setTopologyComponentSubgraphDefinition(
+        config, getSubGraphDefintions(context));
 
     return runTopology(
         topologyName,
         getTopology(options, context.getExecutionGraphContext()),
         config);
+  }
+
+  private JSONObject buildNode(String name, String type) {
+    // Node: {name:name, type:tag/transform}
+    JSONObject jsonNode = new JSONObject();
+    jsonNode.put("name", name);
+    jsonNode.put("type", type);
+    return jsonNode;
+  }
+
+  private JSONArray buildEdge(Integer sourceId, Integer targetId) {
+    JSONArray edge = new JSONArray();
+    edge.addAll(Lists.newArrayList(sourceId, targetId));
+    return edge;
+  }
+
+  private String getPValueName(TranslationContext.UserGraphContext userGraphContext,
+                               TupleTag tupleTag) {
+    PValue pValue = userGraphContext.findPValue(tupleTag);
+    int index = pValue.getName().lastIndexOf("/");
+    return pValue.getName().substring(index + 1);
+  }
+
+  private String getSubGraphDefintions(TranslationContext context) {
+    TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
+    TranslationContext.ExecutionGraphContext executionGraphContext =
+        context.getExecutionGraphContext();
+    JSONObject graph = new JSONObject();
+
+    // Get sub-graphs for spouts
+    for (Map.Entry<String, UnboundedSourceSpout> entry :
+        executionGraphContext.getSpouts().entrySet()) {
+      JSONObject subGraph = new JSONObject();
+
+      // Nodes
+      JSONObject nodes = new JSONObject();
+      nodes.put(1, buildNode(entry.getValue().getName(), "transform"));
+      nodes.put(2, buildNode(
+          getPValueName(userGraphContext, entry.getValue().getOutputTag()), "tag"));
+      subGraph.put("nodes", nodes);
+
+      // Edges
+      JSONArray edges = new JSONArray();
+      edges.add(buildEdge(1, 2));
+      subGraph.put("edges", edges);
+
+      graph.put(entry.getKey(), subGraph);
+    }
+
+    // Get sub-graphs for bolts
+    for (Map.Entry<String, ExecutorsBolt> entry : executionGraphContext.getBolts().entrySet()) {
+      ExecutorsBolt executorsBolt = entry.getValue();
+      Map<Executor, String> executorNames = executorsBolt.getExecutorNames();
+      Map<TupleTag, Executor> inputTagToExecutors = executorsBolt.getExecutors();
+
+      // Sub-Graph
+      JSONObject subGraph = new JSONObject();
+
+      // Nodes
+      JSONObject nodes = new JSONObject();
+      Map<String, Integer> nodeNameToId = Maps.newHashMap();
+      int id = 1;
+      for (Map.Entry<Executor, Collection<TupleTag>> entry1 :
+          executorsBolt.getExecutorToOutputTags().entrySet()) {
+        Executor executor = entry1.getKey();
+        nodes.put(id, buildNode(executorNames.get(executor), "transform"));
+        nodeNameToId.put(executorNames.get(executor), id);
+        id++;
+      }
+      subGraph.put("nodes", nodes);
+
+      Collection<TupleTag> externalOutputTags = executorsBolt.getExternalOutputTags();
+      for (TupleTag outputTag : externalOutputTags) {
+        String name = getPValueName(userGraphContext, outputTag);
+        nodes.put(id, buildNode(name, "tag"));
+        nodeNameToId.put(outputTag.getId(), id);
+        id++;
+      }
+
+      Collection<TupleTag> externalInputTags = Sets.newHashSet(inputTagToExecutors.keySet());
+      externalInputTags.removeAll(executorsBolt.getOutputTags());
+      for (TupleTag inputTag : externalInputTags) {
+        String name = getPValueName(userGraphContext, inputTag);
+        nodes.put(id, buildNode(name, "tag"));
+        nodeNameToId.put(inputTag.getId(), id);
+        id++;
+      }
+
+      // Edges
+      JSONArray edges = new JSONArray();
+      for (Map.Entry<Executor, Collection<TupleTag>> entry1 :
+          executorsBolt.getExecutorToOutputTags().entrySet()) {
+        Executor sourceExecutor = entry1.getKey();
+        Collection<TupleTag> outputTags = entry1.getValue();
+        for (TupleTag tag : outputTags) {
+          if (inputTagToExecutors.containsKey(tag)) {
+            Executor targetExecutor = inputTagToExecutors.get(tag);
+            if (executorNames.containsKey(targetExecutor)) {
+              edges.add(buildEdge(nodeNameToId.get(executorNames.get(sourceExecutor)),
+                  nodeNameToId.get(executorNames.get(targetExecutor))));
+            }
+          }
+          if (externalOutputTags.contains(tag)) {
+            edges.add(buildEdge(nodeNameToId.get(executorNames.get(sourceExecutor)),
+                nodeNameToId.get(tag.getId())));
+          }
+        }
+      }
+      for (TupleTag tag : externalInputTags) {
+        if (inputTagToExecutors.containsKey(tag)) {
+          Executor targetExecutor = inputTagToExecutors.get(tag);
+          if (executorNames.containsKey(targetExecutor)) {
+            edges.add(buildEdge(nodeNameToId.get(tag.getId()),
+                nodeNameToId.get(executorNames.get(targetExecutor))));
+          }
+        }
+      }
+      subGraph.put("edges", edges);
+
+      graph.put(entry.getKey(), subGraph);
+    }
+
+    return graph.toJSONString();
   }
 
   private JStormRunnerResult runTopology(

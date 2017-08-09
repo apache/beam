@@ -27,6 +27,7 @@ import com.alibaba.jstorm.utils.KryoSerializer;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 public class UnboundedSourceSpout extends AbstractComponent implements IRichSpout {
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceSpout.class);
 
+  private final String name;
   private final String description;
   private final UnboundedSource source;
   private final SerializedPipelineOptions serializedOptions;
@@ -62,10 +64,12 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
   private long lastWaterMark = 0L;
 
   public UnboundedSourceSpout(
+      String name,
       String description,
       UnboundedSource source,
       JStormPipelineOptions options,
       TupleTag<?> outputTag) {
+    this.name = name;
     this.description = checkNotNull(description, "description");
     this.source = checkNotNull(source, "source");
     this.serializedOptions = new SerializedPipelineOptions(checkNotNull(options, "options"));
@@ -172,6 +176,14 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
     } catch (IOException e) {
       throw new RuntimeException("Exception reading values from source.", e);
     }
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public TupleTag getOutputTag() {
+    return outputTag;
   }
 
   public UnboundedSource getUnboundedSource() {

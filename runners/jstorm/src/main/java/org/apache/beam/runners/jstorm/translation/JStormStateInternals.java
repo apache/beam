@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -328,8 +329,8 @@ class JStormStateInternals<K> implements StateInternals {
     public void add(T input) {
       try {
         int elemIndex = getElementIndex();
+        stateInfoKvState.put(getComposedKey(), elemIndex + 1);
         kvState.put(getComposedKey(elemIndex), input);
-        stateInfoKvState.put(getComposedKey(), ++elemIndex);
       } catch (IOException e) {
         throw new RuntimeException(e.getCause());
       }
@@ -381,23 +382,11 @@ class JStormStateInternals<K> implements StateInternals {
     }
 
     private ComposedKey getComposedKey() {
-      return ComposedKey.of(key, namespace);
+      return ComposedKey.of(id, key, namespace);
     }
 
     private ComposedKey getComposedKey(int elemIndex) {
-      return ComposedKey.of(key, namespace, elemIndex);
-    }
-
-    @Override
-    public String toString() {
-      int elemIndex = -1;
-      try {
-        elemIndex = getElementIndex();
-      } catch (IOException e) {
-
-      }
-      return String.format("stateId=%s, key=%s, namespace=%s, elementIndex=%d",
-              id, key, namespace, elemIndex);
+      return ComposedKey.of(id, key, namespace, elemIndex);
     }
 
     @Override
@@ -474,11 +463,6 @@ class JStormStateInternals<K> implements StateInternals {
       @Override
       public Iterator<T> iterator() {
         return new BagStateIterator();
-      }
-
-      @Override
-      public String toString() {
-        return String.format("BagStateIterable: composedKey=%s", getComposedKey());
       }
     }
   }

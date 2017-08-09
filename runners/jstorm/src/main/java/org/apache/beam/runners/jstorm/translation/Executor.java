@@ -24,7 +24,7 @@ import org.apache.beam.sdk.values.TupleTag;
 /**
  * An executor is a basic executable unit in a JStorm task.
  */
-interface Executor extends Serializable {
+public interface Executor extends Serializable {
   /**
    * Initialization during runtime.
    */

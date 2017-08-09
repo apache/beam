@@ -186,7 +186,7 @@ public class TranslationContext {
       executionGraphContext.registerStreamProducer(
           TaggedPValue.of(tag, value),
           Stream.Producer.of(name, tag.getId(), value.getName()));
-      //bolt.addOutputTags(tag);
+      bolt.addOutputTags(executor, tag);
     }
 
     // add the transform executor into the chain of ExecutorsBolt
@@ -196,7 +196,7 @@ public class TranslationContext {
       if (userGraphContext.findTupleTag(value) != null) {
         tag = userGraphContext.findTupleTag(value);
       }
-      bolt.addExecutor(tag, executor);
+      bolt.addExecutor(tag, executor, userGraphContext.getStepName());
 
       // filter all connections inside bolt
       //if (!bolt.getOutputTags().contains(tag)) {
@@ -212,7 +212,7 @@ public class TranslationContext {
 
     for (PValue sideInput : sideInputs) {
       TupleTag tag = userGraphContext.findTupleTag(sideInput);
-      bolt.addExecutor(tag, executor);
+      bolt.addExecutor(tag, executor, userGraphContext.getStepName());
       checkState(!bolt.getOutputTags().contains(tag));
       addStormStreamDef(
           TaggedPValue.of(tag, sideInput), name, Stream.Grouping.of(Stream.Grouping.Type.ALL));
@@ -304,6 +304,15 @@ public class TranslationContext {
       return pValueToTupleTag.get(checkNotNull(pValue, "pValue"));
     }
 
+    public PValue findPValue(TupleTag tupleTag) {
+      for (Map.Entry<PValue, TupleTag> entry : pValueToTupleTag.entrySet()) {
+        if (entry.getValue().equals(tupleTag)) {
+            return entry.getKey();
+        }
+      }
+      return null;
+    }
+
     public void setWindowed() {
       this.isWindowed = true;
     }
@@ -359,6 +368,10 @@ public class TranslationContext {
 
     public Map<String, UnboundedSourceSpout> getSpouts() {
       return this.spoutMap;
+    }
+
+    public Map<String, ExecutorsBolt> getBolts() {
+      return this.boltMap;
     }
 
     public String registerBolt(ExecutorsBolt bolt) {
