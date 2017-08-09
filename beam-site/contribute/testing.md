@@ -302,6 +302,37 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.
 
+#### How to run NeedsRunner tests
+
+NeedsRunner is a category of tests that require a Beam runner. Subset of these
+tests cannot be executed while building their corresponding modules because all 
+runners depend on these modules (e.g. `sdks/java/core`) to be built. To break 
+the circular dependency, these tests are executed after the Direct Runner is 
+built.
+
+To run this subset of the NeedsRunner tests (requires Maven 3.3.1+): 
+
+```
+$ mvn -pl runners/direct-java -am install -DskipTests
+$ mvn -pl runners/direct-java surefire:test@validates-runner-tests
+```
+
+To run a single NeedsRunner test use the `test` property, e.g.
+
+```
+$ mvn -pl runners/direct-java surefire:test@validates-runner-tests -Dtest=MapElementsTest#testMapBasic
+```
+
+will run single `MapElementsTest.testMapBasic()` test.
+
+
+NeedsRunner tests in modules that are not required to build runners (e.g. 
+`sdks/java/io/jdbc`) can be executed with the `mvn test` command:
+
+```
+mvn -pl sdks/java/io/jdbc test -Dgroups=org.apache.beam.sdk.testing.NeedsRunner
+```
+
 ### ValidatesRunner
 
 ValidatesRunner tests contain components of both component and end-to-end
