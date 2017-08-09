@@ -659,10 +659,6 @@ public class WindowTest implements Serializable {
     public int hashCode() {
       return Objects.hash(super.hashCode(), isBig);
     }
-
-    public boolean contains(CustomWindow that) {
-      return this.start().isBefore(that.start()) && this.end().isAfter(that.end());
-    }
   }
 
   private static class CustomWindowCoder extends CustomCoder<CustomWindow> {
