@@ -30,6 +30,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class BeamSqlUdfExpression extends BeamSqlExpression {
   //as Method is not Serializable, need to keep class/method information, and rebuild it.
   private transient Method method;
+  private transient Object udfIns;
   private String className;
   private String methodName;
   private List<String> paraClassName = new ArrayList<>();
@@ -63,7 +64,7 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
       }
 
       return BeamSqlPrimitive.of(getOutputType(),
-          method.invoke(null, paras.toArray(new Object[]{})));
+          method.invoke(udfIns, paras.toArray(new Object[]{})));
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
@@ -78,6 +79,7 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
       for (String pc : paraClassName) {
         paraClass.add(Class.forName(pc));
       }
+      udfIns = Class.forName(className).newInstance();
       method = Class.forName(className).getMethod(methodName, paraClass.toArray(new Class<?>[] {}));
     } catch (Exception e) {
       throw new RuntimeException(e);

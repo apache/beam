@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;
@@ -57,6 +58,14 @@ public class BeamSqlEnv implements Serializable{
    */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
     schema.add(functionName, ScalarFunctionImpl.create(clazz, BeamSqlUdf.UDF_METHOD));
+  }
+
+  /**
+   * register {@link SerializableFunction} as a UDF function which can be used in SQL expression.
+   * Note, {@link SerializableFunction} must have a constructor without arguments.
+   */
+  public void registerUdf(String functionName, SerializableFunction sfn) {
+    schema.add(functionName, ScalarFunctionImpl.create(sfn.getClass(), "apply"));
   }
 
   /**
