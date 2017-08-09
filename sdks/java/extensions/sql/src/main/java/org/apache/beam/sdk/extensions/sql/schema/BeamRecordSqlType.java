@@ -176,4 +176,10 @@ public class BeamRecordSqlType extends BeamRecordType {
   public int hashCode() {
     return 31 * getFieldNames().hashCode() + getFieldTypes().hashCode();
   }
+
+  @Override
+  public String toString() {
+    return "BeamRecordSqlType [fieldNames=" + getFieldNames()
+        + ", fieldTypes=" + fieldTypes + ", recordCoder:" + getRecordCoder() + "]";
+  }
 }
