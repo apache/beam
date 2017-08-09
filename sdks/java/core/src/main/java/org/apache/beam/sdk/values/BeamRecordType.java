@@ -25,14 +25,22 @@ import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * The default type provider used in {@link BeamRecord}.
+ * {@link BeamRecordType} describes the fields in {@link BeamRecord}, extra checking can be added
+ * by overwriting {@link BeamRecordType#validateValueType(int, Object)}.
  */
 @Experimental
 public class BeamRecordType implements Serializable{
   private List<String> fieldNames;
   private List<Coder> fieldCoders;
 
+  /**
+   * Create a {@link BeamRecordType} with a name and Coder for each field.
+   */
   public BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
+    if (fieldNames.size() != fieldCoders.size()) {
+      throw new IllegalStateException(
+          "the size of fieldNames and fieldCoders need to be the same.");
+    }
     this.fieldNames = fieldNames;
     this.fieldCoders = fieldCoders;
   }
@@ -47,24 +55,36 @@ public class BeamRecordType implements Serializable{
    }
 
    /**
-    * Get the coder for {@link BeamRecordCoder}.
+    * Return the coder for {@link BeamRecord}, which wraps {@link #fieldCoders} for each field.
     */
    public BeamRecordCoder getRecordCoder(){
      return BeamRecordCoder.of(this, fieldCoders);
    }
 
+   /**
+    * Returns an immutable list of field names.
+    */
    public List<String> getFieldNames(){
      return ImmutableList.copyOf(fieldNames);
    }
 
+   /**
+    * Return the name of field by index.
+    */
    public String getFieldNameByIndex(int index){
      return fieldNames.get(index);
    }
 
+   /**
+    * Find the index of a given field.
+    */
    public int findIndexOfField(String fieldName){
      return fieldNames.indexOf(fieldName);
    }
 
+   /**
+    * Return the count of fields.
+    */
   public int size(){
     return fieldNames.size();
   }
