@@ -71,6 +71,6 @@ public class BeamRecordType implements Serializable{
 
   @Override
   public String toString() {
-    return "BeamRecordType [fieldsName=" + fieldsName + ", fieldsCoder=" + fieldsCoder + "]";
+    return "BeamRecordType [fieldsName=" + fieldsName + "]";
   }
 }
