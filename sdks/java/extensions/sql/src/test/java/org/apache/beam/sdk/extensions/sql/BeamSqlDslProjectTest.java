@@ -84,9 +84,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamRecord record = new BeamRecord(resultType);
-    record.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
-    record.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
+    BeamRecord record = new BeamRecord(resultType
+        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
 
     PAssert.that(result).containsInAnyOrder(record);
 
@@ -119,21 +118,17 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
-    record1.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
+    BeamRecord record1 = new BeamRecord(resultType
+        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
 
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int", recordsInTableA.get(1).getFieldValue(0));
-    record2.addField("f_long", recordsInTableA.get(1).getFieldValue(1));
+    BeamRecord record2 = new BeamRecord(resultType
+        , recordsInTableA.get(1).getFieldValue(0), recordsInTableA.get(1).getFieldValue(1));
 
-    BeamRecord record3 = new BeamRecord(resultType);
-    record3.addField("f_int", recordsInTableA.get(2).getFieldValue(0));
-    record3.addField("f_long", recordsInTableA.get(2).getFieldValue(1));
+    BeamRecord record3 = new BeamRecord(resultType
+        , recordsInTableA.get(2).getFieldValue(0), recordsInTableA.get(2).getFieldValue(1));
 
-    BeamRecord record4 = new BeamRecord(resultType);
-    record4.addField("f_int", recordsInTableA.get(3).getFieldValue(0));
-    record4.addField("f_long", recordsInTableA.get(3).getFieldValue(1));
+    BeamRecord record4 = new BeamRecord(resultType
+        , recordsInTableA.get(3).getFieldValue(0), recordsInTableA.get(3).getFieldValue(1));
 
     PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
 
@@ -166,21 +161,17 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
 
-    BeamRecord record1 = new BeamRecord(resultType);
-    record1.addField("f_int", recordsInTableA.get(0).getFieldValue(0));
-    record1.addField("f_long", recordsInTableA.get(0).getFieldValue(1));
+    BeamRecord record1 = new BeamRecord(resultType
+        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
 
-    BeamRecord record2 = new BeamRecord(resultType);
-    record2.addField("f_int", recordsInTableA.get(1).getFieldValue(0));
-    record2.addField("f_long", recordsInTableA.get(1).getFieldValue(1));
+    BeamRecord record2 = new BeamRecord(resultType
+        , recordsInTableA.get(1).getFieldValue(0), recordsInTableA.get(1).getFieldValue(1));
 
-    BeamRecord record3 = new BeamRecord(resultType);
-    record3.addField("f_int", recordsInTableA.get(2).getFieldValue(0));
-    record3.addField("f_long", recordsInTableA.get(2).getFieldValue(1));
+    BeamRecord record3 = new BeamRecord(resultType
+        , recordsInTableA.get(2).getFieldValue(0), recordsInTableA.get(2).getFieldValue(1));
 
-    BeamRecord record4 = new BeamRecord(resultType);
-    record4.addField("f_int", recordsInTableA.get(3).getFieldValue(0));
-    record4.addField("f_long", recordsInTableA.get(3).getFieldValue(1));
+    BeamRecord record4 = new BeamRecord(resultType
+        , recordsInTableA.get(3).getFieldValue(0), recordsInTableA.get(3).getFieldValue(1));
 
     PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
 
@@ -213,8 +204,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     BeamSqlRecordType resultType = BeamSqlRecordType.create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
 
-    BeamRecord record = new BeamRecord(resultType);
-    record.addField("literal_field", 1);
+    BeamRecord record = new BeamRecord(resultType, 1);
 
     PAssert.that(result).containsInAnyOrder(record);
 

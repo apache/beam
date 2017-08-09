@@ -54,10 +54,7 @@ class BeamSqlExample {
     List<String> fieldNames = Arrays.asList("c1", "c2", "c3");
     List<Integer> fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
     BeamSqlRecordType type = BeamSqlRecordType.create(fieldNames, fieldTypes);
-    BeamRecord row = new BeamRecord(type);
-    row.addField(0, 1);
-    row.addField(1, "row");
-    row.addField(2, 1.0);
+    BeamRecord row = new BeamRecord(type, 1, "row", 1.0);
 
     //create a source PCollection with Create.of();
     PCollection<BeamRecord> inputTable = PBegin.in(p).apply(Create.of(row)
