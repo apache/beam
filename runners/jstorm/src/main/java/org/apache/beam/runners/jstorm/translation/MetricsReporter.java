@@ -72,6 +72,7 @@ class MetricsReporter {
         AsmCounter counter = metricClient.registerCounter(metricName);
         Long incValue = (oldValue == null ? updateValue : updateValue - oldValue);
         counter.update(incValue);
+        reportedCounters.put(metricName, incValue);
       }
     }
   }
