@@ -25,11 +25,17 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.BeamRecordCoder;
 
 /**
- * {@link org.apache.beam.sdk.values.BeamRecord}, self-described with
- * {@link BeamRecordType}, represents one element in a
- * {@link org.apache.beam.sdk.values.PCollection}.
+ * {@link BeamRecord} is an immutable tuple-like type to represent one element in a
+ * {@link PCollection}. The fields are described with a {@link BeamRecordType}.
+ *
+ * <p>By default, {@link BeamRecordType} only contains the name for each field. It
+ * can be extended to support more sophisticated validation by overwriting
+ * {@link BeamRecordType#validateValueType(int, Object)}.
+ *
+ * <p>A Coder {@link BeamRecordCoder} is provided, which wraps the Coder for each data field.
  */
 @Experimental
 public class BeamRecord implements Serializable {
@@ -63,6 +69,9 @@ public class BeamRecord implements Serializable {
     }
   }
 
+  /**
+   * see {@link #BeamRecord(BeamRecordType, List)}.
+   */
   public BeamRecord(BeamRecordType dataType, Object... rawdataValues) {
     this(dataType, Arrays.asList(rawdataValues));
   }
@@ -72,110 +81,213 @@ public class BeamRecord implements Serializable {
     dataValues.set(index, fieldValue);
   }
 
+  /**
+   * Get value by field name.
+   */
   public Object getFieldValue(String fieldName) {
     return getFieldValue(dataType.getFieldNames().indexOf(fieldName));
   }
 
+  /**
+   * Get a {@link Byte} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Byte getByte(String fieldName) {
     return (Byte) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Short} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Short getShort(String fieldName) {
     return (Short) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Integer} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Integer getInteger(String fieldName) {
     return (Integer) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Float} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Float getFloat(String fieldName) {
     return (Float) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Double} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Double getDouble(String fieldName) {
     return (Double) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Long} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Long getLong(String fieldName) {
     return (Long) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link String} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public String getString(String fieldName) {
     return (String) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Date} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Date getDate(String fieldName) {
     return (Date) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link GregorianCalendar} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public GregorianCalendar getGregorianCalendar(String fieldName) {
     return (GregorianCalendar) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link BigDecimal} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public BigDecimal getBigDecimal(String fieldName) {
     return (BigDecimal) getFieldValue(fieldName);
   }
 
+  /**
+   * Get a {@link Boolean} value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Boolean getBoolean(String fieldName) {
     return (Boolean) getFieldValue(fieldName);
   }
 
+  /**
+   * Get value by field index.
+   */
   public Object getFieldValue(int fieldIdx) {
     return dataValues.get(fieldIdx);
   }
 
+  /**
+   * Get a {@link Byte} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Byte getByte(int idx) {
     return (Byte) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Short} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Short getShort(int idx) {
     return (Short) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Integer} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Integer getInteger(int idx) {
     return (Integer) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Float} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Float getFloat(int idx) {
     return (Float) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Double} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Double getDouble(int idx) {
     return (Double) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Long} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Long getLong(int idx) {
     return (Long) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link String} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public String getString(int idx) {
     return (String) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Date} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Date getDate(int idx) {
     return (Date) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link GregorianCalendar} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public GregorianCalendar getGregorianCalendar(int idx) {
     return (GregorianCalendar) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link BigDecimal} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public BigDecimal getBigDecimal(int idx) {
     return (BigDecimal) getFieldValue(idx);
   }
 
+  /**
+   * Get a {@link Boolean} value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
   public Boolean getBoolean(int idx) {
     return (Boolean) getFieldValue(idx);
   }
 
+  /**
+   * Return the size of data fields.
+   */
   public int getFieldCount() {
     return dataValues.size();
   }
 
+  /**
+   * Return the list of data values.
+   */
   public List<Object> getDataValues() {
     return dataValues;
   }
 
+  /**
+   * Return {@link BeamRecordType} which describes the fields.
+   */
   public BeamRecordType getDataType() {
     return dataType;
   }
