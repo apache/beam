@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -82,7 +83,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<BeamRecord> result2 =
         PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
         .apply("testUdf2",
-            BeamSql.query(sql2).withUdf("cubic2", CubicInteger.class));
+            BeamSql.query(sql2).withUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(record);
 
     pipeline.run().waitUntilFinish();
@@ -128,6 +129,16 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   public static class CubicInteger implements BeamSqlUdf {
     public static Integer eval(Integer input){
+      return input * input * input;
+    }
+  }
+
+  /**
+   * A example UDF with {@link SerializableFunction}.
+   */
+  public static class CubicIntegerFn implements SerializableFunction<Integer, Integer> {
+    @Override
+    public Integer apply(Integer input) {
       return input * input * input;
     }
   }

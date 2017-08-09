@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -144,6 +145,14 @@ public class BeamSql {
        getSqlEnv().registerUdf(functionName, clazz);
        return this;
      }
+     /**
+      * register {@link SerializableFunction} as a UDF function used in this query.
+      * Note, {@link SerializableFunction} must have a constructor without arguments.
+      */
+      public QueryTransform withUdf(String functionName, SerializableFunction sfn){
+        getSqlEnv().registerUdf(functionName, sfn);
+        return this;
+      }
 
      /**
       * register a UDAF function used in this query.
@@ -213,6 +222,14 @@ public class BeamSql {
        getSqlEnv().registerUdf(functionName, clazz);
        return this;
      }
+     /**
+      * register {@link SerializableFunction} as a UDF function used in this query.
+      * Note, {@link SerializableFunction} must have a constructor without arguments.
+      */
+      public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
+        getSqlEnv().registerUdf(functionName, sfn);
+        return this;
+      }
 
      /**
       * register a UDAF function used in this query.
