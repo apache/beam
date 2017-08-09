@@ -21,9 +21,8 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.sql.Types;
 import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -38,8 +37,8 @@ import org.junit.Test;
 /**
  * Test for {@code BeamSetOperatorRelBase}.
  */
-public class BeamSetOperatorRelBaseTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+public class BeamSetOperatorRelBaseTest extends BaseRelTest {
+  static InnerBeamSqlEnv sqlEnv = new InnerBeamSqlEnv();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
@@ -71,7 +70,7 @@ public class BeamSetOperatorRelBaseTest {
         + "FROM ORDER_DETAILS GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR) ";
 
-    PCollection<BeamRecord> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     // compare valueInString to ignore the windowStart & windowEnd
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
@@ -100,7 +99,7 @@ public class BeamSetOperatorRelBaseTest {
     // use a real pipeline rather than the TestPipeline because we are
     // testing exceptions, the pipeline will not actually run.
     Pipeline pipeline1 = Pipeline.create(PipelineOptionsFactory.create());
-    BeamSqlCli.compilePipeline(sql, pipeline1, sqlEnv);
+    compilePipeline(sql, pipeline1, sqlEnv);
     pipeline.run();
   }
 }

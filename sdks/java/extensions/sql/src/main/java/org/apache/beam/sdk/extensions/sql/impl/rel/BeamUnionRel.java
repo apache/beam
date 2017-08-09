@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -82,7 +82,7 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   }
 
   @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
+      , InnerBeamSqlEnv sqlEnv) throws Exception {
     return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
   }
 }

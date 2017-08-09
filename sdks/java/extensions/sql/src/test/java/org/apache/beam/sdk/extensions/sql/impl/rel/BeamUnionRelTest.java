@@ -19,9 +19,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.sql.Types;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,8 +33,8 @@ import org.junit.Test;
 /**
  * Test for {@code BeamUnionRel}.
  */
-public class BeamUnionRelTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
+public class BeamUnionRelTest extends BaseRelTest {
+  static InnerBeamSqlEnv sqlEnv = new InnerBeamSqlEnv();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
@@ -63,7 +62,7 @@ public class BeamUnionRelTest {
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS ";
 
-    PCollection<BeamRecord> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             Types.BIGINT, "order_id",
@@ -86,7 +85,7 @@ public class BeamUnionRelTest {
         + " SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS";
 
-    PCollection<BeamRecord> rows = BeamSqlCli.compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             Types.BIGINT, "order_id",

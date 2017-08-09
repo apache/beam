@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -94,10 +93,7 @@ public class BeamSql {
    * </ul>
    */
   public static QueryTransform query(String sqlQuery) {
-    return QueryTransform.builder()
-        .setSqlEnv(new BeamSqlEnv())
-        .setSqlQuery(sqlQuery)
-        .build();
+    return new QueryTransform(sqlQuery);
   }
 
   /**
@@ -109,10 +105,7 @@ public class BeamSql {
    * <p>Make sure to query it from a static table name <em>PCOLLECTION</em>.
    */
   public static SimpleQueryTransform simpleQuery(String sqlQuery) {
-    return SimpleQueryTransform.builder()
-        .setSqlEnv(new BeamSqlEnv())
-        .setSqlQuery(sqlQuery)
-        .build();
+    return new SimpleQueryTransform(sqlQuery);
   }
 
   /**
@@ -121,28 +114,21 @@ public class BeamSql {
    * <p>The table names in the input {@code PCollectionTuple} are only valid during the current
    * query.
    */
-  @AutoValue
-  public abstract static class QueryTransform extends
+  public static class QueryTransform extends
       PTransform<PCollectionTuple, PCollection<BeamRecord>> {
-    abstract BeamSqlEnv getSqlEnv();
-    abstract String getSqlQuery();
+    private org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv beamSqlEnv
+        = new org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv();
+    private String sqlQuery;
 
-    static Builder builder() {
-      return new AutoValue_BeamSql_QueryTransform.Builder();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setSqlQuery(String sqlQuery);
-      abstract Builder setSqlEnv(BeamSqlEnv sqlEnv);
-      abstract QueryTransform build();
+    public QueryTransform(String sqlQuery) {
+      this.sqlQuery = sqlQuery;
     }
 
     /**
      * register a UDF function used in this query.
      */
      public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
-       getSqlEnv().registerUdf(functionName, clazz);
+       beamSqlEnv.registerUdf(functionName, clazz);
        return this;
      }
      /**
@@ -150,7 +136,7 @@ public class BeamSql {
       * Note, {@link SerializableFunction} must have a constructor without arguments.
       */
       public QueryTransform withUdf(String functionName, SerializableFunction sfn){
-        getSqlEnv().registerUdf(functionName, sfn);
+        beamSqlEnv.registerUdf(functionName, sfn);
         return this;
       }
 
@@ -158,35 +144,36 @@ public class BeamSql {
       * register a {@link CombineFn} as UDAF function used in this query.
       */
      public QueryTransform withUdaf(String functionName, CombineFn combineFn){
-       getSqlEnv().registerUdaf(functionName, combineFn);
+       beamSqlEnv.registerUdaf(functionName, combineFn);
        return this;
      }
 
     @Override
     public PCollection<BeamRecord> expand(PCollectionTuple input) {
-      registerTables(input);
+      registerTables(input, beamSqlEnv);
 
       BeamRelNode beamRelNode = null;
       try {
-        beamRelNode = getSqlEnv().planner.convertToBeamRel(getSqlQuery());
+        beamRelNode = beamSqlEnv.getPlanner().convertToBeamRel(sqlQuery);
       } catch (ValidationException | RelConversionException | SqlParseException e) {
         throw new IllegalStateException(e);
       }
 
       try {
-        return beamRelNode.buildBeamPipeline(input, getSqlEnv());
+        return beamRelNode.buildBeamPipeline(input, beamSqlEnv);
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
     }
 
     //register tables, related with input PCollections.
-    private void registerTables(PCollectionTuple input){
+    private void registerTables(PCollectionTuple input,
+        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv){
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
         PCollection<BeamRecord> sourceStream = (PCollection<BeamRecord>) input.get(sourceTag);
         BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();
 
-        getSqlEnv().registerTable(sourceTag.getId(),
+        innerBeamSqlEnv.registerTable(sourceTag.getId(),
             new BeamPCollectionTable(sourceStream,
                 (BeamRecordSqlType) sourceCoder.getRecordType()));
       }
@@ -197,29 +184,22 @@ public class BeamSql {
    * A {@link PTransform} representing an execution plan for a SQL query referencing
    * a single table.
    */
-  @AutoValue
-  public abstract static class SimpleQueryTransform
+  public static class SimpleQueryTransform
       extends PTransform<PCollection<BeamRecord>, PCollection<BeamRecord>> {
     private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
-    abstract BeamSqlEnv getSqlEnv();
-    abstract String getSqlQuery();
+    private org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv beamSqlEnv
+        = new org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv();
+    private String sqlQuery;
 
-    static Builder builder() {
-      return new AutoValue_BeamSql_SimpleQueryTransform.Builder();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setSqlQuery(String sqlQuery);
-      abstract Builder setSqlEnv(BeamSqlEnv sqlEnv);
-      abstract SimpleQueryTransform build();
+    public SimpleQueryTransform(String sqlQuery) {
+      this.sqlQuery = sqlQuery;
     }
 
     /**
      * register a UDF function used in this query.
      */
      public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
-       getSqlEnv().registerUdf(functionName, clazz);
+       beamSqlEnv.registerUdf(functionName, clazz);
        return this;
      }
      /**
@@ -227,7 +207,7 @@ public class BeamSql {
       * Note, {@link SerializableFunction} must have a constructor without arguments.
       */
       public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
-        getSqlEnv().registerUdf(functionName, sfn);
+        beamSqlEnv.registerUdf(functionName, sfn);
         return this;
       }
 
@@ -235,15 +215,15 @@ public class BeamSql {
        * register a {@link CombineFn} as UDAF function used in this query.
        */
       public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
-        getSqlEnv().registerUdaf(functionName, combineFn);
+        beamSqlEnv.registerUdaf(functionName, combineFn);
         return this;
       }
 
     private void validateQuery() {
       SqlNode sqlNode;
       try {
-        sqlNode = getSqlEnv().planner.parseQuery(getSqlQuery());
-        getSqlEnv().planner.getPlanner().close();
+        sqlNode = beamSqlEnv.getPlanner().parseQuery(sqlQuery);
+        beamSqlEnv.getPlanner().getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -264,10 +244,7 @@ public class BeamSql {
     public PCollection<BeamRecord> expand(PCollection<BeamRecord> input) {
       validateQuery();
       return PCollectionTuple.of(new TupleTag<BeamRecord>(PCOLLECTION_TABLE_NAME), input)
-          .apply(QueryTransform.builder()
-              .setSqlEnv(getSqlEnv())
-              .setSqlQuery(getSqlQuery())
-              .build());
+          .apply(new QueryTransform(sqlQuery));
     }
   }
 }

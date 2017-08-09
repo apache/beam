@@ -35,7 +35,9 @@ public class BeamSqlCli {
    * Returns a human readable representation of the query execution plan.
    */
   public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv) throws Exception {
-    BeamRelNode exeTree = sqlEnv.planner.convertToBeamRel(sqlString);
+    org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
+        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(sqlEnv);
+    BeamRelNode exeTree = innerBeamSqlEnv.getPlanner().convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -58,8 +60,10 @@ public class BeamSqlCli {
    */
   public static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline,
       BeamSqlEnv sqlEnv) throws Exception{
-    PCollection<BeamRecord> resultStream =
-        sqlEnv.planner.compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
+    org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
+        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(sqlEnv);
+    PCollection<BeamRecord> resultStream = innerBeamSqlEnv.getPlanner()
+        .compileBeamPipeline(sqlStatement, basePipeline, innerBeamSqlEnv);
     return resultStream;
   }
 }

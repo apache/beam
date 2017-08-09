@@ -15,25 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.rel;
-
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.calcite.rel.RelNode;
 
 /**
- * A new method {@link #buildBeamPipeline(PCollectionTuple, InnerBeamSqlEnv)} is added.
+ * Implementation classes of BeamSql.
  */
-public interface BeamRelNode extends RelNode {
-
-  /**
-   * A {@link BeamRelNode} is a recursive structure, the
-   * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
-   * algorithm.
-   */
-  PCollection<BeamRecord> buildBeamPipeline(
-      PCollectionTuple inputPCollections, InnerBeamSqlEnv sqlEnv)
-      throws Exception;
-}
+package org.apache.beam.sdk.extensions.sql.impl;
