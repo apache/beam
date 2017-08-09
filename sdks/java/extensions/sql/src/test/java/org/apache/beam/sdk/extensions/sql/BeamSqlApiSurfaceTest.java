@@ -40,15 +40,13 @@ public class BeamSqlApiSurfaceTest {
     final Set<String> allowed =
         ImmutableSet.of(
             "org.apache.beam",
-            "org.joda.time",
-            "org.apache.commons.csv");
+            "org.joda.time");
 
     ApiSurface surface = ApiSurface
-        .ofClass(BeamSqlCli.class)
-        .includingClass(BeamSql.class)
-        .includingClass(BeamSqlEnv.class)
-        .includingPackage("org.apache.beam.sdk.extensions.sql.schema",
-            getClass().getClassLoader())
+        .ofClass(BeamSql.class)
+        .includingClass(BeamSqlUdf.class)
+        .includingClass(BeamRecordSqlType.class)
+        .includingClass(BeamSqlRecordHelper.class)
         .pruningPrefix("java")
         .pruningPattern("org[.]apache[.]beam[.]sdk[.]extensions[.]sql[.].*Test")
         .pruningPattern("org[.]apache[.]beam[.]sdk[.]extensions[.]sql[.].*TestBase");
