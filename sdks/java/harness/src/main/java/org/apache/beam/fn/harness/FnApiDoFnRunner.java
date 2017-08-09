@@ -25,8 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -109,13 +107,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           outputMapBuilder.build();
 
       // Get the DoFnInfo from the serialized blob.
-      ByteString serializedFn;
-      try {
-        serializedFn = pTransform.getSpec().getParameter().unpack(BytesValue.class).getValue();
-      } catch (InvalidProtocolBufferException e) {
-        throw new IllegalArgumentException(
-            String.format("Unable to unwrap DoFn %s", pTransform.getSpec()), e);
-      }
+      ByteString serializedFn = pTransform.getSpec().getPayload();
       @SuppressWarnings({"unchecked", "rawtypes"})
       DoFnInfo<InputT, OutputT> doFnInfo = (DoFnInfo) SerializableUtils.deserializeFromByteArray(
           serializedFn.toByteArray(), "DoFnInfo");
