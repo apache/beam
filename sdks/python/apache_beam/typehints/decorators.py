@@ -86,6 +86,7 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import types
 
+from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import CompositeTypeHintError
@@ -347,13 +348,22 @@ def with_input_types(*positional_hints, **keyword_hints):
     for all received function arguments.
   """
 
+  converted_positional_hints = (
+      native_type_compatibility.convert_to_beam_types(positional_hints))
+  converted_keyword_hints = (
+      native_type_compatibility.convert_to_beam_types(keyword_hints))
+  del positional_hints
+  del keyword_hints
+
   def annotate(f):
     if isinstance(f, types.FunctionType):
-      for t in list(positional_hints) + list(keyword_hints.values()):
+      for t in (list(converted_positional_hints) +
+                list(converted_keyword_hints.values())):
         validate_composite_type_param(
             t, error_msg_prefix='All type hint arguments')
 
-    get_type_hints(f).set_input_types(*positional_hints, **keyword_hints)
+    get_type_hints(f).set_input_types(*converted_positional_hints,
+                                      **converted_keyword_hints)
     return f
   return annotate
 
@@ -410,7 +420,8 @@ def with_output_types(*return_type_hint, **kwargs):
                      "order to specify multiple return types, use the 'Tuple' "
                      "type-hint.")
 
-  return_type_hint = return_type_hint[0]
+  return_type_hint = native_type_compatibility.convert_to_beam_type(
+      return_type_hint[0])
 
   validate_composite_type_param(
       return_type_hint,
@@ -420,6 +431,7 @@ def with_output_types(*return_type_hint, **kwargs):
   def annotate(f):
     get_type_hints(f).set_output_types(return_type_hint)
     return f
+
   return annotate
 
 
