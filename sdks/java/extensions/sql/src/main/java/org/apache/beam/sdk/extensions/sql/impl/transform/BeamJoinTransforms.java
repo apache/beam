@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -58,12 +58,12 @@ public class BeamJoinTransforms {
       for (int i = 0; i < joinColumns.size(); i++) {
         names.add("c" + i);
         types.add(isLeft
-            ? BeamSqlRecordHelper.getSqlRecordType(input).getFieldsType()
-                .get(joinColumns.get(i).getKey())
-            : BeamSqlRecordHelper.getSqlRecordType(input).getFieldsType()
-                .get(joinColumns.get(i).getValue()));
+            ? BeamSqlRecordHelper.getSqlRecordType(input).getFieldTypeByIndex(
+                joinColumns.get(i).getKey())
+            : BeamSqlRecordHelper.getSqlRecordType(input).getFieldTypeByIndex(
+                joinColumns.get(i).getValue()));
       }
-      BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
+      BeamRecordSqlType type = BeamRecordSqlType.create(names, types);
 
       // build the row
       List<Object> fieldValues = new ArrayList<>(joinColumns.size());
@@ -146,13 +146,13 @@ public class BeamJoinTransforms {
       BeamRecord rightRow) {
     // build the type
     List<String> names = new ArrayList<>(leftRow.size() + rightRow.size());
-    names.addAll(leftRow.getDataType().getFieldsName());
-    names.addAll(rightRow.getDataType().getFieldsName());
+    names.addAll(leftRow.getDataType().getFieldNames());
+    names.addAll(rightRow.getDataType().getFieldNames());
 
     List<Integer> types = new ArrayList<>(leftRow.size() + rightRow.size());
-    types.addAll(BeamSqlRecordHelper.getSqlRecordType(leftRow).getFieldsType());
-    types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldsType());
-    BeamSqlRecordType type = BeamSqlRecordType.create(names, types);
+    types.addAll(BeamSqlRecordHelper.getSqlRecordType(leftRow).getFieldTypes());
+    types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldTypes());
+    BeamRecordSqlType type = BeamRecordSqlType.create(names, types);
 
     List<Object> fieldValues = new ArrayList<>(leftRow.getDataValues());
     fieldValues.addAll(rightRow.getDataValues());
