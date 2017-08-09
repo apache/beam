@@ -255,7 +255,7 @@ precommit and postcommit testing.
 ### Precommit
 
 For precommit testing, Beam uses
-[Jenkins](https://builds.apache.org/view/Beam/) and a code coverage tool
+[Jenkins](https://builds.apache.org/view/A-D/view/Beam/) and a code coverage tool
 called [Coveralls](https://coveralls.io/github/apache/beam), hooked up
 to [Github](https://github.com/apache/beam), to ensure that pull
 requests meet a certain quality bar. These precommits verify correctness via two
@@ -290,7 +290,7 @@ more interesting things, take a look at
 [WordCountIT.java](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java).
 
 Postcommit test results can be found in
-[Jenkins](https://builds.apache.org/view/Beam/).
+[Jenkins](https://builds.apache.org/view/A-D/view/Beam/).
 
 ## Testing Types
 
