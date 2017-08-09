@@ -22,6 +22,7 @@ import com.alibaba.jstorm.esotericsoftware.kryo.Kryo;
 import com.alibaba.jstorm.esotericsoftware.kryo.Serializer;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,9 +40,78 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Specific serializer of {@link Kryo} for Unmodifiable Collection.
+ * Specific serializer of {@link Kryo} for Java Utils, e.g. Collections.SingletonList...
  */
-public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
+public class JavaUtilsSerializer {
+
+  /**
+   * Specific {@link Kryo} serializer for {@link java.util.Collections.SingletonList}.
+   */
+  public static class CollectionsSingletonListSerializer extends Serializer<List<?>> {
+    public CollectionsSingletonListSerializer() {
+      setImmutable(true);
+    }
+
+    @Override
+    public List<?> read(final Kryo kryo, final Input input, final Class<List<?>> type) {
+      final Object obj = kryo.readClassAndObject(input);
+      return Collections.singletonList(obj);
+    }
+
+    @Override
+    public void write(final Kryo kryo, final Output output, final List<?> list) {
+      kryo.writeClassAndObject(output, list.get(0));
+    }
+
+  }
+
+  /**
+   * Specific serializer of {@link Kryo} for Unmodifiable Collection.
+   */
+  public static class UnmodifiableCollectionsSerializer extends Serializer<Object> {
+
+    @Override
+    public Object read(final Kryo kryo, final Input input, final Class<Object> clazz) {
+      final int ordinal = input.readInt(true);
+      final UnmodifiableCollection unmodifiableCollection =
+          UnmodifiableCollection.values()[ordinal];
+      final Object sourceCollection = kryo.readClassAndObject(input);
+      return unmodifiableCollection.create(sourceCollection);
+    }
+
+    @Override
+    public void write(final Kryo kryo, final Output output, final Object object) {
+      try {
+        final UnmodifiableCollection unmodifiableCollection =
+            UnmodifiableCollection.valueOfType(object.getClass());
+        // the ordinal could be replaced by s.th. else (e.g. a explicitely managed "id")
+        output.writeInt(unmodifiableCollection.ordinal(), true);
+        kryo.writeClassAndObject(output, unmodifiableCollection.sourceCollectionField.get(object));
+      } catch (final RuntimeException e) {
+        // Don't eat and wrap RuntimeExceptions because the ObjectBuffer.write...
+        // handles SerializationException specifically (resizing the buffer)...
+        throw e;
+      } catch (final Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public Object copy(Kryo kryo, Object original) {
+      try {
+        final UnmodifiableCollection unmodifiableCollection =
+            UnmodifiableCollection.valueOfType(original.getClass());
+        Object sourceCollectionCopy =
+            kryo.copy(unmodifiableCollection.sourceCollectionField.get(original));
+        return unmodifiableCollection.create(sourceCollectionCopy);
+      } catch (final RuntimeException e) {
+        // Don't eat and wrap RuntimeExceptions
+        throw e;
+      } catch (final Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
 
   private static final Field SOURCE_COLLECTION_FIELD;
   private static final Field SOURCE_MAP_FIELD;
@@ -59,47 +129,6 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
     } catch (final Exception e) {
       throw new RuntimeException("Could not access source collection"
           + " field in java.util.Collections$UnmodifiableCollection.", e);
-    }
-  }
-
-  @Override
-  public Object read(final Kryo kryo, final Input input, final Class<Object> clazz) {
-    final int ordinal = input.readInt(true);
-    final UnmodifiableCollection unmodifiableCollection = UnmodifiableCollection.values()[ordinal];
-    final Object sourceCollection = kryo.readClassAndObject(input);
-    return unmodifiableCollection.create(sourceCollection);
-  }
-
-  @Override
-  public void write(final Kryo kryo, final Output output, final Object object) {
-    try {
-      final UnmodifiableCollection unmodifiableCollection =
-          UnmodifiableCollection.valueOfType(object.getClass());
-      // the ordinal could be replaced by s.th. else (e.g. a explicitely managed "id")
-      output.writeInt(unmodifiableCollection.ordinal(), true);
-      kryo.writeClassAndObject(output, unmodifiableCollection.sourceCollectionField.get(object));
-    } catch (final RuntimeException e) {
-      // Don't eat and wrap RuntimeExceptions because the ObjectBuffer.write...
-      // handles SerializationException specifically (resizing the buffer)...
-      throw e;
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  public Object copy(Kryo kryo, Object original) {
-    try {
-      final UnmodifiableCollection unmodifiableCollection =
-          UnmodifiableCollection.valueOfType(original.getClass());
-      Object sourceCollectionCopy =
-          kryo.copy(unmodifiableCollection.sourceCollectionField.get(original));
-      return unmodifiableCollection.create(sourceCollectionCopy);
-    } catch (final RuntimeException e) {
-      // Don't eat and wrap RuntimeExceptions
-      throw e;
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -192,10 +221,16 @@ public class UnmodifiableCollectionsSerializer extends Serializer<Object> {
    * @see Collections#unmodifiableMap(Map)
    * @see Collections#unmodifiableSortedMap(SortedMap)
    */
-  public static void registerSerializers(Config config) {
+  private static void registerUnmodifableCollectionSerializers(Config config) {
     UnmodifiableCollection.values();
     for (final UnmodifiableCollection item : UnmodifiableCollection.values()) {
       config.registerSerialization(item.type, UnmodifiableCollectionsSerializer.class);
     }
+  }
+
+  public static void registerSerializers(Config config) {
+    config.registerSerialization(Collections.singletonList("").getClass(),
+        CollectionsSingletonListSerializer.class);
+    registerUnmodifableCollectionSerializers(config);
   }
 }

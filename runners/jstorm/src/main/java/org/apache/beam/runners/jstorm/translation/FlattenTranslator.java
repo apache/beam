@@ -70,6 +70,7 @@ class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollecti
       PValue output = userGraphContext.getOutput();
 
       UnboundedSourceSpout spout = new UnboundedSourceSpout(
+          userGraphContext.getStepName(),
           description,
           new EmptySource(),
           userGraphContext.getOptions(),

@@ -277,7 +277,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
           pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
       if (pushedBackElements != null) {
         for (WindowedValue<InputT> elem : pushedBackElements.read()) {
-          LOG.info("Process pushback elem={}", elem);
+          LOG.debug("Process pushed back elem: {}", elem);
           runner.processElement(elem);
         }
         pushedBackElements.clear();

@@ -36,6 +36,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -63,6 +64,8 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   // map from input tag to executor inside bolt
   protected final Map<TupleTag, Executor> inputTagToExecutor = Maps.newHashMap();
+  protected final Map<Executor, Collection<TupleTag>> executorToOutputTags = Maps.newHashMap();
+  protected final Map<Executor, String> executorToPTransformName = Maps.newHashMap();
   // set of all output tags that will be emit outside bolt
   protected final Set<TupleTag> outputTags = Sets.newHashSet();
   protected final Set<TupleTag> externalOutputTags = Sets.newHashSet();
@@ -84,14 +87,19 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
     isStatefulBolt = isStateful;
   }
 
-  public void addExecutor(TupleTag inputTag, Executor executor) {
+  public void addExecutor(TupleTag inputTag, Executor executor, String name) {
     inputTagToExecutor.put(
         checkNotNull(inputTag, "inputTag"),
         checkNotNull(executor, "executor"));
+    executorToPTransformName.put(executor, name);
   }
 
   public Map<TupleTag, Executor> getExecutors() {
     return inputTagToExecutor;
+  }
+
+  public Map<Executor, String> getExecutorNames() {
+    return executorToPTransformName;
   }
 
   public void registerExecutor(Executor executor) {
@@ -107,12 +115,29 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
     return idToDoFnExecutor;
   }
 
-  public void addOutputTags(TupleTag tag) {
-    outputTags.add(tag);
+  public void addOutputTags(Executor executor, TupleTag outputTag) {
+    Collection<TupleTag> outTags;
+    if (executorToOutputTags.containsKey(executor)) {
+      outTags = executorToOutputTags.get(executor);
+    } else {
+      outTags = Sets.newHashSet();
+      executorToOutputTags.put(executor, outTags);
+    }
+    outTags.add(outputTag);
+
+    outputTags.add(outputTag);
+  }
+
+  public Map<Executor, Collection<TupleTag>> getExecutorToOutputTags() {
+    return executorToOutputTags;
   }
 
   public void addExternalOutputTag(TupleTag<?> tag) {
     externalOutputTags.add(tag);
+  }
+
+  public Collection<TupleTag> getExternalOutputTags() {
+    return externalOutputTags;
   }
 
   public Set<TupleTag> getOutputTags() {
@@ -327,6 +352,10 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
     ret.add("internalExecutors");
     for (Executor executor : inputTagToExecutor.values()) {
       ret.add(executor.toString());
+    }
+    ret.add("outputTags");
+    for (TupleTag outputTag : outputTags) {
+      ret.add(outputTag.getId());
     }
     ret.add("externalOutputTags");
     for (TupleTag output : externalOutputTags) {

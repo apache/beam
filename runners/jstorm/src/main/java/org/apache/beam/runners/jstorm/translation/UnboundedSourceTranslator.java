@@ -37,6 +37,7 @@ class UnboundedSourceTranslator<T> extends TransformTranslator.Default<Read.Unbo
     PValue output = userGraphContext.getOutput();
 
     UnboundedSourceSpout spout = new UnboundedSourceSpout(
+        userGraphContext.getStepName(),
         description,
         transform.getSource(), userGraphContext.getOptions(), tag);
     context.getExecutionGraphContext().registerSpout(spout, TaggedPValue.of(tag, output));

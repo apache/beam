@@ -39,6 +39,7 @@ class BoundedSourceTranslator<T> extends TransformTranslator.Default<Read.Bounde
     TupleTag<?> outputTag = userGraphContext.getOutputTag();
     PValue outputValue = userGraphContext.getOutput();
     UnboundedSourceSpout spout = new UnboundedSourceSpout(
+        userGraphContext.getStepName(),
         description,
         new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter(transform.getSource()),
         userGraphContext.getOptions(), outputTag);
