@@ -17,8 +17,8 @@
 
 """Unit tests for the type-hint objects and decorators."""
 import inspect
+import typing
 import unittest
-
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -96,6 +96,31 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
+
+
+class NativeTypesTest(unittest.TestCase):
+
+  def test_good_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, int])
+    def munge((s, i)):
+      return (s + 's', i * 2)
+    result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
+    self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
+
+  def test_bad_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, str])
+    def munge((s, i)):
+      return (s + 's', i * 2)
+    with self.assertRaises(typehints.TypeCheckError):
+      [('apple', 5), ('pear', 3)] | beam.Map(munge)
+
+  def test_bad_main_output(self):
+    @typehints.with_input_types(typing.Tuple[int, int])
+    @typehints.with_output_types(typing.Tuple[str, str])
+    def munge((a, b)):
+      return (str(a), str(b))
+    with self.assertRaises(typehints.TypeCheckError):
+      [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)
 
 
 class SideInputTest(unittest.TestCase):
