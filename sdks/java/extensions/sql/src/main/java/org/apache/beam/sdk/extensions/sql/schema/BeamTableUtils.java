@@ -41,7 +41,6 @@ public final class BeamTableUtils {
       CSVFormat csvFormat,
       String line,
       BeamRecordSqlType beamRecordSqlType) {
-    BeamRecord row = new BeamRecord(beamRecordSqlType);
     List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.size());
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);

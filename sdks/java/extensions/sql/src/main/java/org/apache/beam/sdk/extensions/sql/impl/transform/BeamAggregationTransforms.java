@@ -75,8 +75,11 @@ public class BeamAggregationTransforms implements Serializable{
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      List<Object> fieldValues = new ArrayList<>();
       KV<BeamRecord, BeamRecord> kvRecord = c.element();
+      List<Object> fieldValues = new ArrayList<>();
+      fieldValues.addAll(kvRecord.getKey().getDataValues());
+      fieldValues.addAll(kvRecord.getValue().getDataValues());
+
       if (windowStartFieldIdx != -1) {
         fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
       }

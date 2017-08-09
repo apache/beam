@@ -37,7 +37,20 @@ public class BeamRecord implements Serializable {
   private List<Object> dataValues;
   private BeamRecordType dataType;
 
-  public BeamRecord(BeamRecordType dataType, List<Object> rawdataValues) {
+  /**
+   * Creates a BeamRecord.
+   * @param dataType type of the record
+   * @param rawDataValues values of the record, record's size must match size of
+   *                      the {@code BeamRecordType}, or can be null, if it is null
+   *                      then every field is null.
+   */
+  public BeamRecord(BeamRecordType dataType, List<Object> rawDataValues) {
+    if (dataType.getFieldNames().size() != rawDataValues.size()) {
+      throw new IllegalArgumentException(
+          "Field count in BeamRecordType(" + dataType.getFieldNames().size()
+              + ") and rawDataValues(" + rawDataValues.size() + ") must match!");
+    }
+
     this.dataType = dataType;
     this.dataValues = new ArrayList<>(dataType.size());
 
@@ -46,7 +59,7 @@ public class BeamRecord implements Serializable {
     }
 
     for (int idx = 0; idx < dataType.size(); ++idx) {
-      addField(idx, rawdataValues.get(idx));
+      addField(idx, rawDataValues.get(idx));
     }
   }
 

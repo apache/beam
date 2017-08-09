@@ -104,7 +104,7 @@ public class CalciteUtils {
       public RelDataType apply(RelDataTypeFactory a) {
         RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
         for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {
-          builder.add(that.getFieldNames().get(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
+          builder.add(that.getFieldNameByIndex(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
         }
         return builder.build();
       }

@@ -180,6 +180,6 @@ public class BeamRecordSqlType extends BeamRecordType {
   @Override
   public String toString() {
     return "BeamRecordSqlType [fieldNames=" + getFieldNames()
-        + ", fieldTypes=" + fieldTypes + ", recordCoder:" + getRecordCoder() + "]";
+        + ", fieldTypes=" + fieldTypes + "]";
   }
 }
