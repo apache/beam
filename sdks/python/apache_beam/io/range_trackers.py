@@ -45,7 +45,9 @@ class OffsetRange(object):
     return self.start == other.start and self.stop == other.stop
 
   def __ne__(self, other):
-    assert isinstance(other, OffsetRange)
+    if not isinstance(other, OffsetRange):
+      return True
+
     return not (self.start == other.start and self.stop == other.stop)
 
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
