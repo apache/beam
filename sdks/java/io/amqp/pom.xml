@@ -30,6 +30,10 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: AMQP</name>
   <description>IO to read and write using AMQP 1.0 protocol (http://www.amqp.org).</description>
 
+  <properties>
+    <activemq.version>5.13.1</activemq.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -94,6 +98,24 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.activemq</groupId>
+      <artifactId>activemq-broker</artifactId>
+      <version>${activemq.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.activemq</groupId>
+      <artifactId>activemq-amqp</artifactId>
+      <version>${activemq.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.activemq.tooling</groupId>
+      <artifactId>activemq-junit</artifactId>
+      <version>${activemq.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
