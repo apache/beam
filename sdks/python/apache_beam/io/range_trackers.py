@@ -31,15 +31,17 @@ __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
 class OffsetRange(object):
 
   def __init__(self, start, stop):
-    if stop < start:
+    if start >= stop:
       raise ValueError(
-          'Stop offset must not be smaller than the start offset. '
+          'Start offset must be smaller than the stop offset. '
           'Received %d and %d respectively.', start, stop)
     self.start = start
     self.stop = stop
 
   def __eq__(self, other):
-    assert isinstance(other, OffsetRange)
+    if not isinstance(other, OffsetRange):
+      return False
+
     return self.start == other.start and self.stop == other.stop
 
   def __ne__(self, other):

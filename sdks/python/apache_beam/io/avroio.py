@@ -99,7 +99,6 @@ class ReadFromAvro(PTransform):
 class ReadAllFromAvro(PTransform):
   """A ``PTransform`` for reading ``PCollection`` of Avro files.
 
-
    Uses source '_AvroSource' to read a ``PCollection`` of Avro files or
    file patterns and produce a ``PCollection`` of Avro records.
   """

@@ -29,10 +29,8 @@ from apache_beam.io.range_trackers import OffsetRange
 class OffsetRangeTest(unittest.TestCase):
 
   def test_create(self):
-    OffsetRange(0, 0)
-    OffsetRange(0, 00)
+    OffsetRange(0, 10)
     OffsetRange(10, 100)
-    OffsetRange(10, 10)
 
     with self.assertRaises(ValueError):
       OffsetRange(10, 9)

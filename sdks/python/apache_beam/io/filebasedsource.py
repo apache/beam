@@ -344,7 +344,7 @@ class _ExpandIntoRanges(DoFn):
 
 
 # Replace following with a generic reshard transform once
-# https://issues.apache.org/jira/browse/BEAM-2731 is implemented.
+# https://issues.apache.org/jira/browse/BEAM-1872 is implemented.
 class _Reshard(PTransform):
 
   def expand(self, pvalue):
