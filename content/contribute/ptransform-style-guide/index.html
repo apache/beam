@@ -183,7 +183,11 @@
           <li><a href="#immutability" id="markdown-toc-immutability">Immutability</a></li>
           <li><a href="#serialization" id="markdown-toc-serialization">Serialization</a></li>
           <li><a href="#validation" id="markdown-toc-validation">Validation</a></li>
-          <li><a href="#coders" id="markdown-toc-coders">Coders</a></li>
+          <li><a href="#coders" id="markdown-toc-coders">Coders</a>            <ul>
+              <li><a href="#providing-default-coders-for-types" id="markdown-toc-providing-default-coders-for-types">Providing default coders for types</a></li>
+              <li><a href="#setting-coders-on-output-collections" id="markdown-toc-setting-coders-on-output-collections">Setting coders on output collections</a></li>
+            </ul>
+          </li>
         </ul>
       </li>
     </ul>
@@ -684,32 +688,56 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 <h4 id="validation">Validation</h4>
 
 <ul>
-  <li>Validate individual parameters in <code class="highlighter-rouge">.withBlah()</code> methods. Error messages should mention the method being called, the actual value and the range of valid values.</li>
-  <li>Validate inter-parameter invariants in the <code class="highlighter-rouge">PTransform</code>’s <code class="highlighter-rouge">.validate()</code> method.</li>
+  <li>Validate individual parameters in <code class="highlighter-rouge">.withBlah()</code> methods using <code class="highlighter-rouge">checkArgument()</code>. Error messages should mention the name of the parameter, the actual value, and the range of valid values.</li>
+  <li>Validate parameter combinations and missing required parameters in the <code class="highlighter-rouge">PTransform</code>’s <code class="highlighter-rouge">.expand()</code> method.</li>
+  <li>Validate parameters that the <code class="highlighter-rouge">PTransform</code> takes from <code class="highlighter-rouge">PipelineOptions</code> in the <code class="highlighter-rouge">PTransform</code>’s <code class="highlighter-rouge">.validate(PipelineOptions)</code> method.
+These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular <code class="highlighter-rouge">PipelineOptions</code>.
+Most <code class="highlighter-rouge">PTransform</code>s do not use <code class="highlighter-rouge">PipelineOptions</code> and thus don’t need a <code class="highlighter-rouge">validate()</code> method - instead, they should perform their validation via the two other methods above.</li>
 </ul>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@AutoValue</span>
 <span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">TwiddleThumbs</span>
     <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
   <span class="kd">abstract</span> <span class="kt">int</span> <span class="nf">getMoo</span><span class="o">();</span>
-  <span class="kd">abstract</span> <span class="kt">int</span> <span class="nf">getBoo</span><span class="o">();</span>
+  <span class="kd">abstract</span> <span class="n">String</span> <span class="nf">getBoo</span><span class="o">();</span>
 
   <span class="o">...</span>
   <span class="c1">// Validating individual parameters</span>
   <span class="kd">public</span> <span class="n">TwiddleThumbs</span> <span class="nf">withMoo</span><span class="o">(</span><span class="kt">int</span> <span class="n">moo</span><span class="o">)</span> <span class="o">{</span>
-    <span class="n">checkArgument</span><span class="o">(</span><span class="n">moo</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">moo</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="o">,</span>
-      <span class="s">"TwiddleThumbs.withMoo() called with an invalid moo of %s. "</span>
-              <span class="o">+</span> <span class="s">"Valid values are 0 (exclusive) to 100 (exclusive)"</span><span class="o">,</span>
-              <span class="n">moo</span><span class="o">);</span>
-        <span class="k">return</span> <span class="nf">toBuilder</span><span class="o">().</span><span class="na">setMoo</span><span class="o">(</span><span class="n">moo</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
+    <span class="n">checkArgument</span><span class="o">(</span>
+        <span class="n">moo</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">moo</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="o">,</span>
+        <span class="s">"Moo must be between 0 (inclusive) and 100 (exclusive), but was: %s"</span><span class="o">,</span>
+        <span class="n">moo</span><span class="o">);</span>
+    <span class="k">return</span> <span class="nf">toBuilder</span><span class="o">().</span><span class="na">setMoo</span><span class="o">(</span><span class="n">moo</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
   <span class="o">}</span>
 
-  <span class="c1">// Validating cross-parameter invariants</span>
-  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">validate</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
-    <span class="n">checkArgument</span><span class="o">(</span><span class="n">getMoo</span><span class="o">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">getBoo</span><span class="o">()</span> <span class="o">==</span> <span class="mi">0</span><span class="o">,</span>
-      <span class="s">"TwiddleThumbs created with both .withMoo(%s) and .withBoo(%s). "</span>
-      <span class="o">+</span> <span class="s">"Only one of these must be specified."</span><span class="o">,</span>
-      <span class="n">getMoo</span><span class="o">(),</span> <span class="n">getBoo</span><span class="o">());</span>
+  <span class="kd">public</span> <span class="n">TwiddleThumbs</span> <span class="nf">withBoo</span><span class="o">(</span><span class="n">String</span> <span class="n">boo</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">checkArgument</span><span class="o">(</span><span class="n">boo</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">,</span> <span class="s">"Boo can not be null"</span><span class="o">);</span>
+    <span class="n">checkArgument</span><span class="o">(!</span><span class="n">boo</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">(),</span> <span class="s">"Boo can not be empty"</span><span class="o">);</span>
+    <span class="k">return</span> <span class="nf">toBuilder</span><span class="o">().</span><span class="na">setBoo</span><span class="o">(</span><span class="n">boo</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">validate</span><span class="o">(</span><span class="n">PipelineOptions</span> <span class="n">options</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kt">int</span> <span class="n">woo</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">TwiddleThumbsOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">getWoo</span><span class="o">();</span>
+    <span class="n">checkArgument</span><span class="o">(</span>
+       <span class="n">woo</span> <span class="o">&gt;</span> <span class="n">getMoo</span><span class="o">(),</span>
+      <span class="s">"Woo (%s) must be smaller than moo (%s)"</span><span class="o">,</span>
+      <span class="n">woo</span><span class="o">,</span> <span class="n">getMoo</span><span class="o">());</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Bar</span><span class="o">&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Foo</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Validating that a required parameter is present</span>
+    <span class="n">checkArgument</span><span class="o">(</span><span class="n">getBoo</span><span class="o">()</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">,</span> <span class="s">"Must specify boo"</span><span class="o">);</span>
+
+    <span class="c1">// Validating a combination of parameters</span>
+    <span class="n">checkArgument</span><span class="o">(</span>
+        <span class="n">getMoo</span><span class="o">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">getBoo</span><span class="o">()</span> <span class="o">==</span> <span class="kc">null</span><span class="o">,</span>
+        <span class="s">"Must specify at most one of moo or boo, but was: moo = %s, boo = %s"</span><span class="o">,</span>
+        <span class="n">getMoo</span><span class="o">(),</span> <span class="n">getBoo</span><span class="o">());</span>
+
+    <span class="o">...</span>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre>
@@ -717,12 +745,25 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 
 <h4 id="coders">Coders</h4>
 
+<p><code class="highlighter-rouge">Coder</code>s are a way for a Beam runner to materialize intermediate data or transmit it between workers when necessary. <code class="highlighter-rouge">Coder</code> should not be used as a general-purpose API for parsing or writing binary formats because the particular binary encoding of a <code class="highlighter-rouge">Coder</code> is intended to be its private implementation detail.</p>
+
+<h5 id="providing-default-coders-for-types">Providing default coders for types</h5>
+
+<p>Provide default <code class="highlighter-rouge">Coder</code>s for all new data types. Use <code class="highlighter-rouge">@DefaultCoder</code> annotations or <code class="highlighter-rouge">CoderProviderRegistrar</code> classes annotated with <code class="highlighter-rouge">@AutoService</code>: see usages of these classes in the SDK for examples. If performance is not important, you can use <code class="highlighter-rouge">SerializableCoder</code> or <code class="highlighter-rouge">AvroCoder</code>. Otherwise, develop an efficient custom coder (subclass <code class="highlighter-rouge">AtomicCoder</code> for concrete types, <code class="highlighter-rouge">StructuredCoder</code> for generic types).</p>
+
+<h5 id="setting-coders-on-output-collections">Setting coders on output collections</h5>
+
+<p>All <code class="highlighter-rouge">PCollection</code>s created by your <code class="highlighter-rouge">PTransform</code> (both output and intermediate collections) must have a <code class="highlighter-rouge">Coder</code> set on them: a user should never need to call <code class="highlighter-rouge">.setCoder()</code> to “fix up” a coder on a <code class="highlighter-rouge">PCollection</code> produced by your <code class="highlighter-rouge">PTransform</code> (in fact, Beam intends to eventually deprecate <code class="highlighter-rouge">setCoder</code>). In some cases, coder inference will be sufficient to achieve this; in other cases, your transform will need to explicitly call <code class="highlighter-rouge">setCoder</code> on its collections.</p>
+
+<p>If the collection is of a concrete type, that type usually has a corresponding coder. Use a specific most efficient coder (e.g. <code class="highlighter-rouge">StringUtf8Coder.of()</code> for strings, <code class="highlighter-rouge">ByteArrayCoder.of()</code> for byte arrays, etc.), rather than a general-purpose coder like <code class="highlighter-rouge">SerializableCoder</code>.</p>
+
+<p>If the type of the collection involves generic type variables, the situation is more complex:</p>
 <ul>
-  <li>Use <code class="highlighter-rouge">Coder</code>s only for setting the coder on a <code class="highlighter-rouge">PCollection</code> or a mutable state cell.</li>
-  <li>When available, use a specific most efficient coder for the datatype (e.g. <code class="highlighter-rouge">StringUtf8Coder.of()</code> for strings, <code class="highlighter-rouge">ByteArrayCoder.of()</code> for byte arrays, etc.), rather than using a generic coder like <code class="highlighter-rouge">SerializableCoder</code>. Develop efficient coders for types that can be elements of <code class="highlighter-rouge">PCollection</code>s.</li>
-  <li>Do not use coders as a general serialization or parsing mechanism for arbitrary raw byte data. (anti-examples that should be fixed: <code class="highlighter-rouge">TextIO</code>, <code class="highlighter-rouge">KafkaIO</code>).</li>
-  <li>In general, any transform that outputs a user-controlled type (that is not its input type) needs to accept a coder in the transform configuration (example: the <code class="highlighter-rouge">Create.of()</code> transform). This gives the user the ability to control the coder no matter how the transform is structured: e.g., purely letting the user specify the coder on the output <code class="highlighter-rouge">PCollection</code> of the transform is insufficient in case the transform internally uses intermediate <code class="highlighter-rouge">PCollection</code>s of this type.</li>
+  <li>If it coincides with the transform’s input type or is a simple wrapper over it, you can reuse the coder of the input <code class="highlighter-rouge">PCollection</code>, available via <code class="highlighter-rouge">input.getCoder()</code>.</li>
+  <li>Attempt to infer the coder via <code class="highlighter-rouge">input.getPipeline().getCoderRegistry().getCoder(TypeDescriptor)</code>. Use utilities in <code class="highlighter-rouge">TypeDescriptors</code> to obtain the <code class="highlighter-rouge">TypeDescriptor</code> for the generic type. For an example of this approach, see the implementation of <code class="highlighter-rouge">AvroIO.parseGenericRecords()</code>. However, coder inference for generic types is best-effort and in some cases it may fail due to Java type erasure.</li>
+  <li>Always make it possible for the user to explicitly specify a <code class="highlighter-rouge">Coder</code> for the relevant type variable(s) as a configuration parameter of your <code class="highlighter-rouge">PTransform</code>. (e.g. <code class="highlighter-rouge">AvroIO.&lt;T&gt;parseGenericRecords().withCoder(Coder&lt;T&gt;)</code>). Fall back to inference if the coder was not explicitly specified.</li>
 </ul>
+
 
     </div>
     <footer class="footer">
