@@ -1,5 +1,3 @@
 # This config file contains options that override the default config for testing.
 
-url: ""
-baseurl: /subdir
-destination: content/subdir
+destination: .testcontent
