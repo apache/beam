@@ -43,7 +43,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   }
 
   public static BeamRecordCoder of(BeamRecordType recordType, List<Coder> coderArray){
-    if (recordType.size() != coderArray.size()) {
+    if (recordType.getFieldCount() != coderArray.size()) {
       throw new IllegalArgumentException("Coder size doesn't match with field size");
     }
     return new BeamRecordCoder(recordType, coderArray);
@@ -57,7 +57,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   public void encode(BeamRecord value, OutputStream outStream)
       throws CoderException, IOException {
     nullListCoder.encode(scanNullFields(value), outStream);
-    for (int idx = 0; idx < value.size(); ++idx) {
+    for (int idx = 0; idx < value.getFieldCount(); ++idx) {
       if (value.getFieldValue(idx) == null) {
         continue;
       }
@@ -70,8 +70,8 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   public BeamRecord decode(InputStream inStream) throws CoderException, IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
-    List<Object> fieldValues = new ArrayList<>(recordType.size());
-    for (int idx = 0; idx < recordType.size(); ++idx) {
+    List<Object> fieldValues = new ArrayList<>(recordType.getFieldCount());
+    for (int idx = 0; idx < recordType.getFieldCount(); ++idx) {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
@@ -87,8 +87,8 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
    * Scan {@link BeamRecord} to find fields with a NULL value.
    */
   private BitSet scanNullFields(BeamRecord record){
-    BitSet nullFields = new BitSet(record.size());
-    for (int idx = 0; idx < record.size(); ++idx) {
+    BitSet nullFields = new BitSet(record.getFieldCount());
+    for (int idx = 0; idx < record.getFieldCount(); ++idx) {
       if (record.getFieldValue(idx) == null) {
         nullFields.set(idx);
       }
