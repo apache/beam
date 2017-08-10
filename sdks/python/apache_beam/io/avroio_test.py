@@ -22,6 +22,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam import Create
 from apache_beam.io import iobase
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
@@ -346,10 +347,40 @@ class TestAvro(unittest.TestCase):
       source_test_utils.read_from_source(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
-  def test_source_transform(self):
+  def test_read_from_avro(self):
     path = self._write_data()
     with TestPipeline() as p:
       assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
+
+  def test_read_all_from_avro_single_file(self):
+    path = self._write_data()
+    with TestPipeline() as p:
+      assert_that(p | Create([path]) | avroio.ReadAllFromAvro(),
+                  equal_to(self.RECORDS))
+
+  def test_read_all_from_avro_many_single_files(self):
+    path1 = self._write_data()
+    path2 = self._write_data()
+    path3 = self._write_data()
+    with TestPipeline() as p:
+      assert_that(p | Create([path1, path2, path3]) | avroio.ReadAllFromAvro(),
+                  equal_to(self.RECORDS * 3))
+
+  def test_read_all_from_avro_file_pattern(self):
+    file_pattern = self._write_pattern(5)
+    with TestPipeline() as p:
+      assert_that(p | Create([file_pattern]) | avroio.ReadAllFromAvro(),
+                  equal_to(self.RECORDS * 5))
+
+  def test_read_all_from_avro_many_file_patterns(self):
+    file_pattern1 = self._write_pattern(5)
+    file_pattern2 = self._write_pattern(2)
+    file_pattern3 = self._write_pattern(3)
+    with TestPipeline() as p:
+      assert_that(p
+                  | Create([file_pattern1, file_pattern2, file_pattern3])
+                  | avroio.ReadAllFromAvro(),
+                  equal_to(self.RECORDS * 10))
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
