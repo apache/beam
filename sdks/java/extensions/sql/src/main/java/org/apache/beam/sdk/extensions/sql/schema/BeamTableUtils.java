@@ -49,10 +49,10 @@ public final class BeamTableUtils {
       if (rawRecord.size() != beamRecordSqlType.getFieldCount()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamRecordSqlType.size(), rawRecord.getFieldCount()
+            beamRecordSqlType.getFieldCount(), rawRecord.size()
         ));
       } else {
-        for (int idx = 0; idx < beamRecordSqlType.size(); idx++) {
+        for (int idx = 0; idx < beamRecordSqlType.getFieldCount(); idx++) {
           String raw = rawRecord.get(idx);
           fieldsValue.add(autoCastField(beamRecordSqlType.getFieldTypeByIndex(idx), raw));
         }
