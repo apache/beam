@@ -12,21 +12,9 @@ func Count(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("stats.Count")
 
 	pre := beam.ParDo(p, mapFn, col)
-	// TODO(herohde) 7/7/2017: replace below with Sum once Dataflow supports combiners.
-	post := beam.GroupByKey(p, pre)
-	return beam.ParDo(p, addFn, post)
+	return Sum(p, pre)
 }
 
 func mapFn(elm typex.T) (typex.T, int) {
 	return elm, 1
-}
-
-func addFn(key typex.T, counts func(*int) bool) (typex.T, int) {
-	total := 0
-
-	var v int
-	for counts(&v) {
-		total += v
-	}
-	return key, total
 }

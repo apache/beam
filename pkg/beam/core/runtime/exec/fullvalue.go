@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO: require that FullValue Elm/Elm2 are typed as underlying types? Or just
@@ -80,10 +81,7 @@ func Convert(value reflect.Value, to reflect.Type) reflect.Value {
 
 	case typex.IsUniversal(from):
 		// We need to drop T to obtain the underlying type of the value.
-
-		var untyped interface{}
-		untyped = value.Interface()
-		return reflect.ValueOf(untyped) // Convert(reflect.ValueOf(untyped), to)
+		return reflectx.UnderlyingType(value)
 
 	case typex.IsList(from) && typex.IsList(to):
 		// Convert []A to []B.

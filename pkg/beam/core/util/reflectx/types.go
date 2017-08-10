@@ -87,3 +87,10 @@ func MakeSlice(t reflect.Type, values ...reflect.Value) reflect.Value {
 	}
 	return ret
 }
+
+// UnderlyingType drops value's type by converting it to an interface and then returning ValueOf() the untyped value.
+func UnderlyingType(value reflect.Value) reflect.Value {
+	var untyped interface{}
+	untyped = value.Interface()
+	return reflect.ValueOf(untyped)
+}

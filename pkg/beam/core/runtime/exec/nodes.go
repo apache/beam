@@ -13,6 +13,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // Discard silently discard all elements. It is implicitly inserted for any
@@ -471,7 +472,8 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value,
 
 		// TODO(herohde) 7/5/2017: do we want to allow addInput to be optional
 		// if non-binary merge is defined?
-		return n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Call([]reflect.Value{accum, value})[0], nil
+		return n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Call(
+			[]reflect.Value{reflectx.UnderlyingType(accum), reflectx.UnderlyingType(value)})[0], nil
 	}
 
 	// (1) Populate contexts
