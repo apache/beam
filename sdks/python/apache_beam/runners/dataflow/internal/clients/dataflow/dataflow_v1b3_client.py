@@ -29,7 +29,7 @@ class DataflowV1b3(base_api.BaseApiClient):
   BASE_URL = u'https://dataflow.googleapis.com/'
 
   _PACKAGE = u'dataflow'
-  _SCOPES = [u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/userinfo.email']
+  _SCOPES = [u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/compute', u'https://www.googleapis.com/auth/compute.readonly', u'https://www.googleapis.com/auth/userinfo.email']
   _VERSION = u'v1b3'
   _CLIENT_ID = '1042881264118.apps.googleusercontent.com'
   _CLIENT_SECRET = 'x_Tw5K8nnjoRAqULM9PFAC2b'
@@ -56,9 +56,11 @@ class DataflowV1b3(base_api.BaseApiClient):
     self.projects_jobs_messages = self.ProjectsJobsMessagesService(self)
     self.projects_jobs_workItems = self.ProjectsJobsWorkItemsService(self)
     self.projects_jobs = self.ProjectsJobsService(self)
+    self.projects_locations_jobs_debug = self.ProjectsLocationsJobsDebugService(self)
     self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(self)
     self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(self)
     self.projects_locations_jobs = self.ProjectsLocationsJobsService(self)
+    self.projects_locations_templates = self.ProjectsLocationsTemplatesService(self)
     self.projects_locations = self.ProjectsLocationsService(self)
     self.projects_templates = self.ProjectsTemplatesService(self)
     self.projects = self.ProjectsService(self)
@@ -235,6 +237,18 @@ class DataflowV1b3(base_api.BaseApiClient):
     def __init__(self, client):
       super(DataflowV1b3.ProjectsJobsService, self).__init__(client)
       self._method_configs = {
+          'Aggregated': base_api.ApiMethodInfo(
+              http_method=u'GET',
+              method_id=u'dataflow.projects.jobs.aggregated',
+              ordered_params=[u'projectId'],
+              path_params=[u'projectId'],
+              query_params=[u'filter', u'location', u'pageSize', u'pageToken', u'view'],
+              relative_path=u'v1b3/projects/{projectId}/jobs:aggregated',
+              request_field='',
+              request_type_name=u'DataflowProjectsJobsAggregatedRequest',
+              response_type_name=u'ListJobsResponse',
+              supports_download=False,
+          ),
           'Create': base_api.ApiMethodInfo(
               http_method=u'POST',
               method_id=u'dataflow.projects.jobs.create',
@@ -300,6 +314,19 @@ class DataflowV1b3(base_api.BaseApiClient):
       self._upload_configs = {
           }
 
+    def Aggregated(self, request, global_params=None):
+      """List the jobs of a project across all regions.
+
+      Args:
+        request: (DataflowProjectsJobsAggregatedRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (ListJobsResponse) The response message.
+      """
+      config = self.GetMethodConfig('Aggregated')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
     def Create(self, request, global_params=None):
       """Creates a Cloud Dataflow job.
 
@@ -340,7 +367,7 @@ class DataflowV1b3(base_api.BaseApiClient):
           config, request, global_params=global_params)
 
     def List(self, request, global_params=None):
-      """List the jobs of a project.
+      """List the jobs of a project in a given region.
 
       Args:
         request: (DataflowProjectsJobsListRequest) input message
@@ -362,6 +389,69 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Update')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+  class ProjectsLocationsJobsDebugService(base_api.BaseApiService):
+    """Service class for the projects_locations_jobs_debug resource."""
+
+    _NAME = u'projects_locations_jobs_debug'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsLocationsJobsDebugService, self).__init__(client)
+      self._method_configs = {
+          'GetConfig': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.locations.jobs.debug.getConfig',
+              ordered_params=[u'projectId', u'location', u'jobId'],
+              path_params=[u'jobId', u'location', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/getConfig',
+              request_field=u'getDebugConfigRequest',
+              request_type_name=u'DataflowProjectsLocationsJobsDebugGetConfigRequest',
+              response_type_name=u'GetDebugConfigResponse',
+              supports_download=False,
+          ),
+          'SendCapture': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.locations.jobs.debug.sendCapture',
+              ordered_params=[u'projectId', u'location', u'jobId'],
+              path_params=[u'jobId', u'location', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/sendCapture',
+              request_field=u'sendDebugCaptureRequest',
+              request_type_name=u'DataflowProjectsLocationsJobsDebugSendCaptureRequest',
+              response_type_name=u'SendDebugCaptureResponse',
+              supports_download=False,
+          ),
+          }
+
+      self._upload_configs = {
+          }
+
+    def GetConfig(self, request, global_params=None):
+      """Get encoded debug configuration for component. Not cacheable.
+
+      Args:
+        request: (DataflowProjectsLocationsJobsDebugGetConfigRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (GetDebugConfigResponse) The response message.
+      """
+      config = self.GetMethodConfig('GetConfig')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def SendCapture(self, request, global_params=None):
+      """Send encoded debug capture data for component.
+
+      Args:
+        request: (DataflowProjectsLocationsJobsDebugSendCaptureRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (SendDebugCaptureResponse) The response message.
+      """
+      config = self.GetMethodConfig('SendCapture')
       return self._RunMethod(
           config, request, global_params=global_params)
 
@@ -579,7 +669,7 @@ class DataflowV1b3(base_api.BaseApiClient):
           config, request, global_params=global_params)
 
     def List(self, request, global_params=None):
-      """List the jobs of a project.
+      """List the jobs of a project in a given region.
 
       Args:
         request: (DataflowProjectsLocationsJobsListRequest) input message
@@ -604,6 +694,94 @@ class DataflowV1b3(base_api.BaseApiClient):
       return self._RunMethod(
           config, request, global_params=global_params)
 
+  class ProjectsLocationsTemplatesService(base_api.BaseApiService):
+    """Service class for the projects_locations_templates resource."""
+
+    _NAME = u'projects_locations_templates'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsLocationsTemplatesService, self).__init__(client)
+      self._method_configs = {
+          'Create': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.locations.templates.create',
+              ordered_params=[u'projectId', u'location'],
+              path_params=[u'location', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/templates',
+              request_field=u'createJobFromTemplateRequest',
+              request_type_name=u'DataflowProjectsLocationsTemplatesCreateRequest',
+              response_type_name=u'Job',
+              supports_download=False,
+          ),
+          'Get': base_api.ApiMethodInfo(
+              http_method=u'GET',
+              method_id=u'dataflow.projects.locations.templates.get',
+              ordered_params=[u'projectId', u'location'],
+              path_params=[u'location', u'projectId'],
+              query_params=[u'gcsPath', u'view'],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/templates:get',
+              request_field='',
+              request_type_name=u'DataflowProjectsLocationsTemplatesGetRequest',
+              response_type_name=u'GetTemplateResponse',
+              supports_download=False,
+          ),
+          'Launch': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.locations.templates.launch',
+              ordered_params=[u'projectId', u'location'],
+              path_params=[u'location', u'projectId'],
+              query_params=[u'gcsPath', u'validateOnly'],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/templates:launch',
+              request_field=u'launchTemplateParameters',
+              request_type_name=u'DataflowProjectsLocationsTemplatesLaunchRequest',
+              response_type_name=u'LaunchTemplateResponse',
+              supports_download=False,
+          ),
+          }
+
+      self._upload_configs = {
+          }
+
+    def Create(self, request, global_params=None):
+      """Creates a Cloud Dataflow job from a template.
+
+      Args:
+        request: (DataflowProjectsLocationsTemplatesCreateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Job) The response message.
+      """
+      config = self.GetMethodConfig('Create')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def Get(self, request, global_params=None):
+      """Get the template associated with a template.
+
+      Args:
+        request: (DataflowProjectsLocationsTemplatesGetRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (GetTemplateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Get')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def Launch(self, request, global_params=None):
+      """Launch a template.
+
+      Args:
+        request: (DataflowProjectsLocationsTemplatesLaunchRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (LaunchTemplateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Launch')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
   class ProjectsLocationsService(base_api.BaseApiService):
     """Service class for the projects_locations resource."""
 
@@ -612,10 +790,35 @@ class DataflowV1b3(base_api.BaseApiClient):
     def __init__(self, client):
       super(DataflowV1b3.ProjectsLocationsService, self).__init__(client)
       self._method_configs = {
+          'WorkerMessages': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.locations.workerMessages',
+              ordered_params=[u'projectId', u'location'],
+              path_params=[u'location', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/locations/{location}/WorkerMessages',
+              request_field=u'sendWorkerMessagesRequest',
+              request_type_name=u'DataflowProjectsLocationsWorkerMessagesRequest',
+              response_type_name=u'SendWorkerMessagesResponse',
+              supports_download=False,
+          ),
           }
 
       self._upload_configs = {
           }
+
+    def WorkerMessages(self, request, global_params=None):
+      """Send a worker_message to the service.
+
+      Args:
+        request: (DataflowProjectsLocationsWorkerMessagesRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (SendWorkerMessagesResponse) The response message.
+      """
+      config = self.GetMethodConfig('WorkerMessages')
+      return self._RunMethod(
+          config, request, global_params=global_params)
 
   class ProjectsTemplatesService(base_api.BaseApiService):
     """Service class for the projects_templates resource."""
@@ -637,6 +840,30 @@ class DataflowV1b3(base_api.BaseApiClient):
               response_type_name=u'Job',
               supports_download=False,
           ),
+          'Get': base_api.ApiMethodInfo(
+              http_method=u'GET',
+              method_id=u'dataflow.projects.templates.get',
+              ordered_params=[u'projectId'],
+              path_params=[u'projectId'],
+              query_params=[u'gcsPath', u'location', u'view'],
+              relative_path=u'v1b3/projects/{projectId}/templates:get',
+              request_field='',
+              request_type_name=u'DataflowProjectsTemplatesGetRequest',
+              response_type_name=u'GetTemplateResponse',
+              supports_download=False,
+          ),
+          'Launch': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.templates.launch',
+              ordered_params=[u'projectId'],
+              path_params=[u'projectId'],
+              query_params=[u'gcsPath', u'location', u'validateOnly'],
+              relative_path=u'v1b3/projects/{projectId}/templates:launch',
+              request_field=u'launchTemplateParameters',
+              request_type_name=u'DataflowProjectsTemplatesLaunchRequest',
+              response_type_name=u'LaunchTemplateResponse',
+              supports_download=False,
+          ),
           }
 
       self._upload_configs = {
@@ -652,6 +879,32 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Create')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def Get(self, request, global_params=None):
+      """Get the template associated with a template.
+
+      Args:
+        request: (DataflowProjectsTemplatesGetRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (GetTemplateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Get')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def Launch(self, request, global_params=None):
+      """Launch a template.
+
+      Args:
+        request: (DataflowProjectsTemplatesLaunchRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (LaunchTemplateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Launch')
       return self._RunMethod(
           config, request, global_params=global_params)
 
