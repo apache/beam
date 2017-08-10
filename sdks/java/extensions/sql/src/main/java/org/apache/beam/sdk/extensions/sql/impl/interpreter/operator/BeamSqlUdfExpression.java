@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -79,8 +80,10 @@ public class BeamSqlUdfExpression extends BeamSqlExpression {
       for (String pc : paraClassName) {
         paraClass.add(Class.forName(pc));
       }
-      udfIns = Class.forName(className).newInstance();
       method = Class.forName(className).getMethod(methodName, paraClass.toArray(new Class<?>[] {}));
+      if (!Modifier.isStatic(method.getModifiers())) {
+        udfIns = Class.forName(className).newInstance();
+      }
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
