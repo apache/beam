@@ -74,7 +74,7 @@ public class BeamSqlEnv implements Serializable {
     return udafs;
   }
 
-  public Map<String, SerializableFunction> getSfnUdfs() {
+  public Map<String, SerializableFunction> getSerializableFunctionUdfs() {
     return sfnUdfs;
   }
 }

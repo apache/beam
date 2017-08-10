@@ -69,11 +69,18 @@ public class InnerBeamSqlEnv implements Serializable{
       ret.registerUdf(entry.getKey(), entry.getValue());
     }
 
+    // init SerializableFunction UDFs
+    Map<String, SerializableFunction> sfnUdfs = env.getSerializableFunctionUdfs();
+    for (Map.Entry<String, SerializableFunction> entry : sfnUdfs.entrySet()) {
+      ret.registerUdf(entry.getKey(), entry.getValue());
+    }
+
     // init udafs
     Map<String, Combine.CombineFn> udafs = env.getUdafs();
     for (Map.Entry<String, Combine.CombineFn> entry : udafs.entrySet()) {
       ret.registerUdaf(entry.getKey(), entry.getValue());
     }
+
 
     return ret;
   }
