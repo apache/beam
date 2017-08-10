@@ -58,11 +58,13 @@ public class AmqpIOTest {
     LOG.info("Finding free network port");
     ServerSocket socket = new ServerSocket(0);
     port = socket.getLocalPort();
+    LOG.info("Using {} port number");
     socket.close();
   }
 
   @Test
   public void testRead() throws Exception {
+    LOG.info("Creating pipeline reading from AMQP");
     PCollection<Message> output = pipeline.apply(AmqpIO.read()
         .withMaxNumRecords(100)
         .withAddresses(Collections.singletonList("amqp://~localhost:" + port)));
@@ -71,9 +73,14 @@ public class AmqpIOTest {
     Thread sender = new Thread() {
       public void run() {
         try {
+          LOG.info("Starting sender thread");
           Thread.sleep(500);
+          LOG.info("Creating the AMQP messenger");
           Messenger sender = Messenger.Factory.create();
+          sender.setTimeout(5000);
+          LOG.info("Starting the AMQP messenger");
           sender.start();
+          LOG.info("Sending messages to amqp://localhost:{}", port);
           for (int i = 0; i < 100; i++) {
             Message message = Message.Factory.create();
             message.setAddress("amqp://localhost:" + port);
@@ -81,6 +88,7 @@ public class AmqpIOTest {
             sender.put(message);
             sender.send();
           }
+          LOG.info("Stopping the AMQP messenger");
           sender.stop();
         } catch (Exception e) {
           LOG.error("Sender error", e);
@@ -88,10 +96,13 @@ public class AmqpIOTest {
       }
     };
     try {
+      LOG.info("Starting sender");
       sender.start();
+      LOG.info("Running pipeline");
       pipeline.run();
     } finally {
-      sender.join();
+      LOG.info("Join on the sender thread");
+      sender.join(5000);
     }
   }
 
@@ -102,26 +113,31 @@ public class AmqpIOTest {
       @Override
       public void run() {
         try {
+          LOG.info("Starting receiver thread");
           Messenger messenger = Messenger.Factory.create();
+          LOG.info("Starting the AMQP messenger");
           messenger.start();
+          LOG.info("Subscribing on amqp://~localhost:{}", port);
           messenger.subscribe("amqp://~localhost:" + port);
+          messenger.setTimeout(5000);
           while (received.size() < 100) {
             messenger.recv();
             while (messenger.incoming() > 0) {
               Message message = messenger.get();
-              LOG.info("Received: " + message.getBody().toString());
               received.add(message.getBody().toString());
             }
           }
+          LOG.info("Stopping the AMQP messenger");
           messenger.stop();
         } catch (Exception e) {
           LOG.error("Receiver error", e);
         }
       }
     };
-    LOG.info("Starting AMQP receiver");
+    LOG.info("Starting receiver");
     receiver.start();
 
+    LOG.info("Creating message to send");
     List<Message> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       Message message = Message.Factory.create();
@@ -130,13 +146,15 @@ public class AmqpIOTest {
       message.setSubject("test");
       data.add(message);
     }
+    LOG.info("Creating pipeline writing to AMQP");
     pipeline.apply(Create.of(data).withCoder(AmqpMessageCoder.of())).apply(AmqpIO.write());
     LOG.info("Starting pipeline");
     try {
+      LOG.info("Running pipeline");
       pipeline.run();
     } finally {
       LOG.info("Join receiver thread");
-      receiver.join();
+      receiver.join(5000);
     }
 
     assertEquals(100, received.size());
