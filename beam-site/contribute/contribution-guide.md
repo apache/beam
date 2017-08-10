@@ -481,7 +481,7 @@ During review, committers will patch in your PR, generate the static `content/`,
 
 #### Committing website changes (committers only)
 
-Follow the same committer process as above, but using repository `apache/beam-site` and branch `asf-site`.
+Follow the same committer process as above, but using repository `apache/beam-site` and branch `asf-site` and `https://gitbox.apache.org/repos/asf/beam-site.git` as the address for `git remote add apache`.
 
 In addition, the committer is responsible for doing the final `bundle exec jekyll build` to generate the static content, so follow the instructions above to install `jekyll`.
 
