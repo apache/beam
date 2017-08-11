@@ -339,8 +339,9 @@ class FlinkStreamingTransformTranslators {
           List<TupleTag<?>> additionalOutputTags,
           FlinkStreamingTranslationContext context,
           WindowingStrategy<?, ?> windowingStrategy,
-          Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToLabels,
+          Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
           Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+          Map<TupleTag<?>, Integer> tagsToIds,
           Coder<WindowedValue<InputT>> inputCoder,
           Coder keyCoder,
           Map<Integer, PCollectionView<?>> transformedSideInputs);
@@ -362,6 +363,14 @@ class FlinkStreamingTransformTranslators {
 
       Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newHashMap();
       Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newHashMap();
+
+      // We associate output tags with ids, the Integer is easier to serialize than TupleTag.
+      // The return map of AppliedPTransform.getOutputs() is an ImmutableMap, its implementation is
+      // RegularImmutableMap, its entrySet order is the same with the order of insertion.
+      // So we can use the original AppliedPTransform.getOutputs() to produce deterministic ids.
+      Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
+      int idCount = 0;
+      tagsToIds.put(mainOutputTag, idCount++);
       for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
         if (!tagsToOutputTags.containsKey(entry.getKey())) {
           tagsToOutputTags.put(
@@ -373,6 +382,7 @@ class FlinkStreamingTransformTranslators {
           );
           tagsToCoders.put(entry.getKey(),
               (Coder) context.getCoder((PCollection<OutputT>) entry.getValue()));
+          tagsToIds.put(entry.getKey(), idCount++);
         }
       }
 
@@ -414,6 +424,7 @@ class FlinkStreamingTransformTranslators {
                 windowingStrategy,
                 tagsToOutputTags,
                 tagsToCoders,
+                tagsToIds,
                 inputCoder,
                 keyCoder,
                 new HashMap<Integer, PCollectionView<?>>() /* side-input mapping */);
@@ -436,6 +447,7 @@ class FlinkStreamingTransformTranslators {
                 windowingStrategy,
                 tagsToOutputTags,
                 tagsToCoders,
+                tagsToIds,
                 inputCoder,
                 keyCoder,
                 transformedSideInputs.f0);
@@ -513,6 +525,7 @@ class FlinkStreamingTransformTranslators {
                 WindowingStrategy<?, ?> windowingStrategy,
                 Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
                 Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+                Map<TupleTag<?>, Integer> tagsToIds,
                 Coder<WindowedValue<InputT>> inputCoder,
                 Coder keyCoder,
                 Map<Integer, PCollectionView<?>> transformedSideInputs) {
@@ -523,7 +536,7 @@ class FlinkStreamingTransformTranslators {
                   mainOutputTag,
                   additionalOutputTags,
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                      mainOutputTag, tagsToOutputTags, tagsToCoders),
+                      mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
                   windowingStrategy,
                   transformedSideInputs,
                   sideInputs,
@@ -559,19 +572,20 @@ class FlinkStreamingTransformTranslators {
             @Override
             public DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
                 createDoFnOperator(
-                    DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
-                    String stepName,
-                    List<PCollectionView<?>> sideInputs,
-                    TupleTag<OutputT> mainOutputTag,
-                    List<TupleTag<?>> additionalOutputTags,
-                    FlinkStreamingTranslationContext context,
-                    WindowingStrategy<?, ?> windowingStrategy,
-                    Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-                    Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-                    Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
-                        inputCoder,
-                    Coder keyCoder,
-                    Map<Integer, PCollectionView<?>> transformedSideInputs) {
+                DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
+                String stepName,
+                List<PCollectionView<?>> sideInputs,
+                TupleTag<OutputT> mainOutputTag,
+                List<TupleTag<?>> additionalOutputTags,
+                FlinkStreamingTranslationContext context,
+                WindowingStrategy<?, ?> windowingStrategy,
+                Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
+                Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+                Map<TupleTag<?>, Integer> tagsToIds,
+                Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
+                    inputCoder,
+                Coder keyCoder,
+                Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
                   doFn,
                   stepName,
@@ -579,7 +593,7 @@ class FlinkStreamingTransformTranslators {
                   mainOutputTag,
                   additionalOutputTags,
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                      mainOutputTag, tagsToOutputTags, tagsToCoders),
+                      mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
                   windowingStrategy,
                   transformedSideInputs,
                   sideInputs,

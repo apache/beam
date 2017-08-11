@@ -135,7 +135,7 @@ public interface FlinkPipelineOptions
 
   @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
   @Default.Long(1000)
-  Long getMaxBundleTime();
-  void setMaxBundleTime(Long time);
+  Long getMaxBundleTimeMills();
+  void setMaxBundleTimeMills(Long time);
 
 }

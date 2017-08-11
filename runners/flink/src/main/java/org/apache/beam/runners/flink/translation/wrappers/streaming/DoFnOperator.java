@@ -21,8 +21,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
@@ -81,6 +79,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.commons.collections.MapUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -158,6 +157,10 @@ public class DoFnOperator<InputT, OutputT>
 
   private final TimerInternals.TimerDataCoder timerCoder;
 
+  private final long maxBundleSize;
+
+  private final long maxBundleTimeMills;
+
   protected transient HeapInternalTimerService<?, TimerInternals.TimerData> timerService;
 
   protected transient FlinkTimerInternals timerInternals;
@@ -168,10 +171,8 @@ public class DoFnOperator<InputT, OutputT>
 
   // bundle control
   private transient boolean bundleStarted = false;
-  private transient Long maxBundleSize;
-  private transient Long maxBundleTime;
-  private transient Long bundleCount;
-  private transient Long lastFinishBundleTime;
+  private transient long elementCount;
+  private transient long lastFinishBundleTime;
   private transient ScheduledFuture<?> checkFinishBundleTimer;
 
   public DoFnOperator(
@@ -203,6 +204,11 @@ public class DoFnOperator<InputT, OutputT>
 
     this.timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+
+    FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
+
+    this.maxBundleSize = flinkOptions.getMaxBundleSize();
+    this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -321,13 +327,11 @@ public class DoFnOperator<InputT, OutputT>
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
-    maxBundleSize = options.getMaxBundleSize();
-    maxBundleTime = options.getMaxBundleTime();
-    bundleCount = 0L;
+    elementCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
     // Schedule timer to check timeout of finish bundle.
-    long bundleCheckPeriod = maxBundleTime / 2 + (maxBundleTime % 2);
+    long bundleCheckPeriod = (maxBundleTimeMills + 1) / 2;
     checkFinishBundleTimer = getProcessingTimeService().scheduleAtFixedRate(
         new ProcessingTimeCallback() {
           @Override
@@ -602,8 +606,8 @@ public class DoFnOperator<InputT, OutputT>
    * Check whether invoke finishBundle by elements count. Called in processElement.
    */
   private void checkInvokeFinishBundleByCount() {
-    bundleCount++;
-    if (bundleCount >= maxBundleSize) {
+    elementCount++;
+    if (elementCount >= maxBundleSize) {
       invokeFinishBundle();
     }
   }
@@ -613,7 +617,7 @@ public class DoFnOperator<InputT, OutputT>
    */
   private void checkInvokeFinishBundleByTime() {
     long now = getProcessingTimeService().getCurrentProcessingTime();
-    if (now - lastFinishBundleTime >= maxBundleTime) {
+    if (now - lastFinishBundleTime >= maxBundleTimeMills) {
       invokeFinishBundle();
     }
   }
@@ -622,7 +626,7 @@ public class DoFnOperator<InputT, OutputT>
     if (bundleStarted) {
       pushbackDoFnRunner.finishBundle();
       bundleStarted = false;
-      bundleCount = 0L;
+      elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
     }
   }
@@ -733,6 +737,8 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public void onEventTime(InternalTimer<Object, TimerData> timer) throws Exception {
+    // We don't have to cal checkInvokeStartBundle() because it's already called in
+    // processWatermark*().
     fireTimer(timer);
   }
 
@@ -783,9 +789,10 @@ public class DoFnOperator<InputT, OutputT>
   public static class BufferedOutputManager<OutputT> implements
       DoFnRunners.OutputManager {
 
-    private BiMap<TupleTag<?>, Integer> tagToLabel;
     private TupleTag<OutputT> mainTag;
-    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
+    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
+    private Map<TupleTag<?>, Integer> tagsToIds;
+    private Map<Integer, TupleTag<?>> idsToTags;
     protected Output<StreamRecord<WindowedValue<OutputT>>> output;
 
     private boolean openBuffer = false;
@@ -794,46 +801,26 @@ public class DoFnOperator<InputT, OutputT>
     BufferedOutputManager(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         TupleTag<OutputT> mainTag,
-        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping,
-        final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping,
+        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
+        final Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+        Map<TupleTag<?>, Integer> tagsToIds,
         StateInternals stateInternals) {
       this.output = output;
       this.mainTag = mainTag;
-      this.mapping = mapping;
+      this.tagsToOutputTags = tagsToOutputTags;
+      this.tagsToIds = tagsToIds;
+      this.idsToTags = MapUtils.invertMap(tagsToIds);
 
-      tagToLabel = transformTupleTagsToLabels(mainTag, mapping);
-
-      ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> labelsToCodersBuilder =
+      ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> idsToCodersBuilder =
           ImmutableMap.builder();
-      for (Map.Entry<TupleTag<?>, Integer> entry : tagToLabel.entrySet()) {
-        labelsToCodersBuilder.put(entry.getValue(), coderMapping.get(entry.getKey()));
+      for (Map.Entry<TupleTag<?>, Integer> entry : tagsToIds.entrySet()) {
+        idsToCodersBuilder.put(entry.getValue(), tagsToCoders.get(entry.getKey()));
       }
 
       StateTag<BagState<KV<Integer, WindowedValue<?>>>> bufferTag =
           StateTags.bag("bundle-buffer-tag",
-              new TaggedKvCoder(labelsToCodersBuilder.build()));
+              new TaggedKvCoder(idsToCodersBuilder.build()));
       bufferState = stateInternals.state(StateNamespaces.global(), bufferTag);
-    }
-
-    /**
-     * Transform TupleTags to labels. The list of outputs is ordered, so we can associate output
-     * tags with index and Integer is easier to serialize than TupleTag.
-     *
-     * <p>Returns a BiMap for easier reversal query.
-     */
-    private static BiMap<TupleTag<?>, Integer> transformTupleTagsToLabels(
-        TupleTag<?> mainTag,
-        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping) {
-
-      BiMap<TupleTag<?>, Integer> tagToLabel = HashBiMap.create();
-      int count = 0;
-      tagToLabel.put(mainTag, count++);
-      for (TupleTag<?> key : mapping.keySet()) {
-        if (!tagToLabel.containsKey(key)) {
-          tagToLabel.put(key, count++);
-        }
-      }
-      return tagToLabel;
     }
 
     void openBuffer() {
@@ -849,7 +836,7 @@ public class DoFnOperator<InputT, OutputT>
       if (!openBuffer) {
         emit(tag, value);
       } else {
-        bufferState.add(KV.<Integer, WindowedValue<?>>of(tagToLabel.get(tag), value));
+        bufferState.add(KV.<Integer, WindowedValue<?>>of(tagsToIds.get(tag), value));
       }
     }
 
@@ -858,8 +845,8 @@ public class DoFnOperator<InputT, OutputT>
      * {@link #snapshotState(StateSnapshotContext)}
      */
     void flushBuffer() {
-      for (KV<Integer, WindowedValue<?>> tuple2 : bufferState.read()) {
-        emit(tagToLabel.inverse().get(tuple2.getKey()), (WindowedValue) tuple2.getValue());
+      for (KV<Integer, WindowedValue<?>> taggedElem : bufferState.read()) {
+        emit(idsToTags.get(taggedElem.getKey()), (WindowedValue) taggedElem.getValue());
       }
       bufferState.clear();
     }
@@ -873,27 +860,27 @@ public class DoFnOperator<InputT, OutputT>
         output.collect(new StreamRecord<>(castValue));
       } else {
         @SuppressWarnings("unchecked")
-        OutputTag<WindowedValue<T>> outputTag = (OutputTag) mapping.get(tag);
+        OutputTag<WindowedValue<T>> outputTag = (OutputTag) tagsToOutputTags.get(tag);
         output.collect(outputTag, new StreamRecord<>(value));
       }
     }
   }
 
   /**
-   * Coder for KV of label and value. It will be serialized in Flink checkpoint.
+   * Coder for KV of id and value. It will be serialized in Flink checkpoint.
    */
   private static class TaggedKvCoder extends StructuredCoder<KV<Integer, WindowedValue<?>>> {
 
-    private Map<Integer, Coder<WindowedValue<?>>> labelsToCoders;
+    private Map<Integer, Coder<WindowedValue<?>>> idsToCoders;
 
-    TaggedKvCoder(Map<Integer, Coder<WindowedValue<?>>> labelsToCoders) {
-      this.labelsToCoders = labelsToCoders;
+    TaggedKvCoder(Map<Integer, Coder<WindowedValue<?>>> idsToCoders) {
+      this.idsToCoders = idsToCoders;
     }
 
     @Override
     public void encode(KV<Integer, WindowedValue<?>> kv, OutputStream out)
         throws IOException {
-      Coder<WindowedValue<?>> coder = labelsToCoders.get(kv.getKey());
+      Coder<WindowedValue<?>> coder = idsToCoders.get(kv.getKey());
       VarIntCoder.of().encode(kv.getKey(), out);
       coder.encode(kv.getValue(), out);
     }
@@ -901,19 +888,23 @@ public class DoFnOperator<InputT, OutputT>
     @Override
     public KV<Integer, WindowedValue<?>> decode(InputStream in)
         throws IOException {
-      Integer label = VarIntCoder.of().decode(in);
-      Coder<WindowedValue<?>> coder = labelsToCoders.get(label);
+      Integer id = VarIntCoder.of().decode(in);
+      Coder<WindowedValue<?>> coder = idsToCoders.get(id);
       WindowedValue<?> value = coder.decode(in);
-      return KV.<Integer, WindowedValue<?>>of(label, value);
+      return KV.<Integer, WindowedValue<?>>of(id, value);
     }
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return new ArrayList<>(idsToCoders.values());
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException {}
+    public void verifyDeterministic() throws NonDeterministicException {
+      for (Coder<?> coder : idsToCoders.values()) {
+        verifyDeterministic(this, "Coder must be deterministic", coder);
+      }
+    }
   }
 
   /**
@@ -925,8 +916,9 @@ public class DoFnOperator<InputT, OutputT>
       implements OutputManagerFactory<OutputT> {
 
     private TupleTag<OutputT> mainTag;
-    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping;
-    private Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping;
+    private Map<TupleTag<?>, Integer> tagsToIds;
+    private Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
+    private Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
 
     // There is no side output.
     @SuppressWarnings("unchecked")
@@ -935,23 +927,28 @@ public class DoFnOperator<InputT, OutputT>
       this(mainTag,
           new HashMap<TupleTag<?>, OutputTag<WindowedValue<?>>>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-              .put(mainTag, (Coder) mainCoder).build());
+              .put(mainTag, (Coder) mainCoder).build(),
+          ImmutableMap.<TupleTag<?>, Integer>builder()
+              .put(mainTag, 0).build());
     }
 
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag,
-        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> mapping,
-        Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping) {
+        Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
+        Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
+        Map<TupleTag<?>, Integer> tagsToIds) {
       this.mainTag = mainTag;
-      this.mapping = mapping;
-      this.coderMapping = coderMapping;
+      this.tagsToOutputTags = tagsToOutputTags;
+      this.tagsToCoders = tagsToCoders;
+      this.tagsToIds = tagsToIds;
     }
 
     @Override
     public BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         StateInternals stateInternals) {
-      return new BufferedOutputManager<>(output, mainTag, mapping, coderMapping, stateInternals);
+      return new BufferedOutputManager<>(
+          output, mainTag, tagsToOutputTags, tagsToCoders, tagsToIds, stateInternals);
     }
   }
 

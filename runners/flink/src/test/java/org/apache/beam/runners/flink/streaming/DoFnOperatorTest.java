@@ -150,16 +150,22 @@ public class DoFnOperatorTest {
     TupleTag<String> mainOutput = new TupleTag<>("main-output");
     TupleTag<String> additionalOutput1 = new TupleTag<>("output-1");
     TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
-    ImmutableMap<TupleTag<?>, OutputTag<?>> outputMapping =
+    ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
         ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
             .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()){})
             .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()){})
             .build();
-    ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> coderMapping =
+    ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
         ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
             .put(mainOutput, (Coder) coder)
             .put(additionalOutput1, coder)
             .put(additionalOutput2, coder)
+            .build();
+    ImmutableMap<TupleTag<?>, Integer> tagsToIds =
+        ImmutableMap.<TupleTag<?>, Integer>builder()
+            .put(mainOutput, 0)
+            .put(additionalOutput1, 1)
+            .put(additionalOutput2, 2)
             .build();
 
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
@@ -168,7 +174,8 @@ public class DoFnOperatorTest {
         coder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, outputMapping, coderMapping),
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
@@ -190,13 +197,13 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("got: hello")));
 
     assertThat(
-        this.stripStreamRecord(testHarness.getSideOutput(outputMapping.get(additionalOutput1))),
+        this.stripStreamRecord(testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1))),
         contains(
             WindowedValue.valueInGlobalWindow("extra: one"),
             WindowedValue.valueInGlobalWindow("got: hello")));
 
     assertThat(
-        this.stripStreamRecord(testHarness.getSideOutput(outputMapping.get(additionalOutput2))),
+        this.stripStreamRecord(testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2))),
         contains(
             WindowedValue.valueInGlobalWindow("extra: two"),
             WindowedValue.valueInGlobalWindow("got: hello")));
@@ -646,7 +653,7 @@ public class DoFnOperatorTest {
     TupleTag<String> outputTag = new TupleTag<>("main-output");
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setMaxBundleSize(2L);
-    options.setMaxBundleTime(10L);
+    options.setMaxBundleTimeMills(10L);
 
     IdentityDoFn<String> doFn = new IdentityDoFn<String>() {
       @FinishBundle
@@ -658,8 +665,8 @@ public class DoFnOperatorTest {
 
     DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
-            outputTag, new HashMap(), ImmutableMap.of(outputTag,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)));
+            outputTag,
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
 
     DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
         doFn,
