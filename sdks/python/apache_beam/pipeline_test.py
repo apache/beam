@@ -27,7 +27,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
-from apache_beam.options.pipeline_options import DirectOptions
+# from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pipeline import PipelineOptions
@@ -506,23 +506,23 @@ class DirectRunnerRetryTests(unittest.TestCase):
     p = beam.Pipeline(options=pipeline_options)
 
     # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c
+    global count_b, count_c # pylint: disable=global-variable-undefined
     count_b, count_c = 0, 0
 
     def f_b(x):
-      global count_b
+      global count_b  # pylint: disable=global-variable-undefined
       count_b += 1
       raise Exception('exception in f_b')
 
     def f_c(x):
-      global count_c
+      global count_c  # pylint: disable=global-variable-undefined
       count_c += 1
       raise Exception('exception in f_c')
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
 
-    fork_b = names | 'SendToB' >> beam.Map(f_b)
-    fork_c = names | 'SendToC' >> beam.Map(f_c)
+    fork_b = names | 'SendToB' >> beam.Map(f_b) # pylint: disable=unused-variable
+    fork_c = names | 'SendToC' >> beam.Map(f_c) # pylint: disable=unused-variable
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
