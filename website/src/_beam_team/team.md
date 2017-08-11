@@ -113,7 +113,7 @@ members:
   - name: Maximilian Michels
     apache_id: mxm
     email: mxm [at] apache [dot] org
-    organization: data Artisans
+    organization: Crate.io
     roles: committer, PMC
     time_zone: "+1"
   - name: Jean-Baptiste Onofré
