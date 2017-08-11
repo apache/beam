@@ -255,8 +255,9 @@ public class BeamAggregationTransforms implements Serializable{
       registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
       List<Coder> aggAccuCoderList = new ArrayList<>();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry,
-            inCoderAsSql.getCoderArray().get(sourceFieldExps.get(idx).getInputRef())));
+        int srcFieldIndex = sourceFieldExps.get(idx).getInputRef();
+        Coder srcFieldCoder = inCoderAsSql.getCoders().get(srcFieldIndex);
+        aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
       }
       return new AggregationAccumulatorCoder(aggAccuCoderList);
     }

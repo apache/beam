@@ -46,44 +46,19 @@ class BeamBuiltinAggregations {
     case INTEGER:
       return Max.ofIntegers();
     case SMALLINT:
-      return new Combine.BinaryCombineFn<Short>() {
-        @Override
-        public Short apply(Short left, Short right) {
-          return left > right ? left : right;
-        }
-      };
+      return new ShortMax();
     case TINYINT:
-      return new Combine.BinaryCombineFn<Byte>() {
-        @Override
-        public Byte apply(Byte left, Byte right) {
-          return left > right ? left : right;
-        }
-      };
+      return new ByteMax();
     case BIGINT:
       return Max.ofLongs();
     case FLOAT:
-      return new Combine.BinaryCombineFn<Float>() {
-        @Override
-        public Float apply(Float left, Float right) {
-          return left > right ? left : right;
-        }
-      };
+      return new FloatMax();
     case DOUBLE:
       return Max.ofDoubles();
     case TIMESTAMP:
-      return new Combine.BinaryCombineFn<Date>() {
-        @Override
-        public Date apply(Date left, Date right) {
-          return left.after(right) ? left : right;
-        }
-      };
+      return new DateMax();
     case DECIMAL:
-      return new Combine.BinaryCombineFn<BigDecimal>() {
-        @Override
-        public BigDecimal apply(BigDecimal left, BigDecimal right) {
-          return left.compareTo(right) > 0 ? left : right;
-        }
-      };
+      return new BigDecimalMax();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in MAX", fieldType));
@@ -98,44 +73,19 @@ class BeamBuiltinAggregations {
     case INTEGER:
       return Min.ofIntegers();
     case SMALLINT:
-      return new Combine.BinaryCombineFn<Short>() {
-        @Override
-        public Short apply(Short left, Short right) {
-          return left < right ? left : right;
-        }
-      };
+      return new ShortMin();
     case TINYINT:
-      return new Combine.BinaryCombineFn<Byte>() {
-        @Override
-        public Byte apply(Byte left, Byte right) {
-          return left < right ? left : right;
-        }
-      };
+      return new ByteMin();
     case BIGINT:
       return Min.ofLongs();
     case FLOAT:
-      return new Combine.BinaryCombineFn<Float>() {
-        @Override
-        public Float apply(Float left, Float right) {
-          return left < right ? left : right;
-        }
-      };
+      return new FloatMin();
     case DOUBLE:
       return Min.ofDoubles();
     case TIMESTAMP:
-      return new Combine.BinaryCombineFn<Date>() {
-        @Override
-        public Date apply(Date left, Date right) {
-          return left.before(right) ? left : right;
-        }
-      };
+      return new DateMin();
     case DECIMAL:
-      return new Combine.BinaryCombineFn<BigDecimal>() {
-        @Override
-        public BigDecimal apply(BigDecimal left, BigDecimal right) {
-          return left.compareTo(right) < 0 ? left : right;
-        }
-      };
+      return new BigDecimalMin();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in MIN", fieldType));
@@ -150,37 +100,17 @@ class BeamBuiltinAggregations {
     case INTEGER:
       return Sum.ofIntegers();
     case SMALLINT:
-      return new Combine.BinaryCombineFn<Short>() {
-        @Override
-        public Short apply(Short left, Short right) {
-          return (short) (left + right);
-        }
-      };
+      return new ShortSum();
     case TINYINT:
-      return new Combine.BinaryCombineFn<Byte>() {
-        @Override
-        public Byte apply(Byte left, Byte right) {
-          return (byte) (left + right);
-        }
-      };
+      return new ByteSum();
     case BIGINT:
       return Sum.ofLongs();
     case FLOAT:
-      return new Combine.BinaryCombineFn<Float>() {
-        @Override
-        public Float apply(Float left, Float right) {
-          return left + right;
-        }
-      };
+      return new FloatSum();
     case DOUBLE:
       return Sum.ofDoubles();
     case DECIMAL:
-      return new Combine.BinaryCombineFn<BigDecimal>() {
-        @Override
-        public BigDecimal apply(BigDecimal left, BigDecimal right) {
-          return left.add(right);
-        }
-      };
+      return new BigDecimalSum();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in SUM", fieldType));
@@ -193,106 +123,113 @@ class BeamBuiltinAggregations {
   public static CombineFn createAvg(SqlTypeName fieldType) {
     switch (fieldType) {
     case INTEGER:
-      return new Avg<Integer>() {
-        @Override
-        public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).intValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Integer record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new IntegerAvg();
     case SMALLINT:
-      return new Avg<Short>() {
-        @Override
-        public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).shortValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Short record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new ShortAvg();
     case TINYINT:
-      return new Avg<Byte>() {
-        @Override
-        public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).byteValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Byte record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new ByteAvg();
     case BIGINT:
-      return new Avg<Long>() {
-        @Override
-        public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).longValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Long record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new LongAvg();
     case FLOAT:
-      return new Avg<Float>() {
-        @Override
-        public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).floatValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Float record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new FloatAvg();
     case DOUBLE:
-      return new Avg<Double>() {
-        @Override
-        public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).doubleValue();
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(Double record) {
-          return new BigDecimal(record);
-        }
-      };
+      return new DoubleAvg();
     case DECIMAL:
-      return new Avg<BigDecimal>() {
-        @Override
-        public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
-          return accumulator.getKey() == 0 ? null
-              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey()));
-        }
-
-        @Override
-        public BigDecimal toBigDecimal(BigDecimal record) {
-          return record;
-        }
-      };
+      return new BigDecimalAvg();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in AVG", fieldType));
   }
   }
 
+  static class ShortMax extends Combine.BinaryCombineFn<Short> {
+    public Short apply(Short left, Short right) {
+      return left > right ? left : right;
+    }
+  }
+
+  static class ByteMax extends Combine.BinaryCombineFn<Byte> {
+    public Byte apply(Byte left, Byte right) {
+      return left > right ? left : right;
+    }
+  }
+
+  static class FloatMax extends Combine.BinaryCombineFn<Float> {
+    public Float apply(Float left, Float right) {
+      return left > right ? left : right;
+    }
+  }
+
+  static class BigDecimalMax extends Combine.BinaryCombineFn<BigDecimal> {
+    public BigDecimal apply(BigDecimal left, BigDecimal right) {
+      return left.compareTo(right) > 0 ? left : right;
+    }
+  }
+
+  static class DateMax extends Combine.BinaryCombineFn<Date> {
+    public Date apply(Date left, Date right) {
+      return left.after(right) ? left : right;
+    }
+  }
+
+  static class ShortMin extends Combine.BinaryCombineFn<Short> {
+    public Short apply(Short left, Short right) {
+      return left < right ? left : right;
+    }
+  }
+
+  static class ByteMin extends Combine.BinaryCombineFn<Byte> {
+    public Byte apply(Byte left, Byte right) {
+      return left < right ? left : right;
+    }
+  }
+
+  static class FloatMin extends Combine.BinaryCombineFn<Float> {
+    public Float apply(Float left, Float right) {
+      return left < right ? left : right;
+    }
+  }
+
+  static class BigDecimalMin extends Combine.BinaryCombineFn<BigDecimal> {
+    public BigDecimal apply(BigDecimal left, BigDecimal right) {
+      return left.compareTo(right) < 0 ? left : right;
+    }
+  }
+
+  static class DateMin extends Combine.BinaryCombineFn<Date> {
+    public Date apply(Date left, Date right) {
+      return left.before(right) ? left : right;
+    }
+  }
+
+  static class ShortSum extends Combine.BinaryCombineFn<Short> {
+    public Short apply(Short left, Short right) {
+      return (short) (left + right);
+    }
+  }
+
+  static class ByteSum extends Combine.BinaryCombineFn<Byte> {
+    public Byte apply(Byte left, Byte right) {
+      return (byte) (left + right);
+    }
+  }
+
+  static class FloatSum extends Combine.BinaryCombineFn<Float> {
+    public Float apply(Float left, Float right) {
+      return left + right;
+    }
+  }
+
+  static class BigDecimalSum extends Combine.BinaryCombineFn<BigDecimal> {
+    public BigDecimal apply(BigDecimal left, BigDecimal right) {
+      return left.add(right);
+    }
+  }
+
   /**
    * {@link CombineFn} for <em>AVG</em> on {@link Number} types.
    */
-  public abstract static class Avg<T extends Number>
+  abstract static class Avg<T extends Number>
       extends CombineFn<T, KV<Integer, BigDecimal>, T> {
     @Override
     public KV<Integer, BigDecimal> createAccumulator() {
@@ -326,5 +263,82 @@ class BeamBuiltinAggregations {
 
     public abstract T extractOutput(KV<Integer, BigDecimal> accumulator);
     public abstract BigDecimal toBigDecimal(T record);
+  }
+
+  static class IntegerAvg extends Avg<Integer>{
+    public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).intValue();
+    }
+
+    public BigDecimal toBigDecimal(Integer record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class LongAvg extends Avg<Long>{
+    public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).longValue();
+    }
+
+    public BigDecimal toBigDecimal(Long record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class ShortAvg extends Avg<Short>{
+    public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).shortValue();
+    }
+
+    public BigDecimal toBigDecimal(Short record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class ByteAvg extends Avg<Byte>{
+    public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).byteValue();
+    }
+
+    public BigDecimal toBigDecimal(Byte record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class FloatAvg extends Avg<Float>{
+    public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).floatValue();
+    }
+
+    public BigDecimal toBigDecimal(Float record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class DoubleAvg extends Avg<Double>{
+    public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).doubleValue();
+    }
+
+    public BigDecimal toBigDecimal(Double record) {
+      return new BigDecimal(record);
+    }
+  }
+
+  static class BigDecimalAvg extends Avg<BigDecimal>{
+    public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
+      return accumulator.getKey() == 0 ? null
+          : accumulator.getValue().divide(new BigDecimal(accumulator.getKey()));
+    }
+
+    public BigDecimal toBigDecimal(BigDecimal record) {
+      return record;
+    }
   }
 }

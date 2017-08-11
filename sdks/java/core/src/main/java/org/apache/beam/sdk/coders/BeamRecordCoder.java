@@ -35,11 +35,11 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
   private BeamRecordType recordType;
-  private List<Coder> coderArray;
+  private List<Coder> coders;
 
-  private BeamRecordCoder(BeamRecordType recordType, List<Coder> coderArray) {
+  private BeamRecordCoder(BeamRecordType recordType, List<Coder> coders) {
     this.recordType = recordType;
-    this.coderArray = coderArray;
+    this.coders = coders;
   }
 
   public static BeamRecordCoder of(BeamRecordType recordType, List<Coder> coderArray){
@@ -62,7 +62,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
         continue;
       }
 
-      coderArray.get(idx).encode(value.getFieldValue(idx), outStream);
+      coders.get(idx).encode(value.getFieldValue(idx), outStream);
     }
   }
 
@@ -75,7 +75,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
-        fieldValues.add(coderArray.get(idx).decode(inStream));
+        fieldValues.add(coders.get(idx).decode(inStream));
       }
     }
     BeamRecord record = new BeamRecord(recordType, fieldValues);
@@ -99,12 +99,12 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    for (Coder c : coderArray) {
+    for (Coder c : coders) {
       c.verifyDeterministic();
     }
   }
 
-  public List<Coder> getCoderArray() {
-    return coderArray;
+  public List<Coder> getCoders() {
+    return coders;
   }
 }
