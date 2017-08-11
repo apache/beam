@@ -68,13 +68,11 @@ public class WindowFnTestUtils {
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFn(
       WindowFn<T, W> windowFn,
       List<Long> timestamps) throws Exception {
-    // lift List<Timestamp> into List<TimestampedValue> to factorize implementation
     List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
     for (Long timestamp : timestamps){
       timestampedValues.add(TimestampedValue.of((T) null, new Instant(timestamp)));
     }
     return runWindowFnWithValue(windowFn, timestampedValues);
-
   }
 
   /**
@@ -105,7 +103,6 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindows(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    // lift Timestamp into TimestampedValue to factorize implementation
     return assignedWindowsWithValue(windowFn,
         TimestampedValue.of((T) null, new Instant(timestamp)));
   }
@@ -229,7 +226,6 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimes(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    // lift Timestamp into TimestampedValue to factorize implementation
     validateNonInterferingOutputTimesWithValue(windowFn,
         TimestampedValue.of((T) null, new Instant(timestamp)));
   }
@@ -265,7 +261,6 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
-    // lift Timestamp into TimestampedValue to factorize implementation
     validateGetOutputTimestampWithValue(windowFn,
         TimestampedValue.of((T) null, new Instant(timestamp)));
   }
@@ -333,7 +328,6 @@ public class WindowFnTestUtils {
       TimestampCombiner timestampCombiner,
       List<List<Long>> timestampsPerWindow) throws Exception {
 
-    // lift List<List<Timestamp>> into List<List<TimestampedValue>> to factorize implementation
     List<List<TimestampedValue<T>>> timestampValuesPerWindow = new ArrayList<>();
     for (List<Long> timestamps : timestampsPerWindow){
       List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
