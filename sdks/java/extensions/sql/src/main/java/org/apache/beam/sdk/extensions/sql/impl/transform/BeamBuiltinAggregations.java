@@ -21,16 +21,16 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Iterator;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
-import org.apache.beam.sdk.coders.ByteCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -39,374 +39,292 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 class BeamBuiltinAggregations {
   /**
-   * Built-in aggregation for COUNT.
+   * {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}.
    */
-  public static final class Count<T> extends BeamSqlUdaf<T, Long, Long> {
-    public Count() {}
-
-    @Override
-    public Long init() {
-      return 0L;
-    }
-
-    @Override
-    public Long add(Long accumulator, T input) {
-      return accumulator + 1;
-    }
-
-    @Override
-    public Long merge(Iterable<Long> accumulators) {
-      long v = 0L;
-      Iterator<Long> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        v += ite.next();
-      }
-      return v;
-    }
-
-    @Override
-    public Long result(Long accumulator) {
-      return accumulator;
-    }
+  public static CombineFn createMax(SqlTypeName fieldType) {
+    switch (fieldType) {
+    case INTEGER:
+      return Max.ofIntegers();
+    case SMALLINT:
+      return new Combine.BinaryCombineFn<Short>() {
+        @Override
+        public Short apply(Short left, Short right) {
+          return left > right ? left : right;
+        }
+      };
+    case TINYINT:
+      return new Combine.BinaryCombineFn<Byte>() {
+        @Override
+        public Byte apply(Byte left, Byte right) {
+          return left > right ? left : right;
+        }
+      };
+    case BIGINT:
+      return Max.ofLongs();
+    case FLOAT:
+      return new Combine.BinaryCombineFn<Float>() {
+        @Override
+        public Float apply(Float left, Float right) {
+          return left > right ? left : right;
+        }
+      };
+    case DOUBLE:
+      return Max.ofDoubles();
+    case TIMESTAMP:
+      return new Combine.BinaryCombineFn<Date>() {
+        @Override
+        public Date apply(Date left, Date right) {
+          return left.after(right) ? left : right;
+        }
+      };
+    case DECIMAL:
+      return new Combine.BinaryCombineFn<BigDecimal>() {
+        @Override
+        public BigDecimal apply(BigDecimal left, BigDecimal right) {
+          return left.compareTo(right) > 0 ? left : right;
+        }
+      };
+    default:
+      throw new UnsupportedOperationException(
+          String.format("[%s] is not support in MAX", fieldType));
+  }
   }
 
   /**
-   * Built-in aggregation for MAX.
+   * {@link CombineFn} for MAX based on {@link Min} and {@link Combine.BinaryCombineFn}.
    */
-  public static final class Max<T extends Comparable<T>> extends BeamSqlUdaf<T, T, T> {
-    public static Max create(SqlTypeName fieldType) {
-      switch (fieldType) {
-        case INTEGER:
-          return new BeamBuiltinAggregations.Max<Integer>(fieldType);
-        case SMALLINT:
-          return new BeamBuiltinAggregations.Max<Short>(fieldType);
-        case TINYINT:
-          return new BeamBuiltinAggregations.Max<Byte>(fieldType);
-        case BIGINT:
-          return new BeamBuiltinAggregations.Max<Long>(fieldType);
-        case FLOAT:
-          return new BeamBuiltinAggregations.Max<Float>(fieldType);
-        case DOUBLE:
-          return new BeamBuiltinAggregations.Max<Double>(fieldType);
-        case TIMESTAMP:
-          return new BeamBuiltinAggregations.Max<Date>(fieldType);
-        case DECIMAL:
-          return new BeamBuiltinAggregations.Max<BigDecimal>(fieldType);
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in MAX", fieldType));
-      }
-    }
-
-    private final SqlTypeName fieldType;
-    private Max(SqlTypeName fieldType) {
-      this.fieldType = fieldType;
-    }
-
-    @Override
-    public T init() {
-      return null;
-    }
-
-    @Override
-    public T add(T accumulator, T input) {
-      return (accumulator == null || accumulator.compareTo(input) < 0) ? input : accumulator;
-    }
-
-    @Override
-    public T merge(Iterable<T> accumulators) {
-      Iterator<T> ite = accumulators.iterator();
-      T mergedV = ite.next();
-      while (ite.hasNext()) {
-        T v = ite.next();
-        mergedV = mergedV.compareTo(v) > 0 ? mergedV : v;
-      }
-      return mergedV;
-    }
-
-    @Override
-    public T result(T accumulator) {
-      return accumulator;
-    }
-
-    @Override
-    public Coder<T> getAccumulatorCoder(CoderRegistry registry) throws CannotProvideCoderException {
-      return BeamBuiltinAggregations.getSqlTypeCoder(fieldType);
-    }
+  public static CombineFn createMin(SqlTypeName fieldType) {
+    switch (fieldType) {
+    case INTEGER:
+      return Min.ofIntegers();
+    case SMALLINT:
+      return new Combine.BinaryCombineFn<Short>() {
+        @Override
+        public Short apply(Short left, Short right) {
+          return left < right ? left : right;
+        }
+      };
+    case TINYINT:
+      return new Combine.BinaryCombineFn<Byte>() {
+        @Override
+        public Byte apply(Byte left, Byte right) {
+          return left < right ? left : right;
+        }
+      };
+    case BIGINT:
+      return Min.ofLongs();
+    case FLOAT:
+      return new Combine.BinaryCombineFn<Float>() {
+        @Override
+        public Float apply(Float left, Float right) {
+          return left < right ? left : right;
+        }
+      };
+    case DOUBLE:
+      return Min.ofDoubles();
+    case TIMESTAMP:
+      return new Combine.BinaryCombineFn<Date>() {
+        @Override
+        public Date apply(Date left, Date right) {
+          return left.before(right) ? left : right;
+        }
+      };
+    case DECIMAL:
+      return new Combine.BinaryCombineFn<BigDecimal>() {
+        @Override
+        public BigDecimal apply(BigDecimal left, BigDecimal right) {
+          return left.compareTo(right) < 0 ? left : right;
+        }
+      };
+    default:
+      throw new UnsupportedOperationException(
+          String.format("[%s] is not support in MIN", fieldType));
+  }
   }
 
   /**
-   * Built-in aggregation for MIN.
+   * {@link CombineFn} for MAX based on {@link Sum} and {@link Combine.BinaryCombineFn}.
    */
-  public static final class Min<T extends Comparable<T>> extends BeamSqlUdaf<T, T, T> {
-    public static Min create(SqlTypeName fieldType) {
-      switch (fieldType) {
-        case INTEGER:
-          return new BeamBuiltinAggregations.Min<Integer>(fieldType);
-        case SMALLINT:
-          return new BeamBuiltinAggregations.Min<Short>(fieldType);
-        case TINYINT:
-          return new BeamBuiltinAggregations.Min<Byte>(fieldType);
-        case BIGINT:
-          return new BeamBuiltinAggregations.Min<Long>(fieldType);
-        case FLOAT:
-          return new BeamBuiltinAggregations.Min<Float>(fieldType);
-        case DOUBLE:
-          return new BeamBuiltinAggregations.Min<Double>(fieldType);
-        case TIMESTAMP:
-          return new BeamBuiltinAggregations.Min<Date>(fieldType);
-        case DECIMAL:
-          return new BeamBuiltinAggregations.Min<BigDecimal>(fieldType);
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in MIN", fieldType));
-      }
-    }
-
-    private final SqlTypeName fieldType;
-    private Min(SqlTypeName fieldType) {
-      this.fieldType = fieldType;
-    }
-
-    @Override
-    public T init() {
-      return null;
-    }
-
-    @Override
-    public T add(T accumulator, T input) {
-      return (accumulator == null || accumulator.compareTo(input) > 0) ? input : accumulator;
-    }
-
-    @Override
-    public T merge(Iterable<T> accumulators) {
-      Iterator<T> ite = accumulators.iterator();
-      T mergedV = ite.next();
-      while (ite.hasNext()) {
-        T v = ite.next();
-        mergedV = mergedV.compareTo(v) < 0 ? mergedV : v;
-      }
-      return mergedV;
-    }
-
-    @Override
-    public T result(T accumulator) {
-      return accumulator;
-    }
-
-    @Override
-    public Coder<T> getAccumulatorCoder(CoderRegistry registry) throws CannotProvideCoderException {
-      return BeamBuiltinAggregations.getSqlTypeCoder(fieldType);
-    }
+  public static CombineFn createSum(SqlTypeName fieldType) {
+    switch (fieldType) {
+    case INTEGER:
+      return Sum.ofIntegers();
+    case SMALLINT:
+      return new Combine.BinaryCombineFn<Short>() {
+        @Override
+        public Short apply(Short left, Short right) {
+          return (short) (left + right);
+        }
+      };
+    case TINYINT:
+      return new Combine.BinaryCombineFn<Byte>() {
+        @Override
+        public Byte apply(Byte left, Byte right) {
+          return (byte) (left + right);
+        }
+      };
+    case BIGINT:
+      return Sum.ofLongs();
+    case FLOAT:
+      return new Combine.BinaryCombineFn<Float>() {
+        @Override
+        public Float apply(Float left, Float right) {
+          return left + right;
+        }
+      };
+    case DOUBLE:
+      return Sum.ofDoubles();
+    case DECIMAL:
+      return new Combine.BinaryCombineFn<BigDecimal>() {
+        @Override
+        public BigDecimal apply(BigDecimal left, BigDecimal right) {
+          return left.add(right);
+        }
+      };
+    default:
+      throw new UnsupportedOperationException(
+          String.format("[%s] is not support in SUM", fieldType));
+  }
   }
 
   /**
-   * Built-in aggregation for SUM.
+   * {@link CombineFn} for AVG.
    */
-  public static final class Sum<T> extends BeamSqlUdaf<T, BigDecimal, T> {
-    public static Sum create(SqlTypeName fieldType) {
-      switch (fieldType) {
-        case INTEGER:
-          return new BeamBuiltinAggregations.Sum<Integer>(fieldType);
-        case SMALLINT:
-          return new BeamBuiltinAggregations.Sum<Short>(fieldType);
-        case TINYINT:
-          return new BeamBuiltinAggregations.Sum<Byte>(fieldType);
-        case BIGINT:
-          return new BeamBuiltinAggregations.Sum<Long>(fieldType);
-        case FLOAT:
-          return new BeamBuiltinAggregations.Sum<Float>(fieldType);
-        case DOUBLE:
-          return new BeamBuiltinAggregations.Sum<Double>(fieldType);
-        case TIMESTAMP:
-          return new BeamBuiltinAggregations.Sum<Date>(fieldType);
-        case DECIMAL:
-          return new BeamBuiltinAggregations.Sum<BigDecimal>(fieldType);
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in SUM", fieldType));
-      }
-    }
+  public static CombineFn createAvg(SqlTypeName fieldType) {
+    switch (fieldType) {
+    case INTEGER:
+      return new Avg<Integer>() {
+        @Override
+        public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).intValue();
+        }
 
-    private SqlTypeName fieldType;
-      private Sum(SqlTypeName fieldType) {
-        this.fieldType = fieldType;
-      }
+        @Override
+        public BigDecimal toBigDecimal(Integer record) {
+          return new BigDecimal(record);
+        }
+      };
+    case SMALLINT:
+      return new Avg<Short>() {
+        @Override
+        public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).shortValue();
+        }
 
-    @Override
-    public BigDecimal init() {
-      return new BigDecimal(0);
-    }
+        @Override
+        public BigDecimal toBigDecimal(Short record) {
+          return new BigDecimal(record);
+        }
+      };
+    case TINYINT:
+      return new Avg<Byte>() {
+        @Override
+        public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).byteValue();
+        }
 
-    @Override
-    public BigDecimal add(BigDecimal accumulator, T input) {
-      return accumulator.add(new BigDecimal(input.toString()));
-    }
+        @Override
+        public BigDecimal toBigDecimal(Byte record) {
+          return new BigDecimal(record);
+        }
+      };
+    case BIGINT:
+      return new Avg<Long>() {
+        @Override
+        public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).longValue();
+        }
 
-    @Override
-    public BigDecimal merge(Iterable<BigDecimal> accumulators) {
-      BigDecimal v = new BigDecimal(0);
-      Iterator<BigDecimal> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        v = v.add(ite.next());
-      }
-      return v;
-    }
+        @Override
+        public BigDecimal toBigDecimal(Long record) {
+          return new BigDecimal(record);
+        }
+      };
+    case FLOAT:
+      return new Avg<Float>() {
+        @Override
+        public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).floatValue();
+        }
 
-    @Override
-    public T result(BigDecimal accumulator) {
-      Object result = null;
-      switch (fieldType) {
-        case INTEGER:
-          result = accumulator.intValue();
-          break;
-        case BIGINT:
-          result = accumulator.longValue();
-          break;
-        case SMALLINT:
-          result = accumulator.shortValue();
-          break;
-        case TINYINT:
-          result = accumulator.byteValue();
-          break;
-        case DOUBLE:
-          result = accumulator.doubleValue();
-          break;
-        case FLOAT:
-          result = accumulator.floatValue();
-          break;
-        case DECIMAL:
-          result = accumulator;
-          break;
-        default:
-          break;
-      }
-      return (T) result;
-    }
+        @Override
+        public BigDecimal toBigDecimal(Float record) {
+          return new BigDecimal(record);
+        }
+      };
+    case DOUBLE:
+      return new Avg<Double>() {
+        @Override
+        public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey())).doubleValue();
+        }
+
+        @Override
+        public BigDecimal toBigDecimal(Double record) {
+          return new BigDecimal(record);
+        }
+      };
+    case DECIMAL:
+      return new Avg<BigDecimal>() {
+        @Override
+        public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
+          return accumulator.getKey() == 0 ? null
+              : accumulator.getValue().divide(new BigDecimal(accumulator.getKey()));
+        }
+
+        @Override
+        public BigDecimal toBigDecimal(BigDecimal record) {
+          return record;
+        }
+      };
+    default:
+      throw new UnsupportedOperationException(
+          String.format("[%s] is not support in AVG", fieldType));
+  }
   }
 
   /**
-   * Built-in aggregation for AVG.
+   * {@link CombineFn} for <em>AVG</em> on {@link Number} types.
    */
-  public static final class Avg<T> extends BeamSqlUdaf<T, KV<BigDecimal, Long>, T> {
-    public static Avg create(SqlTypeName fieldType) {
-      switch (fieldType) {
-        case INTEGER:
-          return new BeamBuiltinAggregations.Avg<Integer>(fieldType);
-        case SMALLINT:
-          return new BeamBuiltinAggregations.Avg<Short>(fieldType);
-        case TINYINT:
-          return new BeamBuiltinAggregations.Avg<Byte>(fieldType);
-        case BIGINT:
-          return new BeamBuiltinAggregations.Avg<Long>(fieldType);
-        case FLOAT:
-          return new BeamBuiltinAggregations.Avg<Float>(fieldType);
-        case DOUBLE:
-          return new BeamBuiltinAggregations.Avg<Double>(fieldType);
-        case TIMESTAMP:
-          return new BeamBuiltinAggregations.Avg<Date>(fieldType);
-        case DECIMAL:
-          return new BeamBuiltinAggregations.Avg<BigDecimal>(fieldType);
-        default:
-          throw new UnsupportedOperationException(
-              String.format("[%s] is not support in AVG", fieldType));
-      }
-    }
-
-    private SqlTypeName fieldType;
-      private Avg(SqlTypeName fieldType) {
-        this.fieldType = fieldType;
-      }
-
+  public abstract static class Avg<T extends Number>
+      extends CombineFn<T, KV<Integer, BigDecimal>, T> {
     @Override
-    public KV<BigDecimal, Long> init() {
-      return KV.of(new BigDecimal(0), 0L);
+    public KV<Integer, BigDecimal> createAccumulator() {
+      return KV.of(0, new BigDecimal(0));
     }
 
     @Override
-    public KV<BigDecimal, Long> add(KV<BigDecimal, Long> accumulator, T input) {
-      return KV.of(
-              accumulator.getKey().add(new BigDecimal(input.toString())),
-              accumulator.getValue() + 1);
+    public KV<Integer, BigDecimal> addInput(KV<Integer, BigDecimal> accumulator, T input) {
+      return KV.of(accumulator.getKey() + 1, accumulator.getValue().add(toBigDecimal(input)));
     }
 
     @Override
-    public KV<BigDecimal, Long> merge(Iterable<KV<BigDecimal, Long>> accumulators) {
-      BigDecimal v = new BigDecimal(0);
-      long s = 0;
-      Iterator<KV<BigDecimal, Long>> ite = accumulators.iterator();
+    public KV<Integer, BigDecimal> mergeAccumulators(
+        Iterable<KV<Integer, BigDecimal>> accumulators) {
+      int size = 0;
+      BigDecimal acc = new BigDecimal(0);
+      Iterator<KV<Integer, BigDecimal>> ite = accumulators.iterator();
       while (ite.hasNext()) {
-        KV<BigDecimal, Long> r = ite.next();
-        v = v.add(r.getKey());
-        s += r.getValue();
+        KV<Integer, BigDecimal> ele = ite.next();
+        size += ele.getKey();
+        acc = acc.add(ele.getValue());
       }
-      return KV.of(v, s);
+      return KV.of(size, acc);
     }
 
     @Override
-    public T result(KV<BigDecimal, Long> accumulator) {
-      BigDecimal decimalAvg = accumulator.getKey().divide(
-          new BigDecimal(accumulator.getValue()));
-      Object result = null;
-      switch (fieldType) {
-        case INTEGER:
-          result = decimalAvg.intValue();
-          break;
-        case BIGINT:
-          result = decimalAvg.longValue();
-          break;
-        case SMALLINT:
-          result = decimalAvg.shortValue();
-          break;
-        case TINYINT:
-          result = decimalAvg.byteValue();
-          break;
-        case DOUBLE:
-          result = decimalAvg.doubleValue();
-          break;
-        case FLOAT:
-          result = decimalAvg.floatValue();
-          break;
-        case DECIMAL:
-          result = decimalAvg;
-          break;
-        default:
-          break;
-      }
-      return (T) result;
+    public Coder<KV<Integer, BigDecimal>> getAccumulatorCoder(CoderRegistry registry,
+        Coder<T> inputCoder) throws CannotProvideCoderException {
+      return KvCoder.of(BigEndianIntegerCoder.of(), BigDecimalCoder.of());
     }
 
-    @Override
-    public Coder<KV<BigDecimal, Long>> getAccumulatorCoder(CoderRegistry registry)
-        throws CannotProvideCoderException {
-      return KvCoder.of(BigDecimalCoder.of(), VarLongCoder.of());
-    }
-  }
-
-  /**
-   * Find {@link Coder} for Beam SQL field types.
-   */
-  private static Coder getSqlTypeCoder(SqlTypeName sqlType) {
-    switch (sqlType) {
-      case INTEGER:
-        return VarIntCoder.of();
-      case SMALLINT:
-        return SerializableCoder.of(Short.class);
-      case TINYINT:
-        return ByteCoder.of();
-      case BIGINT:
-        return VarLongCoder.of();
-      case FLOAT:
-        return SerializableCoder.of(Float.class);
-      case DOUBLE:
-        return DoubleCoder.of();
-      case TIMESTAMP:
-        return SerializableCoder.of(Date.class);
-      case DECIMAL:
-        return BigDecimalCoder.of();
-      default:
-        throw new UnsupportedOperationException(
-            String.format("Cannot find a Coder for data type [%s]", sqlType));
-    }
+    public abstract T extractOutput(KV<Integer, BigDecimal> accumulator);
+    public abstract BigDecimal toBigDecimal(T record);
   }
 }

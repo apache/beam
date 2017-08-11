@@ -103,4 +103,8 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       c.verifyDeterministic();
     }
   }
+
+  public List<Coder> getCoderArray() {
+    return coderArray;
+  }
 }

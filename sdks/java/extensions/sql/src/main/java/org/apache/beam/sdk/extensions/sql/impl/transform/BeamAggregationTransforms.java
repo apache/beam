@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,13 +33,13 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -46,7 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.joda.time.Instant;
@@ -151,8 +151,8 @@ public class BeamAggregationTransforms implements Serializable{
    */
   public static class AggregationAdaptor
     extends CombineFn<BeamRecord, AggregationAccumulator, BeamRecord> {
-    private List<BeamSqlUdaf> aggregators;
-    private List<BeamSqlExpression> sourceFieldExps;
+    private List<CombineFn> aggregators;
+    private List<BeamSqlInputRefExpression> sourceFieldExps;
     private BeamRecordSqlType finalRowType;
 
     public AggregationAdaptor(List<AggregateCall> aggregationCalls,
@@ -163,7 +163,7 @@ public class BeamAggregationTransforms implements Serializable{
       List<Integer> outFieldsType = new ArrayList<>();
       for (AggregateCall call : aggregationCalls) {
         int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
-        BeamSqlExpression sourceExp = new BeamSqlInputRefExpression(
+        BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
             CalciteUtils.getFieldType(sourceRowType, refIndex), refIndex);
         sourceFieldExps.add(sourceExp);
 
@@ -173,27 +173,27 @@ public class BeamAggregationTransforms implements Serializable{
 
         switch (call.getAggregation().getName()) {
           case "COUNT":
-            aggregators.add(new BeamBuiltinAggregations.Count());
+            aggregators.add(Count.combineFn());
             break;
           case "MAX":
-            aggregators.add(BeamBuiltinAggregations.Max.create(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createMax(call.type.getSqlTypeName()));
             break;
           case "MIN":
-            aggregators.add(BeamBuiltinAggregations.Min.create(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createMin(call.type.getSqlTypeName()));
             break;
           case "SUM":
-            aggregators.add(BeamBuiltinAggregations.Sum.create(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createSum(call.type.getSqlTypeName()));
             break;
           case "AVG":
-            aggregators.add(BeamBuiltinAggregations.Avg.create(call.type.getSqlTypeName()));
+            aggregators.add(BeamBuiltinAggregations.createAvg(call.type.getSqlTypeName()));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
               // handle UDAF.
               SqlUserDefinedAggFunction udaf = (SqlUserDefinedAggFunction) call.getAggregation();
-              AggregateFunctionImpl fn = (AggregateFunctionImpl) udaf.function;
+              UdafImpl fn = (UdafImpl) udaf.function;
               try {
-                aggregators.add((BeamSqlUdaf) fn.declaringClass.newInstance());
+                aggregators.add(fn.getCombineFn());
               } catch (Exception e) {
                 throw new IllegalStateException(e);
               }
@@ -210,8 +210,8 @@ public class BeamAggregationTransforms implements Serializable{
     @Override
     public AggregationAccumulator createAccumulator() {
       AggregationAccumulator initialAccu = new AggregationAccumulator();
-      for (BeamSqlUdaf agg : aggregators) {
-        initialAccu.accumulatorElements.add(agg.init());
+      for (CombineFn agg : aggregators) {
+        initialAccu.accumulatorElements.add(agg.createAccumulator());
       }
       return initialAccu;
     }
@@ -220,7 +220,7 @@ public class BeamAggregationTransforms implements Serializable{
       AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         deltaAcc.accumulatorElements.add(
-            aggregators.get(idx).add(accumulator.accumulatorElements.get(idx),
+            aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
             sourceFieldExps.get(idx).evaluate(input, null).getValue()));
       }
       return deltaAcc;
@@ -234,7 +234,7 @@ public class BeamAggregationTransforms implements Serializable{
         while (ite.hasNext()) {
           accs.add(ite.next().accumulatorElements.get(idx));
         }
-        deltaAcc.accumulatorElements.add(aggregators.get(idx).merge(accs));
+        deltaAcc.accumulatorElements.add(aggregators.get(idx).mergeAccumulators(accs));
       }
       return deltaAcc;
     }
@@ -242,7 +242,8 @@ public class BeamAggregationTransforms implements Serializable{
     public BeamRecord extractOutput(AggregationAccumulator accumulator) {
       List<Object> fieldValues = new ArrayList<>(aggregators.size());
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        fieldValues.add(aggregators.get(idx).result(accumulator.accumulatorElements.get(idx)));
+        fieldValues
+            .add(aggregators.get(idx).extractOutput(accumulator.accumulatorElements.get(idx)));
       }
       return new BeamRecord(finalRowType, fieldValues);
     }
@@ -250,10 +251,12 @@ public class BeamAggregationTransforms implements Serializable{
     public Coder<AggregationAccumulator> getAccumulatorCoder(
         CoderRegistry registry, Coder<BeamRecord> inputCoder)
         throws CannotProvideCoderException {
+      BeamRecordCoder inCoderAsSql = (BeamRecordCoder) inputCoder;
       registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
       List<Coder> aggAccuCoderList = new ArrayList<>();
-      for (BeamSqlUdaf udaf : aggregators) {
-        aggAccuCoderList.add(udaf.getAccumulatorCoder(registry));
+      for (int idx = 0; idx < aggregators.size(); ++idx) {
+        aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry,
+            inCoderAsSql.getCoderArray().get(sourceFieldExps.get(idx).getInputRef())));
       }
       return new AggregationAccumulatorCoder(aggAccuCoderList);
     }
