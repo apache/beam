@@ -46,19 +46,19 @@ class BeamBuiltinAggregations {
     case INTEGER:
       return Max.ofIntegers();
     case SMALLINT:
-      return new ShortMax();
+      return new CustMax<Short>();
     case TINYINT:
-      return new ByteMax();
+      return new CustMax<Byte>();
     case BIGINT:
       return Max.ofLongs();
     case FLOAT:
-      return new FloatMax();
+      return new CustMax<Float>();
     case DOUBLE:
       return Max.ofDoubles();
     case TIMESTAMP:
-      return new DateMax();
+      return new CustMax<Date>();
     case DECIMAL:
-      return new BigDecimalMax();
+      return new CustMax<BigDecimal>();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in MAX", fieldType));
@@ -73,19 +73,19 @@ class BeamBuiltinAggregations {
     case INTEGER:
       return Min.ofIntegers();
     case SMALLINT:
-      return new ShortMin();
+      return new CustMin<Short>();
     case TINYINT:
-      return new ByteMin();
+      return new CustMin<Byte>();
     case BIGINT:
       return Min.ofLongs();
     case FLOAT:
-      return new FloatMin();
+      return new CustMin<Float>();
     case DOUBLE:
       return Min.ofDoubles();
     case TIMESTAMP:
-      return new DateMin();
+      return new CustMin<Date>();
     case DECIMAL:
-      return new BigDecimalMin();
+      return new CustMin<BigDecimal>();
     default:
       throw new UnsupportedOperationException(
           String.format("[%s] is not support in MIN", fieldType));
@@ -142,63 +142,15 @@ class BeamBuiltinAggregations {
   }
   }
 
-  static class ShortMax extends Combine.BinaryCombineFn<Short> {
-    public Short apply(Short left, Short right) {
-      return left > right ? left : right;
+  static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
+    public T apply(T left, T right) {
+      return (right == null || right.compareTo(left) < 0) ? left : right;
     }
   }
 
-  static class ByteMax extends Combine.BinaryCombineFn<Byte> {
-    public Byte apply(Byte left, Byte right) {
-      return left > right ? left : right;
-    }
-  }
-
-  static class FloatMax extends Combine.BinaryCombineFn<Float> {
-    public Float apply(Float left, Float right) {
-      return left > right ? left : right;
-    }
-  }
-
-  static class BigDecimalMax extends Combine.BinaryCombineFn<BigDecimal> {
-    public BigDecimal apply(BigDecimal left, BigDecimal right) {
-      return left.compareTo(right) > 0 ? left : right;
-    }
-  }
-
-  static class DateMax extends Combine.BinaryCombineFn<Date> {
-    public Date apply(Date left, Date right) {
-      return left.after(right) ? left : right;
-    }
-  }
-
-  static class ShortMin extends Combine.BinaryCombineFn<Short> {
-    public Short apply(Short left, Short right) {
-      return left < right ? left : right;
-    }
-  }
-
-  static class ByteMin extends Combine.BinaryCombineFn<Byte> {
-    public Byte apply(Byte left, Byte right) {
-      return left < right ? left : right;
-    }
-  }
-
-  static class FloatMin extends Combine.BinaryCombineFn<Float> {
-    public Float apply(Float left, Float right) {
-      return left < right ? left : right;
-    }
-  }
-
-  static class BigDecimalMin extends Combine.BinaryCombineFn<BigDecimal> {
-    public BigDecimal apply(BigDecimal left, BigDecimal right) {
-      return left.compareTo(right) < 0 ? left : right;
-    }
-  }
-
-  static class DateMin extends Combine.BinaryCombineFn<Date> {
-    public Date apply(Date left, Date right) {
-      return left.before(right) ? left : right;
+  static class CustMin<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
+    public T apply(T left, T right) {
+      return (left == null || left.compareTo(right) < 0) ? left : right;
     }
   }
 

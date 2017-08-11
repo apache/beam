@@ -251,12 +251,12 @@ public class BeamAggregationTransforms implements Serializable{
     public Coder<AggregationAccumulator> getAccumulatorCoder(
         CoderRegistry registry, Coder<BeamRecord> inputCoder)
         throws CannotProvideCoderException {
-      BeamRecordCoder inCoderAsSql = (BeamRecordCoder) inputCoder;
+      BeamRecordCoder beamRecordCoder = (BeamRecordCoder) inputCoder;
       registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
       List<Coder> aggAccuCoderList = new ArrayList<>();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         int srcFieldIndex = sourceFieldExps.get(idx).getInputRef();
-        Coder srcFieldCoder = inCoderAsSql.getCoders().get(srcFieldIndex);
+        Coder srcFieldCoder = beamRecordCoder.getCoders().get(srcFieldIndex);
         aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
       }
       return new AggregationAccumulatorCoder(aggAccuCoderList);
