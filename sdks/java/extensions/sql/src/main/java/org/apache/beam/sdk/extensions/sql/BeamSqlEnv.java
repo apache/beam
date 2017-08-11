@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
@@ -34,7 +35,6 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
-import org.apache.calcite.schema.impl.AggregateFunctionImpl;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.tools.Frameworks;
 
@@ -69,11 +69,10 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
-   * Register a UDAF function which can be used in GROUP-BY expression.
-   * See {@link BeamSqlUdaf} on how to implement a UDAF.
+   * Register a {@link CombineFn} as UDAF function which can be used in GROUP-BY expression.
    */
-  public void registerUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz) {
-    schema.add(functionName, AggregateFunctionImpl.create(clazz));
+  public void registerUdaf(String functionName, CombineFn combineFn) {
+    schema.add(functionName, new UdafImpl(combineFn));
   }
 
   /**
