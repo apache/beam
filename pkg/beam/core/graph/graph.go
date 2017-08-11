@@ -67,8 +67,34 @@ func (g *Graph) NewNode(t typex.FullType, w *window.Window) *Node {
 // graph structure, typechecks the plan and returns a slice of the edges in
 // the graph.
 func (g *Graph) Build() ([]*MultiEdge, []*Node, error) {
-	// TODO: typecheck, connectedness, etc.
-
+	// Build a map of all nodes listed in g.nodes.
+	nodes := make(map[*Node]bool)
+	for _, n := range g.nodes {
+		nodes[n] = true
+		if n.Coder == nil {
+			return nil, nil, fmt.Errorf("node %v in graph has undefined coder", n.id)
+		}
+	}
+	// Build a map of all nodes that are reachable by g.edges.
+	reachable := make(map[*Node]*MultiEdge)
+	for _, e := range g.edges {
+		for _, i := range e.Input {
+			reachable[i.From] = e
+		}
+		for _, o := range e.Output {
+			reachable[o.To] = e
+		}
+	}
+	for n, _ := range nodes {
+		if _, ok := reachable[n]; !ok {
+			return nil, nil, fmt.Errorf("node %v in graph is unconnected", n.id)
+		}
+	}
+	for n, e := range reachable {
+		if _, ok := nodes[n]; !ok {
+			return nil, nil, fmt.Errorf("node %v is reachable by edge %v, but it's not in same graph", n.id, e.id)
+		}
+	}
 	return g.edges, g.nodes, nil
 }
 
