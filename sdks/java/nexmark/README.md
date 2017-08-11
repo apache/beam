@@ -17,7 +17,7 @@
     under the License.
 -->
 
-# NEXMark integration suite
+# NEXMark test suite
 
 This is a suite of pipelines inspired by the 'continuous data stream'
 queries in [http://datalab.cs.pdx.edu/niagaraST/NEXMark/]
@@ -139,7 +139,7 @@ Available suites are:
     --runner=DataflowRunner \
     --tempLocation=gs://talend-imejia/nexmark/temp/ \
     --stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
-    --filesToStage=target/beam-integration-java-0.7.0-SNAPSHOT.jar
+    --filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
 
 ## Direct specific configuration
 
@@ -183,19 +183,19 @@ Open issues are tracked [here](https://github.com../../../../../issues):
 
 | Query | Direct | Spark                                                        | Flink                                                      | Apex                                                         |
 | ----: | ------ | ------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------ |
-|     0 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     1 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     2 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     3 | ok     | [BEAM-1035](https://issues.apache.org/jira/browse/BEAM-1035) | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | [BEAM-1037](https://issues.apache.org/jira/browse/BEAM-1037) |
-|     4 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     5 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     6 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     7 | ok     | [BEAM-2112](https://issues.apache.org/jira/browse/BEAM-2112) | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     8 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|     9 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    10 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    11 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
-|    12 | ok     | ok                                                           | [BEAM-593](https://issues.apache.org/jira/browse/BEAM-593) | ok                                                           |
+|     0 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     1 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     2 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     3 | ok     | [BEAM-1035](https://issues.apache.org/jira/browse/BEAM-1035) | ok                                                         | [BEAM-1037](https://issues.apache.org/jira/browse/BEAM-1037) |
+|     4 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     5 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     6 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     7 | ok     | [BEAM-2112](https://issues.apache.org/jira/browse/BEAM-2112) | ok                                                         | ok                                                           |
+|     8 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|     9 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    10 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    11 | ok     | ok                                                           | ok                                                         | ok                                                           |
+|    12 | ok     | ok                                                           | ok                                                         | ok                                                           |
 
 ## Batch / Synthetic / Cluster
 
@@ -219,44 +219,44 @@ TODO
 
 Batch Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=false --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=false --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
 
 Streaming Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=true --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=true --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
 
 
 ## Running SMOKE suite on the SparkRunner (local)
 
 Batch Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true"
 
 Streaming Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true"
 
 
 ## Running SMOKE suite on the FlinkRunner (local)
 
 Batch Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true  --flinkMaster=local"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true  --flinkMaster=local"
 
 Streaming Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true  --flinkMaster=local"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true  --flinkMaster=local"
 
 
 ## Running SMOKE suite on the ApexRunner (local)
 
 Batch Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=false"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=false"
 
 Streaming Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=false"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=false"
 
 
 ## Running SMOKE suite on Google Cloud Dataflow
@@ -269,8 +269,8 @@ Submit to Google Dataflow service
 
 
 ```
-java -cp integration/java/target/beam-integration-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
-  org.apache.beam.integration.nexmark.Main \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+  org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
   --zone=<your zone> \
@@ -303,8 +303,8 @@ java -cp integration/java/target/beam-integration-java-nexmark-bundled-2.1.0-SNA
 ```
 
 ```
-java -cp integration/java/target/beam-integration-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
-  org.apache.beam.integration.nexmark.Main \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+  org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
   --zone=<your zone> \
@@ -336,5 +336,5 @@ Building package
 
 Submit to the cluster
 
-    spark-submit --master yarn-client --class org.apache.beam.integration.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-integration-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+    spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
 
