@@ -79,7 +79,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.commons.collections.MapUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -809,7 +808,10 @@ public class DoFnOperator<InputT, OutputT>
       this.mainTag = mainTag;
       this.tagsToOutputTags = tagsToOutputTags;
       this.tagsToIds = tagsToIds;
-      this.idsToTags = MapUtils.invertMap(tagsToIds);
+      this.idsToTags = new HashMap<>();
+      for (Map.Entry<TupleTag<?>, Integer> entry : tagsToIds.entrySet()) {
+        idsToTags.put(entry.getValue(), entry.getKey());
+      }
 
       ImmutableMap.Builder<Integer, Coder<WindowedValue<?>>> idsToCodersBuilder =
           ImmutableMap.builder();
