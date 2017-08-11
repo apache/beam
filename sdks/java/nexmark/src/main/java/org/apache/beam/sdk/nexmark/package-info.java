@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 /**
- * Nexmark.
+ * Nexmark test suite.
  */
 package org.apache.beam.sdk.nexmark;
