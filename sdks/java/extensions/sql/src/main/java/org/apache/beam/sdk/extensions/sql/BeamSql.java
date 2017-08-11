@@ -23,8 +23,8 @@ import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdaf;
 import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -155,10 +155,10 @@ public class BeamSql {
       }
 
      /**
-      * register a UDAF function used in this query.
+      * register a {@link CombineFn} as UDAF function used in this query.
       */
-     public QueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
-       getSqlEnv().registerUdaf(functionName, clazz);
+     public QueryTransform withUdaf(String functionName, CombineFn combineFn){
+       getSqlEnv().registerUdaf(functionName, combineFn);
        return this;
      }
 
@@ -231,13 +231,13 @@ public class BeamSql {
         return this;
       }
 
-     /**
-      * register a UDAF function used in this query.
-      */
-     public SimpleQueryTransform withUdaf(String functionName, Class<? extends BeamSqlUdaf> clazz){
-       getSqlEnv().registerUdaf(functionName, clazz);
-       return this;
-     }
+      /**
+       * register a {@link CombineFn} as UDAF function used in this query.
+       */
+      public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
+        getSqlEnv().registerUdaf(functionName, combineFn);
+        return this;
+      }
 
     private void validateQuery() {
       SqlNode sqlNode;
