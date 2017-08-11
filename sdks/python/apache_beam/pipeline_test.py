@@ -499,6 +499,7 @@ class RunnerApiTest(unittest.TestCase):
     p.to_runner_api()
     self.assertEqual(MyPTransform.pickle_count[0], 20)
 
+
 class DirectRunnerRetryTests(unittest.TestCase):
 
   def test_retry_fork_graph(self):

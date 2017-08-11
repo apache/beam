@@ -489,7 +489,6 @@ class _ExecutorServiceParallelExecutor(object):
         # Not the right exception.
         self.exc_info = (exception, None, None)
 
-
   class _VisibleExecutorUpdate(object):
     """An update of interest to the user.
 
