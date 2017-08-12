@@ -142,7 +142,7 @@ public class SketchFrequencies {
    * more than 0.02% in 99% of the cases.
    *
    */
-  static class CountMinSketchFn
+  public static class CountMinSketchFn
           extends Combine.CombineFn<String, CountMinSketch, CountMinSketch> {
 
     private final int depth;
@@ -225,6 +225,9 @@ public class SketchFrequencies {
      * @param depth Number of lines, i.e. number of hash functions
      */
     public CountMinSketchFn withDimensions(int width, int depth) {
+      if (width <= 0 || depth <= 0) {
+          throw new IllegalArgumentException("depth and width must be positive.");
+      }
       return new CountMinSketchFn(width, depth, this.seed);
     }
 

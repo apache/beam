@@ -190,6 +190,9 @@ public class ApproximateDistinct {
      * @param <InputT>    the type of the input {@code Pcollection}'s elements being combined.
      */
     public static <InputT> ApproximateDistinctFn<InputT> create(int p) {
+      if (p < 4) {
+        throw new IllegalArgumentException("p must be greater than 4");
+      }
       return new ApproximateDistinctFn<>(p, 0);
     }
 
@@ -217,6 +220,9 @@ public class ApproximateDistinct {
      * @param sp          the precision of HyperLogLog+' sparse representation
      */
     public ApproximateDistinctFn<InputT> withSparseRepresentation(int sp) {
+      if (sp < p || sp > 32) {
+          throw new IllegalArgumentException("sp should be greater than p and lower than 32");
+      }
       return new ApproximateDistinctFn<>(this.p, sp);
     }
 

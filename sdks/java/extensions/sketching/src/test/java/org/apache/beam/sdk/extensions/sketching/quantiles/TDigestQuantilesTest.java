@@ -30,6 +30,7 @@ import java.util.Random;
 
 import org.apache.beam.sdk.extensions.sketching.quantiles.TDigestQuantiles.SerializableTDigest;
 import org.apache.beam.sdk.extensions.sketching.quantiles.TDigestQuantiles.SerializableTDigestCoder;
+import org.apache.beam.sdk.extensions.sketching.quantiles.TDigestQuantiles.TDigestQuantilesFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -140,7 +141,7 @@ public class TDigestQuantilesTest {
           }
           accums.add(std);
       }
-      TDigestQuantiles.QuantileFn fn = new TDigestQuantiles.QuantileFn(100);
+      TDigestQuantilesFn fn = TDigestQuantilesFn.create(100);
       SerializableTDigest res = fn.mergeAccumulators(accums);
   }
 

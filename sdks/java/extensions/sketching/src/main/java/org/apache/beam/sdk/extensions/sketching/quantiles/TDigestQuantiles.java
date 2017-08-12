@@ -69,7 +69,7 @@ public class TDigestQuantiles {
    *                        {@code 3 / compression} on quantiles.
    */
   public static Combine.Globally<Double, SerializableTDigest> globally(int compression) {
-    return Combine.<Double, SerializableTDigest>globally(new QuantileFn(compression));
+    return Combine.<Double, SerializableTDigest>globally(TDigestQuantilesFn.create(compression));
   }
 
   /**
@@ -92,7 +92,7 @@ public class TDigestQuantiles {
    * @param <K>             the type of the keys
    */
   public static <K> Combine.PerKey<K, Double, SerializableTDigest> perKey(int compression) {
-    return Combine.<K, Double, SerializableTDigest>perKey(new QuantileFn(compression));
+    return Combine.<K, Double, SerializableTDigest>perKey(TDigestQuantilesFn.create(compression));
   }
 
   /**
@@ -100,13 +100,20 @@ public class TDigestQuantiles {
    * of an {@code Iterable} of Doubles, useful as an argument to {@link Combine#globally} or
    * {@link Combine#perKey}.
    */
-  static class QuantileFn
+  public static class TDigestQuantilesFn
       extends Combine.CombineFn<Double, SerializableTDigest, SerializableTDigest> {
 
     private final int compression;
 
-    public QuantileFn(int compression) {
+    private TDigestQuantilesFn(int compression) {
       this.compression = compression;
+    }
+
+    public static TDigestQuantilesFn create(int compression) {
+        if (compression > 0) {
+            return new TDigestQuantilesFn(compression);
+        }
+        throw new IllegalArgumentException("Compression factor should be greater than 0.");
     }
 
     @Override public SerializableTDigest createAccumulator() {

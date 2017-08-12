@@ -73,7 +73,7 @@ public class KMostFrequent {
    * @param <T>         the type of the elements in the input {@code PCollection}
    */
   public static <T> Combine.Globally<T, StreamSummary<T>> globally(int capacity) {
-    return Combine.<T, StreamSummary<T>>globally(new KMostFrequentFn<T>(capacity));
+    return Combine.<T, StreamSummary<T>>globally(KMostFrequentFn.<T>create(capacity));
   }
 
   /**
@@ -104,7 +104,7 @@ public class KMostFrequent {
     if (capacity < 1) {
       throw new IllegalArgumentException("The capacity must be strictly positive");
     }
-    return Combine.<K, T, StreamSummary<T>>perKey(new KMostFrequentFn<T>(capacity));
+    return Combine.<K, T, StreamSummary<T>>perKey(KMostFrequentFn.<T>create(capacity));
   }
 
   /**
@@ -121,13 +121,20 @@ public class KMostFrequent {
    *
    * @param <T>         the type of the elements being combined
    */
-  static class KMostFrequentFn<T>
+  public static class KMostFrequentFn<T>
           extends Combine.CombineFn<T, StreamSummary<T>, StreamSummary<T>> {
 
     private int capacity;
 
     private KMostFrequentFn(int capacity) {
       this.capacity = capacity;
+    }
+
+    public static <T> KMostFrequentFn<T> create(int capacity) {
+      if (capacity <= 0) {
+        throw new IllegalArgumentException("Capacity must be greater than 0.");
+      }
+      return new KMostFrequentFn<>(capacity);
     }
 
     @Override

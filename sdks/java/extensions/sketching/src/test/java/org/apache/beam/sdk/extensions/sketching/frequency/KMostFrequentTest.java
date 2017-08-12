@@ -65,7 +65,7 @@ public class KMostFrequentTest {
   public void smallStream() {
     Collections.shuffle(smallStream, new Random(1234));
     PCollection<Integer> col = tp.apply(Create.of(smallStream))
-            .apply(KMostFrequent.<Integer>globally(8))
+            .apply(KMostFrequent.<Integer>globally(10))
             .apply("For print Big Top", ParDo.of(new OutputTopK<Integer>(3)))
               .setCoder(BigEndianIntegerCoder.of());
     PAssert.that(col).containsInAnyOrder(10, 9, 8);
@@ -81,7 +81,7 @@ public class KMostFrequentTest {
     }
     Collections.shuffle(bigStream, new Random(1234));
     PCollection<Integer> col = tp.apply(Create.of(bigStream))
-            .apply(KMostFrequent.<Integer>globally(8))
+            .apply(KMostFrequent.<Integer>globally(10))
             .apply("For print Big Top", ParDo.of(new OutputTopK<Integer>(5)))
             .setCoder(BigEndianIntegerCoder.of());
     PAssert.that(col).containsInAnyOrder(10, 9, 8, 7, 6);
