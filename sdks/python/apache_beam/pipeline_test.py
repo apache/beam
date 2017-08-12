@@ -27,7 +27,6 @@ import unittest
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
-# from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pipeline import PipelineOptions

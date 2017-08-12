@@ -274,8 +274,14 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
-    # TODO(mariagh): make it a constant once retry is no longer experimental
-    self._max_retry_per_bundle = 4
+    # Switch to turn on/off the retry of bundles.
+    pipeline_options = self._evaluation_context.pipeline_options
+    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
+      self._max_retries_per_bundle = 1
+    else:
+      self._max_retries_per_bundle = 4
+    # TODO(mariagh): make _max_retries_per_bundle a constant
+    # once "bundle retry" is no longer experimental.
 
   def call(self):
     self._call_count += 1
@@ -293,18 +299,10 @@ class TransformExecutor(_ExecutorService.CallableTask):
           # available.
           return
         self._side_input_values[side_input] = value
-
     side_input_values = [self._side_input_values[side_input]
                          for side_input in self._applied_ptransform.side_inputs]
 
-    # Switch to turn on/off the retry of bundles.
-    pipeline_options = self._evaluation_context.pipeline_options
-    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
-      self._max_retry_per_bundle = 1
-    else:
-      self._max_retry_per_bundle = 4
-
-    while self._retry_count < self._max_retry_per_bundle:
+    while self._retry_count < self._max_retries_per_bundle:
       try:
         self.attempt_call(metrics_container,
                           scoped_metrics_container,
@@ -315,9 +313,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
         logging.info(
             'Exception at bundle %r, due to an exception: %s',
             self._input_bundle, traceback.format_exc())
-        if self._retry_count == self._max_retry_per_bundle:
+        if self._retry_count == self._max_retries_per_bundle:
           logging.error('Giving up after %s attempts.',
-                        self._max_retry_per_bundle)
+                        self._max_retries_per_bundle)
           self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
