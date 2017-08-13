@@ -25,10 +25,10 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -94,7 +94,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections,
-      InnerBeamSqlEnv sqlEnv)
+      BeamSqlEnv sqlEnv)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
     BeamRecordSqlType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());

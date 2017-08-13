@@ -16,7 +16,26 @@
  * limitations under the License.
  */
 
+package org.apache.beam.sdk.extensions.sql.impl.schema.text;
+
+import java.io.Serializable;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+
 /**
- * table schema for KafkaIO.
+ * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
  */
-package org.apache.beam.sdk.extensions.sql.schema.kafka;
+public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
+  protected String filePattern;
+
+  protected BeamTextTable(BeamRecordSqlType beamSqlRowType, String filePattern) {
+    super(beamSqlRowType);
+    this.filePattern = filePattern;
+  }
+
+  @Override
+  public BeamIOType getSourceType() {
+    return BeamIOType.BOUNDED;
+  }
+}

@@ -15,14 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema;
-
-import java.io.Serializable;
 
 /**
- * Type as a source IO, determined whether it's a STREAMING process, or batch
- * process.
+ * Table schema for text files.
  */
-public enum BeamIOType implements Serializable {
-  BOUNDED, UNBOUNDED;
-}
+package org.apache.beam.sdk.extensions.sql.impl.schema.text;

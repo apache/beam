@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.sql.Types;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,7 +34,7 @@ import org.junit.Test;
  * Test for {@code BeamUnionRel}.
  */
 public class BeamUnionRelTest extends BaseRelTest {
-  static InnerBeamSqlEnv sqlEnv = new InnerBeamSqlEnv();
+  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();

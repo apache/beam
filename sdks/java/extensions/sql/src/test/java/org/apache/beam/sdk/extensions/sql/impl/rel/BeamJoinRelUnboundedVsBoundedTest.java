@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.sql.Types;
 import java.util.Date;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
@@ -41,7 +41,7 @@ import org.junit.Test;
 public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static final InnerBeamSqlEnv INNER_BEAM_SQL_ENV = new InnerBeamSqlEnv();
+  private static final BeamSqlEnv INNER_BEAM_SQL_ENV = new BeamSqlEnv();
   public static final Date FIRST_DATE = new Date(1);
   public static final Date SECOND_DATE = new Date(1 + 3600 * 1000);
   public static final Date THIRD_DATE = new Date(1 + 3600 * 1000 + 3600 * 1000 + 1);

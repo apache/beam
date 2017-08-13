@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.rel.RelNode;
 
 /**
- * A new method {@link #buildBeamPipeline(PCollectionTuple, InnerBeamSqlEnv)} is added.
+ * A new method {@link #buildBeamPipeline(PCollectionTuple, BeamSqlEnv)} is added.
  */
 public interface BeamRelNode extends RelNode {
 
@@ -34,6 +34,6 @@ public interface BeamRelNode extends RelNode {
    * algorithm.
    */
   PCollection<BeamRecord> buildBeamPipeline(
-      PCollectionTuple inputPCollections, InnerBeamSqlEnv sqlEnv)
+      PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv)
       throws Exception;
 }

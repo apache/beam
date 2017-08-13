@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.sql.Types;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -36,7 +36,7 @@ import org.junit.Test;
 public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static final InnerBeamSqlEnv INNER_BEAM_SQL_ENV = new InnerBeamSqlEnv();
+  private static final BeamSqlEnv INNER_BEAM_SQL_ENV = new BeamSqlEnv();
 
   public static final MockedBoundedTable ORDER_DETAILS1 =
       MockedBoundedTable.of(

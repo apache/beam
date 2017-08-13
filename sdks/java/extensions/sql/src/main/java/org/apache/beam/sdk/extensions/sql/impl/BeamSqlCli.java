@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -35,9 +35,7 @@ public class BeamSqlCli {
    * Returns a human readable representation of the query execution plan.
    */
   public static String explainQuery(String sqlString, BeamSqlEnv sqlEnv) throws Exception {
-    org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
-        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(sqlEnv);
-    BeamRelNode exeTree = innerBeamSqlEnv.getPlanner().convertToBeamRel(sqlString);
+    BeamRelNode exeTree = sqlEnv.getPlanner().convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     return beamPlan;
   }
@@ -48,7 +46,7 @@ public class BeamSqlCli {
   public static PCollection<BeamRecord> compilePipeline(String sqlStatement, BeamSqlEnv sqlEnv)
       throws Exception{
     PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class); // FlinkPipelineOptions.class
+        .as(PipelineOptions.class);
     options.setJobName("BeamPlanCreator");
     Pipeline pipeline = Pipeline.create(options);
 
@@ -60,10 +58,8 @@ public class BeamSqlCli {
    */
   public static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline,
       BeamSqlEnv sqlEnv) throws Exception{
-    org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv =
-        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv.fromBeamSqlEnv(sqlEnv);
-    PCollection<BeamRecord> resultStream = innerBeamSqlEnv.getPlanner()
-        .compileBeamPipeline(sqlStatement, basePipeline, innerBeamSqlEnv);
+    PCollection<BeamRecord> resultStream = sqlEnv.getPlanner()
+        .compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }
 }

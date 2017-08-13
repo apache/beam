@@ -19,10 +19,9 @@ package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.schema.BeamPCollectionTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -116,8 +115,7 @@ public class BeamSql {
    */
   public static class QueryTransform extends
       PTransform<PCollectionTuple, PCollection<BeamRecord>> {
-    private org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv beamSqlEnv
-        = new org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv();
+    private BeamSqlEnv beamSqlEnv = new BeamSqlEnv();
     private String sqlQuery;
 
     public QueryTransform(String sqlQuery) {
@@ -170,12 +168,12 @@ public class BeamSql {
 
     //register tables, related with input PCollections.
     private void registerTables(PCollectionTuple input,
-        org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv innerBeamSqlEnv){
+        BeamSqlEnv beamSqlEnv){
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
         PCollection<BeamRecord> sourceStream = (PCollection<BeamRecord>) input.get(sourceTag);
         BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();
 
-        innerBeamSqlEnv.registerTable(sourceTag.getId(),
+        beamSqlEnv.registerTable(sourceTag.getId(),
             new BeamPCollectionTable(sourceStream,
                 (BeamRecordSqlType) sourceCoder.getRecordType()));
       }
@@ -189,12 +187,10 @@ public class BeamSql {
   public static class SimpleQueryTransform
       extends PTransform<PCollection<BeamRecord>, PCollection<BeamRecord>> {
     private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
-    private org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv beamSqlEnv
-        = new org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv();
-    private String sqlQuery;
+    private QueryTransform delegate;
 
     public SimpleQueryTransform(String sqlQuery) {
-      this.sqlQuery = sqlQuery;
+      this.delegate = new QueryTransform(sqlQuery);
     }
 
     /**
@@ -203,7 +199,7 @@ public class BeamSql {
      * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDAF in BeamSql.
      */
     public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
-      beamSqlEnv.registerUdf(functionName, clazz);
+      delegate.withUdf(functionName, clazz);
       return this;
     }
 
@@ -212,7 +208,7 @@ public class BeamSql {
      * Note, {@link SerializableFunction} must have a constructor without arguments.
      */
     public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
-      beamSqlEnv.registerUdf(functionName, sfn);
+      delegate.withUdf(functionName, sfn);
       return this;
     }
 
@@ -220,15 +216,15 @@ public class BeamSql {
      * register a {@link CombineFn} as UDAF function used in this query.
      */
     public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
-      beamSqlEnv.registerUdaf(functionName, combineFn);
+      delegate.withUdaf(functionName, combineFn);
       return this;
     }
 
     private void validateQuery() {
       SqlNode sqlNode;
       try {
-        sqlNode = beamSqlEnv.getPlanner().parseQuery(sqlQuery);
-        beamSqlEnv.getPlanner().getPlanner().close();
+        sqlNode = delegate.beamSqlEnv.getPlanner().parseQuery(delegate.sqlQuery);
+        delegate.beamSqlEnv.getPlanner().getPlanner().close();
       } catch (SqlParseException e) {
         throw new IllegalStateException(e);
       }
@@ -249,7 +245,7 @@ public class BeamSql {
     public PCollection<BeamRecord> expand(PCollection<BeamRecord> input) {
       validateQuery();
       return PCollectionTuple.of(new TupleTag<BeamRecord>(PCOLLECTION_TABLE_NAME), input)
-          .apply(new QueryTransform(sqlQuery));
+          .apply(delegate);
     }
   }
 }

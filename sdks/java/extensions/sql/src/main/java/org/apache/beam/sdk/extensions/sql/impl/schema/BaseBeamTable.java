@@ -15,27 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.extensions.sql.schema.text;
+package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamIOType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 
 /**
- * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
+ * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
-public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
-  protected String filePattern;
-
-  protected BeamTextTable(BeamRecordSqlType beamSqlRowType, String filePattern) {
-    super(beamSqlRowType);
-    this.filePattern = filePattern;
+public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
+  protected BeamRecordSqlType beamSqlRowType;
+  public BaseBeamTable(BeamRecordSqlType beamSqlRowType) {
+    this.beamSqlRowType = beamSqlRowType;
   }
 
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
+  @Override public BeamRecordSqlType getRowType() {
+    return beamSqlRowType;
   }
 }

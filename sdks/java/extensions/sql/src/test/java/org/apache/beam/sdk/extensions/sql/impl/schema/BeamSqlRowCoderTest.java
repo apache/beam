@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.BeamRecord;

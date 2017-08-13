@@ -16,43 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.schema.text;
+package org.apache.beam.sdk.extensions.sql.impl.schema.text;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
 
 /**
- * IOReader for {@code BeamTextCSVTable}.
+ * IOWriter for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOReader
-    extends PTransform<PCollection<String>, PCollection<BeamRecord>>
+public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>, PDone>
     implements Serializable {
   private String filePattern;
   protected BeamRecordSqlType beamSqlRowType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamRecordSqlType beamSqlRowType, String filePattern,
+  public BeamTextCSVTableIOWriter(BeamRecordSqlType beamSqlRowType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.beamSqlRowType = beamSqlRowType;
     this.csvFormat = csvFormat;
   }
 
-  @Override
-  public PCollection<BeamRecord> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new DoFn<String, BeamRecord>() {
-          @ProcessElement
-          public void processElement(ProcessContext ctx) {
-            String str = ctx.element();
-            ctx.output(BeamTableUtils.csvLine2BeamSqlRow(csvFormat, str, beamSqlRowType));
-          }
-        }));
+  @Override public PDone expand(PCollection<BeamRecord> input) {
+    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamRecord, String>() {
+
+      @ProcessElement public void processElement(ProcessContext ctx) {
+        BeamRecord row = ctx.element();
+        ctx.output(BeamTableUtils.beamSqlRow2CsvLine(row, csvFormat));
+      }
+    })).apply(TextIO.write().to(filePattern));
   }
 }

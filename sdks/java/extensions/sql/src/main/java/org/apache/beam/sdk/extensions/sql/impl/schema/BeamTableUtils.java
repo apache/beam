@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -24,6 +24,7 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;

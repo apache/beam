@@ -19,4 +19,4 @@
  * define table schema, to map with Beam IO components.
  *
  */
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.extensions.sql.impl.schema;

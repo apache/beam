@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.extensions.sql;
 
 import java.math.BigDecimal;
 import java.sql.Types;
@@ -31,12 +31,12 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.BooleanCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DateCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.DoubleCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.FloatCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.ShortCoder;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlRecordHelper.TimeCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.BooleanCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.DateCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.DoubleCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.FloatCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.ShortCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimeCoder;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 

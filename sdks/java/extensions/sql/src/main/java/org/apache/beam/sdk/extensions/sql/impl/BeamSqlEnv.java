@@ -18,17 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
-import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
-import org.apache.beam.sdk.extensions.sql.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.schema.BeamSqlUdf;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.DataContext;
@@ -44,45 +41,19 @@ import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.tools.Frameworks;
 
 /**
- * {@link InnerBeamSqlEnv} prepares the execution context for {@link BeamSql} and
+ * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and
  * {@link BeamSqlCli}.
  *
- * <p>It is the internal synonym of {@code BeamSqlEnv}. It contains a {@link SchemaPlus} which
- * holds the metadata of tables/UDF functions, and a {@link BeamQueryPlanner} which
- * parse/validate/optimize/translate input SQL queries.
+ * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
+ * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class InnerBeamSqlEnv implements Serializable{
+public class BeamSqlEnv implements Serializable{
   transient SchemaPlus schema;
   transient BeamQueryPlanner planner;
 
-  public InnerBeamSqlEnv() {
+  public BeamSqlEnv() {
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(schema);
-  }
-
-  public static InnerBeamSqlEnv fromBeamSqlEnv(BeamSqlEnv env) {
-    InnerBeamSqlEnv ret = new InnerBeamSqlEnv();
-
-    // init udfs
-    Map<String, Class<? extends BeamSqlUdf>> udfs = env.getUdfs();
-    for (Map.Entry<String, Class<? extends BeamSqlUdf>> entry : udfs.entrySet()) {
-      ret.registerUdf(entry.getKey(), entry.getValue());
-    }
-
-    // init SerializableFunction UDFs
-    Map<String, SerializableFunction> sfnUdfs = env.getSerializableFunctionUdfs();
-    for (Map.Entry<String, SerializableFunction> entry : sfnUdfs.entrySet()) {
-      ret.registerUdf(entry.getKey(), entry.getValue());
-    }
-
-    // init udafs
-    Map<String, Combine.CombineFn> udafs = env.getUdafs();
-    for (Map.Entry<String, Combine.CombineFn> entry : udafs.entrySet()) {
-      ret.registerUdaf(entry.getKey(), entry.getValue());
-    }
-
-
-    return ret;
   }
 
   /**

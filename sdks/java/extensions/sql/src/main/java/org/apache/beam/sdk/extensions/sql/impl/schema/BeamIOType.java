@@ -15,20 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema;
+package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.io.Serializable;
 
 /**
- * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
+ * Type as a source IO, determined whether it's a STREAMING process, or batch
+ * process.
  */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamRecordSqlType beamSqlRowType;
-  public BaseBeamTable(BeamRecordSqlType beamSqlRowType) {
-    this.beamSqlRowType = beamSqlRowType;
-  }
-
-  @Override public BeamRecordSqlType getRowType() {
-    return beamSqlRowType;
-  }
+public enum BeamIOType implements Serializable {
+  BOUNDED, UNBOUNDED;
 }

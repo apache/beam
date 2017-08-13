@@ -15,27 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.schema;
-
-import java.io.Serializable;
 
 /**
- * Interface to create a UDF in Beam SQL.
- *
- * <p>A static method {@code eval} is required. Here is an example:
- *
- * <blockquote><pre>
- * public static class MyLeftFunction {
- *   public String eval(
- *       &#64;Parameter(name = "s") String s,
- *       &#64;Parameter(name = "n", optional = true) Integer n) {
- *     return s.substring(0, n == null ? 1 : n);
- *   }
- * }</pre></blockquote>
- *
- * <p>The first parameter is named "s" and is mandatory,
- * and the second parameter is named "n" and is optional.
+ * table schema for KafkaIO.
  */
-public interface BeamSqlUdf extends Serializable {
-  String UDF_METHOD = "eval";
-}
+package org.apache.beam.sdk.extensions.sql.impl.schema.kafka;

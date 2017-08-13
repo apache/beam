@@ -21,10 +21,10 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.InnerBeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.schema.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
@@ -56,7 +56,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   }
 
   @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , InnerBeamSqlEnv sqlEnv) throws Exception {
+      , BeamSqlEnv sqlEnv) throws Exception {
     List<BeamRecord> rows = new ArrayList<>(tuples.size());
     String stageName = BeamSqlRelUtils.getStageName(this);
     if (tuples.isEmpty()) {
