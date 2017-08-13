@@ -25,10 +25,12 @@ import logging
 import Queue
 import sys
 import threading
+import traceback
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.pipeline_options import DirectOptions
 
 
 class _ExecutorService(object):
@@ -271,6 +273,15 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._side_input_values = {}
     self.blocked = False
     self._call_count = 0
+    self._retry_count = 0
+    # Switch to turn on/off the retry of bundles.
+    pipeline_options = self._evaluation_context.pipeline_options
+    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
+      self._max_retries_per_bundle = 1
+    else:
+      self._max_retries_per_bundle = 4
+    # TODO(mariagh): make _max_retries_per_bundle a constant
+    # once "bundle retry" is no longer experimental.
 
   def call(self):
     self._call_count += 1
@@ -288,47 +299,62 @@ class TransformExecutor(_ExecutorService.CallableTask):
           # available.
           return
         self._side_input_values[side_input] = value
-
     side_input_values = [self._side_input_values[side_input]
                          for side_input in self._applied_ptransform.side_inputs]
 
-    try:
-      evaluator = self._transform_evaluator_registry.get_evaluator(
-          self._applied_ptransform, self._input_bundle,
-          side_input_values, scoped_metrics_container)
+    while self._retry_count < self._max_retries_per_bundle:
+      try:
+        self.attempt_call(metrics_container,
+                          scoped_metrics_container,
+                          side_input_values)
+        break
+      except Exception as e:
+        self._retry_count += 1
+        logging.info(
+            'Exception at bundle %r, due to an exception: %s',
+            self._input_bundle, traceback.format_exc())
+        if self._retry_count == self._max_retries_per_bundle:
+          logging.error('Giving up after %s attempts.',
+                        self._max_retries_per_bundle)
+          self._completion_callback.handle_exception(self, e)
 
-      if self._fired_timers:
-        for timer_firing in self._fired_timers:
-          evaluator.process_timer_wrapper(timer_firing)
+    self._evaluation_context.metrics().commit_physical(
+        self._input_bundle,
+        metrics_container.get_cumulative())
+    self._transform_evaluation_state.complete(self)
 
-      if self._input_bundle:
-        for value in self._input_bundle.get_elements_iterable():
-          evaluator.process_element(value)
+  def attempt_call(self, metrics_container,
+                   scoped_metrics_container,
+                   side_input_values):
+    evaluator = self._transform_evaluator_registry.get_evaluator(
+        self._applied_ptransform, self._input_bundle,
+        side_input_values, scoped_metrics_container)
 
-      with scoped_metrics_container:
-        result = evaluator.finish_bundle()
-        result.logical_metric_updates = metrics_container.get_cumulative()
+    if self._fired_timers:
+      for timer_firing in self._fired_timers:
+        evaluator.process_timer_wrapper(timer_firing)
 
-      if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.uncommitted_output_bundles:
+    if self._input_bundle:
+      for value in self._input_bundle.get_elements_iterable():
+        evaluator.process_element(value)
+
+    with scoped_metrics_container:
+      result = evaluator.finish_bundle()
+      result.logical_metric_updates = metrics_container.get_cumulative()
+
+    if self._evaluation_context.has_cache:
+      for uncommitted_bundle in result.uncommitted_output_bundles:
+        self._evaluation_context.append_to_cache(
+            self._applied_ptransform, uncommitted_bundle.tag,
+            uncommitted_bundle.get_elements_iterable())
+      undeclared_tag_values = result.undeclared_tag_values
+      if undeclared_tag_values:
+        for tag, value in undeclared_tag_values.iteritems():
           self._evaluation_context.append_to_cache(
-              self._applied_ptransform, uncommitted_bundle.tag,
-              uncommitted_bundle.get_elements_iterable())
-        undeclared_tag_values = result.undeclared_tag_values
-        if undeclared_tag_values:
-          for tag, value in undeclared_tag_values.iteritems():
-            self._evaluation_context.append_to_cache(
-                self._applied_ptransform, tag, value)
+              self._applied_ptransform, tag, value)
 
-      self._completion_callback.handle_result(self, self._input_bundle, result)
-      return result
-    except Exception as e:  # pylint: disable=broad-except
-      self._completion_callback.handle_exception(self, e)
-    finally:
-      self._evaluation_context.metrics().commit_physical(
-          self._input_bundle,
-          metrics_container.get_cumulative())
-      self._transform_evaluation_state.complete(self)
+    self._completion_callback.handle_result(self, self._input_bundle, result)
+    return result
 
 
 class Executor(object):
