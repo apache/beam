@@ -150,6 +150,6 @@ members:
     apache_id: aviemzur
     email: aviemzur [at] apache [dot] org
     organization: PayPal
-    roles: committer
+    roles: committer, PMC
     time_zone: "+2"
 ---
