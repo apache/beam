@@ -12,7 +12,7 @@ members:
     apache_id: altay
     email: altay [at] apache [dot] org
     organization: Google
-    roles: committer
+    roles: committer, PMC
     time_zone: "-8"
   - name: Jesse Anderson
     apache_id: jesseanderson
@@ -150,6 +150,6 @@ members:
     apache_id: aviemzur
     email: aviemzur [at] apache [dot] org
     organization: PayPal
-    roles: committer
+    roles: committer, PMC
     time_zone: "+2"
 ---
