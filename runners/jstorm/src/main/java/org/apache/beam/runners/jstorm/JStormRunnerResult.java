@@ -38,7 +38,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
       Config config,
       LocalCluster localCluster,
       long localModeExecuteTimeSecs) {
-    return new LocalStormPipelineResult(
+    return new LocalJStormPipelineResult(
         topologyName, config, localCluster, localModeExecuteTimeSecs);
   }
 
@@ -62,12 +62,12 @@ public abstract class JStormRunnerResult implements PipelineResult {
     return topologyName;
   }
 
-  private static class LocalStormPipelineResult extends JStormRunnerResult {
+  private static class LocalJStormPipelineResult extends JStormRunnerResult {
 
     private LocalCluster localCluster;
     private long localModeExecuteTimeSecs;
 
-    LocalStormPipelineResult(
+    LocalJStormPipelineResult(
         String topologyName,
         Config config,
         LocalCluster localCluster,
@@ -78,7 +78,6 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
     @Override
     public State cancel() throws IOException {
-      //localCluster.deactivate(getTopologyName());
       localCluster.killTopology(getTopologyName());
       localCluster.shutdown();
       JStormUtils.sleepMs(1000);
@@ -87,12 +86,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
     @Override
     public State waitUntilFinish(Duration duration) {
-      return waitUntilFinish();
-    }
-
-    @Override
-    public State waitUntilFinish() {
-      JStormUtils.sleepMs(localModeExecuteTimeSecs * 1000);
+      JStormUtils.sleepMs(duration.getMillis());
       try {
         return cancel();
       } catch (IOException e) {
@@ -101,8 +95,13 @@ public abstract class JStormRunnerResult implements PipelineResult {
     }
 
     @Override
+    public State waitUntilFinish() {
+      return waitUntilFinish(Duration.standardSeconds(localModeExecuteTimeSecs));
+    }
+
+    @Override
     public MetricResults metrics() {
-      return null;
+      throw new UnsupportedOperationException("This method is not yet supported.");
     }
   }
 }

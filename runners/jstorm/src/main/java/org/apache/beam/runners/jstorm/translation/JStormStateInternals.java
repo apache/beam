@@ -180,12 +180,8 @@ class JStormStateInternals<K> implements StateInternals {
               kvStoreManager.<ComposedKey, Object>getOrCreate(STATE_INFO + getStoreId(id)));
 
           Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
-              new BinaryCombineFn<Instant>() {
-                @Override
-                public Instant apply(Instant left, Instant right) {
-                  return timestampCombiner.combine(left, right);
-                }
-              };
+              new WatermarkCombineFn(timestampCombiner);
+
           return new JStormWatermarkHoldState(
               id, spec, namespace,
               new JStormCombiningState<>(
@@ -202,6 +198,19 @@ class JStormStateInternals<K> implements StateInternals {
       }
     });
   }
+
+  private static class WatermarkCombineFn extends BinaryCombineFn<Instant> {
+    private final TimestampCombiner timestampCombiner;
+
+    public WatermarkCombineFn(TimestampCombiner timestampCombiner) {
+      this.timestampCombiner = timestampCombiner;
+    }
+
+    @Override
+    public Instant apply(Instant left, Instant right) {
+      return timestampCombiner.combine(left, right);
+    }
+  };
 
   /**
    * JStorm implementation of {@link ValueState}.
@@ -623,7 +632,7 @@ class JStormStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<V> get(K var1) {
-      ReadableState<V> ret = new MapReadableState<>(null);
+      ReadableState<V> ret = null;
       try {
         ret = new MapReadableState(kvStore.get(var1));
       } catch (IOException e) {
@@ -634,7 +643,7 @@ class JStormStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<Iterable<K>> keys() {
-      ReadableState<Iterable<K>> ret = new MapReadableState<>(null);
+      ReadableState<Iterable<K>> ret = null;
       try {
         ret = new MapReadableState<>(kvStore.keys());
       } catch (IOException e) {
@@ -645,7 +654,7 @@ class JStormStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<Iterable<V>> values() {
-      ReadableState<Iterable<V>> ret = new MapReadableState<>(null);
+      ReadableState<Iterable<V>> ret = null;
       try {
         ret = new MapReadableState<>(kvStore.values());
       } catch (IOException e) {
@@ -656,7 +665,7 @@ class JStormStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
-      ReadableState<Iterable<Map.Entry<K, V>>> ret = new MapReadableState<>(null);
+      ReadableState<Iterable<Map.Entry<K, V>>> ret = null;
       try {
         ret = new MapReadableState<>(kvStore.entries());
       } catch (IOException e) {

@@ -256,9 +256,7 @@ class ViewTranslator
   /**
    * Specialized expansion for
    * {@link org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView}.
-   * @param <InputT>
-   * @param <OutputT>
-     */
+   */
   public static class CombineGloballyAsSingletonView<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
     Combine.GloballyAsSingletonView<InputT, OutputT> transform;

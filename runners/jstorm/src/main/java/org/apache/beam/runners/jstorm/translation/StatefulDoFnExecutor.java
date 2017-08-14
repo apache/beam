@@ -32,7 +32,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * JStorm {@link Executor} for stateful {@link DoFn}.
- * @param <OutputT>
  */
 class StatefulDoFnExecutor<OutputT> extends DoFnExecutor<KV, OutputT> {
   public StatefulDoFnExecutor(

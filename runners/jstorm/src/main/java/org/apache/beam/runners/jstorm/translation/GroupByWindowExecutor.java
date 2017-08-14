@@ -20,7 +20,6 @@ package org.apache.beam.runners.jstorm.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -51,22 +50,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.GroupByKey}.
- * @param <K>
- * @param <V>
  */
 class GroupByWindowExecutor<K, V>
     extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
   private static final long serialVersionUID = -7563050475488610553L;
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupByWindowExecutor.class);
-
-  private class GroupByWindowOutputManager implements DoFnRunners.OutputManager, Serializable {
-
-    @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      executorsBolt.processExecutorElem(tag, output);
-    }
-  }
 
   private KvCoder<K, V> inputKvCoder;
   private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
@@ -92,7 +81,6 @@ class GroupByWindowExecutor<K, V>
         mainTupleTag,
         sideOutputTags);
 
-    this.outputManager = new GroupByWindowOutputManager();
     UserGraphContext userGraphContext = context.getUserGraphContext();
     PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) userGraphContext.getInput();
     this.inputKvCoder = (KvCoder<K, V>) input.getCoder();

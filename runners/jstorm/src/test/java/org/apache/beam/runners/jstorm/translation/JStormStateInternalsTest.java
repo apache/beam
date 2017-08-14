@@ -64,7 +64,7 @@ public class JStormStateInternalsTest {
     IKvStoreManager kvStoreManager = RocksDbKvStoreManagerFactory.getManager(
         Maps.newHashMap(),
         "test",
-        tmp.toString(),
+        tmp.getRoot().toString(),
         new KryoSerializer(Maps.newHashMap()));
     jstormStateInternals = new JStormStateInternals(
         "key-1", kvStoreManager, new TimerServiceImpl(), 0);

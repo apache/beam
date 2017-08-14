@@ -30,7 +30,13 @@ public interface Executor extends Serializable {
    */
   void init(ExecutorContext context);
 
+  /**
+   * Process element form "tag" stream.
+   */
   <T> void process(TupleTag<T> tag, WindowedValue<T> elem);
 
+  /**
+   * Cleanup when task is shutdown.
+   */
   void cleanup();
 }

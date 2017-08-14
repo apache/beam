@@ -63,10 +63,8 @@ class MetricsReporter {
   }
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
-    System.out.print("updateCounters");
     for (MetricResult<Long> metricResult : counters) {
       String metricName = getMetricNameString(COUNTER_PREFIX, metricResult);
-      System.out.print("metricName: " + metricName);
       Long updateValue = metricResult.attempted();
       Long oldValue = reportedCounters.get(metricName);
 

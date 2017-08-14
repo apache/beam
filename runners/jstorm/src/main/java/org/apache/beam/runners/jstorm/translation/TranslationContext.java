@@ -198,8 +198,6 @@ public class TranslationContext {
       }
       bolt.addExecutor(tag, executor, userGraphContext.getStepName());
 
-      // filter all connections inside bolt
-      //if (!bolt.getOutputTags().contains(tag)) {
       Stream.Grouping grouping;
       if (isGBK) {
         grouping = Stream.Grouping.byFields(Arrays.asList(CommonInstance.KEY));
@@ -207,7 +205,6 @@ public class TranslationContext {
         grouping = Stream.Grouping.of(Stream.Grouping.Type.LOCAL_OR_SHUFFLE);
       }
       addStormStreamDef(TaggedPValue.of(tag, value), name, grouping);
-      //}
     }
 
     for (PValue sideInput : sideInputs) {
@@ -223,7 +220,7 @@ public class TranslationContext {
     // set parallelismNumber
     String pTransformfullName = userGraphContext.currentTransform.getFullName();
     String compositeName = pTransformfullName.split("/")[0];
-    Map parallelismNumMap = userGraphContext.getOptions().getParallelismNumMap();
+    Map parallelismNumMap = userGraphContext.getOptions().getParallelismMap();
     if (parallelismNumMap.containsKey(compositeName)) {
       int configNum = (Integer) parallelismNumMap.get(compositeName);
       int currNum = bolt.getParallelismNum();
@@ -262,8 +259,19 @@ public class TranslationContext {
       return (T) currentTransform.getInputs().values().iterator().next();
     }
 
-    public Map<TupleTag<?>, PValue> getInputs() {
+    public Map<TupleTag<?>, PValue> getTransformInputs() {
       return currentTransform.getInputs();
+    }
+
+    /**
+     * Get input PValues with the output tags of upstream node.
+     */
+    public Map<TupleTag<?>, PValue> getInputs() {
+      Map<TupleTag<?>, PValue> ret = Maps.newHashMap();
+      for (PValue pValue : currentTransform.getInputs().values()) {
+        ret.put(findTupleTag(pValue), pValue);
+      }
+      return ret;
     }
 
     public TupleTag<?> getInputTag() {

@@ -38,8 +38,8 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
   boolean canTranslate(T transform, TranslationContext context);
 
     /**
-     * Default translator.
-     * @param <T1>
+     * Default translator does NOT translate anything, but just generate
+     * the description of PTransform.
      */
   class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
     @Override
@@ -61,7 +61,11 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
               .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
                 @Override
                 public String apply(Map.Entry<TupleTag<?>, PValue> taggedPValue) {
-                  return taggedPValue.getKey().getId();
+                  if (taggedPValue != null) {
+                    return taggedPValue.getKey().getId();
+                  } else {
+                    return null;
+                  }
                 }
               })),
           transform.getName(),
@@ -69,7 +73,11 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
               .transform(new Function<Map.Entry<TupleTag<?>, PValue>, String>() {
                 @Override
                 public String apply(Map.Entry<TupleTag<?>, PValue> taggedPvalue) {
-                  return taggedPvalue.getKey().getId();
+                  if (taggedPvalue != null) {
+                    return taggedPvalue.getKey().getId();
+                  } else {
+                    return null;
+                  }
                 }
               })));
     }

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -61,7 +62,7 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
 
   private KryoSerializer<WindowedValue> serializer;
 
-  private long lastWaterMark = 0L;
+  private long lastWaterMark = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
 
   public UnboundedSourceSpout(
       String name,
@@ -113,7 +114,7 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
   }
 
   @Override
-  public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+  public synchronized void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
     try {
       this.collector = collector;
       this.pipelineOptions =
@@ -127,7 +128,8 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
     }
   }
 
-  public void createSourceReader(UnboundedSource.CheckpointMark checkpointMark) throws IOException {
+  public synchronized void createSourceReader(UnboundedSource.CheckpointMark checkpointMark)
+      throws IOException {
     if (reader != null) {
       reader.close();
     }

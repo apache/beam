@@ -36,8 +36,8 @@ public interface JStormPipelineOptions extends PipelineOptions {
 
   @Description("Executing time(sec) of topology on local mode. Default is 1min.")
   @Default.Long(60)
-  Long getLocalModeExecuteTime();
-  void setLocalModeExecuteTime(Long time);
+  Long getLocalModeExecuteTimeSec();
+  void setLocalModeExecuteTimeSec(Long time);
 
   @Description("Worker number of topology")
   @Default.Integer(1)
@@ -46,8 +46,8 @@ public interface JStormPipelineOptions extends PipelineOptions {
 
   @Description("Global parallelism number of a component")
   @Default.Integer(1)
-  Integer getParallelismNumber();
-  void setParallelismNumber(Integer number);
+  Integer getParallelism();
+  void setParallelism(Integer number);
 
   @Description("System topology config of JStorm")
   @Default.InstanceFactory(DefaultMapValueFactory.class)
@@ -61,8 +61,8 @@ public interface JStormPipelineOptions extends PipelineOptions {
 
   @Description("Parallelism number of a specified composite PTransform")
   @Default.InstanceFactory(DefaultMapValueFactory.class)
-  Map getParallelismNumMap();
-  void setParallelismNumMap(Map parallelismNumMap);
+  Map getParallelismMap();
+  void setParallelismMap(Map parallelismNumMap);
 
   /**
    * Default value factory for topology configuration of JStorm.

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -46,20 +45,18 @@ class FlattenTranslator<V> extends TransformTranslator.Default<Flatten.PCollecti
   public void translateNode(Flatten.PCollections<V> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-    // Since a new tag is created in PCollectionList, retrieve the real tag here.
+    // Flatten supports to consume multi-copy from a same PCollection, so we need to record
+    // the copy number here.
     Map<TupleTag<?>, PValue> inputs = Maps.newHashMap();
     Map<TupleTag<?>, Integer> tagToCopyNum = Maps.newHashMap();
-    for (Map.Entry<TupleTag<?>, PValue> entry : userGraphContext.getInputs().entrySet()) {
-      PCollection<V> pc = (PCollection<V>) entry.getValue();
-      //inputs.putAll(pc.expand());
-      for (Map.Entry<TupleTag<?>, PValue> entry1 : pc.expand().entrySet()) {
-        if (inputs.containsKey(entry1.getKey())) {
-          int copyNum = tagToCopyNum.get(entry1.getKey());
-          tagToCopyNum.put(entry1.getKey(), ++copyNum);
-        } else {
-          inputs.put(entry1.getKey(), entry1.getValue());
-          tagToCopyNum.put(entry1.getKey(), 1);
-        }
+    for (Map.Entry<TupleTag<?>, PValue> entry : userGraphContext.getTransformInputs().entrySet()) {
+      TupleTag tag = userGraphContext.findTupleTag(entry.getValue());
+      if (inputs.containsKey(tag)) {
+        int copyNum = tagToCopyNum.get(tag);
+        tagToCopyNum.put(tag, ++copyNum);
+      } else {
+        inputs.put(tag, entry.getValue());
+        tagToCopyNum.put(tag, 1);
       }
     }
     String description = describeTransform(transform, inputs, userGraphContext.getOutputs());

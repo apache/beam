@@ -45,7 +45,7 @@ import java.util.TreeSet;
 public class JavaUtilsSerializer {
 
   /**
-   * Specific {@link Kryo} serializer for {@link java.util.Collections.SingletonList}.
+   * Specific {@link Kryo} serializer for {@code java.util.Collections.SingletonList}.
    */
   public static class CollectionsSingletonListSerializer extends Serializer<List<?>> {
     public CollectionsSingletonListSerializer() {
@@ -222,7 +222,6 @@ public class JavaUtilsSerializer {
    * @see Collections#unmodifiableSortedMap(SortedMap)
    */
   private static void registerUnmodifableCollectionSerializers(Config config) {
-    UnmodifiableCollection.values();
     for (final UnmodifiableCollection item : UnmodifiableCollection.values()) {
       config.registerSerialization(item.type, UnmodifiableCollectionsSerializer.class);
     }
