@@ -79,15 +79,15 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
   }
 
   public static JStormRunner fromOptions(PipelineOptions options) {
-    JStormPipelineOptions pipelineOptions = PipelineOptionsValidator.validate(
-        JStormPipelineOptions.class, options);
+    JStormPipelineOptions pipelineOptions =
+        PipelineOptionsValidator.validate(JStormPipelineOptions.class, options);
     return new JStormRunner(pipelineOptions);
   }
 
   /**
-   * convert pipeline options to storm configuration format.
+   * Convert pipeline options to JStorm configuration format.
    * @param options
-   * @return
+   * @return JStorm configuration
    */
   private Config convertPipelineOptionsToConfig(JStormPipelineOptions options) {
     Config config = new Config();
@@ -103,6 +103,8 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
 
     // Setup config for runtime env
     config.put("worker.external", "beam");
+    // We use "com.alibaba.jstorm.transactional" API for "at least once" and "exactly once",
+    // so we don't need acker task for beam job any more, and set related number to 0.
     config.put("topology.acker.executors", 0);
 
     // Register serializers of Kryo
@@ -271,7 +273,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
         LocalCluster localCluster = LocalCluster.getInstance();
         localCluster.submitTopology(topologyName, config, topology);
         return JStormRunnerResult.local(
-            topologyName, config, localCluster, options.getLocalModeExecuteTime());
+            topologyName, config, localCluster, options.getLocalModeExecuteTimeSec());
       } else {
         StormSubmitter.submitTopology(topologyName, config, topology);
         return null;
@@ -298,7 +300,7 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
     TopologyBuilder builder =
         isExactlyOnce ? new TransactionTopologyBuilder() : new TopologyBuilder();
 
-    int parallelismNumber = options.getParallelismNumber();
+    int parallelismNumber = options.getParallelism();
     Map<String, UnboundedSourceSpout> spouts = context.getSpouts();
     for (String id : spouts.keySet()) {
       IRichSpout spout = getSpout(isExactlyOnce, spouts.get(id));

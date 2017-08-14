@@ -20,7 +20,6 @@ package org.apache.beam.runners.jstorm.translation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -50,12 +48,6 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
     PCollection<InputT> input = (PCollection<InputT>) userGraphContext.getInput();
 
     Map<TupleTag<?>, PValue> allOutputs = Maps.newHashMap(userGraphContext.getOutputs());
-    Map<TupleTag<?>, TupleTag<?>> localToExternalTupleTagMap = Maps.newHashMap();
-    for (Map.Entry<TupleTag<?>, PValue> entry : allOutputs.entrySet()) {
-      Iterator<TupleTag<?>> itr = ((PValueBase) entry.getValue()).expand().keySet().iterator();
-      localToExternalTupleTagMap.put(entry.getKey(), itr.next());
-    }
-
     TupleTag<OutputT> mainOutputTag = (TupleTag<OutputT>) userGraphContext.getOutputTag();
     List<TupleTag<?>> sideOutputTags = userGraphContext.getOutputTags();
     sideOutputTags.remove(mainOutputTag);
@@ -90,8 +82,7 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
           transform.getSideInputs(),
           sideInputTagToView.build(),
           mainOutputTag,
-          sideOutputTags,
-          localToExternalTupleTagMap);
+          sideOutputTags);
     } else {
       executor = new MultiOutputDoFnExecutor<>(
           userGraphContext.getStepName(),
@@ -105,8 +96,7 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
           transform.getSideInputs(),
           sideInputTagToView.build(),
           mainOutputTag,
-          sideOutputTags,
-          localToExternalTupleTagMap);
+          sideOutputTags);
     }
 
     context.addTransformExecutor(executor, ImmutableList.<PValue>copyOf(transform.getSideInputs()));

@@ -40,7 +40,6 @@ class TranslatorRegistry {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedSourceTranslator());
-    TRANSLATORS.put(ParDo.SingleOutput.class, new ParDoBoundTranslator());
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoBoundMultiTranslator());
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator<>());
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslator());

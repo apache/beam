@@ -41,9 +41,8 @@
 
   <profiles>
     <!--
-      A default profile that includes optional dependencies
-      on all of our runners. This is aimed at making it very
-      easy for users to run examples with any runner without
+      The direct runner is available by default.
+      You can also include it on the classpath explicitly with -P direct-runner
     -->
     <profile>
       <id>direct-runner</id>
@@ -69,7 +68,7 @@
           <scope>runtime</scope>
         </dependency>
         <!--
-
+          Apex depends on httpclient version 4.3.5, project has a transitive dependency to httpclient 4.0.1 from
           google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
           can be removed when the project no longer has a dependency on a different httpclient version.
         -->

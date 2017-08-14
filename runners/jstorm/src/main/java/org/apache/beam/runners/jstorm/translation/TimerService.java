@@ -30,7 +30,7 @@ interface TimerService extends Serializable {
   void init(List<Integer> upStreamTasks);
 
   /**
-   *
+   * Update watermark when receiving watermark from a upstream task.
    * @param task
    * @param inputWatermark
    * @return new watermark if any timer is triggered during the update of watermark, otherwise 0

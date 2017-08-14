@@ -51,8 +51,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.GroupByKey}.
- * @param <K>
- * @param <V>
  */
 class GroupByWindowExecutor<K, V>
     extends DoFnExecutor<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {

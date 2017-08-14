@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JStorm {@link Executor} for {@link DoFn} with multi-output.
- * @param <InputT>
- * @param <OutputT>
  */
 class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
@@ -50,8 +48,6 @@ class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, Outp
     }
   }
 
-  protected Map<TupleTag<?>, TupleTag<?>> localTupleTagMap;
-
   public MultiOutputDoFnExecutor(
       String stepName,
       String description,
@@ -63,13 +59,10 @@ class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, Outp
       Collection<PCollectionView<?>> sideInputs,
       Map<TupleTag, PCollectionView<?>> sideInputTagToView,
       TupleTag<OutputT> mainTupleTag,
-      List<TupleTag<?>> sideOutputTags,
-      Map<TupleTag<?>, TupleTag<?>> localTupleTagMap
+      List<TupleTag<?>> sideOutputTags
   ) {
     super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag,
         sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags);
-    this.localTupleTagMap = localTupleTagMap;
     this.outputManager = new MultiOutputDoFnExecutorOutputManager();
-    LOG.info("localTupleTagMap: {}", localTupleTagMap);
   }
 }

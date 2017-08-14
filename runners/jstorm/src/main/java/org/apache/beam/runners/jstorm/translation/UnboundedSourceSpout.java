@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -61,7 +62,7 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
 
   private KryoSerializer<WindowedValue> serializer;
 
-  private long lastWaterMark = 0L;
+  private long lastWaterMark = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
 
   public UnboundedSourceSpout(
       String name,

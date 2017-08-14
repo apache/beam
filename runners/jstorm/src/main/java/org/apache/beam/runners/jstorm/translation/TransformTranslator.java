@@ -38,8 +38,8 @@ interface TransformTranslator<T extends PTransform<?, ?>> {
   boolean canTranslate(T transform, TranslationContext context);
 
     /**
-     * Default translator.
-     * @param <T1>
+     * Default translator does NOT translate anything, but just generate
+     * the description of PTransform.
      */
   class Default<T1 extends PTransform<?, ?>> implements TransformTranslator<T1> {
     @Override

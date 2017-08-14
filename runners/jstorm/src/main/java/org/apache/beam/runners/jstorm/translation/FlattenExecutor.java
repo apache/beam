@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.Flatten}.
- * @param <InputT>
  */
 class FlattenExecutor<InputT> implements Executor {
 

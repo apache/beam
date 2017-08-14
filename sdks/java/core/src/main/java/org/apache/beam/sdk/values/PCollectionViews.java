@@ -233,7 +233,7 @@ public class PCollectionViews {
 
     @Override
     public Iterable<T> apply(Iterable<WindowedValue<T>> contents) {
-      return ImmutableList.copyOf(
+      return Iterables.unmodifiableIterable(
           Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
         @SuppressWarnings("unchecked")
         @Override

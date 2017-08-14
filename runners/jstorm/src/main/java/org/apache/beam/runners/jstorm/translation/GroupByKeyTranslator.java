@@ -29,8 +29,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Translates a {@link GroupByKey} to a JStorm {@link GroupByWindowExecutor}.
- * @param <K>
- * @param <V>
  */
 class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<K, V>> {
   // information of transform

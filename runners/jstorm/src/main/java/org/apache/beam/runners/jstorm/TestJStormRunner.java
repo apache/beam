@@ -50,13 +50,21 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     return new TestJStormRunner(options.as(JStormPipelineOptions.class));
   }
 
+  // waiting time when job with assertion
+  private static final int ASSERTION_WAITING_TIME_MS = 20 * 1000;
+  // waiting time when job without assertion
+  private static final int RESULT_WAITING_TIME_MS = 5 * 1000;
+  private static final int RESULT_CHECK_INTERVAL_MS = 500;
+
   private final JStormRunner stormRunner;
   private final JStormPipelineOptions options;
 
   private TestJStormRunner(JStormPipelineOptions options) {
     this.options = options;
     Map conf = Maps.newHashMap();
-    //conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
+    // Default state backend is RocksDB, for the users who could not run RocksDB on local testing
+    // env, following config is used to configure state backend to memory.
+    // conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());
     options.setTopologyConfig(conf);
     options.setLocalMode(true);
     stormRunner = JStormRunner.fromOptions(checkNotNull(options, "options"));
@@ -73,8 +81,9 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
       LOG.info("Running JStorm job {} with {} expected assertions.",
                result.getTopologyName(), numberOfAssertions);
 
-      int maxTimeoutSec = numberOfAssertions > 0 ? 20 : 5;
-      for (int waitTime = 0; waitTime <= maxTimeoutSec * 1000; ) {
+      int maxTimeoutMs =
+          numberOfAssertions > 0 ? ASSERTION_WAITING_TIME_MS : RESULT_WAITING_TIME_MS;
+      for (int waitTime = 0; waitTime <= maxTimeoutMs; ) {
         Optional<Boolean> success = numberOfAssertions > 0
                 ? checkForPAssertSuccess(numberOfAssertions) : Optional.<Boolean>absent();
         Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
@@ -86,8 +95,8 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
           LOG.info("Exception was found.", taskExceptionRec);
           throw new RuntimeException(taskExceptionRec.getCause());
         } else {
-          JStormUtils.sleepMs(500);
-          waitTime += 500;
+          JStormUtils.sleepMs(RESULT_CHECK_INTERVAL_MS);
+          waitTime += RESULT_CHECK_INTERVAL_MS;
         }
       }
 

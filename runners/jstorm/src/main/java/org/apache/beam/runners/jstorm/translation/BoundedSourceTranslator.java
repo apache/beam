@@ -24,9 +24,7 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Translates a {@link Read.Bounded} into a Storm spout.
- *
- * @param <T>
+ * Translates a {@link Read.Bounded} into a JStorm spout.
  */
 class BoundedSourceTranslator<T> extends TransformTranslator.Default<Read.Bounded<T>> {
 

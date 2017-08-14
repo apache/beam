@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JStorm {@link Executor} for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
- * @param <T>
- * @param <W>
  */
 class WindowAssignExecutor<T, W extends BoundedWindow> implements Executor {
   private static final Logger LOG = LoggerFactory.getLogger(WindowAssignExecutor.class);

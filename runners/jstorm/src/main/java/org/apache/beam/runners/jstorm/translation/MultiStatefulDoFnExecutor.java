@@ -42,9 +42,9 @@ class MultiStatefulDoFnExecutor<OutputT> extends MultiOutputDoFnExecutor<KV, Out
       Coder<WindowedValue<KV>> inputCoder, WindowingStrategy<?, ?> windowingStrategy,
       TupleTag<KV> mainInputTag, Collection<PCollectionView<?>> sideInputs,
       Map<TupleTag, PCollectionView<?>> sideInputTagToView, TupleTag<OutputT> mainTupleTag,
-      List<TupleTag<?>> sideOutputTags, Map<TupleTag<?>, TupleTag<?>> localTupleTagMap) {
+      List<TupleTag<?>> sideOutputTags) {
     super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag,
-        sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags, localTupleTagMap);
+        sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags);
   }
 
   @Override
