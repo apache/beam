@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * Interface to create a UDF in Beam SQL.
@@ -36,6 +37,7 @@ import java.io.Serializable;
  * <p>The first parameter is named "s" and is mandatory,
  * and the second parameter is named "n" and is optional.
  */
+@Experimental
 public interface BeamSqlUdf extends Serializable {
   String UDF_METHOD = "eval";
 }

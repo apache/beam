@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -155,7 +156,7 @@ public class BeamRecordSqlType extends BeamRecordType {
   }
 
   public List<Integer> getFieldTypes() {
-    return fieldTypes;
+    return ImmutableList.copyOf(fieldTypes);
   }
 
   public Integer getFieldTypeByIndex(int index){

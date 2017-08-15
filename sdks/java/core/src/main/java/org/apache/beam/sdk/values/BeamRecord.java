@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -282,7 +283,7 @@ public class BeamRecord implements Serializable {
    * Return the list of data values.
    */
   public List<Object> getDataValues() {
-    return dataValues;
+    return ImmutableList.copyOf(dataValues);
   }
 
   /**
