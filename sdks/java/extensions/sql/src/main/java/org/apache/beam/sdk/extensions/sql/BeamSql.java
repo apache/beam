@@ -150,7 +150,7 @@ public class BeamSql {
 
     @Override
     public PCollection<BeamRecord> expand(PCollectionTuple input) {
-      registerTables(input, beamSqlEnv);
+      registerTables(input);
 
       BeamRelNode beamRelNode = null;
       try {
@@ -167,8 +167,7 @@ public class BeamSql {
     }
 
     //register tables, related with input PCollections.
-    private void registerTables(PCollectionTuple input,
-        BeamSqlEnv beamSqlEnv){
+    private void registerTables(PCollectionTuple input){
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
         PCollection<BeamRecord> sourceStream = (PCollection<BeamRecord>) input.get(sourceTag);
         BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();

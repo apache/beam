@@ -40,7 +40,7 @@ import org.junit.Test;
 public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  private static final BeamSqlEnv INNER_BEAM_SQL_ENV = new BeamSqlEnv();
+  private static final BeamSqlEnv BEAM_SQL_ENV = new BeamSqlEnv();
   public static final Date FIRST_DATE = new Date(1);
   public static final Date SECOND_DATE = new Date(1 + 3600 * 1000);
 
@@ -48,7 +48,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
 
   @BeforeClass
   public static void prepare() {
-    INNER_BEAM_SQL_ENV.registerTable("ORDER_DETAILS", MockedUnboundedTable
+    BEAM_SQL_ENV.registerTable("ORDER_DETAILS", MockedUnboundedTable
         .of(Types.INTEGER, "order_id",
             Types.INTEGER, "site_id",
             Types.INTEGER, "price",
@@ -87,7 +87,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, INNER_BEAM_SQL_ENV);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -120,7 +120,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     // 2, 2 | 2, 5
     // 3, 3 | NULL, NULL
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, INNER_BEAM_SQL_ENV);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -150,7 +150,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
         + " o1.order_id=o2.order_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, INNER_BEAM_SQL_ENV);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
@@ -180,7 +180,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
         + " o1.order_id1=o2.order_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, INNER_BEAM_SQL_ENV);
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     rows.apply(ParDo.of(new BeamSqlOutputToConsoleFn("hello")));
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
@@ -212,7 +212,7 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
         + " o1.order_id=o2.order_id"
         ;
     pipeline.enableAbandonedNodeEnforcement(false);
-    compilePipeline(sql, pipeline, INNER_BEAM_SQL_ENV);
+    compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     pipeline.run();
   }
 }
