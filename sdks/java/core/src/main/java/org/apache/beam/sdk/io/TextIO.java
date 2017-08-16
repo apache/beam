@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.transforms.Watch.Growth.ignoreInput;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -250,7 +251,7 @@ public class TextIO {
     abstract Duration getWatchForNewFilesInterval();
 
     @Nullable
-    abstract TerminationCondition getWatchForNewFilesTerminationCondition();
+    abstract TerminationCondition<?, ?> getWatchForNewFilesTerminationCondition();
 
     abstract boolean getHintMatchesManyFiles();
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
@@ -262,7 +263,8 @@ public class TextIO {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setCompressionType(CompressionType compressionType);
       abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
-      abstract Builder setWatchForNewFilesTerminationCondition(TerminationCondition condition);
+      abstract Builder setWatchForNewFilesTerminationCondition(
+              TerminationCondition<?, ?> condition);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
 
@@ -312,7 +314,8 @@ public class TextIO {
      * @see TerminationCondition
      */
     @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Read watchForNewFiles(Duration pollInterval, TerminationCondition terminationCondition) {
+    public Read watchForNewFiles(
+        Duration pollInterval, TerminationCondition<?, ?> terminationCondition) {
       return toBuilder()
           .setWatchForNewFilesInterval(pollInterval)
           .setWatchForNewFilesTerminationCondition(terminationCondition)
@@ -352,9 +355,9 @@ public class TextIO {
               .withCompressionType(getCompressionType())
               .withEmptyMatchTreatment(getEmptyMatchTreatment());
       if (getWatchForNewFilesInterval() != null) {
-        readAll =
-            readAll.watchForNewFiles(
-                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
+        TerminationCondition<String, ?> readAllCondition =
+            ignoreInput(getWatchForNewFilesTerminationCondition());
+        readAll = readAll.watchForNewFiles(getWatchForNewFilesInterval(), readAllCondition);
       }
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
