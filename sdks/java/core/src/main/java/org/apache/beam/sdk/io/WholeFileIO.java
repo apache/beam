@@ -115,7 +115,9 @@ public class WholeFileIO {
     return new AutoValue_WholeFileIO_Read.Builder().build();
   }
 
-  // TODO: Add a readAll() like TextIO.
+  public static ReadAll readAll() {
+    return new AutoValue_WholeFileIO_ReadAll.Builder().build();
+  }
 
   /**
    * A {@link PTransform} that takes a {@link PCollection} of {@link KV {@code KV<String, byte[]>}}
@@ -159,32 +161,44 @@ public class WholeFileIO {
           getFilePattern(),
           "Need to set the filePattern of a WholeFileIO.Read transform."
       );
+      WholeFileIO.ReadAll readAll = readAll();
+      return input.apply(Create.ofProvider(getFilePattern(), StringUtf8Coder.of()))
+          .apply("Via ReadAll", readAll);
+    }
+  }
 
-      PCollection<String> filePatternPCollection = input.apply(
-                                        Create.ofProvider(getFilePattern(), StringUtf8Coder.of()));
+  /** Implementation of {@link #readAll()}. */
+  @AutoValue
+  public abstract static class ReadAll extends PTransform<PCollection<String>,
+                                                                  PCollection<KV<String, byte[]>>> {
+    abstract Builder toBuilder();
 
-      PCollection<MatchResult.Metadata> matchResultMetaData = filePatternPCollection.apply(
-                                                                              Match.filepatterns());
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract ReadAll build();
+    }
 
-      PCollection<KV<String, byte[]>> files = matchResultMetaData.apply(
-          ParDo.of(
-              new DoFn<MatchResult.Metadata, KV<String, byte[]>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) throws IOException {
-                  MatchResult.Metadata metadata = c.element();
-                  ResourceId resourceId = metadata.resourceId();
+    @Override
+    public PCollection<KV<String, byte[]>> expand(PCollection<String> input) {
+      return input.apply(Match.filepatterns())
+          .apply(ParDo.of(new ReadWholeFileFn()));
+    }
 
-                  try (
-                      InputStream inStream = Channels.newInputStream(FileSystems.open(resourceId))
-                  ) {
-                    c.output(KV.of(resourceId.getFilename(), StreamUtils.getBytes(inStream)));
-                  }
-                }
-              }
-          )
-      );
+    /**
+     * A {@link DoFn} that takes in {@link MatchResult.Metadata} from which it acquires a
+     * {@link ResourceId} that it reads into a {@code byte[]} paired in a {@link KV} with the
+     * filename as a {@link String}.
+     */
+    public static class ReadWholeFileFn extends DoFn<MatchResult.Metadata, KV<String, byte[]>> {
+      @ProcessElement
+      public void processElement(ProcessContext c) throws IOException {
+        MatchResult.Metadata metadata = c.element();
+        ResourceId resourceId = metadata.resourceId();
 
-      return files;
+        try (InputStream inStream = Channels.newInputStream(FileSystems.open(resourceId))) {
+          c.output(KV.of(resourceId.getFilename(), StreamUtils.getBytes(inStream)));
+        }
+      }
     }
   }
 
