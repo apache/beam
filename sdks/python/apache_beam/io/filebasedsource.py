@@ -17,24 +17,34 @@
 
 """A framework for developing sources for new file types.
 
-To create a source for a new file type a sub-class of ``FileBasedSource`` should
-be created. Sub-classes of ``FileBasedSource`` must implement the method
-``FileBasedSource.read_records()``. Please read the documentation of that method
-for more details.
+To create a source for a new file type a sub-class of :class:`FileBasedSource`
+should be created. Sub-classes of :class:`FileBasedSource` must implement the
+method :meth:`FileBasedSource.read_records()`. Please read the documentation of
+that method for more details.
 
-For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
+For an example implementation of :class:`FileBasedSource` see
+:class:`~apache_beam.io._AvroSource`.
 """
+import uuid
 
+from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import ParDo
+from apache_beam.transforms.core import GroupByKey
+from apache_beam.transforms.core import PTransform
+from apache_beam.transforms.core import FlatMap
+from apache_beam.transforms.core import Map
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.io.range_trackers import OffsetRange
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import check_accessible
+from apache_beam.transforms.trigger import DefaultTrigger
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -42,7 +52,8 @@ __all__ = ['FileBasedSource']
 
 
 class FileBasedSource(iobase.BoundedSource):
-  """A ``BoundedSource`` for reading a file glob of a given type."""
+  """A :class:`~apache_beam.io.iobase.BoundedSource` for reading a file glob of
+  a given type."""
 
   MIN_NUMBER_OF_FILES_TO_STAT = 100
   MIN_FRACTION_OF_FILES_TO_STAT = 0.01
@@ -53,31 +64,40 @@ class FileBasedSource(iobase.BoundedSource):
                compression_type=CompressionTypes.AUTO,
                splittable=True,
                validate=True):
-    """Initializes ``FileBasedSource``.
+    """Initializes :class:`FileBasedSource`.
 
     Args:
-      file_pattern: the file glob to read a string or a ValueProvider
-                    (placeholder to inject a runtime value).
-      min_bundle_size: minimum size of bundles that should be generated when
-                       performing initial splitting on this source.
-      compression_type: compression type to use
-      splittable: whether FileBasedSource should try to logically split a single
-                  file into data ranges so that different parts of the same file
-                  can be read in parallel. If set to False, FileBasedSource will
-                  prevent both initial and dynamic splitting of sources for
-                  single files. File patterns that represent multiple files may
-                  still get split into sources for individual files. Even if set
-                  to True by the user, FileBasedSource may choose to not split
-                  the file, for example, for compressed files where currently
-                  it is not possible to efficiently read a data range without
-                  decompressing the whole file.
-      validate: Boolean flag to verify that the files exist during the pipeline
-                creation time.
+      file_pattern (str): the file glob to read a string or a
+        :class:`~apache_beam.options.value_provider.ValueProvider`
+        (placeholder to inject a runtime value).
+      min_bundle_size (str): minimum size of bundles that should be generated
+        when performing initial splitting on this source.
+      compression_type (str): Used to handle compressed output files.
+        Typical value is :attr:`CompressionTypes.AUTO
+        <apache_beam.io.filesystem.CompressionTypes.AUTO>`,
+        in which case the final file path's extension will be used to detect
+        the compression.
+      splittable (bool): whether :class:`FileBasedSource` should try to
+        logically split a single file into data ranges so that different parts
+        of the same file can be read in parallel. If set to :data:`False`,
+        :class:`FileBasedSource` will prevent both initial and dynamic splitting
+        of sources for single files. File patterns that represent multiple files
+        may still get split into sources for individual files. Even if set to
+        :data:`True` by the user, :class:`FileBasedSource` may choose to not
+        split the file, for example, for compressed files where currently it is
+        not possible to efficiently read a data range without decompressing the
+        whole file.
+      validate (bool): Boolean flag to verify that the files exist during the
+        pipeline creation time.
+
     Raises:
-      TypeError: when compression_type is not valid or if file_pattern is not a
-                 string or a ValueProvider.
-      ValueError: when compression and splittable files are specified.
-      IOError: when the file pattern specified yields an empty result.
+      ~exceptions.TypeError: when **compression_type** is not valid or if
+        **file_pattern** is not a :class:`str` or a
+        :class:`~apache_beam.options.value_provider.ValueProvider`.
+      ~exceptions.ValueError: when compression and splittable files are
+        specified.
+      ~exceptions.IOError: when the file pattern specified yields an empty
+        result.
     """
 
     if not isinstance(file_pattern, (basestring, ValueProvider)):
@@ -95,12 +115,7 @@ class FileBasedSource(iobase.BoundedSource):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     self._compression_type = compression_type
-    if compression_type in (CompressionTypes.UNCOMPRESSED,
-                            CompressionTypes.AUTO):
-      self._splittable = splittable
-    else:
-      # We can't split compressed files efficiently so turn off splitting.
-      self._splittable = False
+    self._splittable = splittable
     if validate and file_pattern.is_accessible():
       self._validate()
 
@@ -132,13 +147,10 @@ class FileBasedSource(iobase.BoundedSource):
           continue  # Ignoring empty file.
 
         # We determine splittability of this specific file.
-        splittable = self.splittable
-        if (splittable and
-            self._compression_type == CompressionTypes.AUTO):
-          compression_type = CompressionTypes.detect_compression_type(
-              file_name)
-          if compression_type != CompressionTypes.UNCOMPRESSED:
-            splittable = False
+        splittable = (
+            self.splittable and
+            _determine_splittability_from_compression_type(
+                file_name, self._compression_type))
 
         single_file_source = _SingleFileSource(
             file_based_source_ref, file_name,
@@ -211,6 +223,14 @@ class FileBasedSource(iobase.BoundedSource):
     return self._splittable
 
 
+def _determine_splittability_from_compression_type(
+    file_path, compression_type):
+  if compression_type == CompressionTypes.AUTO:
+    compression_type = CompressionTypes.detect_compression_type(file_path)
+
+  return compression_type == CompressionTypes.UNCOMPRESSED
+
+
 class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type."""
 
@@ -244,24 +264,21 @@ class _SingleFileSource(iobase.BoundedSource):
       stop_offset = self._stop_offset
 
     if self._splittable:
-      bundle_size = max(desired_bundle_size, self._min_bundle_size)
-
-      bundle_start = start_offset
-      while bundle_start < stop_offset:
-        bundle_stop = min(bundle_start + bundle_size, stop_offset)
+      splits = OffsetRange(start_offset, stop_offset).split(
+          desired_bundle_size, self._min_bundle_size)
+      for split in splits:
         yield iobase.SourceBundle(
-            bundle_stop - bundle_start,
+            split.stop - split.start,
             _SingleFileSource(
                 # Copying this so that each sub-source gets a fresh instance.
                 pickler.loads(pickler.dumps(self._file_based_source)),
                 self._file_name,
-                bundle_start,
-                bundle_stop,
+                split.start,
+                split.stop,
                 min_bundle_size=self._min_bundle_size,
                 splittable=self._splittable),
-            bundle_start,
-            bundle_stop)
-        bundle_start = bundle_stop
+            split.start,
+            split.stop)
     else:
       # Returning a single sub-source with end offset set to OFFSET_INFINITY (so
       # that all data of the source gets read) since this source is
@@ -308,3 +325,112 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def default_output_coder(self):
     return self._file_based_source.default_output_coder()
+
+
+class _ExpandIntoRanges(DoFn):
+
+  def __init__(
+      self, splittable, compression_type, desired_bundle_size, min_bundle_size):
+    self._desired_bundle_size = desired_bundle_size
+    self._min_bundle_size = min_bundle_size
+    self._splittable = splittable
+    self._compression_type = compression_type
+
+  def process(self, element, *args, **kwargs):
+    match_results = FileSystems.match([element])
+    for metadata in match_results[0].metadata_list:
+      splittable = (
+          self._splittable and
+          _determine_splittability_from_compression_type(
+              metadata.path, self._compression_type))
+
+      if splittable:
+        for split in OffsetRange(
+            0, metadata.size_in_bytes).split(
+                self._desired_bundle_size, self._min_bundle_size):
+          yield (metadata, split)
+      else:
+        yield (metadata, OffsetRange(
+            0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
+
+
+# Replace following with a generic reshard transform once
+# https://issues.apache.org/jira/browse/BEAM-1872 is implemented.
+class _Reshard(PTransform):
+
+  def expand(self, pvalue):
+    keyed_pc = (pvalue
+                | 'AssignKey' >> Map(lambda x: (uuid.uuid4(), x)))
+    if keyed_pc.windowing.windowfn.is_merging():
+      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
+                       'of merging windows')
+    if not isinstance(keyed_pc.windowing.triggerfn, DefaultTrigger):
+      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
+                       'of non-trivial triggers')
+
+    return (keyed_pc | 'GroupByKey' >> GroupByKey()
+            # Using FlatMap below due to the possibility of key collisions.
+            | 'DropKey' >> FlatMap(lambda (k, values): values))
+
+
+class _ReadRange(DoFn):
+
+  def __init__(self, source_from_file):
+    self._source_from_file = source_from_file
+
+  def process(self, element, *args, **kwargs):
+    metadata, range = element
+    source = self._source_from_file(metadata.path)
+    # Following split() operation has to be performed to create a proper
+    # _SingleFileSource. Otherwise what we have is a ConcatSource that contains
+    # a single _SingleFileSource. ConcatSource.read() expects a RangeTraker for
+    # sub-source range and reads full sub-sources (not byte ranges).
+    source = list(source.split(float('inf')))[0].source
+    for record in source.read(range.new_tracker()):
+      yield record
+
+
+class ReadAllFiles(PTransform):
+  """A Read transform that reads a PCollection of files.
+
+  Pipeline authors should not use this directly. This is to be used by Read
+  PTransform authors who wishes to implement file-based Read transforms that
+  read a PCollection of files.
+  """
+
+  def __init__(
+      self, splittable, compression_type, desired_bundle_size, min_bundle_size,
+      source_from_file):
+    """
+    Args:
+      splittable: If True, files won't be split into sub-ranges. If False, files
+                  may or may not be split into data ranges.
+      compression_type: A ``CompressionType`` object that specifies the
+                  compression type of the files that will be processed. If
+                  ``CompressionType.AUTO``, system will try to automatically
+                  determine the compression type based on the extension of
+                  files.
+      desired_bundle_size: the desired size of data ranges that should be
+                           generated when splitting a file into data ranges.
+      min_bundle_size: minimum size of data ranges that should be generated when
+                           splitting a file into data ranges.
+      source_from_file: a function that produces a ``BoundedSource`` given a
+                        file name. System will use this function to generate
+                        ``BoundedSource`` objects for file paths. Note that file
+                        paths passed to this will be for individual files, not
+                        for file patterns even if the ``PCollection`` of files
+                        processed by the transform consist of file patterns.
+    """
+    self._splittable = splittable
+    self._compression_type = compression_type
+    self._desired_bundle_size = desired_bundle_size
+    self._min_bundle_size = min_bundle_size
+    self._source_from_file = source_from_file
+
+  def expand(self, pvalue):
+    return (pvalue
+            | 'ExpandIntoRanges' >> ParDo(_ExpandIntoRanges(
+                self._splittable, self._compression_type,
+                self._desired_bundle_size, self._min_bundle_size))
+            | 'Reshard' >> _Reshard()
+            | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))

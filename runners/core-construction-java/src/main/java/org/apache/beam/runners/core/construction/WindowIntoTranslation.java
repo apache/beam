@@ -18,15 +18,16 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -52,8 +53,8 @@ public class WindowIntoTranslation {
         AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn("urn:beam:transform:window:v1")
-          .setParameter(
-              Any.pack(WindowIntoTranslation.toProto(transform.getTransform(), components)))
+          .setPayload(
+              WindowIntoTranslation.toProto(transform.getTransform(), components).toByteString())
           .build();
     }
   }
@@ -64,10 +65,44 @@ public class WindowIntoTranslation {
         .build();
   }
 
-  public static WindowFn<?, ?> getWindowFn(WindowIntoPayload payload)
-      throws InvalidProtocolBufferException {
-    SdkFunctionSpec spec = payload.getWindowFn();
-    return WindowingStrategyTranslation.windowFnFromProto(spec);
+  public static WindowIntoPayload getWindowIntoPayload(AppliedPTransform<?, ?, ?> application) {
+    RunnerApi.PTransform transformProto;
+    try {
+      transformProto =
+          PTransformTranslation.toProto(
+              application,
+              Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+              SdkComponents.create());
+    } catch (IOException exc) {
+      throw new RuntimeException(exc);
+    }
+
+    checkArgument(
+        PTransformTranslation.WINDOW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
+        "Illegal attempt to extract %s from transform %s with name \"%s\" and URN \"%s\"",
+        Window.Assign.class.getSimpleName(),
+        application.getTransform(),
+        application.getFullName(),
+        transformProto.getSpec().getUrn());
+
+    WindowIntoPayload windowIntoPayload;
+    try {
+      return WindowIntoPayload.parseFrom(transformProto.getSpec().getPayload());
+    } catch (InvalidProtocolBufferException exc) {
+      throw new IllegalStateException(
+          String.format(
+              "%s translated %s with URN '%s' but payload was not a %s",
+              PTransformTranslation.class.getSimpleName(),
+              application,
+              PTransformTranslation.WINDOW_TRANSFORM_URN,
+              WindowIntoPayload.class.getSimpleName()),
+          exc);
+    }
+  }
+
+  public static WindowFn<?, ?> getWindowFn(AppliedPTransform<?, ?, ?> application) {
+    return WindowingStrategyTranslation.windowFnFromProto(
+        getWindowIntoPayload(application).getWindowFn());
   }
 
   /**
@@ -92,7 +127,7 @@ public class WindowIntoTranslation {
       WindowIntoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(payload))
+          .setPayload(payload.toByteString())
           .build();
     }
   }

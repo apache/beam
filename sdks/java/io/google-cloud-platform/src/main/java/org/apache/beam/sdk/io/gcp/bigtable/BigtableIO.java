@@ -893,7 +893,7 @@ public class BigtableIO {
     }
 
     @Override
-    public Coder<Row> getDefaultOutputCoder() {
+    public Coder<Row> getOutputCoder() {
       return ProtoCoder.of(Row.class);
     }
 

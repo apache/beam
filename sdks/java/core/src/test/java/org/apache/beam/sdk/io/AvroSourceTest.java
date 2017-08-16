@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
@@ -408,11 +408,6 @@ public class AvroSourceTest {
     source = AvroSource.from(filename).withSchema(schemaString);
     records = SourceTestUtils.readFromSource(source, null);
     assertEqualsWithGeneric(expected, records);
-
-    // Create a source with no schema
-    source = AvroSource.from(filename);
-    records = SourceTestUtils.readFromSource(source, null);
-    assertEqualsWithGeneric(expected, records);
   }
 
   @Test
@@ -439,39 +434,39 @@ public class AvroSourceTest {
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
     Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    assertNotSame(schemaA, schemaB);
-
-    AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
-    AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema(schemaB);
-    assertSame(sourceA.getSchema(), sourceB.getSchema());
+    String schema = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    // Add "" to the schema to make sure it is not interned.
+    AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema("" + schema);
+    AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema("" + schema);
+    assertSame(sourceA.getReaderSchemaString(), sourceB.getReaderSchemaString());
 
     // Ensure that deserialization still goes through interning
     AvroSource<GenericRecord> sourceC = SerializableUtils.clone(sourceB);
-    assertSame(sourceA.getSchema(), sourceC.getSchema());
+    assertSame(sourceA.getReaderSchemaString(), sourceC.getReaderSchemaString());
   }
 
   @Test
-  public void testSchemaIsInterned() throws Exception {
-    List<Bird> birds = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
+  public void testParseFn() throws Exception {
+    List<Bird> expected = createRandomRecords(100);
+    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    assertNotSame(schemaA, schemaB);
 
-    AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaA).createForSubrangeOfFile(fileMetadata, 0L, 0L);
-    AvroSource<GenericRecord> sourceB = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaB).createForSubrangeOfFile(fileMetadata, 0L, 0L);
-    assertSame(sourceA.getReadSchema(), sourceA.getFileSchema());
-    assertSame(sourceA.getReadSchema(), sourceB.getReadSchema());
-    assertSame(sourceA.getReadSchema(), sourceB.getFileSchema());
-
-    // Schemas are transient and not serialized thus we don't need to worry about interning
-    // after deserialization.
+    AvroSource<Bird> source =
+        AvroSource.from(filename)
+            .withParseFn(
+                new SerializableFunction<GenericRecord, Bird>() {
+                  @Override
+                  public Bird apply(GenericRecord input) {
+                    return new Bird(
+                        (long) input.get("number"),
+                        input.get("species").toString(),
+                        input.get("quality").toString(),
+                        (long) input.get("quantity"));
+                  }
+                },
+                AvroCoder.of(Bird.class));
+    List<Bird> actual = SourceTestUtils.readFromSource(source, null);
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {

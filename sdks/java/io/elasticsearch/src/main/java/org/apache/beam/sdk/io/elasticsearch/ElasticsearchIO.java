@@ -25,10 +25,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,6 +43,8 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -56,11 +62,14 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
+import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -155,6 +164,12 @@ public class ElasticsearchIO {
     @Nullable
     abstract String getPassword();
 
+    @Nullable
+    abstract String getKeystorePath();
+
+    @Nullable
+    abstract String getKeystorePassword();
+
     abstract String getIndex();
 
     abstract String getType();
@@ -168,6 +183,10 @@ public class ElasticsearchIO {
       abstract Builder setUsername(String username);
 
       abstract Builder setPassword(String password);
+
+      abstract Builder setKeystorePath(String keystorePath);
+
+      abstract Builder setKeystorePassword(String password);
 
       abstract Builder setIndex(String index);
 
@@ -183,10 +202,8 @@ public class ElasticsearchIO {
      * @param index the index toward which the requests will be issued
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
-     * @throws IOException when it fails to connect to Elasticsearch
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type)
-        throws IOException {
+    public static ConnectionConfiguration create(String[] addresses, String index, String type){
       checkArgument(
           addresses != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null address");
@@ -206,23 +223,7 @@ public class ElasticsearchIO {
               .setIndex(index)
               .setType(type)
               .build();
-      checkVersion(connectionConfiguration);
       return connectionConfiguration;
-    }
-
-    private static void checkVersion(ConnectionConfiguration connectionConfiguration)
-        throws IOException {
-      RestClient restClient = connectionConfiguration.createClient();
-      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
-      JsonNode jsonNode = parseResponse(response);
-      String version = jsonNode.path("version").path("number").asText();
-      boolean version2x = version.startsWith("2.");
-      restClient.close();
-      checkArgument(
-          version2x,
-          "ConnectionConfiguration.create(addresses, index, type): "
-              + "the Elasticsearch version to connect to is different of 2.x. "
-              + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
     }
 
     /**
@@ -257,14 +258,43 @@ public class ElasticsearchIO {
       return builder().setPassword(password).build();
     }
 
+    /**
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
+     * provide the keystore containing the client key.
+     *
+     * @param keystorePath the location of the keystore containing the client key.
+     * @return the {@link ConnectionConfiguration} object with keystore path set.
+     */
+    public ConnectionConfiguration withKeystorePath(String keystorePath) {
+      checkArgument(keystorePath != null, "ConnectionConfiguration.create()"
+          + ".withKeystorePath(keystorePath) called with null keystorePath");
+      checkArgument(!keystorePath.isEmpty(), "ConnectionConfiguration.create()"
+          + ".withKeystorePath(keystorePath) called with empty keystorePath");
+      return builder().setKeystorePath(keystorePath).build();
+    }
+
+    /**
+     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield),
+     * provide the password to open the client keystore.
+     *
+     * @param keystorePassword the password of the client keystore.
+     * @return the {@link ConnectionConfiguration} object with keystore passwo:rd set.
+     */
+    public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
+        checkArgument(keystorePassword != null, "ConnectionConfiguration.create()"
+            + ".withKeystorePassword(keystorePassword) called with null keystorePassword");
+        return builder().setKeystorePassword(keystorePassword).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
+      builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
     }
 
-    RestClient createClient() throws MalformedURLException {
+    RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
       int i = 0;
       for (String address : getAddresses()) {
@@ -284,6 +314,27 @@ public class ElasticsearchIO {
                 return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
               }
             });
+      }
+      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
+        try {
+          KeyStore keyStore = KeyStore.getInstance("jks");
+          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
+            keyStore.load(is, getKeystorePassword().toCharArray());
+          }
+          final SSLContext sslContext = SSLContexts.custom()
+              .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
+          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+          restClientBuilder.setHttpClientConfigCallback(
+              new RestClientBuilder.HttpClientConfigCallback() {
+            @Override
+            public HttpAsyncClientBuilder customizeHttpClient(
+                HttpAsyncClientBuilder httpClientBuilder) {
+              return httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
+            }
+          });
+        } catch (Exception e) {
+          throw new IOException("Can't load the client certificate from the keystore", e);
+        }
       }
       return restClientBuilder.build();
     }
@@ -398,16 +449,20 @@ public class ElasticsearchIO {
 
     @Override
     public void validate(PipelineOptions options) {
+      ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(
-          getConnectionConfiguration() != null,
+          connectionConfiguration != null,
           "ElasticsearchIO.read() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
+      checkVersion(connectionConfiguration);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
+      builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
       getConnectionConfiguration().populateDisplayData(builder);
     }
   }
@@ -498,7 +553,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public Coder<String> getDefaultOutputCoder() {
+    public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -715,10 +770,12 @@ public class ElasticsearchIO {
 
     @Override
     public void validate(PipelineOptions options) {
+      ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(
-          getConnectionConfiguration() != null,
+          connectionConfiguration != null,
           "ElasticsearchIO.write() requires a connection configuration"
               + " to be set via withConnectionConfiguration(configuration)");
+      checkVersion(connectionConfiguration);
     }
 
     @Override
@@ -826,6 +883,18 @@ public class ElasticsearchIO {
           restClient.close();
         }
       }
+    }
+  }
+  private static void checkVersion(ConnectionConfiguration connectionConfiguration){
+    try (RestClient restClient = connectionConfiguration.createClient()) {
+      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      JsonNode jsonNode = parseResponse(response);
+      String version = jsonNode.path("version").path("number").asText();
+      boolean version2x = version.startsWith("2.");
+      checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
+          + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Cannot check Elasticsearch version");
     }
   }
 }

@@ -159,10 +159,12 @@
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
-    <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
+    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
+    <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
+    <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
 
@@ -170,6 +172,11 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
+
+    <!-- standard binary for kubectl -->
+    <kubectl>kubectl</kubectl>
+    <!-- the standard location for kubernete's config file -->
+    <kubeconfig>${user.home}/.kube/config</kubeconfig>
   </properties>
 
   <packaging>pom</packaging>
@@ -519,7 +526,13 @@
         <version>${project.version}</version>
       </dependency>
 
-	  <dependency>
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-solr</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
 	    <version>${project.version}</version>
@@ -571,6 +584,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-apex</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-gearpump</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1398,7 +1417,7 @@
                here, we leave things simple here. -->
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.4</version>
+          <version>${maven-javadoc-plugin.version}</version>
           <configuration>
             <additionalparam>${beam.javadoc_opts}</additionalparam>
             <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
@@ -1789,7 +1808,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4.1</version>
+        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>enforce</id>

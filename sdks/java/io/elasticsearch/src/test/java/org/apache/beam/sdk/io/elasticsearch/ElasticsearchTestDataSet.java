@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 
-import java.io.IOException;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.elasticsearch.client.RestClient;
@@ -37,7 +36,7 @@ public class ElasticsearchTestDataSet {
   public static final long NUM_DOCS = 60000;
   public static final int AVERAGE_DOC_SIZE = 25;
   public static final int MAX_DOC_SIZE = 35;
-  private static String writeIndex = ES_INDEX + org.joda.time.Instant.now().getMillis();
+  private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
 
   /**
    * Use this to create the index for reading before IT read tests.
@@ -63,17 +62,15 @@ public class ElasticsearchTestDataSet {
   }
 
   private static void createAndPopulateReadIndex(IOTestPipelineOptions options) throws Exception {
-    RestClient restClient =  getConnectionConfiguration(options, ReadOrWrite.READ).createClient();
     // automatically creates the index and insert docs
-    try {
+    try (RestClient restClient = getConnectionConfiguration(options, ReadOrWrite.READ)
+        .createClient()) {
       ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, restClient);
-    } finally {
-      restClient.close();
     }
   }
 
   static ElasticsearchIO.ConnectionConfiguration getConnectionConfiguration(
-      IOTestPipelineOptions options, ReadOrWrite rOw) throws IOException {
+      IOTestPipelineOptions options, ReadOrWrite rOw){
     ElasticsearchIO.ConnectionConfiguration connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
             new String[] {

@@ -214,38 +214,44 @@ class PTransform(WithTypeHints, HasDisplayData):
     return self.__class__.__name__
 
   def with_input_types(self, input_type_hint):
-    """Annotates the input type of a PTransform with a type-hint.
+    """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
-      input_type_hint: An instance of an allowed built-in type, a custom class,
-        or an instance of a typehints.TypeConstraint.
+      input_type_hint (type): An instance of an allowed built-in type, a custom
+        class, or an instance of a
+        :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **input_type_hint** is not a valid type-hint.
+        See
+        :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
-    """Annotates the output type of a PTransform with a type-hint.
+    """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
-      type_hint: An instance of an allowed built-in type, a custom class, or a
-        typehints.TypeConstraint.
+      type_hint (type): An instance of an allowed built-in type, a custom class,
+        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **type_hint** is not a valid type-hint. See
+        :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
@@ -426,15 +432,25 @@ class PTransform(WithTypeHints, HasDisplayData):
   _known_urns = {}
 
   @classmethod
-  def register_urn(cls, urn, parameter_type, constructor):
-    cls._known_urns[urn] = parameter_type, constructor
+  def register_urn(cls, urn, parameter_type, constructor=None):
+    def register(constructor):
+      cls._known_urns[urn] = parameter_type, constructor
+      return staticmethod(constructor)
+    if constructor:
+      # Used as a statement.
+      register(constructor)
+    else:
+      # Used as a decorator.
+      return register
 
   def to_runner_api(self, context):
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        parameter=proto_utils.pack_Any(typed_param))
+        any_param=proto_utils.pack_Any(typed_param),
+        payload=typed_param.SerializeToString()
+        if typed_param is not None else None)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -442,7 +458,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
     return constructor(
-        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
   def to_runner_api_parameter(self, context):
@@ -481,13 +497,16 @@ class _ChainedPTransform(PTransform):
 
 
 class PTransformWithSideInputs(PTransform):
-  """A superclass for any PTransform (e.g. FlatMap or Combine)
+  """A superclass for any :class:`PTransform` (e.g.
+  :func:`~apache_beam.transforms.core.FlatMap` or
+  :class:`~apache_beam.transforms.core.CombineFn`)
   invoking user code.
 
-  PTransforms like FlatMap invoke user-supplied code in some kind of
-  package (e.g. a DoFn) and optionally provide arguments and side inputs
-  to that code. This internal-use-only class contains common functionality
-  for PTransforms that fit this model.
+  :class:`PTransform` s like :func:`~apache_beam.transforms.core.FlatMap`
+  invoke user-supplied code in some kind of package (e.g. a
+  :class:`~apache_beam.transforms.core.DoFn`) and optionally provide arguments
+  and side inputs to that code. This internal-use-only class contains common
+  functionality for :class:`PTransform` s that fit this model.
   """
 
   def __init__(self, fn, *args, **kwargs):
@@ -533,16 +552,20 @@ class PTransformWithSideInputs(PTransform):
         of an allowed built-in type, a custom class, or a
         typehints.TypeConstraint.
 
-    Example of annotating the types of side-inputs:
+    Example of annotating the types of side-inputs::
+
       FlatMap().with_input_types(int, int, bool)
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      :class:`~exceptions.TypeError`: If **type_hint** is not a valid type-hint.
+        See
+        :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      :class:`PTransform`: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
 

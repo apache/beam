@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
@@ -55,18 +56,18 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private final SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn;
-  private final SparkRuntimeContext runtimeContext;
+  private final SerializablePipelineOptions options;
 
   public SparkGroupAlsoByWindowViaOutputBufferFn(
       WindowingStrategy<?, W> windowingStrategy,
       StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn,
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       Accumulator<NamedAggregators> accumulator) {
     this.windowingStrategy = windowingStrategy;
     this.stateInternalsFactory = stateInternalsFactory;
     this.reduceFn = reduceFn;
-    this.runtimeContext = runtimeContext;
+    this.options = options;
   }
 
   @Override
@@ -98,7 +99,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
             outputter,
             new UnsupportedSideInputReader("GroupAlsoByWindow"),
             reduceFn,
-            runtimeContext.getPipelineOptions());
+            options.get());
 
     // Process the grouped values.
     reduceFnRunner.processElements(values);

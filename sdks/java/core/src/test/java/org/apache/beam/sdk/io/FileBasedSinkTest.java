@@ -231,7 +231,7 @@ public class FileBasedSinkTest {
         SimpleSink.makeSimpleSink(
             getBaseOutputDirectory(), prefix, "", "", CompressionType.UNCOMPRESSED);
 
-    WriteOperation<String, Void> writeOp =
+    WriteOperation<Void, String> writeOp =
         new SimpleSink.SimpleWriteOperation<>(sink, tempDirectory);
 
     List<File> temporaryFiles = new ArrayList<>();
@@ -482,11 +482,11 @@ public class FileBasedSinkTest {
   public void testFileBasedWriterWithWritableByteChannelFactory() throws Exception {
     final String testUid = "testId";
     ResourceId root = getBaseOutputDirectory();
-    WriteOperation<String, Void> writeOp =
+    WriteOperation<Void, String> writeOp =
         SimpleSink.makeSimpleSink(
                 root, "file", "-SS-of-NN", "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation();
-    final Writer<String, Void> writer = writeOp.createWriter();
+    final Writer<Void, String> writer = writeOp.createWriter();
     final ResourceId expectedFile =
         writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
 

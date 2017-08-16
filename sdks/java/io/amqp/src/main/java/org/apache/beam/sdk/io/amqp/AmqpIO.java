@@ -246,7 +246,7 @@ public class AmqpIO {
     }
 
     @Override
-    public Coder<Message> getDefaultOutputCoder() {
+    public Coder<Message> getOutputCoder() {
       return new AmqpMessageCoder();
     }
 

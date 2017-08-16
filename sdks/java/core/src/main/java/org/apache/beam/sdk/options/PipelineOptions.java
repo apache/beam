@@ -176,7 +176,12 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Serialization Of PipelineOptions</h2>
  *
- * {@link PipelineRunner}s require support for options to be serialized. Each property
+ * {@link PipelineOptions} is intentionally <i>not</i> marked {@link java.io.Serializable}, in order
+ * to discourage pipeline authors from capturing {@link PipelineOptions} at pipeline construction
+ * time, because a pipeline may be saved as a template and run with a different set of options
+ * than the ones it was constructed with. See {@link Pipeline#run(PipelineOptions)}.
+ *
+ * <p>However, {@link PipelineRunner}s require support for options to be serialized. Each property
  * within {@link PipelineOptions} must be able to be serialized using Jackson's
  * {@link ObjectMapper} or the getter method for the property annotated with
  * {@link JsonIgnore @JsonIgnore}.

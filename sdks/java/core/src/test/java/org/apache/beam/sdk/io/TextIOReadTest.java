@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.io.TextIO.CompressionType.DEFLATE;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.GZIP;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
+import static org.apache.beam.sdk.transforms.Watch.Growth.afterTimeSinceNewOutput;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -63,6 +64,7 @@ import java.util.zip.ZipOutputStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -70,6 +72,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -78,6 +81,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -94,6 +98,7 @@ public class TextIOReadTest {
   private static final List<String> TINY =
       Arrays.asList("Irritable eagle", "Optimistic jay", "Fanciful hawk");
   private static final List<String> LARGE = makeLines(1000);
+  private static int uniquifier = 0;
 
   private static Path tempFolder;
   private static File emptyTxt;
@@ -289,24 +294,40 @@ public class TextIOReadTest {
   }
 
   /**
-   * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType) and
-   * TextIO.readAll().withCompressionType(compressionType) applied to the single filename,
-   * and asserts that the results match the given expected output.
+   * Helper method that runs a variety of ways to read a single file using TextIO
+   * and checks that they all match the given expected output.
+   *
+   * <p>The transforms being verified are:
+   * <ul>
+   *   <li>TextIO.read().from(filename).withCompressionType(compressionType)
+   *   <li>TextIO.read().from(filename).withCompressionType(compressionType)
+   *     .withHintMatchesManyFiles()
+   *   <li>TextIO.readAll().withCompressionType(compressionType)
+   * </ul> and
    */
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, List<String> expected) {
 
+    int thisUniquifier = ++uniquifier;
+
     TextIO.Read read = TextIO.read().from(file.getPath()).withCompressionType(compressionType);
-    PAssert.that(p.apply("Read_" + file + "_" + compressionType.toString(), read))
+
+    PAssert.that(
+            p.apply("Read_" + file + "_" + compressionType.toString() + "_" + thisUniquifier, read))
+        .containsInAnyOrder(expected);
+
+    PAssert.that(
+            p.apply(
+                "Read_" + file + "_" + compressionType.toString() + "_many" + "_" + thisUniquifier,
+                read.withHintMatchesManyFiles()))
         .containsInAnyOrder(expected);
 
     TextIO.ReadAll readAll =
         TextIO.readAll().withCompressionType(compressionType).withDesiredBundleSizeBytes(10);
     PAssert.that(
-            p.apply("Create_" + file, Create.of(file.getPath()))
-                .apply("Read_" + compressionType.toString(), readAll))
+            p.apply("Create_" + file + "_" + thisUniquifier, Create.of(file.getPath()))
+                .apply("Read_" + compressionType.toString() + "_" + thisUniquifier, readAll))
         .containsInAnyOrder(expected);
-    p.run();
   }
 
   /** Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n). */
@@ -324,6 +345,7 @@ public class TextIOReadTest {
   public void testSmallCompressedGzipReadNoExtension() throws Exception {
     File smallGzNoExtension = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
     assertReadingCompressedFileMatchesExpected(smallGzNoExtension, GZIP, TINY);
+    p.run();
   }
 
   /**
@@ -340,6 +362,7 @@ public class TextIOReadTest {
     assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, GZIP, TINY);
     // Should also work with AUTO mode set.
     assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, AUTO, TINY);
+    p.run();
   }
 
   /** Tests reading from a small, bzip2ed file with no .bz2 extension but BZIP2 compression set. */
@@ -348,6 +371,7 @@ public class TextIOReadTest {
   public void testSmallCompressedBzip2ReadNoExtension() throws Exception {
     File smallBz2NoExtension = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
     assertReadingCompressedFileMatchesExpected(smallBz2NoExtension, BZIP2, TINY);
+    p.run();
   }
 
   /**
@@ -393,6 +417,7 @@ public class TextIOReadTest {
       assertReadingCompressedFileMatchesExpected(tinyTxt, type, TINY);
       assertReadingCompressedFileMatchesExpected(largeTxt, type, LARGE);
     }
+    p.run();
   }
 
   @Test
@@ -411,6 +436,7 @@ public class TextIOReadTest {
     // GZIP files with non-gz extension should work in GZIP mode.
     File gzFile = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
     assertReadingCompressedFileMatchesExpected(gzFile, GZIP, TINY);
+    p.run();
   }
 
   @Test
@@ -429,6 +455,7 @@ public class TextIOReadTest {
     // BZ2 files with non-bz2 extension should work in BZIP2 mode.
     File bz2File = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
     assertReadingCompressedFileMatchesExpected(bz2File, BZIP2, TINY);
+    p.run();
   }
 
   @Test
@@ -447,6 +474,7 @@ public class TextIOReadTest {
     // Zip files with non-zip extension should work in ZIP mode.
     File zipFile = writeToFile(TINY, "tiny_zip_no_extension", ZIP);
     assertReadingCompressedFileMatchesExpected(zipFile, ZIP, TINY);
+    p.run();
   }
 
   @Test
@@ -465,6 +493,7 @@ public class TextIOReadTest {
     // Deflate files with non-deflate extension should work in DEFLATE mode.
     File deflateFile = writeToFile(TINY, "tiny_deflate_no_extension", DEFLATE);
     assertReadingCompressedFileMatchesExpected(deflateFile, DEFLATE, TINY);
+    p.run();
   }
 
   /**
@@ -476,6 +505,7 @@ public class TextIOReadTest {
   public void testZipCompressedReadWithNoEntries() throws Exception {
     String filename = createZipFile(new ArrayList<String>(), "empty zip file");
     assertReadingCompressedFileMatchesExpected(new File(filename), CompressionType.ZIP, EMPTY);
+    p.run();
   }
 
   /**
@@ -493,6 +523,7 @@ public class TextIOReadTest {
 
     String filename = createZipFile(expected, "multiple entries", entry0, entry1, entry2);
     assertReadingCompressedFileMatchesExpected(new File(filename), CompressionType.ZIP, expected);
+    p.run();
   }
 
   /**
@@ -513,6 +544,7 @@ public class TextIOReadTest {
 
     assertReadingCompressedFileMatchesExpected(
         new File(filename), CompressionType.ZIP, Arrays.asList("cat", "dog"));
+    p.run();
   }
 
   @Test
@@ -759,7 +791,8 @@ public class TextIOReadTest {
   private TextSource prepareSource(byte[] data) throws IOException {
     Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
     Files.write(path, data);
-    return new TextSource(ValueProvider.StaticValueProvider.of(path.toString()));
+    return new TextSource(
+        ValueProvider.StaticValueProvider.of(path.toString()), EmptyMatchTreatment.DISALLOW);
   }
 
   @Test
@@ -843,5 +876,52 @@ public class TextIOReadTest {
             .apply(TextIO.readAll().withCompressionType(AUTO));
     PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
     p.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesSplittableParDo.class})
+  public void testReadWatchForNewFiles() throws IOException, InterruptedException {
+    final Path basePath = tempFolder.resolve("readWatch");
+    basePath.toFile().mkdir();
+    PCollection<String> lines =
+        p.apply(
+            TextIO.read()
+                .from(basePath.resolve("*").toString())
+                // Make sure that compression type propagates into readAll()
+                .withCompressionType(ZIP)
+                .watchForNewFiles(
+                    Duration.millis(100), afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+
+    Thread writer =
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+              writeToFile(
+                  Arrays.asList("a.1", "a.2"),
+                  basePath.resolve("fileA").toString(),
+                  CompressionType.ZIP);
+              Thread.sleep(300);
+              writeToFile(
+                  Arrays.asList("b.1", "b.2"),
+                  basePath.resolve("fileB").toString(),
+                  CompressionType.ZIP);
+              Thread.sleep(300);
+              writeToFile(
+                  Arrays.asList("c.1", "c.2"),
+                  basePath.resolve("fileC").toString(),
+                  CompressionType.ZIP);
+            } catch (IOException | InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        };
+    writer.start();
+
+    PAssert.that(lines).containsInAnyOrder("a.1", "a.2", "b.1", "b.2", "c.1", "c.2");
+    p.run();
+
+    writer.join();
   }
 }

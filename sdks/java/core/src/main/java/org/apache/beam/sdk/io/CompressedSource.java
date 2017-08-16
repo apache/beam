@@ -146,7 +146,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
           throws IOException {
         return Channels.newChannel(
-            new BZip2CompressorInputStream(Channels.newInputStream(channel)));
+            new BZip2CompressorInputStream(Channels.newInputStream(channel), true));
       }
     },
 
@@ -404,11 +404,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   }
 
   /**
-   * Returns the delegate source's default output coder.
+   * Returns the delegate source's output coder.
    */
   @Override
-  public final Coder<T> getDefaultOutputCoder() {
-    return sourceDelegate.getDefaultOutputCoder();
+  public final Coder<T> getOutputCoder() {
+    return sourceDelegate.getOutputCoder();
   }
 
   public final DecompressingChannelFactory getChannelFactory() {

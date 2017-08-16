@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -45,7 +45,7 @@ public class MaxTest {
 
   @Test
   public void testMaxIntegerFn() {
-    checkCombineFn(
+    testCombineFn(
         Max.ofIntegers(),
         Lists.newArrayList(1, 2, 3, 4),
         4);
@@ -53,7 +53,7 @@ public class MaxTest {
 
   @Test
   public void testMaxLongFn() {
-    checkCombineFn(
+    testCombineFn(
         Max.ofLongs(),
         Lists.newArrayList(1L, 2L, 3L, 4L),
         4L);
@@ -61,7 +61,7 @@ public class MaxTest {
 
   @Test
   public void testMaxDoubleFn() {
-    checkCombineFn(
+    testCombineFn(
         Max.ofDoubles(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         4.0);

@@ -32,15 +32,11 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,10 +49,11 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.dataflow.util.CloudObjects;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -74,28 +71,23 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class BeamFnDataWriteRunnerTest {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.getDefaultInstance()).build();
   private static final RunnerApi.FunctionSpec FUNCTION_SPEC = RunnerApi.FunctionSpec.newBuilder()
-      .setParameter(Any.pack(PORT_SPEC)).build();
+      .setPayload(PORT_SPEC.toByteString()).build();
   private static final String CODER_ID = "string-coder-id";
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final RunnerApi.Coder CODER_SPEC;
+  private static final RunnerApi.Components COMPONENTS;
   private static final String URN = "urn:org.apache.beam:sink:runner:0.1";
 
   static {
     try {
-      CODER_SPEC = RunnerApi.Coder.newBuilder().setSpec(
-          RunnerApi.SdkFunctionSpec.newBuilder().setSpec(
-              RunnerApi.FunctionSpec.newBuilder().setParameter(
-                  Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-                      OBJECT_MAPPER.writeValueAsBytes(CloudObjects.asCloudObject(CODER))))
-                      .build()))
-                  .build())
-              .build())
-          .build();
+      MessageWithComponents coderAndComponents = CoderTranslation.toProto(CODER);
+      CODER_SPEC = coderAndComponents.getCoder();
+      COMPONENTS =
+          coderAndComponents.getComponents().toBuilder().putCoders(CODER_ID, CODER_SPEC).build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -124,7 +116,7 @@ public class BeamFnDataWriteRunnerTest {
 
     RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
         .setUrn("urn:org.apache.beam:sink:runner:0.1")
-        .setParameter(Any.pack(PORT_SPEC))
+        .setPayload(PORT_SPEC.toByteString())
         .build();
 
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
@@ -140,7 +132,7 @@ public class BeamFnDataWriteRunnerTest {
         Suppliers.ofInstance(bundleId)::get,
         ImmutableMap.of("inputPC",
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
-        ImmutableMap.of(CODER_ID, CODER_SPEC),
+        COMPONENTS.getCodersMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
@@ -201,6 +193,7 @@ public class BeamFnDataWriteRunnerTest {
         bundleId::get,
         OUTPUT_TARGET,
         CODER_SPEC,
+        COMPONENTS.getCodersMap(),
         mockBeamFnDataClient);
 
     // Process for bundle id 0

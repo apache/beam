@@ -61,10 +61,28 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    */
   public abstract void validate();
 
-  /**
-   * Returns the default {@code Coder} to use for the data read from this source.
-   */
-  public abstract Coder<T> getDefaultOutputCoder();
+  /** @deprecated Override {@link #getOutputCoder()} instead. */
+  @Deprecated
+  public Coder<T> getDefaultOutputCoder() {
+    // If the subclass doesn't override getDefaultOutputCoder(), hopefully it overrides the proper
+    // version - getOutputCoder(). Check that it does, before calling the method (if subclass
+    // doesn't override it, we'll call the default implementation and get infinite recursion).
+    try {
+      if (getClass().getMethod("getOutputCoder").getDeclaringClass().equals(Source.class)) {
+        throw new UnsupportedOperationException(
+            getClass() + " needs to override getOutputCoder().");
+      }
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
+    return getOutputCoder();
+  }
+
+  /** Returns the {@code Coder} to use for the data read from this source. */
+  public Coder<T> getOutputCoder() {
+    // Call the old method for compatibility.
+    return getDefaultOutputCoder();
+  }
 
   /**
    * {@inheritDoc}

@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.DisplayData;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -49,7 +50,9 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new ParDoSingle<>(transform.getTransform()));
+        new ParDoSingle<>(
+            transform.getTransform(),
+            PTransformReplacements.getSingletonMainOutput(transform).getCoder()));
   }
 
   /**
@@ -58,15 +61,18 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
   public static class ParDoSingle<InputT, OutputT>
       extends ForwardingPTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     private final ParDo.SingleOutput<InputT, OutputT> original;
+    private final Coder<OutputT> outputCoder;
 
-    private ParDoSingle(ParDo.SingleOutput<InputT, OutputT> original) {
+    private ParDoSingle(SingleOutput<InputT, OutputT> original, Coder<OutputT> outputCoder) {
       this.original = original;
+      this.outputCoder = outputCoder;
     }
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(),
+          outputCoder);
     }
 
     public DoFn<InputT, OutputT> getFn() {

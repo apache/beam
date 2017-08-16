@@ -440,7 +440,7 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public Coder<ObjectId> getDefaultOutputCoder() {
+      public Coder<ObjectId> getOutputCoder() {
         return SerializableCoder.of(ObjectId.class);
       }
 

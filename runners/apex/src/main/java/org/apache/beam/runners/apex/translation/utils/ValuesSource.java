@@ -81,7 +81,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
+  public Coder<T> getOutputCoder() {
     return iterableCoder.getElemCoder();
   }
 

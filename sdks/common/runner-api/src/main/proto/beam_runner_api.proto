@@ -92,7 +92,9 @@ message Pipeline {
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform
+  // (Required) The ids of all PTransforms that are not contained within another PTransform.
+  // These must be in shallow topological order, so that traversing them recursively
+  // in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
@@ -286,8 +288,8 @@ message TimerSpec {
 }
 
 enum IsBounded {
-  BOUNDED = 0;
-  UNBOUNDED = 1;
+  UNBOUNDED = 0;
+  BOUNDED = 1;
 }
 
 // The payload for the primitive Read transform.
@@ -373,6 +375,8 @@ message WriteFilesPayload {
   bool windowed_writes = 3;
 
   bool runner_determined_sharding = 4;
+
+  map<string, SideInput> side_inputs = 5;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -751,9 +755,12 @@ message FunctionSpec {
   // passed as-is.
   string urn = 1;
 
+  // (Deprecated)
+  google.protobuf.Any any_param = 2;
+
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  google.protobuf.Any parameter = 2;
+  bytes payload = 3;
 }
 
 // TODO: transfer javadoc here

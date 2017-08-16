@@ -19,19 +19,21 @@
 
 
 from __future__ import absolute_import
+from functools import partial
 import logging
 
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import filebasedsink
 from apache_beam.io import iobase
+from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'WriteToText']
+__all__ = ['ReadFromText', 'ReadAllFromText', 'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -342,14 +344,88 @@ class _TextSink(filebasedsink.FileBasedSink):
       file_handle.write('\n')
 
 
-class ReadFromText(PTransform):
-  """A PTransform for reading text files.
+def _create_text_source(
+    file_pattern=None, min_bundle_size=None, compression_type=None,
+    strip_trailing_newlines=None, coder=None, skip_header_lines=None):
+  return _TextSource(
+      file_pattern=file_pattern, min_bundle_size=min_bundle_size,
+      compression_type=compression_type,
+      strip_trailing_newlines=strip_trailing_newlines,
+      coder=coder, validate=False, skip_header_lines=skip_header_lines)
+
+
+class ReadAllFromText(PTransform):
+  """A ``PTransform`` for reading a ``PCollection`` of text files.
+
+   Reads a ``PCollection`` of text files or file patterns and and produces a
+   ``PCollection`` of strings.
 
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
+  """
+
+  DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
+
+  def __init__(
+      self,
+      min_bundle_size=0,
+      desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+      compression_type=CompressionTypes.AUTO,
+      strip_trailing_newlines=True,
+      coder=coders.StrUtf8Coder(),
+      skip_header_lines=0,
+      **kwargs):
+    """Initialize the ``ReadAllFromText`` transform.
+
+    Args:
+      min_bundle_size: Minimum size of bundles that should be generated when
+        splitting this source into bundles. See ``FileBasedSource`` for more
+        details.
+      desired_bundle_size: Desired size of bundles that should be generated when
+        splitting this source into bundles. See ``FileBasedSource`` for more
+        details.
+      compression_type: Used to handle compressed input files. Typical value
+        is ``CompressionTypes.AUTO``, in which case the underlying file_path's
+        extension will be used to detect the compression.
+      strip_trailing_newlines: Indicates whether this source should remove
+        the newline char in each line it reads before decoding that line.
+      validate: flag to verify that the files exist during the pipeline
+        creation time.
+      skip_header_lines: Number of header lines to skip. Same number is skipped
+        from each source file. Must be 0 or higher. Large number of skipped
+        lines might impact performance.
+      coder: Coder used to decode each line.
+    """
+    super(ReadAllFromText, self).__init__(**kwargs)
+    source_from_file = partial(
+        _create_text_source, min_bundle_size=min_bundle_size,
+        compression_type=compression_type,
+        strip_trailing_newlines=strip_trailing_newlines, coder=coder,
+        skip_header_lines=skip_header_lines)
+    self._desired_bundle_size = desired_bundle_size
+    self._min_bundle_size = min_bundle_size
+    self._compression_type = compression_type
+    self._read_all_files = ReadAllFiles(
+        True, compression_type, desired_bundle_size, min_bundle_size,
+        source_from_file)
+
+  def expand(self, pvalue):
+    return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
+class ReadFromText(PTransform):
+  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading text
+  files.
+
+  Parses a text file as newline-delimited elements, by default assuming
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.
+
+  This implementation only supports reading text encoded using ``UTF-8`` or
+  ``ASCII``.
+  This does not support other encodings such as ``UTF-16`` or ``UTF-32``.
   """
   def __init__(
       self,
@@ -361,26 +437,28 @@ class ReadFromText(PTransform):
       validate=True,
       skip_header_lines=0,
       **kwargs):
-    """Initialize the ReadFromText transform.
+    """Initialize the :class:`ReadFromText` transform.
 
     Args:
-      file_pattern: The file path to read from as a local file path or a GCS
-        ``gs://`` path. The path can contain glob characters
-        ``(*, ?, and [...] sets)``.
-      min_bundle_size: Minimum size of bundles that should be generated when
-        splitting this source into bundles. See ``FileBasedSource`` for more
+      file_pattern (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob characters
+        (``*``, ``?``, and ``[...]`` sets).
+      min_bundle_size (int): Minimum size of bundles that should be generated
+        when splitting this source into bundles. See
+        :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more
         details.
-      compression_type: Used to handle compressed input files. Typical value
-        is CompressionTypes.AUTO, in which case the underlying file_path's
-        extension will be used to detect the compression.
-      strip_trailing_newlines: Indicates whether this source should remove
-        the newline char in each line it reads before decoding that line.
-      validate: flag to verify that the files exist during the pipeline
+      compression_type (str): Used to handle compressed input files.
+        Typical value is :attr:`CompressionTypes.AUTO
+        <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
+        underlying file_path's extension will be used to detect the compression.
+      strip_trailing_newlines (bool): Indicates whether this source should
+        remove the newline char in each line it reads before decoding that line.
+      validate (bool): flag to verify that the files exist during the pipeline
         creation time.
-      skip_header_lines: Number of header lines to skip. Same number is skipped
-        from each source file. Must be 0 or higher. Large number of skipped
-        lines might impact performance.
-      coder: Coder used to decode each line.
+      skip_header_lines (int): Number of header lines to skip. Same number is
+        skipped from each source file. Must be 0 or higher. Large number of
+        skipped lines might impact performance.
+      coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
     """
 
     super(ReadFromText, self).__init__(**kwargs)
@@ -394,49 +472,54 @@ class ReadFromText(PTransform):
 
 
 class WriteToText(PTransform):
-  """A PTransform for writing to text files."""
+  """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
+  text files."""
 
-  def __init__(self,
-               file_path_prefix,
-               file_name_suffix='',
-               append_trailing_newlines=True,
-               num_shards=0,
-               shard_name_template=None,
-               coder=coders.ToStringCoder(),
-               compression_type=CompressionTypes.AUTO,
-               header=None):
-    """Initialize a WriteToText PTransform.
+  def __init__(
+      self,
+      file_path_prefix,
+      file_name_suffix='',
+      append_trailing_newlines=True,
+      num_shards=0,
+      shard_name_template=None,
+      coder=coders.ToStringCoder(),
+      compression_type=CompressionTypes.AUTO,
+      header=None):
+    r"""Initialize a :class:`WriteToText` transform.
 
     Args:
-      file_path_prefix: The file path to write to. The files written will begin
-        with this prefix, followed by a shard identifier (see num_shards), and
-        end in a common extension, if given by file_name_suffix. In most cases,
-        only this argument is specified and num_shards, shard_name_template, and
-        file_name_suffix use default values.
-      file_name_suffix: Suffix for the files written.
-      append_trailing_newlines: indicate whether this sink should write an
-        additional newline char after writing each element.
-      num_shards: The number of files (shards) used for output. If not set, the
-        service will decide on the optimal number of shards.
+      file_path_prefix (str): The file path to write to. The files written will
+        begin with this prefix, followed by a shard identifier (see
+        **num_shards**), and end in a common extension, if given by
+        **file_name_suffix**. In most cases, only this argument is specified and
+        **num_shards**, **shard_name_template**, and **file_name_suffix** use
+        default values.
+      file_name_suffix (str): Suffix for the files written.
+      append_trailing_newlines (bool): indicate whether this sink should write
+        an additional newline char after writing each element.
+      num_shards (int): The number of files (shards) used for output.
+        If not set, the service will decide on the optimal number of shards.
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
-      shard_name_template: A template string containing placeholders for
-        the shard number and shard count. Currently only '' and
-        '-SSSSS-of-NNNNN' are patterns accepted by the service.
+      shard_name_template (str): A template string containing placeholders for
+        the shard number and shard count. Currently only ``''`` and
+        ``'-SSSSS-of-NNNNN'`` are patterns accepted by the service.
         When constructing a filename for a particular shard number, the
-        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
-        number and shard count respectively.  This argument can be '' in which
-        case it behaves as if num_shards was set to 1 and only one file will be
-        generated. The default pattern used is '-SSSSS-of-NNNNN'.
-      coder: Coder used to encode each line.
-      compression_type: Used to handle compressed output files. Typical value
-          is CompressionTypes.AUTO, in which case the final file path's
-          extension (as determined by file_path_prefix, file_name_suffix,
-          num_shards and shard_name_template) will be used to detect the
-          compression.
-      header: String to write at beginning of file as a header. If not None and
-          append_trailing_newlines is set, '\n' will be added.
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'``.
+      coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
+      compression_type (str): Used to handle compressed output files.
+        Typical value is :class:`CompressionTypes.AUTO
+        <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
+        final file path's extension (as determined by **file_path_prefix**,
+        **file_name_suffix**, **num_shards** and **shard_name_template**) will
+        be used to detect the compression.
+      header (str): String to write at beginning of file as a header.
+        If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
+        be added.
     """
 
     self._sink = _TextSink(file_path_prefix, file_name_suffix,

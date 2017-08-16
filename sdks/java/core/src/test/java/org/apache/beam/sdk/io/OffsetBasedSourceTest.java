@@ -65,7 +65,7 @@ public class OffsetBasedSourceTest {
     public void validate() {}
 
     @Override
-    public Coder<Integer> getDefaultOutputCoder() {
+    public Coder<Integer> getOutputCoder() {
       return BigEndianIntegerCoder.of();
     }
 

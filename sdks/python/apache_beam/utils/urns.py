@@ -32,11 +32,23 @@ FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1"
 SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1"
 SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1"
 
+PICKLED_DO_FN = "beam:dofn:pickled_python:v0.1"
+PICKLED_DO_FN_INFO = "beam:dofn:pickled_python_info:v0.1"
+PICKLED_COMBINE_FN = "beam:combinefn:pickled_python:v0.1"
 PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
+PARDO_TRANSFORM = "beam:ptransform:pardo:v0.1"
+GROUP_BY_KEY_TRANSFORM = "beam:ptransform:group_by_key:v0.1"
+GROUP_BY_KEY_ONLY_TRANSFORM = "beam:ptransform:group_by_key_only:v0.1"
+GROUP_ALSO_BY_WINDOW_TRANSFORM = "beam:ptransform:group_also_by_window:v0.1"
+COMBINE_PER_KEY_TRANSFORM = "beam:ptransform:combine_per_key:v0.1"
+COMBINE_GROUPED_VALUES_TRANSFORM = "beam:ptransform:combine_grouped_values:v0.1"
 FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
+READ_TRANSFORM = "beam:ptransform:read:v0.1"
 WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
+
+PICKLED_SOURCE = "beam:source:pickled_python:v0.1"
 
 
 class RunnerApiFn(object):
@@ -50,7 +62,8 @@ class RunnerApiFn(object):
   to register serialization via pickling.
   """
 
-  __metaclass__ = abc.ABCMeta
+  # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+  # __metaclass__ = abc.ABCMeta
 
   _known_urns = {}
 
@@ -107,7 +120,9 @@ class RunnerApiFn(object):
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            any_param=proto_utils.pack_Any(typed_param),
+            payload=typed_param.SerializeToString()
+            if typed_param is not None else None))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -117,5 +132,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
         context)

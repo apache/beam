@@ -212,7 +212,7 @@ public class SourceTestUtils {
       List<? extends BoundedSource<T>> sources,
       PipelineOptions options)
       throws Exception {
-    Coder<T> coder = referenceSource.getDefaultOutputCoder();
+    Coder<T> coder = referenceSource.getOutputCoder();
     List<T> referenceRecords = readFromSource(referenceSource, options);
     List<T> bundleRecords = new ArrayList<>();
     for (BoundedSource<T> source : sources) {
@@ -221,7 +221,7 @@ public class SourceTestUtils {
               + source
               + " is not compatible with Coder type for referenceSource "
               + referenceSource,
-          source.getDefaultOutputCoder(),
+          source.getOutputCoder(),
           equalTo(coder));
       List<T> elems = readFromSource(source, options);
       bundleRecords.addAll(elems);
@@ -239,7 +239,7 @@ public class SourceTestUtils {
    */
   public static <T> void assertUnstartedReaderReadsSameAsItsSource(
       BoundedSource.BoundedReader<T> reader, PipelineOptions options) throws Exception {
-    Coder<T> coder = reader.getCurrentSource().getDefaultOutputCoder();
+    Coder<T> coder = reader.getCurrentSource().getOutputCoder();
     List<T> expected = readFromUnstartedReader(reader);
     List<T> actual = readFromSource(reader.getCurrentSource(), options);
     List<ReadableStructuralValue<T>> expectedStructural = createStructuralValues(coder, expected);
@@ -415,7 +415,7 @@ public class SourceTestUtils {
               source,
               primary,
               residual);
-      Coder<T> coder = primary.getDefaultOutputCoder();
+      Coder<T> coder = primary.getOutputCoder();
       List<ReadableStructuralValue<T>> primaryValues =
           createStructuralValues(coder, primaryItems);
       List<ReadableStructuralValue<T>> currentValues =
@@ -728,8 +728,8 @@ public class SourceTestUtils {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
-      return boundedSource.getDefaultOutputCoder();
+    public Coder<T> getOutputCoder() {
+      return boundedSource.getOutputCoder();
     }
 
     private static class UnsplittableReader<T> extends BoundedReader<T> {

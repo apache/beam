@@ -207,9 +207,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public PCollection<T> expand(PBegin input) {
         runner.setClockSupplier(new TestClockSupplier());
-        return PCollection.<T>createPrimitiveOutputInternal(
-                input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-            .setCoder(original.getValueCoder());
+        return PCollection.createPrimitiveOutputInternal(
+            input.getPipeline(),
+            WindowingStrategy.globalDefault(),
+            IsBounded.UNBOUNDED,
+            original.getValueCoder());
       }
 
       @Override

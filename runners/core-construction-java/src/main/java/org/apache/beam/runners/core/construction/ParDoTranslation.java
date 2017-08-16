@@ -29,9 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
@@ -122,7 +120,7 @@ public class ParDoTranslation {
       ParDoPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(PAR_DO_TRANSFORM_URN)
-          .setParameter(Any.pack(payload))
+          .setPayload(payload.toByteString())
           .build();
     }
 
@@ -240,7 +238,7 @@ public class ParDoTranslation {
     RunnerApi.PTransform protoTransform =
         PTransformTranslation.toProto(application, SdkComponents.create());
 
-    ParDoPayload payload = protoTransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    ParDoPayload payload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
     TupleTag<?> mainOutputTag = getMainOutputTag(payload);
     Set<String> outputTags =
         Sets.difference(
@@ -259,9 +257,11 @@ public class ParDoTranslation {
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.PTransform parDoProto =
         PTransformTranslation.toProto(application, sdkComponents);
-    ParDoPayload payload = parDoProto.getSpec().getParameter().unpack(ParDoPayload.class);
+    ParDoPayload payload = ParDoPayload.parseFrom(parDoProto.getSpec().getPayload());
 
     List<PCollectionView<?>> views = new ArrayList<>();
+    RehydratedComponents components =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
     for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
       String sideInputTag = sideInputEntry.getKey();
       RunnerApi.SideInput sideInput = sideInputEntry.getValue();
@@ -276,7 +276,7 @@ public class ParDoTranslation {
               sideInputTag,
               originalPCollection,
               parDoProto,
-              sdkComponents.toComponents()));
+              components));
     }
     return views;
   }
@@ -287,7 +287,7 @@ public class ParDoTranslation {
         ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
-    ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());
     String mainInputId =
         Iterables.getOnlyElement(
             Sets.difference(
@@ -353,18 +353,13 @@ public class ParDoTranslation {
   }
 
   @VisibleForTesting
-  static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RunnerApi.Components components)
+  static StateSpec<?> fromProto(RunnerApi.StateSpec stateSpec, RehydratedComponents components)
       throws IOException {
     switch (stateSpec.getSpecCase()) {
       case VALUE_SPEC:
-        return StateSpecs.value(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getValueSpec().getCoderId()), components));
+        return StateSpecs.value(components.getCoder(stateSpec.getValueSpec().getCoderId()));
       case BAG_SPEC:
-        return StateSpecs.bag(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getBagSpec().getElementCoderId()),
-                components));
+        return StateSpecs.bag(components.getCoder(stateSpec.getBagSpec().getElementCoderId()));
       case COMBINING_SPEC:
         FunctionSpec combineFnSpec = stateSpec.getCombiningSpec().getCombineFn().getSpec();
 
@@ -380,32 +375,22 @@ public class ParDoTranslation {
         Combine.CombineFn<?, ?, ?> combineFn =
             (Combine.CombineFn<?, ?, ?>)
                 SerializableUtils.deserializeFromByteArray(
-                    combineFnSpec.getParameter().unpack(BytesValue.class).toByteArray(),
+                    combineFnSpec.getPayload().toByteArray(),
                     Combine.CombineFn.class.getSimpleName());
 
         // Rawtype coder cast because it is required to be a valid accumulator coder
         // for the CombineFn, by construction
         return StateSpecs.combining(
-            (Coder)
-                CoderTranslation.fromProto(
-                    components
-                        .getCodersMap()
-                        .get(stateSpec.getCombiningSpec().getAccumulatorCoderId()),
-                    components),
+            (Coder) components.getCoder(stateSpec.getCombiningSpec().getAccumulatorCoderId()),
             combineFn);
 
       case MAP_SPEC:
         return StateSpecs.map(
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(stateSpec.getMapSpec().getKeyCoderId()), components),
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(stateSpec.getMapSpec().getValueCoderId()), components));
+            components.getCoder(stateSpec.getMapSpec().getKeyCoderId()),
+            components.getCoder(stateSpec.getMapSpec().getValueCoderId()));
 
       case SET_SPEC:
-        return StateSpecs.set(
-            CoderTranslation.fromProto(
-                components.getCodersMap().get(stateSpec.getSetSpec().getElementCoderId()),
-                components));
+        return StateSpecs.set(components.getCoder(stateSpec.getSetSpec().getElementCoderId()));
 
       case SPEC_NOT_SET:
       default:
@@ -456,14 +441,10 @@ public class ParDoTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_DO_FN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(
-                                        DoFnAndMainOutput.of(fn, tag))))
-                            .build())))
+                .setPayload(
+                    ByteString.copyFrom(
+                        SerializableUtils.serializeToByteArray(DoFnAndMainOutput.of(fn, tag))))
+                .build())
         .build();
   }
 
@@ -471,7 +452,7 @@ public class ParDoTranslation {
       throws InvalidProtocolBufferException {
     checkArgument(fnSpec.getSpec().getUrn().equals(CUSTOM_JAVA_DO_FN_URN));
     byte[] serializedFn =
-        fnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray();
+        fnSpec.getSpec().getPayload().toByteArray();
     return (DoFnAndMainOutput)
         SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn And Main Output tag");
   }
@@ -497,7 +478,7 @@ public class ParDoTranslation {
         });
   }
 
-  private static SideInput toProto(PCollectionView<?> view) {
+  public static SideInput toProto(PCollectionView<?> view) {
     Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder()
@@ -517,7 +498,7 @@ public class ParDoTranslation {
       String localName,
       PCollection<?> pCollection,
       RunnerApi.PTransform parDoTransform,
-      Components components)
+      RehydratedComponents components)
       throws IOException {
     checkArgument(
         localName != null,
@@ -527,20 +508,13 @@ public class ParDoTranslation {
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
 
-    RunnerApi.PCollection inputCollection =
-        components.getPcollectionsOrThrow(parDoTransform.getInputsOrThrow(localName));
-    WindowingStrategy<?, ?> windowingStrategy =
-        WindowingStrategyTranslation.fromProto(
-            components.getWindowingStrategiesOrThrow(inputCollection.getWindowingStrategyId()),
-            components);
-    Coder<?> elemCoder =
-        CoderTranslation
-            .fromProto(components.getCodersOrThrow(inputCollection.getCoderId()), components);
+    WindowingStrategy<?, ?> windowingStrategy = pCollection.getWindowingStrategy().fixDefaults();
     Coder<Iterable<WindowedValue<?>>> coder =
         (Coder)
             IterableCoder.of(
                 FullWindowedValueCoder.of(
-                    elemCoder, windowingStrategy.getWindowFn().windowCoder()));
+                    pCollection.getCoder(),
+                    pCollection.getWindowingStrategy().getWindowFn().windowCoder()));
     checkArgument(
         sideInput.getAccessPattern().getUrn().equals(Materializations.ITERABLE_MATERIALIZATION_URN),
         "Unknown View Materialization URN %s",
@@ -562,22 +536,17 @@ public class ParDoTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_VIEW_FN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(SerializableUtils.serializeToByteArray(viewFn)))
-                            .build())))
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(viewFn)))
+                .build())
         .build();
   }
 
   private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    return PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create())
-        .getSpec()
-        .getParameter()
-        .unpack(ParDoPayload.class);
+    RunnerApi.PTransform parDoPTransform =
+        PTransformTranslation.toProto(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create());
+    return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
   }
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
@@ -600,7 +569,7 @@ public class ParDoTranslation {
         spec.getUrn());
     return (ViewFn<?, ?>)
         SerializableUtils.deserializeFromByteArray(
-            spec.getParameter().unpack(BytesValue.class).getValue().toByteArray(), "Custom ViewFn");
+            spec.getPayload().toByteArray(), "Custom ViewFn");
   }
 
   private static SdkFunctionSpec toProto(WindowMappingFn<?> windowMappingFn) {
@@ -608,13 +577,9 @@ public class ParDoTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_WINDOW_MAPPING_FN_URN)
-                .setParameter(
-                    Any.pack(
-                        BytesValue.newBuilder()
-                            .setValue(
-                                ByteString.copyFrom(
-                                    SerializableUtils.serializeToByteArray(windowMappingFn)))
-                            .build())))
+                .setPayload(
+                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowMappingFn)))
+                .build())
         .build();
   }
 
@@ -628,7 +593,6 @@ public class ParDoTranslation {
         spec.getUrn());
     return (WindowMappingFn<?>)
         SerializableUtils.deserializeFromByteArray(
-            spec.getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-            "Custom WinodwMappingFn");
+            spec.getPayload().toByteArray(), "Custom WinodwMappingFn");
   }
 }

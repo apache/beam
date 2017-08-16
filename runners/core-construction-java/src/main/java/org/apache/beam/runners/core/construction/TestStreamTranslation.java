@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -63,13 +62,10 @@ public class TestStreamTranslation {
   }
 
   private static TestStream<?> fromProto(
-      RunnerApi.TestStreamPayload testStreamPayload, RunnerApi.Components components)
+      RunnerApi.TestStreamPayload testStreamPayload, RehydratedComponents components)
       throws IOException {
 
-    Coder<Object> coder =
-        (Coder<Object>)
-            CoderTranslation.fromProto(
-                components.getCodersOrThrow(testStreamPayload.getCoderId()), components);
+    Coder<Object> coder = (Coder<Object>) components.getCoder(testStreamPayload.getCoderId());
 
     List<TestStream.Event<Object>> events = new ArrayList<>();
 
@@ -99,9 +95,11 @@ public class TestStreamTranslation {
         TestStream.class.getSimpleName(),
         transformProto.getSpec().getUrn());
     RunnerApi.TestStreamPayload testStreamPayload =
-        transformProto.getSpec().getParameter().unpack(RunnerApi.TestStreamPayload.class);
+        RunnerApi.TestStreamPayload.parseFrom(transformProto.getSpec().getPayload());
 
-    return (TestStream<T>) fromProto(testStreamPayload, sdkComponents.toComponents());
+    return (TestStream<T>)
+        fromProto(
+            testStreamPayload, RehydratedComponents.forComponents(sdkComponents.toComponents()));
   }
 
   static <T> RunnerApi.TestStreamPayload.Event toProto(TestStream.Event<T> event, Coder<T> coder)
@@ -186,7 +184,7 @@ public class TestStreamTranslation {
         throws IOException {
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(Any.pack(testStreamToPayload(transform.getTransform(), components)))
+          .setPayload(testStreamToPayload(transform.getTransform(), components).toByteString())
           .build();
     }
   }

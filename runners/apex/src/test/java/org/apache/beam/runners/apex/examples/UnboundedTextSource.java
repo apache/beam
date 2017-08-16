@@ -59,7 +59,7 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
   }
 
   @Override
-  public Coder<String> getDefaultOutputCoder() {
+  public Coder<String> getOutputCoder() {
     return StringUtf8Coder.of();
   }
 

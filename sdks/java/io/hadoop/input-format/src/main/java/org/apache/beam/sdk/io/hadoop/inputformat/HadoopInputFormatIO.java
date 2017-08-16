@@ -552,7 +552,7 @@ public class HadoopInputFormatIO {
     }
 
     @Override
-    public Coder<KV<K, V>> getDefaultOutputCoder() {
+    public Coder<KV<K, V>> getOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
     }
 

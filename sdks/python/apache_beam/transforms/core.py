@@ -23,9 +23,13 @@ import copy
 import inspect
 import types
 
+from google.protobuf import wrappers_pb2
+
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam import coders
 from apache_beam.coders import typecoders
+from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
@@ -49,6 +53,7 @@ from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 from apache_beam.options.pipeline_options import TypeOptions
 
@@ -135,7 +140,7 @@ class DoFnProcessContext(DoFnContext):
       self.windows = windowed_value.windows
 
 
-class DoFn(WithTypeHints, HasDisplayData):
+class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
   The ParDo transform is such a transform. The ParDo.apply
@@ -235,6 +240,8 @@ class DoFn(WithTypeHints, HasDisplayData):
       return False # Method is a classmethod
     return True
 
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_DO_FN)
+
 
 def _fn_takes_side_inputs(fn):
   try:
@@ -311,7 +318,7 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
 
-class CombineFn(WithTypeHints, HasDisplayData):
+class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a Combine transform with custom processing.
 
   A CombineFn specifies how multiple values in all or part of a PCollection can
@@ -429,6 +436,11 @@ class CombineFn(WithTypeHints, HasDisplayData):
   @staticmethod
   def maybe_from_callable(fn):
     return fn if isinstance(fn, CombineFn) else CallableWrapperCombineFn(fn)
+
+  def get_accumulator_coder(self):
+    return coders.registry.get_coder(object)
+
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_COMBINE_FN)
 
 
 class CallableWrapperCombineFn(CombineFn):
@@ -589,31 +601,35 @@ class CallableWrapperPartitionFn(PartitionFn):
 
 
 class ParDo(PTransformWithSideInputs):
-  """A ParDo transform.
+  """A :class:`ParDo` transform.
 
-  Processes an input PCollection by applying a DoFn to each element and
-  returning the accumulated results into an output PCollection. The type of the
-  elements is not fixed as long as the DoFn can deal with it. In reality
-  the type is restrained to some extent because the elements sometimes must be
-  persisted to external storage. See the expand() method comments for a detailed
-  description of all possible arguments.
+  Processes an input :class:`~apache_beam.pvalue.PCollection` by applying a
+  :class:`DoFn` to each element and returning the accumulated results into an
+  output :class:`~apache_beam.pvalue.PCollection`. The type of the elements is
+  not fixed as long as the :class:`DoFn` can deal with it. In reality the type
+  is restrained to some extent because the elements sometimes must be persisted
+  to external storage. See the :meth:`.expand()` method comments for a
+  detailed description of all possible arguments.
 
-  Note that the DoFn must return an iterable for each element of the input
-  PCollection.  An easy way to do this is to use the yield keyword in the
-  process method.
+  Note that the :class:`DoFn` must return an iterable for each element of the
+  input :class:`~apache_beam.pvalue.PCollection`. An easy way to do this is to
+  use the ``yield`` keyword in the process method.
 
   Args:
-      pcoll: a PCollection to be processed.
-      fn: a DoFn object to be applied to each element of pcoll argument.
-      *args: positional arguments passed to the dofn object.
-      **kwargs:  keyword arguments passed to the dofn object.
+    pcoll (~apache_beam.pvalue.PCollection):
+      a :class:`~apache_beam.pvalue.PCollection` to be processed.
+    fn (DoFn): a :class:`DoFn` object to be applied to each element
+      of **pcoll** argument.
+    *args: positional arguments passed to the :class:`DoFn` object.
+    **kwargs:  keyword arguments passed to the :class:`DoFn` object.
 
   Note that the positional and keyword arguments will be processed in order
-  to detect PCollections that will be computed as side inputs to the
-  transform. During pipeline execution whenever the DoFn object gets executed
-  (its apply() method gets called) the PCollection arguments will be replaced
-  by values from the PCollection in the exact positions where they appear in
-  the argument lists.
+  to detect :class:`~apache_beam.pvalue.PCollection` s that will be computed as
+  side inputs to the transform. During pipeline execution whenever the
+  :class:`DoFn` object gets executed (its :meth:`DoFn.process()` method gets
+  called) the :class:`~apache_beam.pvalue.PCollection` arguments will be
+  replaced by values from the :class:`~apache_beam.pvalue.PCollection` in the
+  exact positions where they appear in the argument lists.
   """
 
   def __init__(self, fn, *args, **kwargs):
@@ -653,32 +669,70 @@ class ParDo(PTransformWithSideInputs):
     return pvalue.PCollection(pcoll.pipeline)
 
   def with_outputs(self, *tags, **main_kw):
-    """Returns a tagged tuple allowing access to the outputs of a ParDo.
+    """Returns a tagged tuple allowing access to the outputs of a
+    :class:`ParDo`.
 
     The resulting object supports access to the
-    PCollection associated with a tag (e.g., o.tag, o[tag]) and iterating over
-    the available tags (e.g., for tag in o: ...).
+    :class:`~apache_beam.pvalue.PCollection` associated with a tag
+    (e.g. ``o.tag``, ``o[tag]``) and iterating over the available tags
+    (e.g. ``for tag in o: ...``).
 
     Args:
       *tags: if non-empty, list of valid tags. If a list of valid tags is given,
         it will be an error to use an undeclared tag later in the pipeline.
-      **main_kw: dictionary empty or with one key 'main' defining the tag to be
-        used for the main output (which will not have a tag associated with it).
+      **main_kw: dictionary empty or with one key ``'main'`` defining the tag to
+        be used for the main output (which will not have a tag associated with
+        it).
 
     Returns:
-      An object of type DoOutputsTuple that bundles together all the outputs
-      of a ParDo transform and allows accessing the individual
-      PCollections for each output using an object.tag syntax.
+      ~apache_beam.pvalue.DoOutputsTuple: An object of type
+      :class:`~apache_beam.pvalue.DoOutputsTuple` that bundles together all
+      the outputs of a :class:`ParDo` transform and allows accessing the
+      individual :class:`~apache_beam.pvalue.PCollection` s for each output
+      using an ``object.tag`` syntax.
 
     Raises:
-      TypeError: if the self object is not a PCollection that is the result of
-        a ParDo transform.
-      ValueError: if main_kw contains any key other than 'main'.
+      ~exceptions.TypeError: if the **self** object is not a
+        :class:`~apache_beam.pvalue.PCollection` that is the result of a
+        :class:`ParDo` transform.
+      ~exceptions.ValueError: if **main_kw** contains any key other than
+        ``'main'``.
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
       raise ValueError('Unexpected keyword arguments: %s' % main_kw.keys())
     return _MultiParDo(self, tags, main_tag)
+
+  def _pardo_fn_data(self):
+    si_tags_and_types = []
+    windowing = None
+    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+
+  def to_runner_api_parameter(self, context):
+    assert self.__class__ is ParDo
+    picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
+    return (
+        urns.PARDO_TRANSFORM,
+        beam_runner_api_pb2.ParDoPayload(
+            do_fn=beam_runner_api_pb2.SdkFunctionSpec(
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=urns.PICKLED_DO_FN_INFO,
+                    any_param=proto_utils.pack_Any(
+                        wrappers_pb2.BytesValue(
+                            value=picked_pardo_fn_data)),
+                    payload=picked_pardo_fn_data))))
+
+  @PTransform.register_urn(
+      urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+  def from_runner_api_parameter(pardo_payload, context):
+    assert pardo_payload.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
+    fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
+        pardo_payload.do_fn.spec.payload)
+    if si_tags_and_types:
+      raise NotImplementedError('deferred side inputs')
+    elif windowing:
+      raise NotImplementedError('explicit windowing')
+    return ParDo(fn, *args, **kwargs)
 
 
 class _MultiParDo(PTransform):
@@ -696,24 +750,27 @@ class _MultiParDo(PTransform):
 
 
 def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
-  """FlatMap is like ParDo except it takes a callable to specify the
-  transformation.
+  """:func:`FlatMap` is like :class:`ParDo` except it takes a callable to
+  specify the transformation.
 
   The callable must return an iterable for each element of the input
-  PCollection.  The elements of these iterables will be flattened into
-  the output PCollection.
+  :class:`~apache_beam.pvalue.PCollection`. The elements of these iterables will
+  be flattened into the output :class:`~apache_beam.pvalue.PCollection`.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    A PCollection containing the Map outputs.
+    ~apache_beam.pvalue.PCollection:
+    A :class:`~apache_beam.pvalue.PCollection` containing the
+    :func:`FlatMap` outputs.
 
   Raises:
-    TypeError: If the fn passed as argument is not a callable. Typical error
-      is to pass a DoFn instance which is supported only for ParDo.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
   if not callable(fn):
@@ -727,19 +784,23 @@ def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
 
 def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
-  """Map is like FlatMap except its callable returns only a single element.
+  """:func:`Map` is like :func:`FlatMap` except its callable returns only a
+  single element.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    A PCollection containing the Map outputs.
+    ~apache_beam.pvalue.PCollection:
+    A :class:`~apache_beam.pvalue.PCollection` containing the
+    :func:`Map` outputs.
 
   Raises:
-    TypeError: If the fn passed as argument is not a callable. Typical error
-      is to pass a DoFn instance which is supported only for ParDo.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   if not callable(fn):
     raise TypeError(
@@ -772,19 +833,23 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
-  """Filter is a FlatMap with its callable filtering out elements.
+  """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
+  elements.
 
   Args:
-    fn: a callable object.
+    fn (callable): a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
   Returns:
-    A PCollection containing the Filter outputs.
+    ~apache_beam.pvalue.PCollection:
+    A :class:`~apache_beam.pvalue.PCollection` containing the
+    :func:`Filter` outputs.
 
   Raises:
-    TypeError: If the fn passed as argument is not a callable. Typical error
-      is to pass a DoFn instance which is supported only for FlatMap.
+    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+      Typical error is to pass a :class:`DoFn` instance which is supported only
+      for :class:`ParDo`.
   """
   if not callable(fn):
     raise TypeError(
@@ -816,36 +881,50 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   return pardo
 
 
-class CombineGlobally(PTransform):
-  """A CombineGlobally transform.
+def _combine_payload(combine_fn, context):
+  return beam_runner_api_pb2.CombinePayload(
+      combine_fn=combine_fn.to_runner_api(context),
+      accumulator_coder_id=context.coders.get_id(
+          combine_fn.get_accumulator_coder()))
 
-  Reduces a PCollection to a single value by progressively applying a CombineFn
-  to portions of the PCollection (and to intermediate values created thereby).
-  See documentation in CombineFn for details on the specifics on how CombineFns
-  are applied.
+
+class CombineGlobally(PTransform):
+  """A :class:`CombineGlobally` transform.
+
+  Reduces a :class:`~apache_beam.pvalue.PCollection` to a single value by
+  progressively applying a :class:`CombineFn` to portions of the
+  :class:`~apache_beam.pvalue.PCollection` (and to intermediate values created
+  thereby). See documentation in :class:`CombineFn` for details on the specifics
+  on how :class:`CombineFn` s are applied.
 
   Args:
-    pcoll: a PCollection to be reduced into a single value.
-    fn: a CombineFn object that will be called to progressively reduce the
-      PCollection into single values, or a callable suitable for wrapping
-      by CallableWrapperCombineFn.
-    *args: positional arguments passed to the CombineFn object.
-    **kwargs: keyword arguments passed to the CombineFn object.
+    pcoll (~apache_beam.pvalue.PCollection):
+      a :class:`~apache_beam.pvalue.PCollection` to be reduced into a single
+      value.
+    fn (callable): a :class:`CombineFn` object that will be called to
+      progressively reduce the :class:`~apache_beam.pvalue.PCollection` into
+      single values, or a callable suitable for wrapping by
+      :class:`~apache_beam.transforms.core.CallableWrapperCombineFn`.
+    *args: positional arguments passed to the :class:`CombineFn` object.
+    **kwargs: keyword arguments passed to the :class:`CombineFn` object.
 
   Raises:
-    TypeError: If the output type of the input PCollection is not compatible
-      with Iterable[A].
+    ~exceptions.TypeError: If the output type of the input
+      :class:`~apache_beam.pvalue.PCollection` is not compatible
+      with ``Iterable[A]``.
 
   Returns:
-    A single-element PCollection containing the main output of the Combine
-    transform.
+    ~apache_beam.pvalue.PCollection: A single-element
+    :class:`~apache_beam.pvalue.PCollection` containing the main output of
+    the :class:`CombineGlobally` transform.
 
   Note that the positional and keyword arguments will be processed in order
-  to detect PObjects that will be computed as side inputs to the transform.
-  During pipeline execution whenever the CombineFn object gets executed (i.e.,
-  any of the CombineFn methods get called), the PObject arguments will be
-  replaced by their actual value in the exact position where they appear in
-  the argument lists.
+  to detect :class:`~apache_beam.pvalue.PValue` s that will be computed as side
+  inputs to the transform.
+  During pipeline execution whenever the :class:`CombineFn` object gets executed
+  (i.e. any of the :class:`CombineFn` methods get called), the
+  :class:`~apache_beam.pvalue.PValue` arguments will be replaced by their
+  actual value in the exact position where they appear in the argument lists.
   """
   has_defaults = True
   as_view = False
@@ -973,6 +1052,17 @@ class CombinePerKey(PTransformWithSideInputs):
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
         self.fn, *args, **kwargs)
 
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.COMBINE_PER_KEY_TRANSFORM,
+        _combine_payload(self.fn, context))
+
+  @PTransform.register_urn(
+      urns.COMBINE_PER_KEY_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(combine_payload, context):
+    return CombinePerKey(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
 
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
@@ -994,6 +1084,17 @@ class CombineValues(PTransformWithSideInputs):
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
         *args, **kwargs)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.COMBINE_GROUPED_VALUES_TRANSFORM,
+        _combine_payload(self.fn, context))
+
+  @PTransform.register_urn(
+      urns.COMBINE_GROUPED_VALUES_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(combine_payload, context):
+    return CombineValues(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
 
 class CombineValuesDoFn(DoFn):
@@ -1112,6 +1213,13 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
+  def to_runner_api_parameter(self, unused_context):
+    return urns.GROUP_BY_KEY_TRANSFORM, None
+
+  @PTransform.register_urn(urns.GROUP_BY_KEY_TRANSFORM, None)
+  def from_runner_api_parameter(unused_payload, unused_context):
+    return GroupByKey()
+
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
@@ -1124,6 +1232,13 @@ class _GroupByKeyOnly(PTransform):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
+
+  def to_runner_api_parameter(self, unused_context):
+    return urns.GROUP_BY_KEY_ONLY_TRANSFORM, None
+
+  @PTransform.register_urn(urns.GROUP_BY_KEY_ONLY_TRANSFORM, None)
+  def from_runner_api_parameter(unused_payload, unused_context):
+    return _GroupByKeyOnly()
 
 
 @typehints.with_input_types(typehints.KV[K, typehints.Iterable[V]])
@@ -1138,6 +1253,18 @@ class _GroupAlsoByWindow(ParDo):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.GROUP_ALSO_BY_WINDOW_TRANSFORM,
+        wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
+            self.windowing)))
+
+  @PTransform.register_urn(
+      urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
+  def from_runner_api_parameter(payload, context):
+    return _GroupAlsoByWindow(
+        context.windowing_strategies.get_by_id(payload.value))
 
 
 class _GroupAlsoByWindowDoFn(DoFn):
@@ -1363,6 +1490,7 @@ PTransform.register_urn(
     # (Right now only WindowFn is used, but we need this to reconstitute the
     # WindowInto transform, and in the future will need it at runtime to
     # support meta-data driven triggers.)
+    # TODO(robertwb): Use a reference rather than embedding?
     beam_runner_api_pb2.WindowingStrategy,
     WindowInto.from_runner_api_parameter)
 
@@ -1402,7 +1530,10 @@ class Flatten(PTransform):
   def expand(self, pcolls):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
-    return pvalue.PCollection(self.pipeline)
+    result = pvalue.PCollection(self.pipeline)
+    result.element_type = typehints.Union[
+        tuple(pcoll.element_type for pcoll in pcolls)]
+    return result
 
   def get_windowing(self, inputs):
     if not inputs:

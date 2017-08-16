@@ -188,18 +188,31 @@ class DataflowRunner(PipelineRunner):
           if not input_type:
             input_type = typehints.Any
 
-          if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
-            if isinstance(input_type, typehints.AnyTypeConstraint):
+          def coerce_to_kv_type(element_type):
+            if isinstance(element_type, typehints.TupleHint.TupleConstraint):
+              if len(element_type.tuple_types) == 2:
+                return element_type
+              else:
+                raise ValueError(
+                    "Tuple input to GroupByKey must be have two components. "
+                    "Found %s for %s" % (element_type, pcoll))
+            elif isinstance(input_type, typehints.AnyTypeConstraint):
               # `Any` type needs to be replaced with a KV[Any, Any] to
               # force a KV coder as the main output coder for the pcollection
               # preceding a GroupByKey.
-              pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
+              return typehints.KV[typehints.Any, typehints.Any]
+            elif isinstance(element_type, typehints.UnionConstraint):
+              union_types = [
+                  coerce_to_kv_type(t) for t in element_type.union_types]
+              return typehints.KV[
+                  typehints.Union[tuple(t.tuple_types[0] for t in union_types)],
+                  typehints.Union[tuple(t.tuple_types[1] for t in union_types)]]
             else:
-              # TODO: Handle other valid types,
-              # e.g. Union[KV[str, int], KV[str, float]]
+              # TODO: Possibly handle other valid types.
               raise ValueError(
                   "Input to GroupByKey must be of Tuple or Any type. "
-                  "Found %s for %s" % (input_type, pcoll))
+                  "Found %s for %s" % (element_type, pcoll))
+          pcoll.element_type = coerce_to_kv_type(input_type)
 
     return GroupByKeyInputVisitor()
 
@@ -517,10 +530,12 @@ class DataflowRunner(PipelineRunner):
       si_labels[side_pval] = si_label
 
     # Now create the step for the ParDo transform being handled.
+    transform_name = transform_node.full_label.rsplit('/', 1)[-1]
     step = self._add_step(
         TransformNames.DO,
         transform_node.full_label + (
-            '/Do' if transform_node.side_inputs else ''),
+            '/{}'.format(transform_name)
+            if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
@@ -591,8 +606,8 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
-    accumulator_encoding = self._get_encoded_output_coder(transform_node,
-                                                          window_value=False)
+    accumulator_encoding = self._get_cloud_encoding(
+        transform_node.transform.fn.get_accumulator_coder())
     output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding

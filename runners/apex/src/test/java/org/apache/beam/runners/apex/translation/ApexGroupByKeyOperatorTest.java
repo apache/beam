@@ -59,9 +59,9 @@ public class ApexGroupByKeyOperatorTest {
 
     WindowingStrategy<?, ?> ws = WindowingStrategy.of(FixedWindows.of(
         Duration.standardSeconds(10)));
-    PCollection<KV<String, Integer>> input = PCollection.createPrimitiveOutputInternal(pipeline,
-        ws, IsBounded.BOUNDED);
-    input.setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    PCollection<KV<String, Integer>> input =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, ws, IsBounded.BOUNDED, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     ApexGroupByKeyOperator<String, Integer> operator = new ApexGroupByKeyOperator<>(options,
         input, new ApexStateInternals.ApexStateBackend()

@@ -35,8 +35,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -45,7 +43,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
@@ -172,11 +169,7 @@ public class TFRecordIO {
         }
       }
 
-      final Bounded<byte[]> read = org.apache.beam.sdk.io.Read.from(getSource());
-      PCollection<byte[]> pcol = input.getPipeline().apply("Read", read);
-      // Honor the default output coder that would have been used by this PTransform.
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -212,11 +205,6 @@ public class TFRecordIO {
               .withLabel("Validation Enabled"), true)
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
               .withLabel("File Pattern"));
-    }
-
-    @Override
-    protected Coder<byte[]> getDefaultOutputCoder() {
-      return ByteArrayCoder.of();
     }
   }
 
@@ -357,10 +345,12 @@ public class TFRecordIO {
       checkState(getOutputPrefix() != null,
           "need to set the output prefix of a TFRecordIO.Write transform");
       WriteFiles<byte[], Void, byte[]> write =
-          WriteFiles.<byte[], Void, byte[]>to(
+          WriteFiles.to(
               new TFRecordSink(
-                  getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompressionType()),
-              SerializableFunctions.<byte[]>identity());
+                  getOutputPrefix(),
+                  getShardTemplate(),
+                  getFilenameSuffix(),
+                  getCompressionType()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -389,11 +379,6 @@ public class TFRecordIO {
               .withLabel("Maximum Output Shards"), 0)
           .add(DisplayData.item("compressionType", getCompressionType().toString())
               .withLabel("Compression Type"));
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 
@@ -473,7 +458,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public Coder<byte[]> getDefaultOutputCoder() {
+    public Coder<byte[]> getOutputCoder() {
       return DEFAULT_BYTE_ARRAY_CODER;
     }
 
@@ -548,7 +533,7 @@ public class TFRecordIO {
 
   /** A {@link FileBasedSink} for TFRecord files. Produces TFRecord files. */
   @VisibleForTesting
-  static class TFRecordSink extends FileBasedSink<byte[], Void> {
+  static class TFRecordSink extends FileBasedSink<byte[], Void, byte[]> {
     @VisibleForTesting
     TFRecordSink(
         ValueProvider<ResourceId> outputPrefix,
@@ -557,7 +542,7 @@ public class TFRecordIO {
         TFRecordIO.CompressionType compressionType) {
       super(
           outputPrefix,
-          DynamicFileDestinations.constant(
+          DynamicFileDestinations.<byte[]>constant(
               DefaultFilenamePolicy.fromStandardParameters(
                   outputPrefix, shardTemplate, suffix, false)),
           writableByteChannelFactory(compressionType));
@@ -571,7 +556,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public WriteOperation<byte[], Void> createWriteOperation() {
+    public WriteOperation<Void, byte[]> createWriteOperation() {
       return new TFRecordWriteOperation(this);
     }
 
@@ -591,23 +576,23 @@ public class TFRecordIO {
     }
 
     /** A {@link WriteOperation WriteOperation} for TFRecord files. */
-    private static class TFRecordWriteOperation extends WriteOperation<byte[], Void> {
+    private static class TFRecordWriteOperation extends WriteOperation<Void, byte[]> {
       private TFRecordWriteOperation(TFRecordSink sink) {
         super(sink);
       }
 
       @Override
-      public Writer<byte[], Void> createWriter() throws Exception {
+      public Writer<Void, byte[]> createWriter() throws Exception {
         return new TFRecordWriter(this);
       }
     }
 
     /** A {@link Writer Writer} for TFRecord files. */
-    private static class TFRecordWriter extends Writer<byte[], Void> {
+    private static class TFRecordWriter extends Writer<Void, byte[]> {
       private WritableByteChannel outChannel;
       private TFRecordCodec codec;
 
-      private TFRecordWriter(WriteOperation<byte[], Void> writeOperation) {
+      private TFRecordWriter(WriteOperation<Void, byte[]> writeOperation) {
         super(writeOperation, MimeTypes.BINARY);
       }
 

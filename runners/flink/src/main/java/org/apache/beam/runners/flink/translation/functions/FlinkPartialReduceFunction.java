@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Map;
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -46,7 +46,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
-  protected final SerializedPipelineOptions serializedOptions;
+  protected final SerializablePipelineOptions serializedOptions;
 
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
@@ -59,7 +59,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     this.combineFn = combineFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
-    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
+    this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
 
   }
 
@@ -68,7 +68,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
       Iterable<WindowedValue<KV<K, InputT>>> elements,
       Collector<WindowedValue<KV<K, AccumT>>> out) throws Exception {
 
-    PipelineOptions options = serializedOptions.getPipelineOptions();
+    PipelineOptions options = serializedOptions.get();
 
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());

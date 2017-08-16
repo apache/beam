@@ -27,7 +27,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-from apache_beam.io import iobase
+from apache_beam.io import iobase, ReadAllFromText
 import apache_beam.io.source_test_utils as source_test_utils
 
 # Importing following private classes for testing.
@@ -46,6 +46,8 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from apache_beam.transforms.core import Create
 
 
 # TODO: Refactor code so all io tests are using same library
@@ -334,7 +336,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
         splits[0].source, splits[0].start_position, splits[0].stop_position,
         perform_multi_threaded_test=False)
 
-  def test_dataflow_single_file(self):
+  def test_read_from_text_single_file(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
     pipeline = TestPipeline()
@@ -342,7 +344,53 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
-  def test_dataflow_single_file_with_coder(self):
+  def test_read_all_single_file(self):
+    file_name, expected_data = write_data(5)
+    assert len(expected_data) == 5
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Create' >> Create(
+        [file_name]) |'ReadAll' >> ReadAllFromText()
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_all_many_single_files(self):
+    file_name1, expected_data1 = write_data(5)
+    assert len(expected_data1) == 5
+    file_name2, expected_data2 = write_data(10)
+    assert len(expected_data2) == 10
+    file_name3, expected_data3 = write_data(15)
+    assert len(expected_data3) == 15
+    expected_data = []
+    expected_data.extend(expected_data1)
+    expected_data.extend(expected_data2)
+    expected_data.extend(expected_data3)
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Create' >> Create(
+        [file_name1, file_name2, file_name3]) |'ReadAll' >> ReadAllFromText()
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_all_unavailable_files_ignored(self):
+    file_name1, expected_data1 = write_data(5)
+    assert len(expected_data1) == 5
+    file_name2, expected_data2 = write_data(10)
+    assert len(expected_data2) == 10
+    file_name3, expected_data3 = write_data(15)
+    assert len(expected_data3) == 15
+    file_name4 = "/unavailable_file"
+    expected_data = []
+    expected_data.extend(expected_data1)
+    expected_data.extend(expected_data2)
+    expected_data.extend(expected_data3)
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | 'Create' >> Create(
+                 [file_name1, file_name2, file_name3, file_name4])
+             |'ReadAll' >> ReadAllFromText())
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_from_text_single_file_with_coder(self):
     class DummyCoder(coders.Coder):
       def encode(self, x):
         raise ValueError
@@ -357,11 +405,38 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert_that(pcoll, equal_to([record * 2 for record in expected_data]))
     pipeline.run()
 
-  def test_dataflow_file_pattern(self):
+  def test_read_from_text_file_pattern(self):
     pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
     assert len(expected_data) == 40
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(pattern)
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_all_file_pattern(self):
+    pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
+    assert len(expected_data) == 40
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | 'Create' >> Create([pattern])
+             |'ReadAll' >> ReadAllFromText())
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_all_many_file_patterns(self):
+    pattern1, expected_data1 = write_pattern([5, 3, 12, 8, 8, 4])
+    assert len(expected_data1) == 40
+    pattern2, expected_data2 = write_pattern([3, 7, 9])
+    assert len(expected_data2) == 19
+    pattern3, expected_data3 = write_pattern([11, 20, 5, 5])
+    assert len(expected_data3) == 41
+    expected_data = []
+    expected_data.extend(expected_data1)
+    expected_data.extend(expected_data2)
+    expected_data.extend(expected_data3)
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Create' >> Create(
+        [pattern1, pattern2, pattern3]) |'ReadAll' >> ReadAllFromText()
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
@@ -401,6 +476,64 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
+  def test_read_corrupted_bzip2_fails(self):
+    _, lines = write_data(15)
+    file_name = self._create_temp_file()
+    with bz2.BZ2File(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    with open(file_name, 'wb') as f:
+      f.write('corrupt')
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        compression_type=CompressionTypes.BZIP2)
+    assert_that(pcoll, equal_to(lines))
+    with self.assertRaises(Exception):
+      pipeline.run()
+
+  def test_read_bzip2_concat(self):
+    bzip2_file_name1 = self._create_temp_file()
+    lines = ['a', 'b', 'c']
+    with bz2.BZ2File(bzip2_file_name1, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    bzip2_file_name2 = self._create_temp_file()
+    lines = ['p', 'q', 'r']
+    with bz2.BZ2File(bzip2_file_name2, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    bzip2_file_name3 = self._create_temp_file()
+    lines = ['x', 'y', 'z']
+    with bz2.BZ2File(bzip2_file_name3, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    final_bzip2_file = self._create_temp_file()
+    with open(bzip2_file_name1, 'rb') as src, open(
+        final_bzip2_file, 'wb') as dst:
+      dst.writelines(src.readlines())
+
+    with open(bzip2_file_name2, 'rb') as src, open(
+        final_bzip2_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    with open(bzip2_file_name3, 'rb') as src, open(
+        final_bzip2_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    pipeline = TestPipeline()
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        final_bzip2_file,
+        compression_type=beam.io.filesystem.CompressionTypes.BZIP2)
+
+    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+    assert_that(lines, equal_to(expected))
+    pipeline.run()
+
   def test_read_gzip(self):
     _, lines = write_data(15)
     file_name = self._create_temp_file()
@@ -412,6 +545,75 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
         file_name,
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_corrupted_gzip_fails(self):
+    _, lines = write_data(15)
+    file_name = self._create_temp_file()
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    with open(file_name, 'wb') as f:
+      f.write('corrupt')
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to(lines))
+
+    with self.assertRaises(Exception):
+      pipeline.run()
+
+  def test_read_gzip_concat(self):
+    gzip_file_name1 = self._create_temp_file()
+    lines = ['a', 'b', 'c']
+    with gzip.open(gzip_file_name1, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    gzip_file_name2 = self._create_temp_file()
+    lines = ['p', 'q', 'r']
+    with gzip.open(gzip_file_name2, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    gzip_file_name3 = self._create_temp_file()
+    lines = ['x', 'y', 'z']
+    with gzip.open(gzip_file_name3, 'wb') as dst:
+      data = '\n'.join(lines) + '\n'
+      dst.write(data)
+
+    final_gzip_file = self._create_temp_file()
+    with open(gzip_file_name1, 'rb') as src, open(final_gzip_file, 'wb') as dst:
+      dst.writelines(src.readlines())
+
+    with open(gzip_file_name2, 'rb') as src, open(final_gzip_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    with open(gzip_file_name3, 'rb') as src, open(final_gzip_file, 'ab') as dst:
+      dst.writelines(src.readlines())
+
+    pipeline = TestPipeline()
+    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+        final_gzip_file,
+        compression_type=beam.io.filesystem.CompressionTypes.GZIP)
+
+    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+    assert_that(lines, equal_to(expected))
+
+  def test_read_all_gzip(self):
+    _, lines = write_data(100)
+    file_name = self._create_temp_file()
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+    pipeline = TestPipeline()
+    pcoll = (pipeline
+             | Create([file_name])
+             | 'ReadAll' >> ReadAllFromText(
+                 compression_type=CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 

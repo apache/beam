@@ -33,23 +33,23 @@ __all__ = [
 
 
 class TestPipeline(Pipeline):
-  """TestPipeline class is used inside of Beam tests that can be configured to
-  run against pipeline runner.
+  """:class:`TestPipeline` class is used inside of Beam tests that can be
+  configured to run against pipeline runner.
 
   It has a functionality to parse arguments from command line and build pipeline
   options for tests who runs against a pipeline runner and utilizes resources
   of the pipeline runner. Those test functions are recommended to be tagged by
-  @attr("ValidatesRunner") annotation.
+  ``@attr("ValidatesRunner")`` annotation.
 
   In order to configure the test with customized pipeline options from command
-  line, system argument 'test-pipeline-options' can be used to obtains a list
-  of pipeline options. If no options specified, default value will be used.
+  line, system argument ``--test-pipeline-options`` can be used to obtains a
+  list of pipeline options. If no options specified, default value will be used.
 
   For example, use following command line to execute all ValidatesRunner tests::
 
-    python setup.py nosetests -a ValidatesRunner \
-        --test-pipeline-options="--runner=DirectRunner \
-                                 --job_name=myJobName \
+    python setup.py nosetests -a ValidatesRunner \\
+        --test-pipeline-options="--runner=DirectRunner \\
+                                 --job_name=myJobName \\
                                  --num_workers=1"
 
   For example, use assert_that for test validation::
@@ -69,21 +69,27 @@ class TestPipeline(Pipeline):
     """Initialize a pipeline object for test.
 
     Args:
-      runner: An object of type 'PipelineRunner' that will be used to execute
-        the pipeline. For registered runners, the runner name can be specified,
-        otherwise a runner object must be supplied.
-      options: A configured 'PipelineOptions' object containing arguments
-        that should be used for running the pipeline job.
-      argv: A list of arguments (such as sys.argv) to be used for building a
-        'PipelineOptions' object. This will only be used if argument 'options'
-        is None.
-      is_integration_test: True if the test is an integration test, False
-        otherwise.
-      blocking: Run method will wait until pipeline execution is completed.
+      runner (~apache_beam.runners.runner.PipelineRunner): An object of type
+        :class:`~apache_beam.runners.runner.PipelineRunner` that will be used
+        to execute the pipeline. For registered runners, the runner name can be
+        specified, otherwise a runner object must be supplied.
+      options (~apache_beam.options.pipeline_options.PipelineOptions):
+        A configured
+        :class:`~apache_beam.options.pipeline_options.PipelineOptions`
+        object containing arguments that should be used for running the
+        pipeline job.
+      argv (List[str]): A list of arguments (such as :data:`sys.argv`) to be
+        used for building a
+        :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
+        This will only be used if argument **options** is :data:`None`.
+      is_integration_test (bool): :data:`True` if the test is an integration
+        test, :data:`False` otherwise.
+      blocking (bool): Run method will wait until pipeline execution is
+        completed.
 
     Raises:
-      ValueError: if either the runner or options argument is not of the
-      expected type.
+      ~exceptions.ValueError: if either the runner or options argument is not
+        of the expected type.
     """
     self.is_integration_test = is_integration_test
     self.options_list = self._parse_test_option_args(argv)
