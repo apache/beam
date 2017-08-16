@@ -137,7 +137,7 @@ public class WholeFileIO {
   }
 
   /**
-   * A {@link PTransform} that takes a {@link PCollection} of {@link KV {@code KV<String, byte[]>}}
+   * A {@link PTransform} that takes a {@link PCollection} of {@code KV<String, byte[]>}
    * and writes each {@code byte[]} to the corresponding filename (i.e. the {@link String} of the
    * {@link KV}).
    */
@@ -217,7 +217,7 @@ public class WholeFileIO {
     }
   }
 
-  /** Implementation of {@Link #write()}. */
+  /** Implementation of {@link #write()}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<KV<String, byte[]>>, PDone> {
     private static final Logger LOG = LoggerFactory.getLogger(Write.class);
