@@ -70,6 +70,7 @@ from __future__ import absolute_import
 import argparse
 import csv
 import logging
+import sys
 import time
 from datetime import datetime
 
@@ -85,6 +86,11 @@ def str2timestamp(s, fmt='%Y-%m-%d-%H-%M'):
   dt = datetime.strptime(s, fmt)
   epoch = datetime.utcfromtimestamp(0)
   return (dt - epoch).total_seconds()
+
+
+def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
+  """Converts a unix timestamp into a formatted string."""
+  return datetime.fromtimestamp(t).strftime(fmt)
 
 
 class ParseGameEventFn(beam.DoFn):
@@ -165,8 +171,7 @@ class HourlyTeamScore(beam.PTransform):
             beam.window.FixedWindows(self.window_duration_in_seconds))
 
         # Extract and sum teamname/score pairs from the event data.
-        | 'ExtractAndSumScore' >> ExtractAndSumScore('team')
-    )
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
 
 
 class TeamScoresDict(beam.DoFn):
@@ -203,7 +208,7 @@ class WriteToBigQuery(beam.PTransform):
     self.create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     self.write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
-  def get_bigquery_schema(self):
+  def get_schema(self):
     """Build the output table schema."""
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
@@ -221,7 +226,7 @@ class WriteToBigQuery(beam.PTransform):
             lambda elem: {col: elem[col] for col in self.schema})
         | beam.io.Write(beam.io.BigQuerySink(
             table,
-            schema=self.get_bigquery_schema(),
+            schema=self.get_schema(),
             create_disposition=self.create_disposition,
             write_disposition=self.write_disposition)))
 
@@ -236,10 +241,6 @@ def run(argv=None):
                       type=str,
                       default='gs://apache-beam-samples/game/gaming_data*.csv',
                       help='Path to the data file(s) containing game data.')
-  parser.add_argument('--project',
-                      type=str,
-                      required=True,
-                      help='GCP Project ID for the output BigQuery Dataset.')
   parser.add_argument('--dataset',
                       type=str,
                       required=True,
@@ -273,12 +274,15 @@ def run(argv=None):
 
   options = PipelineOptions(pipeline_args)
 
+  # We also require the --project option to access --dataset
+  if options.view_as(GoogleCloudOptions).project == None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: argument --project is required')
+    sys.exit(1)
+
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   options.view_as(SetupOptions).save_main_session = True
-
-  # The GoogleCloudOptions require the project
-  options.view_as(GoogleCloudOptions).project = args.project
 
   schema = {
       'team': 'STRING',
@@ -292,8 +296,7 @@ def run(argv=None):
          args.start_min, args.stop_min, args.window_duration)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
      | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name, args.dataset, schema)
-    )
+         args.table_name, args.dataset, schema))
 
 
 if __name__ == '__main__':

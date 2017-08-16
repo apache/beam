@@ -17,12 +17,6 @@
 
 """Third in a series of four pipelines that tell a story in a 'gaming' domain.
 
---------------------------------------------------------------------------------
-NOTE: This example is not yet runnable by DataflowRunner. The runner still needs
-      support for:
-        * the --save_main_session flag when streaming is enabled
---------------------------------------------------------------------------------
-
 Concepts include: processing unbounded data using fixed windows; use of custom
 timestamps and event-time processing; generation of early/speculative results;
 using AccumulationMode.ACCUMULATING to do cumulative processing of late-arriving
@@ -81,8 +75,15 @@ python leader_board.py \
     --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \
-    --staging_location gs://$BUCKET/user_score/staging \
-    --temp_location gs://$BUCKET/user_score/temp
+    --temp_location gs://$BUCKET/user_score/temp \
+    --staging_location gs://$BUCKET/user_score/staging
+
+--------------------------------------------------------------------------------
+NOTE [BEAM-2354]: This example is not yet runnable by DataflowRunner.
+    The runner still needs support for:
+      * the --save_main_session flag when streaming is enabled
+        * the --save_main_session flag when streaming is enabled
+--------------------------------------------------------------------------------
 """
 
 from __future__ import absolute_import
@@ -90,7 +91,9 @@ from __future__ import absolute_import
 import argparse
 import csv
 import logging
+import sys
 import time
+from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
@@ -99,6 +102,11 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.transforms import trigger
+
+
+def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):
+  """Converts a unix timestamp into a formatted string."""
+  return datetime.fromtimestamp(t).strftime(fmt)
 
 
 class ParseGameEventFn(beam.DoFn):
@@ -180,7 +188,7 @@ class WriteToBigQuery(beam.PTransform):
     self.create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     self.write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
-  def get_bigquery_schema(self):
+  def get_schema(self):
     """Build the output table schema."""
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
@@ -198,7 +206,7 @@ class WriteToBigQuery(beam.PTransform):
             lambda elem: {col: elem[col] for col in self.schema})
         | beam.io.Write(beam.io.BigQuerySink(
             table,
-            schema=self.get_bigquery_schema(),
+            schema=self.get_schema(),
             create_disposition=self.create_disposition,
             write_disposition=self.write_disposition)))
 
@@ -228,8 +236,7 @@ class CalculateTeamScores(beam.PTransform):
                                            trigger.AfterCount(20)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum teamname/score pairs from the event data.
-        | 'ExtractAndSumScore' >> ExtractAndSumScore('team')
-    )
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
 
 
 class CalculateUserScores(beam.PTransform):
@@ -252,18 +259,13 @@ class CalculateUserScores(beam.PTransform):
             trigger=trigger.Repeatedly(trigger.AfterCount(10)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum username/score pairs from the event data.
-        | 'ExtractAndSumScore' >> ExtractAndSumScore('user')
-    )
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
 
 
 def run(argv=None):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--project',
-                      type=str,
-                      required=True,
-                      help='GCP Project ID for the output BigQuery Dataset.')
   parser.add_argument('--topic',
                       type=str,
                       required=True,
@@ -290,12 +292,15 @@ def run(argv=None):
 
   options = PipelineOptions(pipeline_args)
 
+  # We also require the --project option to access --dataset
+  if options.view_as(GoogleCloudOptions).project == None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: argument --project is required')
+    sys.exit(1)
+
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   options.view_as(SetupOptions).save_main_session = True
-
-  # The GoogleCloudOptions require the project
-  options.view_as(GoogleCloudOptions).project = args.project
 
   # Enforce that this pipeline is always run in streaming mode
   options.view_as(StandardOptions).streaming = True
@@ -308,8 +313,7 @@ def run(argv=None):
         | 'ReadPubSub' >> beam.io.gcp.pubsub.ReadStringsFromPubSub(args.topic)
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
-            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
-    )
+            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
 
     # Get team scores and write the results to BigQuery
     teams_schema = {
@@ -322,10 +326,8 @@ def run(argv=None):
      | 'CalculateTeamScores' >> CalculateTeamScores(
          args.team_window_duration, args.allowed_lateness)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
-     # Write the results to BigQuery.
      | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name + '_teams', args.dataset, teams_schema)
-    )
+         args.table_name + '_teams', args.dataset, teams_schema))
 
     # Get user scores and write the results to BigQuery
     users_schema = {
@@ -336,10 +338,8 @@ def run(argv=None):
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
      | 'FormatUserScoreSums' >> beam.Map(
          lambda (user, score): {'user': user, 'total_score': score})
-     # Write the results to BigQuery.
      | 'WriteUserScoreSums' >> WriteToBigQuery(
-         args.table_name + '_users', args.dataset, users_schema)
-    )
+         args.table_name + '_users', args.dataset, users_schema))
 
 
 if __name__ == '__main__':

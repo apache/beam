@@ -50,7 +50,6 @@ python user_score.py \
     --output gs://$BUCKET/user_score/output \
     --runner DataflowRunner \
     --project $PROJECT_ID \
-    --staging_location gs://$BUCKET/user_score/staging \
     --temp_location gs://$BUCKET/user_score/temp
 """
 
@@ -115,8 +114,7 @@ class UserScore(beam.PTransform):
         pcoll
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         # Extract and sum username/score pairs from the event data.
-        | 'ExtractAndSumScore' >> ExtractAndSumScore('user')
-    )
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
 
 
 def run(argv=None):
@@ -142,8 +140,7 @@ def run(argv=None):
      | 'UserScore' >> UserScore()
      | 'FormatUserScoreSums' >> beam.Map(
          lambda (user, score): 'user: %s, total_score: %s' % (user, score))
-     | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output)
-    )
+     | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
 
 
 if __name__ == '__main__':
