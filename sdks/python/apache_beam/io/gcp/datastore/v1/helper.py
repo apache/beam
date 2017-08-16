@@ -22,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 import errno
 from socket import error as SocketError
+import logging
 import sys
 import time
 
@@ -167,7 +168,8 @@ def is_key_valid(key):
   return key.path[-1].HasField('id') or key.path[-1].HasField('name')
 
 
-def write_mutations(datastore, project, mutations, rpc_stats_callback=None):
+def write_mutations(datastore, project, mutations, throttler,
+                    rpc_stats_callback=None, throttle_delay=1):
   """A helper function to write a batch of mutations to Cloud Datastore.
 
   If a commit fails, it will be retried upto 5 times. All mutations in the
@@ -180,8 +182,10 @@ def write_mutations(datastore, project, mutations, rpc_stats_callback=None):
     project: str, project id
     mutations: list of google.cloud.proto.datastore.v1.datastore_pb2.Mutation
     rpc_stats_callback: a function to call with arguments `successes` and
-        `failures`; this is called to record successful and failed RPCs to
-        Datastore.
+        `failures` and `throttled_secs`; this is called to record successful
+        and failed RPCs to Datastore and time spent waiting for throttling.
+    throttler: AdaptiveThrottler, to use to select requests to be throttled.
+    throttle_delay: float, time in seconds to sleep when throttled.
 
   Returns a tuple of:
     CommitResponse, the response from Datastore;
@@ -196,12 +200,20 @@ def write_mutations(datastore, project, mutations, rpc_stats_callback=None):
   @retry.with_exponential_backoff(num_retries=5,
                                   retry_filter=retry_on_rpc_error)
   def commit(request):
+    # Client-side throttling.
+    while throttler.throttle_request(time.time()*1000):
+      logging.info("Delaying request for %ds due to previous failures",
+                   throttle_delay)
+      time.sleep(throttle_delay)
+      rpc_stats_callback(throttled_secs=throttle_delay)
+
     try:
       start_time = time.time()
       response = datastore.commit(request)
       end_time = time.time()
-      rpc_stats_callback(successes=1)
 
+      rpc_stats_callback(successes=1)
+      throttler.successful_request(start_time*1000)
       commit_time_ms = int((end_time-start_time)*1000)
       return response, commit_time_ms
     except (RPCError, SocketError):
