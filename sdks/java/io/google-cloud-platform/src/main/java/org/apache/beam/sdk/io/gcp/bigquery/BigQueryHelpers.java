@@ -225,15 +225,19 @@ public class BigQueryHelpers {
   }
 
   // Create a unique job id for a table load.
-  static String createJobId(String prefix, TableDestination tableDestination, int partition) {
+  static String createJobId(String prefix, TableDestination tableDestination, int partition,
+      long index) {
     // Job ID must be different for each partition of each table.
     String destinationHash =
         Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
+    String jobId = String.format("%s_%s", prefix, destinationHash);
     if (partition >= 0) {
-      return String.format("%s_%s_%05d", prefix, destinationHash, partition);
-    } else {
-      return String.format("%s_%s", prefix, destinationHash);
+      jobId += String.format("_%05d", partition);
     }
+    if (index >= 0) {
+      jobId += String.format("_%05d", index);
+    }
+    return jobId;
   }
 
   @VisibleForTesting
