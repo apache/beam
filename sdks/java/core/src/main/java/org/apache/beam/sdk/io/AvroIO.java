@@ -57,12 +57,19 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
+ * <h2>Reading Avro files</h2>
+ *
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
- * pipeline construction time, use {@code AvroIO.read()}, using {@link AvroIO.Read#from} to specify
- * the filename or filepattern to read from. Alternatively, if the filepatterns to be read are
- * themselves in a {@link PCollection}, apply {@link #readAll}.
+ * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
+ * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
+ * PCollection}, apply {@link #readAll}. If the schema is unknown at pipeline construction time, use
+ * {@link #parseGenericRecords} or {@link #parseAllGenericRecords}.
+ *
+ * <p>Many configuration options below apply to several or all of these transforms.
  *
  * <p>See {@link FileSystems} for information on supported file systems and filepatterns.
+ *
+ * <h3>Reading records of a known schema</h3>
  *
  * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}. To read
  * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
@@ -70,6 +77,24 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link
  * #readAllGenericRecords}.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // Read Avro-generated classes from files on GCS
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("gs://my_bucket/path/to/records-*.avro"));
+ *
+ * // Read GenericRecord's of the given schema from files on GCS
+ * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
+ * PCollection<GenericRecord> records =
+ *     p.apply(AvroIO.readGenericRecords(schema)
+ *                .from("gs://my_bucket/path/to/records-*.avro"));
+ * }</pre>
+ *
+ * <h3>Reading records of an unknown schema</h3>
  *
  * <p>To read records from files whose schema is unknown at pipeline construction time or differs
  * between files, use {@link #parseGenericRecords} - in this case, you will need to specify a
@@ -82,16 +107,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple Read of a local file (only runs locally):
- * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("/path/to/file.avro"));
- *
- * // A Read from a GCS file (runs locally and using remote execution):
- * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
- * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.readGenericRecords(schema)
- *                .from("gs://my_bucket/path/to/records-*.avro"));
- *
  * PCollection<Foo> records =
  *     p.apply(AvroIO.parseGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
  *       public Foo apply(GenericRecord record) {
@@ -101,12 +116,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     }));
  * }</pre>
  *
- * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link Read#withHintMatchesManyFiles} or {@link
- * Parse#withHintMatchesManyFiles} for better performance and scalability. Note that it may decrease
- * performance if the filepattern matches only a small number of files.
- *
- * <p>Reading from a {@link PCollection} of filepatterns:
+ * <h3>Reading from a {@link PCollection} of filepatterns</h3>
  *
  * <pre>{@code
  * Pipeline p = ...;
@@ -120,6 +130,15 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     filepatterns.apply(AvroIO.parseAllGenericRecords(new SerializableFunction...);
  * }</pre>
  *
+ * <h3>Reading a very large number of files</h3>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small number
+ * of files.
+ *
+ * <h2>Writing Avro files</h2>
+ *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
  * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default {@link
  * DefaultFilenamePolicy} will use this prefix, in conjunction with a {@link ShardNameTemplate} (set
@@ -128,13 +147,11 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * default write filename policy using {@link Write#to(FileBasedSink.FilenamePolicy)} to specify a
  * custom file naming policy.
  *
- * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
- * will cause windowing and triggering to be preserved. When producing windowed writes with a
- * streaming runner that supports triggers, the number of output shards must be set explicitly using
- * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
- * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
- * and unique windows and triggers must produce unique filenames.
+ * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
+ * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
+ * overridden using {@link AvroIO.Write#withCodec}.
+ *
+ * <h3>Writing specific or generic records</h3>
  *
  * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}. To write
  * {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)} which takes
@@ -156,6 +173,18 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSuffix(".avro"));
  * }</pre>
+ *
+ * <h3>Writing windowed or unbounded data</h3>
+ *
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
+ * and unique windows and triggers must produce unique filenames.
+ *
+ * <h3>Writing data to multiple destinations</h3>
  *
  * <p>The following shows a more-complex example of AvroIO.Write usage, generating dynamic file
  * destinations as well as a dynamic Avro schema per file. In this example, a PCollection of user
@@ -201,10 +230,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvros()));
  * }</pre>
- *
- * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
- * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
- * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
   /**
