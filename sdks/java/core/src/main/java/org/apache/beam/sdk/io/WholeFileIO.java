@@ -54,19 +54,74 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Write comment on what this is and how to use it.
-// TODO: Mention that if multiple files have the same filename at write, only one will survive.
 /**
- * WholeFileIO.
+ * {@link PTransform}s for reading and writing files as {@link KV} pairs of filename {@link String}s
+ * and byte arrays.
+ *
+ * <p>To read a {@link PCollection} of one or more files as {@link KV}s, use
+ * {@code WholeFileIO.read()} to instantiate a transform and use
+ * {@link WholeFileIO.Read#from(String)} to specify the path of the file(s) to be read.</p>
+ *
+ * <p>Method {@link #read} returns a {@link PCollection} of {@code  KV<String, byte[]>}s,
+ * each corresponding to one file's filename and contents.</p>
+ *
+ * <p>The filepatterns are expanded only once.
+ *
+ * <p>Example 1: reading a file or filepattern (or file glob).
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // A Read of a local file (only runs locally):
+ * PCollection<KV<String, byte[]>> oneFile = p.apply(
+ *                                              WholeFileIO.read().from("/local/path/to/file.txt"));
+ *
+ * // A Read of local files in a directory (only runs locally):
+ * PCollection<KV<String, byte[]>> manyFiles = p.apply(
+ *                                               WholeFileIO.read().from("/local/path/to/files/*"));
+ *
+ * // A Read of local files in nested directories (only runs locally):
+ * PCollection<KV<String, byte[]>> manyFiles = p.apply(
+ *                                        WholeFileIO.read().from("/local/path/to/nested/dirs/**"));
+ * // ^ The KV's String corresponding to filename retains only the last term of the file path
+ * //   (i.e. it retains the filename and ignores intermediate directory names)
+ * }</pre>
+ *
+ * <p>To write the byte array of a {@link PCollection} of {@code KV<String, byte[]>} to an output
+ * directory with the KV's String as filename, use {@code WholeFileIO.write()} with
+ * {@link WholeFileIO.Write#to(String)} to specify the output directory of the files to write.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * // A simple Write to a local file (only runs locally):
+ * PCollection<KV<String, byte[]>> files = ...;
+ * lines.apply(WholeFileIO.write().to("/path/to/output/dir/"));
+ * }</pre>
+ *
+ * <p>Any existing files with the same names as generated output files will be overwritten.
+ * Similarly, if multiple KV's in the incoming {@link PCollection} have the same String (i.e.
+ * filename), then duplicates will be overwritten by the other such named elements of the
+ * {@link PCollection}. In other words, only one {@link KV} of a certain filename will write out
+ * successfully.
  */
 public class WholeFileIO {
 
+  /**
+   * A {@link PTransform} that reads from one or more files and returns a bounded
+   * {@link PCollection} containing one {@link KV} element for each input file.
+   */
   public static Read read() {
     return new AutoValue_WholeFileIO_Read.Builder().build();
   }
 
   // TODO: Add a readAll() like TextIO.
 
+  /**
+   * A {@link PTransform} that takes a {@link PCollection} of {@link KV {@code KV<String, byte[]>}}
+   * and writes each {@code byte[]} to the corresponding filename (i.e. the {@link String} of the
+   * {@link KV}).
+   */
   public static Write write() {
     return new AutoValue_WholeFileIO_Write.Builder().build();
   }
