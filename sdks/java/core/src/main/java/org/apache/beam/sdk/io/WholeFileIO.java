@@ -105,19 +105,14 @@ public class WholeFileIO {
           ParDo.of(
               new DoFn<MatchResult.Metadata, KV<String, byte[]>>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) {
+                public void processElement(ProcessContext c) throws IOException {
                   MatchResult.Metadata metadata = c.element();
                   ResourceId resourceId = metadata.resourceId();
 
                   try (
                       InputStream inStream = Channels.newInputStream(FileSystems.open(resourceId))
                   ) {
-                    byte[] bytes = StreamUtils.getBytes(inStream);
-                    KV<String, byte[]> kv = KV.of(resourceId.getFilename(), bytes);
-                    c.output(kv);
-                  } catch (IOException e) {
-                    // TODO: Don't do this. See PTransform style guide section on errors.
-                    e.printStackTrace();
+                    c.output(KV.of(resourceId.getFilename(), StreamUtils.getBytes(inStream)));
                   }
                 }
               }
@@ -168,7 +163,7 @@ public class WholeFileIO {
           ParDo.of(
               new DoFn<KV<String, byte[]>, Void>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) {
+                public void processElement(ProcessContext c) throws IOException {
                   KV<String, byte[]> kv = c.element();
 
                   ResourceId outputDir = getOutputDir().get();
@@ -187,9 +182,6 @@ public class WholeFileIO {
                   ) {
                     outStream.write(bytes);
                     outStream.flush();
-                  } catch (IOException e) {
-                    // TODO: Don't do this. See PTransform style guide section on errors.
-                    e.printStackTrace();
                   }
                 }
               }
