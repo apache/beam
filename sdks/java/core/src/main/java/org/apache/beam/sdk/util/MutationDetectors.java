@@ -19,9 +19,6 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 
-
-
-
 /**
  * Static methods for creating and working with {@link MutationDetector}.
  */
@@ -109,6 +106,9 @@ public class MutationDetectors {
 
     public CodedValueMutationDetector(T value, Coder<T> coder) throws CoderException {
       this.coder = coder;
+      // We need to clone the original value before getting it's structural value.
+      // If the object is consistent with equals, the Structural value will be the exact
+      // same object reference making it impossible to detect changes.
       clonedOriginalValue = CoderUtils.clone(coder, value);
       this.originalStructuralValue = coder.structuralValue(clonedOriginalValue);
       this.possiblyModifiedObject = value;
@@ -127,7 +127,7 @@ public class MutationDetectors {
     }
 
     private void verifyUnmodifiedThrowingCheckedExceptions() throws CoderException {
-      // Since there is not guarantee that cloning an object via the coder will
+      // Since there is no guarantee that cloning an object via the coder will
       // return the exact same type as value, We are cloning the possiblyModifiedObject
       // before getting it's structural value. This way we are guarantee to compare the same
       // types.
@@ -136,11 +136,7 @@ public class MutationDetectors {
       if (originalStructuralValue.equals(newStructuralValue)) {
           return;
       }
-      if (possiblyModifiedClonedValue.equals(clonedOriginalValue)){
-          return;
-      }
-
-        illegalMutation(clonedOriginalObject, possiblyModifiedClonedValue);
+      illegalMutation(clonedOriginalObject, possiblyModifiedClonedValue);
     }
 
     private void illegalMutation(T previousValue, T newValue) throws CoderException {
