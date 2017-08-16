@@ -141,6 +141,7 @@ public class BeamFnDataReadRunnerTest {
     new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         mockBeamFnDataClient,
+        null /* beamFnStateClient */,
         "pTransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,

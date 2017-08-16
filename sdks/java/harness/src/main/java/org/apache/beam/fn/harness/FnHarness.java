@@ -109,8 +109,11 @@ public class FnHarness {
       BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(
           options, channelFactory::forDescriptor, streamObserverFactory::from);
 
-      ProcessBundleHandler processBundleHandler =
-          new ProcessBundleHandler(options, fnApiRegistry::getById, beamFnDataMultiplexer);
+      ProcessBundleHandler processBundleHandler = new ProcessBundleHandler(
+          options,
+          fnApiRegistry::getById,
+          beamFnDataMultiplexer,
+          null /* beamFnStateClient */);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           fnApiRegistry::register);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,

@@ -35,6 +35,7 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -91,6 +92,7 @@ public class ProcessBundleHandlerTest {
       public Object createRunnerForPTransform(
           PipelineOptions pipelineOptions,
           BeamFnDataClient beamFnDataClient,
+          BeamFnStateClient beamFnStateClient,
           String pTransformId,
           RunnerApi.PTransform pTransform,
           Supplier<String> processBundleInstructionId,
@@ -115,6 +117,7 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
+        null /* beamFnStateClient */,
         ImmutableMap.of(
             DATA_INPUT_URN, startFinishRecorder,
             DATA_OUTPUT_URN, startFinishRecorder));
@@ -147,11 +150,13 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
+        null /* beamFnStateClient */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
               PipelineOptions pipelineOptions,
               BeamFnDataClient beamFnDataClient,
+              BeamFnStateClient beamFnStateClient,
               String pTransformId,
               RunnerApi.PTransform pTransform,
               Supplier<String> processBundleInstructionId,
@@ -185,11 +190,13 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
+        null /* beamFnStateClient */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
               PipelineOptions pipelineOptions,
               BeamFnDataClient beamFnDataClient,
+              BeamFnStateClient beamFnStateClient,
               String pTransformId,
               RunnerApi.PTransform pTransform,
               Supplier<String> processBundleInstructionId,
@@ -224,11 +231,13 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
+        null /* beamFnStateClient */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
               PipelineOptions pipelineOptions,
               BeamFnDataClient beamFnDataClient,
+              BeamFnStateClient beamFnStateClient,
               String pTransformId,
               RunnerApi.PTransform pTransform,
               Supplier<String> processBundleInstructionId,

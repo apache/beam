@@ -32,6 +32,7 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -72,6 +73,7 @@ public class BeamFnDataWriteRunner<InputT> {
     public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
         String pTransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,
