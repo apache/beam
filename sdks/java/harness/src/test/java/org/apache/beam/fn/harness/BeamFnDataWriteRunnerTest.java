@@ -127,6 +127,7 @@ public class BeamFnDataWriteRunnerTest {
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         mockBeamFnDataClient,
+        null /* beamFnStateClient */,
         "ptransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,

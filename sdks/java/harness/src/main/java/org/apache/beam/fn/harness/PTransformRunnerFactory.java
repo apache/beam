@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -40,7 +41,8 @@ public interface PTransformRunnerFactory<T> {
    * element processing, or during execution of start/finish.
    *
    * @param pipelineOptions Pipeline options
-   * @param beamFnDataClient
+   * @param beamFnDataClient A client for handling inbound and outbound data streams.
+   * @param beamFnStateClient A client for handling state requests.
    * @param pTransformId The id of the PTransform.
    * @param pTransform The PTransform definition.
    * @param processBundleInstructionId A supplier containing the active process bundle instruction
@@ -58,6 +60,7 @@ public interface PTransformRunnerFactory<T> {
   T createRunnerForPTransform(
       PipelineOptions pipelineOptions,
       BeamFnDataClient beamFnDataClient,
+      BeamFnStateClient beamFnStateClient,
       String pTransformId,
       RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,
