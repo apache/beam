@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -34,6 +35,7 @@ import com.google.common.collect.Table;
 
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -244,9 +246,41 @@ public class GuavaUtilsSerializer {
         ImmutableSetSerializer.class);
   }
 
+  /**
+   * Specific serializer of {@link Kryo} for UnmodifiableIterable.
+   */
+  public static class UnmodifiableIterableSerializer extends Serializer<Iterable<Object>> {
+
+    @Override
+    public void write(Kryo kryo, Output output, Iterable<Object> object) {
+      int size = Iterables.size(object);
+      output.writeInt(size, true);
+      for (Object elm : object) {
+        kryo.writeClassAndObject(output, elm);
+      }
+    }
+
+    @Override
+    public Iterable<Object> read(Kryo kryo, Input input, Class<Iterable<Object>> type) {
+      final int size = input.readInt(true);
+      List<Object> iterable = Lists.newArrayList();
+      for (int i = 0; i < size; ++i) {
+        iterable.add(kryo.readClassAndObject(input));
+      }
+      return Iterables.unmodifiableIterable(iterable);
+    }
+  }
+
+  private static void registerUnmodifiableIterablesSerializers(Config config) {
+    config.registerSerialization(
+        Iterables.unmodifiableIterable(Lists.newArrayList()).getClass(),
+        UnmodifiableIterableSerializer.class);
+  }
+
   public static void registerSerializers(Config config) {
     registerImmutableListSerializers(config);
     registerImmutableMapSerializers(config);
     registerImmutableSetSerializers(config);
+    registerUnmodifiableIterablesSerializers(config);
   }
 }

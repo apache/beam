@@ -24,12 +24,14 @@ import com.alibaba.jstorm.esotericsoftware.kryo.io.Input;
 import com.alibaba.jstorm.esotericsoftware.kryo.io.Output;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.HashBasedTable;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableSet;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.ImmutableTable;
+import org.apache.beam.sdk.repackaged.com.google.common.collect.Iterables;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Lists;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Maps;
 import org.apache.beam.sdk.repackaged.com.google.common.collect.Sets;
@@ -244,10 +246,42 @@ public class BeamSdkRepackUtilsSerializer {
         ImmutableSetSerializer.class);
   }
 
+  /**
+   * Specific serializer of {@link Kryo} for UnmodifiableIterable.
+   */
+  public static class UnmodifiableIterableSerializer extends Serializer<Iterable<Object>> {
+
+    @Override
+    public void write(Kryo kryo, Output output, Iterable<Object> object) {
+      int size = Iterables.size(object);
+      output.writeInt(size, true);
+      for (Object elm : object) {
+        kryo.writeClassAndObject(output, elm);
+      }
+    }
+
+    @Override
+    public Iterable<Object> read(Kryo kryo, Input input, Class<Iterable<Object>> type) {
+      final int size = input.readInt(true);
+      List<Object> iterable = Lists.newArrayList();
+      for (int i = 0; i < size; ++i) {
+        iterable.add(kryo.readClassAndObject(input));
+      }
+      return Iterables.unmodifiableIterable(iterable);
+    }
+  }
+
+  private static void registerUnmodifiableIterablesSerializers(Config config) {
+    config.registerSerialization(
+        Iterables.unmodifiableIterable(Lists.newArrayList()).getClass(),
+        UnmodifiableIterableSerializer.class);
+  }
+
   public static void registerSerializers(Config config) {
     registerImmutableListSerializers(config);
     registerImmutableMapSerializers(config);
     registerImmutableSetSerializers(config);
+    registerUnmodifiableIterablesSerializers(config);
   }
 }
 
