@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.util.MimeTypes.BINARY;
 
@@ -114,11 +115,12 @@ import org.slf4j.LoggerFactory;
  * lines.apply(WholeFileIO.write().to("/path/to/output/dir/"));
  * }</pre>
  *
- * <p>Any existing files with the same names as generated output files will be overwritten.
- * Similarly, if multiple KV's in the incoming {@link PCollection} have the same String (i.e.
- * filename), then duplicates will be overwritten by the other such named elements of the
- * {@link PCollection}. In other words, only one {@link KV} of a certain filename will write out
- * successfully.
+ * <p>Warnings: 1) Specified output directory may either not yet exist or be empty, but may not have
+ * contents prior to {@link Write}. 2) Any existing files with the same names as generated output
+ * files will be overwritten. 3) Similarly, if multiple KV's in the incoming {@link PCollection}
+ * have the same String (i.e. filename), then duplicates will be overwritten by the other such named
+ * elements of the {@link PCollection}. In other words, only one {@link KV} of a certain filename
+ * will write out successfully.
  */
 public class WholeFileIO {
 
@@ -294,6 +296,8 @@ public class WholeFileIO {
                 @Teardown
                 public void teardown() throws IOException {
                   try {
+                    // TODO: Replace FileSystems.rename() with a copy and delete to eliminate
+                    // empty directory restriction on Write.
                     FileSystems.rename(
                         Collections.singletonList(tmpDir.get()),
                         Collections.singletonList(getOutputDir().get())
@@ -313,6 +317,8 @@ public class WholeFileIO {
       return PDone.in(input.getPipeline());
     }
 
+    // TODO: Either fully customize this tool for WholeFileIO or change
+    // FileBasedSink.WriteOperation.TemporaryDirectoryBuilder from private to public (or protected).
     private static class TemporaryDirectoryBuilder
         implements SerializableFunction<ResourceId, ResourceId> {
       private static final AtomicLong TEMP_COUNT = new AtomicLong(0);
@@ -330,7 +336,7 @@ public class WholeFileIO {
         // Temp directory has a timestamp and a unique ID
         String tempDirName = String.format(".temp-beam-%s-%s", timestamp, tempId);
         return tempDirectory
-            .getCurrentDirectory()
+            .resolve("..", RESOLVE_DIRECTORY) // getParent()
             .resolve(tempDirName, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY);
       }
     }
