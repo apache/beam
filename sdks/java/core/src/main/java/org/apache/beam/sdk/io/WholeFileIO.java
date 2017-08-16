@@ -60,7 +60,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>To read a {@link PCollection} of one or more files as {@link KV}s, use
  * {@code WholeFileIO.read()} to instantiate a transform and use
- * {@link WholeFileIO.Read#from(String)} to specify the path of the file(s) to be read.</p>
+ * {@link WholeFileIO.Read#from(String)} to specify the path of the file(s) to be read.
+ * Alternatively, if the filenames to be read are themselves in a {@link
+ * PCollection}, apply {@link WholeFileIO#readAll()}.
  *
  * <p>Method {@link #read} returns a {@link PCollection} of {@code  KV<String, byte[]>}s,
  * each corresponding to one file's filename and contents.</p>
@@ -85,6 +87,19 @@ import org.slf4j.LoggerFactory;
  *                                        WholeFileIO.read().from("/local/path/to/nested/dirs/**"));
  * // ^ The KV's String corresponding to filename retains only the last term of the file path
  * //   (i.e. it retains the filename and ignores intermediate directory names)
+ * }</pre>
+ *
+ * <p>Example 2: reading a PCollection of filenames (whole paths, not just the last term).
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // E.g. the filenames might be computed from other data in the pipeline, or
+ * // read from a data source.
+ * PCollection<String> filenames = ...;
+ *
+ * // Read all files in the collection.
+ * PCollection<KV<String, byte[]>> files = filenames.apply(WholeFileIO.readAll());
  * }</pre>
  *
  * <p>To write the byte array of a {@link PCollection} of {@code KV<String, byte[]>} to an output
@@ -128,9 +143,7 @@ public class WholeFileIO {
     return new AutoValue_WholeFileIO_Write.Builder().build();
   }
 
-  /**
-   * Implements read().
-   */
+  /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KV<String, byte[]>>> {
     @Nullable
@@ -202,9 +215,7 @@ public class WholeFileIO {
     }
   }
 
-  /**
-   * Implements write().
-   */
+  /** Implementation of {@Link #write()}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<KV<String, byte[]>>, PDone> {
     private static final Logger LOG = LoggerFactory.getLogger(Write.class);
