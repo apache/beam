@@ -32,6 +32,7 @@ except ImportError:
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.io.gcp.datastore.v1 import query_splitter
 from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap
@@ -402,10 +403,15 @@ class _Mutate(PTransform):
           _Mutate.DatastoreWriteFn, "datastoreRpcSuccesses")
       self._rpc_errors = Metrics.counter(
           _Mutate.DatastoreWriteFn, "datastoreRpcErrors")
+      self._throttled_secs = Metrics.counter(
+          _Mutate.DatastoreWriteFn, "cumulativeThrottlingSeconds")
+      self._throttler = AdaptiveThrottler(window_ms=120000, bucket_ms=1000,
+                                          overload_ratio=1.25)
 
-    def _update_rpc_stats(self, successes=0, errors=0):
+    def _update_rpc_stats(self, successes=0, errors=0, throttled_secs=0):
       self._rpc_successes.inc(successes)
       self._rpc_errors.inc(errors)
+      self._throttled_secs.inc(throttled_secs)
 
     def start_bundle(self):
       self._mutations = []
@@ -415,7 +421,8 @@ class _Mutate(PTransform):
         self._target_batch_size = self._fixed_batch_size
       else:
         self._batch_sizer = _Mutate._DynamicBatchSizer()
-        self._target_batch_size = self._batch_sizer.get_batch_size(time.time())
+        self._target_batch_size = self._batch_sizer.get_batch_size(
+            time.time()*1000)
 
     def process(self, element):
       size = element.ByteSize()
@@ -435,12 +442,13 @@ class _Mutate(PTransform):
       # Flush the current batch of mutations to Cloud Datastore.
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
-          self._update_rpc_stats)
+          self._throttler, self._update_rpc_stats,
+          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS/1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 
       if not self._fixed_batch_size:
-        now = time.time()
+        now = time.time()*1000
         self._batch_sizer.report_latency(now, latency_ms, len(self._mutations))
         self._target_batch_size = self._batch_sizer.get_batch_size(now)
 
