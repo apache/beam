@@ -18,24 +18,19 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.util.MimeTypes.BINARY;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.util.Collections;
-import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -43,13 +38,14 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
+// TODO: Write comment on what this is and how to use it.
+// TODO: Mention that if multiple files have the same filename at write, only one will survive.
 /**
  * WholeFileIO.
  */
@@ -58,6 +54,8 @@ public class WholeFileIO {
   public static Read read() {
     return new AutoValue_WholeFileIO_Read.Builder().build();
   }
+
+  // TODO: Add a readAll() like TextIO.
 
   public static Write write() {
     return new AutoValue_WholeFileIO_Write.Builder().build();
@@ -97,59 +95,28 @@ public class WholeFileIO {
           "Need to set the filePattern of a WholeFileIO.Read transform."
       );
 
-      String filePattern = getFilePattern().get();
+      PCollection<String> filePatternPCollection = input.apply(
+                                        Create.ofProvider(getFilePattern(), StringUtf8Coder.of()));
 
-      PCollection<String> filePatternPCollection = input.apply(Create.of(filePattern));
+      PCollection<MatchResult.Metadata> matchResultMetaData = filePatternPCollection.apply(
+                                                                              Match.filepatterns());
 
-      PCollection<ResourceId> resourceIds = filePatternPCollection.apply(
+      PCollection<KV<String, byte[]>> files = matchResultMetaData.apply(
           ParDo.of(
-              new DoFn<String, ResourceId>() {
+              new DoFn<MatchResult.Metadata, KV<String, byte[]>>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
-                  String filePattern = c.element();
-                  try {
-                    List<MatchResult> matchResults = FileSystems.match(
-                        Collections.singletonList(filePattern));
-                    for (MatchResult matchResult : matchResults) {
-                      List<MatchResult.Metadata> metadataList = matchResult.metadata();
-                      for (MatchResult.Metadata metadata : metadataList) {
-                        ResourceId resourceId = metadata.resourceId();
-                        c.output(resourceId);
-                      }
-                    }
-                  } catch (IOException e) {
-                    e.printStackTrace();
-                  }
-                }
-              }
-          )
-      );
+                  MatchResult.Metadata metadata = c.element();
+                  ResourceId resourceId = metadata.resourceId();
 
-      PCollection<KV<String, byte[]>> files = resourceIds.apply(
-          ParDo.of(
-              new DoFn<ResourceId, KV<String, byte[]>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  ResourceId resourceId = c.element();
-
-                  try {
-                    ReadableByteChannel channel = FileSystems.open(resourceId);
-                    ByteBuffer byteBuffer = ByteBuffer.allocate(8192);
-                    ByteString byteString = ByteString.EMPTY;
-
-                    while (channel.read(byteBuffer) != -1) {
-                      byteBuffer.flip();
-                      byteString = byteString.concat(ByteString.copyFrom(byteBuffer));
-                      byteBuffer.clear();
-                    }
-
-                    KV<String, byte[]> kv = KV.of(
-                        resourceId.getFilename(),
-                        byteString.toByteArray()
-                    );
-
+                  try (
+                      InputStream inStream = Channels.newInputStream(FileSystems.open(resourceId))
+                  ) {
+                    byte[] bytes = StreamUtils.getBytes(inStream);
+                    KV<String, byte[]> kv = KV.of(resourceId.getFilename(), bytes);
                     c.output(kv);
                   } catch (IOException e) {
+                    // TODO: Don't do this. See PTransform style guide section on errors.
                     e.printStackTrace();
                   }
                 }
@@ -179,7 +146,7 @@ public class WholeFileIO {
     }
 
     public Write to(String outputDir) {
-      return to(FileBasedSink.convertToFileResourceIfPossible(outputDir));
+      return to(FileSystems.matchNewResource(outputDir, true));
     }
 
     public Write to(ResourceId outputDir) {
@@ -197,15 +164,6 @@ public class WholeFileIO {
           "Need to set the output directory of a WholeFileIO.Write transform."
       );
 
-      ResourceId outputDir = getOutputDir().get();
-      if (!outputDir.isDirectory()) {
-        outputDir = outputDir.getCurrentDirectory()
-                             .resolve(outputDir.getFilename(), RESOLVE_DIRECTORY);
-      }
-      final PCollectionView<ResourceId> outputDirView = input.getPipeline()
-          .apply(Create.of(outputDir))
-          .apply(View.<ResourceId>asSingleton());
-
       input.apply(
           ParDo.of(
               new DoFn<KV<String, byte[]>, Void>() {
@@ -213,23 +171,29 @@ public class WholeFileIO {
                 public void processElement(ProcessContext c) {
                   KV<String, byte[]> kv = c.element();
 
-                  ResourceId outputDir = c.sideInput(outputDirView);
+                  ResourceId outputDir = getOutputDir().get();
                   String filename = kv.getKey();
+                  // TODO: Write to tmp files. Once tmp file write finished, rename to filename.
+                  // TODO: ^ Alternative (faster): setup() create tmp dir, processElement()
+                  //    write each file to tmp dir, teardown() rename tmp dir to outputDir
+                  // (Or, instead of setup() and teardown(), use startBundle() and finishBundle()
+                  //    except that you mv all files inside tmp dir to inside the outputDir
                   ResourceId outputFile = outputDir.resolve(filename, RESOLVE_FILE);
 
                   byte[] bytes = kv.getValue();
-                  try {
-                    WritableByteChannel channel = FileSystems.create(outputFile, BINARY);
-                    OutputStream os = Channels.newOutputStream(channel);
-                    os.write(bytes);
-                    os.flush();
-                    os.close();
+                  try (
+                      OutputStream outStream =
+                          Channels.newOutputStream(FileSystems.create(outputFile, BINARY))
+                  ) {
+                    outStream.write(bytes);
+                    outStream.flush();
                   } catch (IOException e) {
+                    // TODO: Don't do this. See PTransform style guide section on errors.
                     e.printStackTrace();
                   }
                 }
               }
-          ).withSideInputs(outputDirView)
+          )
       );
 
       return PDone.in(input.getPipeline());
