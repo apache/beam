@@ -154,6 +154,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     return fileOrPatternSpec;
   }
 
+  public final EmptyMatchTreatment getEmptyMatchTreatment() {
+    return emptyMatchTreatment;
+  }
+
   public final Mode getMode() {
     return mode;
   }
