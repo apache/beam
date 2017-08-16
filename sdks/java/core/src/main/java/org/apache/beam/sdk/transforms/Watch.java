@@ -264,6 +264,15 @@ public class Watch {
     }
 
     /**
+     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition
+     * with a given input type, passing {@code null} to the original condition as input.
+     */
+    public static <InputT, StateT> TerminationCondition<InputT, StateT> ignoreInput(
+        TerminationCondition<?, StateT> condition) {
+      return new IgnoreInput<>(condition);
+    }
+
+    /**
      * Returns a {@link TerminationCondition} that holds after the given time has elapsed after the
      * current input was seen.
      */
@@ -341,6 +350,39 @@ public class Watch {
       @Override
       public String toString(Integer state) {
         return "Never";
+      }
+    }
+
+    static class IgnoreInput<InputT, StateT> implements TerminationCondition<InputT, StateT> {
+      private final TerminationCondition<?, StateT> wrapped;
+
+      IgnoreInput(TerminationCondition<?, StateT> wrapped) {
+        this.wrapped = wrapped;
+      }
+
+      @Override
+      public Coder<StateT> getStateCoder() {
+        return wrapped.getStateCoder();
+      }
+
+      @Override
+      public StateT forNewInput(Instant now, InputT input) {
+        return wrapped.forNewInput(now, null);
+      }
+
+      @Override
+      public StateT onSeenNewOutput(Instant now, StateT state) {
+        return wrapped.onSeenNewOutput(now, state);
+      }
+
+      @Override
+      public boolean canStopPolling(Instant now, StateT state) {
+        return wrapped.canStopPolling(now, state);
+      }
+
+      @Override
+      public String toString(StateT state) {
+        return wrapped.toString(state);
       }
     }
 
