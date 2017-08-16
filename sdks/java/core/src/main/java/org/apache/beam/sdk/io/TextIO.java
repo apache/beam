@@ -56,6 +56,8 @@ import org.joda.time.Duration;
 /**
  * {@link PTransform}s for reading and writing text files.
  *
+ * <h2>Reading text files</h2>
+ *
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
@@ -63,6 +65,8 @@ import org.joda.time.Duration;
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
  * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n').
+ *
+ * <h3>Filepattern expansion and watching</h3>
  *
  * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} and {@link
  * ReadAll#watchForNewFiles} allow streaming of new files matching the filepattern(s).
@@ -80,11 +84,6 @@ import org.joda.time.Duration;
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
- *
- * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
- * scalability. Note that it may decrease performance if the filepattern matches only a small number
- * of files.
  *
  * <p>Example 2: reading a PCollection of filenames.
  *
@@ -113,6 +112,15 @@ import org.joda.time.Duration;
  *       afterTimeSinceNewOutput(Duration.standardHours(1))));
  * }</pre>
  *
+ * <h3>Reading a very large number of files</h3>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small number
+ * of files.
+ *
+ * <h2>Writing text files</h2>
+ *
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
  * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
  *
@@ -130,6 +138,13 @@ import org.joda.time.Duration;
  *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
  * }</pre>
  *
+ * <p>Any existing files with the same names as generated output files will be overwritten.
+ *
+ * <p>If you want better control over how filenames are generated than the default policy allows, a
+ * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
+ *
+ * <h3>Writing windowed or unbounded data</h3>
+ *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner - {@link TextIO.Write#withWindowedWrites()}
  * will cause windowing and triggering to be preserved. When producing windowed writes with a
@@ -140,8 +155,7 @@ import org.joda.time.Duration;
  * for the window and the pane; W is expanded into the window text, and P into the pane; the default
  * template will include both the window and the pane in the filename.
  *
- * <p>If you want better control over how filenames are generated than the default policy allows, a
- * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
+ * <h3>Writing data to multiple destinations</h3>
  *
  * <p>TextIO also supports dynamic, value-dependent file destinations. The most general form of this
  * is done via {@link TextIO.Write#to(DynamicDestinations)}. A {@link DynamicDestinations} class
@@ -166,8 +180,6 @@ import org.joda.time.Duration;
  *       }),
  *       new Params().withBaseFilename(baseDirectory + "/empty");
  * }</pre>
- *
- * <p>Any existing files with the same names as generated output files will be overwritten.
  */
 public class TextIO {
   /**
