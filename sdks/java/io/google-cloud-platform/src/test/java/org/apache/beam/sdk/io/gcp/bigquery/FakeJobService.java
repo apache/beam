@@ -109,6 +109,7 @@ class FakeJobService implements JobService, Serializable {
   public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
       throws InterruptedException, IOException {
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
@@ -141,6 +142,7 @@ class FakeJobService implements JobService, Serializable {
     checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       ++numExtractJobCalls;
 
       Job job = new Job();
@@ -175,6 +177,7 @@ class FakeJobService implements JobService, Serializable {
   public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
       throws IOException, InterruptedException {
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setCopy(copyConfig));
@@ -254,6 +257,12 @@ class FakeJobService implements JobService, Serializable {
       }
     } catch (IOException e) {
       return null;
+    }
+  }
+
+  private void verifyUniqueJobId(String jobId) throws IOException {
+    if (allJobs.containsColumn(jobId)) {
+      throw new IOException("Duplicate job id " + jobId);
     }
   }
 
