@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Powerful and modular IO connectors with Splittable DoFn in Apache Beam</title>
+  <meta name="description" content="One of the most important parts of the Apache Beam ecosystem is its quicklygrowing set of connectors that allow Beam pipelines to read and write data tovario...">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/blog/2017/08/16/splittable-do-fn.html" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="/get-started/downloads">Downloads</a></li>
+            <li><a href="/get-started/support">Support</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="/documentation/sdks/javadoc/2.0.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="/documentation/sdks/pydoc/2.0.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/contribute/testing/">Testing Guide</a></li>
+            <li><a href="/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="/contribute/source-repository/">Source Repository</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="/contribute/team/">Team</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+</nav>
+
+    <div class="body__contained">
+      
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Powerful and modular IO connectors with Splittable DoFn in Apache Beam</h1>
+    <p class="post-meta"><time datetime="2017-08-16T01:00:01-07:00" itemprop="datePublished">Aug 16, 2017</time> •  Eugene Kirpichov 
+</p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>One of the most important parts of the Apache Beam ecosystem is its quickly
+growing set of connectors that allow Beam pipelines to read and write data to
+various data storage systems (“IOs”). Currently, Beam ships <a href="/documentation/io/built-in/">over 20 IO
+connectors</a> with many more in
+active development. As user demands for IO connectors grew, our work on
+improving the related Beam APIs (in particular, the Source API) produced an
+unexpected result: a generalization of Beam’s most basic primitive, <code class="highlighter-rouge">DoFn</code>.</p>
+
+<!--more-->
+
+<h2 id="connectors-as-mini-pipelines">Connectors as mini-pipelines</h2>
+
+<p>One of the main reasons for this vibrant IO connector ecosystem is that
+developing a basic IO is relatively straightforward: many connector
+implementations are simply mini-pipelines (composite <code class="highlighter-rouge">PTransform</code>s) made of the
+basic Beam <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">GroupByKey</code> primitives. For example,
+<code class="highlighter-rouge">ElasticsearchIO.write()</code>
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/elasticsearch/src/main/java/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.java#L783">expands</a>
+into a single <code class="highlighter-rouge">ParDo</code> with some batching for performance; <code class="highlighter-rouge">JdcbIO.read()</code>
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/jdbc/src/main/java/org/apache/beam/sdk/io/jdbc/JdbcIO.java#L329">expands</a>
+into <code class="highlighter-rouge">Create.of(query)</code>, a reshuffle to <a href="https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion">prevent
+fusion</a>,
+and <code class="highlighter-rouge">ParDo(execute sub-query)</code>.  Some IOs
+<a href="https://github.com/apache/beam/blob/8503adbbc3a590cd0dc2939f6a45d335682a9442/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1139">construct</a>
+considerably more complicated pipelines.</p>
+
+<p><img class="center-block" src="/images/blog/splittable-do-fn/jdbcio-expansion.png" alt="Expansion of the JdbcIO.read() composite transform" width="600" /></p>
+
+<p>This “mini-pipeline” approach is flexible, modular, and generalizes to data
+sources that read from a dynamically computed <code class="highlighter-rouge">PCollection</code> of locations, such
+as
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.java#L222"><code class="highlighter-rouge">SpannerIO.readAll()</code></a>
+which reads the results of a <code class="highlighter-rouge">PCollection</code> of queries from Cloud Spanner,
+compared to
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.java#L318"><code class="highlighter-rouge">SpannerIO.read()</code></a>
+which executes a single query. We believe such dynamic data sources are a very
+useful capability, often overlooked by other data processing frameworks.</p>
+
+<h2 id="when-pardo-and-groupbykey-are-not-enough">When ParDo and GroupByKey are not enough</h2>
+
+<p>Despite the flexibility of <code class="highlighter-rouge">ParDo</code>, <code class="highlighter-rouge">GroupByKey</code> and their derivatives, in some
+cases building an efficient IO connector requires extra capabilities.</p>
+
+<p>For example, imagine reading files using the sequence <code class="highlighter-rouge">ParDo(filepattern →
+expand into files)</code>, <code class="highlighter-rouge">ParDo(filename → read records)</code>, or reading a Kafka topic
+using <code class="highlighter-rouge">ParDo(topic → list partitions)</code>, <code class="highlighter-rouge">ParDo(topic, partition → read
+records)</code>. This approach has two big issues:</p>
+
+<ul>
+  <li>
+    <p>In the file example, some files might be much larger than others, so the
+second <code class="highlighter-rouge">ParDo</code> may have very long individual <code class="highlighter-rouge">@ProcessElement</code> calls. As a
+result, the pipeline can suffer from poor performance due to stragglers.</p>
+  </li>
+  <li>
+    <p>In the Kafka example, implementing the second <code class="highlighter-rouge">ParDo</code> is <em>simply impossible</em>
+with a regular <code class="highlighter-rouge">DoFn</code>, because it would need to output an infinite number of
+records per each input element <code class="highlighter-rouge">topic, partition</code> <em>(<a href="/blog/2017/02/13/stateful-processing.html">stateful processing</a> comes close, but it
+has other limitations that make it insufficient for this task</em>).</p>
+  </li>
+</ul>
+
+<h2 id="beam-source-api">Beam Source API</h2>
+
+<p>Apache Beam historically provides a Source API
+(<a href="/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource</a>
+and
+<a href="/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource</a>) which does
+not have these limitations and allows development of efficient data sources for
+batch and streaming systems. Pipelines use this API via the
+<a href="/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/Read.html"><code class="highlighter-rouge">Read.from(Source)</code></a> built-in <code class="highlighter-rouge">PTransform</code>.</p>
+
+<p>The Source API is largely similar to that of most other data processing
+frameworks, and allows the system to read data in parallel using multiple
+workers, as well as checkpoint and resume reading from an unbounded data source.
+Additionally, the Beam
+<a href="/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/BoundedSource.html"><code class="highlighter-rouge">BoundedSource</code></a>
+API provides advanced features such as progress reporting and <a href="/blog/2016/05/18/splitAtFraction-method.html">dynamic
+rebalancing</a>
+(which together enable autoscaling), and
+<a href="/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/io/UnboundedSource.html"><code class="highlighter-rouge">UnboundedSource</code></a> supports
+reporting the source’s watermark and backlog <em>(until SDF, we believed that
+“batch” and “streaming” data sources are fundamentally different and thus
+require fundamentally different APIs)</em>.</p>
+
+<p>Unfortunately, these features come at a price. Coding against the Source API
+involves a lot of boilerplate and is error-prone, and it does not compose well
+with the rest of the Beam model because a <code class="highlighter-rouge">Source</code> can appear only at the root
+of a pipeline. For example:</p>
+
+<ul>
+  <li>
+    <p>Using the Source API, it is not possible to read a <code class="highlighter-rouge">PCollection</code> of
+filepatterns.</p>
+  </li>
+  <li>
+    <p>A <code class="highlighter-rouge">Source</code> can not read a side input, or wait on another pipeline step to
+produce the data.</p>
+  </li>
+  <li>
+    <p>A <code class="highlighter-rouge">Source</code> can not emit an additional output (for example, records that failed to
+parse) and so on.</p>
+  </li>
+</ul>
+
+<p>The Source API is not composable even with itself. For example, suppose Alice
+implements an unbounded <code class="highlighter-rouge">Source</code> that watches a directory for new matching
+files, and Bob implements an unbounded <code class="highlighter-rouge">Source</code> that tails a file. The Source
+API does not let them simply chain the sources together and obtain a <code class="highlighter-rouge">Source</code>
+that returns new records in new log files in a directory (a very common user
+request). Instead, such a source would have to be developed mostly from
+scratch, and our experience shows that a full-featured monolithic
+implementation of such a <code class="highlighter-rouge">Source</code> is incredibly difficult and error-prone.</p>
+
+<p>Another class of issues with the <code class="highlighter-rouge">Source</code> API comes from its strict
+bounded/unbounded dichotomy:</p>
+
+<ul>
+  <li>
+    <p>It is difficult or impossible to reuse code between seemingly very similar
+bounded and unbounded sources, for example, the <code class="highlighter-rouge">BoundedSource</code> that generates
+a sequence <code class="highlighter-rouge">[a, b)</code> and the <code class="highlighter-rouge">UnboundedSource</code> that generates a sequence <code class="highlighter-rouge">[a,
+inf)</code> <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java">don’t share any
+code</a>
+in the Beam Java SDK.</p>
+  </li>
+  <li>
+    <p>It is not clear how to classify the ingestion of a very large and
+continuously growing dataset. Ingesting its “already available” part seems to
+require a <code class="highlighter-rouge">BoundedSource</code>: the runner could benefit from knowing its size, and
+could perform dynamic rebalancing. However, ingesting the continuously arriving
+new data seems to require an <code class="highlighter-rouge">UnboundedSource</code> for providing watermarks. From
+this angle, the <code class="highlighter-rouge">Source</code> API has <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">the same issues as Lambda
+Architecture</a>.</p>
+  </li>
+</ul>
+
+<p>About two years ago we began thinking about how to address the limitations of
+the Source API, and ended up, surprisingly, addressing the limitations of
+<code class="highlighter-rouge">DoFn</code> instead.</p>
+
+<h2 id="enter-splittable-dofn">Enter Splittable DoFn</h2>
+
+<p><a href="http://s.apache.org/splittable-do-fn">Splittable DoFn</a> (SDF) is a
+generalization of <code class="highlighter-rouge">DoFn</code> that gives it the core capabilities of <code class="highlighter-rouge">Source</code> while
+retaining <code class="highlighter-rouge">DoFn</code>’s syntax, flexibility, modularity, and ease of coding.  As a
+result, it becomes possible to develop more powerful IO connectors than before,
+with shorter, simpler, more reusable code.</p>
+
+<p>Note that, unlike <code class="highlighter-rouge">Source</code>, SDF <em>does not</em> have distinct bounded/unbounded APIs,
+just as regular <code class="highlighter-rouge">DoFn</code>s don’t: there is only one API, which covers both of these
+use cases and anything in between. Thus, SDF closes the final gap in the unified
+batch/streaming programming model of Apache Beam.</p>
+
+<p>When reading the explanation of SDF below, keep in mind the running example of a
+<code class="highlighter-rouge">DoFn</code> that takes a filename as input and outputs the records in that file.
+People familiar with the <code class="highlighter-rouge">Source</code> API may find it useful to think of SDF as a
+way to read a <code class="highlighter-rouge">PCollection</code> of sources, treating the source itself as just
+another piece of data in the pipeline <em>(this, in fact, was one of the early
+design iterations among the work that led to creation of SDF)</em>.</p>
+
+<p>The two aspects where <code class="highlighter-rouge">Source</code> has an advantage over a regular <code class="highlighter-rouge">DoFn</code> are:</p>
+
+<ul>
+  <li>
+    <p><strong>Splittability:</strong> applying a <code class="highlighter-rouge">DoFn</code> to a single element is <em>monolithic</em>, but
+reading from a <code class="highlighter-rouge">Source</code> is <em>non-monolithic</em>. The whole <code class="highlighter-rouge">Source</code> doesn’t have to
+be read at once; rather, it is read in parts, called <em>bundles</em>. For example, a
+large file is usually read in several bundles, each reading some sub-range of
+offsets within the file. Likewise, a Kafka topic (which, of course, can never
+be read “fully”) is read over an infinite number of bundles, each reading some
+finite number of elements.</p>
+  </li>
+  <li>
+    <p><strong>Interaction with the runner:</strong> runners apply a <code class="highlighter-rouge">DoFn</code> to a single element as
+a “black box”, but interact quite richly with <code class="highlighter-rouge">Source</code>. <code class="highlighter-rouge">Source</code> provides the
+runner with information such as its estimated size (or its generalization,
+“backlog”), progress through reading the bundle, watermarks etc. The runner
+uses this information to tune the execution and control the breakdown of the
+<code class="highlighter-rouge">Source</code> into bundles. For example, a slowly progressing large bundle of a file
+may be <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow">dynamically
+split</a>
+by a batch-focused runner before it becomes a straggler, and a latency-focused
+streaming runner may control how many elements it reads from a source in each
+bundle to optimize for latency vs. per-bundle overhead.</p>
+  </li>
+</ul>
+
+<h3 id="non-monolithic-element-processing-with-restrictions">Non-monolithic element processing with restrictions</h3>
+
+<p>Splittable <code class="highlighter-rouge">DoFn</code> supports <code class="highlighter-rouge">Source</code>-like features by allowing the processing of
+a single element to be non-monolithic.</p>
+
+<p>The processing of one element by an SDF is decomposed into a (potentially
+infinite) number of <em>restrictions</em>, each describing some part of the work to be
+done for the whole element. The input to an SDF’s <code class="highlighter-rouge">@ProcessElement</code> call is a
+pair of an element and a restriction (compared to a regular <code class="highlighter-rouge">DoFn</code>, which takes
+just the element).</p>
+
+<p>Processing of every element starts by creating an <em>initial restriction</em> that
+describes the entire work, and the initial restriction is then split further
+into sub-restrictions which must logically add up to the original. For example,
+for a splittable <code class="highlighter-rouge">DoFn</code> called <code class="highlighter-rouge">ReadFn</code> that takes a filename and outputs
+records in the file, the restriction may be a pair of starting and ending byte
+offset, and <code class="highlighter-rouge">ReadFn</code> may interpret it as <em>read records whose starting offsets
+are in the given range</em>.</p>
+
+<p><img class="center-block" src="/images/blog/splittable-do-fn/restrictions.png" alt="Specifying parts of work for an element using restrictions" width="600" /></p>
+
+<p>The idea of restrictions provides non-monolithic execution - the first
+ingredient for parity with <code class="highlighter-rouge">Source</code>. The other ingredient is <em>interaction with
+the runner</em>: the runner has access to the restriction of each active
+<code class="highlighter-rouge">@ProcessElement</code> call of an SDF, can inquire about the progress of the call,
+and most importantly, can <em>split</em> the restriction while it is being processed
+(hence the name <em>Splittable DoFn</em>).</p>
+
+<p>Splitting produces a <em>primary</em> and <em>residual</em> restriction that add up to the
+original restriction being split: the current <code class="highlighter-rouge">@ProcessElement</code> call keeps
+processing the primary, and the residual will be processed by another
+<code class="highlighter-rouge">@ProcessElement</code> call. For example, a runner may schedule the residual to be
+processed in parallel on another worker.</p>
+
+<p>Splitting of a running <code class="highlighter-rouge">@ProcessElement</code> call has two critically important uses:</p>
+
+<ul>
+  <li><strong>Supporting infinite work per element.</strong> A restriction is, in general, not
+required to describe a finite amount of work. For example, reading from a Kafka
+topic starting from offset <em>100</em> can be represented by the
+restriction <em>[100, inf)</em>. A <code class="highlighter-rouge">@ProcessElement</code> call processing this
+entire restriction would, of course, never complete. However, while such a call
+runs, a runner can split the restriction into a <em>finite</em> primary <em>[100, 150)</em>
+(letting the current call complete this part) and an <em>infinite</em> residual <em>[150,
+inf)</em> to be processed later, effectively checkpointing and resuming the call;
+this can be repeated forever.</li>
+</ul>
+
+<p><img class="center-block" src="/images/blog/splittable-do-fn/kafka-splitting.png" alt="Splitting an infinite restriction into a finite primary and infinite residual" width="400" /></p>
+
+<ul>
+  <li><strong>Dynamic rebalancing.</strong> When a (typically batch-focused) runner detects that
+a <code class="highlighter-rouge">@ProcessElement</code> call is going to take too long and become a straggler, it
+can split the restriction in some proportion so that the primary is short enough
+to not be a straggler, and can schedule the residual in parallel on another
+worker. For details, see <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow">No Shard Left
+Behind</a>.</li>
+</ul>
+
+<p>Logically, the execution of an SDF on an element works according to the
+following diagram, where “magic” stands for the runner-specific ability to split
+the restrictions and schedule processing of residuals.</p>
+
+<p><img class="center-block" src="/images/blog/splittable-do-fn/transform-expansion.png" alt="Execution of an SDF - pairing with a restriction, splitting     restrictions, processing element/restriction pairs" width="600" /></p>
+
+<p>This diagram emphasizes that splittability is an implementation detail of the
+particular <code class="highlighter-rouge">DoFn</code>: a splittable <code class="highlighter-rouge">DoFn</code> still looks like a <code class="highlighter-rouge">DoFn&lt;A, B&gt;</code> to its
+user, and can be applied via a <code class="highlighter-rouge">ParDo</code> to a <code class="highlighter-rouge">PCollection&lt;A&gt;</code> producing a
+<code class="highlighter-rouge">PCollection&lt;B&gt;</code>.</p>
+
+<h3 id="which-dofns-need-to-be-splittable">Which DoFns need to be splittable</h3>
+
+<p>Note that decomposition of an element into element/restriction pairs is not
+automatic or “magical”: SDF is a new API for <em>authoring</em> a <code class="highlighter-rouge">DoFn</code>, rather than a
+new way to <em>execute</em> an existing <code class="highlighter-rouge">DoFn</code>. When making a <code class="highlighter-rouge">DoFn</code> splittable, the
+author needs to:</p>
+
+<ul>
+  <li>
+    <p>Consider the structure of the work it does for every element.</p>
+  </li>
+  <li>
+    <p>Come up with a scheme for describing parts of this work using restrictions.</p>
+  </li>
+  <li>
+    <p>Write code for creating the initial restriction, splitting it, and executing
+an element/restriction pair.</p>
+  </li>
+</ul>
+
+<p>An overwhelming majority of <code class="highlighter-rouge">DoFn</code>s found in user pipelines do not need to be
+made splittable: SDF is an advanced, powerful API, primarily targeting authors
+of new IO connectors <em>(though it has interesting non-IO applications as well:
+see <a href="http://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv">Non-IO examples</a>)</em>.</p>
+
+<h3 id="execution-of-a-restriction-and-data-consistency">Execution of a restriction and data consistency</h3>
+
+<p>One of the most important parts of the Splittable <code class="highlighter-rouge">DoFn</code> design is related to
+how it achieves data consistency while splitting. For example, while the runner
+is preparing to split the restriction of an active <code class="highlighter-rouge">@ProcessElement</code> call, how
+can it be sure that the call has not concurrently progressed past the point of
+splitting?</p>
+
+<p>This is achieved by requiring the processing of a restriction to follow a
+certain pattern. We think of a restriction as a sequence of <em>blocks</em> -
+elementary indivisible units of work, identified by a <em>position</em>. A
+<code class="highlighter-rouge">@ProcessElement</code> call processes the blocks one by one, first <em>claiming</em> the
+block’s position to atomically check if it’s still within the range of the
+restriction, until the whole restriction is processed.</p>
+
+<p>The diagram below illustrates this for <code class="highlighter-rouge">ReadFn</code> (a splittable <code class="highlighter-rouge">DoFn</code> that reads
+Avro files) processing the element <code class="highlighter-rouge">foo.avro</code> with restriction <code class="highlighter-rouge">[30, 70)</code>. This
+<code class="highlighter-rouge">@ProcessElement</code> call scans the Avro file for <a href="https://avro.apache.org/docs/current/spec.html#Object+Container+Files">data
+blocks</a>
+starting from offset <code class="highlighter-rouge">30</code> and claims the position of each block in this range.
+If a block is claimed successfully, then the call outputs all records in this
+data block, otherwise, it terminates.</p>
+
+<p><img class="center-block" src="/images/blog/splittable-do-fn/blocks.png" alt="Processing a restriction by claiming blocks inside it" width="400" /></p>
+
+<p>For more details, see <a href="http://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw">Restrictions, blocks and
+positions</a> in the
+design proposal document.</p>
+
+<h3 id="code-example">Code example</h3>
+
+<p>Let us look at some examples of SDF code. The examples use the Beam Java SDK,
+which <a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L527">represents splittable
+<code class="highlighter-rouge">DoFn</code>s</a>
+as part of the flexible <a href="http://s.apache.org/a-new-dofn">annotation-based
+<code class="highlighter-rouge">DoFn</code></a> machinery, and the <a href="https://s.apache.org/splittable-do-fn-python">proposed SDF syntax
+for Python</a>.</p>
+
+<ul>
+  <li>
+    <p>A splittable <code class="highlighter-rouge">DoFn</code> is a <code class="highlighter-rouge">DoFn</code> - no new base class needed. Any SDF derives
+from the <code class="highlighter-rouge">DoFn</code> class and has a <code class="highlighter-rouge">@ProcessElement</code> method.</p>
+  </li>
+  <li>
+    <p>The <code class="highlighter-rouge">@ProcessElement</code> method takes an additional
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/splittabledofn/RestrictionTracker.java"><code class="highlighter-rouge">RestrictionTracker</code></a>
+parameter that gives access to the current restriction in addition to the
+current element.</p>
+  </li>
+  <li>
+    <p>An SDF needs to define a <code class="highlighter-rouge">@GetInitialRestriction</code> method that can create a
+restriction describing the complete work for a given element.</p>
+  </li>
+  <li>
+    <p>There are several less important optional methods, such as
+<code class="highlighter-rouge">@SplitRestriction</code> for pre-splitting the initial restriction into several
+smaller restrictions, and a few others.</p>
+  </li>
+</ul>
+
+<p>The “Hello World” of SDF is a counter, which takes pairs <em>(x, N)</em> as input and
+produces pairs <em>(x, 0), (x, 1), …, (x, N-1)</em> as output.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">CountFn</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="n">OffsetRangeTracker</span> <span class="n">tracker</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">for</span> <span class="o">(</span><span class="kt">long</span> <span class="n">i</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="na">currentRestriction</span><span class="o">().</span><span class="na">getFrom</span><span class="o">();</span> <span class="n">tracker</span><span class="o">.</span><span class="na">tryClaim</span><span class="o">(</span><span class="n">i</span><span class="o">);</span> <span class="o">++</span><span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">(),</span> <span class="n">i</span><span class="o">));</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="nd">@GetInitialRestriction</span>
+  <span class="kd">public</span> <span class="n">OffsetRange</span> <span class="nf">getInitialRange</span><span class="o">(</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="k">new</span> <span class="nf">OffsetRange</span><span class="o">(</span><span class="mi">0L</span><span class="o">,</span> <span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">());</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="err">…</span><span class="o">;</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">CountFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;());</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">tracker</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">RestrictionTrackerParam</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="o">*</span><span class="n">tracker</span><span class="o">.</span><span class="n">current_restriction</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+        <span class="k">return</span>
+      <span class="k">yield</span> <span class="n">element</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">i</span>
+        
+  <span class="k">def</span> <span class="nf">get_initial_restriction</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">element</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</code></pre>
+</div>
+
+<p>This short <code class="highlighter-rouge">DoFn</code> subsumes the functionality of
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java">CountingSource</a>,
+but is more flexible: <code class="highlighter-rouge">CountingSource</code> generates only one sequence specified at
+pipeline construction time, while this <code class="highlighter-rouge">DoFn</code> can generate a dynamic family of
+sequences, one per element in the input collection (it does not matter whether
+the input collection is bounded or unbounded).</p>
+
+<p>However, the <code class="highlighter-rouge">Source</code>-specific capabilities of <code class="highlighter-rouge">CountingSource</code> are still
+available in <code class="highlighter-rouge">CountFn</code>. For example, if a sequence has a lot of elements, a
+batch-focused runner can still apply dynamic rebalancing to it and generate
+different subranges of the sequence in parallel by splitting the <code class="highlighter-rouge">OffsetRange</code>.
+Likewise, a streaming-focused runner can use the same splitting logic to
+checkpoint and resume the generation of the sequence even if it is, for
+practical purposes, infinite (for example, when applied to a <code class="highlighter-rouge">KV(...,
+Long.MAX_VALUE)</code>).</p>
+
+<p>A slightly more complex example is the <code class="highlighter-rouge">ReadFn</code> considered above, which reads
+data from Avro files and illustrates the idea of <em>blocks</em>: we provide pseudocode
+to illustrate the approach.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">ReadFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">AvroRecord</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span>
+  <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">,</span> <span class="n">OffsetRangeTracker</span> <span class="n">tracker</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">try</span> <span class="o">(</span><span class="n">AvroReader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Avro</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">filename</span><span class="o">))</span> <span class="o">{</span>
+      <span class="c1">// Seek to the first block starting at or after the start offset.</span>
+      <span class="n">reader</span><span class="o">.</span><span class="na">seek</span><span class="o">(</span><span class="n">tracker</span><span class="o">.</span><span class="na">currentRestriction</span><span class="o">().</span><span class="na">getFrom</span><span class="o">());</span>
+      <span class="k">while</span> <span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="na">readNextBlock</span><span class="o">())</span> <span class="o">{</span>
+        <span class="c1">// Claim the position of the current Avro block</span>
+        <span class="k">if</span> <span class="o">(!</span><span class="n">tracker</span><span class="o">.</span><span class="na">tryClaim</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="na">currentBlockOffset</span><span class="o">()))</span> <span class="o">{</span>
+          <span class="c1">// Out of range of the current restriction - we're done.</span>
+          <span class="k">return</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="c1">// Emit all records in this block</span>
+        <span class="k">for</span> <span class="o">(</span><span class="n">AvroRecord</span> <span class="n">record</span> <span class="o">:</span> <span class="n">reader</span><span class="o">.</span><span class="na">currentBlock</span><span class="o">())</span> <span class="o">{</span>
+          <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">record</span><span class="o">);</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="nd">@GetInitialRestriction</span>
+  <span class="n">OffsetRange</span> <span class="nf">getInitialRestriction</span><span class="o">(</span><span class="n">String</span> <span class="n">filename</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="k">new</span> <span class="nf">OffsetRange</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="k">new</span> <span class="n">File</span><span class="o">(</span><span class="n">filename</span><span class="o">).</span><span class="na">getSize</span><span class="o">());</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AvroReader</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">tracker</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">RestrictionTrackerParam</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="nb">file</span><span class="p">:</span>
+      <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">current_restriction</span><span class="p">()</span>
+      <span class="c"># Seek to the first block starting at or after the start offset.</span>
+      <span class="nb">file</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+      <span class="n">block</span> <span class="o">=</span> <span class="n">AvroUtils</span><span class="o">.</span><span class="n">get_next_block</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+      <span class="k">while</span> <span class="n">block</span><span class="p">:</span>
+        <span class="c"># Claim the position of the current Avro block</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">start</span><span class="p">()):</span>
+          <span class="c"># Out of range of the current restriction - we're done.</span>
+          <span class="k">return</span>
+        <span class="c"># Emit all records in this block</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">block</span><span class="o">.</span><span class="n">records</span><span class="p">():</span>
+          <span class="k">yield</span> <span class="n">record</span>
+        <span class="n">block</span> <span class="o">=</span> <span class="n">AvroUtils</span><span class="o">.</span><span class="n">get_next_block</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+        
+  <span class="k">def</span> <span class="nf">get_initial_restriction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_in_bytes</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p>This hypothetical <code class="highlighter-rouge">DoFn</code> reads records from a single Avro file. Notably missing
+is the code for expanding a filepattern: it no longer needs to be part of this
+<code class="highlighter-rouge">DoFn</code>! Instead, the SDK includes a
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Match.java">Match.filepatterns()</a>
+transform for expanding a filepattern into a <code class="highlighter-rouge">PCollection</code> of filenames, and
+different file format IOs can reuse the same transform, reading the files with
+different <code class="highlighter-rouge">DoFn</code>s.</p>
+
+<p>This example demonstrates the benefits of increased modularity allowed by SDF:
+<code class="highlighter-rouge">Match</code> supports continuous ingestion of new files in streaming pipelines using
+<code class="highlighter-rouge">.continuously()</code>, and this functionality becomes automatically available to
+various file format IOs. For example, <code class="highlighter-rouge">TextIO.read().watchForNewFiles()</code> <a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java#L480">uses
+<code class="highlighter-rouge">Match</code> under the
+hood)</a>.</p>
+
+<h2 id="current-status">Current status</h2>
+
+<p>Splittable <code class="highlighter-rouge">DoFn</code> is a major new API, and its delivery and widespread adoption
+involves a lot of work in different parts of the Apache Beam ecosystem.  Some
+of that work is already complete and provides direct benefit to users via new
+IO connectors. However, a large amount of work is in progress or planned.</p>
+
+<p>As of August 2017, SDF is available for use in the Beam Java Direct runner and
+Dataflow Streaming runner, and implementation is in progress in the Flink and
+Apex runners; see <a href="/documentation/runners/capability-matrix/">capability matrix</a> for the current status. Support
+for SDF in the Python SDK is <a href="https://s.apache.org/splittable-do-fn-python">in active
+development</a>.</p>
+
+<p>Several SDF-based transforms and IO connectors are available for Beam users at
+HEAD and will be included in Beam 2.2.0. <code class="highlighter-rouge">TextIO</code> and <code class="highlighter-rouge">AvroIO</code> finally provide
+continuous ingestion of files (one of the most frequently requested features)
+via <code class="highlighter-rouge">.watchForNewFiles()</code> which is backed by the utility transforms
+<code class="highlighter-rouge">Match.filepatterns().continuously()</code> and the more general
+<a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java"><code class="highlighter-rouge">Watch.growthOf()</code></a>.
+These utility transforms are also independently useful for “power user” use cases.</p>
+
+<p>To enable more flexible use cases for IOs currently based on the Source API, we
+will change them to use SDF. This transition is <a href="http://s.apache.org/textio-sdf">pioneered by
+TextIO</a> and involves temporarily <a href="http://s.apache.org/sdf-via-source">executing SDF
+via the Source API</a> to support runners
+lacking the ability to run SDF directly.</p>
+
+<p>In addition to enabling new IOs, work on SDF has influenced our thinking about
+other parts of the Beam programming model:</p>
+
+<ul>
+  <li>
+    <p>SDF unified the final remaining part of the Beam programming model that was
+not batch/streaming agnostic (the <code class="highlighter-rouge">Source</code> API). This led us to consider use
+cases that cannot be described as purely batch or streaming (for example,
+ingesting a large amount of historical data and carrying on with more data
+arriving in real time) and to develop a <a href="http://s.apache.org/beam-fn-api-progress-reporting">unified notion of “progress” and
+“backlog”</a>.</p>
+  </li>
+  <li>
+    <p>The <a href="http://s.apache.org/beam-fn-api">Fn API</a> - the foundation of Beam’s
+future support for cross-language pipelines - uses SDF as <em>the only</em> concept
+representing data ingestion.</p>
+  </li>
+  <li>
+    <p>Implementation of SDF has lead to <a href="https://lists.apache.org/thread.html/86831496a08fe148e3b982cdb904f828f262c0b571543a9fed7b915d@%3Cdev.beam.apache.org%3E">formalizing pipeline termination
+semantics</a>
+and making it consistent between runners.</p>
+  </li>
+  <li>
+    <p>SDF set a new standard for how modular IO connectors can be, inspiring
+creation of similar APIs for some non-SDF-based connectors (for example,
+<code class="highlighter-rouge">SpannerIO.readAll()</code> and the
+<a href="https://issues.apache.org/jira/browse/BEAM-2706">planned</a> <code class="highlighter-rouge">JdbcIO.readAll()</code>).</p>
+  </li>
+</ul>
+
+<h2 id="call-to-action">Call to action</h2>
+
+<p>Apache Beam thrives on having a large community of contributors. Here are some
+ways you can get involved in the SDF effort and help make the Beam IO connector
+ecosystem more modular:</p>
+
+<ul>
+  <li>
+    <p>Use the currently available SDF-based IO connectors, provide feedback, file
+bugs, and suggest or implement improvements.</p>
+  </li>
+  <li>
+    <p>Propose or develop a new IO connector based on SDF.</p>
+  </li>
+  <li>
+    <p>Implement or improve support for SDF in your favorite runner.</p>
+  </li>
+  <li>
+    <p>Subscribe and contribute to the occasional SDF-related discussions on
+<a href="mailto:user@beam.apache.org">user@beam.apache.org</a> (mailing list for Beam
+users) and <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> (mailing list for
+Beam developers)!</p>
+  </li>
+</ul>
+
+  </div>
+
+</article>
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
