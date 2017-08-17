@@ -28,8 +28,8 @@ import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
 public class SolrIOTestUtils {
-  public static final long MIN_DOC_SIZE = 40L;
-  public static final long MAX_DOC_SIZE = 90L;
+  public static final long MIN_DOC_SIZE = 30L;
+  public static final long MAX_DOC_SIZE = 150L;
 
   static void createCollection(
       String collection, int numShards, int replicationFactor, AuthorizedSolrClient client)
