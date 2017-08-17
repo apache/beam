@@ -32,7 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and
- * {@link #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as mulitple
+ * {@link #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as multiple
  * {@link ByteString}s.
  */
 public class DataStreams {
