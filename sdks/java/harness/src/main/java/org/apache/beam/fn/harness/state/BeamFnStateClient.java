@@ -17,9 +17,23 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import java.util.concurrent.CompletableFuture;
+import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+
 /**
- * TODO: Define interface required for handling state calls.
+ * The {@link BeamFnStateClient} is able to forward state requests to a handler which returns
+ * a corresponding response or error if completed unsuccessfully.
  */
 public interface BeamFnStateClient {
 
+  /**
+   * Consumes a state request populating a unique id returning a future to the response.
+   *
+   * @param requestBuilder A partially completed state request. The id will be populated the client.
+   * @param response A future containing a corresponding {@link StateResponse} for the supplied
+   * request.
+   */
+  void handle(BeamFnApi.StateRequest.Builder requestBuilder,
+      CompletableFuture<StateResponse> response);
 }
