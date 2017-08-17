@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness.stream;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
 import com.google.protobuf.ByteString;
@@ -143,7 +145,7 @@ public class DataStreams {
             next = coder.decode(countingInputStream);
             // Skip one byte if decoding the value consumed 0 bytes.
             if (countingInputStream.getCount() - count == 0) {
-              countingInputStream.skip(1);
+              checkState(countingInputStream.read() != -1, "Unexpected EOF reached");
             }
             currentState = State.HAS_NEXT;
           } catch (IOException e) {
