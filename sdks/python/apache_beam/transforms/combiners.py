@@ -57,9 +57,17 @@ class Mean(object):
 
   class Globally(ptransform.PTransform):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
+    def __init__(self, label=None, as_view=False, has_defaults=True):
+      super(self.__class__, self).__init__(label)
+      self.as_view = as_view
+      self.has_defaults = has_defaults
 
     def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(MeanCombineFn())
+      combine = core.CombineGlobally(MeanCombineFn())\
+          .with_defaults(self.has_defaults)
+      if self.as_view:
+        combine = combine.as_singleton_view()
+      return pcoll | combine
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""
@@ -103,9 +111,17 @@ class Count(object):
 
   class Globally(ptransform.PTransform):
     """combiners.Count.Globally counts the total number of elements."""
+    def __init__(self, label=None, as_view=False, has_defaults=True):
+      super(self.__class__, self).__init__(label)
+      self.as_view = as_view
+      self.has_defaults = has_defaults
 
     def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(CountCombineFn())
+      combine = core.CombineGlobally(CountCombineFn())\
+          .with_defaults(self.has_defaults)
+      if self.as_view:
+        combine = combine.as_singleton_view()
+      return pcoll | combine
 
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
@@ -471,11 +487,18 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
-  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
+  # pylint: disable=useless-super-delegation
+  def __init__(self, label='ToList', as_view=False, has_defaults=True):
     super(ToList, self).__init__(label)
+    self.as_view = as_view
+    self.has_defaults = has_defaults
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+    combine = core.CombineGlobally(ToListCombineFn())\
+        .with_defaults(self.has_defaults)
+    if self.as_view:
+      combine = combine.as_singleton_view()
+    return pcoll | combine
 
 
 @with_input_types(T)
@@ -505,11 +528,18 @@ class ToDict(ptransform.PTransform):
   will be present in the resulting dict.
   """
 
-  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
+  # pylint: disable=useless-super-delegation
+  def __init__(self, label='ToDict', as_view=False, has_defaults=True):
     super(ToDict, self).__init__(label)
+    self.as_view = as_view
+    self.has_defaults = has_defaults
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+    combine = core.CombineGlobally(ToDictCombineFn())\
+        .with_defaults(self.has_defaults)
+    if self.as_view:
+      combine = combine.as_singleton_view()
+    return pcoll | combine
 
 
 @with_input_types(Tuple[K, V])
