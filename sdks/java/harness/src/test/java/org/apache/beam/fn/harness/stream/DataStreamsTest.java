@@ -52,7 +52,7 @@ import org.junit.runners.JUnit4;
 @RunWith(Enclosed.class)
 public class DataStreamsTest {
 
-  /** Tests for {@link DataStreams.Inbound} */
+  /** Tests for {@link DataStreams.Inbound}. */
   @RunWith(JUnit4.class)
   public static class InboundTest {
     private static final ByteString BYTES_A = ByteString.copyFromUtf8("TestData");
@@ -77,7 +77,7 @@ public class DataStreamsTest {
     }
   }
 
-  /** Tests for {@link DataStreams.BlockingQueueIterator} */
+  /** Tests for {@link DataStreams.BlockingQueueIterator}. */
   @RunWith(JUnit4.class)
   public static class BlockingQueueIteratorTest {
     @Test(timeout = 10_000)

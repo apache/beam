@@ -107,7 +107,7 @@ public class DataStreams {
    * using the specified {@link Coder}. Note that this adapter follows the Beam Fn API specification
    * for forcing values that decode consuming zero bytes to consuming exactly one byte.
    *
-   * Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
+   * <p>Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
    * first access to {@link #next()} or {@link #hasNext()}.
    */
   public static class DataStreamDecoder<T> implements Iterator<T> {
@@ -128,8 +128,6 @@ public class DataStreams {
     @Override
     public boolean hasNext() {
       switch (currentState) {
-        case HAS_NEXT:
-          return true;
         case EOF:
           return false;
         case READ_REQUIRED:
@@ -148,13 +146,14 @@ public class DataStreams {
               countingInputStream.skip(1);
             }
             currentState = State.HAS_NEXT;
-            return true;
           } catch (IOException e) {
             throw new IllegalStateException(e);
           }
-        default:
-          throw new IllegalStateException(String.format("Unknown state %s", currentState));
+          // fall through expected
+        case HAS_NEXT:
+          return true;
       }
+      throw new IllegalStateException(String.format("Unknown state %s", currentState));
     }
 
     @Override
