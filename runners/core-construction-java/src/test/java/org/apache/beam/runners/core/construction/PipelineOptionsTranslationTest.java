@@ -24,8 +24,8 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Struct;
-import java.util.Arrays;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,14 +38,10 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link PipelineOptionsTranslation}.
- */
+/** Tests for {@link PipelineOptionsTranslation}. */
 @RunWith(Enclosed.class)
 public class PipelineOptionsTranslationTest {
-  /**
-   * Tests that translations can round-trip through the proto format.
-   */
+  /** Tests that translations can round-trip through the proto format. */
   @RunWith(Parameterized.class)
   public static class ToFromProtoTest {
     @Parameters(name = "{index}: {0}")
@@ -69,7 +65,7 @@ public class PipelineOptionsTranslationTest {
       PipelineOptions withParsedSettings =
           PipelineOptionsFactory.fromArgs("--jobName=my_job --appName=my_app").create();
 
-      return Arrays.asList(
+      return ImmutableList.of(
           emptyOptions, withNonSerializable, withCustomField, withSettings, withParsedSettings);
     }
 
@@ -78,7 +74,12 @@ public class PipelineOptionsTranslationTest {
 
     @Test
     public void testToFromProto() throws Exception {
-      PipelineOptionsTranslation.fromProto(PipelineOptionsTranslation.toProto(options));
+      options.getOptionsId();
+      Struct originalStruct = PipelineOptionsTranslation.toProto(options);
+      PipelineOptions deserializedStruct = PipelineOptionsTranslation.fromProto(originalStruct);
+
+      Struct reserializedStruct = PipelineOptionsTranslation.toProto(deserializedStruct);
+      assertThat(reserializedStruct.getFieldsMap(), equalTo(originalStruct.getFieldsMap()));
     }
   }
 
@@ -101,8 +102,7 @@ public class PipelineOptionsTranslationTest {
       opts.setUnserializable(new Object());
 
       Struct serialized = PipelineOptionsTranslation.toProto(opts);
-      PipelineOptions deserialized =
-          PipelineOptionsTranslation.fromProto(serialized);
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
 
       assertThat(
           deserialized.as(TestUnserializableOptions.class).getUnserializable(), is(nullValue()));

@@ -35,6 +35,8 @@ public class PipelineOptionsTranslation {
   public static Struct toProto(PipelineOptions options) {
     Struct.Builder builder = Struct.newBuilder();
     try {
+      // The JSON format of a Protobuf Struct is the JSON object that is equivalent to that struct
+      // (with values encoded in a standard json-codeable manner). See Beam PR 3719 for more.
       JsonFormat.parser().merge(MAPPER.writeValueAsString(options), builder);
       return builder.build();
     } catch (IOException e) {
