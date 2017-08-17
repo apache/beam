@@ -17,8 +17,8 @@
 
 """First in a series of four pipelines that tell a story in a 'gaming' domain.
 Concepts: batch processing; reading input from Google Cloud Storage or a from a
-local text file, and writing output to a text file; use of the CombinePerKey
-transform.
+local text file, and writing output to a text file; using standalone DoFns; use
+of the CombinePerKey transform.
 
 In this gaming scenario, many users play, as members of different teams, over
 the course of a day, and their actions are logged for processing. Some of the

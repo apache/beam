@@ -75,18 +75,17 @@ python leader_board.py \
     --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \
-    --temp_location gs://$BUCKET/user_score/temp \
-    --staging_location gs://$BUCKET/user_score/staging
+    --temp_location gs://$BUCKET/user_score/temp
 
 --------------------------------------------------------------------------------
 NOTE [BEAM-2354]: This example is not yet runnable by DataflowRunner.
     The runner still needs support for:
       * the --save_main_session flag when streaming is enabled
-        * the --save_main_session flag when streaming is enabled
 --------------------------------------------------------------------------------
 """
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import argparse
 import csv
@@ -185,8 +184,6 @@ class WriteToBigQuery(beam.PTransform):
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
-    self.create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-    self.write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
   def get_schema(self):
     """Build the output table schema."""
@@ -207,8 +204,8 @@ class WriteToBigQuery(beam.PTransform):
         | beam.io.Write(beam.io.BigQuerySink(
             table,
             schema=self.get_schema(),
-            create_disposition=self.create_disposition,
-            write_disposition=self.write_disposition)))
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
 
 
 class CalculateTeamScores(beam.PTransform):
@@ -293,7 +290,7 @@ def run(argv=None):
   options = PipelineOptions(pipeline_args)
 
   # We also require the --project option to access --dataset
-  if options.view_as(GoogleCloudOptions).project == None:
+  if options.view_as(GoogleCloudOptions).project is None:
     parser.print_usage()
     print(sys.argv[0] + ': error: argument --project is required')
     sys.exit(1)
