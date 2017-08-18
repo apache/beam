@@ -205,10 +205,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         .include("sink", sink);
     if (getSharding() != null) {
       builder.include("sharding", getSharding());
-    } else if (getNumShards() != null) {
-      String numShards = getNumShards().isAccessible()
-          ? getNumShards().get().toString() : getNumShards().toString();
-      builder.add(DisplayData.item("numShards", numShards)
+    } else {
+      builder.addIfNotNull(DisplayData.item("numShards", getNumShards())
           .withLabel("Fixed Number of Shards"));
     }
   }

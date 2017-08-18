@@ -982,19 +982,11 @@ public class AvroIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       resolveDynamicDestinations().populateDisplayData(builder);
-
-      String tempDirectory = null;
-      if (getTempDirectory() != null) {
-        tempDirectory =
-            getTempDirectory().isAccessible()
-                ? getTempDirectory().get().toString()
-                : getTempDirectory().toString();
-      }
       builder
           .addIfNotDefault(
               DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(
-              DisplayData.item("tempDirectory", tempDirectory)
+              DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"));
     }
   }

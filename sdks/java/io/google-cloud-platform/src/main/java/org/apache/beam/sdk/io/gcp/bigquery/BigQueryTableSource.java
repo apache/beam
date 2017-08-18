@@ -63,7 +63,6 @@ class BigQueryTableSource extends BigQuerySourceBase {
 
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions) throws IOException {
-    checkState(jsonTable.isAccessible());
     TableReference tableReference =
         BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
     return setDefaultProjectIfAbsent(bqOptions, tableReference);
@@ -94,7 +93,6 @@ class BigQueryTableSource extends BigQuerySourceBase {
   @Override
   public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    checkState(jsonTable.isAccessible());
     TableReference tableRef = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
         TableReference.class);
     return new BigQueryReader(this, bqServices.getReaderFromTable(bqOptions, tableRef));
