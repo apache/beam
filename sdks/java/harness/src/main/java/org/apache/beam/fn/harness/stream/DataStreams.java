@@ -17,19 +17,24 @@
  */
 package org.apache.beam.fn.harness.stream;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.io.ByteStreams;
+import com.google.common.io.CountingInputStream;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PushbackInputStream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
+import org.apache.beam.sdk.coders.Coder;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and
- * {@link #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as mulitple
+ * {@link #outbound(CloseableThrowingConsumer)} treats a single {@link OutputStream} as multiple
  * {@link ByteString}s.
  */
 public class DataStreams {
@@ -96,6 +101,72 @@ public class DataStreams {
         }
       }
       return len - remainingLen;
+    }
+  }
+
+  /**
+   * An adapter which converts an {@link InputStream} to an {@link Iterator} of {@code T} values
+   * using the specified {@link Coder}.
+   *
+   * <p>Note that this adapter follows the Beam Fn API specification for forcing values that decode
+   * consuming zero bytes to consuming exactly one byte.
+   *
+   * <p>Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
+   * first access to {@link #next()} or {@link #hasNext()}.
+   */
+  public static class DataStreamDecoder<T> implements Iterator<T> {
+    private enum State { READ_REQUIRED, HAS_NEXT, EOF };
+
+    private final CountingInputStream countingInputStream;
+    private final PushbackInputStream pushbackInputStream;
+    private final Coder<T> coder;
+    private State currentState;
+    private T next;
+    public DataStreamDecoder(Coder<T> coder, InputStream inputStream) {
+      this.currentState = State.READ_REQUIRED;
+      this.coder = coder;
+      this.pushbackInputStream = new PushbackInputStream(inputStream, 1);
+      this.countingInputStream = new CountingInputStream(pushbackInputStream);
+    }
+
+    @Override
+    public boolean hasNext() {
+      switch (currentState) {
+        case EOF:
+          return false;
+        case READ_REQUIRED:
+          try {
+            int nextByte = pushbackInputStream.read();
+            if (nextByte == -1) {
+              currentState = State.EOF;
+              return false;
+            }
+
+            pushbackInputStream.unread(nextByte);
+            long count = countingInputStream.getCount();
+            next = coder.decode(countingInputStream);
+            // Skip one byte if decoding the value consumed 0 bytes.
+            if (countingInputStream.getCount() - count == 0) {
+              checkState(countingInputStream.read() != -1, "Unexpected EOF reached");
+            }
+            currentState = State.HAS_NEXT;
+          } catch (IOException e) {
+            throw new IllegalStateException(e);
+          }
+          // fall through expected
+        case HAS_NEXT:
+          return true;
+      }
+      throw new IllegalStateException(String.format("Unknown state %s", currentState));
+    }
+
+    @Override
+    public T next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      currentState = State.READ_REQUIRED;
+      return next;
     }
   }
 
