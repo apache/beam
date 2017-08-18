@@ -41,12 +41,16 @@ class AdaptiveThrottler(object):
   MIN_REQUESTS = 1
 
   def __init__(self, window_ms, bucket_ms, overload_ratio):
-    """Args:
-      window_ms: int, length of history to consider, in ms, to set throttling.
-      bucket_ms: int, granularity of time buckets that we store data in, in ms.
-      overload_ratio: float, the target ratio between requests sent and
-          successful requests. This is "K" in the formula in
-          https://landing.google.com/sre/book/chapters/handling-overload.html
+    """Initializes AdaptiveThrottler.
+
+      Args:
+        window_ms: int, length of history to consider, in ms, to set
+                   throttling.
+        bucket_ms: int, granularity of time buckets that we store data in, in
+                   ms.
+        overload_ratio: float, the target ratio between requests sent and
+                        successful requests. This is "K" in the formula in
+                        https://landing.google.com/sre/book/chapters/handling-overload.html.
     """
     self._all_requests = util.MovingSum(window_ms, bucket_ms)
     self._successful_requests = util.MovingSum(window_ms, bucket_ms)
