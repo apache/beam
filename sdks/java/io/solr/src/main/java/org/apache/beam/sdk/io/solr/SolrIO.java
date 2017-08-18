@@ -284,15 +284,11 @@ public class SolrIO {
 
     @Override
     public PCollection<SolrDocument> expand(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedSolrSource(this, null)));
-    }
+      checkArgument(
+          getConnectionConfiguration() != null, "withConnectionConfiguration() is required");
+      checkArgument(getCollection() != null, "from() is required");
 
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(
-          getConnectionConfiguration() != null,
-          "Need to set connection configuration using withConnectionConfiguration()");
-      checkState(getCollection() != null, "Need to set collection name using to()");
+      return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedSolrSource(this, null)));
     }
 
     @Override
@@ -461,11 +457,6 @@ public class SolrIO {
     @Override
     public BoundedReader<SolrDocument> createReader(PipelineOptions options) throws IOException {
       return new BoundedSolrReader(this);
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override
@@ -642,15 +633,12 @@ public class SolrIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public PDone expand(PCollection<SolrInputDocument> input) {
       checkState(
           getConnectionConfiguration() != null,
-          "Need to set connection configuration via withConnectionConfiguration()");
-      checkState(getCollection() != null, "Need to set collection name via to()");
-    }
+          "withConnectionConfiguration() is required");
+      checkState(getCollection() != null, "to() is required");
 
-    @Override
-    public PDone expand(PCollection<SolrInputDocument> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }

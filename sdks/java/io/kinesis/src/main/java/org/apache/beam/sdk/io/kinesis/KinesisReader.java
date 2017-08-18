@@ -23,7 +23,6 @@ import static com.google.common.collect.Lists.newArrayList;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.joda.time.Instant;
 import org.slf4j.Logger;

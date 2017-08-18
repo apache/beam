@@ -127,25 +127,25 @@ public class XmlSinkTest {
   /** Validation ensures no fields are missing. */
   @Test
   public void testValidateXmlSinkMissingRecordClass() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     XmlIO.<Bird>write()
         .to(testFilePrefix)
         .withRootElement(testRootElement)
-        .validate(null);
+        .expand(null);
   }
 
   @Test
   public void testValidateXmlSinkMissingRootElement() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     XmlIO.<Bird>write().withRecordClass(Bird.class)
         .to(testFilePrefix)
-        .validate(null);
+        .expand(null);
   }
 
   @Test
   public void testValidateXmlSinkMissingOutputDirectory() {
-    thrown.expect(NullPointerException.class);
-    XmlIO.<Bird>write().withRecordClass(Bird.class).withRootElement(testRootElement).validate(null);
+    thrown.expect(IllegalArgumentException.class);
+    XmlIO.<Bird>write().withRecordClass(Bird.class).withRootElement(testRootElement).expand(null);
   }
 
   /**

@@ -480,7 +480,7 @@ public class DatastoreV1 {
      * project.
      */
     public DatastoreV1.Read withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return toBuilder().setProjectId(StaticValueProvider.of(projectId)).build();
     }
 
@@ -488,7 +488,7 @@ public class DatastoreV1 {
      * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
      */
     public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return toBuilder().setProjectId(projectId).build();
     }
 
@@ -501,7 +501,7 @@ public class DatastoreV1 {
      * to ensure correct results.
      */
     public DatastoreV1.Read withQuery(Query query) {
-      checkNotNull(query, "query");
+      checkArgument(query != null, "query can not be null");
       checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
           "Invalid query limit %s: must be positive", query.getLimit().getValue());
       return toBuilder().setQuery(query).build();
@@ -523,7 +523,7 @@ public class DatastoreV1 {
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
-      checkNotNull(gqlQuery, "gqlQuery");
+      checkArgument(gqlQuery != null, "gqlQuery can not be null");
       return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
@@ -532,7 +532,10 @@ public class DatastoreV1 {
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
-      checkNotNull(gqlQuery, "gqlQuery");
+      checkArgument(gqlQuery != null, "gqlQuery can not be null");
+      if (gqlQuery.isAccessible()) {
+        checkArgument(gqlQuery.get() != null, "gqlQuery can not be null");
+      }
       return toBuilder().setLiteralGqlQuery(gqlQuery).build();
     }
 
@@ -584,6 +587,18 @@ public class DatastoreV1 {
 
     @Override
     public PCollection<Entity> expand(PBegin input) {
+      checkArgument(getProjectId() != null, "projectId provider cannot be null");
+      if (getProjectId().isAccessible()) {
+        checkArgument(getProjectId().get() != null, "projectId cannot be null");
+      }
+
+      checkArgument(
+          getQuery() != null || getLiteralGqlQuery() != null,
+          "Either withQuery() or withLiteralGqlQuery() is required");
+      checkArgument(
+          getQuery() == null || getLiteralGqlQuery() == null,
+          "withQuery() and withLiteralGqlQuery() are exclusive");
+
       V1Options v1Options = V1Options.from(getProjectId(), getNamespace(), getLocalhost());
 
       /*
@@ -628,29 +643,6 @@ public class DatastoreV1 {
           .apply(ParDo.of(new ReadFn(v1Options)));
 
       return entities;
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getProjectId(), "projectId");
-
-      if (getProjectId().isAccessible() && getProjectId().get() == null) {
-        throw new IllegalArgumentException("Project id cannot be null");
-      }
-
-      if (getQuery() == null && getLiteralGqlQuery() == null) {
-        throw new IllegalArgumentException(
-            "Either query or gql query ValueProvider should be provided");
-      }
-
-      if (getQuery() != null && getLiteralGqlQuery() != null) {
-        throw new IllegalArgumentException(
-            "Only one of query or gql query ValueProvider should be provided");
-      }
-
-      if (getLiteralGqlQuery() != null && getLiteralGqlQuery().isAccessible()) {
-        checkNotNull(getLiteralGqlQuery().get(), "gqlQuery");
-      }
     }
 
     @Override
@@ -997,7 +989,7 @@ public class DatastoreV1 {
      * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
      */
     public Write withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
@@ -1005,7 +997,7 @@ public class DatastoreV1 {
      * Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}.
      */
     public Write withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new Write(projectId, localhost);
     }
 
@@ -1014,7 +1006,7 @@ public class DatastoreV1 {
      * the specified host port.
      */
     public Write withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new Write(projectId, localhost);
     }
   }
@@ -1038,7 +1030,7 @@ public class DatastoreV1 {
      * specified project.
      */
     public DeleteEntity withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
@@ -1046,7 +1038,7 @@ public class DatastoreV1 {
      * Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}.
      */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new DeleteEntity(projectId, localhost);
     }
 
@@ -1055,7 +1047,7 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteEntity withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new DeleteEntity(projectId, localhost);
     }
   }
@@ -1080,7 +1072,7 @@ public class DatastoreV1 {
      * specified project.
      */
     public DeleteKey withProjectId(String projectId) {
-      checkNotNull(projectId, "projectId");
+      checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
@@ -1089,7 +1081,7 @@ public class DatastoreV1 {
      * running locally on the specified host port.
      */
     public DeleteKey withLocalhost(String localhost) {
-      checkNotNull(localhost, "localhost");
+      checkArgument(localhost != null, "localhost can not be null");
       return new DeleteKey(projectId, localhost);
     }
 
@@ -1097,7 +1089,7 @@ public class DatastoreV1 {
      * Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}.
      */
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkArgument(projectId != null, "projectId can not be null");
       return new DeleteKey(projectId, localhost);
     }
   }
@@ -1130,20 +1122,17 @@ public class DatastoreV1 {
 
     @Override
     public PDone expand(PCollection<T> input) {
+      checkArgument(projectId != null, "withProjectId() is required");
+      if (projectId.isAccessible()) {
+        checkArgument(projectId.get() != null, "projectId can not be null");
+      }
+      checkArgument(mutationFn != null, "mutationFn can not be null");
+
       input.apply("Convert to Mutation", MapElements.via(mutationFn))
           .apply("Write Mutation to Datastore", ParDo.of(
               new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(projectId, "projectId ValueProvider");
-      if (projectId.isAccessible()) {
-        checkNotNull(projectId.get(), "projectId");
-      }
-      checkNotNull(mutationFn, "mutationFn");
     }
 
     @Override

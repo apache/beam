@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -432,10 +431,10 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
-      checkNotNull(
-          getTimestampBound(),
+    public PCollection<Struct> expand(PBegin input) {
+      getSpannerConfig().validate();
+      checkArgument(
+          getTimestampBound() != null,
           "SpannerIO.read() runs in a read only transaction and requires timestamp to be set "
               + "with withTimestampBound or withTimestamp method");
 
@@ -455,10 +454,7 @@ public class SpannerIO {
         throw new IllegalArgumentException(
             "SpannerIO.read() requires configuring query or read operation.");
       }
-    }
 
-    @Override
-    public PCollection<Struct> expand(PBegin input) {
       PCollectionView<Transaction> transaction = getTransaction();
       if (transaction == null && getTimestampBound() != null) {
         transaction =
@@ -492,6 +488,8 @@ public class SpannerIO {
 
     @Override
     public PCollectionView<Transaction> expand(PBegin input) {
+      getSpannerConfig().validate();
+
       return input.apply(Create.of(1))
           .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
           .apply("As PCollectionView", View.<Transaction>asSingleton());
@@ -544,11 +542,6 @@ public class SpannerIO {
 
     public CreateTransaction withTimestampBound(TimestampBound timestampBound) {
       return toBuilder().setTimestampBound(timestampBound).build();
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
     }
 
     /** A builder for {@link CreateTransaction}. */
@@ -645,12 +638,9 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
-    }
-
-    @Override
     public PDone expand(PCollection<Mutation> input) {
+      getSpannerConfig().validate();
+
       input
           .apply("To mutation group", ParDo.of(new ToMutationGroupFn()))
           .apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(this)));

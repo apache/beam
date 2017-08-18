@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -205,8 +204,7 @@ public class MongoDbIO {
      * Sets the database to use.
      */
     public Read withDatabase(String database) {
-      checkArgument(database != null, "MongoDbIO.read().withDatabase(database) called with null"
-          + " database");
+      checkArgument(database != null, "database can not be null");
       return builder().setDatabase(database).build();
     }
 
@@ -214,8 +212,7 @@ public class MongoDbIO {
      * Sets the collection to consider in the database.
      */
     public Read withCollection(String collection) {
-      checkArgument(collection != null, "MongoDbIO.read().withCollection(collection) called "
-          + "with null collection");
+      checkArgument(collection != null, "collection can not be null");
       return builder().setCollection(collection).build();
     }
 
@@ -223,8 +220,7 @@ public class MongoDbIO {
      * Sets a filter on the documents in a collection.
      */
     public Read withFilter(String filter) {
-      checkArgument(filter != null, "MongoDbIO.read().withFilter(filter) called with null "
-          + "filter");
+      checkArgument(filter != null, "filter can not be null");
       return builder().setFilter(filter).build();
     }
 
@@ -232,24 +228,16 @@ public class MongoDbIO {
      * Sets the user defined number of splits.
      */
     public Read withNumSplits(int numSplits) {
-      checkArgument(numSplits >= 0, "MongoDbIO.read().withNumSplits(numSplits) called with "
-          + "invalid number. The number of splits has to be a positive value (currently %d)",
-          numSplits);
+      checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %d", numSplits);
       return builder().setNumSplits(numSplits).build();
     }
 
     @Override
     public PCollection<Document> expand(PBegin input) {
+      checkArgument(uri() != null, "withUri() is required");
+      checkArgument(database() != null, "withDatabase() is required");
+      checkArgument(collection() != null, "withCollection() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(uri() != null, "MongoDbIO.read() requires an URI to be set via withUri(uri)");
-      checkState(database() != null, "MongoDbIO.read() requires a database to be set via "
-          + "withDatabase(database)");
-      checkState(collection() != null, "MongoDbIO.read() requires a collection to be set via "
-          + "withCollection(collection)");
     }
 
     @Override
@@ -279,11 +267,6 @@ public class MongoDbIO {
     @Override
     public Coder<Document> getOutputCoder() {
       return SerializableCoder.of(Document.class);
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override
@@ -576,7 +559,7 @@ public class MongoDbIO {
      *   </ul>
      */
     public Write withUri(String uri) {
-      checkArgument(uri != null, "MongoDbIO.write().withUri(uri) called with null uri");
+      checkArgument(uri != null, "uri can not be null");
       return builder().setUri(uri).build();
     }
 
@@ -598,8 +581,7 @@ public class MongoDbIO {
      * Sets the database to use.
      */
     public Write withDatabase(String database) {
-      checkArgument(database != null, "MongoDbIO.write().withDatabase(database) called with "
-          + "null database");
+      checkArgument(database != null, "database can not be null");
       return builder().setDatabase(database).build();
     }
 
@@ -607,8 +589,7 @@ public class MongoDbIO {
      * Sets the collection where to write data in the database.
      */
     public Write withCollection(String collection) {
-      checkArgument(collection != null, "MongoDbIO.write().withCollection(collection) called "
-          + "with null collection");
+      checkArgument(collection != null, "collection can not be null");
       return builder().setCollection(collection).build();
     }
 
@@ -616,24 +597,18 @@ public class MongoDbIO {
      * Define the size of the batch to group write operations.
      */
     public Write withBatchSize(long batchSize) {
-      checkArgument(batchSize >= 0, "MongoDbIO.write().withBatchSize(batchSize) called with "
-          + "invalid batch size. Batch size has to be >= 0 (currently %d)", batchSize);
+      checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %d", batchSize);
       return builder().setBatchSize(batchSize).build();
     }
 
     @Override
     public PDone expand(PCollection<Document> input) {
+      checkArgument(uri() != null, "withUri() is required");
+      checkArgument(database() != null, "withDatabase() is required");
+      checkArgument(collection() != null, "withCollection() is required");
+
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(uri() != null, "MongoDbIO.write() requires an URI to be set via withUri(uri)");
-      checkState(database() != null, "MongoDbIO.write() requires a database to be set via "
-          + "withDatabase(database)");
-      checkState(collection() != null, "MongoDbIO.write() requires a collection to be set via "
-          + "withCollection(collection)");
     }
 
     @Override

@@ -24,8 +24,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -44,7 +42,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -204,19 +201,10 @@ public class ElasticsearchIO {
      * @return the connection configuration object
      */
     public static ConnectionConfiguration create(String[] addresses, String index, String type){
-      checkArgument(
-          addresses != null,
-          "ConnectionConfiguration.create(addresses, index, type) called with null address");
-      checkArgument(
-          addresses.length != 0,
-          "ConnectionConfiguration.create(addresses, "
-              + "index, type) called with empty addresses");
-      checkArgument(
-          index != null,
-          "ConnectionConfiguration.create(addresses, index, type) called with null index");
-      checkArgument(
-          type != null,
-          "ConnectionConfiguration.create(addresses, index, type) called with null type");
+      checkArgument(addresses != null, "addresses can not be null");
+      checkArgument(addresses.length > 0, "addresses can not be empty");
+      checkArgument(index != null, "index can not be null");
+      checkArgument(type != null, "type can not be null");
       ConnectionConfiguration connectionConfiguration =
           new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
               .setAddresses(Arrays.asList(addresses))
@@ -230,15 +218,10 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the username.
      *
      * @param username the username used to authenticate to Elasticsearch
-     * @return the {@link ConnectionConfiguration} object with username set
      */
     public ConnectionConfiguration withUsername(String username) {
-      checkArgument(
-          username != null,
-          "ConnectionConfiguration.create().withUsername(username) called with null username");
-      checkArgument(
-          !username.isEmpty(),
-          "ConnectionConfiguration.create().withUsername(username) called with empty username");
+      checkArgument(username != null, "username can not be null");
+      checkArgument(!username.isEmpty(), "username can not be empty");
       return builder().setUsername(username).build();
     }
 
@@ -246,15 +229,10 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the password.
      *
      * @param password the password used to authenticate to Elasticsearch
-     * @return the {@link ConnectionConfiguration} object with password set
      */
     public ConnectionConfiguration withPassword(String password) {
-      checkArgument(
-          password != null,
-          "ConnectionConfiguration.create().withPassword(password) called with null password");
-      checkArgument(
-          !password.isEmpty(),
-          "ConnectionConfiguration.create().withPassword(password) called with empty password");
+      checkArgument(password != null, "password can not be null");
+      checkArgument(!password.isEmpty(), "password can not be empty");
       return builder().setPassword(password).build();
     }
 
@@ -263,13 +241,10 @@ public class ElasticsearchIO {
      * provide the keystore containing the client key.
      *
      * @param keystorePath the location of the keystore containing the client key.
-     * @return the {@link ConnectionConfiguration} object with keystore path set.
      */
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
-      checkArgument(keystorePath != null, "ConnectionConfiguration.create()"
-          + ".withKeystorePath(keystorePath) called with null keystorePath");
-      checkArgument(!keystorePath.isEmpty(), "ConnectionConfiguration.create()"
-          + ".withKeystorePath(keystorePath) called with empty keystorePath");
+      checkArgument(keystorePath != null, "keystorePath can not be null");
+      checkArgument(!keystorePath.isEmpty(), "keystorePath can not be empty");
       return builder().setKeystorePath(keystorePath).build();
     }
 
@@ -278,11 +253,9 @@ public class ElasticsearchIO {
      * provide the password to open the client keystore.
      *
      * @param keystorePassword the password of the client keystore.
-     * @return the {@link ConnectionConfiguration} object with keystore passwo:rd set.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
-        checkArgument(keystorePassword != null, "ConnectionConfiguration.create()"
-            + ".withKeystorePassword(keystorePassword) called with null keystorePassword");
+        checkArgument(keystorePassword != null, "keystorePassword can not be null");
         return builder().setKeystorePassword(keystorePassword).build();
     }
 
@@ -372,17 +345,9 @@ public class ElasticsearchIO {
       abstract Read build();
     }
 
-    /**
-     * Provide the Elasticsearch connection configuration object.
-     *
-     * @param connectionConfiguration the Elasticsearch {@link ConnectionConfiguration} object
-     * @return the {@link Read} with connection configuration set
-     */
+    /** Provide the Elasticsearch connection configuration object. */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(
-          connectionConfiguration != null,
-          "ElasticsearchIO.read()"
-              + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
@@ -392,12 +357,10 @@ public class ElasticsearchIO {
      * @param query the query. See <a
      *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
      *     DSL</a>
-     * @return the {@link Read} object with query set
      */
     public Read withQuery(String query) {
-      checkArgument(
-          !Strings.isNullOrEmpty(query),
-          "ElasticsearchIO.read().withQuery(query) called" + " with null or empty query");
+      checkArgument(query != null, "query can not be null");
+      checkArgument(!query.isEmpty(), "query can not be empty");
       return builder().setQuery(query).build();
     }
 
@@ -405,15 +368,10 @@ public class ElasticsearchIO {
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
-     *
-     * @param scrollKeepalive keepalive duration ex "5m" from 5 minutes
-     * @return the {@link Read} with scroll keepalive set
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
-      checkArgument(
-          scrollKeepalive != null && !scrollKeepalive.equals("0m"),
-          "ElasticsearchIO.read().withScrollKeepalive(keepalive) called"
-              + " with null or \"0m\" keepalive");
+      checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
+      checkArgument(!scrollKeepalive.equals("0m"), "scrollKeepalive can not be 0m");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
@@ -425,18 +383,11 @@ public class ElasticsearchIO {
      * batchSize
      *
      * @param batchSize number of documents read in each scroll read
-     * @return the {@link Read} with batch size set
      */
     public Read withBatchSize(long batchSize) {
       checkArgument(
-          batchSize > 0,
-          "ElasticsearchIO.read().withBatchSize(batchSize) called with a negative "
-              + "or equal to 0 value: %s",
-          batchSize);
-      checkArgument(
-          batchSize <= MAX_BATCH_SIZE,
-          "ElasticsearchIO.read().withBatchSize(batchSize) "
-              + "called with a too large value (over %s): %s",
+          batchSize > 0 && batchSize <= MAX_BATCH_SIZE,
+          "batchSize must be > 0 and <= %d, but was: %d",
           MAX_BATCH_SIZE,
           batchSize);
       return builder().setBatchSize(batchSize).build();
@@ -444,18 +395,13 @@ public class ElasticsearchIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null)));
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(
           connectionConfiguration != null,
-          "ElasticsearchIO.read() requires a connection configuration"
-              + " to be set via withConnectionConfiguration(configuration)");
+          "withConnectionConfiguration() is required");
       checkVersion(connectionConfiguration);
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null)));
     }
 
     @Override
@@ -724,10 +670,7 @@ public class ElasticsearchIO {
      * @return the {@link Write} with connection configuration set
      */
     public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(
-          connectionConfiguration != null,
-          "ElasticsearchIO.write()"
-              + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
@@ -743,10 +686,7 @@ public class ElasticsearchIO {
      * @return the {@link Write} with connection batch size set
      */
     public Write withMaxBatchSize(long batchSize) {
-      checkArgument(
-          batchSize > 0,
-          "ElasticsearchIO.write()"
-              + ".withMaxBatchSize(batchSize) called with incorrect <= 0 value");
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
       return builder().setMaxBatchSize(batchSize).build();
     }
 
@@ -762,25 +702,16 @@ public class ElasticsearchIO {
      * @return the {@link Write} with connection batch size in bytes set
      */
     public Write withMaxBatchSizeBytes(long batchSizeBytes) {
-      checkArgument(
-          batchSizeBytes > 0,
-          "ElasticsearchIO.write()"
-              + ".withMaxBatchSizeBytes(batchSizeBytes) called with incorrect <= 0 value");
+      checkArgument(batchSizeBytes > 0, "batchSizeBytes must be > 0, but was %d", batchSizeBytes);
       return builder().setMaxBatchSizeBytes(batchSizeBytes).build();
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
-      checkState(
-          connectionConfiguration != null,
-          "ElasticsearchIO.write() requires a connection configuration"
-              + " to be set via withConnectionConfiguration(configuration)");
-      checkVersion(connectionConfiguration);
-    }
-
-    @Override
     public PDone expand(PCollection<String> input) {
+      ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
+      checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
+      checkVersion(connectionConfiguration);
+
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
