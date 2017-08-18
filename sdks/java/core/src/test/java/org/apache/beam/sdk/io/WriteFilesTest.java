@@ -48,7 +48,6 @@ import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
-import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
@@ -352,7 +351,7 @@ public class WriteFilesTest {
                     .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
-            getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
+            getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED) {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
@@ -453,7 +452,7 @@ public class WriteFilesTest {
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =
         new SimpleSink<>(
-            getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED);
+            getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED);
 
     // Flag to validate that the pipeline options are passed to the Sink.
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -508,7 +507,7 @@ public class WriteFilesTest {
                     .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
-            getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
+            getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED) {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
@@ -533,7 +532,7 @@ public class WriteFilesTest {
                     .withShardTemplate("-SS-of-NN")));
     SimpleSink<Void> sink =
         new SimpleSink<Void>(
-            getBaseOutputDirectory(), dynamicDestinations, CompressionType.UNCOMPRESSED) {
+            getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED) {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
