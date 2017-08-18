@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -70,9 +73,16 @@ public class ReshuffleTest implements Serializable {
         KV.of("k1", 3),
         KV.of("k2", 4));
 
-  private static final List<KV<String, Iterable<Integer>>> GROUPED_TESTABLE_KVS = ImmutableList.of(
-        KV.of("k1", (Iterable<Integer>) ImmutableList.of(3)),
-        KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
+  private static class AssertThatHasExpectedContents
+      implements SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> {
+    @Override
+    public Void apply(Iterable<KV<String, Iterable<Integer>>> actual) {
+      assertThat(actual, containsInAnyOrder(
+          isKv(is("k1"), containsInAnyOrder(3)),
+          isKv(is("k2"), containsInAnyOrder(4))));
+      return null;
+    }
+  }
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -167,7 +177,7 @@ public class ReshuffleTest implements Serializable {
     PCollection<KV<String, Iterable<Integer>>> output = input
         .apply(Reshuffle.<String, Iterable<Integer>>of());
 
-    PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
+    PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
     assertEquals(
         input.getWindowingStrategy(),
@@ -190,7 +200,7 @@ public class ReshuffleTest implements Serializable {
     PCollection<KV<String, Iterable<Integer>>> output = input
         .apply(Reshuffle.<String, Iterable<Integer>>of());
 
-    PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
+    PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
     assertEquals(
         input.getWindowingStrategy(),
@@ -213,7 +223,7 @@ public class ReshuffleTest implements Serializable {
     PCollection<KV<String, Iterable<Integer>>> output = input
         .apply(Reshuffle.<String, Iterable<Integer>>of());
 
-    PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
+    PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
     assertEquals(
         input.getWindowingStrategy(),

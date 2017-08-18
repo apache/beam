@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   
@@ -31,15 +31,38 @@
   <packaging>jar</packaging>
 
   <properties>
-    <jstorm.core.version>2.2.1</jstorm.core.version>
+    <jstorm.core.version>2.5.0-SNAPSHOT</jstorm.core.version>
   </properties>
-  
+
+  <repositories>
+    <repository>
+      <id>ossrh releases</id>
+      <url>https://oss.sonatype.org/content/repositories/releases</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>ossrh snapshots</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <profiles>
     <profile>
       <!-- This profile adds execution of ValidatesRunner integration tests
            against a JStorm local cluster. -->
       <id>local-validates-runner-tests</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation><activeByDefault>true</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>
@@ -56,7 +79,15 @@
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner
                   </groups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.UsesSetState,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesAttemptedMetrics,
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesTestStream
+                  </excludedGroups>
                   <parallel>none</parallel>
+                  <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
@@ -64,7 +95,7 @@
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
-                        "--runner=org.apache.beam.runners.jstorm.JStormRunner"
+                        "--runner=org.apache.beam.runners.jstorm.TestJStormRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -85,7 +116,7 @@
       <version>${jstorm.core.version}</version>
       <scope>provided</scope>
     </dependency>
-    
+
     <!-- Beam dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -123,7 +154,7 @@
       </exclusions>
     </dependency>
 
-    <!-- Module dependencies -->    
+    <!-- Module dependencies -->
     <dependency>
         <groupId>com.google.auto.service</groupId>
         <artifactId>auto-service</artifactId>
@@ -132,6 +163,11 @@
     <dependency>
         <groupId>com.google.auto.value</groupId>
         <artifactId>auto-value</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.googlecode.json-simple</groupId>
+        <artifactId>json-simple</artifactId>
+        <version>1.1</version>
     </dependency>
 
     <!-- Depend on test jar to scan for ValidatesRunner tests -->

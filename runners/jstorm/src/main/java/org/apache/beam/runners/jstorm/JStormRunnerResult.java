@@ -17,47 +17,91 @@
  */
 package org.apache.beam.runners.jstorm;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import backtype.storm.Config;
+import backtype.storm.LocalCluster;
+import com.alibaba.jstorm.utils.JStormUtils;
 import java.io.IOException;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
 /**
  * A {@link PipelineResult} of executing {@link org.apache.beam.sdk.Pipeline Pipelines} using
  * {@link JStormRunner}.
  */
-public class JStormRunnerResult implements PipelineResult {
-    @Override
-    public State getState() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+public abstract class JStormRunnerResult implements PipelineResult {
+
+  public static JStormRunnerResult local(
+      String topologyName,
+      Config config,
+      LocalCluster localCluster,
+      long localModeExecuteTimeSecs) {
+    return new LocalJStormPipelineResult(
+        topologyName, config, localCluster, localModeExecuteTimeSecs);
+  }
+
+  private final String topologyName;
+  private final Config config;
+
+  JStormRunnerResult(String topologyName, Config config) {
+    this.config = checkNotNull(config, "config");
+    this.topologyName = checkNotNull(topologyName, "topologyName");
+  }
+
+  public State getState() {
+    return null;
+  }
+
+  public Config getConfig() {
+    return config;
+  }
+
+  public String getTopologyName() {
+    return topologyName;
+  }
+
+  private static class LocalJStormPipelineResult extends JStormRunnerResult {
+
+    private LocalCluster localCluster;
+    private long localModeExecuteTimeSecs;
+
+    LocalJStormPipelineResult(
+        String topologyName,
+        Config config,
+        LocalCluster localCluster,
+        long localModeExecuteTimeSecs) {
+      super(topologyName, config);
+      this.localCluster = checkNotNull(localCluster, "localCluster");
     }
 
     @Override
     public State cancel() throws IOException {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+      localCluster.killTopology(getTopologyName());
+      localCluster.shutdown();
+      JStormUtils.sleepMs(1000);
+      return State.CANCELLED;
     }
 
     @Override
     public State waitUntilFinish(Duration duration) {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+      JStormUtils.sleepMs(duration.getMillis());
+      try {
+        return cancel();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
     public State waitUntilFinish() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
-    }
-
-    @Override
-    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-            throws AggregatorRetrievalException {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+      return waitUntilFinish(Duration.standardSeconds(localModeExecuteTimeSecs));
     }
 
     @Override
     public MetricResults metrics() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
+      throw new UnsupportedOperationException("This method is not yet supported.");
     }
+  }
 }
