@@ -1672,7 +1672,7 @@ You set the trigger(s) for a `PCollection` by invoking the method `.triggering()
 
 ```java
   PCollection<String> pc = ...;
-  pc.apply(Window<String>.into(FixedWindows.of(1, TimeUnit.MINUTES))
+  pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
                                .triggering(AfterProcessingTime.pastFirstElementInPane()
                                                               .plusDelayOf(Duration.standardMinutes(1)))
                                .discardingFiredPanes());
@@ -1728,7 +1728,7 @@ You set the allowed lateness by using `.withAllowedLateness()` when you set your
 
 ```java
   PCollection<String> pc = ...;
-  pc.apply(Window<String>.into(FixedWindows.of(1, TimeUnit.MINUTES))
+  pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
                               .triggering(AfterProcessingTime.pastFirstElementInPane()
                                                              .plusDelayOf(Duration.standardMinutes(1)))
                               .withAllowedLateness(Duration.standardMinutes(30));
