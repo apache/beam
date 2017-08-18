@@ -27,7 +27,7 @@ pillars:
 cards:
 - quote: "A framework that delivers the flexibility and advanced functionality our customers need."
   name: –Talend
-- quote: "Apache Beam [has powerful semantics that solve real-world challenges of stream processing."
+- quote: "Apache Beam has powerful semantics that solve real-world challenges of stream processing."
   name: –PayPal
 - quote: "Apache Beam represents a principled approach for analyzing data streams."
   name: –data Artisans
