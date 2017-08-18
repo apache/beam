@@ -146,6 +146,12 @@ members:
     organization: Slack
     roles: committer, PMC
     time_zone: "-8"
+  - name: Manu Zhang
+    apache_id: mauzhang
+    email: mauzhang [at] apache [dot] org
+    organization: Vipshop
+    roles: committer
+    time_zone: "+8"
   - name: Aviem Zur
     apache_id: aviemzur
     email: aviemzur [at] apache [dot] org
