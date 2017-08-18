@@ -18,12 +18,10 @@
 package org.apache.beam.runners.jstorm.translation;
 
 import com.google.common.collect.Lists;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -33,11 +31,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<K, V>> {
   // information of transform
   protected PCollection<KV<K, V>> input;
-  protected PCollection<KV<K, Iterable<V>>> output;
-  protected List<TupleTag<?>> inputTags;
   protected TupleTag<KV<K, Iterable<V>>> mainOutputTag;
   protected List<TupleTag<?>> sideOutputTags;
-  protected List<PCollectionView<?>> sideInputs;
   protected WindowingStrategy<?, ?> windowingStrategy;
 
   @Override
@@ -47,13 +42,8 @@ class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<GroupByKey<
         describeTransform(transform, userGraphContext.getInputs(), userGraphContext.getOutputs());
 
     input = (PCollection<KV<K, V>>) userGraphContext.getInput();
-    output = (PCollection<KV<K, Iterable<V>>>) userGraphContext.getOutput();
-
-    inputTags = userGraphContext.getInputTags();
     mainOutputTag = (TupleTag<KV<K, Iterable<V>>>) userGraphContext.getOutputTag();
     sideOutputTags = Lists.newArrayList();
-
-    sideInputs = Collections.<PCollectionView<?>>emptyList();
     windowingStrategy = input.getWindowingStrategy();
 
     GroupByWindowExecutor<K, V> groupByWindowExecutor = new GroupByWindowExecutor<>(

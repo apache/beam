@@ -71,8 +71,14 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   /**
    * Implements {@link OutputManager} in a DoFn executor.
    */
-  public class DoFnExecutorOutputManager implements OutputManager, Serializable {
+  protected static class DoFnExecutorOutputManager implements OutputManager, Serializable {
     private static final long serialVersionUID = -661113364735206170L;
+
+    private ExecutorsBolt executorsBolt;
+
+    public DoFnExecutorOutputManager(ExecutorsBolt executorsBolt) {
+      this.executorsBolt = executorsBolt;
+    }
 
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
@@ -97,23 +103,23 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
 
   protected DoFn<InputT, OutputT> doFn;
   protected final Coder<WindowedValue<InputT>> inputCoder;
-  protected DoFnInvoker<InputT, OutputT> doFnInvoker;
-  protected OutputManager outputManager;
+  protected transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+  protected transient OutputManager outputManager;
   protected WindowingStrategy<?, ?> windowingStrategy;
   protected final TupleTag<InputT> mainInputTag;
   protected Collection<PCollectionView<?>> sideInputs;
-  protected SideInputHandler sideInputHandler;
+  protected transient SideInputHandler sideInputHandler;
   protected final Map<TupleTag, PCollectionView<?>> sideInputTagToView;
 
   // Initialize during runtime
-  protected ExecutorContext executorContext;
+  protected transient ExecutorContext executorContext;
   protected ExecutorsBolt executorsBolt;
-  protected TimerInternals timerInternals;
+  protected transient TimerInternals timerInternals;
   protected transient StateInternals pushbackStateInternals;
   protected transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
   protected transient StateTag<WatermarkHoldState> watermarkHoldTag;
   protected transient IKvStoreManager kvStoreManager;
-  protected DefaultStepContext stepContext;
+  protected transient DefaultStepContext stepContext;
   protected transient MetricClient metricClient;
 
   public DoFnExecutor(
@@ -133,7 +139,6 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
     this.doFn = doFn;
     this.inputCoder = inputCoder;
-    this.outputManager = new DoFnExecutorOutputManager();
     this.windowingStrategy = windowingStrategy;
     this.mainInputTag = mainInputTag;
     this.sideInputs = sideInputs;
@@ -174,6 +179,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
     this.executorsBolt = context.getExecutorsBolt();
     this.pipelineOptions =
         this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
+    this.outputManager = new DoFnExecutorOutputManager(executorsBolt);
 
     initService(context);
 
@@ -199,8 +205,6 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
 
   @Override
   public <T> void process(TupleTag<T> tag, WindowedValue<T> elem) {
-    LOG.debug(String.format("process: elemTag=%s, mainInputTag=%s, sideInputs=%s, elem={}",
-        tag, mainInputTag, sideInputs, elem.getValue()));
     if (mainInputTag.equals(tag)) {
       processMainInput(elem);
     } else if (sideInputTagToView.containsKey(tag)) {
@@ -213,6 +217,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   }
 
   protected <T> void processMainInput(WindowedValue<T> elem) {
+    LOG.debug(String.format("Main input: tag=%s, elem=%s", mainInputTag, elem));
     if (sideInputs.isEmpty()) {
       runner.processElement((WindowedValue<InputT>) elem);
     } else {
@@ -234,7 +239,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   }
 
   protected void processSideInput(TupleTag tag, WindowedValue elem) {
-    LOG.debug(String.format("side inputs: %s, %s.", tag, elem));
+    LOG.debug(String.format("Side inputs: tag=%s, elem=%s.", tag, elem));
 
     PCollectionView<?> sideInputView = sideInputTagToView.get(tag);
     sideInputHandler.addSideInputValue(sideInputView, elem);

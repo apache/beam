@@ -58,9 +58,9 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorsBolt.class);
 
-  protected ExecutorContext executorContext;
+  protected transient ExecutorContext executorContext;
 
-  protected TimerService timerService;
+  protected transient TimerService timerService;
 
   // map from input tag to executor inside bolt
   protected final Map<TupleTag, Executor> inputTagToExecutor = Maps.newHashMap();
@@ -73,7 +73,7 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
   protected int internalDoFnExecutorId = 1;
   protected final Map<Integer, DoFnExecutor> idToDoFnExecutor = Maps.newHashMap();
 
-  protected OutputCollector collector;
+  protected transient OutputCollector collector;
 
   protected boolean isStatefulBolt = false;
 
@@ -265,8 +265,8 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
   }
 
   public <T> void processExecutorElem(TupleTag<T> inputTag, WindowedValue<T> elem) {
-    LOG.debug("ProcessExecutorElem: value={} from tag={}", elem.getValue(), inputTag);
     if (elem != null) {
+      LOG.debug("ProcessExecutorElem: value={} from tag={}", elem.getValue(), inputTag);
       Executor executor = inputTagToExecutor.get(inputTag);
       if (executor != null) {
         executor.process(inputTag, elem);

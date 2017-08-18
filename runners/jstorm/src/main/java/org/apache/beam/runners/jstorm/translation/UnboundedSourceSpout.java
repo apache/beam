@@ -114,7 +114,7 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
   }
 
   @Override
-  public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+  public synchronized void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
     try {
       this.collector = collector;
       this.pipelineOptions =
@@ -128,7 +128,8 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
     }
   }
 
-  public void createSourceReader(UnboundedSource.CheckpointMark checkpointMark) throws IOException {
+  public synchronized void createSourceReader(UnboundedSource.CheckpointMark checkpointMark)
+      throws IOException {
     if (reader != null) {
       reader.close();
     }

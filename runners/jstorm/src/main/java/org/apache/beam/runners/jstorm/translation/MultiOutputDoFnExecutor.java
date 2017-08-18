@@ -36,18 +36,6 @@ import org.slf4j.LoggerFactory;
 class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiOutputDoFnExecutor.class);
 
-  /**
-   * For multi-output scenario,a "local" tuple tag is used in producer currently while a generated
-   * tag is used in downstream consumer. So before output, we need to map this "local" tag to
-   * "external" tag. See PCollectionTuple for details.
-   */
-  public class MultiOutputDoFnExecutorOutputManager extends DoFnExecutorOutputManager {
-    @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      executorsBolt.processExecutorElem(tag, output);
-    }
-  }
-
   public MultiOutputDoFnExecutor(
       String stepName,
       String description,
@@ -63,6 +51,5 @@ class MultiOutputDoFnExecutor<InputT, OutputT> extends DoFnExecutor<InputT, Outp
   ) {
     super(stepName, description, pipelineOptions, doFn, inputCoder, windowingStrategy, mainInputTag,
         sideInputs, sideInputTagToView, mainTupleTag, sideOutputTags);
-    this.outputManager = new MultiOutputDoFnExecutorOutputManager();
   }
 }

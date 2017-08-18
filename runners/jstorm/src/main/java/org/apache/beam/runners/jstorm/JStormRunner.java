@@ -302,9 +302,10 @@ public class JStormRunner extends PipelineRunner<JStormRunnerResult> {
 
     int parallelismNumber = options.getParallelism();
     Map<String, UnboundedSourceSpout> spouts = context.getSpouts();
-    for (String id : spouts.keySet()) {
-      IRichSpout spout = getSpout(isExactlyOnce, spouts.get(id));
-      builder.setSpout(id, spout, getParallelismNum(spouts.get(id), parallelismNumber));
+    for (Map.Entry<String, UnboundedSourceSpout> entry : spouts.entrySet()) {
+      IRichSpout spout = getSpout(isExactlyOnce, entry.getValue());
+      builder.setSpout(
+          entry.getKey(), spout, getParallelismNum(entry.getValue(), parallelismNumber));
     }
 
     HashMap<String, BoltDeclarer> declarers = new HashMap<>();

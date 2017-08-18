@@ -39,15 +39,15 @@ import org.joda.time.Instant;
  * Default implementation of {@link TimerService}.
  */
 class TimerServiceImpl implements TimerService {
-  private transient ExecutorContext executorContext;
-  private transient Map<Integer, DoFnExecutor> idToDoFnExecutor;
+  private ExecutorContext executorContext;
+  private Map<Integer, DoFnExecutor> idToDoFnExecutor;
 
   private final ConcurrentMap<Integer, Long> upStreamTaskToInputWatermark =
       new ConcurrentHashMap<>();
   private final PriorityQueue<Long> inputWatermarks = new PriorityQueue<>();
   private final PriorityQueue<Instant> watermarkHolds = new PriorityQueue<>();
   private final Map<String, Instant> namespaceToWatermarkHold = new HashMap<>();
-  private final transient PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
+  private final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
       new PriorityQueue<>();
   private final Map<TimerInternals.TimerData, Set<Pair<Integer, Object>>>
       timerDataToKeyedExecutors = Maps.newHashMap();
@@ -132,7 +132,7 @@ class TimerServiceImpl implements TimerService {
     if (currentHold == null) {
       namespaceToWatermarkHold.put(namespace, watermarkHold);
       watermarkHolds.add(watermarkHold);
-    } else if (currentHold != null && watermarkHold.isBefore(currentHold)) {
+    } else if (watermarkHold.isBefore(currentHold)) {
       namespaceToWatermarkHold.put(namespace, watermarkHold);
       watermarkHolds.add(watermarkHold);
       watermarkHolds.remove(currentHold);

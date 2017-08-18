@@ -222,7 +222,6 @@ public class JavaUtilsSerializer {
    * @see Collections#unmodifiableSortedMap(SortedMap)
    */
   private static void registerUnmodifableCollectionSerializers(Config config) {
-    UnmodifiableCollection.values();
     for (final UnmodifiableCollection item : UnmodifiableCollection.values()) {
       config.registerSerialization(item.type, UnmodifiableCollectionsSerializer.class);
     }
