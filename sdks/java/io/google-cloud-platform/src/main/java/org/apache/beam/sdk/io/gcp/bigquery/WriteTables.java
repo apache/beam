@@ -119,8 +119,8 @@ class WriteTables<DestinationT>
 
     Integer partition = c.element().getKey().getShardNumber();
     List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-    String jobIdPrefix =
-        BigQueryHelpers.createJobId(c.sideInput(jobIdToken), tableDestination, partition);
+    String jobIdPrefix = BigQueryHelpers.createJobId(
+            c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
 
     if (!singlePartition) {
       tableReference.setTableId(jobIdPrefix);
