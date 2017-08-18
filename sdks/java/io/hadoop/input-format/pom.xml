@@ -27,15 +27,10 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: input-format</name>
   <description>IO to read data from data sources which implement Hadoop Input Format.</description>
 
-  <properties>
-    <guava.version>19.0</guava.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

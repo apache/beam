@@ -159,78 +159,69 @@ public class HBaseIO {
     return new Read(null, "", new SerializableScan(new Scan()));
   }
 
-  /**
-   * A {@link PTransform} that reads from HBase. See the class-level Javadoc on {@link HBaseIO} for
-   * more information.
-   *
-   * @see HBaseIO
-   */
-  public static class Read extends PTransform<PBegin, PCollection<Result>> {
     /**
-     * Returns a new {@link HBaseIO.Read} that will read from the HBase instance indicated by the
-     * given configuration.
-     */
-    public Read withConfiguration(Configuration configuration) {
-      checkNotNull(configuration, "conf");
-      return new Read(new SerializableConfiguration(configuration), tableId, serializableScan);
-    }
-
-    /**
-     * Returns a new {@link HBaseIO.Read} that will read from the specified table.
+     * A {@link PTransform} that reads from HBase. See the class-level Javadoc on
+      {@link HBaseIO} for* more information.
      *
-     * <p>Does not modify this object.
+     * @see HBaseIO
      */
-    public Read withTableId(String tableId) {
-      checkNotNull(tableId, "tableId");
-      return new Read(serializableConfiguration, tableId, serializableScan);
-    }
+    public static class Read extends PTransform<PBegin, PCollection<Result>> {
+        /**
+         Reads from the HBase instance
+          indicated by the* given configuration.*/
 
-    /**
-     * Returns a new {@link HBaseIO.Read} that will filter the rows read from HBase using the given
-     * scan.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withScan(Scan scan) {
-      checkNotNull(scan, "scan");
-      return new Read(serializableConfiguration, tableId, new SerializableScan(scan));
-    }
+        public Read withConfiguration(Configuration configuration) {
+            checkArgument(configuration != null, "configuration can not be null");
+            return new Read(new SerializableConfiguration(configuration),
+                    tableId, serializableScan);
+        }
 
-    /**
-     * Returns a new {@link HBaseIO.Read} that will filter the rows read from HBase using the given
-     * row filter.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withFilter(Filter filter) {
-      checkNotNull(filter, "filter");
-      return withScan(serializableScan.get().setFilter(filter));
-    }
+        /**
+         Reads from the specified table.*/
 
-    /**
-     * Returns a new {@link HBaseIO.Read} that will read only rows in the specified range.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withKeyRange(ByteKeyRange keyRange) {
-      checkNotNull(keyRange, "keyRange");
-      byte[] startRow = keyRange.getStartKey().getBytes();
-      byte[] stopRow = keyRange.getEndKey().getBytes();
-      return withScan(serializableScan.get().setStartRow(startRow).setStopRow(stopRow));
-    }
+        public Read withTableId(String tableId) {
+            checkArgument(tableId != null, "tableIdcan not be null");
+            return new Read(serializableConfiguration, tableId, serializableScan);
+        }
 
-    /**
-     * Returns a new {@link HBaseIO.Read} that will read only rows in the specified range.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withKeyRange(byte[] startRow, byte[] stopRow) {
-      checkNotNull(startRow, "startRow");
-      checkNotNull(stopRow, "stopRow");
-      ByteKeyRange keyRange =
-          ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
-      return withKeyRange(keyRange);
-    }
+        /**
+         Filters the rows read from HBase
+          using the given* scan.*/
+
+        public Read withScan(Scan scan) {
+            checkArgument(scan != null, "scancan not be null");
+            return new Read(serializableConfiguration, tableId, new SerializableScan(scan));
+        }
+
+        /**
+         Filters the rows read from HBase
+          using the given* row filter.*/
+
+        public Read withFilter(Filter filter) {
+            checkArgument(filter != null, "filtercan not be null");
+            return withScan(serializableScan.get().setFilter(filter));
+        }
+
+        /**
+         Reads only rows in the specified range.*/
+
+        public Read withKeyRange(ByteKeyRange keyRange) {
+            checkArgument(keyRange != null, "keyRangecan not be null");
+            byte[] startRow = keyRange.getStartKey().getBytes();
+            byte[] stopRow = keyRange.getEndKey().getBytes();
+            return withScan(serializableScan.get().setStartRow(startRow).setStopRow(stopRow));
+        }
+
+        /**
+         Reads only rows in the specified range.*/
+
+        public Read withKeyRange(byte[] startRow, byte[] stopRow) {
+            checkArgument(startRow != null, "startRowcan not be null");
+            checkArgument(stopRow != null, "stopRowcan not be null");
+            ByteKeyRange keyRange =
+                    ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
+            return withKeyRange(keyRange);
+        }
 
     private Read(
         SerializableConfiguration serializableConfiguration,
@@ -241,25 +232,22 @@ public class HBaseIO {
       this.serializableScan = serializableScan;
     }
 
-    @Override
-    public PCollection<Result> expand(PBegin input) {
-      HBaseSource source = new HBaseSource(this, null /* estimatedSizeBytes */);
-      return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkArgument(serializableConfiguration != null, "Configuration not provided");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
-      try (Connection connection =
-          ConnectionFactory.createConnection(serializableConfiguration.get())) {
-        Admin admin = connection.getAdmin();
-        checkArgument(
-            admin.tableExists(TableName.valueOf(tableId)), "Table %s does not exist", tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
-      }
-    }
+        @Override
+        public PCollection<Result> expand(PBegin input) {
+            checkArgument(serializableConfiguration != null,
+                    "withConfiguration() is required");
+            checkArgument(!tableId.isEmpty(), "withTableId() is required");
+            try (Connection connection = ConnectionFactory.createConnection(
+                    serializableConfiguration.get())) {
+                Admin admin = connection.getAdmin();
+                checkArgument(admin.tableExists(TableName.valueOf(tableId)),
+                        "Table %s does not exist", tableId);
+            } catch (IOException e) {
+                LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+            }
+            HBaseSource source = new HBaseSource(this, null /* estimatedSizeBytes */);
+                return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
+        }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -609,58 +597,50 @@ public class HBaseIO {
     return new Write(null /* SerializableConfiguration */, "");
   }
 
-  /**
-   * A {@link PTransform} that writes to HBase. See the class-level Javadoc on {@link HBaseIO} for
-   * more information.
-   *
-   * @see HBaseIO
-   */
-  public static class Write extends PTransform<PCollection<Mutation>, PDone> {
     /**
-     * Returns a new {@link HBaseIO.Write} that will write to the HBase instance indicated by the
-     * given Configuration, and using any other specified customizations.
+     * A {@link PTransform} that writes to HBase. See the class-level Javadoc on
+      {@link HBaseIO} for* more information.
      *
-     * <p>Does not modify this object.
+     * @see HBaseIO
      */
-    public Write withConfiguration(Configuration configuration) {
-      checkNotNull(configuration, "conf");
-      return new Write(new SerializableConfiguration(configuration), tableId);
-    }
+    public static class Write extends PTransform<PCollection<Mutation>, PDone> {
+        /**
+         Writes to the HBase instance
+          indicated by the* given Configuration.
+         */
+        public Write withConfiguration(Configuration configuration) {
+            checkArgument(configuration != null, "configuration can not be null");
+            return new Write(new SerializableConfiguration(configuration), tableId);
+        }
 
-    /**
-     * Returns a new {@link HBaseIO.Write} that will write to the specified table.
-     *
-     * <p>Does not modify this object.
-     */
-    public Write withTableId(String tableId) {
-      checkNotNull(tableId, "tableId");
-      return new Write(serializableConfiguration, tableId);
-    }
+        /**
+         Writes to the specified table.*/
+
+        public Write withTableId(String tableId) {
+            checkArgument(tableId != null, "tableIdcan not be null");
+            return new Write(serializableConfiguration, tableId);
+        }
 
     private Write(SerializableConfiguration serializableConfiguration, String tableId) {
       this.serializableConfiguration = serializableConfiguration;
       this.tableId = tableId;
     }
 
-    @Override
-    public PDone expand(PCollection<Mutation> input) {
-      input.apply(ParDo.of(new HBaseWriterFn(tableId, serializableConfiguration)));
-      return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkArgument(serializableConfiguration != null, "Configuration not specified");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
-      try (Connection connection =
-          ConnectionFactory.createConnection(serializableConfiguration.get())) {
-        Admin admin = connection.getAdmin();
-        checkArgument(
-            admin.tableExists(TableName.valueOf(tableId)), "Table %s does not exist", tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
-      }
-    }
+        @Override
+        public PDone expand(PCollection<Mutation> input) {
+            checkArgument(serializableConfiguration != null, "withConfiguration() is required");
+            checkArgument(tableId != null && !tableId.isEmpty(), "withTableId() is required");
+            try (Connection connection = ConnectionFactory.createConnection(
+                    serializableConfiguration.get())) {
+                Admin admin = connection.getAdmin();
+                checkArgument(admin.tableExists(TableName.valueOf(tableId)),
+                        "Table %s does not exist", tableId);
+            } catch (IOException e) {
+                LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+            }
+            input.apply(ParDo.of(new HBaseWriterFn(tableId, serializableConfiguration)));
+            return PDone.in(input.getPipeline());
+        }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {

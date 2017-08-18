@@ -59,7 +59,7 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing
    * this method.
    */
-  public abstract void validate();
+  public void validate() {}
 
   /** @deprecated Override {@link #getOutputCoder()} instead. */
   @Deprecated
