@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -135,7 +134,7 @@ import org.joda.time.Duration;
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.write().to("/path/to/file.txt"))
  *      .withSuffix(".txt")
- *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
+ *      .withCompression(Compression.GZIP));
  * }</pre>
  *
  * <p>Any existing files with the same names as generated output files will be overwritten.
@@ -188,7 +187,7 @@ public class TextIO {
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder()
-        .setCompressionType(CompressionType.AUTO)
+        .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
         .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
         .build();
@@ -206,7 +205,7 @@ public class TextIO {
    */
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
-        .setCompressionType(CompressionType.AUTO)
+        .setCompression(Compression.AUTO)
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
@@ -257,7 +256,7 @@ public class TextIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
-    abstract CompressionType getCompressionType();
+    abstract Compression getCompression();
 
     @Nullable
     abstract Duration getWatchForNewFilesInterval();
@@ -273,7 +272,7 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
-      abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setCompression(Compression compression);
       abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
       abstract Builder setWatchForNewFilesTerminationCondition(
               TerminationCondition<?, ?> condition);
@@ -307,13 +306,19 @@ public class TextIO {
       return toBuilder().setFilepattern(filepattern).build();
     }
 
+    /** @deprecated Use {@link #withCompression}. */
+    @Deprecated
+    public Read withCompressionType(TextIO.CompressionType compressionType) {
+      return withCompression(compressionType.canonical);
+    }
+
     /**
      * Reads from input sources using the specified compression type.
      *
-     * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
+     * <p>If no compression type is specified, the default is {@link Compression#AUTO}.
      */
-    public Read withCompressionType(TextIO.CompressionType compressionType) {
-      return toBuilder().setCompressionType(compressionType).build();
+    public Read withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     /**
@@ -364,7 +369,7 @@ public class TextIO {
       // All other cases go through ReadAll.
       ReadAll readAll =
           readAll()
-              .withCompressionType(getCompressionType())
+              .withCompression(getCompression())
               .withEmptyMatchTreatment(getEmptyMatchTreatment());
       if (getWatchForNewFilesInterval() != null) {
         TerminationCondition<String, ?> readAllCondition =
@@ -378,37 +383,8 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return wrapWithCompression(
-          new TextSource(getFilepattern(), getEmptyMatchTreatment()),
-          getCompressionType());
-    }
-
-    private static FileBasedSource<String> wrapWithCompression(
-        FileBasedSource<String> source, CompressionType compressionType) {
-      switch (compressionType) {
-        case UNCOMPRESSED:
-          return source;
-        case AUTO:
-          return CompressedSource.from(source);
-        case BZIP2:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.BZIP2);
-        case GZIP:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.GZIP);
-        case ZIP:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.ZIP);
-        case DEFLATE:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.DEFLATE);
-        default:
-          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
-      }
+      return CompressedSource.from(new TextSource(getFilepattern(), getEmptyMatchTreatment()))
+          .withCompression(getCompression());
     }
 
     @Override
@@ -416,7 +392,7 @@ public class TextIO {
       super.populateDisplayData(builder);
       builder
           .add(
-              DisplayData.item("compressionType", getCompressionType().toString())
+              DisplayData.item("compressionType", getCompression().toString())
                   .withLabel("Compression Type"))
           .addIfNotNull(
               DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
@@ -435,7 +411,7 @@ public class TextIO {
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
-    abstract CompressionType getCompressionType();
+    abstract Compression getCompression();
 
     @Nullable
     abstract Duration getWatchForNewFilesInterval();
@@ -450,7 +426,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setCompressionType(CompressionType compressionType);
+      abstract Builder setCompression(Compression compression);
       abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
       abstract Builder setWatchForNewFilesTerminationCondition(
           TerminationCondition<String, ?> condition);
@@ -460,9 +436,19 @@ public class TextIO {
       abstract ReadAll build();
     }
 
-    /** Same as {@link Read#withCompressionType(CompressionType)}. */
-    public ReadAll withCompressionType(CompressionType compressionType) {
-      return toBuilder().setCompressionType(compressionType).build();
+    /** @deprecated Use {@link #withCompression}. */
+    @Deprecated
+    public ReadAll withCompressionType(TextIO.CompressionType compressionType) {
+      return withCompression(compressionType.canonical);
+    }
+
+    /**
+     * Reads from input sources using the specified compression type.
+     *
+     * <p>If no compression type is specified, the default is {@link Compression#AUTO}.
+     */
+    public ReadAll withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     /** Same as {@link Read#withEmptyMatchTreatment}. */
@@ -499,9 +485,9 @@ public class TextIO {
           .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
-                  new IsSplittableFn(getCompressionType()),
+                  new IsSplittableFn(getCompression()),
                   getDesiredBundleSizeBytes(),
-                  new CreateTextSourceFn(getCompressionType(), getEmptyMatchTreatment())))
+                  new CreateTextSourceFn(getCompression(), getEmptyMatchTreatment())))
           .setCoder(StringUtf8Coder.of());
     }
 
@@ -510,39 +496,39 @@ public class TextIO {
       super.populateDisplayData(builder);
 
       builder.add(
-          DisplayData.item("compressionType", getCompressionType().toString())
+          DisplayData.item("compressionType", getCompression().toString())
               .withLabel("Compression Type"));
     }
 
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
-      private final CompressionType compressionType;
+      private final Compression compression;
       private final EmptyMatchTreatment emptyMatchTreatment;
 
       private CreateTextSourceFn(
-          CompressionType compressionType, EmptyMatchTreatment emptyMatchTreatment) {
-        this.compressionType = compressionType;
+          Compression compression, EmptyMatchTreatment emptyMatchTreatment) {
+        this.compression = compression;
         this.emptyMatchTreatment = emptyMatchTreatment;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
-        return Read.wrapWithCompression(
-            new TextSource(StaticValueProvider.of(input), emptyMatchTreatment), compressionType);
+        return CompressedSource.from(
+                new TextSource(StaticValueProvider.of(input), emptyMatchTreatment))
+            .withCompression(compression);
       }
     }
 
     private static class IsSplittableFn implements SerializableFunction<String, Boolean> {
-      private final CompressionType compressionType;
+      private final Compression compression;
 
-      private IsSplittableFn(CompressionType compressionType) {
-        this.compressionType = compressionType;
+      private IsSplittableFn(Compression compression) {
+        this.compression = compression;
       }
 
       @Override
       public Boolean apply(String filename) {
-        return compressionType == CompressionType.UNCOMPRESSED
-            || (compressionType == CompressionType.AUTO && !CompressionMode.isCompressed(filename));
+        return !compression.isCompressed(filename);
       }
     }
   }
@@ -811,13 +797,23 @@ public class TextIO {
     /**
      * Returns a transform for writing to text files like this one but that has the given {@link
      * WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output. The
-     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     * default is value is {@link Compression#UNCOMPRESSED}.
      *
      * <p>A {@code null} value will reset the value to the default value mentioned above.
      */
     public TypedWrite<UserT> withWritableByteChannelFactory(
         WritableByteChannelFactory writableByteChannelFactory) {
       return toBuilder().setWritableByteChannelFactory(writableByteChannelFactory).build();
+    }
+
+    /**
+     * Returns a transform for writing to text files like this one but that compresses output using
+     * the given {@link Compression}. The default value is {@link Compression#UNCOMPRESSED}.
+     */
+    public TypedWrite<UserT> withCompression(Compression compression) {
+      checkArgument(compression != null, "compression can not be null");
+      return withWritableByteChannelFactory(
+          FileBasedSink.CompressionType.fromCanonical(compression));
     }
 
     /**
@@ -1063,48 +1059,36 @@ public class TextIO {
     }
   }
 
-  /**
-   * Possible text file compression types.
-   */
+  /** @deprecated Use {@link Compression}. */
+  @Deprecated
   public enum CompressionType {
-    /**
-     * Automatically determine the compression type based on filename extension.
-     */
-    AUTO(""),
-    /**
-     * Uncompressed (i.e., may be split).
-     */
-    UNCOMPRESSED(""),
-    /**
-     * GZipped.
-     */
-    GZIP(".gz"),
-    /**
-     * BZipped.
-     */
-    BZIP2(".bz2"),
-    /**
-     * Zipped.
-     */
-    ZIP(".zip"),
-    /**
-     * Deflate compressed.
-     */
-    DEFLATE(".deflate");
+    /** @see Compression#AUTO */
+    AUTO(Compression.AUTO),
 
-    private String filenameSuffix;
+    /** @see Compression#UNCOMPRESSED */
+    UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    CompressionType(String suffix) {
-      this.filenameSuffix = suffix;
+    /** @see Compression#GZIP */
+    GZIP(Compression.GZIP),
+
+    /** @see Compression#BZIP2 */
+    BZIP2(Compression.BZIP2),
+
+    /** @see Compression#ZIP */
+    ZIP(Compression.ZIP),
+
+    /** @see Compression#ZIP */
+    DEFLATE(Compression.DEFLATE);
+
+    private Compression canonical;
+
+    CompressionType(Compression canonical) {
+      this.canonical = canonical;
     }
 
-    /**
-     * Determine if a given filename matches a compression type based on its extension.
-     * @param filename the filename to match
-     * @return true iff the filename ends with the compression type's known extension.
-     */
+    /** @see Compression#matches */
     public boolean matches(String filename) {
-      return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
+      return canonical.matches(filename);
     }
   }
 
