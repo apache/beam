@@ -1222,21 +1222,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      if (subscription != null) {
-        String subscriptionString = subscription.isAccessible()
-            ? subscription.get().getPath()
-            : subscription.toString();
-        builder.add(DisplayData.item("subscription", subscriptionString));
-      }
-      if (topic != null) {
-        String topicString = topic.isAccessible()
-            ? topic.get().getPath()
-            : topic.toString();
-        builder.add(DisplayData.item("topic", topicString));
-      }
-      builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
-      builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
+      builder
+          .addIfNotNull(DisplayData.item("subscription", subscription))
+          .addIfNotNull(DisplayData.item("topic", topic))
+          .add(DisplayData.item("transport", pubsubFactory.getKind()))
+          .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute))
+          .addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
 
@@ -1416,8 +1407,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
-        checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
-        checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
         SubscriptionPath subscriptionPath =
             pubsubClient.createRandomSubscription(
                 project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
