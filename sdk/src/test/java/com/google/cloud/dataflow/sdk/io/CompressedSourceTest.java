@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -201,6 +200,38 @@ public class CompressedSourceTest {
 
     DataflowAssert.that(output).containsInAnyOrder(Bytes.asList(expected));
     p.run();
+  }
+
+  /**
+   * Test a bzip2 file containing multiple streams is correctly decompressed.
+   *
+   * <p>A bzip2 file may contain multiple streams and should decompress as the concatenation of
+   * those streams.
+   */
+  @Test
+  public void testReadMultiStreamBzip2() throws IOException {
+    CompressionMode mode = CompressionMode.BZIP2;
+    byte[] input1 = generateInput(5, 587973);
+    byte[] input2 = generateInput(5, 387374);
+
+    ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream1)) {
+      os.write(input1);
+    }
+
+    ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForMode(mode, stream2)) {
+      os.write(input2);
+    }
+
+    File tmpFile = tmpFolder.newFile();
+    try (OutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(stream1.toByteArray());
+      os.write(stream2.toByteArray());
+    }
+
+    byte[] output = Bytes.concat(input1, input2);
+    verifyReadContents(output, tmpFile, mode);
   }
 
   /**
@@ -416,7 +447,14 @@ public class CompressedSourceTest {
    */
   private byte[] generateInput(int size) {
     // Arbitrary but fixed seed
-    Random random = new Random(285930);
+    return generateInput(size, 285930);
+  }
+
+  /**
+   * Generate byte array of given size.
+   */
+  private byte[] generateInput(int size, int seed) {
+    Random random = new Random(seed);
     byte[] buff = new byte[size];
     random.nextBytes(buff);
     return buff;
