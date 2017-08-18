@@ -106,8 +106,10 @@ public class DataStreams {
 
   /**
    * An adapter which converts an {@link InputStream} to an {@link Iterator} of {@code T} values
-   * using the specified {@link Coder}. Note that this adapter follows the Beam Fn API specification
-   * for forcing values that decode consuming zero bytes to consuming exactly one byte.
+   * using the specified {@link Coder}.
+   *
+   * <p>Note that this adapter follows the Beam Fn API specification for forcing values that decode
+   * consuming zero bytes to consuming exactly one byte.
    *
    * <p>Note that access to the underlying {@link InputStream} is lazy and will only be invoked on
    * first access to {@link #next()} or {@link #hasNext()}.
