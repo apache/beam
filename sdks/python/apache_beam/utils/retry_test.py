@@ -17,9 +17,10 @@
 
 """Unit tests for the retry module."""
 
-from builtins import str
-from builtins import object
 import unittest
+from builtins import object
+
+from apache_beam.utils import retry
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -29,9 +30,6 @@ try:
 except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
-
-
-from apache_beam.utils import retry
 
 
 class FakeClock(object):

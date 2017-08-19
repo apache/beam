@@ -64,13 +64,13 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
-from builtins import object
 import logging
+import sys
 import warnings
+from builtins import object
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
-
 
 __all__ = ['registry']
 
@@ -89,7 +89,11 @@ class CoderRegistry(object):
     self._register_coder_internal(float, coders.FloatCoder)
     self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
-    self._register_coder_internal(str, coders.StrUtf8Coder)
+    if sys.version_info[0] >= 3:
+      self._register_coder_internal(str, coders.StrUtf8Coder)
+    else:
+      self._register_coder_internal(str, coders.StrUtf8StrCoder)
+      self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.

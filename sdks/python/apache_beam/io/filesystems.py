@@ -17,13 +17,10 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
-from builtins import object
 import re
+from builtins import object
 
-from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystem import FileSystem
-
+from apache_beam.io.filesystem import BeamIOError, CompressionTypes, FileSystem
 # All filesystem implements should be added here
 # pylint: disable=wrong-import-position, unused-import
 from apache_beam.io.localfilesystem import LocalFileSystem

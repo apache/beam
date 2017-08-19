@@ -19,12 +19,12 @@
 """
 from __future__ import division
 
-from builtins import zip
-from builtins import object
-from past.utils import old_div
 import logging
 import math
 import threading
+from builtins import object, zip
+
+from past.utils import old_div
 
 from apache_beam.io import iobase
 

@@ -17,15 +17,13 @@
 
 """Pipeline options obtained from command line parsing."""
 
-from builtins import str
-from builtins import object
 import argparse
+from builtins import object
 
+from apache_beam.options.value_provider import (RuntimeValueProvider,
+                                                StaticValueProvider,
+                                                ValueProvider)
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import RuntimeValueProvider
-from apache_beam.options.value_provider import ValueProvider
-
 
 __all__ = [
     'PipelineOptions',

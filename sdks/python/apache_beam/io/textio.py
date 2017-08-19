@@ -19,21 +19,23 @@
 
 
 from __future__ import absolute_import
-from builtins import range
-from builtins import object
-from functools import partial
+
 import logging
+import sys
+from builtins import object, range
+from functools import partial
 
 from apache_beam.coders import coders
-from apache_beam.io import filebasedsource
-from apache_beam.io import filebasedsink
-from apache_beam.io import iobase
+from apache_beam.io import filebasedsink, filebasedsource, iobase
 from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.iobase import Read
-from apache_beam.io.iobase import Write
+from apache_beam.io.iobase import Read, Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+
+if sys.version_info[0] >= 3:
+  basestring = str
+
 
 __all__ = ['ReadFromText', 'ReadAllFromText', 'WriteToText']
 
@@ -64,7 +66,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @data.setter
     def data(self, value):
-      assert isinstance(value, bytes)
+      assert isinstance(value, basestring)
       self._data = value
 
     @property

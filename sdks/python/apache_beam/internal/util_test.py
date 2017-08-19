@@ -19,9 +19,9 @@
 
 import unittest
 
-from apache_beam.internal.util import ArgumentPlaceholder
-from apache_beam.internal.util import insert_values_in_args
-from apache_beam.internal.util import remove_objects_from_args
+from apache_beam.internal.util import (ArgumentPlaceholder,
+                                       insert_values_in_args,
+                                       remove_objects_from_args)
 
 
 class UtilTest(unittest.TestCase):

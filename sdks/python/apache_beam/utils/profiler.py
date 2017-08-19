@@ -20,19 +20,20 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 import cProfile
+import io
 import logging
 import os
 import pstats
-import io
 import tempfile
 import time
 import warnings
+from builtins import object
 from threading import Timer
+
+from future import standard_library
+
+standard_library.install_aliases()
 
 
 class Profile(object):

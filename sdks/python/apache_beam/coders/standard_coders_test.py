@@ -19,21 +19,20 @@
 """
 from __future__ import print_function
 
-from builtins import map
 import json
 import logging
 import os.path
 import sys
 import unittest
+from builtins import map
 
 import yaml
 
-from apache_beam.coders import coders
-from apache_beam.coders import coder_impl
+from apache_beam.coders import coder_impl, coders
+from apache_beam.transforms import window
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')

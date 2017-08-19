@@ -18,20 +18,17 @@
 """Unit tests for our libraries of combine PTransforms."""
 from __future__ import division
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
 import unittest
+from builtins import range
 
 import hamcrest as hc
+from past.utils import old_div
 
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 import apache_beam.transforms.combiners as combine
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
-from apache_beam.transforms.core import CombineGlobally
-from apache_beam.transforms.core import Create
-from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import CombineGlobally, Create, Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform

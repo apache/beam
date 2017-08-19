@@ -24,9 +24,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 from collections import namedtuple
-from builtins import hex
-from builtins import object
 import threading
+from builtins import hex, object
 
 from apache_beam.transforms import cy_combiners
 

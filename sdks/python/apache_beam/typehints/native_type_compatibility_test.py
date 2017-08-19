@@ -17,14 +17,12 @@
 
 """Test for Beam type compatibility library."""
 
-
-from builtins import object
 import typing
 import unittest
+from builtins import object
 
+from apache_beam.typehints import native_type_compatibility, typehints
 
-from apache_beam.typehints import typehints
-from apache_beam.typehints import native_type_compatibility
 
 _TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
                                     [('age', int), ('name', bytes)])

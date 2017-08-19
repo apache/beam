@@ -25,14 +25,12 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
-from builtins import str
-from builtins import range
-from builtins import object
 import logging
 import random
 import sys
 import time
 import traceback
+from builtins import object, range
 
 from apache_beam.io.filesystem import BeamIOError
 
@@ -186,9 +184,15 @@ def with_exponential_backoff(
           try:
             try:
               sleep_interval = next(retry_intervals)
-            except StopIteration:
+            except StopIteration as inner:
               # Re-raise the original exception since we finished the retries.
-              raise exn, None, exn_traceback  # pylint: disable=raising-bad-type
+              # Python 3 the traceback is in the exception, Python 2 no.
+              if sys.version >= "3":
+                raise exn
+              else:
+                exn.msg = 'Error during {0} caused by {1}'.format(
+                  repr(inner), repr(exn))
+                raise exn # pylint: disable=raising-bad-type
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

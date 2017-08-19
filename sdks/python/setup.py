@@ -42,6 +42,7 @@ def get_version():
   exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 
+
 PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
@@ -93,11 +94,11 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-
-REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
+if sys.version_info[0] >= 3:
+  REQUIRED_PACKAGES = [
+    'avro-python3>=1.8.0,<2.0.0',
     'crcmod>=1.7,<2.0',
-    'dill==0.2.6',
+    'dill==0.2.7.1',
     'grpcio>=1.0,<2.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
@@ -105,7 +106,24 @@ REQUIRED_PACKAGES = [
     'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0',
-    ]
+    'future>=0.16.0',
+    'six>=1.9',
+  ]
+else:
+  REQUIRED_PACKAGES = [
+    'avro>=1.8.1,<2.0.0',
+    'crcmod>=1.7,<2.0',
+    'dill==0.2.7.1',
+    'grpcio>=1.0,<2.0',
+    'httplib2>=0.8,<0.10',
+    'mock>=1.0.1,<3.0.0',
+    'oauth2client>=2.0.1,<4.0.0',
+    'protobuf>=3.2.0,<=3.3.0',
+    'pyyaml>=3.12,<4.0.0',
+    'typing>=3.6.0,<3.7.0',
+    'future>=0.16.0',
+    'six>=1.9',
+  ]
 
 REQUIRED_SETUP_PACKAGES = [
     'nose>=1.0',
@@ -133,6 +151,7 @@ def generate_protos_first(original_cmd):
     # See https://issues.apache.org/jira/browse/BEAM-2366
     # pylint: disable=wrong-import-position
     import gen_protos
+
     class cmd(original_cmd, object):
       def run(self):
         gen_protos.generate_proto_files()

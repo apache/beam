@@ -19,11 +19,10 @@
 
 from __future__ import absolute_import
 
+from abc import ABCMeta, abstractmethod
 from builtins import object
-from abc import ABCMeta
-from abc import abstractmethod
-from future.utils import with_metaclass
 
+from future.utils import with_metaclass
 
 __all__ = [
     'TimeDomain',

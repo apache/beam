@@ -19,15 +19,15 @@
 
 from __future__ import absolute_import
 
-from builtins import object
 import collections
 import threading
+from builtins import object
 
-from apache_beam.transforms import sideinputs
 from apache_beam.runners.direct.clock import Clock
-from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.runners.direct.executor import TransformExecutor
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.transforms import sideinputs
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 

@@ -18,20 +18,17 @@
 """Unit tests for the sources framework."""
 from __future__ import division
 
-from builtins import range
-from past.utils import old_div
 import logging
 import unittest
+from builtins import range
+
+from past.utils import old_div
 
 import apache_beam as beam
-
-from apache_beam.io import iobase
-from apache_beam.io import range_trackers
-from apache_beam.io import source_test_utils
+from apache_beam.io import iobase, range_trackers, source_test_utils
 from apache_beam.io.concat_source import ConcatSource
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import assert_that, equal_to
 
 
 class RangeSource(iobase.BoundedSource):

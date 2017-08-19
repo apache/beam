@@ -20,23 +20,28 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
-import io
+import cStringIO
 import errno
 import fnmatch
+import io
 import logging
 import multiprocessing
 import os
 import queue
 import re
+import six
 import threading
 import time
 import traceback
+from builtins import object
+
 import httplib2
+from future import standard_library
 
 from apache_beam.utils import retry
+
+standard_library.install_aliases()
+
 
 __all__ = ['GcsIO']
 
@@ -455,7 +460,7 @@ class GcsBufferedReader(object):
     self.get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self.download_stream = io.StringIO()
+    self.download_stream = six.BytesIO()
     self.downloader = transfer.Download(
         self.download_stream, auto_transfer=False, chunksize=self.buffer_size)
     self.client.objects.Get(self.get_request, download=self.downloader)
@@ -578,14 +583,14 @@ class GcsBufferedReader(object):
       self.buffer_start_position = self.position
       retry_count = 0
       while retry_count <= 10:
-        queue = queue.Queue()
+        myqueue = queue.Queue()
         t = threading.Thread(target=self._fetch_to_queue,
-                             args=(queue, self._get_segment,
+                             args=(myqueue, self._get_segment,
                                    (self.position, bytes_to_request)))
         t.daemon = True
         t.start()
         try:
-          result, exn, tb = queue.get(timeout=self.segment_timeout)
+          result, exn, tb = myqueue.get(timeout=self.segment_timeout)
         except queue.Empty:
           logging.warning(
               ('Timed out fetching %d bytes from position %d of %s after %f '
@@ -593,7 +598,7 @@ class GcsBufferedReader(object):
               self.path, self.segment_timeout)
           retry_count += 1
           # Reinitialize download objects.
-          self.download_stream = io.StringIO()
+          self.download_stream = six.BytesIO()
           self.downloader = transfer.Download(
               self.download_stream, auto_transfer=False,
               chunksize=self.buffer_size)
@@ -610,13 +615,13 @@ class GcsBufferedReader(object):
       raise GcsIOError(
           'Reached retry limit for _fetch_next_if_buffer_exhausted.')
 
-  def _fetch_to_queue(self, queue, func, args):
+  def _fetch_to_queue(self, myqueue, func, args):
     try:
       value = func(*args)
-      queue.put((value, None, None))
+      myqueue.put((value, None, None))
     except Exception as e:  # pylint: disable=broad-except
       tb = traceback.format_exc()
-      queue.put((None, e, tb))
+      myqueue.put((None, e, tb))
 
   def _remaining(self):
     return self.size - self.position
@@ -639,9 +644,10 @@ class GcsBufferedReader(object):
     end = start + size - 1
     downloader.GetRange(start, end)
     value = download_stream.getvalue()
-    # Clear the cStringIO object after we've read its contents.
+    # Clear the IO object after we've read its contents.
     download_stream.truncate(0)
-    assert len(value) == size
+    assert(len(value) == size,
+           "Value was of size {0} expected {1}".format(len(value), size))
     return value
 
   def __enter__(self):

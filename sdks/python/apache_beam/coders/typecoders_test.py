@@ -17,12 +17,10 @@
 
 """Unit tests for the typecoders module."""
 
-from builtins import str
-from builtins import object
 import unittest
+from builtins import object
 
-from apache_beam.coders import coders
-from apache_beam.coders import typecoders
+from apache_beam.coders import coders, typecoders
 from apache_beam.internal import pickler
 from apache_beam.typehints import typehints
 

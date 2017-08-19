@@ -17,18 +17,20 @@
 
 """Utilities for handling side inputs."""
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-from builtins import object
 import collections
 import logging
 import queue
 import threading
 import traceback
+from builtins import object, range
+
+from future import standard_library
 
 from apache_beam.io import iobase
 from apache_beam.transforms import window
+
+standard_library.install_aliases()
+
 
 # This module is experimental. No backwards-compatibility guarantees.
 

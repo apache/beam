@@ -21,13 +21,9 @@
 from __future__ import absolute_import
 
 from builtins import range
-from apache_beam.transforms.core import CombinePerKey
-from apache_beam.transforms.core import Flatten
-from apache_beam.transforms.core import GroupByKey
-from apache_beam.transforms.core import Map
-from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.ptransform import ptransform_fn
 
+from apache_beam.transforms.core import CombinePerKey, Flatten, GroupByKey, Map
+from apache_beam.transforms.ptransform import PTransform, ptransform_fn
 
 __all__ = [
     'CoGroupByKey',

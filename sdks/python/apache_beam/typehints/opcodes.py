@@ -26,15 +26,16 @@ are handled inline rather than here.
 
 For internal use only; no backwards-compatibility guarantees.
 """
-from __future__ import division
-from __future__ import absolute_import
-from past.utils import old_div
-import types
+from __future__ import absolute_import, division
 
-from .trivial_inference import union, element_type, Const, BoundMethod
-from . import typehints
-from .typehints import Any, Dict, Iterable, List, Tuple, Union
+import types
 from functools import reduce
+
+from past.utils import old_div
+
+from . import typehints
+from .trivial_inference import BoundMethod, Const, element_type, union
+from .typehints import Any, Dict, Iterable, List, Tuple, Union
 
 
 def pop_one(state, unused_arg):

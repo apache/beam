@@ -21,10 +21,11 @@ Concat Source, which reads the union of several other sources.
 """
 from __future__ import division
 
-from builtins import range
-from past.utils import old_div
 import bisect
 import threading
+from builtins import range
+
+from past.utils import old_div
 
 from apache_beam.io import iobase
 

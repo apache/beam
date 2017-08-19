@@ -20,11 +20,11 @@
 For internal use only. No backwards compatibility guarantees.
 """
 
-from builtins import object
 import logging
-from multiprocessing.pool import ThreadPool
 import threading
 import weakref
+from builtins import object
+from multiprocessing.pool import ThreadPool
 
 
 class ArgumentPlaceholder(object):

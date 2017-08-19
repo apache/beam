@@ -15,11 +15,10 @@
 # limitations under the License.
 #
 
-from builtins import str
 import unittest
 import warnings
-from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
+
+from apache_beam.utils.annotations import deprecated, experimental
 
 
 class AnnotationTests(unittest.TestCase):

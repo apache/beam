@@ -18,12 +18,12 @@
 
 """Unit tests for LocalFileSystem."""
 
-import unittest
-
 import filecmp
 import os
 import shutil
 import tempfile
+import unittest
+
 import mock
 
 from apache_beam.io import localfilesystem

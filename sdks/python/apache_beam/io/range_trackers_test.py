@@ -18,12 +18,12 @@
 """Unit tests for the range_trackers module."""
 from __future__ import division
 
-from builtins import str
-from past.utils import old_div
 import copy
 import logging
 import math
 import unittest
+
+from past.utils import old_div
 
 from apache_beam.io import range_trackers
 from apache_beam.io.range_trackers import OffsetRange

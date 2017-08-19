@@ -16,20 +16,21 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
-from builtins import str
-from past.builtins import basestring
 import inspect
+import sys
+import typing
 import unittest
 
-import typing
-
 import apache_beam as beam
-from apache_beam import pvalue
-from apache_beam import typehints
+from apache_beam import pvalue, typehints
 from apache_beam.options.pipeline_options import OptionsContext
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.typehints import WithTypeHints
+
+if sys.version_info[0] < 3:
+  basestring = str
+
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).

@@ -19,41 +19,35 @@
 
 from __future__ import absolute_import
 
-from builtins import object
 import collections
 import random
 import time
+from builtins import object
 
-from apache_beam import coders
-from apache_beam import pvalue
-from apache_beam.internal import pickler
 import apache_beam.io as io
-from apache_beam.runners.common import DoFnRunner
-from apache_beam.runners.common import DoFnState
-from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
-from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
-from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.util import KeyedWorkItem
-from apache_beam.runners.direct.util import TransformResult
-from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.test_stream import ElementEvent
-from apache_beam.testing.test_stream import WatermarkEvent
-from apache_beam.testing.test_stream import ProcessingTimeEvent
-from apache_beam.transforms import core
-from apache_beam.transforms.window import GlobalWindows
-from apache_beam.transforms.window import WindowedValue
-from apache_beam.transforms.trigger import create_trigger_driver
-from apache_beam.transforms.trigger import _CombiningValueStateTag
-from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import TimeDomain
-from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
-from apache_beam.typehints.typecheck import TypeCheckError
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
-from apache_beam.utils import counters
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam import coders, pvalue
+from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.runners.common import DoFnRunner, DoFnState
+from apache_beam.runners.dataflow.native_io.iobase import \
+    _NativeWrite  # pylint: disable=protected-access
+from apache_beam.runners.direct.direct_runner import (_StreamingGroupAlsoByWindow,
+                                                      _StreamingGroupByKeyOnly)
+from apache_beam.runners.direct.util import KeyedWorkItem, TransformResult
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.testing.test_stream import (ElementEvent, ProcessingTimeEvent,
+                                             TestStream, WatermarkEvent)
+from apache_beam.transforms import core
+from apache_beam.transforms.trigger import (TimeDomain,
+                                            _CombiningValueStateTag,
+                                            _ListStateTag,
+                                            create_trigger_driver)
+from apache_beam.transforms.window import GlobalWindows, WindowedValue
+from apache_beam.typehints.typecheck import (OutputCheckWrapperDoFn,
+                                             TypeCheckError,
+                                             TypeCheckWrapperDoFn)
+from apache_beam.utils import counters
+from apache_beam.utils.timestamp import MIN_TIMESTAMP, Timestamp
 
 
 class TransformEvaluatorRegistry(object):

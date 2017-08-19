@@ -16,16 +16,15 @@
 #
 
 """Tests for state sampler."""
-from __future__ import division
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
-from builtins import range
-from past.utils import old_div
 import logging
 import time
 import unittest
+from builtins import range
 
 from nose.plugins.skip import SkipTest
+from past.utils import old_div
 
 from apache_beam.utils.counters import CounterFactory
 

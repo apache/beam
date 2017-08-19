@@ -20,16 +20,13 @@
 import unittest
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import (PipelineOptions,
+                                                  StandardOptions)
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_stream import ElementEvent
-from apache_beam.testing.test_stream import ProcessingTimeEvent
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.test_stream import (ElementEvent, ProcessingTimeEvent,
+                                             TestStream, WatermarkEvent)
 from apache_beam.testing.util import assert_that, equal_to
-from apache_beam.transforms.window import FixedWindows
-from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import FixedWindows, TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 

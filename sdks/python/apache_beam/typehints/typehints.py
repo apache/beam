@@ -62,14 +62,20 @@ In addition, type-hints can be used to implement run-time type-checking via the
 'type_check' method on each TypeConstraint.
 
 """
-
-from builtins import zip
-from builtins import str
-from builtins import object
 import collections
 import copy
+import sys
 import types
+from builtins import zip
+
 from future.utils import with_metaclass
+
+# Keep object around for safety
+base_object = object
+if sys.version_info[0] >= 3:
+  basestring = str
+else:
+  from builtins import object
 
 
 __all__ = [
@@ -189,7 +195,16 @@ def bind_type_variables(type_constraint, bindings):
   return type_constraint
 
 
-class SequenceTypeConstraint(TypeConstraint):
+class IndexableTypeConstraint(TypeConstraint):
+  """An internal common base-class for all type constraints with indexing.
+  E.G. SequenceTypeConstraint + Tuple's of fixed size.
+  """
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index."""
+    raise NotImplementedError
+
+class SequenceTypeConstraint(IndexableTypeConstraint):
   """A common base-class for all sequence related type-constraint classes.
 
   A sequence is defined as an arbitrary length homogeneous container type. Type
@@ -218,6 +233,10 @@ class SequenceTypeConstraint(TypeConstraint):
 
   def _inner_types(self):
     yield self.inner_type
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index."""
+    return self.inner_type
 
   def _consistent_with_check_(self, sub):
     return (isinstance(sub, self.__class__)
@@ -319,8 +338,13 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
-  is_not_type_constraint = (
+  if sys.version_info[0] >= 3:
+    is_not_type_constraint = (
       not isinstance(type_param, (type, TypeConstraint))
+      and type_param is not None)
+  else:
+    is_not_type_constraint = (
+      not isinstance(type_param, (type, types.ClassType, TypeConstraint))
       and type_param is not None)
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
@@ -551,7 +575,7 @@ class TupleHint(CompositeTypeHint):
                    for elem in sub.tuple_types)
       return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
 
-  class TupleConstraint(TypeConstraint):
+  class TupleConstraint(IndexableTypeConstraint):
 
     def __init__(self, type_params):
       self.tuple_types = tuple(type_params)
@@ -570,6 +594,10 @@ class TupleHint(CompositeTypeHint):
     def _inner_types(self):
       for t in self.tuple_types:
         yield t
+
+    def _constraint_for_index(self, idx):
+      """Returns the type at the given index."""
+      return self.tuple_types[idx]
 
     def _consistent_with_check_(self, sub):
       return (isinstance(sub, self.__class__)
@@ -623,6 +651,9 @@ class TupleHint(CompositeTypeHint):
       if bound_tuple_types == self.tuple_types:
         return self
       return Tuple[bound_tuple_types]
+
+    def __getitem__(self, index):
+      return self.tuple_types[index]
 
   def __getitem__(self, type_params):
     ellipsis = False
@@ -980,6 +1011,10 @@ class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint))
     return (isinstance(other, WindowedTypeConstraint)
             and self.inner_type == other.inner_type)
 
+  def __str__(self):
+    return "WindowedTypeConstraint {0} of type {1}".format(
+      self.__hash__(), self.inner_type)
+
   def __hash__(self):
     return hash(self.inner_type) ^ 13 * hash(type(self))
 
@@ -1034,8 +1069,9 @@ _KNOWN_PRIMITIVE_TYPES = {
     list: List[Any],
     tuple: Tuple[Any, ...],
     set: Set[Any],
+    object: base_object,
     # Using None for the NoneType is a common convention.
-    None: type(None),
+    None: type(None)
 }
 
 

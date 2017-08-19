@@ -20,6 +20,7 @@
 import logging
 import tempfile
 import unittest
+
 from mock import patch
 
 from apache_beam.io.filesystem import BeamIOError

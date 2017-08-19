@@ -19,13 +19,12 @@
 
 from __future__ import absolute_import
 
-from builtins import object
 import logging
 import os
 import shelve
 import shutil
 import tempfile
-
+from builtins import object
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 

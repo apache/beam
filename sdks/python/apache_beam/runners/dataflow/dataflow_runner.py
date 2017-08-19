@@ -21,40 +21,40 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import hex
-from builtins import str
-from collections import defaultdict
 import logging
 import threading
 import time
 import traceback
-import urllib.request, urllib.parse, urllib.error
+import urllib.error
+import urllib.parse
+import urllib.request
+from builtins import hex
+from collections import defaultdict
+
+from future import standard_library
 
 import apache_beam as beam
-from apache_beam import error
-from apache_beam import coders
-from apache_beam import pvalue
+from apache_beam import coders, error, pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import (SetupOptions,
+                                                  StandardOptions, TestOptions)
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
-from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.dataflow.internal.names import TransformNames
-from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-from apache_beam.runners.runner import PValueCache
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.dataflow.internal.clients import \
+    dataflow as dataflow_api
+from apache_beam.runners.dataflow.internal.names import (PropertyNames,
+                                                         TransformNames)
+from apache_beam.runners.dataflow.ptransform_overrides import \
+    CreatePTransformOverride
+from apache_beam.runners.runner import (PipelineResult, PipelineRunner,
+                                        PipelineState, PValueCache)
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.utils.plugin import BeamPlugin
+
+standard_library.install_aliases()
 
 
 __all__ = ['DataflowRunner']
@@ -836,7 +836,8 @@ class DataflowRunner(PipelineRunner):
     return cls.byte_array_to_json_string(
         beam_runner_api_pb2.MessageWithComponents(
             components=context.to_runner_api(),
-            windowing_strategy=windowing_proto).SerializeToString())
+            windowing_strategy=windowing_proto).SerializeToString()
+    )
 
   @classmethod
   def deserialize_windowing_strategy(cls, serialized_data):
@@ -854,12 +855,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.parse.quote(raw_bytes)
+    return urllib.parse.quote(raw_bytes.decode("latin-1"))
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.parse.unquote(encoded_string)
+    return urllib.parse.unquote(encoded_string).encode("latin-1")
 
 
 class DataflowPipelineResult(PipelineResult):

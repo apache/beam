@@ -25,16 +25,16 @@ This API is currently under development and is subject to change.
 from __future__ import absolute_import
 
 import re
+import sys
 
 from apache_beam import coders
-from apache_beam.io.iobase import Read
-from apache_beam.io.iobase import Write
+from apache_beam.io.iobase import Read, Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-from apache_beam.transforms import core
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import Map
-from apache_beam.transforms import window
+from apache_beam.transforms import Map, PTransform, core, window
 from apache_beam.transforms.display import DisplayDataItem
+
+if sys.version_info[0] >= 3:
+  unicode = str
 
 
 __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
@@ -73,7 +73,7 @@ class ReadStringsFromPubSub(PTransform):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
     pcoll = pcoll | 'DecodeString' >> Map(lambda b: b.decode('utf-8'))
-    pcoll.element_type = str
+    pcoll.element_type = unicode
     return pcoll
 
 

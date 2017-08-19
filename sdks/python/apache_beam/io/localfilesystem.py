@@ -18,17 +18,15 @@
 
 from __future__ import absolute_import
 
-from builtins import zip
 import glob
+import io
 import os
 import shutil
+from builtins import zip
 
-from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.filesystem import CompressedFile
-from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystem import FileMetadata
-from apache_beam.io.filesystem import FileSystem
-from apache_beam.io.filesystem import MatchResult
+from apache_beam.io.filesystem import (BeamIOError, CompressedFile,
+                                       CompressionTypes, FileMetadata,
+                                       FileSystem, MatchResult)
 
 __all__ = ['LocalFileSystem']
 
@@ -122,7 +120,7 @@ class LocalFileSystem(FileSystem):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = open(path, mode)
+    raw_file = io.open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     else:

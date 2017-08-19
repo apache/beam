@@ -18,35 +18,24 @@
 """Unit tests for the windowing classes."""
 from __future__ import division
 
-from builtins import range
-from past.utils import old_div
 import unittest
+from builtins import range
+
+from past.utils import old_div
 
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
-from apache_beam.transforms import CombinePerKey
-from apache_beam.transforms import combiners
-from apache_beam.transforms import core
-from apache_beam.transforms import Create
-from apache_beam.transforms import GroupByKey
-from apache_beam.transforms import Map
-from apache_beam.transforms import WindowInto
+from apache_beam.transforms import (CombinePerKey, Create, GroupByKey, Map,
+                                    WindowInto, combiners, core)
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterCount
-from apache_beam.transforms.window import FixedWindows
-from apache_beam.transforms.window import GlobalWindow
-from apache_beam.transforms.window import GlobalWindows
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import TimestampCombiner
-from apache_beam.transforms.window import Sessions
-from apache_beam.transforms.window import SlidingWindows
-from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import WindowedValue
-from apache_beam.transforms.window import WindowFn
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.transforms.trigger import AccumulationMode, AfterCount
+from apache_beam.transforms.window import (FixedWindows, GlobalWindow,
+                                           GlobalWindows, IntervalWindow,
+                                           Sessions, SlidingWindows,
+                                           TimestampCombiner, TimestampedValue,
+                                           WindowedValue, WindowFn)
+from apache_beam.utils.timestamp import MAX_TIMESTAMP, MIN_TIMESTAMP
 
 
 def context(element, timestamp):

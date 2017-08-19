@@ -17,33 +17,25 @@
 
 """SDK harness for executing Python Fns via the Fn API."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import str
-from builtins import object
 import base64
 import collections
 import json
 import logging
+from builtins import object
 
 from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
-from apache_beam.coders import coder_impl
-from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import WindowedValueCoder, coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.dataflow.native_io import iobase as native_iobase
+from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import operations
-from apache_beam.utils import counters
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
+from apache_beam.runners.dataflow.native_io import iobase as native_iobase
+from apache_beam.runners.worker import operation_specs, operations
+from apache_beam.utils import counters, proto_utils, urns
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -222,7 +214,7 @@ class BundleProcessor(object):
       return 1 + max(
           [0] +
           [topological_height(consumer)
-           for pcoll in list(descriptor.transforms[transform_id].outputs.values())
+           for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
     return [get_operation(transform_id)

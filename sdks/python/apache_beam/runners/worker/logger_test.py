@@ -17,16 +17,18 @@
 
 """Tests for worker logging utilities."""
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
 import json
 import logging
 import sys
 import threading
 import unittest
+from builtins import object
+
+from future import standard_library
 
 from apache_beam.runners.worker import logger
+
+standard_library.install_aliases()
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):

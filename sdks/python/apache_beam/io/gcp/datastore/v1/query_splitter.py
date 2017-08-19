@@ -19,7 +19,9 @@
 from __future__ import division
 
 from builtins import range
+
 from past.utils import old_div
+
 from apache_beam.io.gcp.datastore.v1 import helper
 
 # Protect against environments where datastore library is not available.

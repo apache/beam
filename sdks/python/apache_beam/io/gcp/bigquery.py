@@ -102,10 +102,6 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 
 from __future__ import absolute_import
 
-from builtins import str
-from builtins import zip
-from past.builtins import basestring
-from builtins import object
 import collections
 import datetime
 import json
@@ -113,19 +109,19 @@ import logging
 import re
 import time
 import uuid
+from builtins import object, zip
+
+from past.builtins import basestring
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
-from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.internal.gcp.json_value import from_json_value, to_json_value
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import ParDo
-from apache_beam.transforms import PTransform
+from apache_beam.transforms import DoFn, ParDo, PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.io.gcp.internal.clients import bigquery
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

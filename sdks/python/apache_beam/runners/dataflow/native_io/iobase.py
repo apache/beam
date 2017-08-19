@@ -20,8 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from builtins import object
 import logging
+from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.io import iobase

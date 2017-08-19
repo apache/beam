@@ -25,12 +25,12 @@ a cell's updates have been committed.
 """
 from __future__ import division
 
-from past.utils import old_div
-from builtins import object
 import threading
+from builtins import object
 
-from apache_beam.metrics.metricbase import Counter
-from apache_beam.metrics.metricbase import Distribution
+from past.utils import old_div
+
+from apache_beam.metrics.metricbase import Counter, Distribution
 
 __all__ = ['DistributionResult']
 

@@ -22,11 +22,9 @@ For internal use only; no backwards-compatibility guarantees.
 
 
 from builtins import object
-from apache_beam import pipeline
-from apache_beam import pvalue
-from apache_beam import coders
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
+
+from apache_beam import coders, pipeline, pvalue
+from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
 from apache_beam.transforms import core
 
 

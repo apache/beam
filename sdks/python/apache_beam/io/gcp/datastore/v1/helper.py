@@ -20,15 +20,17 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from past.builtins import cmp
-from builtins import next
-from builtins import str
-from builtins import object
 import errno
-from socket import error as SocketError
 import logging
 import sys
 import time
+from builtins import next, object
+from socket import error as SocketError
+
+from past.builtins import cmp
+
+from apache_beam.internal.gcp import auth
+from apache_beam.utils import retry
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -44,9 +46,6 @@ try:
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
-
-from apache_beam.internal.gcp import auth
-from apache_beam.utils import retry
 
 
 def key_comparator(k1, k2):

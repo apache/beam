@@ -27,19 +27,15 @@ Users should specify the number of groups to form and optionally a corpus and/or
 a word that should be ignored when forming groups.
 """
 
-from builtins import str
-from builtins import range
 import argparse
 import logging
+from builtins import range
 from random import randrange
 
 import apache_beam as beam
-
 from apache_beam.io import WriteToText
-from apache_beam.pvalue import AsList
-from apache_beam.pvalue import AsSingleton
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.pvalue import AsList, AsSingleton
 
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):

@@ -19,14 +19,13 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
-from __future__ import absolute_import
-from __future__ import division
-from builtins import hex
-from builtins import str
-from past.utils import old_div
-from builtins import object
+from __future__ import absolute_import, division
+
 import math
 import random
+from builtins import hex, object
+
+from past.utils import old_div
 
 from apache_beam.utils.counters import Counter
 

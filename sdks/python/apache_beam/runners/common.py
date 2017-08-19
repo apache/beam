@@ -22,19 +22,18 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from builtins import zip
-from past.builtins import basestring
-from builtins import object
 import sys
 import traceback
+from builtins import object, zip
+
+from past.builtins import basestring
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
-from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import WindowFn
-from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import (GlobalWindow, TimestampedValue,
+                                           WindowFn)
 from apache_beam.utils.windowed_value import WindowedValue
 
 

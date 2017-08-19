@@ -29,25 +29,17 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
-from builtins import str
-from builtins import range
-from builtins import object
-from collections import namedtuple
-
 import logging
 import random
 import uuid
+from builtins import object, range
+from collections import namedtuple
 
-from apache_beam import pvalue
-from apache_beam import coders
+from apache_beam import coders, pvalue
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.pvalue import AsIter
-from apache_beam.pvalue import AsSingleton
-from apache_beam.transforms import core
-from apache_beam.transforms import ptransform
-from apache_beam.transforms import window
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.pvalue import AsIter, AsSingleton
+from apache_beam.transforms import core, ptransform, window
+from apache_beam.transforms.display import DisplayDataItem, HasDisplayData
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 

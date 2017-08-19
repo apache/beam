@@ -26,14 +26,12 @@ produced when the pipeline gets executed.
 
 from __future__ import absolute_import
 
-from builtins import str
-from builtins import hex
-from past.builtins import basestring
-from builtins import object
 import itertools
+from builtins import hex, object
+
+from past.builtins import basestring
 
 from apache_beam import typehints
-
 
 __all__ = [
     'PCollection',

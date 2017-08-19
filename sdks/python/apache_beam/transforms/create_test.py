@@ -17,14 +17,15 @@
 
 """Unit tests for the Create and _CreateSource classes."""
 from __future__ import division
-from builtins import range
-from past.utils import old_div
-import unittest
 
-from apache_beam.io import source_test_utils
+import unittest
+from builtins import range
+
+from past.utils import old_div
 
 from apache_beam import Create
 from apache_beam.coders import FastPrimitivesCoder
+from apache_beam.io import source_test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 

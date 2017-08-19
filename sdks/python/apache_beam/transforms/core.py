@@ -17,54 +17,35 @@
 
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division
 
-from builtins import str
-from builtins import map
-from builtins import next
-from builtins import range
-from past.builtins import basestring
-from past.utils import old_div
-from builtins import object
 import copy
 import inspect
 import types
+from builtins import map, next, object, range
 
 from google.protobuf import wrappers_pb2
+from past.builtins import basestring
+from past.utils import old_div
 
-from apache_beam import pvalue
-from apache_beam import typehints
-from apache_beam import coders
+from apache_beam import coders, pvalue, typehints
 from apache_beam.coders import typecoders
-from apache_beam.internal import pickler
-from apache_beam.internal import util
+from apache_beam.internal import pickler, util
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.ptransform import PTransformWithSideInputs
-from apache_beam.transforms.window import MIN_TIMESTAMP
-from apache_beam.transforms.window import TimestampCombiner
-from apache_beam.transforms.window import WindowedValue
-from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import GlobalWindows
-from apache_beam.transforms.window import WindowFn
-from apache_beam.typehints import Any
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import KV
-from apache_beam.typehints import trivial_inference
-from apache_beam.typehints import Union
-from apache_beam.typehints.decorators import get_type_hints
-from apache_beam.typehints.decorators import TypeCheckError
-from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.transforms.display import DisplayDataItem, HasDisplayData
+from apache_beam.transforms.ptransform import (PTransform,
+                                               PTransformWithSideInputs)
+from apache_beam.transforms.window import (MIN_TIMESTAMP, GlobalWindows,
+                                           TimestampCombiner, TimestampedValue,
+                                           WindowedValue, WindowFn)
+from apache_beam.typehints import KV, Any, Iterable, Union, trivial_inference
+from apache_beam.typehints.decorators import (TypeCheckError, WithTypeHints,
+                                              get_type_hints)
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-from apache_beam.options.pipeline_options import TypeOptions
-
+from apache_beam.utils import proto_utils, urns
 
 __all__ = [
     'DoFn',

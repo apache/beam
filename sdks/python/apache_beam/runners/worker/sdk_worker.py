@@ -17,21 +17,20 @@
 
 """SDK harness for executing Python Fns via the Fn API."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
 import logging
 import queue as queue
 import threading
 import traceback
+from builtins import object
+
+from future import standard_library
 
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners.worker import bundle_processor
-from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import bundle_processor, data_plane
+
+standard_library.install_aliases()
 
 
 class SdkHarness(object):

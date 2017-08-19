@@ -19,25 +19,23 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from future import standard_library
-from functools import reduce
-standard_library.install_aliases()
-from builtins import zip
-from builtins import str
-from past.utils import old_div
-from builtins import object
+from __future__ import absolute_import, division, print_function
+
 import builtins
 import collections
 import dis
 import pprint
 import sys
 import types
+from builtins import object, zip
+from functools import reduce
 
-from apache_beam.typehints import Any
-from apache_beam.typehints import typehints
+from future import standard_library
+from past.utils import old_div
+
+from apache_beam.typehints import Any, typehints
+
+standard_library.install_aliases()
 
 
 class TypeInferenceError(ValueError):
@@ -69,8 +67,8 @@ def instance_to_type(o):
     ]
   elif t == dict:
     return typehints.Dict[
-        typehints.Union[[instance_to_type(k) for k, v in list(o.items())]],
-        typehints.Union[[instance_to_type(v) for k, v in list(o.items())]],
+        typehints.Union[[instance_to_type(k) for k, v in o.items()]],
+        typehints.Union[[instance_to_type(v) for k, v in o.items()]],
     ]
   else:
     raise TypeInferenceError('Unknown forbidden type: %s' % t)
@@ -113,7 +111,10 @@ class FrameState(object):
 
   def __init__(self, f, local_vars=None, stack=()):
     self.f = f
-    self.co = f.__code__
+    if sys.version_info >= 3:
+      self.co = f.__code__
+    else:
+      self.co = f.func_code
     self.vars = list(local_vars)
     self.stack = list(stack)
 
@@ -231,6 +232,8 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     A TypeConstraint that that the return value of this function will (likely)
     satisfy given the specified inputs.
   """
+  if debug:
+    print("Infering type on {0} for inputs {1}".format(c, input_types))
   try:
     if hashable(c) and c in known_return_types:
       return known_return_types[c]
@@ -254,10 +257,16 @@ def infer_return_type(c, input_types, debug=False, depth=5):
         }[c]
       return c
     else:
+      if debug:
+        print("Concrete type {0} fell through.".format(c))
       return Any
-  except TypeInferenceError:
+  except TypeInferenceError as e:
+    if debug:
+      print("Had type inference error {0}".format(e))
     return Any
-  except Exception:
+  except Exception as e:
+    if debug:
+      print("Had more general error during inference {0}".format(e))
     if debug:
       sys.stdout.flush()
       raise
@@ -283,7 +292,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   """
   if debug:
     print()
-    print(f, id(f), input_types)
+    print("Infering return type function {0} id {1} with input {2}"
+          .format(f, id(f), input_types))
+    print()
   from . import opcodes
   simple_ops = dict((k.upper(), v) for k, v in list(opcodes.__dict__.items()))
 
@@ -368,7 +379,22 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         return_type = Any
       state.stack[-pop_count:] = [return_type]
+    elif (opname == 'BINARY_SUBSCR'
+          and isinstance(state.stack[1], Const)
+          and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
+      if (debug):
+        print("Executing special case binary subscript")
+      idx = state.stack.pop()
+      src = state.stack.pop()
+      try:
+        state.stack.append(src._constraint_for_index(idx.value))
+      except Exception as e:
+        if (debug):
+          print("Exception {0} during special case indexing")
+        state.stack.append(Any)
     elif opname in simple_ops:
+      if (debug):
+        print("Executing simple op " + opname)
       simple_ops[opname](state, arg)
     elif opname == 'RETURN_VALUE':
       returns.add(state.stack[-1])
@@ -397,6 +423,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
     else:
+      if debug:
+        print("unable to handle opname {0}".format(opname))
       raise TypeInferenceError('unable to handle %s' % opname)
 
     if jmp is not None:

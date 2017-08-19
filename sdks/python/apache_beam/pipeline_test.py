@@ -17,39 +17,28 @@
 
 """Unit tests for the Pipeline class."""
 
-from builtins import range
-from builtins import object
 import logging
 import platform
 import unittest
-
-# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-# from nose.plugins.attrib import attr
+from builtins import object, range
 
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
-from apache_beam.pipeline import Pipeline
-from apache_beam.pipeline import PTransformOverride
-from apache_beam.pipeline import PipelineOptions
-from apache_beam.pipeline import PipelineVisitor
+from apache_beam.pipeline import (Pipeline, PipelineOptions, PipelineVisitor,
+                                  PTransformOverride)
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-from apache_beam.transforms import CombineGlobally
-from apache_beam.transforms import Create
-from apache_beam.transforms import FlatMap
-from apache_beam.transforms import Map
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import ParDo
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import WindowInto
-from apache_beam.transforms.window import SlidingWindows
-from apache_beam.transforms.window import TimestampedValue
+from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.transforms import (CombineGlobally, Create, DoFn, FlatMap,
+                                    Map, ParDo, PTransform, WindowInto)
+from apache_beam.transforms.window import SlidingWindows, TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+
+# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
+# from nose.plugins.attrib import attr
 
 
 class FakeSource(NativeSource):
@@ -459,11 +448,11 @@ class PipelineOptionsTest(unittest.TestCase):
     options = Breakfast()
     self.assertEquals(
         set(['from_dictionary', 'get_all_options', 'slices', 'style',
-             'view_as', 'display_data']),
+             'view_as', 'display_data', 'next']),
         set([attr for attr in dir(options) if not attr.startswith('_')]))
     self.assertEquals(
         set(['from_dictionary', 'get_all_options', 'style', 'view_as',
-             'display_data']),
+             'display_data', 'next']),
         set([attr for attr in dir(options.view_as(Eggs))
              if not attr.startswith('_')]))
 

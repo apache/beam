@@ -20,13 +20,14 @@
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 from past.builtins import basestring
+
+from apache_beam.options.value_provider import ValueProvider
+
 try:
   from apitools.base.py import extra_types
 except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
-
-from apache_beam.options.value_provider import ValueProvider
 
 
 _MAXINT64 = (1 << 63) - 1

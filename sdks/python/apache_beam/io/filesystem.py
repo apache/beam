@@ -16,24 +16,31 @@
 #
 """File system abstraction for file-based sources and sinks."""
 
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division
 
-from future import standard_library
-standard_library.install_aliases()
-from past.builtins import basestring
-from past.utils import old_div
-from builtins import object
 import abc
 import bz2
 import io
-import os
-import zlib
 import logging
+import os
+import sys
 import time
+import zlib
+from builtins import object
+
+from future import standard_library
+from future.utils import with_metaclass
+from past.builtins import basestring
+from past.utils import old_div
 
 from apache_beam.utils.plugin import BeamPlugin
-from future.utils import with_metaclass
+
+reload(sys)
+if sys.version_info[0] < 3:
+  sys.setdefaultencoding('latin-1')
+
+standard_library.install_aliases()
+
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +134,7 @@ class CompressedFile(object):
 
     if self.readable():
       self._read_size = read_size
-      self._read_buffer = io.StringIO()
+      self._read_buffer = io.BytesIO()
       self._read_position = 0
       self._read_eof = False
 
@@ -242,7 +249,7 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = io.StringIO()
+    stream = io.StringIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
@@ -251,11 +258,11 @@ class CompressedFile(object):
       self._fetch_to_internal_buffer(old_div(self._read_size, 2))
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
-      io.write(line)
+      stream.write(line.decode())
       if line.endswith('\n') or not line:
         break  # Newline or EOF reached.
 
-    return io.getvalue()
+    return stream.getvalue()
 
   def closed(self):
     return not self._file or self._file.closed()

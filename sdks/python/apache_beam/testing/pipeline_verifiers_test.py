@@ -17,19 +17,18 @@
 
 """Unit tests for the test pipeline verifiers"""
 
-from builtins import range
 import logging
 import tempfile
 import unittest
+from builtins import range
 
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
 from apache_beam.io.localfilesystem import LocalFileSystem
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineState
-from apache_beam.testing.test_utils import patch_retry
+from apache_beam.runners.runner import PipelineResult, PipelineState
 from apache_beam.testing import pipeline_verifiers as verifiers
+from apache_beam.testing.test_utils import patch_retry
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position

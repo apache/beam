@@ -20,8 +20,7 @@
 
 import json
 
-from google.protobuf import json_format
-from google.protobuf import struct_pb2
+from google.protobuf import json_format, struct_pb2
 
 
 def dict_to_struct(dict_obj):

@@ -16,11 +16,11 @@
 #
 
 
-from builtins import range
 import logging
 import unittest
-
+from builtins import range
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2

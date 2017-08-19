@@ -21,18 +21,13 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-
 from apache_beam.metrics import Metrics
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.execution import MetricKey, MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
-
 from apache_beam.pvalue import AsList
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import BeamAssertException
-from apache_beam.testing.util import equal_to
-from apache_beam.transforms.window import TimestampedValue
 from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.testing.util import BeamAssertException, assert_that, equal_to
+from apache_beam.transforms.window import TimestampedValue
 
 
 class MapTaskExecutorRunnerTest(unittest.TestCase):

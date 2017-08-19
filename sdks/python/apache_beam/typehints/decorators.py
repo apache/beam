@@ -83,19 +83,15 @@ properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
 
-from builtins import next
-from builtins import zip
-from builtins import object
 import inspect
 import types
+from builtins import next, object, zip
 
-from apache_beam.typehints import native_type_compatibility
-from apache_beam.typehints import typehints
-from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import CompositeTypeHintError
-from apache_beam.typehints.typehints import SimpleTypeHintError
-from apache_beam.typehints.typehints import validate_composite_type_param
-
+from apache_beam.typehints import native_type_compatibility, typehints
+from apache_beam.typehints.typehints import (CompositeTypeHintError,
+                                             SimpleTypeHintError,
+                                             check_constraint,
+                                             validate_composite_type_param)
 
 __all__ = [
     'with_input_types',

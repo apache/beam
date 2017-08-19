@@ -17,11 +17,10 @@
 
 """Module to convert Python's native typing types to Beam types."""
 
-from builtins import next
-from builtins import str
-from builtins import range
 import collections
 import typing
+from builtins import next, range
+
 from apache_beam.typehints import typehints
 
 # Describes an entry in the type map in convert_to_beam_type.

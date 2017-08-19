@@ -25,27 +25,21 @@ that method for more details.
 For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
-from builtins import str
-from past.builtins import basestring
 import uuid
 
-from apache_beam.transforms.core import DoFn
-from apache_beam.transforms.core import ParDo
-from apache_beam.transforms.core import GroupByKey
-from apache_beam.transforms.core import PTransform
-from apache_beam.transforms.core import FlatMap
-from apache_beam.transforms.core import Map
+from past.builtins import basestring
+
 from apache_beam.internal import pickler
-from apache_beam.io import concat_source
-from apache_beam.io import iobase
-from apache_beam.io import range_trackers
+from apache_beam.io import concat_source, iobase, range_trackers
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.range_trackers import OffsetRange
+from apache_beam.options.value_provider import (StaticValueProvider,
+                                                ValueProvider,
+                                                check_accessible)
+from apache_beam.transforms.core import (DoFn, FlatMap, GroupByKey, Map, ParDo,
+                                         PTransform)
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.value_provider import ValueProvider
-from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import check_accessible
 from apache_beam.transforms.trigger import DefaultTrigger
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25

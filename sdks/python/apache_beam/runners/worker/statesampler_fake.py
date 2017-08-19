@@ -19,6 +19,8 @@
 
 
 from builtins import object
+
+
 class StateSampler(object):
 
   def __init__(self, *args, **kwargs):

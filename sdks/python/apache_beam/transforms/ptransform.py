@@ -36,34 +36,25 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
-from builtins import hex
-from builtins import zip
-from builtins import str
-from builtins import object
 import copy
 import inspect
 import operator
 import os
 import sys
+from builtins import hex, object, zip
+from functools import reduce
 
 from google.protobuf import wrappers_pb2
 
-from apache_beam import error
-from apache_beam import pvalue
-from apache_beam.internal import pickler
-from apache_beam.internal import util
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.display import DisplayDataItem
+from apache_beam import error, pvalue
+from apache_beam.internal import pickler, util
+from apache_beam.transforms.display import DisplayDataItem, HasDisplayData
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import TypeCheckError
-from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import (TypeCheckError, WithTypeHints,
+                                              getcallargs_forhints)
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-from functools import reduce
-
+from apache_beam.utils import proto_utils, urns
 
 __all__ = [
     'PTransform',

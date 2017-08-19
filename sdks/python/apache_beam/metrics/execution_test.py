@@ -15,14 +15,13 @@
 # limitations under the License.
 #
 
-from builtins import range
 import unittest
+from builtins import range
 
 from apache_beam.metrics.cells import CellCommitState
-from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import (MetricKey, MetricsContainer,
+                                           MetricsEnvironment,
+                                           ScopedMetricsContainer)
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
 

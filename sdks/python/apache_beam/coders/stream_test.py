@@ -18,12 +18,12 @@
 """Tests for the stream implementations."""
 from __future__ import division
 
-from builtins import range
-from past.utils import old_div
 import logging
 import math
 import unittest
+from builtins import range
 
+from past.utils import old_div
 
 from apache_beam.coders import slow_stream
 

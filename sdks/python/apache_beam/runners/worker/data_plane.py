@@ -17,24 +17,24 @@
 
 """Implementation of DataChannels for communicating across the data plane."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-from builtins import object
 import abc
 import collections
 import logging
 import queue as queue
 import threading
+from builtins import object, range
+
+import grpc
+from future import standard_library
+from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
-import grpc
-from future.utils import with_metaclass
+
+standard_library.install_aliases()
+
 
 # This module is experimental. No backwards-compatibility guarantees.
 

@@ -17,8 +17,7 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
-from google.protobuf import any_pb2
-from google.protobuf import struct_pb2
+from google.protobuf import any_pb2, struct_pb2
 
 
 def pack_Any(msg):

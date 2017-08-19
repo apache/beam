@@ -17,41 +17,36 @@
 
 """A PipelineRunner using the SDK harness.
 """
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 import base64
 import collections
 import copy
 import logging
 import queue as queue
 import threading
-
+from builtins import object
 from concurrent import futures
-from google.protobuf import wrappers_pb2
+
 import grpc
+from future import standard_library
+from google.protobuf import wrappers_pb2
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
-from apache_beam.coders import registry
-from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders.coder_impl import create_InputStream
-from apache_beam.coders.coder_impl import create_OutputStream
+from apache_beam.coders import WindowedValueCoder, registry
+from apache_beam.coders.coder_impl import (create_InputStream,
+                                           create_OutputStream)
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.worker import bundle_processor
-from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker import (bundle_processor, data_plane,
+                                        operation_specs, sdk_worker)
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
+from apache_beam.utils import proto_utils, urns
+
+standard_library.install_aliases()
 
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -270,8 +265,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
                       any_param=proto_utils.pack_Any(
-                          wrappers_pb2.BytesValue(value=param)),
-                      payload=param))],
+                          wrappers_pb2.BytesValue(value=param.encode())),
+                      payload=param.encode()))],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           yield gbk_write
@@ -284,8 +279,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       any_param=proto_utils.pack_Any(
-                          wrappers_pb2.BytesValue(value=param)),
-                      payload=param))],
+                          wrappers_pb2.BytesValue(value=param.encode())),
+                      payload=param.encode()))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
@@ -343,8 +338,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                         urn=bundle_processor.DATA_OUTPUT_URN,
                         any_param=proto_utils.pack_Any(
                             wrappers_pb2.BytesValue(
-                                value=param)),
-                        payload=param))],
+                                value=param.encode())),
+                        payload=param.encode()))],
                 downstream_side_inputs=frozenset(),
                 must_follow=stage.must_follow)
             flatten_writes.append(flatten_write)
@@ -359,8 +354,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       urn=bundle_processor.DATA_INPUT_URN,
                       any_param=proto_utils.pack_Any(
                           wrappers_pb2.BytesValue(
-                              value=param)),
-                      payload=param))],
+                              value=param.encode())),
+                      payload=param.encode()))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
@@ -471,8 +466,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                           urn=bundle_processor.DATA_OUTPUT_URN,
                           any_param=proto_utils.pack_Any(
                               wrappers_pb2.BytesValue(
-                                  value=pcoll_as_param)),
-                          payload=pcoll_as_param))])
+                                  value=pcoll_as_param.encode())),
+                          payload=pcoll_as_param.encode()))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
               read_pcoll = Stage(
@@ -484,8 +479,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                           urn=bundle_processor.DATA_INPUT_URN,
                           any_param=proto_utils.pack_Any(
                               wrappers_pb2.BytesValue(
-                                  value=pcoll_as_param)),
-                          payload=pcoll_as_param))],
+                                  value=pcoll_as_param.encode())),
+                          payload=pcoll_as_param.encode()))],
                   must_follow={write_pcoll})
               fuse(read_pcoll, consumer)
 
@@ -938,9 +933,11 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               self.data_plane_handler.inverse()))
 
     def push(self, request):
-      logging.info('CONTROL REQUEST %s', request)
+      request_str = str(request)
+      logging.info('CONTROL REQUEST %s', request_str)
       response = self.worker.do_instruction(request)
-      logging.info('CONTROL RESPONSE %s', response)
+      response_str = str(response)
+      logging.info('CONTROL RESPONSE %s', response_str)
       self._responses.append(response)
 
     def pull(self):

@@ -22,8 +22,8 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 
 from __future__ import absolute_import
 
-from builtins import range
 import argparse
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText

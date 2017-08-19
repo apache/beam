@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 from builtins import object
+
 from apache_beam import pvalue
 from apache_beam.utils.windowed_value import WindowedValue
 

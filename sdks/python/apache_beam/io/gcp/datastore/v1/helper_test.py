@@ -16,19 +16,17 @@
 #
 
 """Tests for datastore helper."""
-from builtins import map
 import errno
 import random
-from socket import error as SocketError
 import sys
 import unittest
+from builtins import map
+from socket import error as SocketError
 
 from mock import MagicMock
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
+from apache_beam.io.gcp.datastore.v1 import fake_datastore, helper
 from apache_beam.testing.test_utils import patch_retry
-
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -82,7 +80,7 @@ class HelperTest(unittest.TestCase):
         self.permanent_retriable_datastore_failure)
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
-    self.assertRaises(RPCError, iter(query_iterator).__next__)
+    self.assertRaises(RPCError, iter(query_iterator).next)
     self.assertEqual(6, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_transient_failures(self):
@@ -104,7 +102,7 @@ class HelperTest(unittest.TestCase):
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
     self.assertRaises(tuple(map(type, self._non_retriable_errors)),
-                      iter(query_iterator).__next__)
+                      iter(query_iterator).next)
     self.assertEqual(1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_single_batch(self):

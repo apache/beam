@@ -18,16 +18,14 @@
 Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
-from builtins import object
 import types
 import unittest
+from builtins import object
 
 import mock
 
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.cells import DistributionData, DistributionResult
+from apache_beam.metrics.execution import MetricKey, MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
 

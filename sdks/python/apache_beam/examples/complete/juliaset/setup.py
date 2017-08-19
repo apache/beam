@@ -26,8 +26,8 @@ when running the workflow for remote execution.
 """
 from __future__ import print_function
 
-from distutils.command.build import build as _build
 import subprocess
+from distutils.command.build import build as _build
 
 import setuptools
 

@@ -17,7 +17,6 @@
 
 """End-to-end test for the wordcount example."""
 
-from builtins import str
 import logging
 import time
 import unittest
@@ -26,10 +25,10 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
-from apache_beam.testing.test_utils import delete_files
-from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
-from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
+from apache_beam.testing.pipeline_verifiers import (FileChecksumMatcher,
+                                                    PipelineStateMatcher)
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import delete_files
 
 
 class WordCountIT(unittest.TestCase):

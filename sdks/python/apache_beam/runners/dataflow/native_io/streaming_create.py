@@ -18,11 +18,8 @@
 """Create transform for streaming."""
 
 from builtins import map
-from apache_beam import pvalue
-from apache_beam import DoFn
-from apache_beam import ParDo
-from apache_beam import PTransform
-from apache_beam import Windowing
+
+from apache_beam import DoFn, ParDo, PTransform, Windowing, pvalue
 from apache_beam.transforms.window import GlobalWindows
 
 

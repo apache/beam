@@ -17,20 +17,18 @@
 
 """Tests for apache_beam.runners.worker.sdk_worker."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import str
-from builtins import range
 import logging
 import unittest
-
+# We don't import str here since it causes issues and this
+# is a test not internal code.
+from builtins import range
 from concurrent import futures
+
 import grpc
 
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
 
 
@@ -64,12 +62,16 @@ class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
 class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
-    process_bundle_descriptors = [
-        beam_fn_api_pb2.ProcessBundleDescriptor(
-            id=str(100+ix),
-            transforms={
-                str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))})
-        for ix in range(4)]
+    def make_transformer_for_ix(ix):
+      encoded_ix = str(ix).encode("latin-1")
+      encoded_ix_100 = str(100+ix).encode("latin-1")
+      return beam_fn_api_pb2.ProcessBundleDescriptor(
+          id=encoded_ix_100,
+          transforms={
+              encoded_ix: beam_runner_api_pb2.PTransform(
+                  unique_name=encoded_ix)})
+
+    process_bundle_descriptors = list(map(make_transformer_for_ix, range(4)))
 
     test_controller = BeamFnControlServicer([beam_fn_api_pb2.InstructionRequest(
         register=beam_fn_api_pb2.RegisterRequest(
@@ -83,9 +85,13 @@ class SdkWorkerTest(unittest.TestCase):
     channel = grpc.insecure_channel("localhost:%s" % test_port)
     harness = sdk_worker.SdkHarness(channel)
     harness.run()
-    self.assertEqual(
-        harness.worker.fns,
-        {item.id: item for item in process_bundle_descriptors})
+    # We do a funny comparision here because the default formatting in Py2
+    # with future gets sad on error.
+    worker_fns = harness.worker.fns
+    expected_fns = {item.id: item for item in process_bundle_descriptors}
+    self.assertEqual(len(worker_fns), len(expected_fns),
+                     "Length of fns did not match")
+    self.assertEqual(worker_fns, expected_fns)
 
 
 if __name__ == "__main__":
