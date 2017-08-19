@@ -47,7 +47,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     pcoll = p | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
                                       None, 'a_label')
     # Ensure that the output type is str
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(str, pcoll.element_type)
 
     # Ensure that the properties passed through correctly
     source = pcoll.producer.transform._source
@@ -59,7 +59,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     pcoll = p | ReadStringsFromPubSub(
         None, 'projects/fakeprj/subscriptions/a_subscription', 'a_label')
     # Ensure that the output type is str
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(str, pcoll.element_type)
 
     # Ensure that the properties passed through correctly
     source = pcoll.producer.transform._source

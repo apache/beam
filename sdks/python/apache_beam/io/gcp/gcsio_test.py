@@ -15,7 +15,11 @@
 # limitations under the License.
 #
 """Tests for Google Cloud Storage client."""
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import errno
 import logging
 import multiprocessing
@@ -625,7 +629,7 @@ class TestGCSIO(unittest.TestCase):
     # Test that exceptions are not swallowed by the context manager.
     with self.assertRaises(ZeroDivisionError):
       with self.gcs.open(file_name) as f:
-        f.read(0 / 0)
+        f.read(old_div(0, 0))
 
   def test_glob(self):
     bucket_name = 'gcsio-test'

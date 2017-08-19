@@ -21,6 +21,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from builtins import str
+from builtins import object
 import base64
 import collections
 import json
@@ -79,7 +81,7 @@ class RunnerIOOperation(operations.Operation):
     # DataInputOperation or a producer of these bytes for a DataOutputOperation.
     self.target = target
     self.data_channel = data_channel
-    for _, consumer_ops in consumers.items():
+    for _, consumer_ops in list(consumers.items()):
       for consumer in consumer_ops:
         self.add_receiver(consumer, 0)
 
@@ -112,7 +114,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               consumers.itervalues().next(),
+                               next(iter(consumers.values())),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
@@ -200,8 +202,8 @@ class BundleProcessor(object):
         self.state_handler)
 
     pcoll_consumers = collections.defaultdict(list)
-    for transform_id, transform_proto in descriptor.transforms.items():
-      for pcoll_id in transform_proto.inputs.values():
+    for transform_id, transform_proto in list(descriptor.transforms.items()):
+      for pcoll_id in list(transform_proto.inputs.values()):
         pcoll_consumers[pcoll_id].append(transform_id)
 
     @memoize
@@ -209,7 +211,7 @@ class BundleProcessor(object):
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
           for tag, pcoll_id
-          in descriptor.transforms[transform_id].outputs.items()
+          in list(descriptor.transforms[transform_id].outputs.items())
       }
       return transform_factory.create_operation(
           transform_id, transform_consumers)
@@ -220,7 +222,7 @@ class BundleProcessor(object):
       return 1 + max(
           [0] +
           [topological_height(consumer)
-           for pcoll in descriptor.transforms[transform_id].outputs.values()
+           for pcoll in list(descriptor.transforms[transform_id].outputs.values())
            for consumer in pcoll_consumers[pcoll]])
 
     return [get_operation(transform_id)
@@ -298,26 +300,26 @@ class BeamTransformFactory(object):
   def get_output_coders(self, transform_proto):
     return {
         tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
-        for tag, pcoll_id in transform_proto.outputs.items()
+        for tag, pcoll_id in list(transform_proto.outputs.items())
     }
 
   def get_only_output_coder(self, transform_proto):
-    return only_element(self.get_output_coders(transform_proto).values())
+    return only_element(list(self.get_output_coders(transform_proto).values()))
 
   def get_input_coders(self, transform_proto):
     return {
         tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
-        for tag, pcoll_id in transform_proto.inputs.items()
+        for tag, pcoll_id in list(transform_proto.inputs.items())
     }
 
   def get_only_input_coder(self, transform_proto):
-    return only_element(self.get_input_coders(transform_proto).values())
+    return only_element(list(self.get_input_coders(transform_proto).values()))
 
   # TODO(robertwb): Update all operations to take these in the constructor.
   @staticmethod
   def augment_oldstyle_op(op, step_name, consumers, tag_list=None):
     op.step_name = step_name
-    for tag, op_consumers in consumers.items():
+    for tag, op_consumers in list(consumers.items()):
       for consumer in op_consumers:
         op.add_receiver(consumer, tag_list.index(tag) if tag_list else 0)
     return op
@@ -328,7 +330,7 @@ class BeamTransformFactory(object):
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.outputs.keys()))
+      name=only_element(list(transform_proto.outputs.keys())))
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
@@ -345,7 +347,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.inputs.keys()))
+      name=only_element(list(transform_proto.inputs.keys())))
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
@@ -451,7 +453,7 @@ def _create_pardo_operation(
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
-    pcoll_id, = transform_proto.inputs.values()
+    pcoll_id, = list(transform_proto.inputs.values())
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))

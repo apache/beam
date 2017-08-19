@@ -21,7 +21,10 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
+from past.utils import old_div
+from builtins import object
 from apache_beam.transforms import core
 
 
@@ -156,7 +159,7 @@ class MeanInt64Accumulator(object):
       self.sum %= 2**64
       if self.sum >= INT64_MAX:
         self.sum -= 2**64
-    return self.sum / self.count if self.count else _NAN
+    return old_div(self.sum, self.count) if self.count else _NAN
 
 
 class CountCombineFn(AccumulatorCombineFn):
@@ -252,7 +255,7 @@ class MeanDoubleAccumulator(object):
       self.count += accumulator.count
 
   def extract_output(self):
-    return self.sum / self.count if self.count else _NAN
+    return old_div(self.sum, self.count) if self.count else _NAN
 
 
 class SumFloatFn(AccumulatorCombineFn):

@@ -17,6 +17,7 @@
 
 """Create transform for streaming."""
 
+from builtins import map
 from apache_beam import pvalue
 from apache_beam import DoFn
 from apache_beam import ParDo
@@ -34,7 +35,7 @@ class StreamingCreate(PTransform):
 
   def __init__(self, values, coder):
     self.coder = coder
-    self.encoded_values = map(coder.encode, values)
+    self.encoded_values = list(map(coder.encode, values))
 
   class DecodeAndEmitDoFn(DoFn):
     """A DoFn which stores encoded versions of elements.

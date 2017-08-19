@@ -36,7 +36,7 @@ class JuliaSetTest(unittest.TestCase):
     self.test_files['output_image_file_name'] = self.generate_temp_file()
 
   def tearDown(self):
-    for test_file in self.test_files.values():
+    for test_file in list(self.test_files.values()):
       if os.path.exists(test_file):
         os.remove(test_file)
 

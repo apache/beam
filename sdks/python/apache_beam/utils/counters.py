@@ -24,6 +24,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 from collections import namedtuple
+from builtins import hex
+from builtins import object
 import threading
 
 from apache_beam.transforms import cy_combiners
@@ -190,4 +192,4 @@ class CounterFactory(object):
       this method returns hence the returned iterable may be stale.
     """
     with self._lock:
-      return self.counters.values()
+      return list(self.counters.values())

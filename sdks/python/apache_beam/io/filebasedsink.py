@@ -19,6 +19,10 @@
 
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import zip
+from builtins import range
+from past.builtins import basestring
 import logging
 import os
 import re
@@ -198,10 +202,10 @@ class FileBasedSink(iobase.Sink):
       destination_files.append(final_name)
 
     source_file_batch = [source_files[i:i + chunk_size]
-                         for i in xrange(0, len(source_files),
+                         for i in range(0, len(source_files),
                                          chunk_size)]
     destination_file_batch = [destination_files[i:i + chunk_size]
-                              for i in xrange(0, len(destination_files),
+                              for i in range(0, len(destination_files),
                                               chunk_size)]
 
     logging.info(
@@ -221,7 +225,7 @@ class FileBasedSink(iobase.Sink):
       except BeamIOError as exp:
         if exp.exception_details is None:
           raise
-        for (src, dest), exception in exp.exception_details.iteritems():
+        for (src, dest), exception in exp.exception_details.items():
           if exception:
             logging.warning('Rename not successful: %s -> %s, %s', src, dest,
                             exception)
@@ -243,7 +247,7 @@ class FileBasedSink(iobase.Sink):
         return exceptions
 
     exception_batches = util.run_using_threadpool(
-        _rename_batch, zip(source_file_batch, destination_file_batch),
+        _rename_batch, list(zip(source_file_batch, destination_file_batch)),
         num_threads)
 
     all_exceptions = [e for exception_batch in exception_batches

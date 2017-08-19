@@ -16,6 +16,7 @@
 #
 
 """Tests for datastore helper."""
+from builtins import map
 import errno
 import random
 from socket import error as SocketError
@@ -81,7 +82,7 @@ class HelperTest(unittest.TestCase):
         self.permanent_retriable_datastore_failure)
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
-    self.assertRaises(RPCError, iter(query_iterator).next)
+    self.assertRaises(RPCError, iter(query_iterator).__next__)
     self.assertEqual(6, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_transient_failures(self):
@@ -103,7 +104,7 @@ class HelperTest(unittest.TestCase):
     query_iterator = helper.QueryIterator("project", None, self._query,
                                           self._mock_datastore)
     self.assertRaises(tuple(map(type, self._non_retriable_errors)),
-                      iter(query_iterator).next)
+                      iter(query_iterator).__next__)
     self.assertEqual(1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_single_batch(self):
@@ -153,7 +154,7 @@ class HelperTest(unittest.TestCase):
       self.assertEqual(entity, entities[i].entity)
       i += 1
 
-    limit = query.limit.value if query.HasField('limit') else sys.maxint
+    limit = query.limit.value if query.HasField('limit') else sys.maxsize
     self.assertEqual(i, min(num_entities, limit))
 
   def test_is_key_valid(self):

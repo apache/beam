@@ -1,3 +1,4 @@
+from __future__ import division
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -19,6 +20,8 @@
 #
 # For internal use only; no backwards-compatibility guarantees.
 
+from builtins import object
+from past.utils import old_div
 import random
 
 from apache_beam.io.gcp.datastore.v1 import util
@@ -63,8 +66,7 @@ class AdaptiveThrottler(object):
     all_requests = self._all_requests.sum(now)
     successful_requests = self._successful_requests.sum(now)
     return max(
-        0, (all_requests - self._overload_ratio * successful_requests)
-        / (all_requests + AdaptiveThrottler.MIN_REQUESTS))
+        0, old_div((all_requests - self._overload_ratio * successful_requests), (all_requests + AdaptiveThrottler.MIN_REQUESTS)))
 
   def throttle_request(self, now):
     """Determines whether one RPC attempt should be throttled.

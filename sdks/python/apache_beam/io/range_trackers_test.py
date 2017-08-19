@@ -16,7 +16,10 @@
 #
 
 """Unit tests for the range_trackers module."""
+from __future__ import division
 
+from builtins import str
+from past.utils import old_div
 import copy
 import logging
 import math
@@ -136,11 +139,11 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(3, 6)
 
     # Position must be an integer type.
-    self.assertTrue(isinstance(tracker.position_at_fraction(0.0), (int, long)))
+    self.assertTrue(isinstance(tracker.position_at_fraction(0.0), int))
     # [3, 3) represents 0.0 of [3, 6)
     self.assertEqual(3, tracker.position_at_fraction(0.0))
     # [3, 4) represents up to 1/3 of [3, 6)
-    self.assertEqual(4, tracker.position_at_fraction(1.0 / 6))
+    self.assertEqual(4, tracker.position_at_fraction(old_div(1.0, 6)))
     self.assertEqual(4, tracker.position_at_fraction(0.333))
     # [3, 5) represents up to 2/3 of [3, 6)
     self.assertEqual(5, tracker.position_at_fraction(0.334))
@@ -154,9 +157,9 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(3))
     self.assertEqual(0.0, tracker.fraction_consumed())
     self.assertTrue(tracker.try_claim(4))
-    self.assertEqual(1.0 / 3, tracker.fraction_consumed())
+    self.assertEqual(old_div(1.0, 3), tracker.fraction_consumed())
     self.assertTrue(tracker.try_claim(5))
-    self.assertEqual(2.0 / 3, tracker.fraction_consumed())
+    self.assertEqual(old_div(2.0, 3), tracker.fraction_consumed())
     tracker.set_current_position(6)
     self.assertEqual(1.0, tracker.fraction_consumed())
     tracker.set_current_position(7)
@@ -197,7 +200,7 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(100, 400)
 
     def dummy_callback(stop_position):
-      return int(stop_position / 5)
+      return int(old_div(stop_position, 5))
 
     tracker.set_split_points_unclaimed_callback(dummy_callback)
 
@@ -233,7 +236,7 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
 
     @staticmethod
     def position_to_fraction(pos, start, end):
-      return float(pos - start) / (end - start)
+      return old_div(float(pos - start), (end - start))
 
   def test_try_claim(self):
     tracker = self.DoubleRangeTracker(10, 20)
@@ -357,15 +360,15 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self.assertEqual(computed_key, key, str(locals()))
 
   def test_key_to_fraction_no_endpoints(self):
-    self._check(key='\x07', fraction=7/256.)
-    self._check(key='\xFF', fraction=255/256.)
-    self._check(key='\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
+    self._check(key='\x07', fraction=old_div(7,256.))
+    self._check(key='\xFF', fraction=old_div(255,256.))
+    self._check(key='\x01\x02\x03', fraction=old_div((2**16 + 2**9 + 3), (2.0**24)))
 
   def test_key_to_fraction(self):
-    self._check(key='\x87', start='\x80', fraction=7/128.)
-    self._check(key='\x07', end='\x10', fraction=7/16.)
-    self._check(key='\x47', start='\x40', end='\x80', fraction=7/64.)
-    self._check(key='\x47\x80', start='\x40', end='\x80', fraction=15/128.)
+    self._check(key='\x87', start='\x80', fraction=old_div(7,128.))
+    self._check(key='\x07', end='\x10', fraction=old_div(7,16.))
+    self._check(key='\x47', start='\x40', end='\x80', fraction=old_div(7,64.))
+    self._check(key='\x47\x80', start='\x40', end='\x80', fraction=old_div(15,128.))
 
   def test_key_to_fraction_common_prefix(self):
     self._check(
@@ -388,7 +391,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
     self._check(fraction=.5**20, start='\xFF\xFF\x80',
                 key='\xFF\xFF\x80\x00\x08')
-    self._check(fraction=.5**20 / 3,
+    self._check(fraction=old_div(.5**20, 3),
                 start='xy_a',
                 end='xy_c',
                 key='xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
@@ -396,7 +399,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self._check(fraction=.5**100, key='\0' * 12 + '\x10')
 
   def test_lots(self):
-    for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
+    for fraction in (0, 1, .5, .75, old_div(7.,512), 1 - old_div(7.,4096)):
       self._check(fraction)
       self._check(fraction, start='\x01')
       self._check(fraction, end='\xF0')
@@ -406,7 +409,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
       self._check(fraction, start='a' * 101 + '\x80', end='a' * 101 + '\x81')
       self._check(fraction, start='a' * 102 + '\x80', end='a' * 102 + '\x81')
-    for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
+    for fraction in (.3, old_div(1,3.), old_div(1,math.e), .001, 1e-30, .99, .999999):
       self._check(fraction, delta=1e-14)
       self._check(fraction, start='\x01', delta=1e-14)
       self._check(fraction, end='\xF0', delta=1e-14)
@@ -419,19 +422,19 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
   def test_good_prec(self):
     # There should be about 7 characters (~53 bits) of precision
     # (beyond the common prefix of start and end).
-    self._check(1 / math.e, start='abc_abc', end='abc_xyz',
+    self._check(old_div(1, math.e), start='abc_abc', end='abc_xyz',
                 key='abc_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
     # This remains true even if the start and end keys are given to
     # high precision.
-    self._check(1 / math.e,
+    self._check(old_div(1, math.e),
                 start='abcd_abc\0\0\0\0\0_______________abc',
                 end='abcd_xyz\0\0\0\0\0\0_______________abc',
                 key='abcd_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
     # For very small fractions, however, higher precision is used to
     # accurately represent small increments in the keyspace.
-    self._check(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
+    self._check(old_div(1e-20, math.e), start='abcd_abc', end='abcd_xyz',
                 key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
                 delta=1e-35)
 

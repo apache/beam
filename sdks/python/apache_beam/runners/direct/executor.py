@@ -19,10 +19,15 @@
 
 from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from builtins import object
 import collections
 import itertools
 import logging
-import Queue
+import queue
 import sys
 import threading
 import traceback
@@ -77,7 +82,7 @@ class _ExecutorService(object):
         # shutdown.
         return self.queue.get(
             timeout=_ExecutorService._ExecutorServiceWorker.TIMEOUT)
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def run(self):
@@ -96,7 +101,7 @@ class _ExecutorService(object):
       self.shutdown_requested = True
 
   def __init__(self, num_workers):
-    self.queue = Queue.Queue()
+    self.queue = queue.Queue()
     self.workers = [_ExecutorService._ExecutorServiceWorker(
         self.queue, i) for i in range(num_workers)]
     self.shutdown_requested = False
@@ -121,7 +126,7 @@ class _ExecutorService(object):
       try:
         self.queue.get_nowait()
         self.queue.task_done()
-      except Queue.Empty:
+      except queue.Empty:
         continue
     # All existing threads will eventually terminate (after they complete their
     # last task).
@@ -351,7 +356,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
             uncommitted_bundle.get_elements_iterable())
       undeclared_tag_values = result.undeclared_tag_values
       if undeclared_tag_values:
-        for tag, value in undeclared_tag_values.iteritems():
+        for tag, value in undeclared_tag_values.items():
           self._evaluation_context.append_to_cache(
               self._applied_ptransform, tag, value)
 
@@ -398,7 +403,7 @@ class _ExecutorServiceParallelExecutor(object):
     self.all_nodes = frozenset(
         itertools.chain(
             roots,
-            *itertools.chain(self.value_to_consumers.values())))
+            *itertools.chain(list(self.value_to_consumers.values()))))
     self.node_to_pending_bundles = {}
     for root_node in self.root_nodes:
       provider = (self.transform_evaluator_registry
@@ -452,14 +457,14 @@ class _ExecutorServiceParallelExecutor(object):
 
     def __init__(self, item_type):
       self._item_type = item_type
-      self._queue = Queue.Queue()
+      self._queue = queue.Queue()
 
     def poll(self):
       try:
         item = self._queue.get_nowait()
         self._queue.task_done()
         return  item
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def take(self):

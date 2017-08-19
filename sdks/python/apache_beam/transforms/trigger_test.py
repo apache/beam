@@ -17,6 +17,8 @@
 
 """Unit tests for the triggering classes."""
 
+from builtins import zip
+from builtins import range
 import collections
 import os.path
 import pickle
@@ -164,14 +166,14 @@ class TriggerTest(unittest.TestCase):
         AfterWatermark(early=AfterCount(3),
                        late=AfterCount(2)),
         AccumulationMode.DISCARDING,
-        zip(range(9), 'abcdefghi'),
+        list(zip(list(range(9)), 'abcdefghi')),
         {IntervalWindow(0, 100): [
             set('abcd'), set('efgh'),  # early
             set('i'),                  # on time
             set('vw'), set('xy')       # late
             ]},
         2,
-        late_data=zip(range(5), 'vwxyz'))
+        late_data=list(zip(list(range(5)), 'vwxyz')))
 
   def test_sessions_watermark_with_early_late(self):
     self.run_trigger_simple(
@@ -238,7 +240,7 @@ class TriggerTest(unittest.TestCase):
         FixedWindows(100),  # pyformat break
         Repeatedly(AfterAny(AfterCount(3), AfterWatermark())),
         AccumulationMode.ACCUMULATING,
-        zip(range(7), 'abcdefg'),
+        list(zip(list(range(7)), 'abcdefg')),
         {IntervalWindow(0, 100): [
             set('abc'),
             set('abcdef'),
@@ -247,7 +249,7 @@ class TriggerTest(unittest.TestCase):
             set('abcdefgxy'),
             set('abcdefgxyz')]},
         1,
-        late_data=zip(range(3), 'xyz'))
+        late_data=list(zip(list(range(3)), 'xyz')))
 
   def test_sessions_after_all(self):
     self.run_trigger_simple(
@@ -355,7 +357,7 @@ class TriggerTest(unittest.TestCase):
         Sessions(10),  # pyformat break
         AfterEach(AfterCount(2), AfterCount(3)),
         AccumulationMode.ACCUMULATING,
-        zip(range(10), 'abcdefghij'),
+        list(zip(list(range(10)), 'abcdefghij')),
         {IntervalWindow(0, 11): [set('ab')],
          IntervalWindow(0, 15): [set('abcdef')]},
         2)
@@ -364,7 +366,7 @@ class TriggerTest(unittest.TestCase):
         Sessions(10),  # pyformat break
         Repeatedly(AfterEach(AfterCount(2), AfterCount(3))),
         AccumulationMode.ACCUMULATING,
-        zip(range(10), 'abcdefghij'),
+        list(zip(list(range(10)), 'abcdefghij')),
         {IntervalWindow(0, 11): [set('ab')],
          IntervalWindow(0, 15): [set('abcdef')],
          IntervalWindow(0, 17): [set('abcdefgh')]},
@@ -379,7 +381,7 @@ class TriggerTest(unittest.TestCase):
       pickle.dumps(unpicklable)
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
-                       range(10))
+                       list(range(10)))
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -406,18 +408,18 @@ class TriggerPipelineTest(unittest.TestCase):
       result = (p
                 | beam.Create([1, 2, 3, 4, 5, 10, 11])
                 | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-                | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+                | beam.Map(lambda k_t: TimestampedValue((k_t[0], k_t[1]), k_t[1]))
                 | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
                                   accumulation_mode=AccumulationMode.DISCARDING)
                 | beam.GroupByKey()
-                | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+                | beam.Map(lambda k_v: ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))))
       assert_that(result, equal_to(
-          {
+          iter({
               'A-5': {1, 2, 3, 4, 5},
               # A-10, A-11 never emitted due to AfterCount(3) never firing.
               'B-4': {6, 7, 8, 9},
               'B-3': {10, 15, 16},
-          }.iteritems()))
+          }.items())))
 
 
 class TranscriptTest(unittest.TestCase):
@@ -463,7 +465,7 @@ class TranscriptTest(unittest.TestCase):
       args = []
       start = 0
       depth = 0
-      for ix in xrange(len(s)):
+      for ix in range(len(s)):
         c = s[ix]
         if c in '({[':
           depth += 1
@@ -546,7 +548,7 @@ class TranscriptTest(unittest.TestCase):
 
     for line in spec['transcript']:
 
-      action, params = line.items()[0]
+      action, params = list(line.items())[0]
 
       if action != 'expect':
         # Fail if we have output that was not expected in the transcript.

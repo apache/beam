@@ -102,6 +102,10 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import zip
+from past.builtins import basestring
+from builtins import object
 import collections
 import datetime
 import json
@@ -190,8 +194,8 @@ class TableRowJsonCoder(coders.Coder):
     try:
       return json.dumps(
           collections.OrderedDict(
-              zip(self.field_names,
-                  [from_json_value(f.v) for f in table_row.f])),
+              list(zip(self.field_names,
+                  [from_json_value(f.v) for f in table_row.f]))),
           allow_nan=False)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
@@ -200,7 +204,7 @@ class TableRowJsonCoder(coders.Coder):
     od = json.loads(
         encoded_table_row, object_pairs_hook=collections.OrderedDict)
     return bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.itervalues()])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.values()])
 
 
 def parse_table_schema_from_json(schema_string):
@@ -1091,7 +1095,7 @@ class BigQueryWrapper(object):
     final_rows = []
     for row in rows:
       json_object = bigquery.JsonObject()
-      for k, v in row.iteritems():
+      for k, v in row.items():
         json_object.additionalProperties.append(
             bigquery.JsonObject.AdditionalProperty(
                 key=k, value=to_json_value(v)))

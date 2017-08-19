@@ -1,3 +1,4 @@
+from __future__ import division
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -19,6 +20,9 @@
 #
 # For internal use only; no backwards-compatibility guarantees.
 
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import math
 
 
@@ -36,14 +40,14 @@ class MovingSum(object):
   def __init__(self, window_ms, bucket_ms):
     if window_ms <= bucket_ms or bucket_ms <= 0:
       raise ValueError("window_ms > bucket_ms > 0 please")
-    self._num_buckets = int(math.ceil(window_ms / bucket_ms))
+    self._num_buckets = int(math.ceil(old_div(window_ms, bucket_ms)))
     self._bucket_ms = bucket_ms
     self._Reset(now=0)  # initialize the moving window members
 
   def _Reset(self, now):
     self._current_index = 0  # pointer into self._buckets
     self._current_ms_since_epoch = math.floor(
-        now / self._bucket_ms) * self._bucket_ms
+        old_div(now, self._bucket_ms)) * self._bucket_ms
 
     # _buckets is a list where each element is a list [sum, num_samples]
     # This is a circular buffer where

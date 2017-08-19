@@ -143,7 +143,7 @@ class TestPipeline(Pipeline):
     appending, and will be unpickled later in the TestRunner.
     """
     options = list(self.options_list)
-    for k, v in extra_opts.items():
+    for k, v in list(extra_opts.items()):
       if not v:
         continue
       elif isinstance(v, bool) and v:

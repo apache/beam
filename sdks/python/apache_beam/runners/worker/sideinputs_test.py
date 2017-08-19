@@ -17,6 +17,8 @@
 
 """Tests for side input utilities."""
 
+from builtins import range
+from builtins import object
 import logging
 import time
 import unittest
@@ -67,7 +69,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=2)
-    assert list(strip_windows(iterator_fn())) == range(6)
+    assert list(strip_windows(iterator_fn())) == list(range(6))
 
   def test_multiple_sources_iterator_fn(self):
     sources = [
@@ -78,7 +80,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=3)
-    assert sorted(strip_windows(iterator_fn())) == range(11)
+    assert sorted(strip_windows(iterator_fn())) == list(range(11))
 
   def test_multiple_sources_single_reader_iterator_fn(self):
     sources = [
@@ -89,7 +91,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=1)
-    assert list(strip_windows(iterator_fn())) == range(11)
+    assert list(strip_windows(iterator_fn())) == list(range(11))
 
   def test_source_iterator_fn_exception(self):
     class MyException(Exception):
@@ -116,7 +118,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     with self.assertRaises(MyException):
       for value in iterator_fn():
         seen.add(value.value)
-    self.assertEqual(sorted(seen), range(5))
+    self.assertEqual(sorted(seen), list(range(5)))
 
 
 class EmulatedCollectionsTest(unittest.TestCase):

@@ -65,8 +65,11 @@ python hourly_team_score.py \
 """
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
+
+from past.utils import old_div
 import argparse
 import csv
 import logging
@@ -227,6 +230,53 @@ class WriteToBigQuery(beam.PTransform):
             schema=self.get_schema(),
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
+
+
+def string_to_timestamp(datetime_str):
+  dt = datetime.datetime.strptime(datetime_str, '%Y-%m-%d-%H-%M')
+  epoch = datetime.datetime.utcfromtimestamp(0)
+  return (dt - epoch).total_seconds() * 1000.0
+
+
+class HourlyTeamScore(beam.PTransform):
+  def __init__(self, start_min, stop_min, window_duration):
+    super(HourlyTeamScore, self).__init__()
+    self.start_min = start_min
+    self.stop_min = stop_min
+    self.window_duration = window_duration
+
+  def expand(self, pcoll):
+    start_min_filter = string_to_timestamp(self.start_min)
+    end_min_filter = string_to_timestamp(self.stop_min)
+
+    return (
+        pcoll
+        | 'ParseGameEvent' >> beam.ParDo(ParseEventFn())
+        # Filter out data before and after the given times so that it is not
+        # included in the calculations. As we collect data in batches (say, by
+        # day), the batch for the day that we want to analyze could potentially
+        # include some late-arriving data from the previous day. If so, we want
+        # to weed it out. Similarly, if we include data from the following day
+        # (to scoop up late-arriving events from the day we're analyzing), we
+        # need to weed out events that fall after the time period we want to
+        # analyze.
+        | 'FilterStartTime' >> beam.Filter(
+            lambda element: element['timestamp'] > start_min_filter)
+        | 'FilterEndTime' >> beam.Filter(
+            lambda element: element['timestamp'] < end_min_filter)
+        # Add an element timestamp based on the event log, and apply fixed
+        # windowing.
+        # Convert element['timestamp'] into seconds as expected by
+        # TimestampedValue.
+        | 'AddEventTimestamps' >> beam.Map(
+            lambda element: TimestampedValue(
+                element, old_div(element['timestamp'], 1000.0)))
+        # Convert window_duration into seconds as expected by FixedWindows.
+        | 'FixedWindowsTeam' >> beam.WindowInto(FixedWindows(
+            size=self.window_duration * 60))
+        # Extract and sum teamname/score pairs from the event data.
+        | 'ExtractTeamScore' >> ExtractAndSumScore('team'))
+
 
 
 def run(argv=None):

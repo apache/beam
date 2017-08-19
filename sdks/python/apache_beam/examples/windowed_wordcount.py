@@ -72,11 +72,11 @@ def run(argv=None):
     # Capitalize the characters in each line.
     transformed = (lines
                    | 'Split' >> (beam.FlatMap(find_words)
-                                 .with_output_types(unicode))
+                                 .with_output_types(str))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                   | 'Count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
                    | 'Format' >> beam.ParDo(FormatDoFn()))
 
     # Write to BigQuery.

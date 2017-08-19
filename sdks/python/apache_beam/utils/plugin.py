@@ -21,6 +21,7 @@ For experimental usage only; no backwards-compatibility guarantees.
 """
 
 
+from builtins import object
 class BeamPlugin(object):
   """Plugin base class to be extended by dependent users such as FileSystem.
   Any instantiated subclass will be imported at worker startup time."""

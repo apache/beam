@@ -90,14 +90,14 @@ class JsonValueTest(unittest.TestCase):
   def test_large_integer(self):
     num = 1 << 35
     self.assertEquals(num, from_json_value(to_json_value(num)))
-    self.assertEquals(long(num), from_json_value(to_json_value(long(num))))
+    self.assertEquals(int(num), from_json_value(to_json_value(int(num))))
 
   def test_long_value(self):
-    self.assertEquals(long(27), from_json_value(to_json_value(long(27))))
+    self.assertEquals(int(27), from_json_value(to_json_value(int(27))))
 
   def test_too_long_value(self):
     with self.assertRaises(TypeError):
-      to_json_value(long(1 << 64))
+      to_json_value(int(1 << 64))
 
 
 if __name__ == '__main__':

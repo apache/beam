@@ -29,6 +29,9 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
+from builtins import str
+from builtins import filter
+from builtins import object
 from collections import defaultdict
 import threading
 
@@ -166,12 +169,12 @@ class MetricsContainer(object):
     if filter is None:
       filter = lambda v: True
     counters = {MetricKey(self.step_name, k): v.get_cumulative()
-                for k, v in self.counters.items()
-                if filter(v)}
+                for k, v in list(self.counters.items())
+                if list(filter(v))}
 
     distributions = {MetricKey(self.step_name, k): v.get_cumulative()
-                     for k, v in self.distributions.items()
-                     if filter(v)}
+                     for k, v in list(self.distributions.items())
+                     if list(filter(v))}
 
     return MetricUpdates(counters, distributions)
 

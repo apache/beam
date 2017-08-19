@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+from builtins import zip
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
@@ -123,7 +124,7 @@ class GCSFileSystem(FileSystem):
         pattern += '*'
       file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern, limit)
       metadata_list = [FileMetadata(path, size)
-                       for path, size in file_sizes.iteritems()]
+                       for path, size in file_sizes.items()]
       return MatchResult(pattern, metadata_list)
 
     exceptions = {}

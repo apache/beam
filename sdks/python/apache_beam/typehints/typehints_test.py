@@ -16,6 +16,10 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
+from builtins import next
+from builtins import str
+from builtins import range
+from builtins import object
 import functools
 import inspect
 import unittest
@@ -54,7 +58,7 @@ def check_type_hints(f):
       input_hints = getcallargs_forhints(
           f, *hints.input_types[0], **hints.input_types[1])
       inputs = inspect.getcallargs(f, *args, **kwargs)
-      for var, hint in input_hints.items():
+      for var, hint in list(input_hints.items()):
         value = inputs[var]
         new_value = check_or_interleave(hint, value, var)
         if new_value is not value:

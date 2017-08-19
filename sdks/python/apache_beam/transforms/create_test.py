@@ -16,6 +16,9 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
+from __future__ import division
+from builtins import range
+from past.utils import old_div
 import unittest
 
 from apache_beam.io import source_test_utils
@@ -32,13 +35,13 @@ class CreateTest(unittest.TestCase):
 
   def test_create_transform(self):
     with TestPipeline() as p:
-      assert_that(p | Create(range(10)), equal_to(range(10)))
+      assert_that(p | Create(list(range(10))), equal_to(list(range(10))))
 
   def test_create_source_read(self):
     self.check_read([], self.coder)
     self.check_read([1], self.coder)
     # multiple values.
-    self.check_read(range(10), self.coder)
+    self.check_read(list(range(10)), self.coder)
 
   def check_read(self, values, coder):
     source = Create._create_source_from_iterable(values, coder)
@@ -48,7 +51,7 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_with_initial_splits(self):
     self.check_read_with_initial_splits([], self.coder, num_splits=2)
     self.check_read_with_initial_splits([1], self.coder, num_splits=2)
-    values = range(8)
+    values = list(range(8))
     # multiple values with a single split.
     self.check_read_with_initial_splits(values, self.coder, num_splits=1)
     # multiple values with a single split with a large desired bundle size
@@ -69,7 +72,7 @@ class CreateTest(unittest.TestCase):
     from the split sources.
     """
     source = Create._create_source_from_iterable(values, coder)
-    desired_bundle_size = source._total_size / num_splits
+    desired_bundle_size = old_div(source._total_size, num_splits)
     splits = source.split(desired_bundle_size)
     splits_info = [
         (split.source, split.start_position, split.stop_position)
@@ -78,11 +81,11 @@ class CreateTest(unittest.TestCase):
         (source, None, None), splits_info)
 
   def test_create_source_read_reentrant(self):
-    source = Create._create_source_from_iterable(range(9), self.coder)
+    source = Create._create_source_from_iterable(list(range(9)), self.coder)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_create_source_read_reentrant_with_initial_splits(self):
-    source = Create._create_source_from_iterable(range(24), self.coder)
+    source = Create._create_source_from_iterable(list(range(24)), self.coder)
     for split in source.split(desired_bundle_size=5):
       source_test_utils.assert_reentrant_reads_succeed((split.source,
                                                         split.start_position,
@@ -90,16 +93,16 @@ class CreateTest(unittest.TestCase):
 
   def test_create_source_dynamic_splitting(self):
     # 2 values
-    source = Create._create_source_from_iterable(range(2), self.coder)
+    source = Create._create_source_from_iterable(list(range(2)), self.coder)
     source_test_utils.assert_split_at_fraction_exhaustive(source)
     # Multiple values.
-    source = Create._create_source_from_iterable(range(11), self.coder)
+    source = Create._create_source_from_iterable(list(range(11)), self.coder)
     source_test_utils.assert_split_at_fraction_exhaustive(
         source, perform_multi_threaded_test=True)
 
   def test_create_source_progress(self):
     num_values = 10
-    source = Create._create_source_from_iterable(range(num_values), self.coder)
+    source = Create._create_source_from_iterable(list(range(num_values)), self.coder)
     splits = [split for split in source.split(desired_bundle_size=100)]
     assert len(splits) == 1
     fraction_consumed_report = []
@@ -111,7 +114,7 @@ class CreateTest(unittest.TestCase):
       split_points_report.append(range_tracker.split_points())
 
     self.assertEqual(
-        [float(i) / num_values for i in range(num_values)],
+        [old_div(float(i), num_values) for i in range(num_values)],
         fraction_consumed_report)
 
     expected_split_points_report = [

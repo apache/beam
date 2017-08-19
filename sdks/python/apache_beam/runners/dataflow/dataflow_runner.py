@@ -21,12 +21,16 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import hex
+from builtins import str
 from collections import defaultdict
 import logging
 import threading
 import time
 import traceback
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 import apache_beam as beam
 from apache_beam import error
@@ -850,12 +854,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.quote(raw_bytes)
+    return urllib.parse.quote(raw_bytes)
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.unquote(encoded_string)
+    return urllib.parse.unquote(encoded_string)
 
 
 class DataflowPipelineResult(PipelineResult):

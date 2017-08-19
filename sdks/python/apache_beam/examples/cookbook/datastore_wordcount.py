@@ -61,6 +61,8 @@ https://github.com/googleapis/googleapis/tree/master/google/datastore/v1
 
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import object
 import argparse
 import logging
 import re
@@ -129,7 +131,7 @@ class EntityWrapper(object):
     datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
                                   self._kind, str(uuid.uuid4()))
 
-    datastore_helper.add_properties(entity, {"content": unicode(content)})
+    datastore_helper.add_properties(entity, {"content": str(content)})
     return entity
 
 
@@ -180,13 +182,13 @@ def read_from_datastore(project, user_options, pipeline_options):
   # Count the occurrences of each word.
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
+                          .with_output_types(str))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+  output = counts | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1]))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

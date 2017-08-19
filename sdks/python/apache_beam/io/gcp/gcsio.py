@@ -20,13 +20,16 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
+import io
 import errno
 import fnmatch
 import logging
 import multiprocessing
 import os
-import Queue
+import queue
 import re
 import threading
 import time
@@ -452,7 +455,7 @@ class GcsBufferedReader(object):
     self.get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self.download_stream = cStringIO.StringIO()
+    self.download_stream = io.StringIO()
     self.downloader = transfer.Download(
         self.download_stream, auto_transfer=False, chunksize=self.buffer_size)
     self.client.objects.Get(self.get_request, download=self.downloader)
@@ -472,9 +475,9 @@ class GcsBufferedReader(object):
   def __next__(self):
     """Read one line delimited by '\\n' from the file.
     """
-    return self.next()
+    return next(self)
 
-  def next(self):
+  def __next__(self):
     """Read one line delimited by '\\n' from the file.
     """
     line = self.readline()
@@ -575,7 +578,7 @@ class GcsBufferedReader(object):
       self.buffer_start_position = self.position
       retry_count = 0
       while retry_count <= 10:
-        queue = Queue.Queue()
+        queue = queue.Queue()
         t = threading.Thread(target=self._fetch_to_queue,
                              args=(queue, self._get_segment,
                                    (self.position, bytes_to_request)))
@@ -583,14 +586,14 @@ class GcsBufferedReader(object):
         t.start()
         try:
           result, exn, tb = queue.get(timeout=self.segment_timeout)
-        except Queue.Empty:
+        except queue.Empty:
           logging.warning(
               ('Timed out fetching %d bytes from position %d of %s after %f '
                'seconds; retrying...'), bytes_to_request, self.position,
               self.path, self.segment_timeout)
           retry_count += 1
           # Reinitialize download objects.
-          self.download_stream = cStringIO.StringIO()
+          self.download_stream = io.StringIO()
           self.downloader = transfer.Download(
               self.download_stream, auto_transfer=False,
               chunksize=self.buffer_size)

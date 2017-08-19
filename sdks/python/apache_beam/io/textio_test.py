@@ -16,7 +16,10 @@
 #
 
 """Tests for textio module."""
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 import bz2
 import glob
 import gzip
@@ -275,7 +278,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
       split_points_report.append(range_tracker.split_points())
 
     self.assertEqual(
-        [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
+        [old_div(float(i), 10) for i in range(0, 10)], fraction_consumed_report)
     expected_split_points_report = [
         ((i - 1), iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
         for i in range(1, 10)]

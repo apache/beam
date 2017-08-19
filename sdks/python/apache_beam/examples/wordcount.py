@@ -90,13 +90,13 @@ def run(argv=None):
   # Count the occurrences of each word.
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
+                          .with_output_types(str))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+  output = counts | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1]))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

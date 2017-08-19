@@ -19,6 +19,7 @@
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+from past.builtins import basestring
 try:
   from apitools.base.py import extra_types
 except ImportError:
@@ -93,7 +94,7 @@ def to_json_value(obj, with_type=False):
             entries=[to_json_value(o, with_type=with_type) for o in obj]))
   elif isinstance(obj, dict):
     json_object = extra_types.JsonObject()
-    for k, v in obj.iteritems():
+    for k, v in obj.items():
       json_object.properties.append(
           extra_types.JsonObject.Property(
               key=k, value=to_json_value(v, with_type=with_type)))
@@ -106,7 +107,7 @@ def to_json_value(obj, with_type=False):
     return extra_types.JsonValue(boolean_value=obj)
   elif isinstance(obj, int):
     return extra_types.JsonValue(integer_value=obj)
-  elif isinstance(obj, long):
+  elif isinstance(obj, int):
     if _MININT64 <= obj <= _MAXINT64:
       return extra_types.JsonValue(integer_value=obj)
     else:

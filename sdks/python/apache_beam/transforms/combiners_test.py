@@ -16,7 +16,11 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import unittest
 
 import hamcrest as hc
@@ -43,7 +47,7 @@ class CombineTest(unittest.TestCase):
     pipeline = TestPipeline()
 
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    mean = sum(vals) / float(len(vals))
+    mean = old_div(sum(vals), float(len(vals)))
     size = len(vals)
 
     # First for global combines.
@@ -134,9 +138,9 @@ class CombineTest(unittest.TestCase):
       final_accumulator = combine_fn.merge_accumulators(accumulators)
       self.assertEqual(combine_fn.extract_output(final_accumulator), expected)
 
-    test_combine_fn(combine.TopCombineFn(3), [range(10), range(10)], [9, 9, 8])
+    test_combine_fn(combine.TopCombineFn(3), [list(range(10)), list(range(10))], [9, 9, 8])
     test_combine_fn(combine.TopCombineFn(5),
-                    [range(1000), range(100), range(1001)],
+                    [list(range(1000)), list(range(100)), list(range(1001))],
                     [1000, 999, 999, 998, 998])
 
   def test_combine_per_key_top_display_data(self):
@@ -220,7 +224,7 @@ class CombineTest(unittest.TestCase):
 
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      for ix in xrange(9):
+      for ix in range(9):
         assert_that(
             pcoll | 'sample-%d' % ix >> combine.Sample.FixedSizeGlobally(3),
             is_good_sample,
@@ -229,7 +233,7 @@ class CombineTest(unittest.TestCase):
   def test_per_key_sample(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
-        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(9)), []))
+        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in range(9)), []))
     result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():
@@ -250,7 +254,7 @@ class CombineTest(unittest.TestCase):
           | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
           | beam.CombineGlobally(combine.TupleCombineFn(
               max, combine.MeanCombineFn(), sum)).without_defaults())
-      assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
+      assert_that(result, equal_to([('c', old_div(111.0, 3), 99.0)]))
 
   def test_tuple_combine_fn_without_defaults(self):
     with TestPipeline() as p:
@@ -260,7 +264,7 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(
               combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
               .with_common_input()).without_defaults())
-      assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
+      assert_that(result, equal_to([(1, old_div(7.0, 4), 3)]))
 
   def test_to_list_and_to_dict(self):
     pipeline = TestPipeline()
@@ -283,7 +287,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(iter(actual[0].items()))
       return match
     assert_that(result, matcher())
     pipeline.run()

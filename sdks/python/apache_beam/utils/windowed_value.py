@@ -27,6 +27,8 @@ This module is experimental. No backwards-compatibility guarantees.
 
 #cython: profile=True
 
+from past.builtins import cmp
+from builtins import object
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp

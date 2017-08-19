@@ -16,6 +16,7 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+from builtins import object
 import unittest
 
 
@@ -40,7 +41,8 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[str, int, float], lambda x: (x, 0, 1.0), [str])
 
   def testUnpack(self):
-    def reverse((a, b)):
+    def reverse(xxx_todo_changeme):
+      (a, b) = xxx_todo_changeme
       return b, a
     any_tuple = typehints.Tuple[typehints.Any, typehints.Any]
     self.assertReturnType(

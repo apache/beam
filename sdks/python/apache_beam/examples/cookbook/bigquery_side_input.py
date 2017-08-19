@@ -27,6 +27,8 @@ Users should specify the number of groups to form and optionally a corpus and/or
 a word that should be ignored when forming groups.
 """
 
+from builtins import str
+from builtins import range
 import argparse
 import logging
 from random import randrange
@@ -47,7 +49,7 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
     selected = None
     len_corpus = len(corpus)
     while not selected:
-      c = corpus[randrange(0, len_corpus - 1)].values()[0]
+      c = list(corpus[randrange(0, len_corpus - 1)].values())[0]
       if c != ignore:
         selected = c
 
@@ -57,7 +59,7 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
     selected = None
     len_words = len(words)
     while not selected:
-      c = words[randrange(0, len_words - 1)].values()[0]
+      c = list(words[randrange(0, len_words - 1)].values())[0]
       if c != ignore:
         selected = c
 
@@ -91,7 +93,7 @@ def run(argv=None):
   with beam.Pipeline(options=pipeline_options) as p:
 
     group_ids = []
-    for i in xrange(0, int(known_args.num_groups)):
+    for i in range(0, int(known_args.num_groups)):
       group_ids.append('id' + str(i))
 
     query_corpus = 'select UNIQUE(corpus) from publicdata:samples.shakespeare'

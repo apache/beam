@@ -16,6 +16,7 @@
 #
 
 
+from builtins import range
 import logging
 import unittest
 
@@ -99,7 +100,7 @@ def _create_test(name, num_logs):
 
 
 if __name__ == '__main__':
-  for test_name, num_logs_entries in data.iteritems():
+  for test_name, num_logs_entries in data.items():
     _create_test(test_name, num_logs_entries)
 
   unittest.main()

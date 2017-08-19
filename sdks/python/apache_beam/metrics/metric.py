@@ -24,6 +24,7 @@ and displayed as part of their pipeline execution.
 - Metrics - This class lets pipeline and transform writers create and access
     metric objects such as counters, distributions, etc.
 """
+from builtins import object
 import inspect
 
 from apache_beam.metrics.execution import MetricsEnvironment

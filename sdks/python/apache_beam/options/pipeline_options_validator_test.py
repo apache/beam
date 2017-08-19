@@ -17,6 +17,7 @@
 
 """Unit tests for the pipeline options validator module."""
 
+from builtins import object
 import logging
 import unittest
 

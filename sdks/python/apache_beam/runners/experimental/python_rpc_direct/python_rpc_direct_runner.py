@@ -18,6 +18,7 @@
 """A runner implementation that submits a job for remote execution.
 """
 
+from builtins import range
 import logging
 import random
 import string
@@ -60,7 +61,7 @@ class PythonRPCDirectRunner(PipelineRunner):
     # Submit the job to the RPC co-process
     jobName = ('Job-' +
                ''.join(random.choice(string.ascii_uppercase) for _ in range(6)))
-    options = {k: v for k, v in pipeline._options.get_all_options().iteritems()
+    options = {k: v for k, v in pipeline._options.get_all_options().items()
                if v is not None}
 
     try:

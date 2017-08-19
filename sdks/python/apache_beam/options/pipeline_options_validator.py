@@ -19,6 +19,7 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from builtins import object
 import re
 
 from apache_beam.internal import pickler

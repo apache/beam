@@ -54,7 +54,7 @@ class SideInputsTest(unittest.TestCase):
         side |= beam.Map(lambda x: ('k%s' % x, 'v%s' % x))
       res = main | beam.Map(lambda x, s: (x, s), side_input_type(side, **kw))
       if side_input_type in (beam.pvalue.AsIter, beam.pvalue.AsList):
-        res |= beam.Map(lambda (x, s): (x, sorted(s)))
+        res |= beam.Map(lambda x_s: (x_s[0], sorted(x_s[1])))
       assert_that(res, equal_to(expected))
 
   def test_global_global_windows(self):
@@ -193,7 +193,7 @@ class SideInputsTest(unittest.TestCase):
         [[actual_elem, actual_list, actual_dict]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_list)(actual_list)
-        equal_to(expected_pairs)(actual_dict.iteritems())
+        equal_to(expected_pairs)(iter(actual_dict.items()))
       return match
 
     assert_that(results, matcher(1, a_list, some_pairs))
@@ -283,8 +283,8 @@ class SideInputsTest(unittest.TestCase):
       def match(actual):
         [[actual_elem, actual_dict1, actual_dict2]] = actual
         equal_to([expected_elem])([actual_elem])
-        equal_to(expected_kvs)(actual_dict1.iteritems())
-        equal_to(expected_kvs)(actual_dict2.iteritems())
+        equal_to(expected_kvs)(iter(actual_dict1.items()))
+        equal_to(expected_kvs)(iter(actual_dict2.items()))
       return match
 
     assert_that(results, matcher(1, some_kvs))

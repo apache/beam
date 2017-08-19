@@ -16,7 +16,10 @@
 #
 
 """Implements a Cloud Datastore query splitter."""
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from apache_beam.io.gcp.datastore.v1 import helper
 
 # Protect against environments where datastore library is not available.
@@ -225,7 +228,7 @@ def _get_split_key(keys, num_splits):
   # distributed throughout the splits and don't make the last split
   # significantly larger than the rest.
 
-  num_keys_per_split = max(1.0, float(len(keys)) / (num_splits - 1))
+  num_keys_per_split = max(1.0, old_div(float(len(keys)), (num_splits - 1)))
 
   split_keys = []
 

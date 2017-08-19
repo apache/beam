@@ -16,7 +16,14 @@
 #
 
 """Tests for all code snippets used in public docs."""
+from __future__ import division
 
+from builtins import map
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import glob
 import gzip
 import logging
@@ -360,7 +367,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_deterministic_key]
 
       assert_that(
-          totals | beam.Map(lambda (k, v): (k.name, v)),
+          totals | beam.Map(lambda k_v: (k_v[0].name, k_v[1])),
           equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
@@ -454,7 +461,7 @@ class SnippetsTest(unittest.TestCase):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
     # Cleanup all the temporary files created in the test
-    map(os.remove, self.temp_files)
+    list(map(os.remove, self.temp_files))
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -846,15 +853,17 @@ class CombineTest(unittest.TestCase):
       def create_accumulator(self):
         return (0.0, 0)
 
-      def add_input(self, (sum, count), input):
+      def add_input(self, xxx_todo_changeme, input):
+        (sum, count) = xxx_todo_changeme
         return sum + input, count + 1
 
       def merge_accumulators(self, accumulators):
-        sums, counts = zip(*accumulators)
+        sums, counts = list(zip(*accumulators))
         return sum(sums), sum(counts)
 
-      def extract_output(self, (sum, count)):
-        return sum / count if count else float('NaN')
+      def extract_output(self, xxx_todo_changeme1):
+        (sum, count) = xxx_todo_changeme1
+        return old_div(sum, count) if count else float('NaN')
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]
     average = pc | beam.CombineGlobally(AverageFn())

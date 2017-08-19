@@ -17,6 +17,9 @@
 
 """Tests for worker logging utilities."""
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import json
 import logging
 import sys
@@ -83,7 +86,7 @@ class JsonLogFormatterTest(unittest.TestCase):
     class Record(object):
 
       def __init__(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
           setattr(self, k, v)
 
     return Record(**kwargs)

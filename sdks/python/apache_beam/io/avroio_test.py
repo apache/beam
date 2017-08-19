@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from builtins import str
+from builtins import range
 import json
 import logging
 import os

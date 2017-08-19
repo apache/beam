@@ -21,6 +21,7 @@ Each MapTask represents a sequence of ParallelInstruction(s): read from a
 source, write to a sink, parallel do, etc.
 """
 
+from builtins import object
 import collections
 
 from apache_beam import coders
@@ -55,7 +56,7 @@ def worker_printable_fields(workerproto):
   return ['%s=%s' % (name, value)
           # _asdict is the only way and cannot subclass this generated class
           # pylint: disable=protected-access
-          for name, value in workerproto._asdict().iteritems()
+          for name, value in workerproto._asdict().items()
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in

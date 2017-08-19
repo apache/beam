@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from builtins import str
 from hamcrest.core.base_matcher import BaseMatcher
 
 
@@ -50,7 +51,7 @@ class MetricStructuredNameMatcher(BaseMatcher):
     if self.origin != IGNORED and item.origin != self.origin:
       return False
     if self.context != IGNORED:
-      for key, name in self.context.iteritems():
+      for key, name in self.context.items():
         if key not in item.context:
           return False
         if name != IGNORED and item.context[key] != name:

@@ -17,6 +17,7 @@
 
 """Unit tests for BigQuery sources and sinks."""
 
+from builtins import str
 import datetime
 import json
 import logging
@@ -706,7 +707,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in sample_row.iteritems():
+    for k, v in sample_row.items():
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(
               key=k, value=to_json_value(v)))

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from builtins import range
 import unittest
 
 from apache_beam.metrics.cells import CellCommitState
@@ -29,9 +30,9 @@ from apache_beam.metrics.metricbase import MetricName
 class TestMetricsContainer(unittest.TestCase):
   def test_create_new_counter(self):
     mc = MetricsContainer('astep')
-    self.assertFalse(mc.counters.has_key(MetricName('namespace', 'name')))
+    self.assertFalse(MetricName('namespace', 'name') in mc.counters)
     mc.get_counter(MetricName('namespace', 'name'))
-    self.assertTrue(mc.counters.has_key(MetricName('namespace', 'name')))
+    self.assertTrue(MetricName('namespace', 'name') in mc.counters)
 
   def test_scoped_container(self):
     c1 = MetricsContainer('mystep')
@@ -46,14 +47,14 @@ class TestMetricsContainer(unittest.TestCase):
         counter = Metrics.counter('ns', 'name')
         counter.inc(3)
         self.assertEqual(
-            c2.get_cumulative().counters.items(),
+            list(c2.get_cumulative().counters.items()),
             [(MetricKey('myinternalstep', MetricName('ns', 'name')), 3)])
 
       self.assertEqual(c1, MetricsEnvironment.current_container())
       counter = Metrics.counter('ns', 'name')
       counter.inc(4)
       self.assertEqual(
-          c1.get_cumulative().counters.items(),
+          list(c1.get_cumulative().counters.items()),
           [(MetricKey('mystep', MetricName('ns', 'name')), 6)])
 
   def test_add_to_counter(self):
@@ -94,13 +95,13 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(logical.counters), 5)
     self.assertEqual(len(logical.distributions), 5)
     self.assertEqual(set(dirty_values),
-                     set([v for _, v in logical.counters.items()]))
+                     set([v for _, v in list(logical.counters.items())]))
     # Retrieve ALL updates.
     cumulative = mc.get_cumulative()
     self.assertEqual(len(cumulative.counters), 10)
     self.assertEqual(len(cumulative.distributions), 10)
     self.assertEqual(set(dirty_values + clean_values),
-                     set([v for _, v in cumulative.counters.items()]))
+                     set([v for _, v in list(cumulative.counters.items())]))
 
 
 class TestMetricsEnvironment(unittest.TestCase):
@@ -115,11 +116,11 @@ class TestMetricsEnvironment(unittest.TestCase):
     MetricsEnvironment.unset_current_container()
 
     self.assertEqual(
-        c1.get_cumulative().counters.items(),
+        list(c1.get_cumulative().counters.items()),
         [(MetricKey('step1', MetricName('ns', 'name')), 1)])
 
     self.assertEqual(
-        c2.get_cumulative().counters.items(),
+        list(c2.get_cumulative().counters.items()),
         [(MetricKey('step2', MetricName('ns', 'name')), 3)])
 
   def test_no_container(self):

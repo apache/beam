@@ -26,6 +26,10 @@ produced when the pipeline gets executed.
 
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import hex
+from past.builtins import basestring
+from builtins import object
 import itertools
 
 from apache_beam import typehints

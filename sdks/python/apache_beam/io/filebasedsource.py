@@ -25,6 +25,8 @@ that method for more details.
 For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
+from builtins import str
+from past.builtins import basestring
 import uuid
 
 from apache_beam.transforms.core import DoFn
@@ -236,11 +238,11 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, (int, long)):
+    if not isinstance(start_offset, int):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, int):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
@@ -370,7 +372,7 @@ class _Reshard(PTransform):
 
     return (keyed_pc | 'GroupByKey' >> GroupByKey()
             # Using FlatMap below due to the possibility of key collisions.
-            | 'DropKey' >> FlatMap(lambda (k, values): values))
+            | 'DropKey' >> FlatMap(lambda k_values: k_values[1]))
 
 
 class _ReadRange(DoFn):

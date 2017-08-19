@@ -17,6 +17,8 @@
 
 """Unit tests for the Pipeline class."""
 
+from builtins import range
+from builtins import object
 import logging
 import platform
 import unittest

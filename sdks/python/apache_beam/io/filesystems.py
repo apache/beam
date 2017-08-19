@@ -17,6 +17,7 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
+from builtins import object
 import re
 
 from apache_beam.io.filesystem import BeamIOError

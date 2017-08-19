@@ -1,3 +1,4 @@
+from __future__ import division
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,8 +16,14 @@
 # limitations under the License.
 #
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import bz2
-import cStringIO
+import io
 import gzip
 import logging
 import math
@@ -155,7 +162,7 @@ class TestConcatSource(unittest.TestCase):
     def split(self, desired_bundle_size, start_position=None,
               stop_position=None):
       # simply devides values into two bundles
-      middle = len(self._values) / 2
+      middle = old_div(len(self._values), 2)
       yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
           self._values[:middle]), None, None)
       yield iobase.SourceBundle(0.5, TestConcatSource.DummySource(
@@ -185,15 +192,15 @@ class TestConcatSource(unittest.TestCase):
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
 
   def test_read(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
+    sources = [TestConcatSource.DummySource(list(range(start, start + 10))) for start
                in [0, 10, 20]]
     concat = ConcatSource(sources)
     range_tracker = concat.get_range_tracker(None, None)
     read_data = [value for value in concat.read(range_tracker)]
-    self.assertItemsEqual(range(30), read_data)
+    self.assertItemsEqual(list(range(30)), read_data)
 
   def test_split(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
+    sources = [TestConcatSource.DummySource(list(range(start, start + 10))) for start
                in [0, 10, 20]]
     concat = ConcatSource(sources)
     splits = [split for split in concat.split()]
@@ -207,10 +214,10 @@ class TestConcatSource(unittest.TestCase):
           split.stop_position)
       read_data.extend([value for value in split.source.read(
           range_tracker_for_split)])
-    self.assertItemsEqual(range(30), read_data)
+    self.assertItemsEqual(list(range(30)), read_data)
 
   def test_estimate_size(self):
-    sources = [TestConcatSource.DummySource(range(start, start + 10)) for start
+    sources = [TestConcatSource.DummySource(list(range(start, start + 10))) for start
                in [0, 10, 20]]
     concat = ConcatSource(sources)
     self.assertEquals(30, concat.estimate_size())
@@ -332,7 +339,7 @@ class TestFileBasedSource(unittest.TestCase):
     variance = 5
 
     sizes = []
-    for _ in xrange(num_files):
+    for _ in range(num_files):
       sizes.append(int(random.uniform(base_size - variance,
                                       base_size + variance)))
     pattern, _ = write_pattern(sizes)
@@ -348,9 +355,9 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(pattern)
     splits = [split for split in fbs.split(desired_bundle_size=15)]
     expected_num_splits = (
-        math.ceil(float(6 * 5) / 15) +
-        math.ceil(float(6 * 9) / 15) +
-        math.ceil(float(6 * 6) / 15))
+        math.ceil(old_div(float(6 * 5), 15)) +
+        math.ceil(old_div(float(6 * 9), 15)) +
+        math.ceil(old_div(float(6 * 6), 15)))
     assert len(splits) == expected_num_splits
 
   def test_read_splits_single_file(self):
@@ -454,7 +461,7 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       compressobj = bz2.BZ2Compressor()
@@ -472,10 +479,10 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_pattern_gzip(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = cStringIO.StringIO()
+      out = io.StringIO()
       with gzip.GzipFile(fileobj=out, mode="w") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
@@ -519,10 +526,10 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_auto_pattern(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i - 1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = cStringIO.StringIO()
+      out = io.StringIO()
       with gzip.GzipFile(fileobj=out, mode="w") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
@@ -538,11 +545,11 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_auto_pattern_compressed_and_uncompressed(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i - 1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     chunks_to_write = []
     for i, c in enumerate(chunks):
       if i%2 == 0:
-        out = cStringIO.StringIO()
+        out = io.StringIO()
         with gzip.GzipFile(fileobj=out, mode="w") as f:
           f.write('\n'.join(c))
         chunks_to_write.append(out.getvalue())

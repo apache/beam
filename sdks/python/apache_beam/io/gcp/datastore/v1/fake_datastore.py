@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from builtins import str
+from builtins import range
 import uuid
 
 # Protect against environments where datastore library is not available.

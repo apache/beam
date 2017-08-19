@@ -16,7 +16,11 @@
 #
 
 """Tests for state sampler."""
+from __future__ import division
+from __future__ import absolute_import
 
+from builtins import range
+from past.utils import old_div
 import logging
 import time
 import unittest
@@ -32,7 +36,7 @@ class StateSamplerTest(unittest.TestCase):
     try:
       # pylint: disable=global-variable-not-assigned
       global statesampler
-      import statesampler
+      from . import statesampler
     except ImportError:
       raise SkipTest('State sampler not compiled.')
     super(StateSamplerTest, self).setUp()
@@ -48,10 +52,10 @@ class StateSamplerTest(unittest.TestCase):
     with sampler.scoped_state('statea'):
       time.sleep(0.1)
       with sampler.scoped_state('stateb'):
-        time.sleep(0.2 / 2)
+        time.sleep(old_div(0.2, 2))
         with sampler.scoped_state('statec'):
           time.sleep(0.3)
-        time.sleep(0.2 / 2)
+        time.sleep(old_div(0.2, 2))
     sampler.stop()
     sampler.commit_counters()
 

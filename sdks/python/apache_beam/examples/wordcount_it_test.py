@@ -17,6 +17,7 @@
 
 """End-to-end test for the wordcount example."""
 
+from builtins import str
 import logging
 import time
 import unittest

@@ -18,6 +18,7 @@
 
 """Unit tests for file sinks."""
 
+from builtins import range
 import glob
 import logging
 import os

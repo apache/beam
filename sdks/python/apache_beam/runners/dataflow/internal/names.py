@@ -19,6 +19,7 @@
 
 
 # Standard file names used for staging files.
+from builtins import object
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
 

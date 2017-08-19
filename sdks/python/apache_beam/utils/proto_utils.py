@@ -61,7 +61,7 @@ def pack_Struct(**kwargs):
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()
-  for key, value in kwargs.items():
+  for key, value in list(kwargs.items()):
     msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
 

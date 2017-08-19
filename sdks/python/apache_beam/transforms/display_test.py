@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+from builtins import str
 from datetime import datetime
 import unittest
 
@@ -161,7 +162,7 @@ class DisplayDataTest(unittest.TestCase):
   def test_unicode_type_display_data(self):
     class MyDoFn(beam.DoFn):
       def display_data(self):
-        return {'unicode_string': unicode('my string'),
+        return {'unicode_string': str('my string'),
                 'unicode_literal_string': u'my literal string'}
 
     fn = MyDoFn()

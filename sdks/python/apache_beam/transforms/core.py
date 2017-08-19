@@ -18,7 +18,15 @@
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
 from __future__ import absolute_import
+from __future__ import division
 
+from builtins import str
+from builtins import map
+from builtins import next
+from builtins import range
+from past.builtins import basestring
+from past.utils import old_div
+from builtins import object
 import copy
 import inspect
 import types
@@ -233,10 +241,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """Checks if an object is a bound method on an instance."""
     if not isinstance(self.process, types.MethodType):
       return False # Not a method
-    if self.process.im_self is None:
+    if self.process.__self__ is None:
       return False # Method is not bound
-    if issubclass(self.process.im_class, type) or \
-        self.process.im_class is types.ClassType:
+    if issubclass(self.process.__self__.__class__, type) or \
+        self.process.__self__.__class__ is type:
       return False # Method is a classmethod
     return True
 
@@ -249,7 +257,7 @@ def _fn_takes_side_inputs(fn):
   except TypeError:
     # We can't tell; maybe it does.
     return True
-  is_bound = isinstance(fn, types.MethodType) and fn.im_self is not None
+  is_bound = isinstance(fn, types.MethodType) and fn.__self__ is not None
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
 
@@ -700,7 +708,7 @@ class ParDo(PTransformWithSideInputs):
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' % main_kw.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(main_kw.keys()))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -976,7 +984,7 @@ class CombineGlobally(PTransform):
                         KV[None, pcoll.element_type]))
                 | 'CombinePerKey' >> CombinePerKey(
                     self.fn, *self.args, **self.kwargs)
-                | 'UnKey' >> Map(lambda (k, v): v))
+                | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
     if not self.has_defaults and not self.as_view:
       return combined
@@ -1518,7 +1526,7 @@ class Flatten(PTransform):
     super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
@@ -1567,7 +1575,7 @@ class Create(PTransform):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
-      value = value.items()
+      value = list(value.items())
     self.value = tuple(value)
 
   def infer_output_type(self, unused_input_type):
@@ -1593,7 +1601,7 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source_from_iterable(values, coder):
-    return Create._create_source(map(coder.encode, values), coder)
+    return Create._create_source(list(map(coder.encode, values)), coder)
 
   @staticmethod
   def _create_source(serialized_values, coder):
@@ -1639,16 +1647,16 @@ class Create(PTransform):
           if stop_position is None:
             stop_position = len(self._serialized_values)
 
-          avg_size_per_value = self._total_size / len(self._serialized_values)
+          avg_size_per_value = old_div(self._total_size, len(self._serialized_values))
           num_values_per_split = max(
-              int(desired_bundle_size / avg_size_per_value), 1)
+              int(old_div(desired_bundle_size, avg_size_per_value)), 1)
 
           start = start_position
           while start < stop_position:
             end = min(start + num_values_per_split, stop_position)
             remaining = stop_position - end
             # Avoid having a too small bundle at the end.
-            if remaining < (num_values_per_split / 4):
+            if remaining < (old_div(num_values_per_split, 4)):
               end = stop_position
 
             sub_source = Create._create_source(

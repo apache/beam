@@ -104,7 +104,7 @@ def assert_that(actual, matcher, label='assert_that'):
           | "ToVoidKey" >> Map(lambda v: (None, v)))
       _ = ((keyed_singleton, keyed_actual)
            | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
+           | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
            | "Match" >> Map(matcher))
 
     def default_label(self):

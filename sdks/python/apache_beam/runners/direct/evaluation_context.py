@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+from builtins import object
 import collections
 import threading
 
@@ -162,7 +163,7 @@ class EvaluationContext(object):
     transform_keyed_states = {}
     for transform in root_transforms:
       transform_keyed_states[transform] = {}
-    for consumers in value_to_consumers.values():
+    for consumers in list(value_to_consumers.values()):
       for consumer in consumers:
         transform_keyed_states[consumer] = {}
     return transform_keyed_states

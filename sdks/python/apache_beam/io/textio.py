@@ -19,6 +19,8 @@
 
 
 from __future__ import absolute_import
+from builtins import range
+from builtins import object
 from functools import partial
 import logging
 
@@ -71,7 +73,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @position.setter
     def position(self, value):
-      assert isinstance(value, (int, long))
+      assert isinstance(value, int)
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
                          'size of data %d.', value, len(self._data))

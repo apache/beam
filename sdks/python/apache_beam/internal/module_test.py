@@ -17,6 +17,7 @@
 
 """Module used to define functions and classes used by the coder unit tests."""
 
+from builtins import object
 import re
 
 

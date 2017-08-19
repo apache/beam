@@ -17,6 +17,7 @@
 
 """Unit tests for the test pipeline verifiers"""
 
+from builtins import range
 import logging
 import tempfile
 import unittest

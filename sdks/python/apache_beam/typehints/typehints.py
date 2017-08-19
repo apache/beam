@@ -63,9 +63,13 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+from builtins import zip
+from builtins import str
+from builtins import object
 import collections
 import copy
 import types
+from future.utils import with_metaclass
 
 
 __all__ = [
@@ -316,7 +320,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   """
   # Must either be a TypeConstraint instance or a basic Python type.
   is_not_type_constraint = (
-      not isinstance(type_param, (type, types.ClassType, TypeConstraint))
+      not isinstance(type_param, (type, TypeConstraint))
       and type_param is not None)
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
@@ -341,7 +345,7 @@ def _unified_repr(o):
     A qualified name for the passed Python object fit for string formatting.
   """
   return repr(o) if isinstance(
-      o, (TypeConstraint, types.NoneType)) else o.__name__
+      o, (TypeConstraint, type(None))) else o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -492,7 +496,7 @@ class UnionHint(CompositeTypeHint):
     if Any in params:
       return Any
     elif len(params) == 1:
-      return iter(params).next()
+      return next(iter(params))
     return self.UnionConstraint(params)
 
 
@@ -777,7 +781,7 @@ class DictHint(CompositeTypeHint):
             'type dict. %s is of type %s.'
             % (dict_instance, dict_instance.__class__.__name__))
 
-      for key, value in dict_instance.iteritems():
+      for key, value in dict_instance.items():
         try:
           check_constraint(self.key_type, key)
         except CompositeTypeHintError as e:
@@ -960,7 +964,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -968,7 +972,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type

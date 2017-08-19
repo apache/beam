@@ -16,9 +16,12 @@
 #
 """Beam fn API log handler."""
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
 import logging
 import math
-import Queue as queue
+import queue as queue
 import threading
 
 from apache_beam.portability.api import beam_fn_api_pb2

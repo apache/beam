@@ -22,6 +22,9 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from builtins import zip
+from past.builtins import basestring
+from builtins import object
 import sys
 import traceback
 
@@ -248,14 +251,14 @@ class PerWindowInvoker(DoFnInvoker):
       elif d == core.DoFn.SideInputParam:
         # If no more args are present then the value must be passed via kwarg
         try:
-          args_with_placeholders.append(remaining_args_iter.next())
+          args_with_placeholders.append(next(remaining_args_iter))
         except StopIteration:
           if a not in input_kwargs:
             raise ValueError("Value for sideinput %s not provided" % a)
       else:
         # If no more args are present then the value must be passed via kwarg
         try:
-          args_with_placeholders.append(remaining_args_iter.next())
+          args_with_placeholders.append(next(remaining_args_iter))
         except StopIteration:
           pass
     args_with_placeholders.extend(list(remaining_args_iter))

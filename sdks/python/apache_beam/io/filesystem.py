@@ -17,16 +17,23 @@
 """File system abstraction for file-based sources and sinks."""
 
 from __future__ import absolute_import
+from __future__ import division
 
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from past.utils import old_div
+from builtins import object
 import abc
 import bz2
-import cStringIO
+import io
 import os
 import zlib
 import logging
 import time
 
 from apache_beam.utils.plugin import BeamPlugin
+from future.utils import with_metaclass
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +87,7 @@ class CompressionTypes(object):
     """Returns the compression type of a file (based on its suffix)."""
     compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
-    for suffix, compression_type in compression_types_by_suffix.iteritems():
+    for suffix, compression_type in compression_types_by_suffix.items():
       if lowercased_path.endswith(suffix):
         return compression_type
     return cls.UNCOMPRESSED
@@ -120,7 +127,7 @@ class CompressedFile(object):
 
     if self.readable():
       self._read_size = read_size
-      self._read_buffer = cStringIO.StringIO()
+      self._read_buffer = io.StringIO()
       self._read_position = 0
       self._read_eof = False
 
@@ -235,13 +242,13 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = cStringIO.StringIO()
+    io = io.StringIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
       # that actual fetches are more evenly spread out, as opposed to having 2
       # consecutive reads at the beginning of a read.
-      self._fetch_to_internal_buffer(self._read_size / 2)
+      self._fetch_to_internal_buffer(old_div(self._read_size, 2))
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
       io.write(line)
@@ -372,7 +379,7 @@ class FileMetadata(object):
   """
   def __init__(self, path, size_in_bytes):
     assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
@@ -421,14 +428,13 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(BeamPlugin):
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
   implement. Clients should use the FileSystemUtil class to interact with
   the correct file system based on the provided file pattern scheme.
   """
-  __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
 
   @staticmethod

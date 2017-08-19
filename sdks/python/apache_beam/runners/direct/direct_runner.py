@@ -23,6 +23,7 @@ graph of transformations belonging to a pipeline on the local machine.
 
 from __future__ import absolute_import
 
+from builtins import object
 import collections
 import logging
 
@@ -140,7 +141,7 @@ class DirectRunner(PipelineRunner):
                         'apache_beam[gcp]')
     # Execute this as a native transform.
     output = PCollection(pcoll.pipeline)
-    output.element_type = unicode
+    output.element_type = str
     return output
 
   def apply_WriteStringsToPubSub(self, transform, pcoll):
@@ -181,7 +182,7 @@ class DirectRunner(PipelineRunner):
           self._buffer = []
 
     output = pcoll | beam.ParDo(DirectWriteToPubSub(project, topic_name))
-    output.element_type = unicode
+    output.element_type = str
     return output
 
   def run(self, pipeline):
@@ -269,7 +270,7 @@ class BufferingInMemoryCache(object):
   def finalize(self):
     """Make buffered cache elements visible to the underlying PValueCache."""
     assert not self._finalized
-    for key, value in self._cache.iteritems():
+    for key, value in self._cache.items():
       applied_ptransform, tag = key
       self._pvalue_cache.cache_output(applied_ptransform, tag, value)
     self._cache = None

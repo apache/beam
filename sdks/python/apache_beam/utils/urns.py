@@ -17,6 +17,7 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from builtins import object
 import abc
 import inspect
 

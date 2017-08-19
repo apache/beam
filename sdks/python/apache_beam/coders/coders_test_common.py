@@ -16,7 +16,10 @@
 #
 
 """Tests common to all coder implementations."""
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import range
 import logging
 import math
 import unittest
@@ -25,7 +28,7 @@ import dill
 
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-import observable
+from . import observable
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
@@ -58,7 +61,7 @@ class CodersTest(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     standard = set(c
-                   for c in coders.__dict__.values()
+                   for c in list(coders.__dict__.values())
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
@@ -120,7 +123,7 @@ class CodersTest(unittest.TestCase):
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
-    cell_value = (lambda x: lambda: x)(0).func_closure[0]
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
@@ -142,9 +145,9 @@ class CodersTest(unittest.TestCase):
 
   def test_varint_coder(self):
     # Small ints.
-    self.check_coder(coders.VarIntCoder(), *range(-10, 10))
+    self.check_coder(coders.VarIntCoder(), *list(range(-10, 10)))
     # Multi-byte encoding starts at 128
-    self.check_coder(coders.VarIntCoder(), *range(120, 140))
+    self.check_coder(coders.VarIntCoder(), *list(range(120, 140)))
     # Large values
     MAX_64_BIT_INT = 0x7fffffffffffffff
     self.check_coder(coders.VarIntCoder(),

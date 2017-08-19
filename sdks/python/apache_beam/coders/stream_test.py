@@ -16,7 +16,10 @@
 #
 
 """Tests for the stream implementations."""
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 import logging
 import math
 import unittest
@@ -60,7 +63,7 @@ class StreamTest(unittest.TestCase):
     self.assertEquals(0xFF, in_s.read_byte())
 
   def test_read_write_large(self):
-    values = range(4 * 1024)
+    values = list(range(4 * 1024))
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_int64(v)
@@ -77,7 +80,7 @@ class StreamTest(unittest.TestCase):
       self.assertEquals(v, in_s.read_var_int64())
 
   def test_small_var_int64(self):
-    self.run_read_write_var_int64(range(-10, 30))
+    self.run_read_write_var_int64(list(range(-10, 30)))
 
   def test_medium_var_int64(self):
     base = -1.7
@@ -89,7 +92,7 @@ class StreamTest(unittest.TestCase):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])
 
   def test_read_write_double(self):
-    values = 0, 1, -1, 1e100, 1.0/3, math.pi, float('inf')
+    values = 0, 1, -1, 1e100, old_div(1.0,3), math.pi, float('inf')
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_double(v)

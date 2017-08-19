@@ -29,7 +29,7 @@ class LiftedCombinePerKey(beam.PTransform):
   """
   def __init__(self, combine_fn, args, kwargs):
     if any(isinstance(arg, ArgumentPlaceholder)
-           for arg in itertools.chain(args, kwargs.values())):
+           for arg in itertools.chain(args, list(kwargs.values()))):
       # This isn't implemented in dataflow either...
       raise NotImplementedError('Deferred CombineFn side inputs.')
     self._combine_fn = beam.transforms.combiners.curry_combine_fn(
@@ -60,7 +60,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
                                                         vi)
 
   def finish_bundle(self):
-    for (k, w), va in self._cache.items():
+    for (k, w), va in list(self._cache.items()):
       yield WindowedValue((k, va), w.end, (w,))
 
   def default_type_hints(self):

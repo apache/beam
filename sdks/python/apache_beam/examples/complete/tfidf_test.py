@@ -59,7 +59,7 @@ class TfIdfTest(unittest.TestCase):
       result = (
           uri_to_line
           | tfidf.TfIdf()
-          | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
+          | beam.Map(lambda word_uri_tfidf: (word_uri_tfidf[0], word_uri_tfidf[1][0], word_uri_tfidf[1][1])))
       assert_that(result, equal_to(EXPECTED_RESULTS))
       # Run the pipeline. Note that the assert_that above adds to the pipeline
       # a check that the result PCollection contains expected values.

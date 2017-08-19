@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from builtins import chr
+from builtins import object
 import struct
 
 

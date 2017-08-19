@@ -18,6 +18,7 @@
 """A object to control to the Job API Co-Process
 """
 
+from builtins import object
 import logging
 import subprocess
 import time

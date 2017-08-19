@@ -30,6 +30,7 @@ Available classes:
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
+from builtins import object
 __all__ = ['Metric', 'Counter', 'Distribution', 'MetricName']
 
 

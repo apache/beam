@@ -17,6 +17,7 @@
 
 """Python worker logging."""
 
+from builtins import str
 import json
 import logging
 import threading

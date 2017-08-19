@@ -72,6 +72,7 @@ has some examples.
 """
 
 
+from builtins import str
 import sys
 
 

@@ -20,6 +20,7 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
+from builtins import object
 from collections import defaultdict
 import threading
 
@@ -38,10 +39,10 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(DistributionAggregator()))
 
   def _apply_operation(self, bundle, updates, op):
-    for k, v in updates.counters.items():
+    for k, v in list(updates.counters.items()):
       op(self._counters[k], bundle, v)
 
-    for k, v in updates.distributions.items():
+    for k, v in list(updates.distributions.items()):
       op(self._distributions[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
@@ -60,12 +61,12 @@ class DirectMetrics(MetricResults):
     counters = [MetricResult(MetricKey(k.step, k.metric),
                              v.extract_committed(),
                              v.extract_latest_attempted())
-                for k, v in self._counters.items()
+                for k, v in list(self._counters.items())
                 if self.matches(filter, k)]
     distributions = [MetricResult(MetricKey(k.step, k.metric),
                                   v.extract_committed(),
                                   v.extract_latest_attempted())
-                     for k, v in self._distributions.items()
+                     for k, v in list(self._distributions.items())
                      if self.matches(filter, k)]
 
     return {'counters': counters,
@@ -106,7 +107,7 @@ class DirectMetric(object):
 
   def extract_latest_attempted(self):
     res = self.finished_attempted
-    for _, u in self.inflight_attempted.items():
+    for _, u in list(self.inflight_attempted.items()):
       res = self.aggregator.combine(res, u)
 
     return self.aggregator.result(res)
