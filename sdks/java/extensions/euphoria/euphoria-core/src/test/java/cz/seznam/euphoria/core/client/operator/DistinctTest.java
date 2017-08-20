@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
@@ -48,10 +47,6 @@ public class DistinctTest {
     assertEquals("Distinct1", distinct.getName());
     assertEquals(uniq, distinct.output());
     assertSame(windowing, distinct.getWindowing());
-
-    // default partitioning used
-    assertTrue(distinct.getPartitioning().hasDefaultPartitioner());
-    assertEquals(3, distinct.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -78,36 +73,4 @@ public class DistinctTest {
     assertTrue(distinct.getWindowing() instanceof Time);
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<String> uniq = Distinct.of(dataset)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .setPartitioning(new HashPartitioning<>(1))
-            .output();
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertTrue(!distinct.getPartitioning().hasDefaultPartitioner());
-    assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, distinct.getPartitioning().getNumPartitions());
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<String> uniq = Distinct.of(dataset)
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-
-    Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertTrue(!distinct.getPartitioning().hasDefaultPartitioner());
-    assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, distinct.getPartitioning().getNumPartitions());
-  }
 }

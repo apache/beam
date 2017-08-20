@@ -62,17 +62,6 @@ public interface Dataset<T> extends Serializable {
   Collection<Operator<?, ?>> getConsumers();
 
   /**
-   * Determines the parallelism of this data set - if known. Typically,
-   * a data set is split into multiple partitions which can be processed
-   * in parallel.
-   *
-   * @return {@code < 0} if the partition count is unknown, otherwise the
-   *          count of partitions of this dataset (which can potentially
-   *          be processed in parallel)
-   */
-  int getNumPartitions();
-
-  /**
    * @return {@code true} if this is a bounded data set,
    *         {@code false} if it is unbounded.
    */

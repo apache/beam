@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -40,7 +39,7 @@ import static java.util.Objects.requireNonNull;
  * Emits top element for defined keys and windows. The elements are compared by comparable 
  * objects extracted by user defined function applied on input elements.
  * 
- * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
+ * Custom {@link Windowing} can be set, otherwise values from
  * input operator are used.<p>
  * 
  * Example:
@@ -177,7 +176,6 @@ public class TopPerKey<
   }
 
   public static class WindowByBuilder<IN, K, V, S extends Comparable<S>>
-      extends PartitioningBuilder<K, WindowByBuilder<IN, K, V, S>>
       implements Builders.WindowBy<IN>, Builders.Output<Triple<K, V, S>>
   {
     private String name;
@@ -192,8 +190,6 @@ public class TopPerKey<
                     UnaryFunction<IN, V> valueFn,
                     UnaryFunction<IN, S> scoreFn)
     {
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
-
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
       this.keyFn = requireNonNull(keyFn);
@@ -206,19 +202,18 @@ public class TopPerKey<
     OutputBuilder<IN, K, V, S, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input, keyFn, valueFn,
-          scoreFn, this, requireNonNull(windowing));
+          scoreFn, requireNonNull(windowing));
     }
 
     @Override
     public Dataset<Triple<K, V, S>> output() {
       return new OutputBuilder<>(
-          name, input, keyFn, valueFn, scoreFn, this, null).output();
+          name, input, keyFn, valueFn, scoreFn, null).output();
     }
   }
 
   public static class OutputBuilder<
       IN, K, V, S extends Comparable<S>, W extends Window>
-      extends PartitioningBuilder<K, OutputBuilder<IN, K, V, S, W>>
       implements Builders.Output<Triple<K, V, S>>
   {
     private final String name;
@@ -234,10 +229,7 @@ public class TopPerKey<
                   UnaryFunction<IN, K> keyFn,
                   UnaryFunction<IN, V> valueFn,
                   UnaryFunction<IN, S> scoreFn,
-                  PartitioningBuilder<K, ?> partitioning,
                   @Nullable Windowing<IN, W> windowing) {
-
-      super(partitioning);
 
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
@@ -252,7 +244,7 @@ public class TopPerKey<
       Flow flow = input.getFlow();
       TopPerKey<IN, K, V, S, W> top =
           new TopPerKey<>(flow, name, input, keyFn, valueFn,
-                  scoreFn, getPartitioning(), windowing);
+                  scoreFn, windowing);
       flow.add(top);
       return top.output();
     }
@@ -297,13 +289,11 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            Partitioning<KEY> partitioning,
             @Nullable Windowing<IN, W> windowing) {
-    super(name, flow, input, keyFn, windowing, partitioning);
+    super(name, flow, input, keyFn, windowing);
     
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;
-    this.partitioning = partitioning;
   }
 
   public UnaryFunction<IN, VALUE> getValueExtractor() {
@@ -328,8 +318,7 @@ public class TopPerKey<
                 e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
                 windowing,
                 (StorageProvider storageProvider, Collector<Pair<VALUE, SCORE>> ctx) -> new MaxScored<>(storageProvider),
-                stateCombiner,
-                partitioning);
+                stateCombiner);
 
     MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>>
         format =

@@ -15,8 +15,6 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -35,18 +33,15 @@ public abstract class StateAwareWindowWiseOperator<
 {
   
   protected final UnaryFunction<KIN, KEY> keyExtractor;
-  protected Partitioning<KEY> partitioning;
 
   protected StateAwareWindowWiseOperator(
           String name,
           Flow flow,
           @Nullable Windowing<WIN, W> windowing,
-          UnaryFunction<KIN, KEY> keyExtractor,
-          Partitioning<KEY> partitioning) {
+          UnaryFunction<KIN, KEY> keyExtractor) {
     
     super(name, flow, windowing);
     this.keyExtractor = keyExtractor;
-    this.partitioning = partitioning;
   }
 
 
@@ -54,51 +49,5 @@ public abstract class StateAwareWindowWiseOperator<
   public UnaryFunction<KIN, KEY> getKeyExtractor() {
     return keyExtractor;
   }
-
-  @Override
-  public Partitioning<KEY> getPartitioning() {
-    return partitioning;
-  }
-
-  @SuppressWarnings("unchecked")
-  public OP setPartitioning(Partitioning<KEY> partitioning) {
-    this.partitioning = partitioning;
-    return (OP) this;
-  }
-
-  @SuppressWarnings("unchecked")
-  public OP setPartitioner(Partitioner<KEY> partitioner) {
-    int numPartitions = getPartitioning().getNumPartitions();
-    this.partitioning = new Partitioning<KEY>() {
-      @Override
-      public Partitioner<KEY> getPartitioner() {
-        return partitioner;
-      }
-
-      @Override
-      public int getNumPartitions() {
-        return numPartitions;
-      }
-    };
-    return (OP) this;
-  }
-
-  @SuppressWarnings("unchecked")
-  public OP setNumPartitions(int numPartitions) {
-    final Partitioner<KEY> partitioner = getPartitioning().getPartitioner();
-    this.partitioning = new Partitioning<KEY>() {
-      @Override
-      public Partitioner<KEY> getPartitioner() {
-        return partitioner;
-      }
-
-      @Override
-      public int getNumPartitions() {
-        return numPartitions;
-      }
-    };
-    return (OP) this;
-  }
-
 
 }
