@@ -16,8 +16,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -54,10 +52,6 @@ public class JoinTest {
     assertEquals(joined, join.output());
     assertNull(join.getWindowing());
     assertFalse(join.outer);
-
-    // default partitioning used
-    assertTrue(join.getPartitioning().hasDefaultPartitioner());
-    assertEquals(3, join.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -86,10 +80,6 @@ public class JoinTest {
     assertEquals(joined, join.output());
     assertNull(join.getWindowing());
     assertFalse(join.outer);
-
-    // default partitioning used
-    assertTrue(join.getPartitioning().hasDefaultPartitioner());
-    assertEquals(3, join.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -141,46 +131,4 @@ public class JoinTest {
     assertTrue(join.getWindowing() instanceof Time);
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 3);
-    Dataset<String> right = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .setPartitioning(new HashPartitioning<>(1))
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertTrue(!join.getPartitioning().hasDefaultPartitioner());
-    assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, join.getPartitioning().getNumPartitions());
-    assertTrue(join.getWindowing() instanceof Time);
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> left = Util.createMockDataset(flow, 3);
-    Dataset<String> right = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .output();
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertTrue(!join.getPartitioning().hasDefaultPartitioner());
-    assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, join.getPartitioning().getNumPartitions());
-    assertTrue(join.getWindowing() instanceof Time);
-  }
 }

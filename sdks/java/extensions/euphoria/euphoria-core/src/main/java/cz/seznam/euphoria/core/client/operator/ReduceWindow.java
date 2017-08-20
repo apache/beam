@@ -18,8 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -38,8 +36,7 @@ import javax.annotation.Nullable;
  * {@link ReduceByKey} with the same key for all elements, so the actual key
  * is defined only by window.<p>
  * 
- * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise
- * values from input operator are used.
+ * Custom {@link Windowing} can be set, otherwise values from input operator are used.
  */
 @Derived(
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
@@ -216,17 +213,7 @@ public class ReduceWindow<
           ReduceFunctor<VALUE, OUT> reducer,
           int numPartitions) {
     
-    super(name, flow, input, e -> B_ZERO, windowing,
-        new Partitioning<Byte>() {
-          @Override
-          public Partitioner<Byte> getPartitioner() {
-            return e -> 0;
-          }
-          @Override
-          public int getNumPartitions() {
-            return numPartitions > 0 ? numPartitions : input.getNumPartitions();
-          }
-    });
+    super(name, flow, input, e -> B_ZERO, windowing);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
   }
@@ -242,7 +229,7 @@ public class ReduceWindow<
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
-        windowing, reducer, partitioning);
+        windowing, reducer);
     Dataset<Pair<Byte, OUT>> output = reduceByKey.output();
 
     MapElements<Pair<Byte, OUT>, OUT> format = new MapElements<>(

@@ -18,6 +18,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
@@ -58,7 +59,6 @@ import java.util.Objects;
 )
 public class Repartition<IN>
     extends ElementWiseOperator<IN, IN>
-    implements PartitioningAware<IN>
 {
 
   public static class OfBuilder implements Builders.Of {
@@ -74,25 +74,76 @@ public class Repartition<IN>
     }
   }
 
-  public static class OutputBuilder<IN>
-      extends PartitioningBuilder<IN, OutputBuilder<IN>>
-      implements Builders.Output<IN>
+  private static class WithPartitioner<IN> implements Partitioning<IN> {
+
+    private final Partitioning<IN> parent;
+    private final Partitioner<IN> partitioner;
+    WithPartitioner(Partitioning<IN> parent, Partitioner<IN> partitioner) {
+      this.parent = parent;
+      this.partitioner = partitioner;
+    }
+
+    @Override
+    public int getNumPartitions() {
+      return parent.getNumPartitions();
+    }
+
+    @Override
+    public Partitioner<IN> getPartitioner() {
+      return partitioner;
+    }
+
+  }
+
+  private static class WithNumPartitions<IN> implements Partitioning<IN> {
+
+    private final Partitioning<IN> parent;
+    private final int numPartitions;
+    WithNumPartitions(Partitioning<IN> parent, int numPartitions) {
+      this.parent = parent;
+      this.numPartitions = numPartitions;
+    }
+
+    @Override
+    public int getNumPartitions() {
+      return numPartitions;
+    }
+
+    @Override
+    public Partitioner<IN> getPartitioner() {
+      return parent.getPartitioner();
+    }
+
+  }
+
+
+  public static class OutputBuilder<IN> implements Builders.Output<IN>
   {
     private final String name;
     private final Dataset<IN> input;
+    private Partitioning<IN> partitioning;
     OutputBuilder(String name, Dataset<IN> input) {
-      // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
+      this.partitioning = new DefaultPartitioning<>();
+    }
+
+    OutputBuilder<IN> setNumPartitions(int numPartitions) {
+      this.partitioning = new WithNumPartitions<>(this.partitioning, numPartitions);
+      return this;
+    }
+
+    OutputBuilder<IN> setPartitioner(Partitioner<IN> partitioner) {
+      this.partitioning = new WithPartitioner<>(this.partitioning, partitioner);
+      return this;
     }
 
     @Override
     public Dataset<IN> output() {
       Flow flow = input.getFlow();
       Repartition<IN> repartition =
-              new Repartition<>(name, flow, input, getPartitioning());
+              new Repartition<>(name, flow, input, partitioning);
       flow.add(repartition);
       return repartition.output();
     }
@@ -140,7 +191,6 @@ public class Repartition<IN>
    *
    * @return the partitioning schema of this {@link Repartition} operator
    */
-  @Override
   public Partitioning<IN> getPartitioning() {
     return partitioning;
   }

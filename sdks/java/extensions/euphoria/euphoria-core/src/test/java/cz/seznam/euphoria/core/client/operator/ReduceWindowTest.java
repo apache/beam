@@ -50,7 +50,6 @@ public class ReduceWindowTest {
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
         producer.getReducer(), Arrays.asList("blah")));
-    assertEquals(2, producer.partitioning.getNumPartitions());
     assertEquals("", producer.valueExtractor.apply("blah"));
   }
 
@@ -71,7 +70,6 @@ public class ReduceWindowTest {
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
         producer.getReducer(), Arrays.asList("blah")));
-    assertEquals(1, producer.partitioning.getNumPartitions());
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
   }

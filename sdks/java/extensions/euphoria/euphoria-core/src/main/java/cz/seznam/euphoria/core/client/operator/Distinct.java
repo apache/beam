@@ -19,7 +19,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -61,7 +60,6 @@ public class Distinct<IN, ELEM, W extends Window>
   }
 
   public static class WindowingBuilder<IN, ELEM>
-          extends PartitioningBuilder<ELEM, WindowingBuilder<IN, ELEM>>
           implements Builders.WindowBy<IN>,
                      Builders.Output<ELEM>,
                      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>>
@@ -75,9 +73,6 @@ public class Distinct<IN, ELEM, W extends Window>
         String name,
         Dataset<IN> input,
         @Nullable UnaryFunction<IN, ELEM> mapper) {
-
-      // define default partitioning
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -106,17 +101,16 @@ public class Distinct<IN, ELEM, W extends Window>
     @Override
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
-      return new OutputBuilder<>(name, input, mapper, this, windowing);
+      return new OutputBuilder<>(name, input, mapper, windowing);
     }
     
     @Override
     public Dataset<ELEM> output() {
-      return new OutputBuilder<>(name, input, mapper, this, null).output();
+      return new OutputBuilder<>(name, input, mapper, null).output();
     }
   }
 
   public static class OutputBuilder<IN, ELEM, W extends Window>
-      extends PartitioningBuilder<ELEM, OutputBuilder<IN, ELEM, W>>
       implements Builders.Output<ELEM>
   {
     private final String name;
@@ -129,10 +123,8 @@ public class Distinct<IN, ELEM, W extends Window>
     OutputBuilder(String name,
                   Dataset<IN> input,
                   @Nullable UnaryFunction<IN, ELEM> mapper,
-                  PartitioningBuilder<ELEM, ?> partitioning,
                   @Nullable Windowing<IN, W> windowing) {
 
-      super(partitioning);
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.mapper = mapper;
@@ -143,7 +135,7 @@ public class Distinct<IN, ELEM, W extends Window>
     public Dataset<ELEM> output() {
       Flow flow = input.getFlow();
       Distinct<IN, ELEM, W> distinct = new Distinct<>(
-          name, flow, input, mapper, getPartitioning(), windowing);
+          name, flow, input, mapper, windowing);
       flow.add(distinct);
       return distinct.output();
     }
@@ -181,10 +173,9 @@ public class Distinct<IN, ELEM, W extends Window>
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
-           Partitioning<ELEM> partitioning,
            @Nullable Windowing<IN, W> windowing) {
 
-    super(name, flow, input, mapper, windowing, partitioning);
+    super(name, flow, input, mapper, windowing);
   }
 
   @Override
@@ -195,9 +186,8 @@ public class Distinct<IN, ELEM, W extends Window>
         new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
             windowing,
-            (CombinableReduceFunction<Void>) e -> null, partitioning);
+            (CombinableReduceFunction<Void>) e -> null);
 
-    reduce.setPartitioning(getPartitioning());
     MapElements format = new MapElements<>(
         getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst);
 

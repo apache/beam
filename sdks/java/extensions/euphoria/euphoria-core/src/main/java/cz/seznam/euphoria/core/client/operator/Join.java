@@ -19,8 +19,6 @@ import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -119,20 +117,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     public <OUT> WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
         BinaryFunctor<LEFT, RIGHT, OUT> functor) {
 
-      final DefaultPartitioning<KEY> defaultPartitioning =
-          new DefaultPartitioning<>(Math.max(left.getNumPartitions(), right.getNumPartitions()));
-      final PartitioningBuilder<KEY, ?> defaultPartitioningBuilder =
-          new PartitioningBuilder<KEY, Object>(defaultPartitioning) {
-          };
-
       return new WindowingBuilder<>(name, left, right,
           leftKeyExtractor, rightKeyExtractor, functor,
-          defaultPartitioningBuilder, false, Collections.emptyList());
+          false, Collections.emptyList());
     }
   }
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
-      extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
       implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
@@ -150,12 +141,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                      UnaryFunction<LEFT, KEY> leftKeyExtractor,
                      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
                      BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
-                     PartitioningBuilder<KEY, ?> partitioning,
                      boolean outer,
                      List<JoinHint> hints) {
-
-      // define default partitioning
-      super(partitioning);
 
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
@@ -169,7 +156,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     public WindowingBuilder<LEFT, RIGHT, KEY, OUT> outer() {
       return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, this, true, hints);
+          rightKeyExtractor, joinFunc, true, hints);
     }
 
     @Override
@@ -181,18 +168,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing) {
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, outer, this, windowing, hints);
+          rightKeyExtractor, joinFunc, outer, windowing, hints);
     }
 
     public WindowingBuilder<LEFT, RIGHT, KEY, OUT> withHints(JoinHint... hints) {
       return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, this, outer, Arrays.asList(hints));
+          rightKeyExtractor, joinFunc, outer, Arrays.asList(hints));
     }
   }
 
   public static class OutputBuilder<
       LEFT, RIGHT, KEY, OUT, W extends Window>
-      extends PartitioningBuilder<KEY, OutputBuilder<LEFT, RIGHT, KEY, OUT, W>>
       implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
@@ -213,11 +199,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   UnaryFunction<RIGHT, KEY> rightKeyExtractor,
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
                   boolean outer,
-                  PartitioningBuilder<KEY, ?> partitioning,
                   @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
                   List<JoinHint> hints) {
-
-      super(partitioning);
 
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
@@ -238,7 +221,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
           rightKeyExtractor,
           joinFunc,
           outer,
-          this,
           windowing,
           Arrays.asList(hints));
     }
@@ -248,8 +230,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       Flow flow = left.getFlow();
       Join<LEFT, RIGHT, KEY, OUT, W> join =
           new Join<>(name, flow, left, right,
-              windowing, getPartitioning(),
-              leftKeyExtractor, rightKeyExtractor, joinFunc, outer, hints);
+              windowing, leftKeyExtractor, rightKeyExtractor, joinFunc, outer, hints);
       flow.add(join);
       return join.output();
     }
@@ -281,7 +262,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        Flow flow,
        Dataset<LEFT> left, Dataset<RIGHT> right,
        @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-       Partitioning<KEY> partitioning,
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
        BinaryFunctor<LEFT, RIGHT, OUT> functor,
@@ -293,7 +273,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         return leftKeyExtractor.apply(elem.left());
       }
       return rightKeyExtractor.apply(elem.right());
-    }, partitioning);
+    });
     this.left = left;
     this.right = right;
     this.leftKeyExtractor = leftKeyExtractor;
@@ -551,8 +531,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
             ctx == null
                 ? new StableJoinState(storages)
                 : new EarlyEmittingJoinState(storages, ctx),
-        new StateSupport.MergeFromStateMerger<>(),
-        partitioning);
+        new StateSupport.MergeFromStateMerger<>());
 
     DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);

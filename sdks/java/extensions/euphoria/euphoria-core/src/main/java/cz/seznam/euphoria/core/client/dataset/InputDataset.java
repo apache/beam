@@ -26,7 +26,7 @@ import java.util.Collection;
 /**
  * {@code PCollection} that is input of a {@code Flow}.
  */
-abstract class InputDataset<T> implements Dataset<T> {
+class InputDataset<T> implements Dataset<T> {
 
   private final Flow flow;
   private final DataSource<T> source;

@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -227,7 +226,6 @@ public class ReduceStateByKey<
 
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
-          extends PartitioningBuilder<KEY,  DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>
       implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, OUT>>
   {
     private final String name;
@@ -243,8 +241,6 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<VALUE, OUT, STATE> stateFactory,
                     StateMerger<VALUE, OUT, STATE> stateMerger) {
-      // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -259,13 +255,13 @@ public class ReduceStateByKey<
     DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<IN, W> windowing) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateMerger, Objects.requireNonNull(windowing), this);
+          stateFactory, stateMerger, Objects.requireNonNull(windowing));
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateMerger, null, this)
+          stateFactory, stateMerger, null)
           .output();
     }
   }
@@ -273,8 +269,6 @@ public class ReduceStateByKey<
   public static class DatasetBuilder6<
           IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
           W extends Window>
-      extends PartitioningBuilder<
-          KEY,DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>>
       implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
@@ -292,12 +286,8 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<VALUE, OUT, STATE> stateFactory,
                     StateMerger<VALUE, OUT, STATE> stateMerger,
-                    @Nullable Windowing<IN, W> windowing,
-                    PartitioningBuilder<KEY, ?> partitioning)
+                    @Nullable Windowing<IN, W> windowing)
     {
-      // initialize partitioning
-      super(partitioning);
-
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -314,7 +304,7 @@ public class ReduceStateByKey<
       ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, stateFactory, stateMerger, getPartitioning());
+              windowing, stateFactory, stateMerger);
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -360,10 +350,9 @@ public class ReduceStateByKey<
                    UnaryFunction<IN, VALUE> valueExtractor,
                    @Nullable Windowing<IN, W> windowing,
                    StateFactory<VALUE, OUT, STATE> stateFactory,
-                   StateMerger<VALUE, OUT, STATE> stateMerger,
-                   Partitioning<KEY> partitioning)
+                   StateMerger<VALUE, OUT, STATE> stateMerger)
   {
-    super(name, flow, input, keyExtractor, windowing, partitioning);
+    super(name, flow, input, keyExtractor, windowing);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateMerger;

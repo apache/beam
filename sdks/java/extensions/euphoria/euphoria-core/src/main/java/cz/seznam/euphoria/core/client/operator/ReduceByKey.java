@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -50,7 +49,7 @@ import java.util.Objects;
  * before shuffle. If the function is not combinable all values must be first sent through the
  * network and the reduction is done afterwards on target machines.<p>
  * 
- * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
+ * Custom {@link Windowing} can be set, otherwise values from
  * input operator are used.<p>
  *
  * @param <IN> Type of input records
@@ -208,7 +207,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
-          extends PartitioningBuilder<KEY, DatasetBuilder4<IN, KEY, VALUE, OUT>>
           implements Builders.Output<Pair<KEY, OUT>>, Builders.WindowBy<IN> {
     private final String name;
     private final Dataset<IN> input;
@@ -220,9 +218,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunctor<VALUE, OUT> reducer) {
-
-      // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -237,19 +232,18 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     windowBy(Windowing<IN, W> windowing) {
       return new DatasetBuilder5<>(
           name, input, keyExtractor, valueExtractor,
-          reducer, Objects.requireNonNull(windowing), this);
+          reducer, Objects.requireNonNull(windowing));
     }
     
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, null, this)
+              reducer, null)
           .output();
     }
   }
 
   public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window>
-      extends PartitioningBuilder<KEY, DatasetBuilder5<IN, KEY, VALUE, OUT, W>>
       implements Builders.Output<Pair<KEY, OUT>> {
     private final String name;
     private final Dataset<IN> input;
@@ -264,11 +258,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunctor<VALUE, OUT> reducer,
-                    @Nullable Windowing<IN, W> windowing,
-                    PartitioningBuilder<KEY, ?> partitioning) {
-
-      // initialize default partitioning according to input
-      super(partitioning);
+                    @Nullable Windowing<IN, W> windowing) {
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -283,7 +273,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W> reduce = new ReduceByKey<>(
               name, flow, input, keyExtractor, valueExtractor,
-              windowing, reducer, getPartitioning());
+              windowing, reducer);
       flow.add(reduce);
       return reduce.output();
     }
@@ -327,12 +317,10 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               UnaryFunction<IN, KEY> keyExtractor,
               UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              CombinableReduceFunction<OUT> reducer,
-              Partitioning<KEY> partitioning) {
+              CombinableReduceFunction<OUT> reducer) {
     this(
         name, flow, input, keyExtractor, valueExtractor,
-        windowing, (ReduceFunctor<VALUE, OUT>) toReduceFunctor(reducer),
-        partitioning);
+        windowing, (ReduceFunctor<VALUE, OUT>) toReduceFunctor(reducer));
   }
 
 
@@ -342,10 +330,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               UnaryFunction<IN, KEY> keyExtractor,
               UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              ReduceFunctor<VALUE, OUT> reducer,
-              Partitioning<KEY> partitioning) {
+              ReduceFunctor<VALUE, OUT> reducer) {
 
-    super(name, flow, input, keyExtractor, windowing, partitioning);
+    super(name, flow, input, keyExtractor, windowing);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
   }
@@ -374,8 +361,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     Operator reduceState = new ReduceStateByKey(getName(),
         flow, input, keyExtractor, valueExtractor,
         windowing,
-        stateFactory, stateCombine,
-        partitioning);
+        stateFactory, stateCombine);
     return DAG.of(reduceState);
   }
 
