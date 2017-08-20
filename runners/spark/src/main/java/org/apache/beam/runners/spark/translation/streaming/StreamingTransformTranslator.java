@@ -82,6 +82,7 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
@@ -139,18 +140,41 @@ public final class StreamingTransformTranslator {
     return new TransformEvaluator<CreateStream<T>>() {
       @Override
       public void evaluate(CreateStream<T> transform, EvaluationContext context) {
-        Coder<T> coder = context.getOutput(transform).getCoder();
-        JavaStreamingContext jssc = context.getStreamingContext();
-        Queue<Iterable<TimestampedValue<T>>> values = transform.getBatches();
-        WindowedValue.FullWindowedValueCoder<T> windowCoder =
+
+        final Queue<JavaRDD<WindowedValue<T>>> rddQueue =
+            buildRdds(
+                transform.getBatches(),
+                context.getStreamingContext(),
+                context.getOutput(transform).getCoder());
+
+        final JavaInputDStream<WindowedValue<T>> javaInputDStream =
+            buildInputStream(rddQueue, transform, context);
+
+        final UnboundedDataset<T> unboundedDataset =
+            new UnboundedDataset<>(
+                javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));
+
+        // add pre-baked Watermarks for the pre-baked batches.
+        GlobalWatermarkHolder.addAll(
+            ImmutableMap.of(unboundedDataset.getStreamSources().get(0), transform.getTimes()));
+
+        context.putDataset(transform, unboundedDataset);
+      }
+
+      private Queue<JavaRDD<WindowedValue<T>>> buildRdds(
+          Queue<Iterable<TimestampedValue<T>>> batches, JavaStreamingContext jssc, Coder<T> coder) {
+
+        final WindowedValue.FullWindowedValueCoder<T> windowCoder =
             WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
-        // create the DStream from queue.
-        Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
-        for (Iterable<TimestampedValue<T>> tv : values) {
-          Iterable<WindowedValue<T>> windowedValues =
+
+        final Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
+
+        for (final Iterable<TimestampedValue<T>> timestampedValues : batches) {
+          final Iterable<WindowedValue<T>> windowedValues =
               Iterables.transform(
-                  tv,
+                  timestampedValues,
                   new com.google.common.base.Function<TimestampedValue<T>, WindowedValue<T>>() {
+
                     @Override
                     public WindowedValue<T> apply(@Nonnull TimestampedValue<T> timestampedValue) {
                       return WindowedValue.of(
@@ -159,22 +183,28 @@ public final class StreamingTransformTranslator {
                           GlobalWindow.INSTANCE,
                           PaneInfo.NO_FIRING);
                     }
-              });
-          JavaRDD<WindowedValue<T>> rdd =
+                  });
+
+          final JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
                   .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
                   .map(CoderHelpers.fromByteFunction(windowCoder));
+
           rddQueue.offer(rdd);
         }
+        return rddQueue;
+      }
 
-        JavaInputDStream<WindowedValue<T>> inputDStream = jssc.queueStream(rddQueue, true);
-        UnboundedDataset<T> unboundedDataset = new UnboundedDataset<T>(
-            inputDStream, Collections.singletonList(inputDStream.inputDStream().id()));
-        // add pre-baked Watermarks for the pre-baked batches.
-        Queue<GlobalWatermarkHolder.SparkWatermarks> times = transform.getTimes();
-        GlobalWatermarkHolder.addAll(
-            ImmutableMap.of(unboundedDataset.getStreamSources().get(0), times));
-        context.putDataset(transform, unboundedDataset);
+      private JavaInputDStream<WindowedValue<T>> buildInputStream(
+          Queue<JavaRDD<WindowedValue<T>>> rddQueue,
+          CreateStream<T> transform,
+          EvaluationContext context) {
+        return transform.isForceWatermarkSync()
+            ? new JavaInputDStream<>(
+                new WatermarkSyncedDStream<>(
+                    rddQueue, transform.getBatchDuration(), context.getStreamingContext().ssc()),
+                JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag())
+            : context.getStreamingContext().queueStream(rddQueue, true);
       }
 
       @Override
@@ -301,7 +331,8 @@ public final class StreamingTransformTranslator {
                 wvCoder,
                 windowingStrategy,
                 context.getSerializableOptions(),
-                streamSources);
+                streamSources,
+                context.getCurrentTransform().getFullName());
 
         context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
       }

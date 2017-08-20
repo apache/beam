@@ -73,8 +73,10 @@ public class SparkPipelineStateTest implements Serializable {
   }
 
   private PTransform<PBegin, PCollection<String>> getValues(final SparkPipelineOptions options) {
+    final boolean doNotSyncWithWatermark = false;
     return options.isStreaming()
-        ? CreateStream.of(StringUtf8Coder.of(), Duration.millis(1)).nextBatch("one", "two")
+        ? CreateStream.of(StringUtf8Coder.of(), Duration.millis(1), doNotSyncWithWatermark)
+                      .nextBatch("one", "two")
         : Create.of("one", "two");
   }
 
