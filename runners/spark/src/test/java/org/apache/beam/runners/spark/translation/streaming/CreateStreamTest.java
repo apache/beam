@@ -163,16 +163,16 @@ public class CreateStreamTest implements Serializable {
   public void testDiscardingMode() throws IOException {
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
-            .nextBatch(
-                TimestampedValue.of("firstPane", new Instant(100)),
-                TimestampedValue.of("alsoFirstPane", new Instant(200)))
-            .advanceWatermarkForNextBatch(new Instant(1001L))
-            .nextBatch(
-                TimestampedValue.of("onTimePane", new Instant(500)))
-            .advanceNextBatchWatermarkToInfinity()
-            .nextBatch(
-                TimestampedValue.of("finalLatePane", new Instant(750)),
-                TimestampedValue.of("alsoFinalLatePane", new Instant(250)));
+                    .nextBatch(
+                        TimestampedValue.of("firstPane", new Instant(100)),
+                        TimestampedValue.of("alsoFirstPane", new Instant(200)))
+                    .advanceWatermarkForNextBatch(new Instant(1001L))
+                    .nextBatch(
+                        TimestampedValue.of("onTimePane", new Instant(500)))
+                    .advanceNextBatchWatermarkToInfinity()
+                    .nextBatch(
+                        TimestampedValue.of("finalLatePane", new Instant(750)),
+                        TimestampedValue.of("alsoFinalLatePane", new Instant(250)));
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
@@ -212,12 +212,13 @@ public class CreateStreamTest implements Serializable {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
-            .emptyBatch()
-            .advanceWatermarkForNextBatch(new Instant(0))
-            .nextBatch(
-                TimestampedValue.of("late", lateElementTimestamp),
-                TimestampedValue.of("onTime", new Instant(100)))
-            .advanceNextBatchWatermarkToInfinity();
+                    .emptyBatch()
+                    .advanceWatermarkForNextBatch(new Instant(0))
+                    .emptyBatch()
+                    .nextBatch(
+                        TimestampedValue.of("late", lateElementTimestamp),
+                        TimestampedValue.of("onTime", new Instant(100)))
+                    .advanceNextBatchWatermarkToInfinity();
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
