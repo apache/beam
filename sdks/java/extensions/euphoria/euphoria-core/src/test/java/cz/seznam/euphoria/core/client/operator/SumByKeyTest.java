@@ -16,8 +16,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -47,10 +45,6 @@ public class SumByKeyTest {
     assertNotNull(sum.keyExtractor);
     assertEquals(counted, sum.output());
     assertNull(sum.getWindowing());
-
-    // default partitioning used
-    assertTrue(sum.getPartitioning().hasDefaultPartitioner());
-    assertEquals(3, sum.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -81,39 +75,4 @@ public class SumByKeyTest {
     assertTrue(sum.getWindowing() instanceof Time);
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
-            .keyBy(s -> s)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .setPartitioning(new HashPartitioning<>(1))
-            .output();
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(!sum.getPartitioning().hasDefaultPartitioner());
-    assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, sum.getPartitioning().getNumPartitions());
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
-
-    Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
-            .keyBy(s -> s)
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-
-    SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(!sum.getPartitioning().hasDefaultPartitioner());
-    assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, sum.getPartitioning().getNumPartitions());
-    assertTrue(sum.getWindowing() instanceof Time);
-  }
 }

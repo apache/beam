@@ -16,12 +16,9 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.client.util.Sums;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -55,10 +52,6 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.reducer);
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
-
-    // default partitioning used
-    assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
-    assertEquals(2, reduce.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -108,83 +101,4 @@ public class ReduceByKeyTest {
     assertTrue(reduce.getWindowing() instanceof Time);
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .setPartitioning(new HashPartitioning<>(1))
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, reduce.getPartitioning().getNumPartitions());
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .output();
-
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
-    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, reduce.getPartitioning().getNumPartitions());
-  }
-
-  /**
-   * Verify that the number of partitions of the reduce-by-key
-   * operator's input is preserved in the output since no partitioning
-   * is explicitly specified.
-   */
-  @Test
-  public void testOutputNumPartitionsIsPreserved() {
-    final int N_PARTITIONS = 78;
-
-    Flow f = Flow.create();
-    Dataset<Pair<String, Long>> input = Util.createMockDataset(f, N_PARTITIONS);
-    assertEquals(N_PARTITIONS, input.getNumPartitions());
-
-    Dataset<Pair<String, Long>> output =
-        ReduceByKey.of(input)
-            .keyBy(Pair::getFirst)
-            .valueBy(Pair::getSecond)
-            .combineBy(Sums.ofLongs())
-            .output();
-    assertEquals(N_PARTITIONS, output.getNumPartitions());
-  }
-
-  @Test
-  public void testOutputExplicitNumPartitionsIsRespected() {
-    final int INPUT_PARTITIONS = 78;
-    final int OUTPUT_PARTITIONS = 13;
-
-    Flow f = Flow.create();
-    Dataset<Pair<String, Long>> input = Util.createMockDataset(f, INPUT_PARTITIONS);
-    assertEquals(INPUT_PARTITIONS, input.getNumPartitions());
-
-    Dataset<Pair<String, Long>> output =
-        ReduceByKey.of(input)
-            .keyBy(Pair::getFirst)
-            .valueBy(Pair::getSecond)
-            .combineBy(Sums.ofLongs())
-            .setNumPartitions(OUTPUT_PARTITIONS)
-            .output();
-    assertEquals(OUTPUT_PARTITIONS, output.getNumPartitions());
-  }
 }

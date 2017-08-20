@@ -17,8 +17,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -62,10 +60,6 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
-
-    // default partitioning used
-    assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
-    assertEquals(2, reduce.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -101,48 +95,6 @@ public class ReduceStateByKeyTest {
     assertTrue(reduce.getWindowing() instanceof Time);
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<String, Long>> reduced = ReduceStateByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .stateFactory(WordCountState::new)
-            .mergeStatesBy(WordCountState::combine)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .setPartitioning(new HashPartitioning<>(1))
-            .output();
-
-    ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
-    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, reduce.getPartitioning().getNumPartitions());
-    assertTrue(reduce.getWindowing() instanceof Time);
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Dataset<Pair<String, Long>> reduced = ReduceStateByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .stateFactory(WordCountState::new)
-            .mergeStatesBy(WordCountState::combine)
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
-
-    ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
-    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, reduce.getPartitioning().getNumPartitions());
-    assertTrue(reduce.getWindowing() instanceof Time);
-  }
 
   /**
    * Simple aggregating state.

@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -54,10 +53,6 @@ public class TopPerKeyTest {
     assertNotNull(tpk.getScoreExtractor());
     assertEquals(result, tpk.output());
     assertSame(windowing, tpk.getWindowing());
-
-    // default partitioning used
-    assertTrue(tpk.getPartitioning().hasDefaultPartitioner());
-    assertEquals(2, tpk.getPartitioning().getNumPartitions());
   }
 
   @Test
@@ -90,46 +85,4 @@ public class TopPerKeyTest {
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
   }
 
-  @Test
-  public void testBuild_Partitioning() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
-            .setPartitioning(new HashPartitioning<>(1))
-            .windowBy(windowing)
-            .output();
-
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
-    assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(1, tpk.getPartitioning().getNumPartitions());
-  }
-
-  @Test
-  public void testBuild_Partitioner() {
-    Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
-
-    Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
-            .windowBy(windowing)
-            .setPartitioner(new HashPartitioner<>())
-            .setNumPartitions(5)
-            .output();
-
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
-    assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, tpk.getPartitioning().getNumPartitions());
-  }
 }

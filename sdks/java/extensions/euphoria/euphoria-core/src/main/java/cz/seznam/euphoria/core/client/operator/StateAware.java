@@ -24,7 +24,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
  * @param <IN> the type of (input) elements being processed
  * @param <KEY> the type of the elements' keys
  */
-public interface StateAware<IN, KEY> extends PartitioningAware<KEY> {
+public interface StateAware<IN, KEY> {
 
   /**
    * @return the key extractor function on whose base this operator
