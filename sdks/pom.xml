@@ -35,7 +35,7 @@
   <modules>
     <module>common</module>
     <module>java</module>
-    <module>python</module>
+    <!--<module>python</module>-->
   </modules>
 
   <profiles>

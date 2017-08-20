@@ -36,11 +36,11 @@
     <module>core-construction-java</module>
     <module>core-java</module>
     <module>direct-java</module>
+    <module>jstorm</module>
     <module>flink</module>
     <module>google-cloud-dataflow-java</module>
     <module>spark</module>
     <module>apex</module>
-    <module>jstorm</module>
   </modules>
 
   <profiles>
