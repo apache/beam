@@ -164,7 +164,6 @@ class WriteTables<DestinationT>
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
-
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {

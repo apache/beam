@@ -1034,7 +1034,8 @@ public class BigQueryIO {
      * directly in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
-      return withTimePartitioning(StaticValueProvider.of(partitioning));
+      return withJsonTimePartitioning(
+          StaticValueProvider.of(BigQueryHelpers.toJsonString(partitioning)));
     }
 
     /**
@@ -1221,6 +1222,8 @@ public class BigQueryIO {
         checkArgument(getTableFunction() == null,
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
+        checkArgument(method != Method.FILE_LOADS,
+            "TimePartitioning is not yet implemented for BigQuery load jobs.");
       }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();

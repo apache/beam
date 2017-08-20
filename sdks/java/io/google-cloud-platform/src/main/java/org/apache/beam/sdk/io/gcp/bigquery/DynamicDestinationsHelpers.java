@@ -163,7 +163,7 @@ class DynamicDestinationsHelpers {
       return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
     }
   }
-  
+
   static class ConstantTimePartitioningDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
