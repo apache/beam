@@ -67,7 +67,11 @@ __all__ = ['Coder',
 
 def serialize_coder(coder):
   from apache_beam.internal import pickler
-  return '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder))
+  result = '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder))
+  if sys.version_info[0] == 3:
+    return result.encode("LATIN-1")
+  else:
+    return result
 
 
 def deserialize_coder(serialized):
