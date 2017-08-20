@@ -1030,7 +1030,7 @@ public class BigQueryIO {
     /**
      * Allows newly created tables to include a {@link TimePartitioning} class. Can only be used
      * when writing to a single table. If {@link #to(SerializableFunction)} or
-     * @link #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be
+     * {@link #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be
      * directly in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
