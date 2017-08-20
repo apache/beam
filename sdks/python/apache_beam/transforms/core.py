@@ -1434,7 +1434,6 @@ class _GroupAlsoByWindow(ParDo):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
-
 class _GroupAlsoByWindowDoFn(DoFn):
   # TODO(robertwb): Support combiner lifting.
 
@@ -1545,6 +1544,10 @@ class Windowing(object):
           and self.accumulation_mode == other.accumulation_mode
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
+
+  def __hash__(self):
+    return hash((self.windowfn, self.triggerfn, self.accumulation_mode,
+         self.timestamp_combiner))
 
   def is_default(self):
     return self._is_default

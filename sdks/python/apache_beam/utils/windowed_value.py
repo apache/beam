@@ -92,6 +92,14 @@ class WindowedValue(object):
             and left.value == right.value
             and left.windows == right.windows)
 
+  def __hash__(self):
+    return hash(self.timestamp_micros, self.value, self.windows)
+
+  def __eq__(self, other):
+    if type(self) is not type(other):
+      return False
+    return WindowedValue._typed_eq(self, other)
+
   def with_value(self, new_value):
     """Creates a new WindowedValue with the same timestamps and windows as this.
 

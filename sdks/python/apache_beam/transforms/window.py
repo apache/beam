@@ -221,6 +221,9 @@ class IntervalWindow(BoundedWindow):
   def __eq__(self, other):
     return self.start == other.start and self.end == other.end
 
+  def __hash__(self):
+    return hash((self.start, self.end))
+
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))
 
@@ -266,12 +269,12 @@ class GlobalWindow(BoundedWindow):
   def __repr__(self):
     return 'GlobalWindow'
 
-  def __hash__(self):
-    return hash(type(self))
-
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class NonMergingWindowFn(WindowFn):
@@ -346,6 +349,9 @@ class FixedWindows(NonMergingWindowFn):
     if type(self) == type(other) == FixedWindows:
       return self.size == other.size and self.offset == other.offset
 
+  def __hash__(self):
+    return hash((self.size, self.offset))
+
   def __ne__(self, other):
     return not self == other
 
@@ -404,6 +410,9 @@ class SlidingWindows(NonMergingWindowFn):
       return (self.size == other.size
               and self.offset == other.offset
               and self.period == other.period)
+
+  def __hash__(self):
+    return hash((self.size, self.offset, self.period))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.SLIDING_WINDOWS_WINDOWFN,
@@ -471,6 +480,9 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
+
+  def __hash__(self):
+    return hash((self.gap_size))
 
   def to_runner_api_parameter(self, context):
     return (common_urns.SESSION_WINDOWS_WINDOWFN,
