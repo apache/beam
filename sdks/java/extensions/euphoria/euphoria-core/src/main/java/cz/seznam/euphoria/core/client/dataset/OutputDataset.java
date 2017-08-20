@@ -26,7 +26,7 @@ import java.util.Collection;
 /**
  * {@code PCollection} that is output of some operator.
  */
-abstract class OutputDataset<T> implements Dataset<T> {
+class OutputDataset<T> implements Dataset<T> {
 
   private final Flow flow;
   private final Operator<?, T> producer;

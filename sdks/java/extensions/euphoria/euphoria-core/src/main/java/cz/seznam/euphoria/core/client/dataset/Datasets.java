@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 
 /**
  * Various dataset related utils.
@@ -41,15 +41,7 @@ public class Datasets {
   public static <IN, OUT> Dataset<OUT> createOutputFor(
       Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
 
-    return new OutputDataset<OUT>(flow, op, input.isBounded()) {
-      @Override
-      public int getNumPartitions() {
-        // only partitioning aware operators can change the partition count
-        return (op instanceof PartitioningAware)
-            ? ((PartitioningAware) op).getPartitioning().getNumPartitions()
-            : input.getNumPartitions();
-      }
-    };
+    return new OutputDataset<>(flow, op, input.isBounded());
   }
 
   /**
@@ -65,11 +57,6 @@ public class Datasets {
   public static <T> Dataset<T> createInputFromSource(
       Flow flow, DataSource<T> source) {
     
-    return new InputDataset<T>(flow, source, source.isBounded()) {
-      @Override
-      public int getNumPartitions() {
-        return source.getPartitions().size();
-      }
-    };
+    return new InputDataset<>(flow, source, source.isBounded());
   }
 }

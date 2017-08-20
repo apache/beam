@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -107,21 +108,4 @@ public class FlatMapTest {
     assertEquals("FlatMap", map.getName());
   }
 
-  /**
-   * Verify that the number of partitions of the flat map
-   * operator's input is preserved in the output.
-   */
-  @Test
-  public void testOutputNumPartitionsIsUnchanged() {
-    final int N_PARTITIONS = 78;
-
-    Flow f = Flow.create();
-    Dataset<Object> input = Util.createMockDataset(f, N_PARTITIONS);
-    assertEquals(N_PARTITIONS, input.getNumPartitions());
-
-    Dataset<Object> output = FlatMap.of(input)
-        .using((Object o, Collector<Object> c) -> c.collect(o))
-        .output();
-    assertEquals(N_PARTITIONS, output.getNumPartitions());
-  }
 }
