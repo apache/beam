@@ -17,8 +17,9 @@
 
 """Unit tests for the type-hint objects and decorators."""
 import inspect
-import typing
 import unittest
+
+import typing
 
 import apache_beam as beam
 from apache_beam import pvalue
