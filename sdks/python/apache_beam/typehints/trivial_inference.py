@@ -299,8 +299,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   yields = set()
   returns = set()
   # TODO(robertwb): Default args via inspect module.
-  local_vars = list(input_types) + [typehints.Union[()]] * (len(co.co_varnames)
-                                                            - len(input_types))
+  try:
+    input_types_list = list(input_types)
+  except TypeError:
+    input_types_list = [input_types]
+  typehints_union = [typehints.Union[()]]
+  target_length = len(co.co_varnames) - len(input_types_list)
+  local_vars = input_types_list + typehints_union * target_length
   state = FrameState(f, local_vars)
   states = collections.defaultdict(lambda: None)
   jumps = collections.defaultdict(int)
@@ -308,7 +313,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   last_pc = -1
   while pc < end:
     start = pc
-    op = ord(code[pc])
+    if sys.version_info[0] >= 3:
+      op = code[pc]
+    else:
+      op = ord(code[pc])
 
     if debug:
       print('-->' if pc == last_pc else '    ', end=' ')
@@ -316,7 +324,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       print(dis.opname[op].ljust(20), end=' ')
     pc += 1
     if op >= dis.HAVE_ARGUMENT:
-      arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
+      if sys.version_info[0] >= 3:
+        arg = code[pc] + code[pc + 1] * 256 + extended_arg
+      else:
+        arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
       extended_arg = 0
       pc += 2
       if op == dis.EXTENDED_ARG:
@@ -358,6 +369,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       elif arg & 0xF0:
         # TODO(robertwb): Handle this case.
         return_type = Any
+      elif (isinstance(state.stack[-pop_count], Const) and
+            state.stack[-pop_count].value == list):
+        # TODO(robertwb + holden): Handle this better.
+        return_type = typehints.List[element_type(state.stack[1])]
       elif isinstance(state.stack[-pop_count], Const):
         # TODO(robertwb): Handle this better.
         if var_args or kw_args:
@@ -409,6 +424,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp_state = state.copy()
       state.stack.pop()
     elif opname == 'FOR_ITER':
+      jmp = pc + arg
+      jmp_state = state.copy()
+      jmp_state.stack.pop()
+      state.stack.append(element_type(state.stack[-1]))
+    elif opname == 'BUILD_LIST':
       jmp = pc + arg
       jmp_state = state.copy()
       jmp_state.stack.pop()
