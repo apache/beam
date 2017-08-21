@@ -43,7 +43,6 @@ public class ReduceWindowTest {
     Dataset<Long> output = ReduceWindow.of(dataset)
         .valueBy(e -> "")
         .reduceBy(e -> 1L)
-        .applyIf(false, b -> b.setNumPartitions(1))
         .output();
 
     ReduceWindow<String, String, Long, ?> producer;
@@ -63,7 +62,6 @@ public class ReduceWindowTest {
     Dataset<Long> output = ReduceWindow.of(dataset)
         .reduceBy(e -> 1L)
         .windowBy(windowing)
-        .applyIf(true, b -> b.setNumPartitions(1))
         .output();
 
     ReduceWindow<String, String, Long, ?> producer;

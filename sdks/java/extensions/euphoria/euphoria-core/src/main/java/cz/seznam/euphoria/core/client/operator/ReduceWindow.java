@@ -121,7 +121,6 @@ public class ReduceWindow<
     private final Dataset<T> input;
     private final UnaryFunction<T, VALUE> valueExtractor;
     private final ReduceFunctor<VALUE, OUT> reducer;
-    private int numPartitions = -1;
     private Windowing<T, ?> windowing;
 
 
@@ -153,7 +152,7 @@ public class ReduceWindow<
       Flow flow = input.getFlow();
       ReduceWindow<T, VALUE, OUT, ?> operator = new ReduceWindow<>(
           name, flow, input, valueExtractor,
-              (Windowing) windowing, reducer, numPartitions);
+              (Windowing) windowing, reducer);
       flow.add(operator);
       return operator.output();
     }
@@ -165,10 +164,6 @@ public class ReduceWindow<
       return this;
     }
     
-    public OutputBuilder<T, VALUE, OUT> setNumPartitions(int numPartitions) {
-      this.numPartitions = numPartitions;
-      return this;
-    }
   }
 
   /**
@@ -210,8 +205,7 @@ public class ReduceWindow<
           Dataset<IN> input,
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
-          ReduceFunctor<VALUE, OUT> reducer,
-          int numPartitions) {
+          ReduceFunctor<VALUE, OUT> reducer) {
     
     super(name, flow, input, e -> B_ZERO, windowing);
     this.reducer = reducer;

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
@@ -49,7 +50,6 @@ import static java.util.Objects.requireNonNull;
  *       .keyBy(e -> (byte) 0)
  *       .valueBy(e -> e)
  *       .scoreBy(Pair::getSecond)
- *       .setNumPartitions(1)
  *       .output();
  * }</pre>
  * 
