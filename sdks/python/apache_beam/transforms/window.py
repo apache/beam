@@ -193,6 +193,33 @@ class BoundedWindow(object):
     # Order first by endpoint, then arbitrarily.
     return cmp(self.end, other.end) or cmp(hash(self), hash(other))
 
+  def __lt__(self, other):
+    # Order first by endpoint, then arbitrarily.
+    if self.end == other.end:
+      return hash(self) < hash(other)
+    return self.end < other.end
+
+  def __gt__(self, other):
+    # Order first by endpoint, then arbitrarily.
+    if self.end == other.end:
+      return hash(self) > hash(other)
+    return self.end > other.end
+
+  def __le__(self, other):
+    # Order first by endpoint, then arbitrarily.
+    if self.end == other.end:
+      return hash(self) <= hash(other)
+    return self.end <= other.end
+
+  def __ge__(self, other):
+    # Order first by endpoint, then arbitrarily.
+    if self.end == other.end:
+      return hash(self) >= hash(other)
+    return self.end >= other.end
+
+  def __ne__(self, other):
+    return not (self.__eq__(other))
+
   def __eq__(self, other):
     raise NotImplementedError
 
