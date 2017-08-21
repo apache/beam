@@ -17,10 +17,10 @@
 
 """A runner implementation that submits a job for remote execution.
 """
-from concurrent import futures
 import time
 import uuid
 
+from concurrent import futures
 import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2
