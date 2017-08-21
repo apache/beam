@@ -1416,6 +1416,7 @@
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
             <use>false</use>
             <quiet>true</quiet>
+            <notimestamp>true</notimestamp>
           </configuration>
         </plugin>
 
