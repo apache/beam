@@ -156,7 +156,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    ListDataSink<Pair<Object, Long>> sink = ListDataSink.get(1);
+    ListDataSink<Pair<Object, Long>> sink = ListDataSink.get();
     output.persist(sink);
     reduced.persist(sink);
     FlowUnfolder.unfold(flow, Executor.getBasicOps());
