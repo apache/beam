@@ -5,55 +5,23 @@ permalink: /documentation/dsls/sql/
 ---
 
 * [1. Overview](#overview)
-* [2. The Internal of Beam SQL](#internal-of-sql)
-* [3. Usage of DSL APIs](#usage)
-* [4. Functionality in Beam SQL](#functionality)
-  * [4.1. Supported Features](#features)
-  * [4.2. Intro of BeamSqlRow](#beamsqlrow)
-  * [4.3. Data Types](#data-type)
-  * [4.4. built-in SQL functions](#built-in-functions)
+* [2. Usage of DSL APIs](#usage)
+* [3. Functionality in Beam SQL](#functionality)
+  * [3.1. Supported Features](#features)
+  * [3.2. Intro of BeamSqlRow](#beamsqlrow)
+  * [3.3. Data Types](#data-type)
+  * [3.4. built-in SQL functions](#built-in-functions)
+* [4. The Internal of Beam SQL](#internal-of-sql)
 
 This page describes the implementation of Beam SQL, and how to simplify a Beam pipeline with DSL APIs.
+
+> Note, Beam SQL hasn't been merged to master branch yet(being developed with branch [DSL_SQL](https://github.com/apache/beam/tree/DSL_SQL)), but is coming soon.
 
 # <a name="overview"></a>1. Overview
 SQL is a well-adopted standard to process data with concise syntax. With DSL APIs, now `PCollection`s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage [Apache Calcite](http://calcite.apache.org/) to parse and optimize SQL queries, then translate into a composite Beam `PTransform`. In this way, both SQL and normal Beam `PTransform`s can be mixed in the same pipeline.
 
-# <a name="internal-of-sql"></a>2. The Internal of Beam SQL
-Figure 1 describes the back-end steps from a SQL statement to a Beam `PTransform`.
 
-![Workflow of Beam SQL DSL]({{ "/images/beam_sql_dsl_workflow.png" | prepend: site.baseurl }} "workflow of Beam SQL DSL")
-
-**Figure 1** workflow of Beam SQL DSL
-
-Given a `PCollection` and the query as input, first of all the input `PCollection` is registered as a table in the schema repository. Then it's processed as:
-
-1. SQL query is parsed according to grammar to generate a SQL Abstract Syntax Tree;
-2. Validate against table schema, and output a logical plan represented with relational algebras;
-3. Relational rules are applied to convert it to a physical plan, expressed with Beam components. An optimizer is optional to update the plan;
-4. Finally, the Beam physical plan is compiled as a composite `PTransform`;
-
-Here is an example to show a query that filters and projects from an input `PCollection`:
-
-```
-SELECT USER_ID, USER_NAME FROM PCOLLECTION WHERE USER_ID = 1
-```
-
-The logical plan is shown as:
-
-```
-LogicalProject(USER_ID=[$0], USER_NAME=[$1])
-  LogicalFilter(condition=[=($0, 1)])
-    LogicalTableScan(table=[[PCOLLECTION]])
-```
-
-And compiled as a composite `PTransform`
-
-```
-pCollection.apply(BeamSqlFilter...)
-           .apply(BeamSqlProject...)
-```
-
-# <a name="usage"></a>3. Usage of DSL APIs 
+# <a name="usage"></a>2. Usage of DSL APIs 
 `BeamSql` is the only interface(with two methods `BeamSql.query()` and `BeamSql.simpleQuery()`) for developers. It wraps the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can take either simple TABLE_FILTER queries or complex queries containing JOIN/GROUP_BY etc. 
 
 *Note*, the two methods are equivalent in functionality, `BeamSql.query()` applies on a `PCollectionTuple` with one or many input `PCollection`s; `BeamSql.simpleQuery()` is a simplified API which applies on single `PCollection`.
@@ -83,12 +51,12 @@ In Step 1, a `PCollection<BeamRecord>` is prepared as the source dataset. The wo
 
 Step 2(Case 1) shows the usage to run a query with `BeamSql.simpleQuery()`, be aware that the input `PCollection` is named with a fixed table name __PCOLLECTION__. Step 2(Case 2) is another example to run a query with `BeamSql.query()`. A Table name is specified when adding `PCollection` to `PCollectionTuple`. As each call of either `BeamSql.query()` or `BeamSql.simpleQuery()` has its own schema repository, developers need to include all `PCollection`s that would be used in your query.
 
-# <a name="functionality"></a>4. Functionality in Beam SQL
+# <a name="functionality"></a>3. Functionality in Beam SQL
 Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded `PCollection` as well. 
 
 Note that, SQL support is not fully completed. Queries that include unsupported features would cause an `UnsupportedOperationException`.
 
-## <a name="features"></a>4.1. Supported Features
+## <a name="features"></a>3.1. Supported Features
 The following features are supported in current repository:
 
 **1. filter clauses;**
@@ -217,7 +185,7 @@ PCollection<BeamSqlRow> result =
         BeamSql.simpleQuery(sql).withUdaf("squaresum", new SquareSum()));
 ```
  
-## <a name="beamsqlrow"></a>4.2. Intro of BeamRecord
+## <a name="beamsqlrow"></a>3.2. Intro of BeamRecord
 `BeamRecord`, described by `BeamRecordType`(extended `BeamRecordSqlType` in Beam SQL) and encoded/decoded by `BeamRecordCoder`, represents a single, immutable row in a Beam SQL `PCollection`. Similar as _row_ in relational database, each `BeamRecord` consists of named columns with fixed types(see [4.3. Data Types](#data-type)).
 
 A Beam SQL `PCollection` can be created from an external source, in-memory data or derive from another SQL query. For `PCollection`s from external source or in-memory data, it's required to specify coder explcitly; `PCollection` derived from SQL query has the coder set already. Below is one example:
@@ -234,7 +202,7 @@ PCollection<BeamRecord> inputTable = PBegin.in(p).apply(Create.of(row)
     .withCoder(type.getRecordCoder()));
 ```
  
-## <a name="data-type"></a>4.3. Data Types
+## <a name="data-type"></a>3.3. Data Types
 Each type in Beam SQL maps to a Java class to holds the value in `BeamRecord`. The following table lists the relation between SQL types and Java classes, which are supported in current repository:
 
 | SQL Type | Java class |
@@ -250,7 +218,7 @@ Each type in Beam SQL maps to a Java class to holds the value in `BeamRecord`. T
 | Types.TIMESTAMP | java.util.Date |
 {:.table}
 
-## <a name="built-in-functions"></a>4.4. built-in SQL functions
+## <a name="built-in-functions"></a>3.4. built-in SQL functions
 
 Beam SQL has implemented lots of build-in functions defined in [Apache Calcite](http://calcite.apache.org). The available functions are listed as below:
 
@@ -375,3 +343,39 @@ Beam SQL has implemented lots of build-in functions defined in [Apache Calcite](
 | MAX(value) | Returns the maximum value of value across all input values |
 | MIN(value) | Returns the minimum value of value across all input values |
 {:.table}
+
+# <a name="internal-of-sql"></a>4. The Internal of Beam SQL
+Figure 1 describes the back-end steps from a SQL statement to a Beam `PTransform`.
+
+![Workflow of Beam SQL DSL]({{ "/images/beam_sql_dsl_workflow.png" | prepend: site.baseurl }} "workflow of Beam SQL DSL")
+
+**Figure 1** workflow of Beam SQL DSL
+
+Given a `PCollection` and the query as input, first of all the input `PCollection` is registered as a table in the schema repository. Then it's processed as:
+
+1. SQL query is parsed according to grammar to generate a SQL Abstract Syntax Tree;
+2. Validate against table schema, and output a logical plan represented with relational algebras;
+3. Relational rules are applied to convert it to a physical plan, expressed with Beam components. An optimizer is optional to update the plan;
+4. Finally, the Beam physical plan is compiled as a composite `PTransform`;
+
+Here is an example to show a query that filters and projects from an input `PCollection`:
+
+```
+SELECT USER_ID, USER_NAME FROM PCOLLECTION WHERE USER_ID = 1
+```
+
+The logical plan is shown as:
+
+```
+LogicalProject(USER_ID=[$0], USER_NAME=[$1])
+  LogicalFilter(condition=[=($0, 1)])
+    LogicalTableScan(table=[[PCOLLECTION]])
+```
+
+And compiled as a composite `PTransform`
+
+```
+pCollection.apply(BeamSqlFilter...)
+           .apply(BeamSqlProject...)
+```
+
