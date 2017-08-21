@@ -279,6 +279,30 @@ class TimestampedValue(object):
       return cmp(type(self), type(other))
     return cmp((self.value, self.timestamp), (other.value, other.timestamp))
 
+  def __eq__(self, other):
+    if type(self) is not type(other):
+      return False
+    else:
+      return self.value == other.value and self.timestamp == other.timestamp
+
+  def __hash__(self):
+    return hash((self.value, self.timestamp))
+
+  def __lt__(self, other):
+    return (self.value, self.timestamp) < (other.value, other.timestamp)
+
+  def __gt__(self, other):
+    return (self.value, self.timestamp) > (other.value, other.timestamp)
+
+  def __le__(self, other):
+    return (self.value, self.timestamp) <= (other.value, other.timestamp)
+
+  def __ge__(self, other):
+    return (self.value, self.timestamp) >= (other.value, other.timestamp)
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
 
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
