@@ -59,7 +59,7 @@ class _ExecutorService(object):
       self._update_name()
       self.shutdown_requested = False
 
-      # Stop worker thread when main thread exists.
+      # Stop worker thread when main thread exits.
       self.daemon = True
       self.start()
 
