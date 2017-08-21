@@ -283,6 +283,16 @@ class DirectPipelineResult(PipelineResult):
     self._executor = executor
     self._evaluation_context = evaluation_context
 
+  def __del__(self):
+    if self._state == PipelineState.RUNNING:
+      logging.warning(
+          'The DirectPipelineResult is being garbage-collected while the '
+          'DirectRunner is still running the corresponding pipeline. This may '
+          'lead to incomplete execution of the pipeline if the main thread '
+          'exits before pipeline completion. Consider using '
+          'result.wait_until_finish() to wait for completion of pipeline '
+          'execution.')
+
   def _is_in_terminal_state(self):
     return self._state is not PipelineState.RUNNING
 
