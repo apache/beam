@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.io;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -29,22 +31,21 @@ import java.util.stream.Collectors;
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink<?>, ArrayList<List<?>>> storage =
+  private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage =
           Collections.synchronizedMap(new WeakHashMap<>());
 
-  public static <T> ListDataSink<T> get(int numPartitions) {
-    return new ListDataSink<>(numPartitions);
+  public static <T> ListDataSink<T> get() {
+    return new ListDataSink<>();
   }
 
   class ListWriter implements Writer<T> {
-    final List<List<T>> sinkOutputs;
-
     final List<T> output = new ArrayList<>();
+    final List<T> commitOutputs;
     final int partitionId;
 
-    ListWriter(int partitionId, List<List<T>> sinkOutputs) {
+    ListWriter(int partitionId, List<T> commitOutputs) {
       this.partitionId = partitionId;
-      this.sinkOutputs = sinkOutputs;
+      this.commitOutputs = commitOutputs;
     }
 
     @Override
@@ -54,7 +55,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
     @Override
     public synchronized void commit() throws IOException {
-      sinkOutputs.set(partitionId, output);
+      commitOutputs.addAll(output);
     }
 
     @Override
@@ -69,20 +70,17 @@ public class ListDataSink<T> implements DataSink<T> {
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   @SuppressWarnings("unchecked")
-  protected ListDataSink(int numPartitions) {
-    List<List<T>> outputs = new ArrayList<>();
-
-    for (int i = 0; i < numPartitions; i++) {
-      outputs.add(null);
-    }
-
+  protected ListDataSink() {
     // save outputs to static storage
-    storage.put((ListDataSink) this, (ArrayList) outputs);
+    storage.put((ListDataSink) this, new HashMap<>());
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
-    ListWriter w = new ListWriter(partitionId, getOutputs());
+    ArrayList tmp = new ArrayList<>();
+    List partitionData = (List) storage.get(this).putIfAbsent(partitionId, tmp);
+    ListWriter w = new ListWriter(partitionId, partitionData == null ? tmp : partitionData);
     writers.add(w);
     return w;
   }
@@ -98,19 +96,17 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   @SuppressWarnings("unchecked")
-  public ArrayList<List<T>> getOutputs() {
-    return (ArrayList) storage.get(this);
+  public List<T> getOutputs() {
+    return (List) storage.get(this).values()
+        .stream().flatMap(v -> v.stream())
+        .collect(Collectors.toList());
   }
 
-  public List<T> getOutput(int partition) {
-    return getOutputs().get(partition);
-  }
-
-  public List<List<T>> getUncommittedOutputs() {
+  public List<T> getUncommittedOutputs() {
     synchronized (writers) {
       return writers.stream()
-              .map(w -> w.output)
-              .collect(Collectors.toList());
+          .flatMap(w -> w.output.stream())
+          .collect(Collectors.toList());
     }
   }
 
