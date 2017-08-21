@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.junit.Test;
 
@@ -24,8 +26,8 @@ public class ListDataSinkTest {
 
   @Test
   public void testMultipleSinks() throws Exception {
-    ListDataSink<String> sink1 = ListDataSink.get(1);
-    ListDataSink<String> sink2 = ListDataSink.get(2);
+    ListDataSink<String> sink1 = ListDataSink.get();
+    ListDataSink<String> sink2 = ListDataSink.get();
 
     // write to first sink
     Writer<String> w = sink1.openWriter(0);
@@ -41,9 +43,8 @@ public class ListDataSinkTest {
     w.write("second-1");
     w.commit();
 
-    assertEquals("first", Iterables.getOnlyElement(sink1.getOutput(0)));
+    assertEquals("first", Iterables.getOnlyElement(sink1.getOutputs()));
 
-    assertEquals("second-0", Iterables.getOnlyElement(sink2.getOutput(0)));
-    assertEquals("second-1", Iterables.getOnlyElement(sink2.getOutput(1)));
+    DatasetAssert.unorderedEquals(sink2.getOutputs(), "second-0", "second-1");
   }
 }
