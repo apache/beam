@@ -21,6 +21,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 
+from builtins import object
+import sys
+
 from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
@@ -64,10 +67,18 @@ class _PipelineContextMap(object):
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id):
-    if id not in self._id_to_obj:
-      self._id_to_obj[id] = self._obj_type.from_runner_api(
-          self._id_to_proto[id], self._pipeline_context)
-    return self._id_to_obj[id]
+    if sys.version_info[0] >= 3 and isinstance(id, bytes):
+      myid = id.decode("utf-8")
+    else:
+      myid = id
+    try:
+      if myid not in self._id_to_obj:
+        self._id_to_obj[myid] = self._obj_type.from_runner_api(
+          self._id_to_proto[myid], self._pipeline_context)
+      return self._id_to_obj[myid]
+    except:
+      raise Exception("Error occured fetching id " +
+                      myid + " from "+str(self._id_to_obj))
 
   def __getitem__(self, id):
     return self.get_by_id(id)
