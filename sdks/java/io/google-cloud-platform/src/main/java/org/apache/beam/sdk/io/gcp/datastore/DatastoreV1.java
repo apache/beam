@@ -745,7 +745,8 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId(),
+                v1Options.getLocalhost());
       }
 
       @ProcessElement
