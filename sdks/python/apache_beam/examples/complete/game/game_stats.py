@@ -220,7 +220,8 @@ class CalculateSpammyUsers(beam.PTransform):
     global_mean_score = (
         sum_scores
         | beam.Values()
-        | beam.combiners.Mean.Globally(as_view=True))
+        | beam.CombineGlobally(beam.combiners.MeanCombineFn())
+            .as_singleton_view())
 
     # Filter the user sums using the global mean.
     filtered = (
@@ -321,7 +322,8 @@ def run(argv=None):
 
         # Derive a view from the collection of spammer users. It will be used as
         # a side input in calculating the team score sums, below
-        | 'CreateSpammersView' >> beam.combiners.ToDict(as_view=True))
+        | 'CreateSpammersView' >> beam.CombineGlobally(
+            beam.combiners.ToDictCombineFn()).as_singleton_view())
 
     # Calculate the total score per team over fixed windows, and emit cumulative
     # updates for late data. Uses the side input derived above --the set of
@@ -373,7 +375,7 @@ def run(argv=None):
          beam.window.FixedWindows(user_activity_window_duration))
 
      # Find the mean session duration in each window
-     | beam.combiners.Mean.Globally(has_defaults=False)
+     | beam.CombineGlobally(beam.combiners.MeanCombineFn()).without_defaults()
      | 'FormatAvgSessionLength' >> beam.Map(
          lambda elem: {'mean_duration': float(elem)})
      | 'WriteAvgSessionLength' >> WriteToBigQuery(
