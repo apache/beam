@@ -220,7 +220,7 @@ class CalculateSpammyUsers(beam.PTransform):
     global_mean_score = (
         sum_scores
         | beam.Values()
-        | beam.CombineGlobally(beam.combiners.MeanCombineFn())
+        | beam.CombineGlobally(beam.combiners.MeanCombineFn())\
             .as_singleton_view())
 
     # Filter the user sums using the global mean.
