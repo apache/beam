@@ -1,0 +1,302 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.dataflow_metrics &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.dataflow_metrics</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">DataflowRunner implementation of MetricResults. It is in charge of</span>
+<span class="sd">responding to queries of current metrics by going to the dataflow</span>
+<span class="sd">service.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">numbers</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">DistributionData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">DistributionResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metric</span> <span class="k">import</span> <span class="n">MetricResults</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.metricbase</span> <span class="k">import</span> <span class="n">MetricName</span>
+
+
+<span class="k">def</span> <span class="nf">_get_match</span><span class="p">(</span><span class="n">proto</span><span class="p">,</span> <span class="n">filter_fn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Finds and returns the first element that matches a query.</span>
+
+<span class="sd">  If no element matches the query, it throws ValueError.</span>
+<span class="sd">  If more than one element matches the query, it returns only the first.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">query</span> <span class="o">=</span> <span class="p">[</span><span class="n">elm</span> <span class="k">for</span> <span class="n">elm</span> <span class="ow">in</span> <span class="n">proto</span> <span class="k">if</span> <span class="n">filter_fn</span><span class="p">(</span><span class="n">elm</span><span class="p">)]</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not find element&#39;</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Too many matches&#39;</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">query</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="DataflowMetrics"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics">[docs]</a><span class="k">class</span> <span class="nc">DataflowMetrics</span><span class="p">(</span><span class="n">MetricResults</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Implementation of MetricResults class for the Dataflow runner.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataflow_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">job_result</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">job_graph</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the Dataflow metrics object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      dataflow_client: apiclient.DataflowApplicationClient to interact with the</span>
+<span class="sd">        dataflow service.</span>
+<span class="sd">      job_result: DataflowPipelineResult with the state and id information of</span>
+<span class="sd">        the job.</span>
+<span class="sd">      job_graph: apiclient.Job instance to be able to translate between internal</span>
+<span class="sd">        step names (e.g. &quot;s2&quot;), and user step names (e.g. &quot;split&quot;).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DataflowMetrics</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_dataflow_client</span> <span class="o">=</span> <span class="n">dataflow_client</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job_result</span> <span class="o">=</span> <span class="n">job_result</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_queried_after_termination</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_metrics</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_job_graph</span> <span class="o">=</span> <span class="n">job_graph</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_is_counter</span><span class="p">(</span><span class="n">metric_result</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metric_result</span><span class="o">.</span><span class="n">attempted</span><span class="p">,</span> <span class="n">numbers</span><span class="o">.</span><span class="n">Number</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_is_distribution</span><span class="p">(</span><span class="n">metric_result</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metric_result</span><span class="o">.</span><span class="n">attempted</span><span class="p">,</span> <span class="n">DistributionResult</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_translate_step_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">internal_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Translate between internal step names (e.g. &quot;s1&quot;) and user step names.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_graph</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not translate the internal step name.&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">step</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_graph</span><span class="o">.</span><span class="n">proto</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">internal_name</span><span class="p">)</span>
+      <span class="n">user_step_name</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span>
+          <span class="n">step</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">additionalProperties</span><span class="p">,</span>
+          <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;user_name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">string_value</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not translate the internal step name.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">user_step_name</span>
+
+  <span class="k">def</span> <span class="nf">_get_metric_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Populate the MetricKey object for a queried metric result.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># If ValueError is thrown within this try-block, it is because of</span>
+      <span class="c1"># one of the following:</span>
+      <span class="c1"># 1. Unable to translate the step name. Only happening with improperly</span>
+      <span class="c1">#   formatted job graph (unlikely), or step name not being the internal</span>
+      <span class="c1">#   step name (only happens for unstructured-named metrics).</span>
+      <span class="c1"># 2. Unable to unpack [step] or [namespace]; which should only happen</span>
+      <span class="c1">#   for unstructured names.</span>
+      <span class="n">step</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">additionalProperties</span><span class="p">,</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;step&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+      <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_translate_step_name</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>
+      <span class="n">namespace</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">additionalProperties</span><span class="p">,</span>
+                             <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;namespace&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">MetricKey</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">MetricName</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_populate_metric_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Take a list of metrics, and convert it to a list of MetricResult.&quot;&quot;&quot;</span>
+    <span class="n">user_metrics</span> <span class="o">=</span> <span class="p">[</span><span class="n">metric</span>
+                    <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">metrics</span>
+                    <span class="k">if</span> <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">origin</span> <span class="o">==</span> <span class="s1">&#39;user&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Get the tentative/committed versions of every metric together.</span>
+    <span class="n">metrics_by_name</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{})</span>
+    <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">user_metrics</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;[MIN]&#39;</span><span class="p">)</span> <span class="ow">or</span>
+          <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;[MAX]&#39;</span><span class="p">)</span> <span class="ow">or</span>
+          <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;[MEAN]&#39;</span><span class="p">)</span> <span class="ow">or</span>
+          <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;[COUNT]&#39;</span><span class="p">)):</span>
+        <span class="c1"># The Dataflow Service presents distribution metrics in two ways:</span>
+        <span class="c1"># One way is as a single distribution object with all its fields, and</span>
+        <span class="c1"># another way is as four different scalar metrics labeled as [MIN],</span>
+        <span class="c1"># [MAX], [COUNT], [MEAN].</span>
+        <span class="c1"># TODO(pabloem) remove these when distributions are not being broken up</span>
+        <span class="c1">#  in the service.</span>
+        <span class="c1"># The second way is only useful for the UI, and should be ignored.</span>
+        <span class="k">continue</span>
+      <span class="n">is_tentative</span> <span class="o">=</span> <span class="p">[</span><span class="n">prop</span>
+                      <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">additionalProperties</span>
+                      <span class="k">if</span> <span class="n">prop</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;tentative&#39;</span> <span class="ow">and</span> <span class="n">prop</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s1">&#39;true&#39;</span><span class="p">]</span>
+      <span class="n">tentative_or_committed</span> <span class="o">=</span> <span class="s1">&#39;tentative&#39;</span> <span class="k">if</span> <span class="n">is_tentative</span> <span class="k">else</span> <span class="s1">&#39;committed&#39;</span>
+
+      <span class="n">metric_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_metric_key</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">metric_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">metrics_by_name</span><span class="p">[</span><span class="n">metric_key</span><span class="p">][</span><span class="n">tentative_or_committed</span><span class="p">]</span> <span class="o">=</span> <span class="n">metric</span>
+
+    <span class="c1"># Now we create the MetricResult elements.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">metric_key</span><span class="p">,</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">metrics_by_name</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="n">attempted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_metric_value</span><span class="p">(</span><span class="n">metric</span><span class="p">[</span><span class="s1">&#39;tentative&#39;</span><span class="p">])</span>
+      <span class="n">committed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_metric_value</span><span class="p">(</span><span class="n">metric</span><span class="p">[</span><span class="s1">&#39;committed&#39;</span><span class="p">])</span>
+      <span class="k">if</span> <span class="n">attempted</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">committed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MetricResult</span><span class="p">(</span><span class="n">metric_key</span><span class="p">,</span>
+                                 <span class="n">attempted</span><span class="o">=</span><span class="n">attempted</span><span class="p">,</span>
+                                 <span class="n">committed</span><span class="o">=</span><span class="n">committed</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">_get_metric_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get a metric result object from a MetricUpdate from Dataflow API.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">metric</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">metric</span><span class="o">.</span><span class="n">scalar</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">metric</span><span class="o">.</span><span class="n">scalar</span><span class="o">.</span><span class="n">integer_value</span>
+    <span class="k">elif</span> <span class="n">metric</span><span class="o">.</span><span class="n">distribution</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">dist_count</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">object_value</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
+                              <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;count&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">integer_value</span>
+      <span class="n">dist_min</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">object_value</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
+                            <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">integer_value</span>
+      <span class="n">dist_max</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">object_value</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
+                            <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">integer_value</span>
+      <span class="n">dist_mean</span> <span class="o">=</span> <span class="n">_get_match</span><span class="p">(</span><span class="n">metric</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">object_value</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
+                             <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">integer_value</span>
+      <span class="c1"># Calculating dist_sum with a hack, as distribution sum is not yet</span>
+      <span class="c1"># available in the Dataflow API.</span>
+      <span class="c1"># TODO(pabloem) Switch to &quot;sum&quot; field once it&#39;s available in the API</span>
+      <span class="n">dist_sum</span> <span class="o">=</span> <span class="n">dist_count</span> <span class="o">*</span> <span class="n">dist_mean</span>
+      <span class="k">return</span> <span class="n">DistributionResult</span><span class="p">(</span>
+          <span class="n">DistributionData</span><span class="p">(</span>
+              <span class="n">dist_sum</span><span class="p">,</span> <span class="n">dist_count</span><span class="p">,</span> <span class="n">dist_min</span><span class="p">,</span> <span class="n">dist_max</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">_get_metrics_from_dataflow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return cached metrics or query the dataflow service.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_result</span><span class="o">.</span><span class="n">job_id</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="n">job_id</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job_id</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not query metrics. Job id is unknown.&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_metrics</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_metrics</span>
+
+    <span class="n">job_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataflow_client</span><span class="o">.</span><span class="n">get_job_metrics</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+    <span class="c1"># If the job has terminated, metrics will not change and we can cache them.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_result</span><span class="o">.</span><span class="n">_is_in_terminal_state</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cached_metrics</span> <span class="o">=</span> <span class="n">job_metrics</span>
+    <span class="k">return</span> <span class="n">job_metrics</span>
+
+<div class="viewcode-block" id="DataflowMetrics.query"><a class="viewcode-back" href="../../../../apache_beam.runners.dataflow.html#apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics.query">[docs]</a>  <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_metrics_from_dataflow</span><span class="p">()</span>
+    <span class="n">metric_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_populate_metric_results</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;counters&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">elm</span> <span class="k">for</span> <span class="n">elm</span> <span class="ow">in</span> <span class="n">metric_results</span>
+                         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">elm</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+                         <span class="ow">and</span> <span class="n">DataflowMetrics</span><span class="o">.</span><span class="n">_is_counter</span><span class="p">(</span><span class="n">elm</span><span class="p">)],</span>
+            <span class="s1">&#39;distributions&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">elm</span> <span class="k">for</span> <span class="n">elm</span> <span class="ow">in</span> <span class="n">metric_results</span>
+                              <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="nb">filter</span><span class="p">,</span> <span class="n">elm</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+                              <span class="ow">and</span> <span class="n">DataflowMetrics</span><span class="o">.</span><span class="n">_is_distribution</span><span class="p">(</span><span class="n">elm</span><span class="p">)],</span>
+            <span class="s1">&#39;gauges&#39;</span><span class="p">:</span> <span class="p">[]}</span> <span class="c1"># Gauges are not currently supported by dataflow</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
