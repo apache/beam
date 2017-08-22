@@ -1,0 +1,389 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.filebasedsink &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.filebasedsink</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;File-based sink.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">BeamIOError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystems</span> <span class="k">import</span> <span class="n">FileSystems</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">ValueProvider</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">StaticValueProvider</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">check_accessible</span>
+
+<span class="n">DEFAULT_SHARD_NAME_TEMPLATE</span> <span class="o">=</span> <span class="s1">&#39;-SSSSS-of-NNNNN&#39;</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FileBasedSink&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="FileBasedSink"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink">[docs]</a><span class="k">class</span> <span class="nc">FileBasedSink</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Sink</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A sink to a GCS or local files.</span>
+
+<span class="sd">  To implement a file-based sink, extend this class and override</span>
+<span class="sd">  either ``write_record()`` or ``write_encoded_record()``.</span>
+
+<span class="sd">  If needed, also overwrite ``open()`` and/or ``close()`` to customize the</span>
+<span class="sd">  file handling or write headers and footers.</span>
+
+<span class="sd">  The output of this write is a PCollection of all written shards.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Max number of threads to be used for renaming.</span>
+  <span class="n">_MAX_RENAME_THREADS</span> <span class="o">=</span> <span class="mi">64</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_path_prefix</span><span class="p">,</span>
+               <span class="n">coder</span><span class="p">,</span>
+               <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+               <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">     Raises:</span>
+<span class="sd">      TypeError: if file path parameters are not a string or ValueProvider,</span>
+<span class="sd">                 or if compression_type is not member of CompressionTypes.</span>
+<span class="sd">      ValueError: if shard_name_template is not of expected format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="p">(</span><span class="n">basestring</span><span class="p">,</span> <span class="n">ValueProvider</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;file_path_prefix must be a string or ValueProvider;&#39;</span>
+                      <span class="s1">&#39;got </span><span class="si">%r</span><span class="s1"> instead&#39;</span> <span class="o">%</span> <span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name_suffix</span><span class="p">,</span> <span class="p">(</span><span class="n">basestring</span><span class="p">,</span> <span class="n">ValueProvider</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;file_name_suffix must be a string or ValueProvider;&#39;</span>
+                      <span class="s1">&#39;got </span><span class="si">%r</span><span class="s1"> instead&#39;</span> <span class="o">%</span> <span class="n">file_name_suffix</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">is_valid_compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;compression_type must be CompressionType object but &#39;</span>
+                      <span class="s1">&#39;was </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">shard_name_template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">shard_name_template</span> <span class="o">=</span> <span class="n">DEFAULT_SHARD_NAME_TEMPLATE</span>
+    <span class="k">elif</span> <span class="n">shard_name_template</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+      <span class="n">num_shards</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">StaticValueProvider</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_name_suffix</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">file_name_suffix</span> <span class="o">=</span> <span class="n">StaticValueProvider</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">file_path_prefix</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span> <span class="o">=</span> <span class="n">file_name_suffix</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">num_shards</span> <span class="o">=</span> <span class="n">num_shards</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_template_to_format</span><span class="p">(</span><span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mime_type</span> <span class="o">=</span> <span class="n">mime_type</span>
+
+<div class="viewcode-block" id="FileBasedSink.display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;shards&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_shards</span><span class="p">,</span>
+                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Number of Shards&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span><span class="p">)),</span>
+            <span class="s1">&#39;file_pattern&#39;</span><span class="p">:</span>
+            <span class="n">DisplayDataItem</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="p">),</span>
+                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;File Pattern&#39;</span><span class="p">)}</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;file_path_prefix&#39;</span><span class="p">])</span>
+<div class="viewcode-block" id="FileBasedSink.open"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Opens ``temp_path``, returning an opaque file handle object.</span>
+
+<span class="sd">    The returned file handle is passed to ``write_[encoded_]record`` and</span>
+<span class="sd">    ``close``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">temp_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mime_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileBasedSink.write_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.write_record">[docs]</a>  <span class="k">def</span> <span class="nf">write_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes a single record go the file handle returned by ``open()``.</span>
+
+<span class="sd">    By default, calls ``write_encoded_record`` after encoding the record with</span>
+<span class="sd">    this sink&#39;s Coder.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">write_encoded_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FileBasedSink.write_encoded_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.write_encoded_record">[docs]</a>  <span class="k">def</span> <span class="nf">write_encoded_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">encoded_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes a single encoded record to the file handle returned by ``open()``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="FileBasedSink.close"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.close">[docs]</a>  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Finalize and close the file handle returned from ``open()``.</span>
+
+<span class="sd">    Called after all records are written.</span>
+
+<span class="sd">    By default, calls ``file_handle.close()`` iff it is not None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">file_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">file_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;file_path_prefix&#39;</span><span class="p">,</span> <span class="s1">&#39;file_name_suffix&#39;</span><span class="p">])</span>
+<div class="viewcode-block" id="FileBasedSink.initialize_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.initialize_write">[docs]</a>  <span class="k">def</span> <span class="nf">initialize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+    <span class="n">tmp_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_dir</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="n">FileSystems</span><span class="o">.</span><span class="n">mkdirs</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tmp_dir</span></div>
+
+  <span class="k">def</span> <span class="nf">_create_temp_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path_prefix</span><span class="p">):</span>
+    <span class="n">base_path</span><span class="p">,</span> <span class="n">last_component</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">last_component</span><span class="p">:</span>
+      <span class="c1"># Trying to re-split the base_path to check if it&#39;s a root.</span>
+      <span class="n">new_base_path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">base_path</span> <span class="o">==</span> <span class="n">new_base_path</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot create a temporary directory for root path &#39;</span>
+                         <span class="s1">&#39;prefix </span><span class="si">%s</span><span class="s1">. Please specify a file path prefix with &#39;</span>
+                         <span class="s1">&#39;at least two components.&#39;</span><span class="p">,</span>
+                         <span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="n">path_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">base_path</span><span class="p">,</span>
+                       <span class="s1">&#39;beam-temp-&#39;</span> <span class="o">+</span> <span class="n">last_component</span> <span class="o">+</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid1</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path_components</span><span class="p">)</span>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;file_path_prefix&#39;</span><span class="p">,</span> <span class="s1">&#39;file_name_suffix&#39;</span><span class="p">])</span>
+<div class="viewcode-block" id="FileBasedSink.open_writer"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.open_writer">[docs]</a>  <span class="k">def</span> <span class="nf">open_writer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_result</span><span class="p">,</span> <span class="n">uid</span><span class="p">):</span>
+    <span class="c1"># A proper suffix is needed for AUTO compression detection.</span>
+    <span class="c1"># We also ensure there will be no collisions with uid and a</span>
+    <span class="c1"># (possibly unsharded) file_path_prefix and a (possibly empty)</span>
+    <span class="c1"># file_name_suffix.</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">file_name_suffix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">)</span> <span class="o">+</span> <span class="n">file_name_suffix</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FileBasedSinkWriter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">init_result</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;file_path_prefix&#39;</span><span class="p">,</span> <span class="s1">&#39;file_name_suffix&#39;</span><span class="p">])</span>
+<div class="viewcode-block" id="FileBasedSink.finalize_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsink.FileBasedSink.finalize_write">[docs]</a>  <span class="k">def</span> <span class="nf">finalize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init_result</span><span class="p">,</span> <span class="n">writer_results</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_path_prefix</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">file_name_suffix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name_suffix</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">writer_results</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">writer_results</span><span class="p">)</span>
+    <span class="n">num_shards</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">writer_results</span><span class="p">)</span>
+    <span class="n">min_threads</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_shards</span><span class="p">,</span> <span class="n">FileBasedSink</span><span class="o">.</span><span class="n">_MAX_RENAME_THREADS</span><span class="p">)</span>
+    <span class="n">num_threads</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_threads</span><span class="p">)</span>
+
+    <span class="n">source_files</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">destination_files</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">get_chunk_size</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">shard_num</span><span class="p">,</span> <span class="n">shard</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">writer_results</span><span class="p">):</span>
+      <span class="n">final_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+          <span class="n">file_path_prefix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shard_name_format</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span>
+              <span class="n">shard_num</span><span class="o">=</span><span class="n">shard_num</span><span class="p">,</span> <span class="n">num_shards</span><span class="o">=</span><span class="n">num_shards</span><span class="p">),</span> <span class="n">file_name_suffix</span>
+      <span class="p">])</span>
+      <span class="n">source_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shard</span><span class="p">)</span>
+      <span class="n">destination_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">final_name</span><span class="p">)</span>
+
+    <span class="n">source_file_batch</span> <span class="o">=</span> <span class="p">[</span><span class="n">source_files</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">]</span>
+                         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_files</span><span class="p">),</span>
+                                         <span class="n">chunk_size</span><span class="p">)]</span>
+    <span class="n">destination_file_batch</span> <span class="o">=</span> <span class="p">[</span><span class="n">destination_files</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">]</span>
+                              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">destination_files</span><span class="p">),</span>
+                                              <span class="n">chunk_size</span><span class="p">)]</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Starting finalize_write threads with num_shards: </span><span class="si">%d</span><span class="s1">, &#39;</span>
+        <span class="s1">&#39;batches: </span><span class="si">%d</span><span class="s1">, num_threads: </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_file_batch</span><span class="p">),</span> <span class="n">num_threads</span><span class="p">)</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="c1"># Use a thread pool for renaming operations.</span>
+    <span class="k">def</span> <span class="nf">_rename_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;_rename_batch executes batch rename operations.&quot;&quot;&quot;</span>
+      <span class="n">source_files</span><span class="p">,</span> <span class="n">destination_files</span> <span class="o">=</span> <span class="n">batch</span>
+      <span class="n">exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">FileSystems</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">source_files</span><span class="p">,</span> <span class="n">destination_files</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">exceptions</span>
+      <span class="k">except</span> <span class="n">BeamIOError</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">exception_details</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">raise</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">),</span> <span class="n">exception</span> <span class="ow">in</span> <span class="n">exp</span><span class="o">.</span><span class="n">exception_details</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+          <span class="k">if</span> <span class="n">exception</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Rename not successful: </span><span class="si">%s</span><span class="s1"> -&gt; </span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span>
+                            <span class="n">exception</span><span class="p">)</span>
+            <span class="n">should_report</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">):</span>
+              <span class="c1"># May have already been copied.</span>
+              <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+                  <span class="n">should_report</span> <span class="o">=</span> <span class="kc">False</span>
+              <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exists_e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Exception when checking if file </span><span class="si">%s</span><span class="s1"> exists: &#39;</span>
+                                <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exists_e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">should_report</span><span class="p">:</span>
+              <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">((</span><span class="s1">&#39;Exception in _rename_batch. src: </span><span class="si">%s</span><span class="s1">, &#39;</span>
+                               <span class="s1">&#39;dest: </span><span class="si">%s</span><span class="s1">, err: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">),</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span>
+              <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Rename successful: </span><span class="si">%s</span><span class="s1"> -&gt; </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">exceptions</span>
+
+    <span class="n">exception_batches</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">run_using_threadpool</span><span class="p">(</span>
+        <span class="n">_rename_batch</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="n">source_file_batch</span><span class="p">,</span> <span class="n">destination_file_batch</span><span class="p">),</span>
+        <span class="n">num_threads</span><span class="p">)</span>
+
+    <span class="n">all_exceptions</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">exception_batch</span> <span class="ow">in</span> <span class="n">exception_batches</span>
+                      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exception_batch</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">all_exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Encountered exceptions in finalize_write: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                      <span class="n">all_exceptions</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">final_name</span> <span class="ow">in</span> <span class="n">destination_files</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">final_name</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Renamed </span><span class="si">%d</span><span class="s1"> shards in </span><span class="si">%.2f</span><span class="s1"> seconds.&#39;</span><span class="p">,</span> <span class="n">num_shards</span><span class="p">,</span>
+                 <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">FileSystems</span><span class="o">.</span><span class="n">delete</span><span class="p">([</span><span class="n">init_result</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+      <span class="c1"># May have already been removed.</span>
+      <span class="k">pass</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_template_to_format</span><span class="p">(</span><span class="n">shard_name_template</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">shard_name_template</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;S+&#39;</span><span class="p">,</span> <span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Shard number pattern S+ not found in template &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span>
+                       <span class="n">shard_name_template</span><span class="p">)</span>
+    <span class="n">shard_name_format</span> <span class="o">=</span> <span class="n">shard_name_template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+        <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;</span><span class="si">%%</span><span class="s1">(shard_num)0</span><span class="si">%d</span><span class="s1">d&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;N+&#39;</span><span class="p">,</span> <span class="n">shard_name_format</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+      <span class="n">shard_name_format</span> <span class="o">=</span> <span class="n">shard_name_format</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+          <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;</span><span class="si">%%</span><span class="s1">(num_shards)0</span><span class="si">%d</span><span class="s1">d&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">shard_name_format</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># TODO: Clean up workitem_test which uses this.</span>
+    <span class="c1"># pylint: disable=unidiomatic-typecheck</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span></div>
+
+
+<span class="k">class</span> <span class="nc">FileBasedSinkWriter</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Writer</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The writer for FileBasedSink.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sink</span><span class="p">,</span> <span class="n">temp_shard_path</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span> <span class="o">=</span> <span class="n">sink</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">temp_shard_path</span> <span class="o">=</span> <span class="n">temp_shard_path</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">temp_shard_path</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sink</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_handle</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">temp_shard_path</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

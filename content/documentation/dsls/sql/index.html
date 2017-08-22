@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSLs: SQL</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="/get-started/downloads">Downloads</a></li>
+            <li><a href="/get-started/support">Support</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">DSLs</li>
+            <li><a href="/documentation/dsls/sql/">SQL</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/contribute/testing/">Testing Guide</a></li>
+            <li><a href="/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="/contribute/source-repository/">Source Repository</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="/contribute/team/">Team</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+</nav>
+
+    <div class="body__contained">
+      <ul>
+  <li><a href="#overview">1. Overview</a></li>
+  <li><a href="#usage">2. Usage of DSL APIs</a></li>
+  <li><a href="#functionality">3. Functionality in Beam SQL</a>
+    <ul>
+      <li><a href="#features">3.1. Supported Features</a></li>
+      <li><a href="#beamsqlrow">3.2. Intro of BeamSqlRow</a></li>
+      <li><a href="#data-type">3.3. Data Types</a></li>
+      <li><a href="#built-in-functions">3.4. built-in SQL functions</a></li>
+    </ul>
+  </li>
+  <li><a href="#internal-of-sql">4. The Internal of Beam SQL</a></li>
+</ul>
+
+<p>This page describes the implementation of Beam SQL, and how to simplify a Beam pipeline with DSL APIs.</p>
+
+<blockquote>
+  <p>Note, Beam SQL hasn’t been merged to master branch yet(being developed with branch <a href="https://github.com/apache/beam/tree/DSL_SQL">DSL_SQL</a>), but is coming soon.</p>
+</blockquote>
+
+<h1 id="a-nameoverviewa1-overview"><a name="overview"></a>1. Overview</h1>
+<p>SQL is a well-adopted standard to process data with concise syntax. With DSL APIs, now <code class="highlighter-rouge">PCollection</code>s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage <a href="http://calcite.apache.org/">Apache Calcite</a> to parse and optimize SQL queries, then translate into a composite Beam <code class="highlighter-rouge">PTransform</code>. In this way, both SQL and normal Beam <code class="highlighter-rouge">PTransform</code>s can be mixed in the same pipeline.</p>
+
+<h1 id="a-nameusagea2-usage-of-dsl-apis"><a name="usage"></a>2. Usage of DSL APIs</h1>
+<p><code class="highlighter-rouge">BeamSql</code> is the only interface(with two methods <code class="highlighter-rouge">BeamSql.query()</code> and <code class="highlighter-rouge">BeamSql.simpleQuery()</code>) for developers. It wraps the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can take either simple TABLE_FILTER queries or complex queries containing JOIN/GROUP_BY etc.</p>
+
+<p><em>Note</em>, the two methods are equivalent in functionality, <code class="highlighter-rouge">BeamSql.query()</code> applies on a <code class="highlighter-rouge">PCollectionTuple</code> with one or many input <code class="highlighter-rouge">PCollection</code>s; <code class="highlighter-rouge">BeamSql.simpleQuery()</code> is a simplified API which applies on single <code class="highlighter-rouge">PCollection</code>.</p>
+
+<p><a href="https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in code repository shows the usage of both APIs:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>//Step 1. create a source PCollection with Create.of();
+BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
+...
+
+PCollection&lt;BeamRecord&gt; inputTable = PBegin.in(p).apply(Create.of(row...)
+    .withCoder(type.getRecordCoder()));
+
+//Step 2. (Case 1) run a simple SQL query over input PCollection with BeamSql.simpleQuery;
+PCollection&lt;BeamRecord&gt; outputStream = inputTable.apply(
+    BeamSql.simpleQuery("select c1, c2, c3 from PCOLLECTION where c1=1"));
+
+
+//Step 2. (Case 2) run the query with BeamSql.query over result PCollection of (case 1);
+PCollection&lt;BeamRecord&gt; outputStream2 =
+    PCollectionTuple.of(new TupleTag&lt;BeamRecord&gt;("CASE1_RESULT"), outputStream)
+        .apply(BeamSql.query("select c2, sum(c3) from CASE1_RESULT group by c2"));
+</code></pre>
+</div>
+
+<p>In Step 1, a <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> is prepared as the source dataset. The work to generate a queriable <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> is beyond the scope of Beam SQL DSL.</p>
+
+<p>Step 2(Case 1) shows the usage to run a query with <code class="highlighter-rouge">BeamSql.simpleQuery()</code>, be aware that the input <code class="highlighter-rouge">PCollection</code> is named with a fixed table name <strong>PCOLLECTION</strong>. Step 2(Case 2) is another example to run a query with <code class="highlighter-rouge">BeamSql.query()</code>. A Table name is specified when adding <code class="highlighter-rouge">PCollection</code> to <code class="highlighter-rouge">PCollectionTuple</code>. As each call of either <code class="highlighter-rouge">BeamSql.query()</code> or <code class="highlighter-rouge">BeamSql.simpleQuery()</code> has its own schema repository, developers need to include all <code class="highlighter-rouge">PCollection</code>s that would be used in your query.</p>
+
+<h1 id="a-namefunctionalitya3-functionality-in-beam-sql"><a name="functionality"></a>3. Functionality in Beam SQL</h1>
+<p>Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded <code class="highlighter-rouge">PCollection</code> as well.</p>
+
+<p>Note that, SQL support is not fully completed. Queries that include unsupported features would cause an <code class="highlighter-rouge">UnsupportedOperationException</code>.</p>
+
+<h2 id="a-namefeaturesa31-supported-features"><a name="features"></a>3.1. Supported Features</h2>
+<p>The following features are supported in current repository:</p>
+
+<p><strong>1. filter clauses;</strong></p>
+
+<p><strong>2. data field projections;</strong></p>
+
+<p><strong>3. aggregations;</strong></p>
+
+<p>Beam SQL supports aggregation functions with group_by in global_window, fixed_window, sliding_window and session_window. A field with type <code class="highlighter-rouge">TIMESTAMP</code> is required to specify fixed_window/sliding_window/session_window. The field is used as event timestamp for rows. See below for several examples:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>//fixed window, one hour in duration
+SELECT f_int, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int, TUMBLE(f_timestamp, INTERVAL '1' HOUR)
+
+//sliding window, one hour in duration and 30 minutes period
+SELECT f_int, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)
+
+//session window, with 5 minutes gap duration
+SELECT f_int, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int, SESSION(f_timestamp, INTERVAL '5' MINUTE)
+</code></pre>
+</div>
+
+<p>Note:</p>
+
+<ol>
+  <li>distinct aggregation is not supported yet.</li>
+  <li>the default trigger is <code class="highlighter-rouge">Repeatedly.forever(AfterWatermark.pastEndOfWindow())</code>;</li>
+  <li>when <code class="highlighter-rouge">time</code> field in <code class="highlighter-rouge">HOP(dateTime, slide, size [, time ])</code>/<code class="highlighter-rouge">TUMBLE(dateTime, interval [, time ])</code>/<code class="highlighter-rouge">SESSION(dateTime, interval [, time ])</code> is specified, a lateFiring trigger is added as</li>
+</ol>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>Repeatedly.forever(AfterWatermark.pastEndOfWindow().withLateFirings(AfterProcessingTime
+        .pastFirstElementInPane().plusDelayOf(Duration.millis(delayTime.getTimeInMillis()))));
+</code></pre>
+</div>
+
+<p><strong>4. Join (inner, left_outer, right_outer);</strong></p>
+
+<p>The scenarios of join can be categorized into 3 cases:</p>
+
+<ol>
+  <li>BoundedTable JOIN BoundedTable</li>
+  <li>UnboundedTable JOIN UnboundedTable</li>
+  <li>BoundedTable JOIN UnboundedTable</li>
+</ol>
+
+<p>For case 1 and case 2, a standard join is utilized as long as the windowFn of the both sides match. For case 3, sideInput is utilized to implement the join. So far there are some constraints:</p>
+
+<ul>
+  <li>Only equal-join is supported, CROSS JOIN is not supported;</li>
+  <li>FULL OUTER JOIN is not supported;</li>
+  <li>If it’s a LEFT OUTER JOIN, the unbounded table should on the left side; If it’s a RIGHT OUTER JOIN, the unbounded table should on the right side;</li>
+  <li>window/trigger is inherented from upstreams, which should be consistent;</li>
+</ul>
+
+<p><strong>5. built-in SQL functions</strong></p>
+
+<p><strong>6. User Defined Function (UDF) and User Defined Aggregate Function (UDAF);</strong></p>
+
+<p>If the required function is not available, developers can register their own UDF(for scalar function) and UDAF(for aggregation function).</p>
+
+<p><strong>create and specify User Defined Function (UDF)</strong></p>
+
+<p>A UDF can be 1) any Java method that takes zero or more scalar fields and return one scalar value, or 2) a <code class="highlighter-rouge">SerializableFunction</code>. Below is an example of UDF and how to use it in DSL:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>/**
+ * A example UDF for test.
+ */
+public static class CubicInteger implements BeamSqlUdf{
+  public static Integer eval(Integer input){
+    return input * input * input;
+  }
+}
+
+/**
+ * Another example UDF with {@link SerializableFunction}.
+ */
+public static class CubicIntegerFn implements SerializableFunction&lt;Integer, Integer&gt; {
+  @Override
+  public Integer apply(Integer input) {
+    return input * input * input;
+  }
+}
+
+// register and call in SQL
+String sql = "SELECT f_int, cubic1(f_int) as cubicvalue1, cubic2(f_int) as cubicvalue2 FROM PCOLLECTION WHERE f_int = 2";
+PCollection&lt;BeamSqlRow&gt; result =
+    input.apply("udfExample",
+        BeamSql.simpleQuery(sql).withUdf("cubic1", CubicInteger.class)
+		                        .withUdf("cubic2", new CubicIntegerFn()));
+</code></pre>
+</div>
+
+<p><strong>create and specify User Defined Aggregate Function (UDAF)</strong></p>
+
+<p>Beam SQL can accept a <code class="highlighter-rouge">CombineFn</code> as UDAF. Here’s an example of UDAF:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>/**
+ * UDAF(CombineFn) for test, which returns the sum of square.
+ */
+public static class SquareSum extends CombineFn&lt;Integer, Integer, Integer&gt; {
+  @Override
+  public Integer createAccumulator() {
+    return 0;
+  }
+
+  @Override
+  public Integer addInput(Integer accumulator, Integer input) {
+    return accumulator + input * input;
+  }
+
+  @Override
+  public Integer mergeAccumulators(Iterable&lt;Integer&gt; accumulators) {
+    int v = 0;
+    Iterator&lt;Integer&gt; ite = accumulators.iterator();
+    while (ite.hasNext()) {
+      v += ite.next();
+    }
+    return v;
+  }
+
+  @Override
+  public Integer extractOutput(Integer accumulator) {
+    return accumulator;
+  }
+
+}
+
+//register and call in SQL
+String sql = "SELECT f_int1, squaresum(f_int2) AS `squaresum` FROM PCOLLECTION GROUP BY f_int2";
+PCollection&lt;BeamSqlRow&gt; result =
+    input.apply("udafExample",
+        BeamSql.simpleQuery(sql).withUdaf("squaresum", new SquareSum()));
+</code></pre>
+</div>
+
+<h2 id="a-namebeamsqlrowa32-intro-of-beamrecord"><a name="beamsqlrow"></a>3.2. Intro of BeamRecord</h2>
+<p><code class="highlighter-rouge">BeamRecord</code>, described by <code class="highlighter-rouge">BeamRecordType</code>(extended <code class="highlighter-rouge">BeamRecordSqlType</code> in Beam SQL) and encoded/decoded by <code class="highlighter-rouge">BeamRecordCoder</code>, represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. Similar as <em>row</em> in relational database, each <code class="highlighter-rouge">BeamRecord</code> consists of named columns with fixed types(see <a href="#data-type">4.3. Data Types</a>).</p>
+
+<p>A Beam SQL <code class="highlighter-rouge">PCollection</code> can be created from an external source, in-memory data or derive from another SQL query. For <code class="highlighter-rouge">PCollection</code>s from external source or in-memory data, it’s required to specify coder explcitly; <code class="highlighter-rouge">PCollection</code> derived from SQL query has the coder set already. Below is one example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>//define the input row format
+List&lt;String&gt; fieldNames = Arrays.asList("c1", "c2", "c3");
+List&lt;Integer&gt; fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
+BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
+BeamRecord row = new BeamRecord(type, 1, "row", 1.0);
+
+//create a source PCollection with Create.of();
+PCollection&lt;BeamRecord&gt; inputTable = PBegin.in(p).apply(Create.of(row)
+    .withCoder(type.getRecordCoder()));
+</code></pre>
+</div>
+
+<h2 id="a-namedata-typea33-data-types"><a name="data-type"></a>3.3. Data Types</h2>
+<p>Each type in Beam SQL maps to a Java class to holds the value in <code class="highlighter-rouge">BeamRecord</code>. The following table lists the relation between SQL types and Java classes, which are supported in current repository:</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>SQL Type</th>
+      <th>Java class</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Types.INTEGER</td>
+      <td>java.lang.Integer</td>
+    </tr>
+    <tr>
+      <td>Types.SMALLINT</td>
+      <td>java.lang.Short</td>
+    </tr>
+    <tr>
+      <td>Types.TINYINT</td>
+      <td>java.lang.Byte</td>
+    </tr>
+    <tr>
+      <td>Types.BIGINT</td>
+      <td>java.lang.Long</td>
+    </tr>
+    <tr>
+      <td>Types.FLOAT</td>
+      <td>java.lang.Float</td>
+    </tr>
+    <tr>
+      <td>Types.DOUBLE</td>
+      <td>java.lang.Double</td>
+    </tr>
+    <tr>
+      <td>Types.DECIMAL</td>
+      <td>java.math.BigDecimal</td>
+    </tr>
+    <tr>
+      <td>Types.VARCHAR</td>
+      <td>java.lang.String</td>
+    </tr>
+    <tr>
+      <td>Types.TIMESTAMP</td>
+      <td>java.util.Date</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="a-namebuilt-in-functionsa34-built-in-sql-functions"><a name="built-in-functions"></a>3.4. built-in SQL functions</h2>
+
+<p>Beam SQL has implemented lots of build-in functions defined in <a href="http://calcite.apache.org">Apache Calcite</a>. The available functions are listed as below:</p>
+
+<p><strong>Comparison functions and operators</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>value1 = value2</td>
+      <td>Equals</td>
+    </tr>
+    <tr>
+      <td>value1 &lt;&gt; value2</td>
+      <td>Not equal</td>
+    </tr>
+    <tr>
+      <td>value1 &gt; value2</td>
+      <td>Greater than</td>
+    </tr>
+    <tr>
+      <td>value1 &gt;= value2</td>
+      <td>Greater than or equal</td>
+    </tr>
+    <tr>
+      <td>value1 &lt; value2</td>
+      <td>Less than</td>
+    </tr>
+    <tr>
+      <td>value1 &lt;= value2</td>
+      <td>Less than or equal</td>
+    </tr>
+    <tr>
+      <td>value IS NULL</td>
+      <td>Whether value is null</td>
+    </tr>
+    <tr>
+      <td>value IS NOT NULL</td>
+      <td>Whether value is not null</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Logical functions and operators</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>boolean1 OR boolean2</td>
+      <td>Whether boolean1 is TRUE or boolean2 is TRUE</td>
+    </tr>
+    <tr>
+      <td>boolean1 AND boolean2</td>
+      <td>Whether boolean1 and boolean2 are both TRUE</td>
+    </tr>
+    <tr>
+      <td>NOT boolean</td>
+      <td>Whether boolean is not TRUE; returns UNKNOWN if boolean is UNKNOWN</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Arithmetic functions and operators</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>numeric1 + numeric2</td>
+      <td>Returns numeric1 plus numeric2</td>
+    </tr>
+    <tr>
+      <td>numeric1 - numeric2</td>
+      <td>Returns numeric1 minus numeric2</td>
+    </tr>
+    <tr>
+      <td>numeric1 * numeric2</td>
+      <td>Returns numeric1 multiplied by numeric2</td>
+    </tr>
+    <tr>
+      <td>numeric1 / numeric2</td>
+      <td>Returns numeric1 divided by numeric2</td>
+    </tr>
+    <tr>
+      <td>MOD(numeric, numeric)</td>
+      <td>Returns the remainder (modulus) of numeric1 divided by numeric2. The result is negative only if numeric1 is negative</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Math functions</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ABS(numeric)</td>
+      <td>Returns the absolute value of numeric</td>
+    </tr>
+    <tr>
+      <td>SQRT(numeric)</td>
+      <td>Returns the square root of numeric</td>
+    </tr>
+    <tr>
+      <td>LN(numeric)</td>
+      <td>Returns the natural logarithm (base e) of numeric</td>
+    </tr>
+    <tr>
+      <td>LOG10(numeric)</td>
+      <td>Returns the base 10 logarithm of numeric</td>
+    </tr>
+    <tr>
+      <td>EXP(numeric)</td>
+      <td>Returns e raised to the power of numeric</td>
+    </tr>
+    <tr>
+      <td>ACOS(numeric)</td>
+      <td>Returns the arc cosine of numeric</td>
+    </tr>
+    <tr>
+      <td>ASIN(numeric)</td>
+      <td>Returns the arc sine of numeric</td>
+    </tr>
+    <tr>
+      <td>ATAN(numeric)</td>
+      <td>Returns the arc tangent of numeric</td>
+    </tr>
+    <tr>
+      <td>COT(numeric)</td>
+      <td>Returns the cotangent of numeric</td>
+    </tr>
+    <tr>
+      <td>DEGREES(numeric)</td>
+      <td>Converts numeric from radians to degrees</td>
+    </tr>
+    <tr>
+      <td>RADIANS(numeric)</td>
+      <td>Converts numeric from degrees to radians</td>
+    </tr>
+    <tr>
+      <td>SIGN(numeric)</td>
+      <td>Returns the signum of numeric</td>
+    </tr>
+    <tr>
+      <td>SIN(numeric)</td>
+      <td>Returns the sine of numeric</td>
+    </tr>
+    <tr>
+      <td>TAN(numeric)</td>
+      <td>Returns the tangent of numeric</td>
+    </tr>
+    <tr>
+      <td>ROUND(numeric1, numeric2)</td>
+      <td>Rounds numeric1 to numeric2 places right to the decimal point</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Date functions</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>LOCALTIME</td>
+      <td>Returns the current date and time in the session time zone in a value of datatype TIME</td>
+    </tr>
+    <tr>
+      <td>LOCALTIME(precision)</td>
+      <td>Returns the current date and time in the session time zone in a value of datatype TIME, with precision digits of precision</td>
+    </tr>
+    <tr>
+      <td>LOCALTIMESTAMP</td>
+      <td>Returns the current date and time in the session time zone in a value of datatype TIMESTAMP</td>
+    </tr>
+    <tr>
+      <td>LOCALTIMESTAMP(precision)</td>
+      <td>Returns the current date and time in the session time zone in a value of datatype TIMESTAMP, with precision digits of precision</td>
+    </tr>
+    <tr>
+      <td>CURRENT_TIME</td>
+      <td>Returns the current time in the session time zone, in a value of datatype TIMESTAMP WITH TIME ZONE</td>
+    </tr>
+    <tr>
+      <td>CURRENT_DATE</td>
+      <td>Returns the current date in the session time zone, in a value of datatype DATE</td>
+    </tr>
+    <tr>
+      <td>CURRENT_TIMESTAMP</td>
+      <td>Returns the current date and time in the session time zone, in a value of datatype TIMESTAMP WITH TIME ZONE</td>
+    </tr>
+    <tr>
+      <td>EXTRACT(timeUnit FROM datetime)</td>
+      <td>Extracts and returns the value of a specified datetime field from a datetime value expression</td>
+    </tr>
+    <tr>
+      <td>FLOOR(datetime TO timeUnit)</td>
+      <td>Rounds datetime down to timeUnit</td>
+    </tr>
+    <tr>
+      <td>CEIL(datetime TO timeUnit)</td>
+      <td>Rounds datetime up to timeUnit</td>
+    </tr>
+    <tr>
+      <td>YEAR(date)</td>
+      <td>Equivalent to EXTRACT(YEAR FROM date). Returns an integer.</td>
+    </tr>
+    <tr>
+      <td>QUARTER(date)</td>
+      <td>Equivalent to EXTRACT(QUARTER FROM date). Returns an integer between 1 and 4.</td>
+    </tr>
+    <tr>
+      <td>MONTH(date)</td>
+      <td>Equivalent to EXTRACT(MONTH FROM date). Returns an integer between 1 and 12.</td>
+    </tr>
+    <tr>
+      <td>WEEK(date)</td>
+      <td>Equivalent to EXTRACT(WEEK FROM date). Returns an integer between 1 and 53.</td>
+    </tr>
+    <tr>
+      <td>DAYOFYEAR(date)</td>
+      <td>Equivalent to EXTRACT(DOY FROM date). Returns an integer between 1 and 366.</td>
+    </tr>
+    <tr>
+      <td>DAYOFMONTH(date)</td>
+      <td>Equivalent to EXTRACT(DAY FROM date). Returns an integer between 1 and 31.</td>
+    </tr>
+    <tr>
+      <td>DAYOFWEEK(date)</td>
+      <td>Equivalent to EXTRACT(DOW FROM date). Returns an integer between 1 and 7.</td>
+    </tr>
+    <tr>
+      <td>HOUR(date)</td>
+      <td>Equivalent to EXTRACT(HOUR FROM date). Returns an integer between 0 and 23.</td>
+    </tr>
+    <tr>
+      <td>MINUTE(date)</td>
+      <td>Equivalent to EXTRACT(MINUTE FROM date). Returns an integer between 0 and 59.</td>
+    </tr>
+    <tr>
+      <td>SECOND(date)</td>
+      <td>Equivalent to EXTRACT(SECOND FROM date). Returns an integer between 0 and 59.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>String functions</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>string || string</td>
+      <td>Concatenates two character strings</td>
+    </tr>
+    <tr>
+      <td>CHAR_LENGTH(string)</td>
+      <td>Returns the number of characters in a character string</td>
+    </tr>
+    <tr>
+      <td>CHARACTER_LENGTH(string)</td>
+      <td>As CHAR_LENGTH(string)</td>
+    </tr>
+    <tr>
+      <td>UPPER(string)</td>
+      <td>Returns a character string converted to upper case</td>
+    </tr>
+    <tr>
+      <td>LOWER(string)</td>
+      <td>Returns a character string converted to lower case</td>
+    </tr>
+    <tr>
+      <td>POSITION(string1 IN string2)</td>
+      <td>Returns the position of the first occurrence of string1 in string2</td>
+    </tr>
+    <tr>
+      <td>POSITION(string1 IN string2 FROM integer)</td>
+      <td>Returns the position of the first occurrence of string1 in string2 starting at a given point (not standard SQL)</td>
+    </tr>
+    <tr>
+      <td>TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)</td>
+      <td>Removes the longest string containing only the characters in string1 from the start/end/both ends of string1</td>
+    </tr>
+    <tr>
+      <td>OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])</td>
+      <td>Replaces a substring of string1 with string2</td>
+    </tr>
+    <tr>
+      <td>SUBSTRING(string FROM integer)</td>
+      <td>Returns a substring of a character string starting at a given point</td>
+    </tr>
+    <tr>
+      <td>SUBSTRING(string FROM integer FOR integer)</td>
+      <td>Returns a substring of a character string starting at a given point with a given length</td>
+    </tr>
+    <tr>
+      <td>INITCAP(string)</td>
+      <td>Returns string with the first letter of each word converter to upper case and the rest to lower case. Words are sequences of alphanumeric characters separated by non-alphanumeric characters.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Conditional functions</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CASE value <br />WHEN value1 [, value11 ]* THEN result1 <br />[ WHEN valueN [, valueN1 ]* THEN resultN ]* <br />[ ELSE resultZ ] <br />END</td>
+      <td>Simple case</td>
+    </tr>
+    <tr>
+      <td>CASE <br />WHEN condition1 THEN result1 <br />[ WHEN conditionN THEN resultN ]* <br />[ ELSE resultZ ] <br />END</td>
+      <td>Searched case</td>
+    </tr>
+    <tr>
+      <td>NULLIF(value, value)</td>
+      <td>Returns NULL if the values are the same. For example, NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.</td>
+    </tr>
+    <tr>
+      <td>COALESCE(value, value [, value ]*)</td>
+      <td>Provides a value if the first value is null. For example, COALESCE(NULL, 5) returns 5.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Type conversion functions</strong></p>
+
+<p><strong>Aggregate functions</strong></p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Operator syntax</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>COUNT(*)</td>
+      <td>Returns the number of input rows</td>
+    </tr>
+    <tr>
+      <td>AVG(numeric)</td>
+      <td>Returns the average (arithmetic mean) of numeric across all input values</td>
+    </tr>
+    <tr>
+      <td>SUM(numeric)</td>
+      <td>Returns the sum of numeric across all input values</td>
+    </tr>
+    <tr>
+      <td>MAX(value)</td>
+      <td>Returns the maximum value of value across all input values</td>
+    </tr>
+    <tr>
+      <td>MIN(value)</td>
+      <td>Returns the minimum value of value across all input values</td>
+    </tr>
+  </tbody>
+</table>
+
+<h1 id="a-nameinternal-of-sqla4-the-internal-of-beam-sql"><a name="internal-of-sql"></a>4. The Internal of Beam SQL</h1>
+<p>Figure 1 describes the back-end steps from a SQL statement to a Beam <code class="highlighter-rouge">PTransform</code>.</p>
+
+<p><img src="/images/beam_sql_dsl_workflow.png" alt="Workflow of Beam SQL DSL" title="workflow of Beam SQL DSL" /></p>
+
+<p><strong>Figure 1</strong> workflow of Beam SQL DSL</p>
+
+<p>Given a <code class="highlighter-rouge">PCollection</code> and the query as input, first of all the input <code class="highlighter-rouge">PCollection</code> is registered as a table in the schema repository. Then it’s processed as:</p>
+
+<ol>
+  <li>SQL query is parsed according to grammar to generate a SQL Abstract Syntax Tree;</li>
+  <li>Validate against table schema, and output a logical plan represented with relational algebras;</li>
+  <li>Relational rules are applied to convert it to a physical plan, expressed with Beam components. An optimizer is optional to update the plan;</li>
+  <li>Finally, the Beam physical plan is compiled as a composite <code class="highlighter-rouge">PTransform</code>;</li>
+</ol>
+
+<p>Here is an example to show a query that filters and projects from an input <code class="highlighter-rouge">PCollection</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>SELECT USER_ID, USER_NAME FROM PCOLLECTION WHERE USER_ID = 1
+</code></pre>
+</div>
+
+<p>The logical plan is shown as:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>LogicalProject(USER_ID=[$0], USER_NAME=[$1])
+  LogicalFilter(condition=[=($0, 1)])
+    LogicalTableScan(table=[[PCOLLECTION]])
+</code></pre>
+</div>
+
+<p>And compiled as a composite <code class="highlighter-rouge">PTransform</code></p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pCollection.apply(BeamSqlFilter...)
+           .apply(BeamSqlProject...)
+</code></pre>
+</div>
+
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

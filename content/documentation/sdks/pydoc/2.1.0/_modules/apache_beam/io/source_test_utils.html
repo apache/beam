@@ -1,0 +1,739 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.source_test_utils &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.source_test_utils</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Helper functions and test harnesses for source implementations.</span>
+
+<span class="sd">This module contains helper functions and test harnesses for checking</span>
+<span class="sd">correctness of source (a subclass of ``iobase.BoundedSource``) and range</span>
+<span class="sd">tracker (a subclass of``iobase.RangeTracker``) implementations.</span>
+
+<span class="sd">Contains a few lightweight utilities (e.g. reading items from a source such as</span>
+<span class="sd">``readFromSource()``, as well as heavyweight property testing and stress</span>
+<span class="sd">testing harnesses that help getting a large amount of test coverage with few</span>
+<span class="sd">code.</span>
+
+<span class="sd">Most notable ones are:</span>
+<span class="sd">* ``assertSourcesEqualReferenceSource()`` helps testing that the data read by</span>
+<span class="sd">the union of sources produced by ``BoundedSource.split()`` is the same as data</span>
+<span class="sd">read by the original source.</span>
+<span class="sd">* If your source implements dynamic work rebalancing, use the</span>
+<span class="sd">``assertSplitAtFraction()`` family of functions - they test behavior of</span>
+<span class="sd">``RangeTracker.try_split()``, in particular, that various consistency</span>
+<span class="sd">properties are respected and the total set of data read by the source is</span>
+<span class="sd">preserved when splits happen. Use ``assertSplitAtFractionBehavior()`` to test</span>
+<span class="sd">individual cases of ``RangeTracker.try_split()`` and use</span>
+<span class="sd">``assertSplitAtFractionExhaustive()`` as a heavy-weight stress test including</span>
+<span class="sd">concurrency. We strongly recommend to use both.</span>
+
+<span class="sd">For example usages, see the unit tests of modules such as</span>
+<span class="sd"> * apache_beam.io.source_test_utils_test.py</span>
+<span class="sd"> * apache_beam.io.avroio_test.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+
+<span class="kn">from</span> <span class="nn">multiprocessing.pool</span> <span class="k">import</span> <span class="n">ThreadPool</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;read_from_source&#39;</span><span class="p">,</span> <span class="s1">&#39;assert_sources_equal_reference_source&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_reentrant_reads_succeed&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_split_at_fraction_behavior&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_split_at_fraction_binary&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_split_at_fraction_exhaustive&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_split_at_fraction_fails&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;assert_split_at_fraction_succeeds_and_consistent&#39;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">ExpectedSplitOutcome</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">MUST_FAIL</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">MUST_BE_CONSISTENT_IF_SUCCEEDS</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<span class="n">SplitAtFractionResult</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s1">&#39;SplitAtFractionResult&#39;</span><span class="p">,</span> <span class="s1">&#39;num_primary_items num_residual_items&#39;</span><span class="p">)</span>
+
+<span class="n">SplitFractionStatistics</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s1">&#39;SplitFractionStatistics&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;successful_fractions non_trivial_fractions&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="read_from_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.read_from_source">[docs]</a><span class="k">def</span> <span class="nf">read_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Reads elements from the given ```BoundedSource```.</span>
+
+<span class="sd">  Only reads elements within the given position range.</span>
+<span class="sd">  Args:</span>
+<span class="sd">    source: ``iobase.BoundedSource`` implementation.</span>
+<span class="sd">    start_position: start position for reading.</span>
+<span class="sd">    stop_position: stop position for reading.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    the set of values read from the sources.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">)</span>
+  <span class="n">reader</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+    <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">values</span></div>
+
+
+<span class="k">def</span> <span class="nf">_ThreadPool</span><span class="p">(</span><span class="n">threads</span><span class="p">):</span>
+  <span class="c1"># ThreadPool crashes in old versions of Python (&lt; 2.7.5) if created from a</span>
+  <span class="c1"># child thread. (http://bugs.python.org/issue10015)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">current_thread</span><span class="p">(),</span> <span class="s1">&#39;_children&#39;</span><span class="p">):</span>
+    <span class="n">threading</span><span class="o">.</span><span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">_children</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">WeakKeyDictionary</span><span class="p">()</span>
+  <span class="k">return</span> <span class="n">ThreadPool</span><span class="p">(</span><span class="n">threads</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="assert_sources_equal_reference_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_sources_equal_reference_source">[docs]</a><span class="k">def</span> <span class="nf">assert_sources_equal_reference_source</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">,</span> <span class="n">sources_info</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Tests if a reference source is equal to a given set of sources.</span>
+
+<span class="sd">  Given a reference source (a ``BoundedSource`` and a position range) and a</span>
+<span class="sd">  list of sources, assert that the union of the records</span>
+<span class="sd">  read from the list of sources is equal to the records read from the</span>
+<span class="sd">  reference source.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    reference_source_info: a three-tuple that gives the reference</span>
+<span class="sd">                           ``iobase.BoundedSource``, position to start reading</span>
+<span class="sd">                           at, and position to stop reading at.</span>
+<span class="sd">    sources_info: a set of sources. Each source is a three-tuple that is of</span>
+<span class="sd">                  the same format described above.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: if the set of data produced by the reference source and the</span>
+<span class="sd">                given set of sources are not equivalent.</span>
+
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span>
+          <span class="nb">len</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span>
+          <span class="nb">isinstance</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">)):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;reference_source_info must a three-tuple where first&#39;</span>
+                     <span class="s1">&#39;item of the tuple gives a &#39;</span>
+                     <span class="s1">&#39;iobase.BoundedSource. Received: </span><span class="si">%r</span><span class="s1">&#39;</span>
+                     <span class="p">,</span> <span class="n">reference_source_info</span><span class="p">)</span>
+  <span class="n">reference_records</span> <span class="o">=</span> <span class="n">read_from_source</span><span class="p">(</span>
+      <span class="o">*</span><span class="n">reference_source_info</span><span class="p">)</span>
+
+  <span class="n">source_records</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">source_info</span> <span class="ow">in</span> <span class="n">sources_info</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source_info</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">source_info</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">source_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;source_info must a three tuple where first&#39;</span>
+                       <span class="s1">&#39;item of the tuple gives a &#39;</span>
+                       <span class="s1">&#39;iobase.BoundedSource. Received: </span><span class="si">%r</span><span class="s1">&#39;</span>
+                       <span class="p">,</span> <span class="n">source_info</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">())</span> <span class="o">!=</span>
+        <span class="nb">type</span><span class="p">(</span><span class="n">source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">())):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Reference source </span><span class="si">%r</span><span class="s1"> and the source </span><span class="si">%r</span><span class="s1"> must use the same coder. &#39;</span>
+          <span class="s1">&#39;They are using </span><span class="si">%r</span><span class="s1"> and </span><span class="si">%r</span><span class="s1"> respectively instead.&#39;</span><span class="p">,</span>
+          <span class="n">reference_source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+          <span class="nb">type</span><span class="p">(</span><span class="n">reference_source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()),</span>
+          <span class="nb">type</span><span class="p">(</span><span class="n">source_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()))</span>
+    <span class="n">source_records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">read_from_source</span><span class="p">(</span><span class="o">*</span><span class="n">source_info</span><span class="p">))</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">reference_records</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_records</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s1">&#39;Reference source must produce the same number of records as the &#39;</span>
+        <span class="s1">&#39;list of sources. Number of records were </span><span class="si">%d</span><span class="s1"> and </span><span class="si">%d</span><span class="s1"> instead.&#39;</span><span class="p">,</span>
+        <span class="nb">len</span><span class="p">(</span><span class="n">reference_records</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_records</span><span class="p">))</span>
+
+  <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">reference_records</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">source_records</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s1">&#39;Reference source and provided list of sources must produce the &#39;</span>
+        <span class="s1">&#39;same set of records.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="assert_reentrant_reads_succeed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_reentrant_reads_succeed">[docs]</a><span class="k">def</span> <span class="nf">assert_reentrant_reads_succeed</span><span class="p">(</span><span class="n">source_info</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Tests if a given source can be read in a reentrant manner.</span>
+
+<span class="sd">  Assume that given source produces the set of values {v1, v2, v3, ... vn}. For</span>
+<span class="sd">  i in range [1, n-1] this method performs a reentrant read after reading i</span>
+<span class="sd">  elements and verifies that both the original and reentrant read produce the</span>
+<span class="sd">  expected set of values.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    source_info: a three-tuple that gives the reference</span>
+<span class="sd">                 ``iobase.BoundedSource``, position to start reading at, and a</span>
+<span class="sd">                 position to stop reading at.</span>
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: if source is too trivial or reentrant read result in an</span>
+<span class="sd">                incorrect read.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">source</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span> <span class="o">=</span> <span class="n">source_info</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">)</span>
+
+  <span class="n">expected_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">val</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+      <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">))]</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Source is too trivial since it produces only </span><span class="si">%d</span><span class="s1"> &#39;</span>
+                     <span class="s1">&#39;values. Please give a source that reads at least 2 &#39;</span>
+                     <span class="s1">&#39;values.&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_values</span><span class="p">))</span>
+
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_values</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">read_iter</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+        <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">))</span>
+    <span class="n">original_read</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+      <span class="n">original_read</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">read_iter</span><span class="p">))</span>
+
+    <span class="c1"># Reentrant read</span>
+    <span class="n">reentrant_read</span> <span class="o">=</span> <span class="p">[</span><span class="n">val</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+        <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">))]</span>
+
+    <span class="c1"># Continuing original read.</span>
+    <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">read_iter</span><span class="p">:</span>
+      <span class="n">original_read</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">original_read</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expected_values</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Source did not produce expected values when &#39;</span>
+                       <span class="s1">&#39;performing a reentrant read after reading </span><span class="si">%d</span><span class="s1"> values. &#39;</span>
+                       <span class="s1">&#39;Expected </span><span class="si">%r</span><span class="s1"> received </span><span class="si">%r</span><span class="s1">.&#39;</span><span class="p">,</span>
+                       <span class="n">i</span><span class="p">,</span> <span class="n">expected_values</span><span class="p">,</span> <span class="n">original_read</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">reentrant_read</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expected_values</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;A reentrant read of source after reading </span><span class="si">%d</span><span class="s1"> values &#39;</span>
+                       <span class="s1">&#39;did not produce expected values. Expected </span><span class="si">%r</span><span class="s1"> &#39;</span>
+                       <span class="s1">&#39;received </span><span class="si">%r</span><span class="s1">.&#39;</span><span class="p">,</span>
+                       <span class="n">i</span><span class="p">,</span> <span class="n">expected_values</span><span class="p">,</span> <span class="n">reentrant_read</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="assert_split_at_fraction_behavior"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_split_at_fraction_behavior">[docs]</a><span class="k">def</span> <span class="nf">assert_split_at_fraction_behavior</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+                                      <span class="n">split_fraction</span><span class="p">,</span> <span class="n">expected_outcome</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Verifies the behaviour of splitting a source at a given fraction.</span>
+
+<span class="sd">  Asserts that splitting a ``BoundedSource`` either fails after reading</span>
+<span class="sd">  ``num_items_to_read_before_split`` items, or succeeds in a way that is</span>
+<span class="sd">  consistent according to ``assertSplitAtFractionSucceedsAndConsistent()``.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    source: the source to perform dynamic splitting on.</span>
+<span class="sd">    num_items_to_read_before_split: number of items to read before splitting.</span>
+<span class="sd">    split_fraction: fraction to split at.</span>
+<span class="sd">    expected_outcome: a value from &#39;ExpectedSplitOutcome&#39;.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    a tuple that gives the number of items produced by reading the two ranges</span>
+<span class="sd">    produced after dynamic splitting. If splitting did not occur, the first</span>
+<span class="sd">    value of the tuple will represent the full set of records read by the</span>
+<span class="sd">    source while the second value of the tuple will be &#39;-1&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">)</span>
+  <span class="n">expected_items</span> <span class="o">=</span> <span class="n">read_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">_assert_split_at_fraction_behavior</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">,</span>
+      <span class="n">expected_outcome</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_assert_split_at_fraction_behavior</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+    <span class="n">split_fraction</span><span class="p">,</span> <span class="n">expected_outcome</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+  <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">)</span>
+  <span class="n">current_items</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">reader</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span>
+  <span class="c1"># Reading &#39;num_items_to_read_before_split&#39; items.</span>
+  <span class="n">reader_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_items_to_read_before_split</span><span class="p">):</span>
+    <span class="n">current_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">reader_iter</span><span class="p">))</span>
+
+  <span class="n">suggested_split_position</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span>
+      <span class="n">split_fraction</span><span class="p">)</span>
+
+  <span class="n">stop_position_before_split</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+  <span class="n">split_result</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_split</span><span class="p">(</span><span class="n">suggested_split_position</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">split_result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_result</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Split result must be a tuple that contains split &#39;</span>
+                       <span class="s1">&#39;position and split fraction. Received: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">split_result</span><span class="p">,))</span>
+
+    <span class="k">if</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">!=</span> <span class="n">split_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;After a successful split, the stop position of the &#39;</span>
+                       <span class="s1">&#39;RangeTracker must be the same as the returned split &#39;</span>
+                       <span class="s1">&#39;position. Observed </span><span class="si">%r</span><span class="s1"> and </span><span class="si">%r</span><span class="s1"> which are different.&#39;</span><span class="p">,</span>
+                       <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span> <span class="o">%</span> <span class="p">(</span><span class="n">split_result</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
+
+    <span class="k">if</span> <span class="n">split_fraction</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">split_fraction</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Split fraction must be within the range [0,1]&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;Observed split fraction was </span><span class="si">%r</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">split_result</span><span class="p">[</span><span class="mi">1</span><span class="p">],))</span>
+
+  <span class="n">stop_position_after_split</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+  <span class="k">if</span> <span class="n">split_result</span> <span class="ow">and</span> <span class="n">stop_position_after_split</span> <span class="o">==</span> <span class="n">stop_position_before_split</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Stop position </span><span class="si">%r</span><span class="s1"> did not change after a successful &#39;</span>
+                     <span class="s1">&#39;split of source </span><span class="si">%r</span><span class="s1"> at fraction </span><span class="si">%r</span><span class="s1">.&#39;</span> <span class="o">%</span>
+                     <span class="p">(</span><span class="n">stop_position_before_split</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">))</span>
+
+  <span class="k">if</span> <span class="n">expected_outcome</span> <span class="o">==</span> <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">split_result</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Expected split of source </span><span class="si">%r</span><span class="s1"> at fraction </span><span class="si">%r</span><span class="s1"> to be &#39;</span>
+                       <span class="s1">&#39;successful after reading </span><span class="si">%d</span><span class="s1"> elements. But &#39;</span>
+                       <span class="s1">&#39;the split failed.&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">))</span>
+  <span class="k">elif</span> <span class="n">expected_outcome</span> <span class="o">==</span> <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_FAIL</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">split_result</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Expected split of source </span><span class="si">%r</span><span class="s1"> at fraction </span><span class="si">%r</span><span class="s1"> after &#39;</span>
+                       <span class="s1">&#39;reading </span><span class="si">%d</span><span class="s1"> elements to fail. But splitting &#39;</span>
+                       <span class="s1">&#39;succeeded with result </span><span class="si">%r</span><span class="s1">.&#39;</span> <span class="o">%</span>
+                       <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+                        <span class="n">split_result</span><span class="p">))</span>
+
+  <span class="k">elif</span> <span class="p">(</span><span class="n">expected_outcome</span> <span class="o">!=</span>
+        <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_BE_CONSISTENT_IF_SUCCEEDS</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown type of expected outcome: </span><span class="si">%r</span><span class="s1">&#39;</span><span class="o">%</span>
+                     <span class="n">expected_outcome</span><span class="p">)</span>
+  <span class="n">current_items</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">reader_iter</span><span class="p">])</span>
+
+  <span class="n">residual_range</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">split_result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stop_position_before_split</span><span class="p">)</span> <span class="k">if</span> <span class="n">split_result</span> <span class="k">else</span> <span class="kc">None</span>
+
+  <span class="k">return</span> <span class="n">_verify_single_split_fraction_result</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">current_items</span><span class="p">,</span>
+      <span class="n">split_result</span><span class="p">,</span>
+      <span class="p">(</span><span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">(),</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()),</span>
+      <span class="n">residual_range</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_range_to_str</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">):</span>
+  <span class="k">return</span> <span class="s1">&#39;[&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">stop</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_verify_single_split_fraction_result</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">current_items</span><span class="p">,</span> <span class="n">split_successful</span><span class="p">,</span> <span class="n">primary_range</span><span class="p">,</span>
+    <span class="n">residual_range</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">):</span>
+
+  <span class="k">assert</span> <span class="n">primary_range</span>
+  <span class="n">primary_items</span> <span class="o">=</span> <span class="n">read_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="o">*</span><span class="n">primary_range</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">split_successful</span><span class="p">:</span>
+    <span class="c1"># For unsuccessful splits, residual_range should be None.</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">residual_range</span>
+
+  <span class="n">residual_items</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">read_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="o">*</span><span class="n">residual_range</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">split_successful</span> <span class="k">else</span> <span class="p">[])</span>
+
+  <span class="n">total_items</span> <span class="o">=</span> <span class="n">primary_items</span> <span class="o">+</span> <span class="n">residual_items</span>
+
+  <span class="k">if</span> <span class="n">current_items</span> <span class="o">!=</span> <span class="n">primary_items</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Current source </span><span class="si">%r</span><span class="s1"> and a source created using the &#39;</span>
+                     <span class="s1">&#39;range of the primary source </span><span class="si">%r</span><span class="s1"> determined &#39;</span>
+                     <span class="s1">&#39;by performing dynamic work rebalancing at fraction &#39;</span>
+                     <span class="s1">&#39;</span><span class="si">%r</span><span class="s1"> produced different values. Expected &#39;</span>
+                     <span class="s1">&#39;these sources to produce the same list of values.&#39;</span><span class="p">,</span>
+                     <span class="n">source</span><span class="p">,</span>
+                     <span class="n">_range_to_str</span><span class="p">(</span><span class="o">*</span><span class="n">primary_range</span><span class="p">),</span>
+                     <span class="n">split_fraction</span>
+                    <span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">expected_items</span> <span class="o">!=</span> <span class="n">total_items</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Items obtained by reading the source </span><span class="si">%r</span><span class="s1"> for primary &#39;</span>
+                     <span class="s1">&#39;and residual ranges </span><span class="si">%s</span><span class="s1"> and </span><span class="si">%s</span><span class="s1"> did not produce the &#39;</span>
+                     <span class="s1">&#39;expected list of values.&#39;</span><span class="p">,</span>
+                     <span class="n">source</span><span class="p">,</span>
+                     <span class="n">_range_to_str</span><span class="p">(</span><span class="o">*</span><span class="n">primary_range</span><span class="p">),</span>
+                     <span class="n">_range_to_str</span><span class="p">(</span><span class="o">*</span><span class="n">residual_range</span><span class="p">))</span>
+
+  <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">primary_items</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">residual_items</span><span class="p">)</span> <span class="k">if</span> <span class="n">split_successful</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="assert_split_at_fraction_succeeds_and_consistent"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_split_at_fraction_succeeds_and_consistent">[docs]</a><span class="k">def</span> <span class="nf">assert_split_at_fraction_succeeds_and_consistent</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Verifies some consistency properties of dynamic work rebalancing.</span>
+
+<span class="sd">  Equivalent to the following pseudocode:::</span>
+
+<span class="sd">    original_range_tracker = source.getRangeTracker(None, None)</span>
+<span class="sd">    original_reader = source.read(original_range_tracker)</span>
+<span class="sd">    items_before_split = read N items from original_reader</span>
+<span class="sd">    suggested_split_position = original_range_tracker.position_for_fraction(</span>
+<span class="sd">      split_fraction)</span>
+<span class="sd">    original_stop_position - original_range_tracker.stop_position()</span>
+<span class="sd">    split_result = range_tracker.try_split()</span>
+<span class="sd">    split_position, split_fraction = split_result</span>
+<span class="sd">    primary_range_tracker = source.get_range_tracker(</span>
+<span class="sd">      original_range_tracker.start_position(), split_position)</span>
+<span class="sd">    residual_range_tracker = source.get_range_tracker(split_position,</span>
+<span class="sd">      original_stop_position)</span>
+
+<span class="sd">    assert that: items when reading source.read(primary_range_tracker) ==</span>
+<span class="sd">      items_before_split + items from continuing to read &#39;original_reader&#39;</span>
+<span class="sd">    assert that: items when reading source.read(original_range_tracker) =</span>
+<span class="sd">      items when reading source.read(primary_range_tracker) + items when reading</span>
+<span class="sd">    source.read(residual_range_tracker)</span>
+
+<span class="sd">  Args:</span>
+
+<span class="sd">    source: source to perform dynamic work rebalancing on.</span>
+<span class="sd">    num_items_to_read_before_split: number of items to read before splitting.</span>
+<span class="sd">    split_fraction: fraction to split at.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">assert_split_at_fraction_behavior</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">,</span>
+      <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="assert_split_at_fraction_fails"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_split_at_fraction_fails">[docs]</a><span class="k">def</span> <span class="nf">assert_split_at_fraction_fails</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+                                   <span class="n">split_fraction</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Asserts that dynamic work rebalancing at a given fraction fails.</span>
+
+<span class="sd">  Asserts that trying to perform dynamic splitting after reading</span>
+<span class="sd">  &#39;num_items_to_read_before_split&#39; items from the source fails.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    source: source to perform dynamic splitting on.</span>
+<span class="sd">    num_items_to_read_before_split: number of items to read before splitting.</span>
+<span class="sd">    split_fraction: fraction to split at.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">assert_split_at_fraction_behavior</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">,</span>
+      <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_FAIL</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="assert_split_at_fraction_binary"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_split_at_fraction_binary">[docs]</a><span class="k">def</span> <span class="nf">assert_split_at_fraction_binary</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">left_fraction</span><span class="p">,</span>
+    <span class="n">left_result</span><span class="p">,</span> <span class="n">right_fraction</span><span class="p">,</span> <span class="n">right_result</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Performs dynamic work rebalancing for fractions within a given range.</span>
+
+<span class="sd">  Asserts that given a start position, a source can be split at every</span>
+<span class="sd">  interesting fraction (halfway between two fractions that differ by at</span>
+<span class="sd">  least one item) and the results are consistent if a split succeeds.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    source: source to perform dynamic splitting on.</span>
+<span class="sd">    expected_items: total set of items expected when reading the source.</span>
+<span class="sd">    num_items_to_read_before_split: number of items to read before splitting.</span>
+<span class="sd">    left_fraction: left fraction for binary splitting.</span>
+<span class="sd">    left_result: result received by splitting at left fraction.</span>
+<span class="sd">    right_fraction: right fraction for binary splitting.</span>
+<span class="sd">    right_result: result received by splitting at right fraction.</span>
+<span class="sd">    stats: a ``SplitFractionStatistics`` for storing results.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">assert</span> <span class="n">right_fraction</span> <span class="o">&gt;</span> <span class="n">left_fraction</span>
+
+  <span class="k">if</span> <span class="n">right_fraction</span> <span class="o">-</span> <span class="n">left_fraction</span> <span class="o">&lt;</span> <span class="mf">0.001</span><span class="p">:</span>
+    <span class="c1"># This prevents infinite recursion.</span>
+    <span class="k">return</span>
+
+  <span class="n">middle_fraction</span> <span class="o">=</span> <span class="p">(</span><span class="n">left_fraction</span> <span class="o">+</span> <span class="n">right_fraction</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+  <span class="k">if</span> <span class="n">left_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">left_result</span> <span class="o">=</span> <span class="n">_assert_split_at_fraction_behavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">left_fraction</span><span class="p">,</span>
+        <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_BE_CONSISTENT_IF_SUCCEEDS</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">right_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">right_result</span> <span class="o">=</span> <span class="n">_assert_split_at_fraction_behavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+        <span class="n">right_fraction</span><span class="p">,</span> <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_BE_CONSISTENT_IF_SUCCEEDS</span><span class="p">)</span>
+
+  <span class="n">middle_result</span> <span class="o">=</span> <span class="n">_assert_split_at_fraction_behavior</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">middle_fraction</span><span class="p">,</span>
+      <span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_BE_CONSISTENT_IF_SUCCEEDS</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">middle_result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+    <span class="n">stats</span><span class="o">.</span><span class="n">successful_fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">middle_fraction</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">middle_result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">stats</span><span class="o">.</span><span class="n">non_trivial_fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">middle_fraction</span><span class="p">)</span>
+
+  <span class="c1"># Two split results are equivalent if primary and residual ranges of them</span>
+  <span class="c1"># produce the same number of records (simply checking the size of primary</span>
+  <span class="c1"># enough since the total number of records is constant).</span>
+
+  <span class="k">if</span> <span class="n">left_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">middle_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+    <span class="n">assert_split_at_fraction_binary</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span> <span class="n">left_fraction</span><span class="p">,</span>
+        <span class="n">left_result</span><span class="p">,</span> <span class="n">middle_fraction</span><span class="p">,</span> <span class="n">middle_result</span><span class="p">,</span> <span class="n">stats</span><span class="p">)</span>
+
+  <span class="c1"># We special case right_fraction=1.0 since that could fail due to being out</span>
+  <span class="c1"># of range. (even if a dynamic split fails at &#39;middle_fraction&#39; and at</span>
+  <span class="c1"># fraction 1.0, there might be fractions in range (&#39;middle_fraction&#39;, 1.0)</span>
+  <span class="c1"># where dynamic splitting succeeds).</span>
+  <span class="k">if</span> <span class="n">right_fraction</span> <span class="o">==</span> <span class="mf">1.0</span> <span class="ow">or</span> <span class="n">middle_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">right_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+    <span class="n">assert_split_at_fraction_binary</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_split</span><span class="p">,</span>
+        <span class="n">middle_fraction</span><span class="p">,</span> <span class="n">middle_result</span><span class="p">,</span> <span class="n">right_fraction</span><span class="p">,</span> <span class="n">right_result</span><span class="p">,</span> <span class="n">stats</span><span class="p">)</span></div>
+
+
+<span class="n">MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL</span> <span class="o">=</span> <span class="mi">1000</span>
+
+
+<div class="viewcode-block" id="assert_split_at_fraction_exhaustive"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils.assert_split_at_fraction_exhaustive">[docs]</a><span class="k">def</span> <span class="nf">assert_split_at_fraction_exhaustive</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">perform_multi_threaded_test</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Performs and tests dynamic work rebalancing exhaustively.</span>
+
+<span class="sd">  Asserts that for each possible start position, a source can be split at</span>
+<span class="sd">  every interesting fraction (halfway between two fractions that differ by at</span>
+<span class="sd">  least one item) and the results are consistent if a split succeeds.</span>
+<span class="sd">  Verifies multi threaded splitting as well.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    source: the source to perform dynamic splitting on.</span>
+<span class="sd">    perform_multi_threaded_test: if true performs a multi-threaded test</span>
+<span class="sd">                                 otherwise this test is skipped.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: if the exhaustive splitting test fails.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">expected_items</span> <span class="o">=</span> <span class="n">read_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">expected_items</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Source </span><span class="si">%r</span><span class="s1"> is empty.&#39;</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_items</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Source </span><span class="si">%r</span><span class="s1"> only reads a single item.&#39;</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span>
+
+  <span class="n">all_non_trivial_fractions</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="n">any_successful_fractions</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">any_non_trivial_fractions</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_items</span><span class="p">)):</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">SplitFractionStatistics</span><span class="p">([],</span> <span class="p">[])</span>
+
+    <span class="n">assert_split_at_fraction_binary</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stats</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">stats</span><span class="o">.</span><span class="n">successful_fractions</span><span class="p">:</span>
+      <span class="n">any_successful_fractions</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">stats</span><span class="o">.</span><span class="n">non_trivial_fractions</span><span class="p">:</span>
+      <span class="n">any_non_trivial_fractions</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">all_non_trivial_fractions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">non_trivial_fractions</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">any_successful_fractions</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;SplitAtFraction test completed vacuously: no &#39;</span>
+                     <span class="s1">&#39;successful split fractions found&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">any_non_trivial_fractions</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s1">&#39;SplitAtFraction test completed vacuously: no non-trivial split &#39;</span>
+        <span class="s1">&#39;fractions found&#39;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">perform_multi_threaded_test</span><span class="p">:</span>
+    <span class="k">return</span>
+
+  <span class="n">num_total_trials</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_items</span><span class="p">)):</span>
+    <span class="n">non_trivial_fractions</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">]</span>  <span class="c1"># 2.0 is larger than any valid fraction.</span>
+    <span class="n">non_trivial_fractions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">all_non_trivial_fractions</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">min_non_trivial_fraction</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">non_trivial_fractions</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">min_non_trivial_fraction</span> <span class="o">==</span> <span class="mf">2.0</span><span class="p">:</span>
+      <span class="c1"># This will not happen all the time. Otherwise previous test will fail</span>
+      <span class="c1"># due to vacuousness.</span>
+      <span class="k">continue</span>
+
+    <span class="n">num_trials</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">have_success</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">have_failure</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">thread_pool</span> <span class="o">=</span> <span class="n">_ThreadPool</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">num_trials</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">num_trials</span> <span class="o">&gt;</span>
+            <span class="n">MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM</span><span class="p">):</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+              <span class="s1">&#39;After </span><span class="si">%d</span><span class="s1"> concurrent splitting trials at item #</span><span class="si">%d</span><span class="s1">, observed &#39;</span>
+              <span class="s1">&#39;only </span><span class="si">%s</span><span class="s1">, giving up on this item&#39;</span><span class="p">,</span>
+              <span class="n">num_trials</span><span class="p">,</span>
+              <span class="n">i</span><span class="p">,</span>
+              <span class="s1">&#39;success&#39;</span> <span class="k">if</span> <span class="n">have_success</span> <span class="k">else</span> <span class="s1">&#39;failure&#39;</span>
+          <span class="p">)</span>
+          <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">_assert_split_at_fraction_concurrent</span><span class="p">(</span>
+            <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">min_non_trivial_fraction</span><span class="p">,</span> <span class="n">thread_pool</span><span class="p">):</span>
+          <span class="n">have_success</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">have_failure</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">have_success</span> <span class="ow">and</span> <span class="n">have_failure</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> trials to observe both success and failure of &#39;</span>
+                       <span class="s1">&#39;concurrent splitting at item #</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">num_trials</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+          <span class="k">break</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="n">thread_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">num_total_trials</span> <span class="o">+=</span> <span class="n">num_trials</span>
+
+    <span class="k">if</span> <span class="n">num_total_trials</span> <span class="o">&gt;</span> <span class="n">MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;After </span><span class="si">%d</span><span class="s1"> total concurrent splitting trials, considered &#39;</span>
+                   <span class="s1">&#39;only </span><span class="si">%d</span><span class="s1"> items, giving up.&#39;</span><span class="p">,</span> <span class="n">num_total_trials</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+      <span class="k">break</span>
+
+  <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> total concurrent splitting trials for </span><span class="si">%d</span><span class="s1"> items&#39;</span><span class="p">,</span>
+               <span class="n">num_total_trials</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+
+<span class="k">def</span> <span class="nf">_assert_split_at_fraction_concurrent</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">num_items_to_read_before_splitting</span><span class="p">,</span>
+    <span class="n">split_fraction</span><span class="p">,</span> <span class="n">thread_pool</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+  <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+  <span class="n">stop_position_before_split</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+  <span class="n">reader</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span>
+  <span class="n">reader_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+  <span class="n">current_items</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_items_to_read_before_splitting</span><span class="p">):</span>
+    <span class="n">current_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">reader_iter</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">read_or_split</span><span class="p">(</span><span class="n">test_params</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">test_params</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+      <span class="k">return</span> <span class="p">[</span><span class="n">val</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">test_params</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">position</span> <span class="o">=</span> <span class="n">test_params</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span><span class="n">test_params</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">test_params</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">try_split</span><span class="p">(</span><span class="n">position</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">result</span>
+
+  <span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">pool</span> <span class="o">=</span> <span class="n">thread_pool</span> <span class="k">if</span> <span class="n">thread_pool</span> <span class="k">else</span> <span class="n">_ThreadPool</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">True</span><span class="p">,</span> <span class="n">reader_iter</span><span class="p">])</span>
+    <span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">False</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">])</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">read_or_split</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+  <span class="k">finally</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">thread_pool</span><span class="p">:</span>
+      <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+  <span class="n">current_items</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+  <span class="n">primary_range</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">(),</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">())</span>
+
+  <span class="n">split_result</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="n">residual_range</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">split_result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stop_position_before_split</span><span class="p">)</span> <span class="k">if</span> <span class="n">split_result</span> <span class="k">else</span> <span class="kc">None</span>
+
+  <span class="n">res</span> <span class="o">=</span> <span class="n">_verify_single_split_fraction_result</span><span class="p">(</span>
+      <span class="n">source</span><span class="p">,</span> <span class="n">expected_items</span><span class="p">,</span> <span class="n">current_items</span><span class="p">,</span> <span class="n">split_result</span><span class="p">,</span>
+      <span class="n">primary_range</span><span class="p">,</span> <span class="n">residual_range</span><span class="p">,</span> <span class="n">split_fraction</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
