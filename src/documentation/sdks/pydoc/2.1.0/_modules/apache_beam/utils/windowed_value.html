@@ -1,0 +1,211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.windowed_value &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.windowed_value</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Core windowing data structures.</span>
+
+<span class="sd">This module is experimental. No backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># This module is carefully crafted to have optimal performance when</span>
+<span class="c1"># compiled while still being valid Python.  Care needs to be taken when</span>
+<span class="c1"># editing this file as WindowedValues are created for every element for</span>
+<span class="c1"># every step in a Beam pipeline.</span>
+
+<span class="c1">#cython: profile=True</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MAX_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">Timestamp</span>
+
+
+<div class="viewcode-block" id="WindowedValue"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.windowed_value.WindowedValue">[docs]</a><span class="k">class</span> <span class="nc">WindowedValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A windowed value having a value, a timestamp and set of windows.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    value: The underlying value of a windowed value.</span>
+<span class="sd">    timestamp: Timestamp associated with the value as seconds since Unix epoch.</span>
+<span class="sd">    windows: A set (iterable) of window objects for the value. The window</span>
+<span class="sd">      object are descendants of the BoundedWindow class.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">windows</span><span class="p">):</span>
+    <span class="c1"># For performance reasons, only timestamp_micros is stored by default</span>
+    <span class="c1"># (as a C int). The Timestamp object is created on demand below.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">=</span> <span class="n">timestamp</span> <span class="o">*</span> <span class="mi">1000000</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_object</span> <span class="o">=</span> <span class="p">(</span><span class="n">timestamp</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">Timestamp</span><span class="p">)</span>
+                               <span class="k">else</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">timestamp</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_object</span><span class="o">.</span><span class="n">micros</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">windows</span> <span class="o">=</span> <span class="n">windows</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_object</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_object</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_micros</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_object</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+        <span class="s1">&#39;MIN_TIMESTAMP&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">==</span> <span class="n">MIN_TIMESTAMP</span> <span class="k">else</span>
+        <span class="s1">&#39;MAX_TIMESTAMP&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">==</span> <span class="n">MAX_TIMESTAMP</span> <span class="k">else</span>
+        <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span><span class="p">),</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">+</span> <span class="mi">7</span> <span class="o">*</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+
+  <span class="c1"># We&#39;d rather implement __eq__, but Cython supports that via __richcmp__</span>
+  <span class="c1"># instead.  Fortunately __cmp__ is understood by both (but not by Python 3).</span>
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>  <span class="c1"># pylint: disable=no-self-argument</span>
+    <span class="sd">&quot;&quot;&quot;Compares left and right for equality.</span>
+
+<span class="sd">    For performance reasons, doesn&#39;t actually impose an ordering</span>
+<span class="sd">    on unequal values (always returning 1).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">left</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">))</span>
+
+    <span class="c1"># TODO(robertwb): Avoid the type checks?</span>
+    <span class="c1"># Returns False (0) if equal, and True (1) if not.</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="n">WindowedValue</span><span class="o">.</span><span class="n">_typed_eq</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_typed_eq</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">left</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">==</span> <span class="n">right</span><span class="o">.</span><span class="n">timestamp_micros</span>
+            <span class="ow">and</span> <span class="n">left</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">right</span><span class="o">.</span><span class="n">value</span>
+            <span class="ow">and</span> <span class="n">left</span><span class="o">.</span><span class="n">windows</span> <span class="o">==</span> <span class="n">right</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WindowedValue.with_value"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.windowed_value.WindowedValue.with_value">[docs]</a>  <span class="k">def</span> <span class="nf">with_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a new WindowedValue with the same timestamps and windows as this.</span>
+
+<span class="sd">    This is the fasted way to create a new WindowedValue.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">create</span><span class="p">(</span><span class="n">new_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp_micros</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">WindowedValue</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span></div>
+
+
+<span class="c1"># TODO(robertwb): Move this to a static method.</span>
+<div class="viewcode-block" id="create"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.windowed_value.create">[docs]</a><span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">timestamp_micros</span><span class="p">,</span> <span class="n">windows</span><span class="p">):</span>
+  <span class="n">wv</span> <span class="o">=</span> <span class="n">WindowedValue</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">WindowedValue</span><span class="p">)</span>
+  <span class="n">wv</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+  <span class="n">wv</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">=</span> <span class="n">timestamp_micros</span>
+  <span class="n">wv</span><span class="o">.</span><span class="n">windows</span> <span class="o">=</span> <span class="n">windows</span>
+  <span class="k">return</span> <span class="n">wv</span></div>
+
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="n">WindowedValue</span><span class="o">.</span><span class="n">timestamp_object</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+  <span class="c1"># When we&#39;re compiled, we can&#39;t dynamically add attributes to</span>
+  <span class="c1"># the cdef class, but in this case it&#39;s OK as it&#39;s already present</span>
+  <span class="c1"># on each instance.</span>
+  <span class="k">pass</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
