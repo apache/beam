@@ -151,7 +151,7 @@
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
-    <snappy-java.version>1.1.4-M3</snappy-java.version>
+    <snappy-java.version>1.1.4</snappy-java.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
