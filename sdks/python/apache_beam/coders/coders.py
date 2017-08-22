@@ -202,25 +202,65 @@ class Coder(object):
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
-  def to_runner_api(self, context):
-    """For internal use only; no backwards-compatibility guarantees.
+  _known_urns = {}
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, fn=None):
+    """Registeres a urn with a constructor.
+
+    For example, if 'beam:fn:foo' had paramter type FooPayload, one could
+    write `RunnerApiFn.register_urn('bean:fn:foo', FooPayload, foo_from_proto)`
+    where foo_from_proto took as arguments a FooPayload and a PipelineContext.
+    This function can also be used as a decorator rather than passing the
+    callable in as the final parameter.
+
+    A corresponding to_runner_api_parameter method would be expected that
+    returns the tuple ('beam:fn:foo', FooPayload)
     """
-    # TODO(BEAM-115): Use specialized URNs and components.
-    serialized_coder = serialize_coder(self)
+    def register(fn):
+      cls._known_urns[urn] = parameter_type, fn
+      return staticmethod(fn)
+    if fn:
+      # Used as a statement.
+      register(fn)
+    else:
+      # Used as a decorator.
+      return register
+
+  def to_runner_api(self, context):
+    from apache_beam.portability.api import beam_runner_api_pb2
+    urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urns.PICKLED_CODER,
-                any_param=proto_utils.pack_Any(
-                    google.protobuf.wrappers_pb2.BytesValue(
-                        value=serialized_coder)),
-                payload=serialized_coder)))
+                urn=urn,
+                any_param=proto_utils.pack_Any(typed_param),
+                payload=typed_param.SerializeToString()
+                if typed_param is not None else None)),
+        component_coder_ids=[context.coders.get_id(c) for c in components])
 
-  @staticmethod
-  def from_runner_api(proto, context):
-    """For internal use only; no backwards-compatibility guarantees.
+  @classmethod
+  def from_runner_api(cls, coder_proto, context):
+    """Converts from an SdkFunctionSpec to a Fn object.
+
+    Prefer registering a urn with its parameter type and constructor.
     """
-    return deserialize_coder(proto.spec.spec.payload)
+    parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
+    return constructor(
+        proto_utils.parse_Bytes(coder_proto.spec.spec.payload, parameter_type),
+        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
+        context)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.PICKLED_CODER,
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        ())
+
+
+@Coder.register_urn(urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
+def _pickle_from_runner_api_parameter(payload, components, context):
+  return deserialize_coder(payload.value)
 
 
 class StrUtf8Coder(Coder):
