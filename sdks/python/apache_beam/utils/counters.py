@@ -23,40 +23,56 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from collections import namedtuple
 import threading
+
 from apache_beam.transforms import cy_combiners
 
 
-class CounterName(object):
+# Information identifying the IO being measured by a counter.
+IOTargetName = namedtuple('IOTargetName', ['side_input_step_name',
+                                           'side_input_index',
+                                           'original_shuffle_step_name'])
+
+
+def side_input_id(step_name, input_index):
+  """Create an IOTargetName that identifies the reading of a side input."""
+  return IOTargetName(step_name, input_index, None)
+
+
+def shuffle_id(step_name):
+  """Create an IOTargetName that identifies a GBK step."""
+  return IOTargetName(None, None, step_name)
+
+
+_CounterName = namedtuple('_CounterName', ['name',
+                                           'stage_name',
+                                           'step_name',
+                                           'system_name',
+                                           'namespace',
+                                           'origin',
+                                           'output_index',
+                                           'io_target'])
+
+
+class CounterName(_CounterName):
   """Naming information for a counter."""
   SYSTEM = object()
   USER = object()
 
-  def __init__(self, name, stage_name=None, step_name=None,
-               system_name=None, namespace=None,
-               origin=None, output_index=None):
-    self.name = name
-    self.origin = origin or CounterName.SYSTEM
-    self.namespace = namespace
-    self.stage_name = stage_name
-    self.step_name = step_name
-    self.system_name = system_name
-    self.output_index = output_index
-
-  def __hash__(self):
-    return hash((self.name,
-                 self.origin,
-                 self.namespace,
-                 self.stage_name,
-                 self.step_name,
-                 self.system_name,
-                 self.output_index))
+  def __new__(cls, name, stage_name=None, step_name=None,
+              system_name=None, namespace=None,
+              origin=None, output_index=None, io_target=None):
+    origin = origin or CounterName.SYSTEM
+    return super(CounterName, cls).__new__(cls, name, stage_name, step_name,
+                                           system_name, namespace,
+                                           origin, output_index, io_target)
 
   def __str__(self):
     return '%s' % self._str_internal()
 
   def __repr__(self):
-    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
+    return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
     if self.origin == CounterName.USER:
