@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,7 +44,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   private static final long serialVersionUID = -4109539010014189725L;
   private final DoFn<InputT, OutputT> fn;
-  private final byte[] serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
   private final Collection<PCollectionView<?>> sideInputs;
   private final DoFnRunners.OutputManager outputManager;
   private final TupleTag<OutputT> mainOutputTag;
@@ -61,7 +62,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       StepContext stepContext,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = doFn;
-    this.serializedOptions = TranslatorUtils.serializePipelineOptions(pipelineOptions);
+    this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.sideInputs = sideInputs;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
@@ -72,7 +73,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
       ReadyCheckingSideInputReader sideInputReader) {
-    PipelineOptions options = TranslatorUtils.deserializePipelineOptions(serializedOptions);
+    PipelineOptions options = serializedOptions.get();
     DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
         options, fn, sideInputReader, outputManager, mainOutputTag,
         sideOutputTags, stepContext, windowingStrategy);
