@@ -42,6 +42,9 @@ sdks/python/apache_beam/portability/api/*pb2*.*
 .apt_generated/
 .settings/
 
+# Ignore Visual Studio Code files.
+.vscode/
+
 # The build process generates the dependency-reduced POM, but it shouldn't be
 # committed.
 dependency-reduced-pom.xml
