@@ -43,12 +43,15 @@ import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Test for dependency resolution for pipeline execution on YARN.
  */
 public class ApexYarnLauncherTest {
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void testGetYarnDeployDependencies() throws Exception {
@@ -119,10 +122,9 @@ public class ApexYarnLauncherTest {
 
   @Test
   public void testCreateJar() throws Exception {
-    File baseDir = new File("./target/testCreateJar");
-    File srcDir = new File(baseDir, "src");
+    File baseDir = tmpFolder.newFolder("target", "testCreateJar");
+    File srcDir = tmpFolder.newFolder("target", "testCreateJar", "src");
     String file1 = "file1";
-    FileUtils.forceMkdir(srcDir);
     FileUtils.write(new File(srcDir, file1), "file1");
 
     File jarFile = new File(baseDir, "test.jar");
@@ -134,6 +136,5 @@ public class ApexYarnLauncherTest {
       Assert.assertTrue("manifest", Files.isRegularFile(zipfs.getPath(JarFile.MANIFEST_NAME)));
       Assert.assertTrue("file1", Files.isRegularFile(zipfs.getPath(file1)));
     }
-
   }
 }

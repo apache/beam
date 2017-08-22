@@ -165,6 +165,7 @@
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
+    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -270,6 +271,11 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
+          </plugin>
+
+          <plugin>
+            <groupId>io.github.zlika</groupId>
+            <artifactId>reproducible-build-maven-plugin</artifactId>
           </plugin>
         </plugins>
       </build>
@@ -1410,6 +1416,7 @@
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
             <use>false</use>
             <quiet>true</quiet>
+            <notimestamp>true</notimestamp>
           </configuration>
         </plugin>
 
@@ -1769,6 +1776,19 @@
                   </regexPropertySetting>
                 </regexPropertySettings>
               </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>io.github.zlika</groupId>
+          <artifactId>reproducible-build-maven-plugin</artifactId>
+          <version>${reproducible-build-maven-plugin.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>strip-jar</goal>
+              </goals>
             </execution>
           </executions>
         </plugin>
