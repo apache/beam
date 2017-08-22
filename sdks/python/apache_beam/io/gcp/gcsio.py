@@ -105,7 +105,7 @@ class GcsIO(object):
   def __new__(cls, storage_client=None):
     if storage_client:
       # This path is only used for testing.
-      return super(GcsIO, cls).__new__(cls, storage_client)
+      return super(GcsIO, cls).__new__(cls)
     else:
       # Create a single storage client for each thread.  We would like to avoid
       # creating more than one storage client for each thread, since each
