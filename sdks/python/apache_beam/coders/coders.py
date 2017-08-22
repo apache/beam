@@ -228,7 +228,6 @@ class Coder(object):
       return register
 
   def to_runner_api(self, context):
-    from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
@@ -256,6 +255,22 @@ class Coder(object):
         urns.PICKLED_CODER,
         google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
+
+  @staticmethod
+  def register_simple_urn(urn, cls):
+    """Register a coder that's completely defined by its urn and its
+    component(s), if any, which are passed to construct the instance.
+    """
+    cls.to_runner_api_parameter = (
+        lambda self, unused_context: (urn, None, self._get_component_coders()))
+
+    # pylint: disable=unused-variable
+    @Coder.register_urn(urn, None)
+    def from_runner_api_parameter(unused_payload, components, unused_context):
+      if components:
+        return cls(*components)
+      else:
+        return cls()
 
 
 @Coder.register_urn(urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
@@ -337,6 +352,9 @@ class BytesCoder(FastCoder):
     return hash(type(self))
 
 
+Coder.register_simple_urn(urns.BYTES_CODER, BytesCoder)
+
+
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
 
@@ -351,6 +369,9 @@ class VarIntCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_simple_urn(urns.VAR_INT_CODER, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -757,6 +778,9 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
+Coder.register_simple_urn(urns.ITERABLE_CODER, IterableCoder)
+
+
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
 
@@ -768,6 +792,9 @@ class GlobalWindowCoder(SingletonCoder):
     return {
         '@type': 'kind:global_window',
     }
+
+
+Coder.register_simple_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -789,6 +816,9 @@ class IntervalWindowCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_simple_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -847,6 +877,9 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
+Coder.register_simple_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+
+
 class LengthPrefixCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -886,3 +919,6 @@ class LengthPrefixCoder(FastCoder):
 
   def __hash__(self):
     return hash((type(self), self._value_coder))
+
+
+Coder.register_simple_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
