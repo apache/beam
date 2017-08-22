@@ -24,7 +24,41 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import threading
+
 from apache_beam.transforms import cy_combiners
+
+
+class IOTargetName(object):
+
+  def __init__(self,
+               side_input_step_name=None,
+               side_input_index=None,
+               original_shuffle_step_name=None):
+    self.side_input_step_name = side_input_step_name,
+    self.side_input_index = side_input_index
+    self.original_shuffle_step_name = original_shuffle_step_name
+
+  @staticmethod
+  def side_input_id(step_name, input_index):
+    return IOTargetName(step_name, input_index)
+
+  @staticmethod
+  def shuffle_id(step_name):
+    return IOTargetName(original_shuffle_step_name=step_name)
+
+  def _tupl_internal(self):
+    return (self.side_input_step_name,
+            self.side_input_index,
+            self.original_shuffle_step_name)
+
+  def __hash__(self):
+    return hash(self._tupl_internal())
+
+  def __eq__(self, other):
+    return self._tupl_internal() == other._tupl_internal()
+
+  def __ne__(self, other):
+    return not self._tupl_internal() == other._tupl_internal()
 
 
 class CounterName(object):
@@ -34,7 +68,7 @@ class CounterName(object):
 
   def __init__(self, name, stage_name=None, step_name=None,
                system_name=None, namespace=None,
-               origin=None, output_index=None):
+               origin=None, output_index=None, io_target=None):
     self.name = name
     self.origin = origin or CounterName.SYSTEM
     self.namespace = namespace
@@ -42,21 +76,32 @@ class CounterName(object):
     self.step_name = step_name
     self.system_name = system_name
     self.output_index = output_index
+    self.io_target = io_target
+
+  def __eq__(self, other):
+    return self._tupl_internal() == other._tupl_internal()
+
+  def __ne__(self, other):
+    return not self == other
 
   def __hash__(self):
-    return hash((self.name,
-                 self.origin,
-                 self.namespace,
-                 self.stage_name,
-                 self.step_name,
-                 self.system_name,
-                 self.output_index))
+    return hash(self._tupl_internal())
+
+  def _tupl_internal(self):
+    return (self.name,
+            self.origin,
+            self.namespace,
+            self.stage_name,
+            self.step_name,
+            self.system_name,
+            self.output_index,
+            self.io_target)
 
   def __str__(self):
     return '%s' % self._str_internal()
 
   def __repr__(self):
-    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
+    return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
     if self.origin == CounterName.USER:
