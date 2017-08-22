@@ -109,6 +109,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
     <bigtable.version>1.0.0-pre3</bigtable.version>
+    <byte-buddy.version>1.7.5</byte-buddy.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -1140,7 +1141,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.6.8</version>
+        <version>${byte-buddy.version}</version>
       </dependency>
 
       <dependency>
