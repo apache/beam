@@ -143,7 +143,7 @@
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
-    <slf4j.version>1.7.14</slf4j.version>
+    <slf4j.version>1.7.25</slf4j.version>
     <spanner.version>0.20.0-beta</spanner.version>
     <spark.version>1.6.3</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
