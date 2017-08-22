@@ -58,6 +58,9 @@ class _ExecutorService(object):
       self._default_name = 'ExecutorServiceWorker-' + str(index)
       self._update_name()
       self.shutdown_requested = False
+
+      # Stop worker thread when main thread exits.
+      self.daemon = True
       self.start()
 
     def _update_name(self, task=None):
@@ -78,7 +81,6 @@ class _ExecutorService(object):
         return None
 
     def run(self):
-
       while not self.shutdown_requested:
         task = self._get_task_or_none()
         if task:
@@ -460,9 +462,17 @@ class _ExecutorServiceParallelExecutor(object):
         return None
 
     def take(self):
-      item = self._queue.get()
-      self._queue.task_done()
-      return item
+      # The implementation of Queue.Queue.get() does not propagate
+      # KeyboardInterrupts when a timeout is not used.  We therefore use a
+      # one-second timeout in the following loop to allow KeyboardInterrupts
+      # to be correctly propagated.
+      while True:
+        try:
+          item = self._queue.get(timeout=1)
+          self._queue.task_done()
+          return item
+        except Queue.Empty:
+          pass
 
     def offer(self, item):
       assert isinstance(item, self._item_type)
