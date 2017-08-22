@@ -1811,7 +1811,7 @@ public class KafkaIO {
     //     and id, it implies that record and the associated id are checkpointed to persistent
     //     storage and this record will always have same id, even in retries.
     //     Exactly-once semantics are achieved by writing records in the strict order of
-    //     these checkpointed sequence ids.
+    //     these check-pointed sequence ids.
     //
     // Parallelism for B and C is fixed to 'numShards', which defaults to number of partitions
     // for the topic. A few reasons for that:
